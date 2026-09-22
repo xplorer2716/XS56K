@@ -1,0 +1,585 @@
+sec	kind	item	dec	rt	fn	d1	d2	desc	group	tbl	pdf	doc	md
+00	C	&00	0	RT		N/A	N/A	“Query” — use with user-selectable DeviceID=0 to get an “OK!” and a “DONE” reply with DeviceID returned.		5	14	10	451
+00	C	&01	1	RT		0, 1	N/A	Enable/Disable received message notification (“OK!”): 0=OFF, 1=ON		5	14	10	454
+00	C	&03	3	RT	a	0, 1	N/A	Enable/Disable synchronisation between the currently selected samples/programs/multis and those displayed on the LCD. 0=OFF, 1=ON		5	14	10	457
+00	C	&04	4	RT		0, 1	N/A	Enable/Disable checksum verification: 0=OFF, 1=ON		5	14	10	461
+00	C	&05	5	RT		0, 1	N/A	Enable/Disable automatic screen updating when a SysEx message is processed: 0=OFF, 1=ON		5	14	10	463
+00	C	&06	6	RT		0–127	0–127, ; <Data3>=0–127, ; <Data4>=0–127	Echo Message: a special test function which will echo all 4 data bytes by returning them as a Reply. This is useful when debugging a controlling program.		5	14	10	466
+00	C	&07	7	RT	b	0, 1	N/A	Enable/Disable “Still Alive” monitor: 0=OFF, 1=ON		5	14	10	470
+02	C	&00	0			N/A	N/A	Get Operating System Software Version.		6	14	10	482
+02	C	&01	1		a	N/A	N/A	Get the Sub-Version of the Operating System		6	14	10	483
+02	C	&02	2	RT		char1	…0	Set sampler Name. Must end in a zero.		6	14	10	484
+02	C	&03	3	RT	b	N/A	N/A	Get sampler Name. The name is returned as a character string in a REPLY message.		6	14	10	486
+02	C	&04	4	RT		N/A	N/A	Get Sampler Model: REPLY message: 0=S5000, 1=S6000.		6	14	10	489
+02	C	&05	5			N/A	N/A	Get Clock Time & Date		6	14	10	491
+02	C	&06	6			0–16 (MSB year)	0–127 (LSB year) ; <Data3>=1–12 ; … ; <Data8>=0–59	Set Clock Time & Date: <Data1>, <Data2> = Year(1980–2079), <Data3> = Month(1–12), <Data4> = DayOfMonth(1–31), <Data5> = DayOfWeek(1–7, 1=Sunday), <Data6> = Hours(0–23), <Data7> = Minutes(0–59), <Data8> = Seconds(0–59).		6	15	11	498
+02	C	&10	16			0, 1, 2	N/A	Set Play Mode: <Data1> = Play Mode to change to: 0=Multi, 1=Program; 2=Sample; 3=Muted.		6	15	11	503
+02	C	&11	17			0, 1	N/A	Set Front panel lock-out state. 0=normal; 1=locked.		6	15	11	505
+02	C	&20	32			N/A	N/A	Get Play Mode currently set.		6	15	11	506
+02	C	&21	33			N/A	N/A	Get Front panel lock-out state.		6	15	11	508
+02	C	&30	48			N/A	N/A	Get the percentage free Wave memory.		6	15	11	509
+02	C	&31	49			N/A	N/A	Get the percentage free MPKS (multis, programs, keygroups and samples) memory.		6	15	11	510
+02	C	&32	50			N/A	N/A	Clear Sampler Memory: all programs/multis/samples are deleted.		6	15	11	512
+02	C	&33	51			N/A	N/A	Get the Total number of bytes of Wave memory.		6	15	11	513
+02	C	&34	52			N/A	N/A	Get the number of bytes of free Wave memory.		6	15	11	514
+02	R	&00	0			0–127	0–127	Operating System Version: <Data1>=major version number, <Data2>=minor version number		7	15	11	524
+02	R	&01	1			0–127	N/A	Operating System Sub-Version. <Data1>=sub-version		7	15	11	526
+02	R	&03	3			char1	…0	Character string representing the sampler’s name (ends in a zero).		7	15	11	527
+02	R	&04	4			0, 1	N/A	Sampler Model. 0=S5000; 1=S6000.		7	15	11	528
+02	R	&05	5			0–16 (MSB year)	0–127 (LSB year) ; <Data3>=1–12 ; … ; <Data8>=0–59	Get Clock Time & Date: <Data1>, <Data2> = Year(1980–2079), <Data3> = Month(1–12), <Data4> = DayOfMonth(1–31), <Data5> = DayOfWeek(1–7, 1=Sunday), <Data6> = Hours(0–23), <Data7> = Minutes(0–59), <Data8> = Seconds(0–59).		7	15	11	530
+02	R	&20	32			0, 1, 2	N/A	Returns the current Play Mode: 0=Multi, 1=Program; 2=Sample; 3=Muted		7	15	11	506
+02	R	&21	33			0, 1	N/A	Returns the front-panel lock-out state: 0=normal; 1=locked.		7	15	11	537
+02	R	&30	48			0–100	N/A	Returns the % of Wave memory free (0–100%).		7	15	11	538
+02	R	&31	49			0–100	N/A	Returns the % of MPKS memory free (0–100%).		7	15	11	539
+02	R	&33	51			0–127(MSB)	…0–127(LSB)	A Compound Double Word (see page 9) representing the total bytes of wave memory installed.		7	15	11	540
+02	R	&34	52			0–127(MSB)	…0–127(LSB)	A Compound Double Word (see page 9) representing the free bytes of wave memory.		7	15	11	542
+04	C	&01	1	RT		0, 1	N/A	Program Change Enable: 0=OFF, 1=ON		8	16	12	553
+04	C	&02	2	RT		0, 1, 2	N/A	Multi Select: 0=OFF, 1=PROG CHANGE, 2=BANK		8	16	12	555
+04	C	&03	3	RT		0–31	N/A	Multi Select Channel: 1A=0, 2A=1, …, 16B=31		8	16	12	557
+04	C	&04	4	RT		0–127	N/A	External APM Controller		8	16	12	560
+04	C	&05	5	RT		0, 1	N/A	Aftertouch: 0=Channel, 1=Polyphonic		8	16	12	562
+04	C	&06	6	RT		0–3	0–31	Enable MIDI filter for Port A & B. (allow messages) <Data1> : 0=NoteOn, 1=Aft’tch, 2=Wheels, 3=Volume <Data2> : Channel: 1A=0, 2A=1, …, 16B=31		8	16	12	563
+04	C	&07	7	RT		0–3	0–31	Disable MIDI filter for Port A & B. (ignore messages) <Data1> : 0=NoteOn, 1=Aft’tch, 2=Wheels, 3=Volume <Data2> : Channel: 1A=0, 2A=1, …, 16B=31		8	16	12	567
+06	C	&01	1			0, 1–4	char1…0	Set Zone Sample <Data2…0> = name of sample to assign to zone.	Setting Zone Parameters	9	16	12	584
+06	C	&02	2	RT		0, 1–4	0, 1 ; <Data3>0–100	Set Zone Level <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Setting Zone Parameters	9	16	12	585
+06	C	&03	3	RT		0, 1–4	14–114	Set Zone Pan/Balance <Data2> = Pan/Bal, where (14–114 = L50–R50); centre=&40{64}	Setting Zone Parameters	9	16	12	590
+06	C	&04	4			0, 1–4	0–24	Set Zone Output <Data2> = output, where 0=MULTI, 1–8 =op1/2–op15/16, 9–24=op1–op16	Setting Zone Parameters	9	16	12	593
+06	C	&05	5	RT		0, 1–4	0, 1 ; <Data3>0–100	Set Zone Filter <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Setting Zone Parameters	9	16	12	596
+06	C	&06	6	RT		0, 1–4	0, 1 ; <Data3>0–50	Set Zone Fine Tune <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Setting Zone Parameters	9	16	12	571
+06	C	&07	7	RT		0, 1–4	0, 1 ; <Data3>0–36	Set Zone Semitone Tune <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Setting Zone Parameters	9	16	12	605
+06	C	&08	8			0, 1–4	0, 1	Set Zone Keyboard Track <Data2> = (0=OFF, 1=ON)	Setting Zone Parameters	9	16	12	609
+06	C	&09	9			0, 1–4	0–6	Set Zone Playback <Data2> = mode, where 0=NO LOOPING, 1=ONE SHOT 2=LOOP IN REL, 3=LOOP UNTIL REL, 4=LIR→RETRIG, 5=PLAY→RETRIG, 6=AS SAMPLE	Setting Zone Parameters	9	17	13	617
+06	C	&0A	10			0, 1–4	0, 1 ; <Data3>(MSB) ; <Data4>(LSB) ; (range ±9999)	Set Zone Velocity→Start <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value (MSB), <Data4> = absolute value (LSB), (abs. value = LSB+128×MSB)	Setting Zone Parameters	9	17	13	621
+06	C	&0B	11			0, 1–4	0–127	Set Zone High Velocity <Data2> = velocity	Setting Zone Parameters	9	17	13	628
+06	C	&0C	12			0, 1–4	0–127	Set Zone Low Velocity <Data2> = velocity	Setting Zone Parameters	9	17	13	629
+06	C	&0D	13			0, 1–4	0, 1	Set Zone Mute <Data2> = (0=OFF, 1=ON)	Setting Zone Parameters	9	17	13	630
+06	C	&0E	14			0, 1–4	0, 1	Set Zone Solo <Data2> = (0=OFF, 1=ON)	Setting Zone Parameters	9	17	13	632
+06	C	&21	33			0, 1–4	N/A	Get Zone Sample	Getting Zone Parameters	9	17	13	634
+06	C	&22	34			0, 1–4	N/A	Get Zone Level	Getting Zone Parameters	9	17	13	636
+06	C	&23	35			0, 1–4	N/A	Get Zone Pan/Balance	Getting Zone Parameters	9	17	13	637
+06	C	&24	36			0, 1–4	N/A	Get Zone Output	Getting Zone Parameters	9	17	13	638
+06	C	&25	37			0, 1–4	N/A	Get Zone Filter	Getting Zone Parameters	9	17	13	639
+06	C	&26	38			0, 1–4	N/A	Get Zone Fine Tune	Getting Zone Parameters	9	17	13	640
+06	C	&27	39			0, 1–4	N/A	Get Zone Semitone Tune	Getting Zone Parameters	9	17	13	641
+06	C	&28	40			0, 1–4	N/A	Get Zone Keyboard Track	Getting Zone Parameters	9	17	13	642
+06	C	&29	41			0, 1–4	N/A	Get Zone Playback	Getting Zone Parameters	9	17	13	643
+06	C	&2A	42			0, 1–4	N/A	Get Zone Velocity→Start	Getting Zone Parameters	9	17	13	645
+06	C	&2B	43			0, 1–4	N/A	Get Zone High Velocity	Getting Zone Parameters	9	17	13	647
+06	C	&2C	44			0, 1–4	N/A	Get Zone Low Velocity	Getting Zone Parameters	9	17	13	648
+06	C	&2D	45			0, 1–4	N/A	Get Zone Mute	Getting Zone Parameters	9	17	13	649
+06	C	&2E	46			0, 1–4	N/A	Get Zone Solo	Getting Zone Parameters	9	17	13	650
+06	R	&21	33			char1	…0	Get Zone Sample <Data1…0> = name of sample assigned to zone. If no sample is assigned, a single byte (<Data1>=0) will be returned.	Getting Zone Parameters	10	18	14	672
+06	R	&22	34			0, 1	0–100	Get Zone Level <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Getting Zone Parameters	10	18	14	674
+06	R	&23	35			14–114	N/A	Get Zone Pan/Balance <Data1> = Pan/Bal, where (14–114 = L50–R50); centre=&40{64}	Getting Zone Parameters	10	18	14	677
+06	R	&24	36			0–24	N/A	Get Zone Output <Data1> = output, where 0=MULTI, 1–8 =op1/2–op15/16, 9–24=op1–op16	Getting Zone Parameters	10	18	14	679
+06	R	&25	37			0, 1	0–100	Get Zone Filter <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Getting Zone Parameters	10	18	14	682
+06	R	&26	38			0, 1	0–50	Get Zone Fine Tune <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Getting Zone Parameters	10	18	14	685
+06	R	&27	39			0, 1	0–36	Set Zone Semitone Tune <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Getting Zone Parameters	10	18	14	688
+06	R	&28	40			0, 1	N/A	Get Zone Keyboard Track <Data1> = (0=OFF, 1=ON)	Getting Zone Parameters	10	18	14	691
+06	R	&29	41			0–6	N/A	Get Zone Playback <Data1> = mode, where 0=NO LOOPING, 1=ONE SHOT 2=LOOP IN REL, 3=LOOP UNTIL REL, 4=LIR→RETRIG, 5=PLAY→RETRIG, 6=AS SAMPLE	Getting Zone Parameters	10	18	14	692
+06	R	&2A	42			0, 1	<Data2>(MSB) ; <Data3>(LSB) ; (range ±9999)	Get Zone Velocity→Start <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value (MSB), <Data3> = absolute value (LSB), (abs. value = LSB+128×MSB)	Getting Zone Parameters	10	18	14	696
+06	R	&2B	43			0–127	N/A	Get Zone High Velocity <Data1> = velocity	Getting Zone Parameters	10	18	14	703
+06	R	&2C	44			0–127	N/A	Get Zone Low Velocity <Data1> = velocity	Getting Zone Parameters	10	18	14	705
+06	R	&2D	45			0, 1	N/A	Get Zone Mute <Data1> = (0=OFF, 1=ON)	Getting Zone Parameters	10	18	14	706
+06	R	&2E	46			0, 1	N/A	Get Zone Solo <Data1> = (0=OFF, 1=ON)	Getting Zone Parameters	10	18	14	707
+08	C	&01	1			0, 1–99	N/A	Select Keygroup to be current <Data1> = Keygroup number. If <Data1> = 0, then ALL Keygroups will be selected.		11	19	15	722
+08	C	&02	2			N/A	N/A	Get which Keygroup is currently selected.		11	19	15	724
+08	C	&04	4			21–127	N/A	Set Low Note. <Data1> = note, where: 21–127 = A-1–G8	Setting General Options	11	19	15	727
+08	C	&05	5			21–127	N/A	Set High Note. <Data1> = note, where: 21–127 = A-1–G8	Setting General Options	11	19	15	728
+08	C	&06	6			0, 1–32	N/A	Set Mute Group <Data1> = (0=OFF, 1–32=value)	Setting General Options	11	19	15	729
+08	C	&07	7			0, 1–4	N/A	Set FX override <Data1> = (0=OFF, 1=FX1, 2=FX2, 3=RV3, 4=RV4)	Setting General Options	11	19	15	730
+08	C	&08	8			0–100	N/A	Set FX Send Level <Data1> = level	Setting General Options	11	19	15	731
+08	C	&09	9			0, 1	N/A	Set Zone Crossfade <Data1> = (0=OFF, 1=ON)	Setting General Options	11	19	15	733
+08	C	&0A	10			N/A	N/A	Get Low Note	Getting General Options	11	19	15	735
+08	C	&0B	11			N/A	N/A	Get High Note	Getting General Options	11	19	15	737
+08	C	&0C	12			N/A	N/A	Get Mute Group	Getting General Options	11	19	15	738
+08	C	&0D	13			N/A	N/A	Get FX override	Getting General Options	11	19	15	739
+08	C	&0E	14			N/A	N/A	Get FX Send Level	Getting General Options	11	19	15	740
+08	C	&0F	15			N/A	N/A	Get Zone Crossfade	Getting General Options	11	19	15	741
+08	C	&10	16	RT		0, 1	0–36	Set Semitone Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Keygroup Pitch/Amp	11	19	15	743
+08	C	&11	17	RT		0, 1	0–50	Set Fine Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Keygroup Pitch/Amp	11	19	15	747
+08	C	&12	18	RT		0–10	N/A	Set Keygroup Level <Data1> = value in dB, where: 0=−30dB, 1=−24dB, 2=−18dB, 3=−12dB, 4=−6dB, 5=0dB 6=6dB, 7=12dB, 8=18dB, 9=24dB, 10=30dB.	Set Keygroup Pitch/Amp	11	19	15	751
+08	C	&13	19	RT		1, 2	0, 1 ; <Data3>0–100	Set Pitch Mod Value. <Data1> = Pitch Mod (1 or 2) <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Set Keygroup Pitch/Amp	11	19	15	755
+08	C	&14	20	RT		1	0, 1 ; <Data3>0–100	Set Amp Mod Value. <Data1> = Amp Mod (1 only) <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Set Keygroup Pitch/Amp	11	19	15	759
+08	C	&18	24			N/A	N/A	Get Semitone Tune.	Get Keygroup Pitch/Amp	11	19	15	764
+08	C	&19	25			N/A	N/A	Get Fine Tune.	Get Keygroup Pitch/Amp	11	19	15	766
+08	C	&1A	26			N/A	N/A	Get Keygroup Level.	Get Keygroup Pitch/Amp	11	19	15	767
+08	C	&1B	27			1, 2	N/A	Get Pitch Mod Value. <Data1> = Pitch Mod (1 or 2)	Get Keygroup Pitch/Amp	11	19	15	768
+08	C	&1C	28			1	N/A	Get Amp Mod Value. <Data1> = Amp Mod (1 only)	Get Keygroup Pitch/Amp	11	20	16	775
+08	C	&20	32			0–25	N/A	Set Filter Mode <Data1> = mode, where: 0=2-POLE LP, 1=4-POLE LP, 2=2-POLE LP+, 3=2-POLE BP, 4=4-POLE BP, 5=2-POLE BP+, 6=1-POLE HP, 7=2-POLE HP, 8=1-POLE HP+, 9=LO<>HI, 10=LO<>BAND, 11=BAND<>HI, 12=NOTCH 1, 13=NOTCH 2, 14=NOTCH 3, 15=WIDE NOTCH, 16=BI-NOTCH, 17=PEAK 1, 18=PEAK 2, 19=PEAK 3, 20=WIDE PEAK, 21=BI-PEAK, 22=PHASER 1, 23=PHASER 2, 24=BI-PHASE, 25=VOWELISER	Set Filter	11	20	16	777
+08	C	&21	33	RT		0–100	N/A	Set Filter Cutoff Frequency, <Data1> = value.	Set Filter	11	20	16	786
+08	C	&22	34	RT		0–15	N/A	Set Filter Resonance, <Data1> = value.	Set Filter	11	20	16	788
+08	C	&23	35	RT		0, 1	0–36	Set Filter Keyboard Track, <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Filter	11	20	16	791
+08	C	&24	36	RT		1, 2, 3	0, 1 ; <Data3>0–100	Set Filter Mod Input Value. <Data1> = Mod Input (1, 2 or 3) <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Set Filter	11	20	16	795
+08	C	&25	37	RT		0–5	N/A	Set Filter Attenuation. <Data1> = value, where: 0=0dB, 1=6dB, 2=12dB, 3=18dB, 4=24dB, 5=30dB.	Set Filter	11	20	16	798
+08	C	&28	40			N/A	N/A	Get Filter Mode	Get Filter	11	20	16	802
+08	C	&29	41			N/A	N/A	Get Filter Cutoff Frequency	Get Filter	11	20	16	804
+08	C	&2A	42			N/A	N/A	Get Filter Resonance	Get Filter	11	20	16	805
+08	C	&2B	43			N/A	N/A	Get Filter Keyboard Track	Get Filter	11	20	16	806
+08	C	&2C	44			1, 2, 3	N/A	Get Filter Mod Input Value. <Data1> = Mod Input (1, 2 or 3)	Get Filter	11	20	16	807
+08	C	&2D	45			N/A	N/A	Get Filter Attenuation.	Get Filter	11	20	16	808
+08	C	&30	48	RT		0–100	N/A	Set Filter Envelope Attack. <Data1> = value.	Set Filter Envelope	11	20	16	811
+08	C	&31	49			0, 1	0–100	Set Filter Envelope Velocity→Attack <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Filter Envelope	11	20	16	813
+08	C	&32	50	RT		0–100	N/A	Set Filter Envelope Decay <Data1> = value	Set Filter Envelope	11	20	16	816
+08	C	&33	51	RT		0–100	N/A	Set Filter Envelope Sustain <Data1> = value	Set Filter Envelope	11	20	16	819
+08	C	&34	52	RT		0–100	N/A	Set Filter Envelope Release <Data1> = value	Set Filter Envelope	11	20	16	821
+08	C	&35	53			0, 1	0–100	Set Filter Envelope On Velocity→Release <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Filter Envelope	11	20	16	824
+08	C	&36	54			0, 1	0–100	Set Filter Envelope Keyscale <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Filter Envelope	11	20	16	827
+08	C	&37	55	RT		0, 1	0–100	Set Filter Envelope Depth <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Filter Envelope	11	20	16	830
+08	C	&38	56			0, 1	0–100	Set Filter Envelope Off Velocity→Release <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Filter Envelope	11	20	16	834
+08	C	&40	64			N/A	N/A	Get Filter Envelope Attack.	Get Filter Envelope	11	20	16	838
+08	C	&41	65			N/A	N/A	Get Filter Envelope Velocity→Attack	Get Filter Envelope	11	20	16	841
+08	C	&42	66			N/A	N/A	Get Filter Envelope Decay	Get Filter Envelope	11	20	16	843
+08	C	&43	67			N/A	N/A	Get Filter Envelope Sustain	Get Filter Envelope	11	20	16	844
+08	C	&44	68			N/A	N/A	Get Filter Envelope Release	Get Filter Envelope	11	21	17	851
+08	C	&45	69			N/A	N/A	Get Filter Envelope On Velocity→Release	Get Filter Envelope	11	21	17	853
+08	C	&46	70			N/A	N/A	Get Filter Envelope Keyscale	Get Filter Envelope	11	21	17	855
+08	C	&47	71			N/A	N/A	Get Filter Envelope Depth	Get Filter Envelope	11	21	17	856
+08	C	&48	72			N/A	N/A	Get Filter Envelope Off Velocity→Release	Get Filter Envelope	11	21	17	858
+08	C	&50	80	RT		0–100	N/A	Set Amplitude Envelope Attack. <Data1> = value.	Set Amplitude Envelope	11	21	17	861
+08	C	&51	81			0, 1	0–100	Set Amplitude Envelope Velocity→Attack <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Amplitude Envelope	11	21	17	863
+08	C	&52	82	RT		0–100	N/A	Set Amplitude Envelope Decay <Data1> = value	Set Amplitude Envelope	11	21	17	866
+08	C	&53	83	RT		0–100	N/A	Set Amplitude Envelope Sustain <Data1> = value	Set Amplitude Envelope	11	21	17	868
+08	C	&54	84	RT		0–100	N/A	Set Amplitude Envelope Release <Data1> = value	Set Amplitude Envelope	11	21	17	870
+08	C	&55	85			0, 1	0–100	Set Amplitude Envelope On Velocity→Release <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Amplitude Envelope	11	21	17	872
+08	C	&56	86			0, 1	0–100	Set Amplitude Envelope Keyscale <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Amplitude Envelope	11	21	17	874
+08	C	&57	87			0, 1	0–100	Set Amplitude Envelope Off Velocity→Release <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Amplitude Envelope	11	21	17	878
+08	C	&58	88			N/A	N/A	Get Amplitude Envelope Attack	Get Amplitude Envelope	11	21	17	882
+08	C	&59	89			N/A	N/A	Get Amplitude Envelope Velocity→Attack	Get Amplitude Envelope	11	21	17	884
+08	C	&5A	90			N/A	N/A	Get Amplitude Envelope Decay	Get Amplitude Envelope	11	21	17	885
+08	C	&5B	91			N/A	N/A	Get Amplitude Envelope Sustain	Get Amplitude Envelope	11	21	17	886
+08	C	&5C	92			N/A	N/A	Get Amplitude Envelope Release	Get Amplitude Envelope	11	21	17	887
+08	C	&5D	93			N/A	N/A	Get Amplitude Envelope On Velocity→Release	Get Amplitude Envelope	11	21	17	888
+08	C	&5E	94			N/A	N/A	Get Amplitude Envelope Keyscale	Get Amplitude Envelope	11	21	17	889
+08	C	&5F	95			N/A	N/A	Get Amplitude Envelope Off Velocity→Release	Get Amplitude Envelope	11	21	17	890
+08	C	&60	96	RT		1, 2, 3, 4	0–100	Set Aux Env. Rate <Data1> = Aux. Rate (1, 2, 3 or 4) <Data2> = Rate value.	Set Aux Envelope	11	21	17	892
+08	C	&61	97			1, 4	0, 1 ; <Data3>0–100	Set Aux Env. Velocity→Rate <Data1> = Aux. Rate (1 or 4) <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Set Aux Envelope	11	21	17	896
+08	C	&62	98			0, 1	0–100	Set Aux Env. Keyboard→R2/R4 <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Set Aux Envelope	11	21	17	899
+08	C	&63	99	RT		1, 2, 3, 4	0–100	Set Aux Env. Level <Data1> = Aux. Level (1, 2, 3 or 4) <Data2> = Level value.	Set Aux Envelope	11	21	17	901
+08	C	&64	100			4	0, 1 ; <Data3>0–100	Set Aux Env. Velocity→Rate <Data1> = Aux. Rate (4 only) <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Set Aux Envelope	11	21	17	904
+08	C	&68	104			1, 2, 3, 4	N/A	Get Aux Env. Rate <Data1> = Aux. Rate (1, 2, 3 or 4)	Get Aux Envelope	11	21	17	908
+08	C	&69	105			1, 4	N/A	Get Aux Env. Velocity→Rate <Data1> = Aux. Rate (1 or 4)	Get Aux Envelope	11	21	17	910
+08	C	&6A	106			N/A	N/A	Get Aux Env. Keyboard→R2/R4	Get Aux Envelope	11	22	18	919
+08	C	&6B	107			1, 2, 3, 4	N/A	Get Aux Env. Level <Data1> = Aux. Level (1, 2, 3 or 4)	Get Aux Envelope	11	22	18	921
+08	C	&6C	107			4	N/A	Get Aux Env. Off Velocity→Rate <Data1> = Aux. Rate (4 only)	Get Aux Envelope	11	22	18	923
+08	R	&02	2			0, 1–99	N/A	<Data1> = Keygroup number which is currently selected. If <Data1> = 0, then ALL Keygroups are selected.		12	22	18	933
+08	R	&0A	10			21–127	N/A	Get Low Note. <Data1> = note, where: 21–127 = A-1–G8	Getting General Options	12	22	18	936
+08	R	&0B	11			21–127	N/A	Get High Note. <Data1> = note, where: 21–127 = A-1–G8	Getting General Options	12	22	18	937
+08	R	&0C	12			0, 1–32	N/A	Get Mute Group <Data1> = (0=OFF, 1–32=value)	Getting General Options	12	22	18	938
+08	R	&0D	13			0, 1–4	N/A	Get FX override <Data1> = (0=OFF, 1=FX1, 2=FX2, 3=RV3, 4=RV4)	Getting General Options	12	22	18	939
+08	R	&0E	14			0–100	N/A	Get FX Send Level <Data1> = level	Getting General Options	12	22	18	940
+08	R	&0F	15			0, 1	N/A	Get Zone Crossfade <Data1> = (0=OFF, 1=ON)	Getting General Options	12	22	18	942
+08	R	&18	24			0, 1	0–36	Get Semitone Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Keygroup Pitch/Amp	12	22	18	944
+08	R	&19	25			0, 1	0–50	Get Fine Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Keygroup Pitch/Amp	12	22	18	947
+08	R	&1A	26			0–10	N/A	Get Keygroup Level <Data1> = value in dB, where: 0=−30dB, 1=−24dB, 2=−18dB, 3=−12dB, 4=−6dB, 5=0dB 6=6dB, 7=12dB, 8=18dB, 9=24dB, 10=30dB.	Get Keygroup Pitch/Amp	12	22	18	950
+08	R	&1B	27			0, 1	0–100	Get Pitch Mod Value. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Keygroup Pitch/Amp	12	22	18	953
+08	R	&1C	28			0, 1	0–100	Get Amp Mod Value. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Keygroup Pitch/Amp	12	22	18	956
+08	R	&28	40			0–25	N/A	Get Filter Mode <Data1> = mode, where: 0=2-POLE LP, 1=4-POLE LP, 2=2-POLE LP+, 3=2-POLE BP, 4=4-POLE BP, 5=2-POLE BP+, 6=1-POLE HP, 7=2-POLE HP, 8=1-POLE HP+, 9=LO<>HI, 10=LO<>BAND, 11=BAND<>HI, 12=NOTCH 1, 13=NOTCH 2, 14=NOTCH 3, 15=WIDE NOTCH, 16=BI-NOTCH, 17=PEAK 1, 18=PEAK 2, 19=PEAK 3, 20=WIDE PEAK, 21=BI-PEAK, 22=PHASER 1, 23=PHASER 2, 24=BI-PHASE, 25=VOWELISER	Get Filter	12	22	18	960
+08	R	&29	41			0–100	N/A	Get Filter Cutoff Frequency, <Data1> = value.	Get Filter	12	22	18	969
+08	R	&2A	42			0–15	N/A	Get Filter Resonance, <Data1> = value.	Get Filter	12	23	19	975
+08	R	&2B	43			0, 1	0–36	Get Filter Keyboard Track, <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Filter	12	23	19	977
+08	R	&2C	44			0, 1	0–100	Get Filter Mod Input Value. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Filter	12	23	19	979
+08	R	&2D	45			0–5	N/A	Get Filter Attenuation. <Data1> = value, where: 0=0dB, 1=6dB, 2=12dB, 3=18dB, 4=24dB, 5=30dB.	Get Filter	12	23	19	982
+08	R	&40	64			0–100	N/A	Get Filter Envelope Attack. <Data1> = value.	Get Filter Envelope	12	23	19	985
+08	R	&41	65			0, 1	0–100	Get Filter Envelope Velocity→Attack <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Filter Envelope	12	23	19	987
+08	R	&42	66			0–100	N/A	Get Filter Envelope Decay <Data1> = value	Get Filter Envelope	12	23	19	990
+08	R	&43	67			0–100	N/A	Get Filter Envelope Sustain <Data1> = value	Get Filter Envelope	12	23	19	992
+08	R	&44	68			0–100	N/A	Get Filter Envelope Release <Data1> = value	Get Filter Envelope	12	23	19	993
+08	R	&45	69			0, 1	0–100	Get Filter Envelope On Velocity→Release <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Filter Envelope	12	23	19	994
+08	R	&46	70			0, 1	0–100	Get Filter Envelope Keyscale <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Filter Envelope	12	23	19	997
+08	R	&47	71			0, 1	0–100	Get Filter Envelope Depth <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Filter Envelope	12	23	19	1000
+08	R	&48	72			0, 1	0–100	Get Filter Envelope Off Velocity→Rate <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Filter Envelope	12	23	19	1004
+08	R	&58	88			0–100	N/A	Get Amplitude Envelope Attack. <Data1> = value.	Get Amplitude Envelope	12	23	19	1008
+08	R	&59	89			0, 1	0–100	Get Amplitude Envelope Velocity→Attack <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Amplitude Envelope	12	23	19	1009
+08	R	&5A	90			0–100	N/A	Get Amplitude Envelope Decay <Data1> = value	Get Amplitude Envelope	12	23	19	1012
+08	R	&5B	91			0–100	N/A	Get Amplitude Envelope Sustain <Data1> = value	Get Amplitude Envelope	12	23	19	1013
+08	R	&5C	92			0–100	N/A	Get Amplitude Envelope Release <Data1> = value	Get Amplitude Envelope	12	23	19	1014
+08	R	&5D	93			0, 1	0–100	Get Amplitude Envelope On Velocity→Release <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Amplitude Envelope	12	23	19	1015
+08	R	&5E	94			0, 1	0–100	Get Amplitude Envelope Keyscale <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Amplitude Envelope	12	23	19	1017
+08	R	&5F	95			0, 1	0–100	Get Amplitude Envelope Off Velocity→Rate <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Amplitude Envelope	12	23	19	1021
+08	R	&68	104			0–100	N/A	Get Aux Env. Rate <Data1> = Rate value.	Get Aux Envelope	12	23	19	1025
+08	R	&69	105			0, 1	0–100	Get Aux Env. Velocity→Rate <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Aux Envelope	12	23	19	1027
+08	R	&6A	106			0, 1	0–100	Get Aux Env. Keyboard→R2/R4 <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Aux Envelope	12	23	19	1029
+08	R	&6B	107			0–100	N/A	Get Aux Env. Level <Data1> = Level value.	Get Aux Envelope	12	23	19	1032
+08	R	&6C	107			0, 1	0–100	Get Aux Env. Off Velocity→Rate <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Get Aux Envelope	12	23	19	1035
+0A	C	&02	2			char1	…0	Create Program: <Data1…0> = Name	Program Selection, Creation and Deletion	13	24	20	1057
+0A	C	&03	3			1–99	char1…0	Create Program with keygroups. <Data1> = number of keygroups, <Data2…0> = Name	Program Selection, Creation and Deletion	13	24	20	1059
+0A	C	&05	5			char1	…0	Select Program (by name) to be current: <Data1…0> = Name	Program Selection, Creation and Deletion	13	24	20	1061
+0A	C	&06	6			0–127(MSB)	0–127(LSB)	Select Program (by index) to be current: <Data1> = MSB; <Data2> = LSB (index = LSB+128×MSB).	Program Selection, Creation and Deletion	13	24	20	1062
+0A	C	&07	7			N/A	N/A	Delete ALL programs from memory	Program Selection, Creation and Deletion	13	24	20	1064
+0A	C	&08	8			N/A	N/A	Delete the currently selected Program from memory	Program Selection, Creation and Deletion	13	24	20	1066
+0A	C	&09	9			char1	…0	Rename currently selected Program: <Data1…0> = Name	Program Selection, Creation and Deletion	13	24	20	1067
+0A	C	&0A	10			0, 1	0–127a	Set “Program Number”. <Data1>: 0=OFF; 1=ON. <Data2>=program number (ony required if <Data1>=1).	Program Selection, Creation and Deletion	13	24	20	1069
+0A	C	&0B	11			1–98	N/A	Add Keygroups to Program <Data1> = Number of Keygroups to add.	Program Selection, Creation and Deletion	13	24	20	1072
+0A	C	&0C	12			0–98	N/A	Delete Keygroup from Program: <Data1> = Number of the keygroup to delete. (zero-based)	Program Selection, Creation and Deletion	13	24	20	1073
+0A	C	&0D	13			0, 1	N/A	Set Keygroup Crossfade <Data1>: 0=OFF; 1=ON	Program Selection, Creation and Deletion	13	24	20	1076
+0A	C	&10	16			N/A	N/A	Get Number of Programs in memory	Getting General Program Information for the Current Program.	13	24	20	1080
+0A	C	&11	17			N/A	N/A	Get Current Program’s “Program Number”	Getting General Program Information for the Current Program.	13	24	20	1082
+0A	C	&12	18			N/A	N/A	Get Current Program Index (i.e., its position in memory)	Getting General Program Information for the Current Program.	13	24	20	1083
+0A	C	&13	19			N/A	N/A	Get Current Program Name	Getting General Program Information for the Current Program.	13	24	20	1084
+0A	C	&14	20			N/A	N/A	Get Number of Keygroups in Current Program	Getting General Program Information for the Current Program.	13	24	20	1086
+0A	C	&15	21			N/A	N/A	Get Keygroup Crossfade	Getting General Program Information for the Current Program.	13	24	20	1087
+0A	C	&18	24			N/A	N/A	Get the “Program Numbers” of all the Programs in memory	Getting General Program Information for All the Programs in Memory.	13	24	20	1090
+0A	C	&19	25			N/A	N/A	Get the names of all of the Programs in memory	Getting General Program Information for All the Programs in Memory.	13	24	20	1091
+0A	C	&20	32	RT		0–100	N/A	Set Loudness. <Data1> = loudness value.	Output — Set Values	13	25	21	1099
+0A	C	&21	33	RT		0, 1	0–100	Set Velocity Sensitivity. Values range from −100 to +100, where: <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Output — Set Values	13	25	21	1102
+0A	C	&22	34	RT		1, 2	0–14	Set Amp Mod Source. <Data1> = Amp Mod (1 or 2) <Data2> = Modulation Source. (see Table 15)	Output — Set Values	13	25	21	1105
+0A	C	&23	35	RT		1, 2	0, 1 ; <Data3>0–100	Set Amp Mod Value. <Data1> = Amp Mod (1 or 2) <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Output — Set Values	13	25	21	1108
+0A	C	&24	36	RT		1, 2, 3	0–14	Set Pan Mod Source. <Data1> = Pan Mod (1, 2 or 3) <Data2> = Modulation Source. (see Table 15)	Output — Set Values	13	25	21	1112
+0A	C	&25	37	RT		1, 2, 3	0, 1 ; <Data3>0–100	Set Pan Mod Value. <Data1> = Pan Mod (1, 2 or 3) <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	Output — Set Values	13	25	21	1115
+0A	C	&28	40			N/A	N/A	Get Loudness.	Output — Get Values	13	25	21	1118
+0A	C	&29	41			N/A	N/A	Get Velocity Sensitivity.	Output — Get Values	13	25	21	1120
+0A	C	&2A	42			1, 2	N/A	Get Amp Mod Source. <Data1> = Amp Mod (1 or 2)	Output — Get Values	13	25	21	1121
+0A	C	&2B	43			1, 2	N/A	Get Amp Mod Value. <Data1> = Amp Mod (1 or 2)	Output — Get Values	13	25	21	1122
+0A	C	&2C	44			1, 2, 3	N/A	Get Pan Mod Source. <Data1> = Pan Mod (1, 2 or 3)	Output — Get Values	13	25	21	1123
+0A	C	&2D	45			1, 2, 3	N/A	Get Pan Mod Value. <Data1> = Pan Mod (1, 2 or 3)	Output — Get Values	13	25	21	1124
+0A	C	&30	48	RT		0, 1	0–36	Semitone Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	MIDI/Tune — Set Values	13	25	21	1126
+0A	C	&31	49	RT		0, 1	0–50	Fine Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	MIDI/Tune — Set Values	13	25	21	1130
+0A	C	&32	50			0–7	N/A	Tune Template, where <Data1> = template. 0=USER, 1=EVEN-TEMPERED, 2=ORCHESTRAL, 3=WERKMEISTER, 4=1/5 MEANTONE, 5=1/4 MEANTONE, 6=JUST, 7=ARABIAN.	MIDI/Tune — Set Values	13	25	21	1133
+0A	C	&33	51			0, 1	0–50…	Set User Tune Template. All the values are sent one after the other starting at C. The format of each value is the same as for Item &31{49}. (i.e., 24 data bytes are transmitted, representing all 12 notes.)	MIDI/Tune — Set Values	13	25	21	1137
+0A	C	&34	52			0–11	N/A	Key = <Data1> where: 0=C, 1=C#, 2=D, 3=Eb, 4=E, 5=F, 6=F#, 7=G, 8=G#, 9=A, 10=Bb, 11=B	MIDI/Tune — Set Values	13	25	21	1142
+0A	C	&38	56			N/A	N/A	Get Semitone Tune.	MIDI/Tune — Get Values	13	25	21	1147
+0A	C	&39	57			N/A	N/A	Get Fine Tune.	MIDI/Tune — Get Values	13	25	21	1149
+0A	C	&3A	58			N/A	N/A	Get Tune Template.	MIDI/Tune — Get Values	13	25	21	1150
+0A	C	&3B	59			N/A	N/A	Get User Tune Template.	MIDI/Tune — Get Values	13	25	21	1151
+0A	C	&3C	60			N/A	N/A	Get Key.	MIDI/Tune — Get Values	13	25	21	1152
+0A	C	&40	64			0–24	N/A	Set Pitch Bend Up. <Data1> = semitones	Pitch Bend — Set Values	13	25	21	1154
+0A	C	&41	65			0–24	N/A	Set Pitch Bend Down. <Data1> = semitones	Pitch Bend — Set Values	13	25	21	1156
+0A	C	&42	66			0, 1	N/A	Set Bend Mode. <Data1> = mode, where 0=NORMAL, 1=HELD	Pitch Bend — Set Values	13	25	21	1157
+0A	C	&43	67			0, 1	0–12	Set Aftertouch Value. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Pitch Bend — Set Values	13	25	21	1158
+0A	C	&44	68			0, 1	N/A	Set Legato Setting <Data1> = mode, where 0=OFF, 1=ON	Pitch Bend — Set Values	13	26	22	1167
+0A	C	&45	69			0, 1	N/A	Set Portamento Enable <Data1> = mode, where 0=OFF, 1=ON	Pitch Bend — Set Values	13	26	22	1168
+0A	C	&46	70			0, 1	N/A	Set Portamento Mode <Data1> = mode, where 0=TIME, 1=RATE	Pitch Bend — Set Values	13	26	22	1169
+0A	C	&47	71			0–100	N/A	Set Portamento Time	Pitch Bend — Set Values	13	26	22	1170
+0A	C	&48	72			N/A	N/A	Get Pitch Bend Up	Pitch Bend — Get Values	13	26	22	1173
+0A	C	&49	73			N/A	N/A	Get Pitch Bend Down	Pitch Bend — Get Values	13	26	22	1175
+0A	C	&4A	74			N/A	N/A	Get Bend Mode	Pitch Bend — Get Values	13	26	22	1176
+0A	C	&4B	75			N/A	N/A	Get Aftertouch Value	Pitch Bend — Get Values	13	26	22	1177
+0A	C	&4C	76			N/A	N/A	Get Legato Setting	Pitch Bend — Get Values	13	26	22	1178
+0A	C	&4D	77			N/A	N/A	Get Portamento Enable	Pitch Bend — Get Values	13	26	22	1179
+0A	C	&4E	78			N/A	N/A	Get Portamento Mode	Pitch Bend — Get Values	13	26	22	1180
+0A	C	&4F	79			N/A	N/A	Get Portamento Time	Pitch Bend — Get Values	13	26	22	1181
+0A	C	&50	80	RT	b	1, 2	0–100	Set LFO Rate. <Data2> = rate	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1183
+0A	C	&51	81	RT	b	1, 2	0–100	Set LFO Delay. <Data2> = delay	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1186
+0A	C	&52	82	RT	b	1, 2	0–100	Set LFO Depth. <Data2> = depth	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1189
+0A	C	&53	83	RT		1, 2	0–8	Set LFO Waveform. <Data2> = waveform, where: 0=SINE, 1=TRIANGLE, 2=SQUARE, 3=SQUARE+, 4=SQUARE−, 5=SAW BI, 6=SAW UP, 7=SAW DOWN, 8=RANDOM	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1192
+0A	C	&54	84	RT		1	0, 1	Set LFO Sync. <Data2> = (0=OFF, 1=ON). (LFO1 only)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1196
+0A	C	&55	85	RT		2	0, 1	Set LFO Re-trigger. <Data2> = (0=OFF, 1=ON). (LFO2 only)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1197
+0A	C	&56	86	RT		1, 2	0–14	Set Rate Mod Source <Data2> = Modulation Source. (see Table 15)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1198
+0A	C	&57	87	RT		1, 2	0, 1 ; <Data3>0–100	Set Rate Mod Value <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1202
+0A	C	&58	88	RT		1, 2	0–14	Set Delay Mod Source <Data2> = Modulation Source. (see Table 15)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1207
+0A	C	&59	89	RT		1, 2	0, 1 ; <Data3>0–100	Set Delay Mod Value <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1210
+0A	C	&5A	90	RT		1, 2	0–14	Set Depth Mod Source <Data2> = Modulation Source. (see Table 15)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1214
+0A	C	&5B	91	RT		1, 2	0, 1 ; <Data3>0–100	Set Depth Mod Value <Data2> = sign (0 = +ve, 1 = −ve), <Data3> = absolute value.	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1217
+0A	C	&5C	92	RT		1	0–100	Set Modwheel <Data2> = value (LFO1 only)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1222
+0A	C	&5D	93	RT		1	0–100	Set Aftertouch <Data2> = value (LFO1 only)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1224
+0A	C	&5E	94	RT		2	0, 1	Set MIDI Clock Sync Enable <Data2> = (0=OFF, 1=ON) (LFO2 only)	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1227
+0A	C	&5F	95	RT		2	0–68	Set MIDI Clock Sync Division (LFO2 only) <Data2> = value, where 0=8cy/bt, 1=6cy/bt, 2=4cy/bt, 3=3cy/bt, 4=2cy/bt, 5=1cy/bt 6=2bt/cy, 7=3bt/cy, …, 68=64bt/cy	LFOs — Set Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1229
+0A	C	&60	96		b	1, 2	N/A	Get LFO Rate	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1234
+0A	C	&61	97		b	1, 2	N/A	Get LFO Delay	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	26	22	1236
+0A	C	&62	98		b	1, 2	N/A	Get LFO Depth	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1243
+0A	C	&63	99			1, 2	N/A	Get LFO Waveform	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1246
+0A	C	&64	100			1	N/A	Get LFO Sync (LFO1 only)	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1247
+0A	C	&65	101			2	N/A	Get LFO Re-trigger (LFO2 only)	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1248
+0A	C	&66	102			1, 2	N/A	Get Rate Mod Source	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1249
+0A	C	&67	103			1, 2	N/A	Get Rate Mod Value	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1250
+0A	C	&68	104			1, 2	N/A	Get Delay Mod Source	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1251
+0A	C	&69	105			1, 2	N/A	Get Delay Mod Value	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1252
+0A	C	&6A	106			1, 2	N/A	Get Depth Mod Source	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1253
+0A	C	&6B	107			1, 2	N/A	Get Depth Mod Value	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1254
+0A	C	&6C	108			1	N/A	Get Modwheel (LFO1 only)	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1255
+0A	C	&6D	109			1	N/A	Get Aftertouch (LFO1 only)	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1256
+0A	C	&6E	110			2	N/A	Get MIDI Clock Sync Enable (LFO2 only)	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1257
+0A	C	&6F	111			2	N/A	Get MIDI Clock Sync Division (LFO2 only)	LFOs — Get Values. <Data1> = LFO (1=LFO1, 2=LFO2)	13	27	23	1258
+0A	C	&70	112			1, 2	0–14	Set Pitch Mod Source. <Data1> = Pitch Mod (1 or 2) <Data2> = Modulation Source. (see Table 15)	Keygroup Modulation Sources — Set Values	13	27	23	1260
+0A	C	&71	113			1	0–14	Set Amp Mod Source. <Data1> = Amp Mod (1 only) <Data2> = Modulation Source. (see Table 15)	Keygroup Modulation Sources — Set Values	13	27	23	1262
+0A	C	&72	114			1, 2, 3	0–14	Set Filter Mod Input Source. <Data1> = Mod Input (1, 2 or 3) <Data2> = Modulation Source. (see Table 15)	Keygroup Modulation Sources — Set Values	13	27	23	1264
+0A	C	&74	116			1, 2	N/A	Get Pitch Mod Source. <Data1> = Pitch Mod (1 or 2)	Keygroup Modulation Sources — Get Values	13	27	23	1267
+0A	C	&75	117			1	N/A	Get Amp Mod Source. <Data1> = Amp Mod (1 only)	Keygroup Modulation Sources — Get Values	13	27	23	1268
+0A	C	&76	118			1, 2, 3	N/A	Get Filter Mod Input Source. <Data1> = Mod Input (1, 2 or 3)	Keygroup Modulation Sources — Get Values	13	27	23	1269
+0A	R	&10	16			0–127 (MSB)	0–127 (LSB)	The number of Programs in memory is returned, where: <Data1> = MSB; <Data2> = LSB (NumPrograms = LSB+128×MSB)	Getting General Program Information for the Current Program.	14	27	23	1279
+0A	R	&11	17			0, 1	0–127a ; (OFF,ON)	The Current Program’s “Program number” <Data1> = Program Number On or Off, 0=OFF, 1=ON <Data2> = Program Number (set to 0 if number is off).	Getting General Program Information for the Current Program.	14	27	23	1281
+0A	R	&12	18			0–127 (MSB)	0–127 (LSB)	Program Index (i.e., position in memory), where: <Data1> = MSB; <Data2> = LSB (Index = LSB+128×MSB)	Getting General Program Information for the Current Program.	14	27	23	1285
+0A	R	&13	19			char1	…0	The name of the Current Program, <Data1…0> is a character string.	Getting General Program Information for the Current Program.	14	28	24	1292
+0A	R	&14	20			0–99	N/A	<Data1> = Number of Keygroups in Current Program.	Getting General Program Information for the Current Program.	14	28	24	1293
+0A	R	&15	21			0, 1	N/A	Get Keygroup Crossfade <Data1>: 0=OFF; 1=ON	Getting General Program Information for the Current Program.	14	28	24	1294
+0A	R	&18	24		b	0, 1	0–127a ; (OFF,ON)	The “Program numbers” of all of the Programs in memory. Note that several <Data> fields may be transmitted (one set for every Program in memory). The message format is the same as for <Item> &11{17}.	Getting General Program Information for All the Programs in Memory.	14	28	24	1297
+0A	R	&19	25		b	char1…	0…charN…0…	The names of all of the Programs in memory. (See comments to	Getting General Program Information for All the Programs in Memory.	14	28	24	1302
+0A	R	&28	40			0–100	N/A	Loudness = <Data1>	Output — Get Values	14	28	24	1305
+0A	R	&29	41			0, 1	0–100	Velocity Sensitivity values range from −100 to +100, where: <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Output — Get Values	14	28	24	1308
+0A	R	&2A	42			0–14	N/A	Amp Mod Source, where: <Data1> = Modulation Source. (see Table 15)	Output — Get Values	14	28	24	1311
+0A	R	&2B	43			0, 1	0–100	Amp Mod Value, where: <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Output — Get Values	14	28	24	1314
+0A	R	&2C	44			0–14	N/A	Amp Pan Source, where: <Data1> = Modulation Source. (see Table 15)	Output — Get Values	14	28	24	1317
+0A	R	&2D	45			0, 1	0–100	Amp Pan Value, where: <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Output — Get Values	14	28	24	1320
+0A	R	&38	56			0, 1	0–36	Semitone Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	MIDI/Tune — Get Values	14	28	24	1324
+0A	R	&39	57			0, 1	0–50	Fine Tune. <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	MIDI/Tune — Get Values	14	28	24	1327
+0A	R	&3A	58			0–7	N/A	Tune Template, where <Data1> = template. 0=USER, 1=EVEN-TEMPERED, 2=ORCHESTRAL, 3=WERKMEISTER, 4=1/5 MEANTONE, 5=1/4 MEANTONE, 6=JUST, 7=ARABIAN.	MIDI/Tune — Get Values	14	28	24	1330
+0A	R	&3B	59			0, 1	0–50…	Get User Tune Template Returns the fine tune settings of all of the 12 semitones one after another, starting at C. The format is the same as that in Item &39{57}	MIDI/Tune — Get Values	14	28	24	1334
+0A	R	&3C	60			0–11	N/A	Key = <Data1> where: 0=C, 1=C#, 2=D, 3=Eb, 4=E, 5=F, 6=F#, 7=G, 8=G#, 9=A, 10=Bb, 11=B	MIDI/Tune — Get Values	14	28	24	1338
+0A	R	&48	72			0–24	N/A	Get Pitch Bend Up <Data1> = semitones	Pitch Bend — Get Values	14	28	24	1343
+0A	R	&49	73			0–24	N/A	Get Pitch Bend Down <Data1> = semitones	Pitch Bend — Get Values	14	28	24	1345
+0A	R	&4A	74			0, 1	N/A	Get Bend Mode <Data1> = mode, where 0=NORMAL, 1=HELD	Pitch Bend — Get Values	14	28	24	1346
+0A	R	&4B	75			0, 1	0–12	Get Aftertouch Value <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Pitch Bend — Get Values	14	28	24	1347
+0A	R	&4C	76			0, 1	N/A	Get Legato Setting <Data1> = mode, where 0=OFF, 1=ON	Pitch Bend — Get Values	14	28	24	1350
+0A	R	&4D	77			0, 1	N/A	Get Portamento Enable <Data1> = mode, where 0=OFF, 1=ON	Pitch Bend — Get Values	14	28	24	1351
+0A	R	&4E	78			0, 1	N/A	Get Portamento Mode <Data1> = mode, where 0=TIME, 1=RATE	Pitch Bend — Get Values	14	28	24	1352
+0A	R	&4F	79			0–100	N/A	Get Portamento Time <Data1> = time	Pitch Bend — Get Values	14	28	24	1353
+0A	R	&60	96			0–100	N/A	LFO Rate = <Data1>	LFOs — Get Values.	14	29	25	1361
+0A	R	&61	97			0–100	N/A	LFO Delay = <Data1>	LFOs — Get Values.	14	29	25	1363
+0A	R	&62	98			0–100	N/A	LFO Depth = <Data1>	LFOs — Get Values.	14	29	25	1364
+0A	R	&63	99			0–8	N/A	LFO Waveform = <Data1>, where: 0=SINE, 1=TRIANGLE, 2=SQUARE, 3=SQUARE+, 4=SQUARE−, 5=SAW BI, 6=SAW UP, 7=SAW DOWN, 8=RANDOM	LFOs — Get Values.	14	29	25	1365
+0A	R	&64	100			0, 1	N/A	LFO Sync = <Data1>, where 0=OFF, 1=ON	LFOs — Get Values.	14	29	25	1368
+0A	R	&65	101			0, 1	N/A	LFO Re-trigger = <Data1>, where 0=OFF, 1=ON	LFOs — Get Values.	14	29	25	1370
+0A	R	&66	102			0–14	N/A	Rate Mod Source = <Data1>, where Modulation Source is returned as defined in Table 15.	LFOs — Get Values.	14	29	25	1371
+0A	R	&67	103			0, 1	0–100	Rate Mod Value, where <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	LFOs — Get Values.	14	29	25	1374
+0A	R	&68	104			0–14	N/A	Delay Mod Source = <Data1>, where Modulation Source is returned as defined in Table 15.	LFOs — Get Values.	14	29	25	1377
+0A	R	&69	105			0, 1	0–100	Delay Mod Value, where <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	LFOs — Get Values.	14	29	25	1380
+0A	R	&6A	106			0–14	N/A	Depth Mod Source = <Data1>, where Modulation Source is returned as defined in Table 15.	LFOs — Get Values.	14	29	25	1383
+0A	R	&6B	107			0, 1	0–100	Depth Mod Value, where <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	LFOs — Get Values.	14	29	25	1386
+0A	R	&6C	108			0–100	N/A	Modwheel value = <Data1>	LFOs — Get Values.	14	29	25	1389
+0A	R	&6D	109			0–100	N/A	Aftertouch value = <Data1>	LFOs — Get Values.	14	29	25	1391
+0A	R	&6E	110			0, 1	N/A	MIDI Clock Sync Enable = <Data1>, where 0=OFF, 1=ON	LFOs — Get Values.	14	29	25	1392
+0A	R	&6F	111			0–68	N/A	MIDI Clock Sync Division = <Data1>, where 0=8cy/bt, 1=6cy/bt, 2=4cy/bt, 3=3cy/bt, 4=2cy/bt, 5=1cy/bt 6=2bt/cy, 7=3bt/cy, …, 68=64bt/cy	LFOs — Get Values.	14	29	25	1393
+0A	R	&74	116			0–14	N/A	Get Pitch Mod Source. <Data1> = Modulation Source. (see Table 15)	Keygroup Modulation Sources — Get Values	14	29	25	1398
+0A	R	&75	117			0–14	N/A	Get Amp Mod Source. <Data1> = Modulation Source. (see Table 15)	Keygroup Modulation Sources — Get Values	14	29	25	1399
+0A	R	&76	118			0–14	N/A	Get Filter Mod Input Source <Data1> = Modulation Source. (see Table 15)	Keygroup Modulation Sources — Get Values	14	29	25	1402
+0C	C	&01	1			0, 1, 2	N/A	Set the number of parts for new multis: 0=32, 1=64, 2=128.	Multi Creation and Deletion	16	30	26	1443
+0C	C	&02	2			char1	…0	Create Multi: Name is a string and must end with a zero.	Multi Creation and Deletion	16	30	26	1444
+0C	C	&05	5			char1	…0	Select Multi (by name) to be current: Name is a string and must end with a zero.	Multi Creation and Deletion	16	30	26	1445
+0C	C	&06	6			0–127(MSB)	0–127(LSB)	Select Multi (by index) to be current: <Data1> = MSB; <Data2> = LSB (index = LSB+128×MSB).	Multi Creation and Deletion	16	30	26	1447
+0C	C	&07	7			N/A	N/A	Delete ALL Multis from memory.	Multi Creation and Deletion	16	30	26	1449
+0C	C	&08	8			N/A	N/A	Delete the currently selected Multi from memory.	Multi Creation and Deletion	16	30	26	1450
+0C	C	&10	16	RT		0–127	&00–1F{0–31}	Set Part MIDI Channel, Data2: 1A=0, 2A=1, …, 16B=31	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1452
+0C	C	&11	17	RT		0–127	0, 1	Set Part Mute, Data2: 0=OFF, 1=ON	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1454
+0C	C	&12	18	RT		0–127	0, 1	Set Part Solo, Data2: 0=OFF, 1=ON	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1456
+0C	C	&13	19	RT		0–127	&00–64{0–100}	Set Part Level, Data2=PartLevel	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1458
+0C	C	&14	20	RT		0–127	&00–17{0–23}	Set Part Output, Data2=Output: 0–7 = op1/2–op15/16; 8–23 = op1-op16	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1460
+0C	C	&15	21	RT		0–127	&0E–72{14–114}	Set Part Pan/Balance, Data2=Pan/Bal (14–114 = L50–R50); centre=&40{64}	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1463
+0C	C	&16	22	RT		0–127	0–4	Set Part Effects Channel: Data2 = 0 (OFF), 1(FX1), 2(FX2), 3(RV3), 4(RV4)	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1466
+0C	C	&17	23	RT		0–127	&00–64{0–100}	Set Part FX Send Level	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1469
+0C	C	&18	24	RT		0–127	&00–64{0–100}	Set Part Fine Tune:Data2 = CentsTuning: (0 = −50cents; …; 100 = +50cents); centre=&32{50}	Setting Multi Part Parameters (Data1 = Part Number)	16	30	26	1471
+0C	C	&19	25	RT		0–127	&00–48{0–72}	Set Part Transpose:Data2 = semitones: (0 = −36semitones; …; 72 = +36semitones); centre=&24{36}	Setting Multi Part Parameters (Data1 = Part Number)	16	31	27	1478
+0C	C	&1A	26	RT		0–127	&15–7F{21–127}	Set Part Low Note:Data2 = note: (21–127 = A-1 – G8)	Setting Multi Part Parameters (Data1 = Part Number)	16	31	27	1480
+0C	C	&1B	27	RT		0–127	&15–7F{21–127}	Set Part High Note:Data2 = note: (21–127 = A-1 – G8)	Setting Multi Part Parameters (Data1 = Part Number)	16	31	27	1482
+0C	C	&20	32	RT		0–127	N/A	Get Part MIDI Channel (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1486
+0C	C	&21	33	RT		0–127	N/A	Get Part Mute (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1488
+0C	C	&22	34	RT		0–127	N/A	Get Part Solo (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1490
+0C	C	&23	35	RT		0–127	N/A	Get Part Level (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1492
+0C	C	&24	36	RT		0–127	N/A	Get Part Output (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1494
+0C	C	&25	37	RT		0–127	N/A	Get Part Pan/Balance (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1496
+0C	C	&26	38	RT		0–127	N/A	Get Part Effects Channel (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1498
+0C	C	&27	39	RT		0–127	N/A	Get Part FX Send Level (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1500
+0C	C	&28	40	RT		0–127	N/A	Get Part Fine Tune (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1502
+0C	C	&29	41	RT		0–127	N/A	Get Part Transpose (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1504
+0C	C	&2A	42	RT		0–127	N/A	Get Part Low Note (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1506
+0C	C	&2B	43	RT		0–127	N/A	Get Part High Note (See Set… above for parameter ranges)	Getting Multi Part Parameters (Data1 = Part Number)	16	31	27	1508
+0C	C	&30	48			char1	…0	Rename Multi. <Data1…0> = New Name.	Setting General Multi Information	16	31	27	1511
+0C	C	&31	49			0, 1	0–127a	Set Multi Program Number Data1: 0=OFF, 1=ON, Data2: number (only required if Data1=1).	Setting General Multi Information	16	31	27	1512
+0C	C	&32	50			0–127	0–127(MSB)… ; 0–127(LSB)	Set Multi Part by index. <Data1> = Part Number; <Data2> = MSB of index; <Data3> = LSB of index (index = LSB+128×MSB)	Setting General Multi Information	16	31	27	1514
+0C	C	&33	51			0–127	char1…0	Set Multi Part by name. <Data1> = Part Number; <Data2…> = Name is a string and must end with a zero.	Setting General Multi Information	16	31	27	1517
+0C	C	&34	52			0–127	N/A	Delete Selected Part from Multi. <Data1> = Part Number	Setting General Multi Information	16	31	27	1519
+0C	C	&40	64			N/A	N/A	Get Number of Multis in Memory	Getting General Multi Information for the Current Multi	16	31	27	1522
+0C	C	&41	65			N/A	N/A	Get Current Multi’s Program Number	Getting General Multi Information for the Current Multi	16	31	27	1523
+0C	C	&42	66			N/A	N/A	Get Current Multi Index (i.e., its position in memory)	Getting General Multi Information for the Current Multi	16	31	27	1524
+0C	C	&43	67			N/A	N/A	Get Current Multi Name	Getting General Multi Information for the Current Multi	16	31	27	1525
+0C	C	&44	68			N/A	N/A	Get the Number of Parts in the Current Multi	Getting General Multi Information for the Current Multi	16	31	27	1526
+0C	C	&45	69			0–127	N/A	Get the Name of Part number <Data1> (returns 0 if none assigned)	Getting General Multi Information for the Current Multi	16	31	27	1527
+0C	C	&46	70			N/A	N/A	Get the Names of all of the Parts in the multi.	Getting General Multi Information for the Current Multi	16	31	27	1528
+0C	C	&47	71			0–127	N/A	Get all of the params (of <Items> &20–&2B) in a single message. <Data1> = Part Number to query.	Getting General Multi Information for the Current Multi	16	31	27	1529
+0C	C	&48	72			N/A	N/A	Get the Mute and Solo status of all the parts in the current Multi.	Getting General Multi Information for the Current Multi	16	31	27	1531
+0C	C	&50	80			N/A	N/A	Get the Multi Numbers of All Multis in memory	Getting General Multi Information for All the Multis in memory	16	32	28	1539
+0C	C	&51	81			N/A	N/A	Get the Names of All Multis in memory	Getting General Multi Information for All the Multis in memory	16	32	28	1540
+0C	C	&52	82			N/A	N/A	Get the Number of Parts in All the Multis in memory	Getting General Multi Information for All the Multis in memory	16	32	28	1541
+0C	R	&20–&2B				0–127	N/A ; {32–43}	Data is returned as a single byte in field <Data1>, corresponding to the requested parameter.		17	32	28	1548
+0C	R	&40	64			0–127	0–127 ; (MSB) ; (LSB)	The number of Multis in memory, where: <Data1> = MSB; <Data2> = LSB (NumMultis = LSB+128×MSB).		17	32	28	1550
+0C	R	&41	65			0, 1	0–127a ; (OFF,ON)	The Current Multi number <Data1> = Multi Number On or Off, 0=OFF, 1=ON <Data2> = Multi Number (set to 0 if number is off).		17	32	28	1552
+0C	R	&42	66			0–127	0–127 ; (MSB) ; (LSB)	The Current Multi index (starting from 0). <Data1> = MSB; <Data2> = LSB (index = LSB+128×MSB).		17	32	28	1555
+0C	R	&43	67			char1	…0	The name of the Current Multi, <Data1…0> is a character string.		17	32	28	1557
+0C	R	&44	68			31, 63, 127	N/A	The number of parts in the Current Multi = <Data1> + 1		17	32	28	1558
+0C	R	&45	69			char1	…0	The name of the requested Part, <Data1…> is a character string. If there is no part assigned, char1 = 0.		17	32	28	1559
+0C	R	&46	70		b	char1	…0…charN…0	The names of all of the parts in the current multi are returned in a single stream, punctuated by 0s. There will be 32, 64 or 128 names returned depending on the number of parts in the multi. If no part is assigned, the name will be returned as a single byte=0.		17	32	28	1561
+0C	R	&47	71			0–127	…0–127…	All of the parameters obtained using <Item>=&20–&2B are returned in a single message. 12 data bytes are returned.		17	32	28	1565
+0C	R	&48	72			0, 1, 2	0, 1, 2 …	One byte is returned for each part in the current Multi, where: 0=mute and solo off, 1=mute on, 2=solo on.		17	32	28	1567
+0C	R	&50	80		c	0, 1	0–127a… ; (OFF,ON)	The numbers of all of the Multis in memory. Note that several <Data> fields may be transmitted (one set for every multi in memory). The format of the message is the same as for <Item> &41{65}.		17	32	28	1569
+0C	R	&51	81		c	char1	…0…	The names of all of the Multis in memory. (See comments to		17	32	28	1572
+0C	R	&52	82		c	31, 63, 127	…	The number of parts in all the Multis in memory. (See comments to		17	32	28	1574
+0E	C	&05	5			char1	…0	Select Sample (by name) to be current: <Data1…0> = Name.	Sample Selection	18	33	29	1600
+0E	C	&06	6			0–127(MSB)	0–127(LSB)	Select Sample (by index) to be current: <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Sample Selection	18	33	29	1601
+0E	C	&07	7			N/A	N/A	Delete ALL samples from memory	Sample Selection	18	33	29	1603
+0E	C	&08	8			N/A	N/A	Delete the currently selected Sample from memory.	Sample Selection	18	33	29	1605
+0E	C	&09	9			char1	…0	Rename the currently selected Sample. <Data1…0> = Name.	Sample Selection	18	33	29	1606
+0E	C	&0A	10			N/A	N/A	Start auditioning the current sample.	Sample Selection	18	33	29	1607
+0E	C	&0B	11			N/A	N/A	Stop auditioning the current sample.	Sample Selection	18	33	29	1609
+0E	C	&10	16			N/A	N/A	Get the Number of Samples loaded into memory.	Getting General Information of the Samples in Memory	18	33	29	1611
+0E	C	&11	17			0–127(MSB)	0–127(LSB)	Get the name of sample by index. <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Getting General Information of the Samples in Memory	18	33	29	1612
+0E	C	&12	18			N/A	N/A	Get the names of all of the samples in memory.	Getting General Information of the Samples in Memory	18	33	29	1614
+0E	C	&13	19			N/A	N/A	Get Current Sample’s Index (i.e., its position in memory)	Getting General Information of the Samples in Memory	18	33	29	1615
+0E	C	&14	20			N/A	N/A	Get Current Sample’s Name	Getting General Information of the Samples in Memory	18	33	29	1616
+0E	C	&20	32			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Set Start Position from where the sample will start playback.	Setting Sample Parameters	18	33	29	1619
+0E	C	&21	33			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Set End Position where the sample will end playback.	Setting Sample Parameters	18	33	29	1623
+0E	C	&22	34			&15–&7F	N/A ; {21–127}	Set Original Pitch <Data1> = note: (21–127 = A-1 – G8)	Setting Sample Parameters	18	33	29	1626
+0E	C	&23	35			0, 1	0–36	Set Semitone Tune <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Setting Sample Parameters	18	33	29	1628
+0E	C	&24	36			0, 1	0–50	Set Fine Tune <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Setting Sample Parameters	18	33	29	1630
+0E	C	&28	40			0–5	N/A	Set Playback Mode, where <Data1> = mode. 0=NO LOOPING, 1=ONE SHOT, 2=LOOP IN REL, 3=LOOP UNTIL REL, 4=LIR→RETRIG, 5=PLAY→RETRIG.	Setting Sample Parameters	18	33	29	1633
+0E	C	&29	41			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Set Loop Start from where the sample loop will start.	Setting Sample Parameters	18	33	29	1637
+0E	C	&2A	42			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Set Loop End where the sample loop will end.	Setting Sample Parameters	18	34	30	1647
+0E	C	&30	48			N/A	N/A	Get Sample Type (VIRTUAL/RAM)	Getting Sample Parameters	18	34	30	1651
+0E	C	&31	49			N/A	N/A	Get Number of Channels	Getting Sample Parameters	18	34	30	1653
+0E	C	&32	50			N/A	N/A	Get Sample Length	Getting Sample Parameters	18	34	30	1654
+0E	C	&33	51			N/A	N/A	Get Sample Rate	Getting Sample Parameters	18	34	30	1655
+0E	C	&34	52			N/A	N/A	Get all of the params (of <Items> &30–&33) in a single message.	Getting Sample Parameters	18	34	30	1656
+0E	C	&40	64			N/A	N/A	Get Start Position	Getting Sample Parameters	18	34	30	1657
+0E	C	&41	65			N/A	N/A	Get End Position	Getting Sample Parameters	18	34	30	1659
+0E	C	&42	66			N/A	N/A	Get Original Pitch	Getting Sample Parameters	18	34	30	1660
+0E	C	&43	67			N/A	N/A	Get Semitone Tune	Getting Sample Parameters	18	34	30	1661
+0E	C	&44	68			N/A	N/A	Get Fine Tune	Getting Sample Parameters	18	34	30	1662
+0E	C	&48	72			N/A	N/A	Get Playback Mode	Getting Sample Parameters	18	34	30	1663
+0E	C	&49	73			N/A	N/A	Get Loop Start	Getting Sample Parameters	18	34	30	1664
+0E	C	&4A	74			N/A	N/A	Get Loop End	Getting Sample Parameters	18	34	30	1665
+0E	C	&4B	75			N/A	N/A	Get all of the params (of <Items> &40–&4A) in a single message.	Getting Sample Parameters	18	34	30	1666
+0E	R	&10	16			0–127(MSB)	0–127(LSB)	The number of samples in memory is returned, where number = LSB+128×MSB		19	34	30	1672
+0E	R	&11	17			char1	…0	The name of the requested sample is returned as a character string.		19	34	30	1674
+0E	R	&12	18			char1…0…	charN…0	The names of all of the samples in memory are returned as a stream of character strings within a single REPLY message.		19	34	30	1675
+0E	R	&13	19			0–127(MSB)	0–127(LSB)	Current Sample Index, where: <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)		19	34	30	1677
+0E	R	&14	20			char1	…0	Current Sample’s name: <Data1…0> = Name		19	34	30	1680
+0E	R	&30	48			0, 1	N/A	Get Sample Type (VIRTUAL/RAM) <Data1>: 0=RAM, 1=VIRTUAL.	Getting Sample Parameters	19	34	30	1651
+0E	R	&31	49			1, 2	N/A	Get Number of Channels <Data1>: 1=MONO, 2=STEREO	Getting Sample Parameters	19	34	30	1653
+0E	R	&32	50			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) ; <Data4>=0–127(LSB)	Get Sample Length A Compound Double Word (see page 9) representing the total length of the sample (i.e., number of sample points).	Getting Sample Parameters	19	34	30	1654
+0E	R	&33	51			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the sample ; <Data4>=0–127(LSB)	Get Sample Rate rate (in Hz) of the sample.	Getting Sample Parameters	19	34	30	1655
+0E	R	&34	52			0–127…	…0–127…	All of the parameters obtained using <Item>=&30–&33 are returned in a single message. 10 data bytes are returned.	Getting Sample Parameters	19	35	31	1697
+0E	R	&40	64			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Get Start Position from where the sample will start playback.	Getting Sample Parameters	19	35	31	1699
+0E	R	&41	65			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Get End Position where the sample will end playback.	Getting Sample Parameters	19	35	31	1703
+0E	R	&42	66			&15–&7F	N/A ; {21–127}	Get Original Pitch <Data1> = note: (21–127 = A-1 – G8)	Getting Sample Parameters	19	35	31	1706
+0E	R	&43	67			0, 1	0–36	Get Semitone Tune <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Getting Sample Parameters	19	35	31	1708
+0E	R	&44	68			0, 1	0–50	Get Fine Tune <Data1> = sign (0 = +ve, 1 = −ve), <Data2> = absolute value.	Getting Sample Parameters	19	35	31	1710
+0E	R	&48	72			0–5	N/A	Get Playback Mode, where <Data1> = mode. 0=NO LOOPING, 1=ONE SHOT, 2=LOOP IN REL, 3=LOOP UNTIL REL, 4=LIR→RETRIG, 5=PLAY→RETRIG.	Getting Sample Parameters	19	35	31	1713
+0E	R	&49	73			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Get Loop Start from where the sample loop will start.	Getting Sample Parameters	19	35	31	1717
+0E	R	&4A	74			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the position ; <Data4>=0–127(LSB)	Get Loop End where the sample loop will end.	Getting Sample Parameters	19	35	31	1721
+0E	R	&4B	75			0–127…	…0–127…	All of the parameters obtained using <Item>=&40–&4A are returned in a single message. 22 data bytes are returned.	Getting Sample Parameters	19	35	31	1724
+10	C	&01	1			N/A	N/A	Update the list of disks connected.	General Disk Functions	20	36	32	1746
+10	C	&02	2			0–127(MSB)	0–127(LSB)	Select Disk: Disk Handle = <Data2> + 128×<Data1>.	General Disk Functions	20	36	32	1749
+10	C	&03	3		a	0–127(MSB)	0–127(LSB)	Test if the disk is valid. Disk Handle = <Data2> + 128×<Data1>.	General Disk Functions	20	36	32	1751
+10	C	&04	4		b	N/A	N/A	Get the number of disks connected.	General Disk Functions	20	36	32	1754
+10	C	&05	5			N/A	N/A	Get list of all connected disks.	General Disk Functions	20	36	32	1757
+10	C	&06	6			N/A	N/A	Get current disk type.	General Disk Functions	20	36	32	1758
+10	C	&07	7			0–127(MSB)	0–127(LSB)	Get type of specified drive. Disk Handle = <Data2> + 128×<Data1>	General Disk Functions	20	36	32	1760
+10	C	&08	8			N/A	N/A	Get index of current disk.	General Disk Functions	20	36	32	1762
+10	C	&09	9			N/A	N/A	Get current path of current disk.	General Disk Functions	20	36	32	1763
+10	C	&0A	10			N/A	N/A	Get Format of current disk.	General Disk Functions	20	36	32	1764
+10	C	&0B	11			N/A	N/A	Get Free Space on current disk.	General Disk Functions	20	36	32	1765
+10	C	&0D	13			0–127(MSB)	0–127(LSB) ; <Data3> = 0, 1	Eject Disk. Disk Handle = <Data2> + 128×<Data1> <Data3>: 0=fail if drive in use, 1=discard virtual samples.	General Disk Functions	20	36	32	1766
+10	C	&0E	13			0–127(MSB)	0–127(LSB)	Get the name of the specified disk Disk Handle = <Data2> + 128×<Data1>	General Disk Functions	20	36	32	1769
+10	C	&10	16			N/A	N/A	Get number of sub-folders in the current folder.	Folder Functions	20	36	32	1772
+10	C	&11	17			0–127 (MSB)	0–127 (LSB)	Get name of specified folder. Index of folder (starting from 0) = <Data2> + 128×<Data1>.	Folder Functions	20	36	32	1773
+10	C	&12	18			N/A	N/A	Get the names of all of the sub-folders in the current folder.	Folder Functions	20	36	32	1776
+10	C	&13	19			char1	…0	Open Folder. This sets the current folder to be the requested one. (Move down one level in the folder heirarchy.) <Data1…0> = name of folder to open.. (If <Data1> = 0, the root folder will be selected.)	Folder Functions	20	36	32	1777
+10	C	&14	20			N/A	N/A	Close Folder. (Move up one level in the folder heirarchy.) If this is used on a root folder, an ERROR confirmation message will be returned.	Folder Functions	20	36	32	1781
+10	C	&15	21			char1	…0	Load Folder: the selected folder, and all its contents (including sub- folders) are loaded into memory. <Data1…0> = name of folder to load.	Folder Functions	20	37	33	1790
+10	C	&16	22			char1	…0	Create Folder: Creates a sub-folder in the currently selected folder. <Data1…0> = name of folder to create.	Folder Functions	20	37	33	1793
+10	C	&17	23			char1	…0	Delete Sub-Folder. <Data1…0> = name of folder to delete.	Folder Functions	20	37	33	1795
+10	C	&18	24			char1…0	char1…0	Rename Folder: <Data1…0> = name of folder to rename, <DataN…0> = new name for folder.	Folder Functions	20	37	33	1798
+10	C	&20	32			N/A	N/A	Get number of files in the current folder.	File Functions	20	37	33	1801
+10	C	&21	33			0–127 (MSB)	0–127 (LSB)	Get name of specified file. Index of file (starting from 0) = <Data2> + 128×<Data1>.	File Functions	20	37	33	1803
+10	C	&22	34			N/A	N/A	Get the names of all of the files in the current folder.	File Functions	20	37	33	1805
+10	C	&23	35			0–127 (MSB)	0–127 (LSB)	Get the size (in bytes) of the specified file. Index of file (starting from 0) = <Data2> + 128×<Data1>.	File Functions	20	37	33	1806
+10	C	&24	36			char1	…0	Get index of the file with the name: <Data1…0>	File Functions	20	37	33	1808
+10	C	&28	40		c	char1…0	char1…0	Rename File: <Data1…0> = name of file to rename, <DataN…0> = new name for file.	File Functions	20	37	33	1809
+10	C	&29	41			char1	…0	Delete File. <Data1…0> = name of file to delete.	File Functions	20	37	33	1811
+10	C	&2A	42		d	char1	…0 ; <DataN>=0, 1, 2	Load File <Data1…0> = name of file to load. The filename must include the correct file extension. <DataN>: 0=normal, 1=load samples as RAM, 2=load samples as VIRTUAL.	File Functions	20	37	33	1812
+10	C	&2B	43		e	char1	…0	Load File including all dependent child files. <Data1…0> = name of file to load. The filename must include the correct file extension.	File Functions	20	37	33	1818
+10	C	&2C	44			0–127 (MSB)	0–127 (LSB) ; <Data3> 1–6 ; <Data4> 0, 1 <Data3> = Type.(1=Multi; 2=Program; 3=Sample; 4=SMF; 5=Setlist; ; <Data5> 0, 1	Save Memory Item to Disk Index of Memory Item = <Data2> + 128×<Data1>. 6=Scenelist) <Data4>: 0=skip if file exists; 1=Overwrite existing files <Data5>: 0=Don’t save children; 1=Save Children.	File Functions	20	37	33	1821
+10	C	&2D	45			1–6	0, 1 ; <Data3> 0, 1 <Data1> = Type.(1=Multi; 2=Program; 3=Sample; 4=SMF; 5=Setlist;	Save All Memory Items to Disk 6=Scenelist) <Data2>: 0=skip if file exists; 1=Overwrite existing files <Data3>: 0=Don’t save children; 1=Save Children.	File Functions	20	37	33	1828
+10	C	&30	48			0–127 (MSB)	0–127 (LSB)	Start auditioning a sample from disk. Index of file (starting from 0) = <Data2> + 128×<Data1>	File Functions	20	37	33	1834
+10	C	&31	49			N/A	N/A	Stop auditioning a sample.	File Functions	20	37	33	1836
+10	R	&04	4			0–127	N/A	<Data1> = number of logical disks connected to the sampler.	General Disk Functions	21	38	34	1856
+10	R	&05	5		a	0–127	0–127 (handle LSB) ; (handle MSB) ; <Data3>=0, 1, 2, 3 ; <Data4>=0–7 ; <Data5>=0–7 ; <Data6>=0,1 ; <Data7>=char1…0…	Disk Handle = <Data2> + 128×<Data1>. <Data3> = the type of the disk: (See Item &07) <Data4>=Disk Format (see Item &0A) <Data5>=Physical (SCSI) disk ID <Data6>=Disk is writable (0=no, 1=yes) <Data7…0> = string containing the name of the disk. This sequence (<handle><type><format><id><name…0>) is repeated for each of the logical disks connected to the sampler.	General Disk Functions	21	38	34	1857
+10	R	&06	6			0, 1, 2, 3	N/A	<Data1> = the type of the currently selected disk: 0=floppy; 1=hard disk; 2=CD ROM; 3=removable disk.	General Disk Functions	21	38	34	1865
+10	R	&07	7			0, 1, 2, 3	N/A	<Data1> = the type of the specified disk: 0=floppy; 1=hard disk; 2=CD ROM; 3=removable disk. (Any other return value represents an unknown disk type.)	General Disk Functions	21	38	34	1867
+10	R	&08	8			0–127	0–127 ; (handle MSB) ; (handle LSB)	<Data1>, <Data2> = the handle of the currently selected disk (i.e., the handle which was used with <Item>&02 to select the disk).	General Disk Functions	21	38	34	1870
+10	R	&09	9			char1…0	N/A	<Data1…0> = string containing the current path on the current disk. If the root folder is selected, this will return a single byte = 0.	General Disk Functions	21	38	34	1872
+10	R	&0A	10			0–7	N/A	Get Format of current disk. <Data1> = format, where: 0=other; 1=MSDOS; 2=FAT32; 3=ISO9660; 4=S1000; 5=S3000; 6=EMU; 7=ROLAND.	General Disk Functions	21	38	34	1874
+10	R	&0B	11			QWORD<8bytes>	…	Get Free Space on current disk. 8 bytes are returned as a Compound Quad Word (see page 9).	General Disk Functions	21	38	34	1877
+10	R	&10	16			0–127 (MSB)	0–127 (LSB)	The number of sub-folders in the current folder = <Data2> + 128×<Data1>	Folder Functions	21	38	34	1880
+10	R	&11	17			char1…0	N/A	<Data1…0> = string containing the name of the requested folder.	Folder Functions	21	38	34	1882
+10	R	&12	18		b	char1…0…	charN…0	Returns a list of the names of all of the sub-folders. <Data1…0> = name of first folder. This is followed by the names of all of the other folders.	Folder Functions	21	38	34	1883
+10	R	&20	32			0–127 (MSB)	0–127 (LSB)	The number of files in the current folder = <Data2> + 128×<Data1>	File Functions	21	38	34	1887
+10	R	&21	33			char1…0	N/A	<Data1…0> = string containing the name of the requested file.	File Functions	21	38	34	1888
+10	R	&22	34		c	char1…0…	charN…0	Returns a list of the names of all the files in the current folder. <Data1…0> = name of first file. This is followed by the names of all of the other files.	File Functions	21	38	34	1889
+10	R	&23	35			0–127(MSB)	0–127(SB2) ; <Data3>=0–127(SB1) A Compound Double Word (see page 9) representing the size of the ; <Data4>=0–127(LSB)	Get file size (in bytes) file.	File Functions	21	38	34	1892
+10	R	&24	36			0–127 (MSB)	0–127 (LSB)	The index of the file is returned if found.	File Functions	21	38	34	1895
+12	C	&01	1			N/A	N/A	Get FX card installed.	Determine if there is an FX board installed or not.	22	39	35	1944
+12	C	&10	16			N/A	N/A	Get Number of FX channels.	Determine the characteristics of the installed FX.	22	39	35	1947
+12	C	&11	17			0–127	N/A	Get Number of FX modules on given channel. <Data1> = channel.	Determine the characteristics of the installed FX.	22	39	35	1949
+12	C	&20	32			0–127	0, 1	Set Mute Status of Channel 0 = ON, 1 = MUTE.	Setting/Getting the configuration of the FX channels.	22	40	36	1958
+12	C	&21	33			0–127	N/A	Get Mute Status of Channel	Setting/Getting the configuration of the FX channels.	22	40	36	1959
+12	C	&30	48			0–127	0–127 ; <Data3>=0–127 <Data1> = channel; <Data2> = module; <Data3> = module type.	Set Type of FX module on given channel. (see Table 24 for decription of module types)	Setting/Getting the configuration of the FX modules.	22	40	36	1962
+12	C	&31	49			0–127	0–127	Get Type of FX module on given channel. <Data1> = channel; <Data2> = module.	Setting/Getting the configuration of the FX modules.	22	40	36	1966
+12	C	&40	64			0–127	0–127 ; <Data3>=0, 1	Set Enabled/Disabled State of FX module. <Data1> = channel; <Data2> = module; <Data3> =0 (disable) or 1 (enable)	Enabling/Disabling FX modules.	22	40	36	1970
+12	C	&41	65			0–127	0–127	Get Enabled/Disabled State of FX module. <Data1> = channel; <Data2> = module	Enabling/Disabling FX modules.	22	40	36	1974
+12	C	&50	80			0–127	0–127 ; <Data3>=0–127 ; <Data4>=0, 1 ; <Data5>=0–127 ; <Data6>=0–127	Set parameter value of given module in given channel. <Data1> = channel; <Data2> = module; <Data3> = index of parameter to set (see Table 25). <Data4> = sign (0 = +ve, 1 = −ve) <Data5> = Parameter Value (MSB); <Data6> = Parameter Value (LSB); (absolute value = LSB + 128× MSB)	Setting/Getting FX parameter values.	22	40	36	1978
+12	C	&51	81			0–127	0–127 ; <Data3>=0–127	Get parameter value of given module in given channel. <Data1> = channel; <Data2> = module; <Data3> = index of parameter to set (see Table 25) (Reply Value is a compound word, as in Item &50, above.	Setting/Getting FX parameter values.	22	40	36	1986
+12	R	&01	1			0, 1	N/A	<Data1> = FX card installed: 0=none, 1=EB20.		23	40	36	1993
+12	R	&10	16			0–127	N/A	<Data1> = Number of FX channels.		23	40	36	1995
+12	R	&11	17			0–127	N/A	<Data1> = Number of FX modules on given channel.		23	40	36	1996
+12	R	&21	33			0, 1	N/A	<Data1> = Mute Status of FX Channel 0=ON; 1=MUTE		23	40	36	1959
+12	R	&31	49			0–127	N/A	<Data1> = Type of FX module on given channel (see Table 24 for decription of module types)		23	40	36	1966
+12	R	&41	65			0, 1	N/A	<Data1> = 0 (Module disabled); 1(Module enabled)		23	40	36	2000
+12	R	&51	81			0, 1	0–127 ; <Data3> =0–127	Get parameter value of given module in given channel. <Data1> = sign (0 = +ve, 1 = −ve) <Data2> = Parameter Value (MSB); <Data3> = Parameter Value (LSB); (absolute value = LSB + 128× MSB)		23	40	36	1986
+14	C	&05	5			char1	…0	Select Scenelist (by name) to be current: <Data1…0> = Name.	Scenelist Selection	26	43	39	2099
+14	C	&06	6			0–127(MSB)	0–127(LSB)	Select Scenelist (by index) to be current: <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Scenelist Selection	26	43	39	2100
+14	C	&08	8			N/A	N/A	Delete the currently selected Scenelist from memory.	Scenelist Selection	26	43	39	2102
+14	C	&09	9			char1	…0	Rename the currently selected Scenelist. <Data1…0> = Name.	Scenelist Selection	26	43	39	2103
+14	C	&10	16			N/A	N/A	Get the Number of Scenelists loaded into memory.	Getting General Information of the Scenelist in Memory	26	43	39	2105
+14	C	&11	17			0–127(MSB)	0–127(LSB)	Get the name of Scenelist by index. <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Getting General Information of the Scenelist in Memory	26	43	39	2106
+14	C	&13	19			N/A	N/A	Get Current Scenelist’s Index (i.e., its position in memory)	Getting General Information of the Scenelist in Memory	26	43	39	2108
+14	C	&14	20			N/A	N/A	Get Current Scenelist’s Name	Getting General Information of the Scenelist in Memory	26	43	39	2109
+14	R	&10	16			0–127(MSB)	0–127(LSB)	The number of Scenelists in memory is returned, where number = LSB+128×MSB		27	43	39	2115
+14	R	&11	17			char1	…0	The name of the requested Scenelist is returned as a character string.		27	43	39	2106
+14	R	&13	19			0–127(MSB)	0–127(LSB)	Current Scenelists Index, where: <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)		27	43	39	2108
+14	R	&14	20			char1	…0	Current Scenelist’s name: <Data1…0> = Name		27	43	39	2109
+16	C	&05	5			char1	…0	Select Songfile (by name) to be current: <Data1…0> = Name.	Scenelist Songfile	28	44	40	2130
+16	C	&06	6			0–127(MSB)	0–127(LSB)	Select Songfile (by index) to be current: <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Scenelist Songfile	28	44	40	2131
+16	C	&08	8			N/A	N/A	Delete the currently selected Songfile from memory.	Scenelist Songfile	28	44	40	2133
+16	C	&09	9			char1	…0	Rename the currently selected Songfile. <Data1…0> = Name.	Scenelist Songfile	28	44	40	2134
+16	C	&10	16			N/A	N/A	Get the Number of Songfiles loaded into memory.	Getting General Information of the Songfile in Memory	28	44	40	2136
+16	C	&11	17			0–127(MSB)	0–127(LSB)	Get the name of Songfile by index. <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Getting General Information of the Songfile in Memory	28	44	40	2137
+16	C	&13	19			N/A	N/A	Get Current Songfile’s Index (i.e., its position in memory)	Getting General Information of the Songfile in Memory	28	44	40	2139
+16	C	&14	20			N/A	N/A	Get Current Songfile’s Name	Getting General Information of the Songfile in Memory	28	44	40	2140
+16	C	&20	32			N/A	N/A	Get the Number of Set Lists loaded into memory.	Getting General Information of the Songfile in Memory	28	44	40	2141
+16	C	&21	33			0–127(MSB)	0–127(LSB)	Get the name of Set List by index. <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Getting General Information of the Songfile in Memory	28	44	40	2142
+16	C	&22	34			0–127(MSB)	0–127(LSB)	Delete the Set List by index. <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)	Getting General Information of the Songfile in Memory	28	44	40	2144
+16	C	&23	35			0–127(MSB)	0–127(LSB) ; <Data3…0> = ; char1…0	Rename the Set List by index. <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB) <Data3…0> = New name.	Getting General Information of the Songfile in Memory	28	44	40	2146
+16	R	&10	16			0–127(MSB)	0–127(LSB)	The number of Songfiles in memory is returned, where number = LSB+128×MSB		29	44	40	2154
+16	R	&11	17			char1	…0	The name of the requested Songfile is returned as a character string.		29	44	40	2137
+16	R	&13	19			0–127(MSB)	0–127(LSB)	Current Songfiles Index, where: <Data1>=MSB; <Data2>=LSB. (index = LSB+128×MSB)		29	44	40	2139
+16	R	&14	20			char1	…0	Current Songfile’s name: <Data1…0> = Name		29	44	40	2140
+16	R	&20	32			0–127(MSB)	0–127(LSB)	The number of Set Lists in memory is returned, where number = LSB+128×MSB		29	44	40	2160
+16	R	&21	33			char1	…0	The name of the requested Set List is returned as a character string.		29	44	40	2142
+20	C	&01	1			64–107b	N/A	“Key Hold”: hold down panel key: <Data1> = keycode.		30	45	41	2176
+20	C	&02	2			64–107b	N/A	“Key Release”: release panel key: <Data1> = keycode.		30	45	41	2177
+20	C	&03	3			0, 1	1–8	“Data Wheel”. Move the data wheel forwards or backwards a certain amount, where: <Data1>=direction (0=forwards, 1=backwards), <Data2>=number of clicks to move wheel.		30	45	41	2178
+20	C	&04	4			0–127	N/A	ASCII keyboard data: <Data1> = ASCII value.		30	45	41	2181
+
+#FOOTNOTES	tbl	letter: text
+#FN	5	a: Note that if synchronisation is enabled and the current muti, program or sample is changed by SysEx on a different port which also has synchronisation enabled, the currently selected item on the current port will also change because the item displayed on the LCD will have changed. To avoid this situation, synchronisation should be turned off, and enabled only when required.
+#FN	5	b: Some SysEx messages may require substantial time to execute. This can result in large delays between an OK and a DONE (or REPLY/ ERROR) message which the host could interpret as “samper not responding”. To avoid this, if the Still Alive monitor is enabled, a NULL message (<&F0><&F7>) will be transmitted to the host approximately every second, whilst the host is awaiting a response.
+#FN	6	a: This is for future expansion. Currently, the sub-version will always be returned as zero.
+#FN	6	b: Unless this is changed by the user, the default value will be returned: either “AKAI S5000” or “AKAI S6000”. This is an alternative way of identifying samplers.
+#FN	13	a: The number sent is 1 smaller than that set via the S5000/6000 front panel. i.e., numbers 1–128 shall be transmitted as 0–127.
+#FN	13	b: The LFO Rate, Delay and Depth settings are only valid if the LFO is not synchronised to MIDI clock.
+#FN	14	a: The number returned will always be 1 smaller than that set via the S5000/6000 front panel. i.e., numbers 1–128 will be transmitted as 0–127.
+#FN	14	b: It is recommended that the number of Programs in memory is determined before this <Item> is requested so that the controlling computer knows in advance how much data it is expecting. Information for the Programs will be returned in the order in which they are stored in memory.
+#FN	16	a: The number set is 1 smaller than that set via the S5000/6000 front panel. i.e., numbers 1–128 shall be transmitted as 0–127.
+#FN	17	a: The number returned will always be 1 smaller than that set via the S5000/6000 front panel. i.e., numbers 1–128 will be transmitted as 0– 127.
+#FN	17	b: It is recommended that the number of parts in the current multi is determined before this <Item> is requested so that the controlling computer knows in advance how much data it is expecting. Information for the parts will be returned in order, starting from Part 1.
+#FN	17	c: It is recommended that the number of multis in memory is determined before this <Item> is requested so that the controlling computer knows in advance how much data it is expecting. Information for the multis will be returned in the order in which they are stored in memory.
+#FN	20	a: If the currently selected disk is valid, a DONE message will be returned, otherwise an ERROR reply will be returned.
+#FN	20	b: Before the number of disks is determined, the list of disks connected must have been updated. If this is not the case, the value returned will be invlaid.
+#FN	20	c: When renaming a file, the file extension must not be appended to the new name, as this is automatically added.
+#FN	20	d: Loading a file will load a multi, program, sample, or scenelist depending on the type of file supplied. Note that if the requested file has child files which it depends upon (e.g., a program’s children are the sample files it requires) then these child files will not be loaded automatically. To load child files automatically, another function must be used.
+#FN	20	e: This operation ensures that all child files (e.g., the samples of a program, or the programs of a multi) are also loaded automatically.
+#FN	21	a: It is recommended that the number of disks is determined before this <Item> is requested so that the controlling computer knows in advance how much data it is expecting.
+#FN	21	b: It is recommended that the number of sub-folders is determined before this <Item> is requested so that the controlling computer knows in advance how many character strings it is expecting.
+#FN	21	c: It is recommended that the number of files is determined before this <Item> is requested so that the controlling computer knows in advance how many character strings it is expecting.
+#FN	30	a: These functions cause the data to be queued within the sampler, it does not wait until the data has been processed. Thus the DONE confirmation message simply confirms that the data has been queued, not processed. If the data is not queued successfully, an ERROR will be returned.
+#FN	30	b: Only those keycodes defined in Table 31 should be used. Use of other values may lead to undefined behaviour.

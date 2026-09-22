@@ -14,6 +14,9 @@ Guidance for AI coding agents working in this repository.
 No source code exists yet beyond reference documentation (`documents/`) and the
 `process/` planning skeleton. Update this section once the repository layout is real.
 
+Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
+`documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
+
 ## Commands
 
 Install, build, test and lint commands are not defined yet — there is no buildable
