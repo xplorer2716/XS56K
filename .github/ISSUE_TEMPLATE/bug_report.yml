@@ -1,7 +1,3 @@
-# AI: Template initialization (see .template/INIT.md, batch E):
-# AI: - replace the {{COMPONENTS}} options with the project's real components (or delete the "component" field);
-# AI: - adapt the "environment" field to what matters for this project (OS, browser, runtime, hardware...);
-# AI: - delete all "# AI:" comments when done.
 name: Bug report
 description: Something does not work as expected.
 title: "[Bug]: "
@@ -13,7 +9,7 @@ body:
         Thanks for taking the time to report a bug! Please answer the questions below as precisely as you can:
         a clear report is the fastest way to a fix.
 
-        **Security vulnerability?** Do not open a public issue — follow [SECURITY.md](https://github.com/{{GITHUB_OWNER}}/{{GITHUB_REPO}}/blob/{{DEFAULT_BRANCH}}/SECURITY.md).
+        **Security vulnerability?** Do not open a public issue — follow [SECURITY.md](https://github.com/xplorer2716/XS56K/blob/main/SECURITY.md).
 
   - type: checkboxes
     id: preflight
@@ -80,7 +76,7 @@ body:
     id: version
     attributes:
       label: Version
-      description: Which version of {{PROJECT_NAME}} are you using? (release number or commit hash)
+      description: Which version of XS56K are you using? (release number or commit hash)
       placeholder: "e.g. 1.4.2 or a1b2c3d"
     validations:
       required: true
@@ -91,9 +87,9 @@ body:
       label: Environment
       description: Where does it happen? Include every detail that could matter.
       value: |
-        - OS:
-        - Runtime / compiler version:
-        - Other relevant software:
+        - OS: (Windows / macOS / Linux, version)
+        - Sampler model: (S5000 / S6000)
+        - Akai firmware version:
     validations:
       required: true
 
@@ -103,7 +99,11 @@ body:
       label: Affected component
       description: Which part of the project is affected? (if you know)
       options:
-        - "{{COMPONENTS}}"
+        - SysEx Communication
+        - Patch Editor
+        - UI/UX
+        - Documentation
+        - Build/JUCE
         - I don't know
 
   - type: textarea

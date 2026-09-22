@@ -1,4 +1,3 @@
-# AI: Template initialization: delete all "# AI:" comments when done. No other change is required.
 name: Documentation
 description: Report missing, unclear or incorrect documentation.
 title: "[Docs]: "

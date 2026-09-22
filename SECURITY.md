@@ -1,24 +1,17 @@
-<!-- AI: Initialize this file by following .template/INIT.md (batch C and D). Never promise a response time or a supported version the maintainer did not explicitly choose. -->
-
 # Security Policy
 
 ## Supported versions
 
-<!-- AI: Ask which versions receive security fixes. Fill the table (one row per version line). If the project has no release yet, write "Only the latest commit on the default branch is supported." and delete the table. -->
-
-| Version | Supported |
-|---|---|
-| {{SUPPORTED_VERSIONS}} | :white_check_mark: |
-| older | :x: |
+Only the latest commit on the default branch is supported.
 
 ## Reporting a vulnerability
 
 **Please do not report security vulnerabilities through public GitHub issues,
 discussions or pull requests.**
 
-Report them privately via: {{SECURITY_CONTACT}}
+Report them privately via: [GitHub private vulnerability reporting](https://github.com/xplorer2716/XS56K/security/advisories/new)
 
-<!-- AI: Recommended value: "[GitHub private vulnerability reporting](https://github.com/{{GITHUB_OWNER}}/{{GITHUB_REPO}}/security/advisories/new)". Remind the user it must be enabled in Settings → Code security. -->
+> Must be enabled in this repository's Settings → Code security → Private vulnerability reporting.
 
 Please include as much of the following as you can:
 
@@ -30,7 +23,8 @@ Please include as much of the following as you can:
 
 ## What to expect
 
-- We will acknowledge your report within {{SECURITY_RESPONSE_TIME}}.
+- This is a volunteer-run, open-source project: we do not commit to a fixed
+  acknowledgment time, but we will respond as soon as we can.
 - We will keep you informed of the progress towards a fix.
 - Once the issue is fixed, we will publish a security advisory and, if you wish,
   credit you for the discovery.

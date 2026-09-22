@@ -1,6 +1,3 @@
-# AI: Template initialization (see .template/INIT.md, batch E):
-# AI: - replace the {{COMPONENTS}} options with the project's real components (or delete the "component" field);
-# AI: - delete all "# AI:" comments when done.
 name: Feature request
 description: Suggest a new feature or an improvement.
 title: "[Feature]: "
@@ -70,7 +67,11 @@ body:
     attributes:
       label: Related component
       options:
-        - "{{COMPONENTS}}"
+        - SysEx Communication
+        - Patch Editor
+        - UI/UX
+        - Documentation
+        - Build/JUCE
         - I don't know
 
   - type: dropdown

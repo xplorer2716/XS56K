@@ -1,11 +1,9 @@
-<!-- AI: Replace the placeholders and delete this comment. Keep the format; do not invent past releases. -->
-
 # Changelog
 
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
-and this project adheres to {{VERSIONING}}.
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
@@ -23,4 +21,4 @@ Sections to use under each version (only those that apply):
 ### Security    in case of vulnerabilities.
 -->
 
-[Unreleased]: https://github.com/{{GITHUB_OWNER}}/{{GITHUB_REPO}}/commits/{{DEFAULT_BRANCH}}
+[Unreleased]: https://github.com/xplorer2716/XS56K/commits/main

@@ -1,5 +1,3 @@
-<!-- AI: Template initialization — adapt the checklist to the project's real commands and conventions (see .template/INIT.md), then delete this comment. Keep the other HTML comments: they guide contributors. -->
-
 <!--
 Thanks for your contribution! Answer the questions in each section.
 Delete a section only if it is marked "(if applicable)" and does not apply.
@@ -64,10 +62,10 @@ Closes #
 
 ## Checklist
 
-- [ ] I have read [CONTRIBUTING.md](https://github.com/{{GITHUB_OWNER}}/{{GITHUB_REPO}}/blob/{{DEFAULT_BRANCH}}/CONTRIBUTING.md).
-- [ ] My branch is up to date with `{{DEFAULT_BRANCH}}`.
-- [ ] Tests pass locally (`{{TEST_COMMAND}}`).
-- [ ] Lint / format checks pass (`{{LINT_COMMAND}}`).
+- [ ] I have read [CONTRIBUTING.md](https://github.com/xplorer2716/XS56K/blob/main/CONTRIBUTING.md).
+- [ ] My branch is up to date with `main`.
+- [ ] Tests pass locally (test command not yet defined — see CONTRIBUTING.md).
+- [ ] Lint / format checks pass (lint command not yet defined — see CONTRIBUTING.md).
 - [ ] I added or updated tests covering this change.
 - [ ] I updated the documentation (README, comments, ...) if needed.
 - [ ] I added an entry to `CHANGELOG.md` under `[Unreleased]` if the change is user-visible.

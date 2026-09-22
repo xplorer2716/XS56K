@@ -3,50 +3,29 @@
 Guidance for AI coding agents working in this repository.
 `CLAUDE.md` imports this file, so keep project instructions here.
 
-<!-- AI: TEMPLATE INITIALIZATION — delete this whole section (up to the next horizontal rule) once initialization is complete. -->
-## ⚠️ Template initialization (pending)
-
-This repository was created from a template and is **not initialized yet**.
-
-Before doing any other task, check whether placeholders remain:
-
-```bash
-grep -rnE '\{\{[A-Z0-9_]+\}\}|<!-- (AI|OPTIONAL):|# AI:' --exclude-dir=.git --exclude-dir=.template .
-```
-
-If the command returns results, tell the user the project is not initialized and
-offer to run the initialization by following [`.template/INIT.md`](.template/INIT.md):
-infer what you can from the repository, **ask the user** the remaining questions in
-small batches, never invent values, then fill in the files.
-
----
-
 ## Project overview
 
-- **Name:** {{PROJECT_NAME}}
-- **Purpose:** {{PROJECT_TAGLINE}}
-- **Stack:** {{LANGUAGE_STACK}}
-- **Status:** {{PROJECT_STATUS}}
+- **Name:** XS56K
+- **Purpose:** Éditeur pour les sampleurs AKAI S5000 et S6000 — contrôle bidirectionnel
+  avec une interface moderne.
+- **Stack:** C++ / [JUCE](https://juce.com/) 8.0.15
+- **Status:** experimental
 
-<!-- AI: Describe the repository layout (main directories and what they contain) once code exists. Ask the user or read the tree; do not guess. -->
+No source code exists yet beyond reference documentation (`documents/`) and the
+`process/` planning skeleton. Update this section once the repository layout is real.
 
 ## Commands
 
-| Task | Command |
-|---|---|
-| Install | `{{INSTALL_COMMAND}}` |
-| Build | `{{BUILD_COMMAND}}` |
-| Test | `{{TEST_COMMAND}}` |
-| Lint / format | `{{LINT_COMMAND}}` |
-
-Run the test and lint commands before proposing a commit.
+Install, build, test and lint commands are not defined yet — there is no buildable
+code in the repository at this stage. Do not invent commands; check `CONTRIBUTING.md`
+and this file again once they exist.
 
 ## Conventions
 
-- Default branch: `{{DEFAULT_BRANCH}}`
-- Branch naming: {{BRANCH_NAMING}}
-- Commit messages: {{COMMIT_CONVENTION}}
-- Versioning: {{VERSIONING}} — record user-facing changes in `CHANGELOG.md` under `[Unreleased]`.
+- Default branch: `main`
+- Branch naming: `type/short-description`
+- Commit messages: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+- Versioning: [SemVer](https://semver.org/spec/v2.0.0.html) — record user-facing changes in `CHANGELOG.md` under `[Unreleased]`.
 
 ## Working with issues and pull requests
 

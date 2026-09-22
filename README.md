@@ -1,68 +1,42 @@
-<!-- AI: Initialize this file by following .template/INIT.md. Replace every {{PLACEHOLDER}}, follow and delete every "AI:" comment, keep "OPTIONAL:" sections only if the user confirms they apply. -->
+# XS56K
 
-# {{PROJECT_NAME}}
+> Éditeur pour les sampleurs AKAI S5000 et S6000
 
-<!-- OPTIONAL: Badges. Ask the user which ones they want (CI status, license, latest release, package version). Only add badges for services that actually exist for this repository. -->
+Permet un contrôle bidirectionnel de ces sampleurs avec une interface moderne, pour faire
+revivre ces sampleurs de légende.
 
-> {{PROJECT_TAGLINE}}
-
-{{PROJECT_DESCRIPTION}}
-
-**Status:** {{PROJECT_STATUS}}
-
-<!-- OPTIONAL: Features. Ask: "What are the 3–6 key features a new user should know about?" Remove the section if the project is too early to list any. -->
-## Features
-
-- {{FEATURE_1}}
-- {{FEATURE_2}}
-- {{FEATURE_3}}
+**Status:** experimental
 
 ## Getting started
 
 ### Prerequisites
 
-{{PREREQUISITES}}
+- [JUCE](https://juce.com/) 8.0.15
 
 ### Installation
 
 ```bash
-{{INSTALL_COMMAND}}
+TODO: not defined yet
 ```
 
 ### Usage
 
-<!-- AI: Ask for the smallest example that shows the project working (command line, code snippet, or screenshot). Use the correct language for the code fence. -->
-
-```bash
-{{USAGE_EXAMPLE}}
-```
-
-<!-- OPTIONAL: Configuration. Ask: "Does the project read configuration (env variables, config file, CLI flags)?" If yes, document each option in a table (name, description, default). -->
-## Configuration
-
-| Option | Description | Default |
-|---|---|---|
-| `{{OPTION_NAME}}` | {{OPTION_DESCRIPTION}} | `{{OPTION_DEFAULT}}` |
+TODO: no usable build yet.
 
 ## Development
 
 ```bash
 # Build
-{{BUILD_COMMAND}}
+TODO: not defined yet
 
 # Run the tests
-{{TEST_COMMAND}}
+TODO: not defined yet
 
 # Lint / format
-{{LINT_COMMAND}}
+TODO: not defined yet
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full development workflow.
-
-<!-- OPTIONAL: Roadmap. Ask if there is a public roadmap (milestones, project board, or a short list). Link to it rather than duplicating it. -->
-## Roadmap
-
-{{ROADMAP}}
 
 ## Contributing
 
@@ -80,9 +54,4 @@ See [SECURITY.md](SECURITY.md).
 
 ## License
 
-Distributed under the {{LICENSE_NAME}} license. See [LICENSE](LICENSE) for details.
-
-<!-- OPTIONAL: Acknowledgements. Ask whether there are people, projects or funders to credit. -->
-## Acknowledgements
-
-{{ACKNOWLEDGEMENTS}}
+Distributed under the GPL-3.0 license. See [LICENSE](LICENSE) for details.
