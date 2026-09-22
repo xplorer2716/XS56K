@@ -1,0 +1,13 @@
+# AI: Template initialization (see .template/INIT.md, batch C):
+# AI: ask who must review which paths. Delete this file if the user does not want code owners.
+# AI: Owners must be GitHub users or teams with write access. Delete all "# AI:" comments when done.
+#
+# Syntax: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# The last matching pattern takes precedence.
+
+# Default owner(s) for everything in the repository
+*       {{CODEOWNERS}}
+
+# Examples:
+# /docs/        @owner-or-team
+# /.github/     @owner-or-team

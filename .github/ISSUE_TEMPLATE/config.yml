@@ -1,0 +1,12 @@
+# AI: Template initialization (see .template/INIT.md, batch C and E):
+# AI: - set blank_issues_enabled according to the user's answer (default: false);
+# AI: - keep only contact links for channels that exist (e.g. delete "Questions" if Discussions are disabled);
+# AI: - delete all "# AI:" comments when done.
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & help
+    url: https://github.com/{{GITHUB_OWNER}}/{{GITHUB_REPO}}/discussions
+    about: Ask questions and discuss ideas here instead of opening an issue.
+  - name: Report a security vulnerability
+    url: https://github.com/{{GITHUB_OWNER}}/{{GITHUB_REPO}}/security/advisories/new
+    about: Please report security issues privately, never in a public issue.

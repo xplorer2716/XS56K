@@ -1,0 +1,113 @@
+# AI: Template initialization (see .template/INIT.md, batch E):
+# AI: - replace the {{COMPONENTS}} options with the project's real components (or delete the "component" field);
+# AI: - adapt the "environment" field to what matters for this project (OS, browser, runtime, hardware...);
+# AI: - delete all "# AI:" comments when done.
+name: Bug report
+description: Something does not work as expected.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please answer the questions below as precisely as you can:
+        a clear report is the fastest way to a fix.
+
+        **Security vulnerability?** Do not open a public issue — follow [SECURITY.md](https://github.com/{{GITHUB_OWNER}}/{{GITHUB_REPO}}/blob/{{DEFAULT_BRANCH}}/SECURITY.md).
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Before you start
+      options:
+        - label: I searched the existing issues and this bug has not been reported yet.
+          required: true
+        - label: I am using the latest version, or I checked that the bug still exists in it.
+          required: false
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the problem in one or two sentences. What is wrong, and where?
+      placeholder: "Example: Exporting a report with an empty title crashes the application."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+      description: Describe the behavior you expected instead. Why do you think it should behave this way?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How can we reproduce it?
+      description: |
+        List the exact steps, starting from a clean state. Can you reproduce it every time, or only sometimes?
+        A minimal example (code, config, file) helps a lot.
+      placeholder: |
+        1. Run `...`
+        2. Open `...`
+        3. Click on `...`
+        4. See error
+    validations:
+      required: true
+
+  - type: dropdown
+    id: frequency
+    attributes:
+      label: How often does it happen?
+      options:
+        - Every time
+        - Often
+        - Sometimes
+        - Only once
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Error messages and logs
+      description: Paste the full error message, stack trace or relevant log output. Remove any secrets or personal data first.
+      render: shell
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Which version of {{PROJECT_NAME}} are you using? (release number or commit hash)
+      placeholder: "e.g. 1.4.2 or a1b2c3d"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Where does it happen? Include every detail that could matter.
+      value: |
+        - OS:
+        - Runtime / compiler version:
+        - Other relevant software:
+    validations:
+      required: true
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Affected component
+      description: Which part of the project is affected? (if you know)
+      options:
+        - "{{COMPONENTS}}"
+        - I don't know
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: Workaround and additional context
+      description: Did you find a workaround? When did it start (after an update, a config change)? Anything else we should know?

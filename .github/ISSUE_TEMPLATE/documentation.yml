@@ -1,0 +1,43 @@
+# AI: Template initialization: delete all "# AI:" comments when done. No other change is required.
+name: Documentation
+description: Report missing, unclear or incorrect documentation.
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve the documentation!
+
+  - type: input
+    id: location
+    attributes:
+      label: Where is the problem?
+      description: Link to the page or file (and section) concerned. Leave empty if the documentation is missing entirely.
+      placeholder: "e.g. README.md > Installation"
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of problem is it?
+      options:
+        - Incorrect or outdated information
+        - Unclear or hard to follow
+        - Missing documentation
+        - Typo or formatting
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What is wrong or missing?
+      description: What were you trying to do? What did you read, and what confused you or was wrong?
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would make it better?
+      description: Suggest a corrected text, an example to add, or the questions the documentation should answer.
