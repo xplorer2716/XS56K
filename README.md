@@ -1,9 +1,9 @@
 # XS56K
 
-> Éditeur pour les sampleurs AKAI S5000 et S6000
+> Editor for the AKAI S5000 and S6000 samplers
 
-Permet un contrôle bidirectionnel de ces sampleurs avec une interface moderne, pour faire
-revivre ces sampleurs de légende.
+Enables bidirectional control of these samplers through a modern interface, bringing these
+legendary samplers back to life.
 
 **Status:** experimental
 
