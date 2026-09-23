@@ -11,6 +11,8 @@
 # into it — the same reasoning as XplorerEditor's ADR-BLD-003 (DEC-BLD-024)
 # for its preprod stream, minus the publish step (there is nothing to
 # publish here yet).
+#
+# [RQ-BLD-005, RQ-BLD-006, ADR-BLD-002 (DEC-BLD-004, DEC-BLD-005, DEC-BLD-006), TASK-BLD-002]
 name: linux-headless-dev
 
 on:

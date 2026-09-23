@@ -15,6 +15,8 @@
 # Canary: fast, unconditional feedback on every push to a feature branch —
 # no need to open a pull request first to get a build (same reasoning as
 # XplorerEditor's ADR-BLD-003, DEC-BLD-024).
+#
+# [RQ-BLD-005, RQ-BLD-006, ADR-BLD-002 (DEC-BLD-004, DEC-BLD-005, DEC-BLD-006), TASK-BLD-002]
 name: linux-headless-canary
 
 on:

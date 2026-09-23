@@ -22,34 +22,39 @@ only the two headless library layers above. Reference documentation lives in `do
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
 `documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
 
+The build system itself is a traceable AGNOS artifact: `process/1.requirements/RQ-BLD-build-tooling.md`,
+`process/2.architecture/ADR-BLD-001` through `ADR-BLD-003`, and
+`process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md` — the last of these lists what is
+already done and what remains (blocked) to fully reproduce XplorerEditor's build system here.
+
 ## Commands
 
 - **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
   (ALSA headers, needed by `juce_audio_devices`) — JUCE itself is fetched by CMake
-  (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately.
+  (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately. [RQ-BLD-001]
 - **Build:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
-  (builds the `xpl_midi`/`xpl_midi_juce` and `xpl_framework` static libraries only; no GUI app yet).
+  (builds the `xpl_midi`/`xpl_midi_juce` and `xpl_framework` static libraries only; no GUI app yet). [RQ-BLD-002]
 - **Test:** not defined yet — no `juce/tests` directory exists. `XS56K_BUILD_TESTS` (CMake option,
-  default `OFF`) is reserved for it.
+  default `OFF`) is reserved for it. [RQ-BLD-002, TASK-BLD-005 backlog]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
-  `xpl::warnings` interface target in `juce/CMakeLists.txt`.
+  `xpl::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
 
 Do not invent commands beyond these; check `CONTRIBUTING.md` and this file again once a test
 suite or GUI app exists.
 
 ## Conventions
 
-- **Branches — two long-lived, adapted from XplorerEditor's `ADR-BLD-003`:**
-  - `main` — production. Protected.
+- **Branches — two long-lived** (`ADR-BLD-002`, adapted from XplorerEditor's own `ADR-BLD-003`; `RQ-BLD-005`):
+  - `main` — production. Protected (rule not yet configured — `RQ-BLD-011`, backlog).
   - `dev` — integration, the **default branch**. Base for pull requests and for AGNOS sessions.
   - `feature/*` (or other short-lived branches) — canary: built by CI on every push, no merge
     required first.
   - CI (`.github/workflows/linux-headless-canary.yml`, `linux-headless-dev.yml`) currently only
     builds the headless library layers on the `canary` and `dev` streams; there is no `prod`
     workflow yet since there is nothing to deploy (no GUI app). No versioning, SBOM or release
-    packaging has been set up — XplorerEditor's `ADR-BLD-003`/`ADR-BLD-004` are the reference for
-    when that becomes relevant.
+    packaging has been set up — `ADR-BLD-003` (this repository's, `RQ-BLD-007` through `010`) is
+    the reference for when that becomes relevant.
 - Branch naming: `type/short-description`
 - Commit messages: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - Versioning: [SemVer](https://semver.org/spec/v2.0.0.html) — record user-facing changes in `CHANGELOG.md` under `[Unreleased]`.

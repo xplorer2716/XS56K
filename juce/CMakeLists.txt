@@ -2,7 +2,7 @@
 # Copyright (C) 2026 https://github.com/xplorer2716
 # SPDX-License-Identifier: AGPL-3.0-or-later
 #
-# Root build for the JUCE (C++) port.
+# Root build for the JUCE (C++) port. [RQ-BLD-001, RQ-BLD-002, RQ-BLD-003, ADR-BLD-001]
 #
 # Structure, dependency pinning and the strict-warnings-for-project-code-only
 # split are carried over from xplorer2716/XplorerEditor's own juce/CMakeLists.txt
@@ -10,7 +10,8 @@
 # framework and MIDI layer were ported from). Trimmed to what this repository
 # actually has: only the midi and framework layers exist so far, no GUI
 # application (model/controller/settings/app), so there is nothing to fetch a
-# version for yet — that machinery is deferred until an app target exists.
+# version for yet — that machinery is deferred until an app target exists
+# (RQ-BLD-009, ADR-BLD-003, TASK-BLD-006).
 cmake_minimum_required(VERSION 3.22)
 
 project(XS56KJuce
@@ -27,7 +28,7 @@ if(MSVC)
 endif()
 
 # The GUI application target only builds once it exists; the non-UI layers and
-# their tests always build, headless.
+# their tests always build, headless. [RQ-BLD-002]
 option(XS56K_BUILD_APP "Build the XS56K JUCE GUI application" OFF)
 option(XS56K_BUILD_TESTS "Build the test suites" OFF)
 
@@ -59,7 +60,7 @@ if(XS56K_BUILD_TESTS)
     include(Catch)
 endif()
 
-# --- Strict warnings for project code only (not JUCE module sources) ---
+# --- Strict warnings for project code only (not JUCE module sources) [RQ-BLD-003] ---
 add_library(xpl_warnings INTERFACE)
 if(MSVC)
     target_compile_options(xpl_warnings INTERFACE /W4 /WX /permissive-)
@@ -74,14 +75,14 @@ else()
 endif()
 add_library(xpl::warnings ALIAS xpl_warnings)
 
-# --- Layer libraries, bottom-up ---
+# --- Layer libraries, bottom-up [RQ-BLD-002] ---
 add_subdirectory(midi)
 add_subdirectory(framework)
 
 if(XS56K_BUILD_TESTS)
-    add_subdirectory(tests)
+    add_subdirectory(tests)  # not yet ported — TASK-BLD-005 backlog
 endif()
 
 if(XS56K_BUILD_APP)
-    add_subdirectory(app)
+    add_subdirectory(app)  # not yet ported — TASK-BLD-005 backlog
 endif()
