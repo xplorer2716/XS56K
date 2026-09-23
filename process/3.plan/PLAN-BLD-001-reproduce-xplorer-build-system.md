@@ -41,12 +41,12 @@ repository or on access this session does not have.
 - **Description**: Add `.github/workflows/linux-headless-canary.yml` (push, any branch except
   `main`/`dev`) and `linux-headless-dev.yml` (push + pull_request, `dev`), both building the
   headless libraries of TASK-BLD-001 on `ubuntu-22.04` with ALSA headers installed.
-- **Requirement refs**: RQ-BLD-005, RQ-BLD-006
+- **Requirement refs**: RQ-BLD-005, RQ-BLD-006, RQ-BLD-012
 - **ADR refs**: ADR-BLD-002
-- **Acceptance Criteria** (Gherkin): *Given* a push to a `feature/*` branch touching `juce/**`, *When* CI runs, *Then* `linux-headless-canary` builds successfully. *Given* a push or pull request targeting `dev` touching `juce/**`, *When* CI runs, *Then* `linux-headless-dev` builds successfully. *Given* both workflow files, *When* read, *Then* each file's stem, `name:` and job key are identical.
+- **Acceptance Criteria** (Gherkin): *Given* a push to a `feature/*` branch touching `juce/**`, *When* CI runs, *Then* `linux-headless-canary` builds successfully. *Given* a push or pull request targeting `dev` touching `juce/**`, *When* CI runs, *Then* `linux-headless-dev` builds successfully. *Given* both workflow files, *When* read, *Then* each file's stem, `name:` and job key are identical. *Given* a push whose full diff touches only `documents/`, `process/` or top-level Markdown, *When* CI is checked, *Then* neither workflow ran for it.
 - **Dependencies**: TASK-BLD-001
 - **Assignee**: AI
-- **Verification**: Both files pass `yaml.safe_load` (checked in-session). File stem = `name:` = job key verified by inspection for both (`linux-headless-canary`, `linux-headless-dev`). Not yet observed running on GitHub's runners (no push landed on `dev` or a `feature/*` branch since these were added) — CMake/build correctness was verified locally under the same commands the workflows run (TASK-BLD-001's verification).
+- **Verification**: Both files pass `yaml.safe_load` (checked in-session). File stem = `name:` = job key verified by inspection for both (`linux-headless-canary`, `linux-headless-dev`). Now also observed running on GitHub's runners: `mcp__github__actions_list` (`list_workflow_runs`) shows 2 completed, successful `linux-headless-canary` runs; `git diff --name-only` between each run's before/after commit confirms both pushes' full range genuinely touched `juce/**` (run #1's push carried `86fd171`, which added `juce/CMakeLists.txt`, alongside the displayed "relicense" commit; run #2's commit touched `juce/CMakeLists.txt` directly) — the `paths` filter (RQ-BLD-012) was not a false trigger either time.
 - **Assumptions**: No composite action introduced (DEC-BLD-007) — two call sites do not yet justify the indirection.
 
 ---
@@ -92,9 +92,9 @@ repository or on access this session does not have.
 - **Description**: Generate the fifteen `<os>-<arch>-<config>-<stage>` deployment workflows (a
   `generate_workflows.py`-equivalent script) plus the `build-app`/`resolve-version` composite
   actions, once a GUI application target exists to build.
-- **Requirement refs**: RQ-BLD-007, RQ-BLD-008
+- **Requirement refs**: RQ-BLD-007, RQ-BLD-008, RQ-BLD-012
 - **ADR refs**: ADR-BLD-003
-- **Acceptance Criteria** (Gherkin): see RQ-BLD-007/RQ-BLD-008.
+- **Acceptance Criteria** (Gherkin): see RQ-BLD-007/RQ-BLD-008; each generated file's `paths` filter per RQ-BLD-012.
 - **Dependencies**: A `model`/`controller`/`settings`/`app` layer must exist in this repository (none does yet).
 - **Assignee**: AI
 - **Verification**: N/A (Blocked, not started)

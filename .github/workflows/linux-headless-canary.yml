@@ -19,6 +19,8 @@
 # [RQ-BLD-005, RQ-BLD-006, ADR-BLD-002 (DEC-BLD-004, DEC-BLD-005, DEC-BLD-006), TASK-BLD-002]
 name: linux-headless-canary
 
+# paths below: only a change under juce/ (or to this file) can affect whether the
+# C++ port still compiles, so nothing else SHALL trigger this workflow. [RQ-BLD-012]
 on:
   push:
     branches-ignore: [main, dev]

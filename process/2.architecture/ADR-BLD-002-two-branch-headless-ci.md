@@ -44,6 +44,12 @@ instead, matching the existing precedent in XplorerEditor's own repository
 identical reason — it builds no application and deploys nothing). File name = workflow `name:` =
 job key is kept as the one property that does transfer.
 
+**DEC-BLD-006a** — Both workflows' triggers carry a `paths: ['juce/**', '<own file>']` filter
+(RQ-BLD-012), so a change confined to `documents/`, `process/` or top-level Markdown does not run a
+build that cannot say anything about it. Verified against this repository's own CI history after
+the fact, not merely asserted: both runs observed so far were triggered by a push whose full commit
+range genuinely touched `juce/**`.
+
 **DEC-BLD-007** — No composite actions yet. XplorerEditor's steps live in `.github/actions/`
 because fifteen near-identical workflow files make that indirection pay for itself (`RQ-BLD-023`).
 Two workflows do not: the ALSA-install/configure/build steps are inlined directly in each of the

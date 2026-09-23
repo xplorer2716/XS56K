@@ -73,6 +73,15 @@ a future session does not have to re-derive XplorerEditor's reasoning from scrat
 - **Acceptance Criteria** (Gherkin): *Given* `linux-headless-canary.yml` and `linux-headless-dev.yml`, *When* each is read, *Then* its file stem, its `name:` and its single job key are the same string.
 - **Dependencies**: ADR-BLD-002
 
+### RQ-BLD-012: Path-scoped CI triggers
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF a push or pull request touches no file under `juce/**` (and does not itself edit the workflow file in question), THEN a build/compile CI workflow SHALL NOT run for it — every such workflow's trigger SHALL carry a `paths` filter scoped to `juce/**` plus its own workflow file.
+- **Rationale**: a build workflow exists to answer "does the C++ port still compile", which a change confined to `documents/`, `process/` or the repository's own Markdown files cannot affect — running it anyway burns CI minutes and adds a status check with nothing to say about the change under review. Verified retroactively against this repository's own CI run history (`linux-headless-canary` runs #1–#2): both were triggered by a *push* whose full commit range genuinely touched `juce/**`, confirming the filter already in place works as intended, not merely as documented.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* `linux-headless-canary.yml` and `linux-headless-dev.yml`, *When* their `on.push.paths` (and, for the latter, `on.pull_request.paths`) are read, *Then* each lists `juce/**` and its own workflow file, and nothing else. *Given* a push whose full diff touches only `documents/`, `process/` or top-level Markdown files, *When* CI is checked, *Then* neither workflow ran for it.
+- **Dependencies**: RQ-BLD-005, RQ-BLD-006
+
 ---
 
 ## Functional Requirements — backlog (Proposed, not yet implemented)
@@ -97,8 +106,8 @@ shape.*
 - **Statement**: The fifteen deployment workflow files of RQ-BLD-007 SHALL be generated from one matrix source rather than hand-duplicated, with the shared build/package/publish logic living once, in composite actions under `.github/actions/`.
 - **Rationale**: reproduces XplorerEditor's `RQ-BLD-023` (composite actions) and its `juce/tools/generate_workflows.py` generator — fifteen near-identical files are fifteen copies of one procedure waiting to drift apart.
 - **Priority**: Should
-- **Acceptance Criteria** (Gherkin): *Given* the fifteen deployment workflows, *When* their build steps are compared, *Then* the shared logic appears once, in composite actions. *Given* the generator script, *When* it is run with `--check` after a plain run with no matrix change, *Then* it reports zero stale files.
-- **Dependencies**: RQ-BLD-007; ADR-BLD-003
+- **Acceptance Criteria** (Gherkin): *Given* the fifteen deployment workflows, *When* their build steps are compared, *Then* the shared logic appears once, in composite actions. *Given* the generator script, *When* it is run with `--check` after a plain run with no matrix change, *Then* it reports zero stale files. *Given* any of the fifteen generated files, *When* its `on.push.paths` is read, *Then* it carries the same `juce/**`-scoped filter RQ-BLD-012 requires of today's two hand-written workflows — the generator SHALL NOT drop it.
+- **Dependencies**: RQ-BLD-007, RQ-BLD-012; ADR-BLD-003
 
 ### RQ-BLD-009: Commit-derived version, single derivation
 - **Category**: Functional
