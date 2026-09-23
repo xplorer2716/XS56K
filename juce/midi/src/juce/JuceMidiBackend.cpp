@@ -1,5 +1,5 @@
 /*
-Xplorer - A real-time editor for the Oberheim Xpander and Matrix-12 synths
+XS56K - A real-time editor for the Oberheim Xpander and Matrix-12 synths
 Copyright (C) 2012-2026 https://github.com/xplorer2716
 
 This program is free software: you can redistribute it and/or modify
