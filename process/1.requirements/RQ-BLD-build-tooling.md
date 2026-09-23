@@ -2,13 +2,15 @@
 
 ## Overview
 
-The build system for the JUCE (C++) port: how it is configured, compiled, linted and, once a GUI
-application exists, delivered. Adapted from [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor)'s
-own `process/1.requirements/RQ-BLD-build-tooling.md` — the project `juce/midi` and `juce/framework`
-were ported from (see `AGENTS.md`) — trimmed to what this repository actually has (no GUI
-application layer yet: no `model`, `controller`, `settings` or `app` directory) and re-scoped
-accordingly. Requirements below marked **Proposed** are backlog: not yet implemented, kept here so
-a future session does not have to re-derive XplorerEditor's reasoning from scratch.
+The build system for the JUCE (C++) port: how it is configured, compiled, linted and delivered.
+Adapted from [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor)'s own
+`process/1.requirements/RQ-BLD-build-tooling.md` — the project `juce/midi` and `juce/framework`
+were ported from (see `AGENTS.md`) — trimmed to what this repository actually has, and re-scoped
+accordingly. `juce/app` is a **minimal, intentionally undesigned placeholder** (TASK-BLD-005), not
+`model`/`controller`/`settings` or the real editor UI — RQ-BLD-007 through RQ-BLD-010 build,
+version and package that placeholder, real mechanics against an unreal product. RQ-BLD-011 remains
+genuinely blocked (repository-administration access this session does not have), kept here so a
+future session does not have to re-derive the reasoning from scratch.
 
 ## Stakeholders
 
@@ -31,7 +33,7 @@ a future session does not have to re-derive XplorerEditor's reasoning from scrat
 ### RQ-BLD-002: Headless layered libraries, GUI application deferred
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
-- **Statement**: The build SHALL compile the `midi` and `framework` layers as standalone static libraries, headless (no GUI system libraries required), on Linux; the GUI application target SHALL only build when `XS56K_BUILD_APP` is explicitly enabled, and stays deferred until a `model`/`controller`/`settings`/`app` layer exists in this repository.
+- **Statement**: The build SHALL compile the `midi` and `framework` layers as standalone static libraries, headless (no GUI system libraries required), on Linux; the GUI application target SHALL only build when `BUILD_APP` is explicitly enabled, and stays deferred until a `model`/`controller`/`settings`/`app` layer exists in this repository.
 - **Rationale**: mirrors XplorerEditor's RQ-BLD-002/RQ-BLD-005 layering, sized to what has actually been ported so far (`midi` and `framework` only — see `AGENTS.md`).
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the current repository state (no `app`/`model`/`controller`/`settings` directory), *When* `cmake --build juce/build` is run with default options, *Then* the `xpl_midi`, `xpl_midi_juce` and `xpl_framework` static libraries build successfully and no GUI application target is attempted.
@@ -84,12 +86,13 @@ a future session does not have to re-derive XplorerEditor's reasoning from scrat
 
 ---
 
-## Functional Requirements — backlog (Proposed, not yet implemented)
+## Functional Requirements — implemented against a minimal placeholder application
 
-*Deferred until a GUI application layer (`model`/`controller`/`settings`/`app`) exists in this
-repository — building and versioning an application that does not exist yet would be speculative.
-Kept here as the target to reproduce, adapted from XplorerEditor's own requirements of the same
-shape.*
+*Originally drafted as backlog, deferred until a GUI application layer existed. The owner instead
+created `juce/app` directly — an intentionally minimal, undesigned placeholder (a bare
+`juce::DocumentWindow`), not the real editor UI (TASK-BLD-005) — so RQ-BLD-007 through RQ-BLD-010
+below are now implemented against it. What they build, version and package is a placeholder; the
+mechanics (the matrix, the generator, the derivation, the cut-deployment gate) are real.*
 
 ### RQ-BLD-007: Full platform/stream deployment matrix
 - **Category**: Functional
@@ -126,6 +129,12 @@ shape.*
 - **Priority**: Should
 - **Acceptance Criteria** (Gherkin): *Given* a push to `main` with no tag, *When* its workflows complete, *Then* no deployment was published. *Given* the cut-deployment action run on `main`, *When* it completes, *Then* a tag exists and every production workflow has run.
 - **Dependencies**: RQ-BLD-009; ADR-BLD-003
+
+---
+
+## Non-Functional Requirements — backlog (Proposed, blocked)
+
+*Not implementable from this session — see rationale below.*
 
 ### RQ-BLD-011: Explicit branch protection on `main`
 - **Category**: Non-Functional

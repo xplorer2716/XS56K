@@ -42,7 +42,12 @@
 # Build directories
 build/
 Build/
-build-*/
+# Anchored and scoped to juce/, not a bare "build-*/": that pattern is
+# unanchored and matches at ANY depth, so it silently swallowed the real,
+# tracked .github/actions/build-app/ composite action (found while adding it,
+# TASK-BLD-005) — local CMake build dirs actually created here are
+# juce/build, juce/build-app, juce/build-release, all under juce/ only.
+/juce/build*/
 
 # CMake generated files
 CMakeFiles/

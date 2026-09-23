@@ -22,7 +22,7 @@ repository or on access this session does not have.
 - **Tier**: L
 - **Status**: Done
 - **Description**: Add `juce/CMakeLists.txt` (pinned JUCE 8.0.15 via `FetchContent`, `xpl::warnings`
-  interface target, `XS56K_BUILD_APP`/`XS56K_BUILD_TESTS` options, `add_subdirectory(midi)` +
+  interface target, `BUILD_APP`/`BUILD_TESTS` options, `add_subdirectory(midi)` +
   `add_subdirectory(framework)`), adapted from XplorerEditor's own root build and trimmed to the
   layers this repository has.
 - **Requirement refs**: RQ-BLD-001, RQ-BLD-002, RQ-BLD-003
@@ -31,7 +31,7 @@ repository or on access this session does not have.
 - **Dependencies**: None
 - **Assignee**: AI
 - **Verification**: Both configurations built successfully in this session (`ninja`, 25/25 targets each, no warnings). Confirmed `-Wall -Wextra -Wpedantic -Werror` present on project-code compile commands via `build.ninja` (grep on the `FLAGS` line for `AbstractParameter.cpp.o`). JUCE version confirmed fetched at tag `8.0.15` (configure log: `GIT_TAG 8.0.15`).
-- **Assumptions**: `XS56K_BUILD_TESTS` and `XS56K_BUILD_APP` left at their `OFF` default rather than wired to non-existent directories — no `juce/tests` or `juce/app` exists yet (see TASK-BLD-005/006 backlog).
+- **Assumptions**: `BUILD_TESTS` and `BUILD_APP` left at their `OFF` default rather than wired to non-existent directories — no `juce/tests` or `juce/app` exists yet (see TASK-BLD-005/006 backlog).
 
 ---
 
@@ -84,53 +84,83 @@ repository or on access this session does not have.
 
 ---
 
-## Backlog — blocked
+## Unblocked, same session (owner decision: create a minimal placeholder app)
 
-### TASK-BLD-005: Implement the full platform/stream deployment matrix
-- **Tier**: L
-- **Status**: Blocked
-- **Description**: Generate the fifteen `<os>-<arch>-<config>-<stage>` deployment workflows (a
-  `generate_workflows.py`-equivalent script) plus the `build-app`/`resolve-version` composite
-  actions, once a GUI application target exists to build.
-- **Requirement refs**: RQ-BLD-007, RQ-BLD-008, RQ-BLD-012
-- **ADR refs**: ADR-BLD-003
-- **Acceptance Criteria** (Gherkin): see RQ-BLD-007/RQ-BLD-008; each generated file's `paths` filter per RQ-BLD-012.
-- **Dependencies**: A `model`/`controller`/`settings`/`app` layer must exist in this repository (none does yet).
-- **Assignee**: AI
-- **Verification**: N/A (Blocked, not started)
-- **Assumptions**: None
+*The owner broke TASK-BLD-005/006/007's precondition directly: create a minimal, undesigned
+placeholder GUI application target (`juce/app`) purely so the versioning/matrix/cut-deployment
+plumbing has something real to build, rather than waiting for the actual editor UI to be
+designed and ported. This is NOT TASK-005 of a future real app port — see each task's own
+"placeholder" caveat.*
 
 ### TASK-BLD-006: Implement commit-derived versioning
 - **Tier**: L
-- **Status**: Blocked
+- **Status**: Done
 - **Description**: Add the `resolve-version` composite action (numeric/display/full forms from the
-  commit's UTC committer timestamp and `github.ref`) and wire it into CMake's configure line.
+  commit's UTC committer timestamp and `github.ref`) and wire it into CMake's configure line via
+  `VERSION_NUMERIC`/`VERSION_FULL` (no `XPL_`/project-specific prefix — owner decision, same as
+  TASK-BLD-002's follow-up).
 - **Requirement refs**: RQ-BLD-009
 - **ADR refs**: ADR-BLD-003
 - **Acceptance Criteria** (Gherkin): see RQ-BLD-009.
-- **Dependencies**: TASK-BLD-005
+- **Dependencies**: None (implemented ahead of TASK-BLD-005 — the derivation itself needs no app target).
 - **Assignee**: AI
-- **Verification**: N/A (Blocked, not started)
-- **Assumptions**: None
+- **Verification**: `resolve-version.sh` run directly (outside GitHub Actions, as XplorerEditor's own does) against five real refs — `refs/heads/main`, `refs/heads/dev`, `refs/heads/feature/BLD`, a tag, and a `refs/pull/1/merge` — producing stage `""`, `dev`, `canary`, `""`, `canary` respectively, all correct. `juce/app` then configured and built with `-DVERSION_NUMERIC=2026.9.23.2145 -DVERSION_FULL=2026.09.23-2145-dev` (the script's own real output); `strings` on the resulting binary confirms `2026.09.23-2145-dev` is embedded (`getApplicationVersion()` returns it).
+- **Assumptions**: None.
+
+### TASK-BLD-005: Implement the full platform/stream deployment matrix
+- **Tier**: L
+- **Status**: Done
+- **Description**: Create the minimal placeholder GUI application target (`juce/app` — a bare
+  `juce::DocumentWindow`, no real UI); generate the fifteen `<os>-<arch>-<config>-<stage>`
+  deployment workflows (`juce/tools/generate_workflows.py`) plus the `build-app`/
+  `package-deployment`/`publish-deployment` composite actions (`resolve-version` was TASK-BLD-006).
+  Reduced from XplorerEditor's own equivalents: no SBOM, no icon, no AppImage, no build-provenance
+  attestation, no macOS launch-screenshot — all explicitly out of scope (`ADR-BLD-003`) since the
+  placeholder app has no icon, no embedded asset and nothing to disclose.
+- **Requirement refs**: RQ-BLD-002 (superseded for the app-existence clause — a placeholder now exists), RQ-BLD-007, RQ-BLD-008, RQ-BLD-012
+- **ADR refs**: ADR-BLD-003
+- **Acceptance Criteria** (Gherkin): see RQ-BLD-007/RQ-BLD-008; each generated file's `paths` filter per RQ-BLD-012.
+- **Dependencies**: TASK-BLD-006 (for `VERSION_NUMERIC`/`VERSION_FULL`, consumed by `build-app`).
+- **Assignee**: AI
+- **Verification**: `juce/app` configured (`-DBUILD_APP=ON`) and built clean in both Debug and Release on Linux, warnings-as-errors included; the produced binary launched under `xvfb-run` and ran its event loop until killed by `timeout` (not a crash — the X `BadAtom` lines are Xvfb's own known incomplete-EWMH-atom noise, not an application error). `juce/tools/generate_workflows.py` run, then `--check` immediately after: "15 generated workflows are up to date" (idempotent). All 18 workflow files and 4 composite-action files (`yaml.safe_load`) and `resolve-version.sh` (`bash -n`) parse without error. Windows and macOS legs of the generated matrix are unverified beyond syntax — no Windows/macOS runner available in this session; first real signal is their first CI run. **Defect found and fixed in the same task:** `.gitignore`'s inherited `build-*/` pattern (template init commit `a811402`) is unanchored and silently matched `.github/actions/build-app/` at any depth — `git status` showed it as untracked-and-about-to-be-added-looking but `git status <exact path>` actually reported "nothing to commit, working tree clean" for it, which is what surfaced the mismatch. Fixed by anchoring and scoping it to `/juce/build*/`, the only place local CMake build directories are actually created.
+- **Assumptions**: The placeholder app links `juce::juce_gui_extra` + `juce::juce_audio_devices` and the existing `xpl_midi_juce`/`xpl_framework` libraries, PRODUCT_NAME `"XS56K"` (so the built executable is named `XS56K`, matching `build-app`'s locate-by-name logic). No composite action for the placeholder's own source beyond what's listed — a single `Main.cpp` needs none. No other directory in this repository's history matches the old unanchored `.gitignore` pattern (checked: `find . -iname 'build-*' -type d` finds only the one that exposed the bug).
 
 ### TASK-BLD-007: Implement the cut-deployment production workflow
 - **Tier**: M
-- **Status**: Blocked
-- **Description**: Add a `workflow_dispatch`-triggered action on `main` that derives the version,
-  pushes it as a tag, and thereby fires the three `prod` deployment workflows.
+- **Status**: Done
+- **Description**: Add `.github/workflows/cut-deployment.yml` (`workflow_dispatch` on `main`, derives
+  the version, pushes it as a tag), adapted from XplorerEditor's own.
 - **Requirement refs**: RQ-BLD-010
 - **ADR refs**: ADR-BLD-003
 - **Acceptance Criteria** (Gherkin): see RQ-BLD-010.
 - **Dependencies**: TASK-BLD-006
 - **Assignee**: AI
-- **Verification**: N/A (Blocked, not started)
-- **Assumptions**: None
+- **Verification**: `yaml.safe_load` passes. Not run on GitHub's runners — doing so would cut a real (placeholder) production deployment, which is a real, outward-facing effect (a public GitHub Release) this task does not have standing authorization to trigger; a run also has a real operational prerequisite that is not met yet (see the file's own OPERATIONAL PREREQUISITE comment: a `CUT_DEPLOYMENT` repository secret, a personal access token, must be added in Settings → Secrets and variables → Actions — the default `GITHUB_TOKEN` cannot trigger other workflows when it pushes, so without it the tag would push but the three `*-release-prod` workflows would never start).
+- **Assumptions**: None.
+
+---
+
+## Backlog — blocked
 
 ### TASK-BLD-008: Configure explicit branch protection on `main`
 - **Tier**: S
 - **Status**: Blocked
 - **Description**: Add a GitHub branch protection rule covering `main`, now that it is no longer
-  the repository's default branch and therefore not protected automatically.
+  the repository's default branch and therefore not protected automatically. Exact settings to
+  apply (Settings → Branches → Add branch protection rule, branch name pattern `main`):
+  - **Require a pull request before merging** — ON. No direct pushes to `main`; the only way
+    content reaches it is a reviewed PR (routine dev→main promotions) or `cut-deployment`'s own
+    tag push (which does not touch the branch itself, only pushes a tag from its tip).
+  - **Required approvals** — 0. This is a single-maintainer project (`CODEOWNERS` was deliberately
+    removed earlier this repository's history — "un seul owner"); requiring a second approver has
+    no one to provide it.
+  - **Require status checks to pass before merging** — deliberately left OFF. No generated workflow
+    currently triggers on a pull request targeting `main` (only `dev`'s do — RQ-BLD-005); production
+    correctness is instead gated at deployment time by the `*-release-prod` builds themselves
+    (TASK-BLD-005), the same structural choice XplorerEditor's own `ADR-BLD-003` makes. Revisit if
+    `main`-targeting PR checks are ever added.
+  - Everything else (linear history, force-push/deletion restrictions, etc.) — owner's discretion;
+    not required by any requirement in this plan.
 - **Requirement refs**: RQ-BLD-011
 - **ADR refs**: None
 - **Acceptance Criteria** (Gherkin): see RQ-BLD-011.

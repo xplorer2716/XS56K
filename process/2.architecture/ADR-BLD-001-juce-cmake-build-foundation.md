@@ -22,7 +22,7 @@ XplorerEditor, has no `model`, `controller`, `settings` or `app` layer yet — o
 
 Add `juce/CMakeLists.txt`, adapted from XplorerEditor's own root build, keeping:
 
-- **CMake ≥ 3.22, C++20, `FetchContent`-pinned JUCE.** `XS56K_JUCE_VERSION` is set to `8.0.15`
+- **CMake ≥ 3.22, C++20, `FetchContent`-pinned JUCE.** `JUCE_VERSION` is set to `8.0.15`
   (not XplorerEditor's `8.0.9` — the latest 8.x tag at the time this repository's project template
   was filled in, verified via `git ls-remote --tags` against the real JUCE repository rather than
   assumed; see `AGENTS.md`).
@@ -31,36 +31,56 @@ Add `juce/CMakeLists.txt`, adapted from XplorerEditor's own root build, keeping:
   the GCC-only `-Wno-error=maybe-uninitialized` carve-out for JUCE's vendored `SheenBidi.c`
   (XplorerEditor's own finding, carried over verbatim since it is about JUCE's sources, not this
   project's).
-- **`XS56K_BUILD_APP` / `XS56K_BUILD_TESTS` options, both default `OFF`.** `XS56K_BUILD_APP` gates
-  `JUCE_MODULES_ONLY` and the (not yet existing) `app` subdirectory; `XS56K_BUILD_TESTS` gates the
+- **`BUILD_APP` / `BUILD_TESTS` options, both default `OFF`.** `BUILD_APP` gates
+  `JUCE_MODULES_ONLY` and the (not yet existing) `app` subdirectory; `BUILD_TESTS` gates the
   (not yet existing) `tests` subdirectory and the Catch2 fetch. Both stay off by construction until
-  those directories exist — turning them on today would fail configure, not silently no-op.
+  those directories exist — turning them on today would fail configure, not silently no-op. No
+  project-specific prefix (see the amendment to `DEC-BLD-003` below).
 - **`add_subdirectory(midi)` and `add_subdirectory(framework)` only.** XplorerEditor's five
   `add_subdirectory` calls (`midi`, `framework`, `model`, `controller`, `settings`) are reduced to
   the two this repository actually has.
 
 **Dropped, not carried over:** the entire product-version derivation block (`XPL_VERSION_NUMERIC`
 / `XPL_VERSION_FULL` / `XPL_VERSION_TIMESTAMP` CACHE variables, the `project(VERSION …)` call) and
-the MSVC static-CRT policy comment tied to publishing a Debug binary. Both are deployment concerns
+the MSVC static-CRT policy comment tied to publishing a Debug binary. Both were deployment concerns
 with nothing to attach to yet — see RQ-BLD-009/RQ-BLD-010 and `ADR-BLD-003` for the backlog that
 picks them back up once an application exists.
+
+**Picked back up, same session (TASK-BLD-006, once `juce/app` existed):** the version-derivation
+block, without its `XPL_`/project-specific prefix and without the `project(VERSION …)` call
+(`VERSION_NUMERIC`/`VERSION_FULL` feed `juce_add_gui_app(VERSION …)` in `juce/app/CMakeLists.txt`
+directly instead). The MSVC static-CRT policy comment (line 26-27 above, already present) already
+covers this — it was never actually dropped, only its accompanying prose was cut for brevity.
 
 **DEC-BLD-001** — Pin JUCE via `FetchContent` at the tag identified as latest-8.x (`8.0.15`),
 verified against the upstream tag list rather than assumed from XplorerEditor's own (older) pin.
 
-**DEC-BLD-002** — Scope `add_subdirectory` calls, `XS56K_BUILD_APP` and `XS56K_BUILD_TESTS` to
+**DEC-BLD-002** — Scope `add_subdirectory` calls, `BUILD_APP` and `BUILD_TESTS` to
 exactly the layers this repository has, rather than pre-declaring the full XplorerEditor layer set
 with options left off — an `add_subdirectory` naming a directory that does not exist is a hard
 CMake configure error, not a soft no-op, so the file must grow with the ported layers instead of
 anticipating them.
 
-**DEC-BLD-003** — Rename the version-string constants XplorerEditor names `XPL_*` to `XS56K_*`
+**DEC-BLD-003** — *Superseded, same session (owner decision, TASK-BLD-002 follow-up) — see the
+amendment below.* ~~Rename the version-string constants XplorerEditor names `XPL_*` to `XS56K_*`
 (`XS56K_JUCE_VERSION`, `XS56K_CATCH2_VERSION`, `XS56K_BUILD_APP`, `XS56K_BUILD_TESTS`) for the
-values this project itself declares, while leaving the `xpl_*`/`xpl::*` **target and namespace**
+values this project itself declares~~ — while leaving the `xpl_*`/`xpl::*` **target and namespace**
 names (`xpl_midi`, `xpl_framework`, `xpl::warnings`) exactly as ported — those identifiers are
 already load-bearing throughout the ported header/source tree (namespaces, include paths under
 `xpl/`, CMake target names in both layers' own `CMakeLists.txt`), and renaming them is a separate,
 much larger change this task does not touch.
+
+**Amended (owner decision, same session)** — No project-specific prefix at all: `XPL_*` is dropped
+outright (it is short for "Xplorer", irrelevant here — the same reasoning already applied to the
+`juce/` source headers) but is **not** replaced by an `XS56K_*` prefix either, since these CMake
+options/cache variables are local to this build and self-explanatory without one
+(`BUILD_APP`, `BUILD_TESTS`, `JUCE_VERSION`, `CATCH2_VERSION`). Verified this creates no functional
+collision: `JUCE_VERSION` is also the name CMake's `project(JUCE VERSION 8.0.15 …)` auto-defines
+*inside JUCE's own directory scope* once fetched (confirmed by reading the fetched
+`_deps/juce-src/CMakeLists.txt` directly) — but that is a child-scope variable JUCE sets for
+itself, and does not propagate back up to or overwrite this file's own parent-scope `JUCE_VERSION`,
+so the coincidence of name is harmless. Re-verified with a clean `cmake -S juce -B juce/build` and
+full rebuild after the rename (see TASK-BLD-002's updated Verification).
 
 ## Consequences
 
@@ -96,8 +116,8 @@ matched XplorerEditor's, needing no edit; only the root file they were missing w
 ```mermaid
 flowchart TD
     subgraph opts["CMake options (default OFF)"]
-        APP["XS56K_BUILD_APP"]
-        TST["XS56K_BUILD_TESTS"]
+        APP["BUILD_APP"]
+        TST["BUILD_TESTS"]
     end
 
     JUCE["FetchContent: JUCE 8.0.15"]

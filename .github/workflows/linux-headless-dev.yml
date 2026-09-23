@@ -49,7 +49,7 @@ jobs:
       - name: Build
         run: cmake --build juce/build -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)"
 
-      # No test suite exists yet in this repository (XS56K_BUILD_TESTS
+      # No test suite exists yet in this repository (BUILD_TESTS
       # defaults OFF, no juce/tests directory). Once one is added, this
-      # workflow should configure with -DXS56K_BUILD_TESTS=ON and run
+      # workflow should configure with -DBUILD_TESTS=ON and run
       # `ctest --test-dir juce/build --output-on-failure` here.

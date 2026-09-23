@@ -1,0 +1,34 @@
+# The single place a product version is computed. [RQ-BLD-009, ADR-BLD-003
+# (DEC-BLD-011)] — adapted from xplorer2716/XplorerEditor's own
+# .github/actions/resolve-version/action.yml (AGENTS.md).
+#
+# The derivation itself lives in resolve-version.sh rather than inline here,
+# so it can be run and asserted outside GitHub Actions too.
+name: 'Resolve the product version'
+description: 'Derives the numeric, display and full product-version forms from the commit being built.'
+
+outputs:
+  numeric:
+    description: 'Four integers, e.g. 2026.8.19.1740 — CMake, JUCE target, Windows FILEVERSION, CFBundleVersion.'
+    value: ${{ steps.resolve.outputs.numeric }}
+  display:
+    description: 'Zero-padded, e.g. 2026.08.19-1740 — release tag, release title, archive names.'
+    value: ${{ steps.resolve.outputs.display }}
+  full:
+    description: 'Display form plus the stage suffix, e.g. 2026.08.19-1740-dev — About box, ProductVersion string.'
+    value: ${{ steps.resolve.outputs.full }}
+  stage:
+    description: 'Empty for production, "dev" on the dev branch, "canary" everywhere else.'
+    value: ${{ steps.resolve.outputs.stage }}
+  timestamp:
+    description: 'The commit''s own committer time in UTC, ISO 8601.'
+    value: ${{ steps.resolve.outputs.timestamp }}
+
+runs:
+  using: composite
+  steps:
+    # Needs the commit object, nothing more: `git log -1 HEAD` is satisfied by
+    # a depth-1 checkout.
+    - id: resolve
+      shell: bash
+      run: "${GITHUB_ACTION_PATH}/resolve-version.sh"

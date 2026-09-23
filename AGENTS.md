@@ -14,9 +14,10 @@ Guidance for AI coding agents working in this repository.
 `juce/midi` and `juce/framework` are ported from
 [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor) (a real-time editor for
 the Oberheim Xpander/Matrix-12, itself a JUCE C++ port of a .NET application) — this repository's
-CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. No `model`,
-`controller`, `settings` or `app` layer exists yet, so there is no GUI application to build —
-only the two headless library layers above. Reference documentation lives in `documents/`, and
+CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. `juce/app` is a
+**minimal, intentionally undesigned placeholder** (a bare `juce::DocumentWindow`) — not `model`,
+`controller`, `settings`, or any real editor UI — that exists solely so the build/version/deploy
+plumbing has a real GUI target to exercise. Reference documentation lives in `documents/`, and
 `process/` holds the AGNOS planning skeleton.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
@@ -30,18 +31,23 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 ## Commands
 
 - **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
-  (ALSA headers, needed by `juce_audio_devices`) — JUCE itself is fetched by CMake
+  (ALSA headers, needed by `juce_audio_devices`); the GUI target (`BUILD_APP=ON`) additionally
+  needs `libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libxext-dev
+  libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev` on Linux. JUCE itself is fetched by CMake
   (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately. [RQ-BLD-001]
-- **Build:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
-  (builds the `xpl_midi`/`xpl_midi_juce` and `xpl_framework` static libraries only; no GUI app yet). [RQ-BLD-002]
-- **Test:** not defined yet — no `juce/tests` directory exists. `XS56K_BUILD_TESTS` (CMake option,
-  default `OFF`) is reserved for it. [RQ-BLD-002, TASK-BLD-005 backlog]
+- **Build (libraries only):** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
+  (builds the `xpl_midi`/`xpl_midi_juce` and `xpl_framework` static libraries only). [RQ-BLD-002]
+- **Build (with the placeholder app):** add `-DBUILD_APP=ON` (and, to embed a real version,
+  `-DVERSION_NUMERIC=... -DVERSION_FULL=...` — see `.github/actions/resolve-version`); produces
+  an `XS56K` executable that opens one placeholder window. [RQ-BLD-007]
+- **Test:** not defined yet — no `juce/tests` directory exists. `BUILD_TESTS` (CMake option,
+  default `OFF`) is reserved for it. [RQ-BLD-002]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xpl::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
 
 Do not invent commands beyond these; check `CONTRIBUTING.md` and this file again once a test
-suite or GUI app exists.
+suite or a real editor UI exists.
 
 ## Conventions
 
@@ -50,11 +56,14 @@ suite or GUI app exists.
   - `dev` — integration, the **default branch**. Base for pull requests and for AGNOS sessions.
   - `feature/*` (or other short-lived branches) — canary: built by CI on every push, no merge
     required first.
-  - CI (`.github/workflows/linux-headless-canary.yml`, `linux-headless-dev.yml`) currently only
-    builds the headless library layers on the `canary` and `dev` streams; there is no `prod`
-    workflow yet since there is nothing to deploy (no GUI app). No versioning, SBOM or release
-    packaging has been set up — `ADR-BLD-003` (this repository's, `RQ-BLD-007` through `010`) is
-    the reference for when that becomes relevant.
+  - CI: `linux-headless-canary.yml`/`linux-headless-dev.yml` build the headless libraries only.
+    `juce/tools/generate_workflows.py` generates 15 more (`<os>-<arch>-<config>-<stage>`,
+    `windows-x64`/`macos-arm64`/`linux-x64` × canary/dev/prod) that build, package and — on `dev`
+    and `prod` — publish the placeholder app as a GitHub Release (`ADR-BLD-003`). `cut-deployment.yml`
+    (`workflow_dispatch` on `main`) triggers the three `prod` ones by pushing a version tag —
+    **not yet usable**: it needs a `CUT_DEPLOYMENT` repository secret (a PAT) that has not been
+    added (`GITHUB_TOKEN` can't trigger other workflows when it pushes). No SBOM/icon/AppImage/
+    code-signing exists — explicitly out of scope until the placeholder becomes a real UI.
 - Branch naming: `type/short-description`
 - Commit messages: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - Versioning: [SemVer](https://semver.org/spec/v2.0.0.html) — record user-facing changes in `CHANGELOG.md` under `[Unreleased]`.

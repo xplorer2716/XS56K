@@ -1,9 +1,13 @@
 # ADR-BLD-003: Full Deployment Matrix, Generated Workflows and Commit-Derived Versioning
 
 ## Status
-Proposed — not implemented. Recorded now, ahead of the GUI application it depends on, so
-reproducing XplorerEditor's build system does not require re-deriving its reasoning from scratch
-in a later session.
+Accepted — implemented, against a MINIMAL PLACEHOLDER app, not the real editor UI. Originally
+recorded as "Proposed" pending a real `model`/`controller`/`settings`/`app` layer; the owner
+instead broke that precondition directly (TASK-BLD-005: "créer un stub minimal"), so DEC-BLD-008
+through DEC-BLD-012 are implemented against a bare placeholder window rather than waited on. The
+"Explicitly out of scope" list below (SBOM, icon, AppImage, attestation, screenshot check, code-
+signing notice) remains genuinely out of scope — none of it applies to a window with nothing to
+disclose — and stays Proposed/deferred.
 
 ## Context
 
@@ -14,17 +18,22 @@ applicable) — generated from one matrix by `juce/tools/generate_workflows.py`,
 through composite actions under `.github/actions/`, each stamped with a version derived purely from
 the commit being built.
 
-None of it applies yet: this repository has no `model`, `controller`, `settings` or `app` layer, so
-there is no GUI application to build for three platforms, package, or version. `ADR-BLD-002`
-adopted only the branch topology and two headless Linux CI checks. This ADR is the deferred half —
-the target those two checks are a first step toward, not an alternative to it.
+At the time this ADR was first drafted, none of it applied: this repository had no `model`,
+`controller`, `settings` or `app` layer, so there was no GUI application to build for three
+platforms, package, or version — `ADR-BLD-002` had adopted only the branch topology and two
+headless Linux CI checks. **Superseded by the owner's own decision, same session:** rather than
+wait for the real editor UI (a separate, undesigned product effort), create `juce/app` as a
+minimal, intentionally-undesigned placeholder — a bare `juce::DocumentWindow` — solely so this
+ADR's plumbing has a real target to build, version and package against.
 
 ## Decision
 
-**When a `model`/`controller`/`settings`/`app` layer is ported into this repository** (mirroring
-XplorerEditor's own layer set), adopt the following, each reproducing the cited XplorerEditor
-decision with `xpl`/`XPL_` identifiers already established by `ADR-BLD-001` kept as-is, and
-`Xplorer`-branded strings (executable name, archive names, About-dialog text) replaced with
+**Implemented against `juce/app`, a MINIMAL PLACEHOLDER** (not a `model`/`controller`/`settings`
+layer, and not XplorerEditor's own UI in any form — see `juce/app/CMakeLists.txt`'s own header),
+reproducing the following, each reproducing the cited XplorerEditor decision with `xpl` identifiers
+already established by `ADR-BLD-001` kept as-is, no `XPL_`/project-specific prefix on any new
+CMake variable either (owner decision, TASK-BLD-002 follow-up — `ADR-BLD-001`'s amended
+`DEC-BLD-003`), and `Xplorer`-branded strings (executable name, archive names) replaced with
 `XS56K` ones, the same substitution already applied to the ported source headers (see the "rename
 Xplorer to XS56K" commits in this repository's history):
 
@@ -48,7 +57,7 @@ files stay affordable to keep self-describing.
 **DEC-BLD-011** — Reproduce commit-derived versioning exactly: three forms (numeric
 `YYYY.M.D.HHMM`, display `YYYY.MM.DD-HHMM`, full `…-HHMM<-stage>`), taken from the commit's own
 UTC committer timestamp, stage suffix from `github.ref` (`refs/heads/main` or a tag → none,
-`refs/heads/dev` → `-preprod`, anything else → `-canary`) — XplorerEditor's `RQ-BLD-020`
+`refs/heads/dev` → `-dev`, anything else → `-canary`) — XplorerEditor's `RQ-BLD-020`
 (`ADR-BLD-003`, `DEC-BLD-014`/`DEC-BLD-015`). The "why not a daily counter" reasoning recorded
 there (no atomic counter primitive across concurrent independent workflows) applies here
 unchanged and should not be re-litigated.
@@ -68,18 +77,28 @@ product this repository has not designed yet.
 
 ## Consequences
 
-**Easier, once adopted.** A pull-request check states its own os/arch/config/stream without
-cross-referencing; a version uniquely identifies every build everywhere it can be stated; a
-production release is a deliberate act, never a side effect of merging.
+**Easier.** A pull-request check states its own os/arch/config/stream without cross-referencing; a
+version uniquely identifies every build everywhere it can be stated (verified: a built binary's
+`strings` output contains the exact derived full version — TASK-BLD-006); a production release is
+a deliberate act (`cut-deployment`, `workflow_dispatch`-gated), never a side effect of merging.
 
-**Harder.** Fifteen workflow files (generated, not hand-written) plus several composite actions is
-materially more moving parts than the two files `ADR-BLD-002` has today — accepted by
-XplorerEditor as the cost of the naming and status-check properties `RQ-BLD-023` requires, for the
-same reasons here.
+**Harder.** Fifteen workflow files (generated, not hand-written) plus three composite actions
+(`build-app`, `package-deployment`, `publish-deployment` — `resolve-version` was `ADR-BLD-002`'s
+already) is materially more moving parts than the two files `ADR-BLD-002` had before this ADR —
+accepted by XplorerEditor as the cost of the naming and status-check properties its own
+`RQ-BLD-023` requires, for the same reasons here.
 
-**Sequencing constraint, by construction.** Nothing in this ADR can be implemented before an `app`
-target exists to build, version and package — that is not a scheduling preference, it is what
-`DEC-BLD-008` through `DEC-BLD-012` all build from.
+**Constrained, not blocked.** The sequencing constraint this ADR was first written under — nothing
+implementable before an `app` target exists — was real, and was resolved by creating one
+(`juce/app`, minimal placeholder) rather than by relaxing the constraint. Everything built against
+it is only as real as the placeholder is: a production deployment today packages an empty window,
+not the XS56K editor. The matrix, versioning and cut-deployment mechanics are proven; the product
+they will eventually ship is not yet built.
+
+**Verified only on Linux.** `windows-x64` and `macos-arm64` legs of the matrix have no runner
+available in this session to build on — checked for YAML validity and structural correctness
+(mirrors the already-Linux-verified `linux-x64` legs closely enough to expect the same result), but
+not actually run. Their first real signal is their first CI run on GitHub's own runners.
 
 ## Alternatives Considered
 
@@ -100,31 +119,31 @@ target exists to build, version and package — that is not a scheduling prefere
 
 ```mermaid
 flowchart TD
-    subgraph today["Implemented today — ADR-BLD-001/002"]
+    subgraph today["ADR-BLD-001/002"]
         MIDI["juce/midi, juce/framework<br/>(headless libraries)"]
         CI2["linux-headless-canary<br/>linux-headless-dev"]
     end
 
-    subgraph gate["Gate: a model/controller/settings/app layer exists"]
-        APP["juce/app target buildable<br/>(XS56K_BUILD_APP=ON)"]
+    subgraph placeholder["Owner decision: create a placeholder rather than wait"]
+        APP["juce/app — bare DocumentWindow<br/>(BUILD_APP=ON, built &amp; run-verified on Linux)"]
     end
 
-    subgraph matrix["DEC-BLD-008/009/010 — generated matrix"]
-        GEN["tools/generate_workflows.py<br/>(single source of truth)"]
-        ACTIONS[".github/actions/<br/>build-app · resolve-version · package · publish"]
-        GEN --> W1["windows-x64 × 5 streams"]
-        GEN --> W2["macos-arm64 × 5 streams"]
-        GEN --> W3["linux-x64 × 5 streams"]
+    subgraph matrix["DEC-BLD-008/009/010 — generated matrix (implemented)"]
+        GEN["juce/tools/generate_workflows.py<br/>(single source of truth, --check verified idempotent)"]
+        ACTIONS[".github/actions/<br/>build-app · resolve-version · package-deployment · publish-deployment"]
+        GEN --> W1["windows-x64 × 5 files<br/>(canary×2, dev×2, prod×1) — syntax-verified only"]
+        GEN --> W2["macos-arm64 × 5 files<br/>(canary×2, dev×2, prod×1) — syntax-verified only"]
+        GEN --> W3["linux-x64 × 5 files<br/>(canary×2, dev×2, prod×1) — build-verified"]
         W1 --> ACTIONS
         W2 --> ACTIONS
         W3 --> ACTIONS
     end
 
-    subgraph ver["DEC-BLD-011 — resolve-version"]
+    subgraph ver["DEC-BLD-011 — resolve-version (implemented, tested against 5 real refs)"]
         DERIVE["commit UTC timestamp + github.ref<br/>→ numeric / display / full"]
     end
 
-    subgraph cut["DEC-BLD-012 — production"]
+    subgraph cut["DEC-BLD-012 — production (implemented, unrun)"]
         DISPATCH["workflow_dispatch on main"]
         TAG["push version tag"]
         DISPATCH --> TAG --> W1

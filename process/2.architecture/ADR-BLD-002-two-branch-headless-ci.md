@@ -68,7 +68,7 @@ access, not an application-existence gap like the rest of the backlog).
 
 **Constrained.** Neither workflow can currently prove anything beyond "it compiles" — no test
 suite exists yet (`juce/tests`), so a regression that compiles but behaves wrongly is not caught
-here. `XS56K_BUILD_TESTS` (`ADR-BLD-001`) is already wired for when one is added.
+here. `BUILD_TESTS` (`ADR-BLD-001`) is already wired for when one is added.
 
 **Deferred, not rejected.** The parts of XplorerEditor's `ADR-BLD-003` this decision does not
 adopt — commit-derived versioning, the full platform/stream deployment matrix, the cut-deployment

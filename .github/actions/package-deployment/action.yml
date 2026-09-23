@@ -1,0 +1,94 @@
+# Wraps one built platform/configuration into the single archive a deployment
+# carries. [RQ-BLD-007]
+#
+# Adapted from xplorer2716/XplorerEditor's own
+# .github/actions/package-deployment/action.yml (AGENTS.md), heavily reduced:
+# XS56KApp is a MINIMAL PLACEHOLDER (juce/app — TASK-BLD-005) with no icon and
+# no embedded asset, so there is exactly one file (or bundle) to archive — no
+# AppImage packaging, no icon to bake in. Both are explicitly out of scope
+# until the real application exists (ADR-BLD-003's out-of-scope list); a plain
+# zip is what RQ-BLD-007 actually needs today.
+name: 'Package one deployment archive'
+description: 'Archives the application for one platform and configuration.'
+
+inputs:
+  artefact-dir:
+    description: 'Directory holding the built executable (Windows/Linux) or the .app bundle (macOS).'
+    required: true
+  version:
+    description: 'Display version form, e.g. 2026.08.19-1740.'
+    required: true
+  os:
+    description: 'windows | macos | linux'
+    required: true
+  arch:
+    description: 'x64 | arm64'
+    required: true
+  config:
+    description: 'release | debug'
+    required: true
+
+outputs:
+  archive:
+    description: 'Path of the produced archive.'
+    value: ${{ steps.package.outputs.archive }}
+  archive-name:
+    description: 'Its file name, which is also the release asset name.'
+    value: ${{ steps.package.outputs.archive-name }}
+
+runs:
+  using: composite
+  steps:
+    - id: package
+      shell: bash
+      env:
+        ARTEFACT_DIR: ${{ inputs.artefact-dir }}
+        VERSION: ${{ inputs.version }}
+        OS: ${{ inputs.os }}
+        ARCH: ${{ inputs.arch }}
+        CONFIG: ${{ inputs.config }}
+      run: |
+        set -euo pipefail
+
+        name="XS56K-${VERSION}-${OS}-${ARCH}-${CONFIG}.zip"
+        out="${RUNNER_TEMP}/${name}"
+
+        require() {
+          [ -e "$1" ] || { echo "::error::deployment part missing: $1"; exit 1; }
+        }
+
+        case "$OS" in
+          macos)
+            # The .app bundle is the deliverable. ditto is the macOS-native
+            # archiver and preserves the bundle structure and resource forks.
+            app="$(dirname "$(dirname "${ARTEFACT_DIR}")")"
+            require "${app}"
+            ditto -c -k --sequesterRsrc --keepParent "${app}" "${out}"
+            ;;
+          windows)
+            require "${ARTEFACT_DIR}/XS56K.exe"
+            staging="${RUNNER_TEMP}/deployment"
+            rm -rf "${staging}"
+            mkdir -p "${staging}"
+            cp "${ARTEFACT_DIR}/XS56K.exe" "${staging}/"
+            # 7z, not zip: Git Bash on the windows-2022 runner ships neither
+            # zip nor unzip; 7-Zip is preinstalled (XplorerEditor's own
+            # finding, its first real deployment run).
+            (cd "${staging}" && 7z a -tzip "${out}" . >/dev/null)
+            ;;
+          linux)
+            require "${ARTEFACT_DIR}/XS56K"
+            staging="${RUNNER_TEMP}/deployment"
+            rm -rf "${staging}"
+            mkdir -p "${staging}"
+            cp "${ARTEFACT_DIR}/XS56K" "${staging}/"
+            chmod +x "${staging}/XS56K"
+            (cd "${staging}" && zip -qr "${out}" .)
+            ;;
+          *)
+            echo "::error::unsupported os '${OS}'"; exit 1 ;;
+        esac
+
+        echo "archive=${out}" >> "$GITHUB_OUTPUT"
+        echo "archive-name=${name}" >> "$GITHUB_OUTPUT"
+        echo "Packaged ${name}" >&2
