@@ -1,0 +1,57 @@
+# CI for the JUCE (C++) port: headless build (and tests, once a test suite
+# exists) of the non-UI layers, on every push to a feature branch.
+#
+# File name = workflow name = job name, so a pull-request status check names
+# itself without cross-referencing. This and linux-headless-dev.yml are
+# DELIBERATELY OUTSIDE the <os>-<arch>-<config>-<stage> deployment naming
+# scheme used by xplorer2716/XplorerEditor (RQ-BLD-023 there): there is no
+# GUI application in this repository yet (no app/model/controller/settings
+# layer, only midi and framework), so there is nothing to deploy and no
+# "config"/"stage" combination to name — only a headless library build, on
+# two streams. See documents/INDEX.md / AGENTS.md for XplorerEditor's role
+# as the source this repository's CI setup, and its midi+framework layers,
+# were ported from.
+#
+# Canary: fast, unconditional feedback on every push to a feature branch —
+# no need to open a pull request first to get a build (same reasoning as
+# XplorerEditor's ADR-BLD-003, DEC-BLD-024).
+name: linux-headless-canary
+
+on:
+  push:
+    branches-ignore: [main, dev]
+    paths:
+      - 'juce/**'
+      - '.github/workflows/linux-headless-canary.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  linux-headless-canary:
+    name: linux-headless-canary
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # juce_audio_devices (xpl_midi_juce) needs the ALSA headers even in a
+      # headless (no GUI app) configuration.
+      - name: Install ALSA headers (juce_audio_devices)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev
+
+      - name: Configure
+        run: cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug
+
+      # Bounded parallelism: a bare `-j` on the Unix Makefiles/Ninja
+      # generators means unlimited parallel jobs, which can OOM-kill the
+      # compiler on a small runner once the tree has enough translation
+      # units in flight at once (observed on XplorerEditor's own CI,
+      # RQ-BLD-031).
+      - name: Build
+        run: cmake --build juce/build -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)"
+
+      # No test suite exists yet in this repository (XS56K_BUILD_TESTS
+      # defaults OFF, no juce/tests directory). Once one is added, this
+      # workflow should configure with -DXS56K_BUILD_TESTS=ON and run
+      # `ctest --test-dir juce/build --output-on-failure` here.

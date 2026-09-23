@@ -11,21 +11,45 @@ Guidance for AI coding agents working in this repository.
 - **Stack:** C++ / [JUCE](https://juce.com/) 8.0.15
 - **Status:** experimental
 
-No source code exists yet beyond reference documentation (`documents/`) and the
-`process/` planning skeleton. Update this section once the repository layout is real.
+`juce/midi` and `juce/framework` are ported from
+[xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor) (a real-time editor for
+the Oberheim Xpander/Matrix-12, itself a JUCE C++ port of a .NET application) — this repository's
+CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. No `model`,
+`controller`, `settings` or `app` layer exists yet, so there is no GUI application to build —
+only the two headless library layers above. Reference documentation lives in `documents/`, and
+`process/` holds the AGNOS planning skeleton.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
 `documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
 
 ## Commands
 
-Install, build, test and lint commands are not defined yet — there is no buildable
-code in the repository at this stage. Do not invent commands; check `CONTRIBUTING.md`
-and this file again once they exist.
+- **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
+  (ALSA headers, needed by `juce_audio_devices`) — JUCE itself is fetched by CMake
+  (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately.
+- **Build:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
+  (builds the `xpl_midi`/`xpl_midi_juce` and `xpl_framework` static libraries only; no GUI app yet).
+- **Test:** not defined yet — no `juce/tests` directory exists. `XS56K_BUILD_TESTS` (CMake option,
+  default `OFF`) is reserved for it.
+- **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
+  -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
+  `xpl::warnings` interface target in `juce/CMakeLists.txt`.
+
+Do not invent commands beyond these; check `CONTRIBUTING.md` and this file again once a test
+suite or GUI app exists.
 
 ## Conventions
 
-- Default branch: `main`
+- **Branches — two long-lived, adapted from XplorerEditor's `ADR-BLD-003`:**
+  - `main` — production. Protected.
+  - `dev` — integration, the **default branch**. Base for pull requests and for AGNOS sessions.
+  - `feature/*` (or other short-lived branches) — canary: built by CI on every push, no merge
+    required first.
+  - CI (`.github/workflows/linux-headless-canary.yml`, `linux-headless-dev.yml`) currently only
+    builds the headless library layers on the `canary` and `dev` streams; there is no `prod`
+    workflow yet since there is nothing to deploy (no GUI app). No versioning, SBOM or release
+    packaging has been set up — XplorerEditor's `ADR-BLD-003`/`ADR-BLD-004` are the reference for
+    when that becomes relevant.
 - Branch naming: `type/short-description`
 - Commit messages: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - Versioning: [SemVer](https://semver.org/spec/v2.0.0.html) — record user-facing changes in `CHANGELOG.md` under `[Unreleased]`.

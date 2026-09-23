@@ -1,0 +1,51 @@
+# CI for the JUCE (C++) port: headless build (and tests, once a test suite
+# exists) of the non-UI layers, for the dev (integration) branch.
+#
+# See linux-headless-canary.yml for why this is outside the deployment naming
+# scheme XplorerEditor uses once an app exists: no GUI application layer is
+# in this repository yet, so there is nothing to deploy — only a headless
+# library build to verify.
+#
+# Both push and pull_request trigger this: `push` verifies what actually
+# lands on dev, `pull_request` verifies what a PR would produce if merged
+# into it — the same reasoning as XplorerEditor's ADR-BLD-003 (DEC-BLD-024)
+# for its preprod stream, minus the publish step (there is nothing to
+# publish here yet).
+name: linux-headless-dev
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'juce/**'
+      - '.github/workflows/linux-headless-dev.yml'
+  pull_request:
+    branches: [dev]
+    paths:
+      - 'juce/**'
+      - '.github/workflows/linux-headless-dev.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  linux-headless-dev:
+    name: linux-headless-dev
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ALSA headers (juce_audio_devices)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev
+
+      - name: Configure
+        run: cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug
+
+      - name: Build
+        run: cmake --build juce/build -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)"
+
+      # No test suite exists yet in this repository (XS56K_BUILD_TESTS
+      # defaults OFF, no juce/tests directory). Once one is added, this
+      # workflow should configure with -DXS56K_BUILD_TESTS=ON and run
+      # `ctest --test-dir juce/build --output-on-failure` here.
