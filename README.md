@@ -54,4 +54,4 @@ See [SECURITY.md](SECURITY.md).
 
 ## License
 
-Distributed under the GPL-3.0 license. See [LICENSE](LICENSE) for details.
+Distributed under the AGPL-3.0-or-later license. See [LICENSE](LICENSE) for details.

@@ -77,4 +77,4 @@ this repository should read [`AGENTS.md`](AGENTS.md).
 ## License
 
 By contributing, you agree that your contributions will be licensed under the
-GPL-3.0 license of this project.
+AGPL-3.0-or-later license of this project.
