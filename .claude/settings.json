@@ -4,18 +4,5 @@
       "Bash(echo \"exit=$?\")",
       "Bash(git checkout *)"
     ]
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "rtk hook claude"
-          }
-        ]
-      }
-    ]
   }
 }
