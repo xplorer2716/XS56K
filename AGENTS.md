@@ -52,7 +52,8 @@ suite or a real editor UI exists.
 ## Conventions
 
 - **Branches — two long-lived** (`ADR-BLD-002`, adapted from XplorerEditor's own `ADR-BLD-003`; `RQ-BLD-005`):
-  - `main` — production. Protected (rule not yet configured — `RQ-BLD-011`, backlog).
+  - `main` — production. Protected (`RQ-BLD-011`, configured by the owner directly in GitHub's
+    settings — `mcp__github__list_branches` confirms `protected: true`).
   - `dev` — integration, the **default branch**. Base for pull requests and for AGNOS sessions.
   - `feature/*` (or other short-lived branches) — canary: built by CI on every push, no merge
     required first.

@@ -2,17 +2,19 @@
 
 ## Overview
 
-Documents, retroactively for what is already done and prospectively for what remains, the work to
-give this repository a build system equivalent to
+Documents, retroactively, the work to give this repository a build system equivalent to
 [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor)'s — the project
-`juce/midi` and `juce/framework` were ported from. Four tasks are already complete (a working
-CMake+JUCE build, canary/dev CI, and the AGPL-3.0 relicensing that build uncovered, plus this
-documentation itself); four are backlog, gated on a GUI application layer existing in this
-repository or on access this session does not have.
+`juce/midi` and `juce/framework` were ported from. All eight tasks are now Done: the CMake+JUCE
+build, canary/preprod CI, the AGPL-3.0 relicensing that build uncovered, this documentation itself,
+a minimal placeholder GUI app (`juce/app`), the full deployment matrix, commit-derived versioning,
+the cut-deployment workflow, and (by the owner, in GitHub's own settings) `main`'s branch
+protection. What remains real-but-unrun: `cut-deployment.yml` has never actually fired (see
+TASK-BLD-007's own verification), and the Windows/macOS legs of the matrix are unverified beyond
+YAML syntax (see TASK-BLD-005's).
 
 ## References
-- **Requirements**: RQ-BLD-001 through RQ-BLD-011 (`process/1.requirements/RQ-BLD-build-tooling.md`)
-- **ADRs**: ADR-BLD-001, ADR-BLD-002 (Accepted), ADR-BLD-003 (Proposed)
+- **Requirements**: RQ-BLD-001 through RQ-BLD-012 (`process/1.requirements/RQ-BLD-build-tooling.md`)
+- **ADRs**: ADR-BLD-001, ADR-BLD-002, ADR-BLD-003 (all Accepted)
 
 ---
 
@@ -138,16 +140,13 @@ designed and ported. This is NOT TASK-005 of a future real app port — see each
 - **Verification**: `yaml.safe_load` passes. Not run on GitHub's runners — doing so would cut a real (placeholder) production deployment, which is a real, outward-facing effect (a public GitHub Release) this task does not have standing authorization to trigger; a run also has a real operational prerequisite that is not met yet (see the file's own OPERATIONAL PREREQUISITE comment: a `CUT_DEPLOYMENT` repository secret, a personal access token, must be added in Settings → Secrets and variables → Actions — the default `GITHUB_TOKEN` cannot trigger other workflows when it pushes, so without it the tag would push but the three `*-release-prod` workflows would never start).
 - **Assumptions**: None.
 
----
-
-## Backlog — blocked
-
 ### TASK-BLD-008: Configure explicit branch protection on `main`
 - **Tier**: S
-- **Status**: Blocked
+- **Status**: Done (by the human — repository-administration access this session does not have)
 - **Description**: Add a GitHub branch protection rule covering `main`, now that it is no longer
-  the repository's default branch and therefore not protected automatically. Exact settings to
-  apply (Settings → Branches → Add branch protection rule, branch name pattern `main`):
+  the repository's default branch and therefore not protected automatically. Settings recommended
+  (Settings → Branches → Add branch protection rule, branch name pattern `main`) when this task was
+  first drafted:
   - **Require a pull request before merging** — ON. No direct pushes to `main`; the only way
     content reaches it is a reviewed PR (routine dev→main promotions) or `cut-deployment`'s own
     tag push (which does not touch the branch itself, only pushes a tag from its tip).
@@ -164,8 +163,15 @@ designed and ported. This is NOT TASK-005 of a future real app port — see each
 - **Requirement refs**: RQ-BLD-011
 - **ADR refs**: None
 - **Acceptance Criteria** (Gherkin): see RQ-BLD-011.
-- **Dependencies**: None functionally — blocked because this session's tool set has no
-  repository-administration access, not because anything else must happen first.
+- **Dependencies**: None functionally — done by the owner directly in GitHub's repository
+  settings, outside this session's tool set.
 - **Assignee**: Human
-- **Verification**: N/A (Blocked, not started)
-- **Assumptions**: None
+- **Verification**: Owner confirmed configuring it directly ("je l'ai fait dans le backend
+  github"). Cross-checked, not just taken on trust: `mcp__github__list_branches` reports
+  `main` with `"protected": true` (also `dev`, unaffected by this task). The specific rule
+  contents (PR-required, approval count, which status checks if any) were not independently
+  re-derived from a branch-protection-rules API this session's tool set does not expose —
+  the boolean `protected` flag is the only signal available here.
+- **Assumptions**: The recommended settings above (PR required, 0 approvals, no required status
+  checks) were a suggestion for the owner to apply, not verified as the exact configuration
+  chosen — the owner may have configured it differently.

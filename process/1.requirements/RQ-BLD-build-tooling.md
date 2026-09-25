@@ -8,9 +8,9 @@ Adapted from [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerE
 were ported from (see `AGENTS.md`) — trimmed to what this repository actually has, and re-scoped
 accordingly. `juce/app` is a **minimal, intentionally undesigned placeholder** (TASK-BLD-005), not
 `model`/`controller`/`settings` or the real editor UI — RQ-BLD-007 through RQ-BLD-010 build,
-version and package that placeholder, real mechanics against an unreal product. RQ-BLD-011 remains
-genuinely blocked (repository-administration access this session does not have), kept here so a
-future session does not have to re-derive the reasoning from scratch.
+version and package that placeholder, real mechanics against an unreal product. RQ-BLD-011
+(`main` branch protection) needed repository-administration access this session does not have —
+the owner configured it directly in GitHub's settings instead.
 
 ## Stakeholders
 
@@ -132,16 +132,15 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
 
 ---
 
-## Non-Functional Requirements — backlog (Proposed, blocked)
-
-*Not implementable from this session — see rationale below.*
+## Non-Functional Requirements — implemented by the owner directly
 
 ### RQ-BLD-011: Explicit branch protection on `main`
 - **Category**: Non-Functional
 - **NFR Type**: Security
 - **EARS Type**: Ubiquitous
 - **Statement**: `main` SHALL be covered by an explicit GitHub branch protection rule, since it is no longer the repository's default branch (RQ-BLD-005) and therefore not protected automatically.
-- **Rationale**: reproduces the protection clause of XplorerEditor's `RQ-BLD-019`. Unlike the other backlog items here, this does **not** depend on a GUI application existing — it is out of reach of this session for a different reason: configuring repository branch-protection rules requires GitHub repository-administration access this session's tool set does not have.
+- **Rationale**: reproduces the protection clause of XplorerEditor's `RQ-BLD-019`. Unlike the other requirements above, this did **not** depend on a GUI application existing — it was out of reach of this session for a different reason: configuring repository branch-protection rules requires GitHub repository-administration access this session's tool set does not have. Configured by the owner directly in GitHub's own settings (TASK-BLD-008).
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the repository's branch protection rules, *When* they are read, *Then* `main` is covered by one.
 - **Dependencies**: RQ-BLD-005
+- **Status**: Satisfied — cross-checked via `mcp__github__list_branches`, which reports `main` with `protected: true`. The specific rule contents were not independently re-derived (no branch-protection-rules-detail API in this session's tool set), so only the boolean fact is verified, not the exact configuration.

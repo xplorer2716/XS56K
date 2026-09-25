@@ -72,18 +72,21 @@ which XplorerEditor's own justification starts applying here too.
 `dev` merge is caught before it reaches `main`. Both workflows read as a single self-contained
 procedure — no composite action to open in a second file to see what a check actually does.
 
-**Harder.** `main`'s protection is not automatic now that it is not the default branch — tracked
-as backlog `RQ-BLD-011`, and out of reach of this session specifically (repository-administration
-access, not an application-existence gap like the rest of the backlog).
+**Was harder, resolved outside this session.** `main`'s protection is not automatic now that it is
+not the default branch — `RQ-BLD-011`, out of reach of this session specifically
+(repository-administration access, not an application-existence gap like the rest of the backlog
+was). The owner configured it directly; `mcp__github__list_branches` confirms `main`'s
+`protected: true`.
 
 **Constrained.** Neither workflow can currently prove anything beyond "it compiles" — no test
 suite exists yet (`juce/tests`), so a regression that compiles but behaves wrongly is not caught
 here. `BUILD_TESTS` (`ADR-BLD-001`) is already wired for when one is added.
 
-**Deferred, not rejected.** The parts of XplorerEditor's `ADR-BLD-003` this decision does not
-adopt — commit-derived versioning, the full platform/stream deployment matrix, the cut-deployment
-action, composite actions — are captured as backlog requirements (`RQ-BLD-007`–`RQ-BLD-010`) and
-their own forward-looking ADR (`ADR-BLD-003`), not discarded.
+**Deferred then implemented, not rejected.** The parts of XplorerEditor's `ADR-BLD-003` this
+decision itself does not adopt — commit-derived versioning, the full platform/stream deployment
+matrix, the cut-deployment action, composite actions — were captured as backlog requirements
+(`RQ-BLD-007`–`RQ-BLD-010`) and a forward-looking ADR (`ADR-BLD-003`), then implemented in the same
+session against a minimal placeholder app (`ADR-BLD-003`, now Accepted) rather than left waiting.
 
 ## Alternatives Considered
 
@@ -107,7 +110,7 @@ flowchart TD
     subgraph branches["Branches"]
         FT["feature/*<br/>canary"]
         DEV["dev — default<br/>integration"]
-        MAIN["main — production<br/>(protection: RQ-BLD-011, backlog)"]
+        MAIN["main — production<br/>(protection: RQ-BLD-011 ✓, owner-configured)"]
         FT -->|"PR"| DEV
         DEV -->|"PR"| MAIN
     end
@@ -118,5 +121,5 @@ flowchart TD
     CANARY -.->|"no publish — nothing to deploy yet"| NONE1["(GitHub Actions artifacts only:<br/>none currently uploaded)"]
     DEVCI -.->|"no publish — nothing to deploy yet"| NONE2["(GitHub Actions artifacts only:<br/>none currently uploaded)"]
 
-    MAIN -.->|"backlog RQ-BLD-010"| CUT["cut-deployment<br/>(not implemented)"]
+    MAIN -.->|"RQ-BLD-010"| CUT["cut-deployment<br/>(implemented, ADR-BLD-003 — never run)"]
 ```
