@@ -217,6 +217,89 @@ flowchart TD
 
 ---
 
+## IHM — vision orientée édition sonore (Phase B, esquisse)
+
+Discuté en session : le S5000 peut se lire comme un **synthétiseur soustractif dont les samples
+remplacent les VCO** — filtres, enveloppes (filter/amp/aux), LFO, sources de modulation. C'est ce
+côté-là qu'on veut mettre en avant dans l'IHM, avec la navigation disque/fichiers **autour**, pas
+mélangée dedans.
+
+Cette section n'était pas déductible du texte seul — vérifié en regardant réellement des pages du
+manuel (`poppler-utils` installé pour l'occasion, voir Sources) plutôt qu'en devinant depuis le
+texte extrait.
+
+**Ce que montre la vraie page FILTER (p.118)** : `Filter Mode`, `Cutoff Freq`, `Resonance`,
+`Keyboard Track`, `Attenuation`, un lien direct vers `FILT ENVELOPE`, et **3 slots de modulation**
+dédiés (chacun `source + profondeur`) — plus un petit rappel des 4 samples de zone du keygroup
+courant, et un sélecteur `KEYGRP: 1` **toujours visible** en haut de l'écran quel que soit l'onglet.
+Tous les modules "voix" (filtre, enveloppes, LFO) sont scopés au **Keygroup courant**, pas au
+Program entier.
+
+**Nuance importante** : ce n'est pas une matrice de modulation unifiée façon synthé logiciel
+moderne (une table où n'importe quelle source va vers n'importe quelle destination). Ce sont
+**plusieurs petits slots de mod indépendants, dédiés chacun à une destination précise** — le
+Filtre a ses 3 slots, chaque LFO les siens, l'Aux Envelope les siens. À ne pas survendre si ça
+devient une exigence.
+
+```mermaid
+flowchart TD
+    subgraph CTX["Contexte persistant (toujours visible)"]
+        PRG["Program courant"] --> KG["Keygroup courant"]
+        KG --> ZL["Rappel : ses 4 samples de zone"]
+    end
+
+    subgraph CORE["Éditeur de voix — cœur de l'IHM (métaphore synthé)"]
+        direction LR
+        FLT["Filter<br/>mode, cutoff, reso, keyb.track<br/>+ 3 slots de mod"]
+        FENV["Filter Envelope<br/>ADSR + vel/keyscale"]
+        AENV["Amp Envelope"]
+        XENV["Aux Envelope<br/>4 stages, ses propres slots"]
+        LFO1["LFO 1"]
+        LFO2["LFO 2<br/>+ sync MIDI clock"]
+        PA["Pitch/Amp<br/>(Keygroup)"]
+        OUT["Output /<br/>Pitchbend / MIDI-Tune"]
+    end
+
+    subgraph PERIPH["Périphérique — navigation disque/fichiers (séparé)"]
+        LOAD["Load / Browse"]
+        SAVE["Save"]
+        DISK["Disk Tools"]
+    end
+
+    CTX --> CORE
+    CORE -.->|"pas mélangé"| PERIPH
+```
+
+```mermaid
+flowchart LR
+    subgraph FLTMOD["Filter — 3 slots"]
+        F1["Mod Input 1"] --> FC["Cutoff"]
+        F2["Mod Input 2"] --> FC
+        F3["Mod Input 3"] --> FC
+    end
+    subgraph LFOMOD["LFO 1/2 — leurs propres slots"]
+        L1["Rate Mod"] --> LR["Rate"]
+        L2["Delay Mod"] --> LD["Delay"]
+        L3["Depth Mod"] --> LDep["Depth"]
+    end
+    subgraph AUXMOD["Aux Envelope — ses propres slots"]
+        AX1["Vel→Rate"] --> AR["Rate stage"]
+    end
+    note1["Pas une matrice unique :<br/>chaque destination a ses propres slots dédiés"]
+```
+
+### Ouvert, pas tranché
+
+- **Widget de valeur** — la contrainte hardware (curseur chiffre par chiffre à la molette DATA) ne
+  s'applique plus sur desktop ; reste à choisir slider/knob/spinner, pas décidé ici.
+- **Forme du sélecteur de contexte** (Program/Keygroup/Zone) — arbre latéral permanent, fil
+  d'Ariane, ou autre — le manuel montre un sélecteur simple (`KEYGRP: 1`) parce que le hardware n'a
+  qu'un écran ; le desktop permet mieux mais rien n'est choisi.
+- **Où s'arrête "voix"** — Output/Pitchbend/MIDI-Tune sont listés côté cœur ci-dessus par défaut
+  mais sont plus limitrophes (routing/MIDI) que Filter/Envelopes/LFO ; à confirmer.
+
+---
+
 ## Ce que ce plan ne tranche pas
 
 - **Timeout de `Send-and-wait`** — valeur à déterminer empiriquement contre le vrai matériel
@@ -238,3 +321,7 @@ flowchart TD
   `juce/framework/include/midiapp/model/{AbstractParameter,AbstractTone,OrderedParameterMap}.hpp`,
   `juce/midi/include/xpl/midi/{MockMidiBackend,JuceMidiBackend}.hpp` — architecture héritée de
   XplorerEditor, lue avant de proposer ce plan
+- `documents/akai_s5000_s6000_user_manual.1.21.pdf` — pages **vues visuellement** (`poppler-utils`
+  installé en session pour cela, le `.md` extrait ne rend pas la mise en page) : p.14 (face avant
+  S6000), p.25/p.15-imprimée (KEY CONVENTIONS), p.28/p.18-imprimée (POP-UP WINDOWS), p.118/
+  p.108-imprimée (page FILTER — base de la section IHM ci-dessus)
