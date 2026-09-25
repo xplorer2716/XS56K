@@ -60,10 +60,10 @@ future session does not have to re-derive the reasoning from scratch.
 ### RQ-BLD-005: Two long-lived branches, one deployment behaviour each
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
-- **Statement**: The repository SHALL carry two long-lived branches — `main` (production, protected) and `dev` (integration, the repository's default branch) — plus short-lived `feature/*` branches (canary). CI SHALL build the headless libraries on every push to a `feature/*` branch (canary) and on every push or pull request targeting `dev` (dev); neither stream publishes anything, since there is no deployable artifact yet.
+- **Statement**: The repository SHALL carry two long-lived branches — `main` (production, protected) and `dev` (integration, the repository's default branch) — plus short-lived `feature/*` branches (canary). CI SHALL build the headless libraries on every push to a `feature/*` branch (canary) and on every push or pull request targeting `dev` (preprod, pre-production); neither stream publishes anything, since there is no deployable artifact yet.
 - **Rationale**: gives a place to integrate and validate a change before it reaches `dev`, and fast feedback on a feature branch without opening a pull request first — same reasoning as XplorerEditor's `ADR-BLD-003` (`DEC-BLD-013`, `DEC-BLD-024`), trimmed to drop everything deployment-related (no GUI app to deploy).
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the repository settings, *When* the default branch is read, *Then* it is `dev`. *Given* a push to a `feature/*` branch touching `juce/**`, *When* CI runs, *Then* `linux-headless-canary` builds it and publishes no release. *Given* a push or pull request targeting `dev` and touching `juce/**`, *When* CI runs, *Then* `linux-headless-dev` builds it and publishes no release.
+- **Acceptance Criteria** (Gherkin): *Given* the repository settings, *When* the default branch is read, *Then* it is `dev`. *Given* a push to a `feature/*` branch touching `juce/**`, *When* CI runs, *Then* `linux-headless-canary` builds it and publishes no release. *Given* a push or pull request targeting `dev` and touching `juce/**`, *When* CI runs, *Then* `linux-headless-preprod` builds it and publishes no release.
 - **Dependencies**: ADR-BLD-002
 
 ### RQ-BLD-006: Self-describing CI workflow naming
@@ -72,7 +72,7 @@ future session does not have to re-derive the reasoning from scratch.
 - **Statement**: Each CI workflow SHALL cover exactly one stream, and its file name, workflow `name:` and job key SHALL be identical, so a pull-request status check names itself without cross-referencing.
 - **Rationale**: same property XplorerEditor's `RQ-BLD-023` establishes for its full platform/config/stream matrix, applied here to the two workflows this repository currently has.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* `linux-headless-canary.yml` and `linux-headless-dev.yml`, *When* each is read, *Then* its file stem, its `name:` and its single job key are the same string.
+- **Acceptance Criteria** (Gherkin): *Given* `linux-headless-canary.yml` and `linux-headless-preprod.yml`, *When* each is read, *Then* its file stem, its `name:` and its single job key are the same string.
 - **Dependencies**: ADR-BLD-002
 
 ### RQ-BLD-012: Path-scoped CI triggers
@@ -81,7 +81,7 @@ future session does not have to re-derive the reasoning from scratch.
 - **Statement**: IF a push or pull request touches no file under `juce/**` (and does not itself edit the workflow file in question), THEN a build/compile CI workflow SHALL NOT run for it — every such workflow's trigger SHALL carry a `paths` filter scoped to `juce/**` plus its own workflow file.
 - **Rationale**: a build workflow exists to answer "does the C++ port still compile", which a change confined to `documents/`, `process/` or the repository's own Markdown files cannot affect — running it anyway burns CI minutes and adds a status check with nothing to say about the change under review. Verified retroactively against this repository's own CI run history (`linux-headless-canary` runs #1–#2): both were triggered by a *push* whose full commit range genuinely touched `juce/**`, confirming the filter already in place works as intended, not merely as documented.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* `linux-headless-canary.yml` and `linux-headless-dev.yml`, *When* their `on.push.paths` (and, for the latter, `on.pull_request.paths`) are read, *Then* each lists `juce/**` and its own workflow file, and nothing else. *Given* a push whose full diff touches only `documents/`, `process/` or top-level Markdown files, *When* CI is checked, *Then* neither workflow ran for it.
+- **Acceptance Criteria** (Gherkin): *Given* `linux-headless-canary.yml` and `linux-headless-preprod.yml`, *When* their `on.push.paths` (and, for the latter, `on.pull_request.paths`) are read, *Then* each lists `juce/**` and its own workflow file, and nothing else. *Given* a push whose full diff touches only `documents/`, `process/` or top-level Markdown files, *When* CI is checked, *Then* neither workflow ran for it.
 - **Dependencies**: RQ-BLD-005, RQ-BLD-006
 
 ---
@@ -97,7 +97,7 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
 ### RQ-BLD-007: Full platform/stream deployment matrix
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN a GUI application target exists, CI SHALL build and package it for `windows-x64`, `macos-arm64` and `linux-x64`, each in Debug and Release configuration for the `canary` and `dev` (pre-production) streams, and Release-only for the `prod` stream — fifteen platform/configuration/stream combinations in total.
+- **Statement**: WHEN a GUI application target exists, CI SHALL build and package it for `windows-x64`, `macos-arm64` and `linux-x64`, each in Debug and Release configuration for the `canary` and `preprod` (pre-production) streams, and Release-only for the `prod` stream — fifteen platform/configuration/stream combinations in total.
 - **Rationale**: reproduces XplorerEditor's `RQ-BLD-002`/`RQ-BLD-011`/`RQ-BLD-012`/`RQ-BLD-019`/`RQ-BLD-023` coverage, the actual target this session's CI setup is a deliberately-reduced first step toward.
 - **Priority**: Should
 - **Acceptance Criteria** (Gherkin): *Given* a GUI application target, *When* the CI workflows are listed, *Then* there are fifteen deployment workflows covering every (`windows`|`macos`|`linux`) × (`debug`|`release`, or `release` only for `prod`) × (`canary`|`dev`|`prod`) combination that is valid per this requirement.

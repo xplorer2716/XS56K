@@ -32,7 +32,7 @@ inputs:
     description: 'Full form with stage suffix — also the release tag.'
     required: true
   stage:
-    description: 'Empty for production, "dev" on the dev branch. Canary never reaches this action.'
+    description: 'Empty for production, "preprod" on the dev branch. Canary never reaches this action.'
     required: true
   token:
     description: 'Token carrying contents: write.'
@@ -73,20 +73,20 @@ runs:
             # merge's second parent, which IS the dev tip that was merged.
             if promoted=$(git rev-parse --verify -q 'HEAD^2'); then
               promoted_version="$(TZ=UTC git log -1 --format=%cd \
-                  --date=format-local:'%Y.%m.%d-%H%M' "$promoted")-dev"
+                  --date=format-local:'%Y.%m.%d-%H%M' "$promoted")-preprod"
               {
                 echo
-                echo "Promotes the dev deployment \`${promoted_version}\`."
+                echo "Promotes the pre-production deployment \`${promoted_version}\`."
               } >> "$notes"
             fi
             match='????.??.??-????'
           else
             {
-              echo "**Dev deployment \`${DISPLAY}\`. This is NOT a production deployment** —"
-              echo "it is built from \`dev\` for integration testing, and its binaries report"
-              echo "\`-dev\` in their reported version."
+              echo "**Pre-production deployment \`${DISPLAY}\`. This is NOT a production"
+              echo "deployment** — it is built from \`dev\` for integration testing, and its"
+              echo "binaries report \`-preprod\` in their reported version."
             } > "$notes"
-            match='*-dev'
+            match='*-preprod'
           fi
 
           # Changes since the previous deployment OF THE SAME STREAM: a
@@ -110,7 +110,7 @@ runs:
           if [ -z "$STAGE" ]; then
             create_flags=(--latest --title "XS56K ${DISPLAY}")
           else
-            create_flags=(--prerelease --latest=false --title "XS56K ${DISPLAY} (dev)")
+            create_flags=(--prerelease --latest=false --title "XS56K ${DISPLAY} (pre-production)")
           fi
 
           # A concurrent publisher may create the release between the check

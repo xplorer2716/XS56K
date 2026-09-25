@@ -2,15 +2,14 @@
 # exists) of the non-UI layers, on every push to a feature branch.
 #
 # File name = workflow name = job name, so a pull-request status check names
-# itself without cross-referencing. This and linux-headless-dev.yml are
+# itself without cross-referencing. This and linux-headless-preprod.yml are
 # DELIBERATELY OUTSIDE the <os>-<arch>-<config>-<stage> deployment naming
-# scheme used by xplorer2716/XplorerEditor (RQ-BLD-023 there): there is no
-# GUI application in this repository yet (no app/model/controller/settings
-# layer, only midi and framework), so there is nothing to deploy and no
-# "config"/"stage" combination to name — only a headless library build, on
-# two streams. See documents/INDEX.md / AGENTS.md for XplorerEditor's role
-# as the source this repository's CI setup, and its midi+framework layers,
-# were ported from.
+# scheme used by xplorer2716/XplorerEditor (RQ-BLD-023 there): juce/app is a
+# minimal placeholder, not a real UI, so there is nothing to deploy and no
+# "config"/"stage" combination worth naming here — only a headless library
+# build, on two streams. See documents/INDEX.md / AGENTS.md for
+# XplorerEditor's role as the source this repository's CI setup, and its
+# midi+framework layers, were ported from.
 #
 # Canary: fast, unconditional feedback on every push to a feature branch —
 # no need to open a pull request first to get a build (same reasoning as

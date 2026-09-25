@@ -56,7 +56,7 @@ suite or a real editor UI exists.
   - `dev` — integration, the **default branch**. Base for pull requests and for AGNOS sessions.
   - `feature/*` (or other short-lived branches) — canary: built by CI on every push, no merge
     required first.
-  - CI: `linux-headless-canary.yml`/`linux-headless-dev.yml` build the headless libraries only.
+  - CI: `linux-headless-canary.yml`/`linux-headless-preprod.yml` build the headless libraries only.
     `juce/tools/generate_workflows.py` generates 15 more (`<os>-<arch>-<config>-<stage>`,
     `windows-x64`/`macos-arm64`/`linux-x64` × canary/dev/prod) that build, package and — on `dev`
     and `prod` — publish the placeholder app as a GitHub Release (`ADR-BLD-003`). `cut-deployment.yml`

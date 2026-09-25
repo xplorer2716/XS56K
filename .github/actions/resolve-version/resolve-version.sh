@@ -5,8 +5,9 @@
 #
 # Adapted from xplorer2716/XplorerEditor's own
 # .github/actions/resolve-version/resolve-version.sh (AGENTS.md) — same
-# derivation, same reasoning (see ADR-BLD-003), stage names matched to this
-# repository's own stream naming (ADR-BLD-002: "dev", not "preprod") and no
+# derivation, same reasoning (see ADR-BLD-003), same stage names ("preprod",
+# not "dev" — owner decision, aligned with XplorerEditor's own naming after
+# an initial deviation was caught and reverted, see ADR-BLD-002) and no
 # "XPL_" prefix on the env var (owner decision, TASK-BLD-002 follow-up; see
 # ADR-BLD-001's amended DEC-BLD-003).
 #
@@ -14,7 +15,7 @@
 #
 #   numeric  2026.8.19.1740   CMake, JUCE target, Windows FILEVERSION, CFBundleVersion
 #   display  2026.08.19-1740  tag, release title, deployment archive names
-#   full     …-1740-dev       About box, ProductVersion string
+#   full     …-1740-preprod   About box, ProductVersion string
 #
 # PURE FUNCTION OF THE COMMIT. No counter, no github.run_number, no repository
 # variable, no wall-clock "now" — multiple workflows can build one commit
@@ -25,14 +26,14 @@ set -euo pipefail
 
 ref="${REF:-${GITHUB_REF:-}}"
 
-# main or a tag = production; dev = the dev/integration stream; anything else
+# main or a tag = production; dev = the pre-production stream; anything else
 # (a feature branch, or a pull_request's refs/pull/N/merge) = canary.
 # A tag ref is production, not "whatever refs/heads/main is": cut-deployment
 # (TASK-BLD-007) triggers production by pushing a tag, so its ref is
 # refs/tags/…, never refs/heads/main.
 case "$ref" in
     refs/heads/main | refs/tags/*) stage="" ;;
-    refs/heads/dev)                stage="-dev" ;;
+    refs/heads/dev)                stage="-preprod" ;;
     *)                             stage="-canary" ;;
 esac
 

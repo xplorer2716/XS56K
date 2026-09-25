@@ -4,7 +4,7 @@
 # Regenerate with : python3 juce/tools/generate_workflows.py
 # =====================================================================
 #
-# windows-x64-debug-dev
+# windows-x64-release-preprod
 #
 # One operating system, one architecture, one build configuration, one
 # deployment stream — and the file name, the workflow name and the job key are
@@ -13,28 +13,28 @@
 #
 # Every step delegates to a composite action under .github/actions/. That is
 # what keeps one-file-per-combination affordable: the procedure exists once.
-name: windows-x64-debug-dev
+name: windows-x64-release-preprod
 
 on:
   push:
     branches: [dev]
     paths:
       - 'juce/**'
-      - '.github/workflows/windows-x64-debug-dev.yml'
+      - '.github/workflows/windows-x64-release-preprod.yml'
       - '.github/actions/**'
   pull_request:
     branches: [dev]
     paths:
       - 'juce/**'
-      - '.github/workflows/windows-x64-debug-dev.yml'
+      - '.github/workflows/windows-x64-release-preprod.yml'
       - '.github/actions/**'
 
 permissions:
   contents: write
 
 jobs:
-  windows-x64-debug-dev:
-    name: windows x64 Debug (dev)
+  windows-x64-release-preprod:
+    name: windows x64 Release (pre-production)
     runs-on: windows-2022
 
     steps:
@@ -53,12 +53,12 @@ jobs:
         uses: ./.github/actions/build-app
         with:
           os: windows
-          config: debug
+          config: release
           version-numeric: ${{ steps.version.outputs.numeric }}
           version-full: ${{ steps.version.outputs.full }}
 
       # Runs on push only. For prod the only trigger IS a tag push, so this
-      # never excludes anything there; for dev it is what keeps a pull
+      # never excludes anything there; for preprod it is what keeps a pull
       # request that targets dev from publishing a release before the merge
       # actually lands. [RQ-BLD-005, ADR-BLD-002]
       - id: package
@@ -69,7 +69,7 @@ jobs:
           version: ${{ steps.version.outputs.display }}
           os: windows
           arch: x64
-          config: debug
+          config: release
 
       - uses: ./.github/actions/publish-deployment
         if: github.event_name == 'push'
@@ -89,6 +89,6 @@ jobs:
       - if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
         with:
-          name: XS56K-${{ steps.version.outputs.full }}-windows-x64-debug
+          name: XS56K-${{ steps.version.outputs.full }}-windows-x64-release
           path: ${{ steps.build.outputs.artefact-dir }}
           if-no-files-found: error

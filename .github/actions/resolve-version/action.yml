@@ -15,10 +15,10 @@ outputs:
     description: 'Zero-padded, e.g. 2026.08.19-1740 — release tag, release title, archive names.'
     value: ${{ steps.resolve.outputs.display }}
   full:
-    description: 'Display form plus the stage suffix, e.g. 2026.08.19-1740-dev — About box, ProductVersion string.'
+    description: 'Display form plus the stage suffix, e.g. 2026.08.19-1740-preprod — About box, ProductVersion string.'
     value: ${{ steps.resolve.outputs.full }}
   stage:
-    description: 'Empty for production, "dev" on the dev branch, "canary" everywhere else.'
+    description: 'Empty for production, "preprod" on the dev branch, "canary" everywhere else.'
     value: ${{ steps.resolve.outputs.stage }}
   timestamp:
     description: 'The commit''s own committer time in UTC, ISO 8601.'

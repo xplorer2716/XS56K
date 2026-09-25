@@ -12,7 +12,7 @@ juce_add_gui_app(XS56KApp
     PRODUCT_NAME "XS56K"
     COMPANY_NAME "XS56K"
     # NUMERIC form only: this feeds Windows FILEVERSION (four 16-bit fields)
-    # and CFBundleVersion, neither of which can carry a "-canary"/"-dev"
+    # and CFBundleVersion, neither of which can carry a "-canary"/"-preprod"
     # suffix. The FULL form (with the suffix) is what the application itself
     # reports — see VERSION_FULL_STRING below. [RQ-BLD-009, RQ-BLD-020]
     VERSION "${VERSION_NUMERIC}")

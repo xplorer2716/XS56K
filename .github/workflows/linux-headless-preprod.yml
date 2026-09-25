@@ -1,5 +1,6 @@
 # CI for the JUCE (C++) port: headless build (and tests, once a test suite
-# exists) of the non-UI layers, for the dev (integration) branch.
+# exists) of the non-UI layers, for the dev (integration) branch's
+# pre-production stream.
 #
 # See linux-headless-canary.yml for why this is outside the deployment naming
 # scheme XplorerEditor uses once an app exists: no GUI application layer is
@@ -13,7 +14,7 @@
 # publish here yet).
 #
 # [RQ-BLD-005, RQ-BLD-006, ADR-BLD-002 (DEC-BLD-004, DEC-BLD-005, DEC-BLD-006), TASK-BLD-002]
-name: linux-headless-dev
+name: linux-headless-preprod
 
 # paths below: only a change under juce/ (or to this file) can affect whether the
 # C++ port still compiles, so nothing else SHALL trigger this workflow. [RQ-BLD-012]
@@ -22,19 +23,19 @@ on:
     branches: [dev]
     paths:
       - 'juce/**'
-      - '.github/workflows/linux-headless-dev.yml'
+      - '.github/workflows/linux-headless-preprod.yml'
   pull_request:
     branches: [dev]
     paths:
       - 'juce/**'
-      - '.github/workflows/linux-headless-dev.yml'
+      - '.github/workflows/linux-headless-preprod.yml'
 
 permissions:
   contents: read
 
 jobs:
-  linux-headless-dev:
-    name: linux-headless-dev
+  linux-headless-preprod:
+    name: linux-headless-preprod
     runs-on: ubuntu-22.04
 
     steps:

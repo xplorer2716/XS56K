@@ -53,7 +53,7 @@ PLATFORMS = [
 STREAMS = {
     # stage -> (configurations, permission, human name)
     "prod": (("release",), "write", "production"),
-    "dev": (("debug", "release"), "write", "dev"),
+    "preprod": (("debug", "release"), "write", "pre-production"),
     "canary": (("debug", "release"), "read", "canary"),
 }
 
@@ -93,11 +93,11 @@ def triggers_for(stage: str, name: str) -> str:
         return ("  push:\n"
                 "    tags:\n"
                 "      - '[0-9][0-9][0-9][0-9].[0-9][0-9].[0-9][0-9]-[0-9][0-9][0-9][0-9]'\n")
-    if stage == "dev":
+    if stage == "preprod":
         # Both a push that lands on dev and a pull request that targets it
-        # build dev's configuration; only the push publishes (PUBLISH's own
-        # event_name guard). branches: on pull_request matches the PR's base
-        # branch. [RQ-BLD-005, ADR-BLD-002 (DEC-BLD-005/DEC-BLD-006a)]
+        # build the pre-production configuration; only the push publishes
+        # (PUBLISH's own event_name guard). branches: on pull_request matches
+        # the PR's base branch. [RQ-BLD-005, ADR-BLD-002 (DEC-BLD-005/DEC-BLD-006a)]
         return ("  push:\n    branches: [dev]\n" + paths_filter(name)
                 + "  pull_request:\n    branches: [dev]\n" + paths_filter(name))
     # Canary triggers on push alone, restricted to anything that is not main
@@ -143,7 +143,7 @@ TAG_GUARD = """
 
 PUBLISH = """
       # Runs on push only. For prod the only trigger IS a tag push, so this
-      # never excludes anything there; for dev it is what keeps a pull
+      # never excludes anything there; for preprod it is what keeps a pull
       # request that targets dev from publishing a release before the merge
       # actually lands. [RQ-BLD-005, ADR-BLD-002]
       - id: package
@@ -177,7 +177,7 @@ CANARY_UPLOAD = """
           if-no-files-found: error
 """
 
-DEV_PR_UPLOAD = """
+PREPROD_PR_UPLOAD = """
       # A pull request targeting dev verifies the merge result before it lands:
       # build and test, but PUBLISH's own guard keeps it from publishing, so an
       # unmerged PR never produces a release. Its version stage is "-canary"
@@ -195,7 +195,7 @@ DEV_PR_UPLOAD = """
 def workflow(os_name: str, arch: str, runner: str, config: str, stage: str) -> tuple[str, str]:
     name = f"{os_name}-{arch}-{config}-{stage}"
     _, permission, human = STREAMS[stage]
-    tail = {"prod": TAG_GUARD + PUBLISH, "dev": PUBLISH + DEV_PR_UPLOAD, "canary": CANARY_UPLOAD}[stage]
+    tail = {"prod": TAG_GUARD + PUBLISH, "preprod": PUBLISH + PREPROD_PR_UPLOAD, "canary": CANARY_UPLOAD}[stage]
     permissions = f"  contents: {permission}\n"
     body = (
         GENERATED_HEADER.format(name=name)

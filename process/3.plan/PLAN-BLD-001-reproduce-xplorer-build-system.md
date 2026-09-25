@@ -39,14 +39,14 @@ repository or on access this session does not have.
 - **Tier**: M
 - **Status**: Done
 - **Description**: Add `.github/workflows/linux-headless-canary.yml` (push, any branch except
-  `main`/`dev`) and `linux-headless-dev.yml` (push + pull_request, `dev`), both building the
+  `main`/`dev`) and `linux-headless-preprod.yml` (push + pull_request, `dev`), both building the
   headless libraries of TASK-BLD-001 on `ubuntu-22.04` with ALSA headers installed.
 - **Requirement refs**: RQ-BLD-005, RQ-BLD-006, RQ-BLD-012
 - **ADR refs**: ADR-BLD-002
-- **Acceptance Criteria** (Gherkin): *Given* a push to a `feature/*` branch touching `juce/**`, *When* CI runs, *Then* `linux-headless-canary` builds successfully. *Given* a push or pull request targeting `dev` touching `juce/**`, *When* CI runs, *Then* `linux-headless-dev` builds successfully. *Given* both workflow files, *When* read, *Then* each file's stem, `name:` and job key are identical. *Given* a push whose full diff touches only `documents/`, `process/` or top-level Markdown, *When* CI is checked, *Then* neither workflow ran for it.
+- **Acceptance Criteria** (Gherkin): *Given* a push to a `feature/*` branch touching `juce/**`, *When* CI runs, *Then* `linux-headless-canary` builds successfully. *Given* a push or pull request targeting `dev` touching `juce/**`, *When* CI runs, *Then* `linux-headless-preprod` builds successfully. *Given* both workflow files, *When* read, *Then* each file's stem, `name:` and job key are identical. *Given* a push whose full diff touches only `documents/`, `process/` or top-level Markdown, *When* CI is checked, *Then* neither workflow ran for it.
 - **Dependencies**: TASK-BLD-001
 - **Assignee**: AI
-- **Verification**: Both files pass `yaml.safe_load` (checked in-session). File stem = `name:` = job key verified by inspection for both (`linux-headless-canary`, `linux-headless-dev`). Now also observed running on GitHub's runners: `mcp__github__actions_list` (`list_workflow_runs`) shows 2 completed, successful `linux-headless-canary` runs; `git diff --name-only` between each run's before/after commit confirms both pushes' full range genuinely touched `juce/**` (run #1's push carried `86fd171`, which added `juce/CMakeLists.txt`, alongside the displayed "relicense" commit; run #2's commit touched `juce/CMakeLists.txt` directly) — the `paths` filter (RQ-BLD-012) was not a false trigger either time.
+- **Verification**: Both files pass `yaml.safe_load` (checked in-session). File stem = `name:` = job key verified by inspection for both (`linux-headless-canary`, `linux-headless-preprod`). Now also observed running on GitHub's runners: `mcp__github__actions_list` (`list_workflow_runs`) shows 2 completed, successful `linux-headless-canary` runs; `git diff --name-only` between each run's before/after commit confirms both pushes' full range genuinely touched `juce/**` (run #1's push carried `86fd171`, which added `juce/CMakeLists.txt`, alongside the displayed "relicense" commit; run #2's commit touched `juce/CMakeLists.txt` directly) — the `paths` filter (RQ-BLD-012) was not a false trigger either time.
 - **Assumptions**: No composite action introduced (DEC-BLD-007) — two call sites do not yet justify the indirection.
 
 ---
@@ -104,7 +104,7 @@ designed and ported. This is NOT TASK-005 of a future real app port — see each
 - **Acceptance Criteria** (Gherkin): see RQ-BLD-009.
 - **Dependencies**: None (implemented ahead of TASK-BLD-005 — the derivation itself needs no app target).
 - **Assignee**: AI
-- **Verification**: `resolve-version.sh` run directly (outside GitHub Actions, as XplorerEditor's own does) against five real refs — `refs/heads/main`, `refs/heads/dev`, `refs/heads/feature/BLD`, a tag, and a `refs/pull/1/merge` — producing stage `""`, `dev`, `canary`, `""`, `canary` respectively, all correct. `juce/app` then configured and built with `-DVERSION_NUMERIC=2026.9.23.2145 -DVERSION_FULL=2026.09.23-2145-dev` (the script's own real output); `strings` on the resulting binary confirms `2026.09.23-2145-dev` is embedded (`getApplicationVersion()` returns it).
+- **Verification**: `resolve-version.sh` run directly (outside GitHub Actions, as XplorerEditor's own does) against five real refs — `refs/heads/main`, `refs/heads/dev`, `refs/heads/feature/BLD`, a tag, and a `refs/pull/1/merge` — producing stage `""`, `preprod`, `canary`, `""`, `canary` respectively, all correct. `juce/app` then configured and built with `-DVERSION_NUMERIC=2026.9.23.2214 -DVERSION_FULL=2026.09.23-2214-preprod` (the script's own real output, re-run after the `dev`→`preprod` naming correction below); `strings` on the resulting binary confirms `2026.09.23-2214-preprod` is embedded (`getApplicationVersion()` returns it).
 - **Assumptions**: None.
 
 ### TASK-BLD-005: Implement the full platform/stream deployment matrix

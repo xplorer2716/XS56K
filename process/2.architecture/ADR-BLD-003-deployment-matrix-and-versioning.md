@@ -38,7 +38,7 @@ CMake variable either (owner decision, TASK-BLD-002 follow-up — `ADR-BLD-001`'
 Xplorer to XS56K" commits in this repository's history):
 
 **DEC-BLD-008** — Reproduce the fifteen-workflow platform/architecture/configuration/stream matrix
-(`windows-x64`, `macos-arm64`, `linux-x64`; canary/dev/prod streams; debug+release except prod
+(`windows-x64`, `macos-arm64`, `linux-x64`; canary/preprod/prod streams; debug+release except prod
 which is release-only), file name = workflow name = job name
 (`<os>-<arch>-<config>-<stage>`) — XplorerEditor's `RQ-BLD-023`/`DEC-BLD-016`.
 
@@ -57,7 +57,7 @@ files stay affordable to keep self-describing.
 **DEC-BLD-011** — Reproduce commit-derived versioning exactly: three forms (numeric
 `YYYY.M.D.HHMM`, display `YYYY.MM.DD-HHMM`, full `…-HHMM<-stage>`), taken from the commit's own
 UTC committer timestamp, stage suffix from `github.ref` (`refs/heads/main` or a tag → none,
-`refs/heads/dev` → `-dev`, anything else → `-canary`) — XplorerEditor's `RQ-BLD-020`
+`refs/heads/dev` → `-preprod`, anything else → `-canary`) — XplorerEditor's `RQ-BLD-020`
 (`ADR-BLD-003`, `DEC-BLD-014`/`DEC-BLD-015`). The "why not a daily counter" reasoning recorded
 there (no atomic counter primitive across concurrent independent workflows) applies here
 unchanged and should not be re-litigated.
@@ -121,7 +121,7 @@ not actually run. Their first real signal is their first CI run on GitHub's own 
 flowchart TD
     subgraph today["ADR-BLD-001/002"]
         MIDI["juce/midi, juce/framework<br/>(headless libraries)"]
-        CI2["linux-headless-canary<br/>linux-headless-dev"]
+        CI2["linux-headless-canary<br/>linux-headless-preprod"]
     end
 
     subgraph placeholder["Owner decision: create a placeholder rather than wait"]
@@ -131,9 +131,9 @@ flowchart TD
     subgraph matrix["DEC-BLD-008/009/010 — generated matrix (implemented)"]
         GEN["juce/tools/generate_workflows.py<br/>(single source of truth, --check verified idempotent)"]
         ACTIONS[".github/actions/<br/>build-app · resolve-version · package-deployment · publish-deployment"]
-        GEN --> W1["windows-x64 × 5 files<br/>(canary×2, dev×2, prod×1) — syntax-verified only"]
-        GEN --> W2["macos-arm64 × 5 files<br/>(canary×2, dev×2, prod×1) — syntax-verified only"]
-        GEN --> W3["linux-x64 × 5 files<br/>(canary×2, dev×2, prod×1) — build-verified"]
+        GEN --> W1["windows-x64 × 5 files<br/>(canary×2, preprod×2, prod×1) — syntax-verified only"]
+        GEN --> W2["macos-arm64 × 5 files<br/>(canary×2, preprod×2, prod×1) — syntax-verified only"]
+        GEN --> W3["linux-x64 × 5 files<br/>(canary×2, preprod×2, prod×1) — build-verified"]
         W1 --> ACTIONS
         W2 --> ACTIONS
         W3 --> ACTIONS

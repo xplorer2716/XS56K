@@ -2,7 +2,7 @@
 
 ## Status
 Accepted — implemented (`dev` created and set as the repository default by the project owner;
-`linux-headless-canary.yml` and `linux-headless-dev.yml` merged and pushed).
+`linux-headless-canary.yml` and `linux-headless-preprod.yml` merged and pushed).
 
 ## Context
 
@@ -30,7 +30,7 @@ deployment — there is nothing to package or publish yet):
 - `linux-headless-canary` — triggers on `push` to any branch except `main`/`dev`
   (`branches-ignore: [main, dev]`), matching XplorerEditor's reasoning for its own canary stream
   (`DEC-BLD-024`): fast feedback on a feature branch without needing an open pull request first.
-- `linux-headless-dev` — triggers on both `push` and `pull_request` targeting `dev`, matching
+- `linux-headless-preprod` — triggers on both `push` and `pull_request` targeting `dev`, matching
   XplorerEditor's preprod-stream reasoning (`DEC-BLD-024`): `pull_request` verifies what a PR would
   produce if merged, `push` verifies what actually landed. Neither publishes anything, so the
   push-only-publishes distinction that reasoning is built around does not apply here — both runs do
@@ -49,6 +49,16 @@ job key is kept as the one property that does transfer.
 build that cannot say anything about it. Verified against this repository's own CI history after
 the fact, not merely asserted: both runs observed so far were triggered by a push whose full commit
 range genuinely touched `juce/**`.
+
+**Amended (owner decision, same session)** — This ADR's stream for the `dev` branch was first
+named `dev` throughout (`linux-headless-dev`, version suffix `-dev`), diverging from XplorerEditor's
+own naming (`preprod`) without a stated reason — an unrequested, undocumented deviation from the
+"reproduce XplorerEditor's build system" task this ADR answers, caught when the owner asked why the
+generated workflows did not match XplorerEditor's `preprod` naming. Corrected throughout: the
+**branch** stays `dev` (that name is this repository's own, not XplorerEditor's, and is unaffected);
+the **stream/stage label** built from it is `preprod`, matching XplorerEditor's `RQ-BLD-020`/
+`ADR-BLD-003` exactly (`linux-headless-preprod`, version suffix `-preprod`, and `ADR-BLD-003`'s own
+`DEC-BLD-008`–`012`, which this correction also propagates to).
 
 **DEC-BLD-007** — No composite actions yet. XplorerEditor's steps live in `.github/actions/`
 because fifteen near-identical workflow files make that indirection pay for itself (`RQ-BLD-023`).
@@ -103,7 +113,7 @@ flowchart TD
     end
 
     FT -->|"push"| CANARY["linux-headless-canary<br/>build only"]
-    DEV -->|"push or pull_request"| DEVCI["linux-headless-dev<br/>build only"]
+    DEV -->|"push or pull_request"| DEVCI["linux-headless-preprod<br/>build only"]
 
     CANARY -.->|"no publish — nothing to deploy yet"| NONE1["(GitHub Actions artifacts only:<br/>none currently uploaded)"]
     DEVCI -.->|"no publish — nothing to deploy yet"| NONE2["(GitHub Actions artifacts only:<br/>none currently uploaded)"]
