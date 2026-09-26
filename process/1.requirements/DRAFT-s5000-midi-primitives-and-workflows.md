@@ -40,7 +40,7 @@ Zone), avant d'attaquer Sample et Disk. Raisons :
 
 ## Ce que l'architecture existante impose (vérifié dans le code porté)
 
-- **`xpl_midi`** (backend MIDI générique, `MidiMessage`/`SysexStreamIterator`/`MidiPorts`) est
+- **`xs56k_midi`** (backend MIDI générique, `MidiMessage`/`SysexStreamIterator`/`MidiPorts`) est
   réutilisable tel quel — indépendant de tout synthé.
 - **`AbstractController`** (porté de XplorerEditor) pace ses envois avec un **délai fixe en ms**
   (`_parameterTransmitDelay = 20` par défaut) et n'a aucune gestion de `OK`/`DONE`/`REPLY`/`ERROR`
@@ -304,7 +304,7 @@ flowchart LR
 
 - **Timeout de `Send-and-wait`** — valeur à déterminer empiriquement contre le vrai matériel
   (pendant la Phase A elle-même, pas avant).
-- **Emplacement du codec AKAI** dans l'architecture (nouvelle lib `xpl_akai` à côté de `xpl_midi`,
+- **Emplacement du codec AKAI** dans l'architecture (nouvelle lib dédiée AKM, nom de cible à décider dans son propre ADR, à côté de `xs56k_midi`,
   ou extension directe) — question de structure de code, pas de protocole.
 - **Assignation de sample en Zone (point ouvert ci-dessus)** — saisie manuelle vs picker
   read-only sur `§0E/&12`.

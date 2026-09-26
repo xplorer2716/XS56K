@@ -30,9 +30,9 @@ ADR's plumbing has a real target to build, version and package against.
 
 **Implemented against `juce/app`, a MINIMAL PLACEHOLDER** (not a `model`/`controller`/`settings`
 layer, and not XplorerEditor's own UI in any form — see `juce/app/CMakeLists.txt`'s own header),
-reproducing the following, each reproducing the cited XplorerEditor decision with `xpl` identifiers
-already established by `ADR-BLD-001` kept as-is, no `XPL_`/project-specific prefix on any new
-CMake variable either (owner decision, TASK-BLD-002 follow-up — `ADR-BLD-001`'s amended
+reproducing the following, each reproducing the cited XplorerEditor decision with the target names
+already established by `ADR-BLD-001` (renamed since by `ADR-BLD-004`), no project-specific prefix
+on any new CMake variable either (owner decision, TASK-BLD-002 follow-up — `ADR-BLD-001`'s amended
 `DEC-BLD-003`), and `Xplorer`-branded strings (executable name, archive names) replaced with
 `XS56K` ones, the same substitution already applied to the ported source headers (see the "rename
 Xplorer to XS56K" commits in this repository's history):

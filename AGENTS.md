@@ -36,7 +36,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev` on Linux. JUCE itself is fetched by CMake
   (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately. [RQ-BLD-001]
 - **Build (libraries only):** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
-  (builds the `xpl_midi`/`xpl_midi_juce` and `xpl_framework` static libraries only). [RQ-BLD-002]
+  (builds the `xs56k_midi`/`xs56k_midi_juce` and `xs56k_framework` static libraries only). [RQ-BLD-002]
 - **Build (with the placeholder app):** add `-DBUILD_APP=ON` (and, to embed a real version,
   `-DVERSION_NUMERIC=... -DVERSION_FULL=...` — see `.github/actions/resolve-version`); produces
   an `XS56K` executable that opens one placeholder window. [RQ-BLD-007]
@@ -44,7 +44,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   default `OFF`) is reserved for it. [RQ-BLD-002]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
-  `xpl::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
+  `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
 
 Do not invent commands beyond these; check `CONTRIBUTING.md` and this file again once a test
 suite or a real editor UI exists.

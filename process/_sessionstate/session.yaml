@@ -1,2 +1,2 @@
-unit_tests: false       # boolean — user variable: generate and run unit tests
-platform: linux         # string — system variable: "windows" | "macos" | "linux"
+unit_tests: false
+platform: windows

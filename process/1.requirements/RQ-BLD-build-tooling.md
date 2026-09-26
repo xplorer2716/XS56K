@@ -36,7 +36,7 @@ the owner configured it directly in GitHub's settings instead.
 - **Statement**: The build SHALL compile the `midi` and `framework` layers as standalone static libraries, headless (no GUI system libraries required), on Linux; the GUI application target SHALL only build when `BUILD_APP` is explicitly enabled, and stays deferred until a `model`/`controller`/`settings`/`app` layer exists in this repository.
 - **Rationale**: mirrors XplorerEditor's RQ-BLD-002/RQ-BLD-005 layering, sized to what has actually been ported so far (`midi` and `framework` only — see `AGENTS.md`).
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the current repository state (no `app`/`model`/`controller`/`settings` directory), *When* `cmake --build juce/build` is run with default options, *Then* the `xpl_midi`, `xpl_midi_juce` and `xpl_framework` static libraries build successfully and no GUI application target is attempted.
+- **Acceptance Criteria** (Gherkin): *Given* the current repository state (no `app`/`model`/`controller`/`settings` directory), *When* `cmake --build juce/build` is run with default options, *Then* the `xs56k_midi`, `xs56k_midi_juce` and `xs56k_framework` static libraries build successfully and no GUI application target is attempted.
 - **Dependencies**: RQ-BLD-001; ADR-BLD-001
 
 ### RQ-BLD-003: Strict warnings for project code only
@@ -45,7 +45,7 @@ the owner configured it directly in GitHub's settings instead.
 - **Statement**: The code SHALL use C++20 and compile warning-clean at high warning levels (`-Wall -Wextra -Wpedantic` / `/W4`) with warnings-as-errors, applied to project code only — never to JUCE's own module sources compiled into a target.
 - **Rationale**: catches real defects early without being defeated by, or generating false positives against, a large vendored dependency this project does not control.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the `xpl_warnings` interface target, *When* a project source file (`xpl_midi`, `xpl_midi_juce`, `xpl_framework`) is compiled, *Then* `-Wall -Wextra -Wpedantic -Werror` (or `/W4 /WX` on MSVC) are present on its compile command. *Given* a full build, *When* it completes, *Then* it produces no warning.
+- **Acceptance Criteria** (Gherkin): *Given* the `xs56k_warnings` interface target, *When* a project source file (`xs56k_midi`, `xs56k_midi_juce`, `xs56k_framework`) is compiled, *Then* `-Wall -Wextra -Wpedantic -Werror` (or `/W4 /WX` on MSVC) are present on its compile command. *Given* a full build, *When* it completes, *Then* it produces no warning.
 - **Dependencies**: ADR-BLD-001
 
 ### RQ-BLD-004: AGPL-3.0 license header and project licensing
@@ -129,6 +129,16 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
 - **Priority**: Should
 - **Acceptance Criteria** (Gherkin): *Given* a push to `main` with no tag, *When* its workflows complete, *Then* no deployment was published. *Given* the cut-deployment action run on `main`, *When* it completes, *Then* a tag exists and every production workflow has run.
 - **Dependencies**: RQ-BLD-009; ADR-BLD-003
+
+### RQ-BLD-013: No project prefix inherited from XplorerEditor
+- **Category**: Functional
+- **EARS Type**: Ubiquitous
+- **Statement**: Project-owned CMake targets, target aliases, macros, source identifiers, library-name strings, comments and process artifacts SHALL NOT use the `xpl` prefix inherited from XplorerEditor (in any of its spellings `xpl_`, `xpl::`, `XPL_`, `Xpl`); names that need a project-wide prefix SHALL use `xs56k` (`XS56K_` for macros). References that credit XplorerEditor as the origin of ported code (project name, repository URLs) are provenance, not identifiers, and are unaffected.
+- **Rationale**: the prefix abbreviates "Xplorer", a project this repository has diverged from; it was copied along with the ported code and would otherwise leak into every new layer (e.g. the AKM Akai layer).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the repository, *When* it is searched (outside build directories, `documents/`, this requirement and ADR-BLD-004, which must name the legacy prefix to define it) for the case-sensitive patterns `(xpl|Xpl|XPL)(_|::|[A-Z])` (prefixed identifiers) and `\b(xpl|Xpl|XPL)\b` (the bare word), *Then* there is no match. *Given* a clean `cmake -S juce -B <fresh dir>` and full build with `BUILD_APP=ON`, *When* it completes, *Then* the `xs56k_midi`, `xs56k_midi_juce` and `xs56k_framework` libraries and the `XS56K` executable build with no warning, and no target named with the legacy prefix exists.
+- **Dependencies**: RQ-BLD-002; RQ-BLD-003; ADR-BLD-004
+- **Status**: Satisfied — TASK-BLD-009 (code, CMake, CI) and TASK-BLD-010 (process artifacts, `AGENTS.md`); see their Verification fields for what was and was not exercised.
 
 ---
 

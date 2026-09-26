@@ -1,7 +1,8 @@
 # ADR-BLD-001: JUCE CMake Build Foundation
 
 ## Status
-Accepted — implemented and building (Debug and Release, verified locally).
+Accepted — implemented and building (Debug and Release, verified locally). Target and alias names
+below are given as renamed by `ADR-BLD-004`.
 
 ## Context
 
@@ -9,7 +10,7 @@ The `juce/midi` and `juce/framework` C++ source trees were ported into this repo
 [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor) (see `AGENTS.md`), but
 arrived with no root CMake build tying them together, no pinned JUCE dependency, and no compiler
 warning policy — `juce/midi/CMakeLists.txt` and `juce/framework/CMakeLists.txt` already declare
-targets (`xpl_midi`, `xpl_midi_juce`, `xpl_framework`) and reference an `xpl::warnings` alias and a
+targets (`xs56k_midi`, `xs56k_midi_juce`, `xs56k_framework`) and reference an `xs56k::warnings` alias and a
 `juce::juce_audio_devices` target that nothing in this repository yet defined.
 
 XplorerEditor's own `juce/CMakeLists.txt` solves exactly this problem for the same target layout
@@ -26,7 +27,7 @@ Add `juce/CMakeLists.txt`, adapted from XplorerEditor's own root build, keeping:
   (not XplorerEditor's `8.0.9` — the latest 8.x tag at the time this repository's project template
   was filled in, verified via `git ls-remote --tags` against the real JUCE repository rather than
   assumed; see `AGENTS.md`).
-- **`xpl::warnings` interface target**: `-Wall -Wextra -Wpedantic -Werror` (`/W4 /WX` on MSVC),
+- **`xs56k::warnings` interface target**: `-Wall -Wextra -Wpedantic -Werror` (`/W4 /WX` on MSVC),
   linked `PRIVATE` into project targets only — never into JUCE's own module sources — including
   the GCC-only `-Wno-error=maybe-uninitialized` carve-out for JUCE's vendored `SheenBidi.c`
   (XplorerEditor's own finding, carried over verbatim since it is about JUCE's sources, not this
@@ -40,14 +41,14 @@ Add `juce/CMakeLists.txt`, adapted from XplorerEditor's own root build, keeping:
   `add_subdirectory` calls (`midi`, `framework`, `model`, `controller`, `settings`) are reduced to
   the two this repository actually has.
 
-**Dropped, not carried over:** the entire product-version derivation block (`XPL_VERSION_NUMERIC`
-/ `XPL_VERSION_FULL` / `XPL_VERSION_TIMESTAMP` CACHE variables, the `project(VERSION …)` call) and
+**Dropped, not carried over:** the entire product-version derivation block (the numeric,
+full and timestamp version CACHE variables, the `project(VERSION …)` call) and
 the MSVC static-CRT policy comment tied to publishing a Debug binary. Both were deployment concerns
 with nothing to attach to yet — see RQ-BLD-009/RQ-BLD-010 and `ADR-BLD-003` for the backlog that
 picks them back up once an application exists.
 
 **Picked back up, same session (TASK-BLD-006, once `juce/app` existed):** the version-derivation
-block, without its `XPL_`/project-specific prefix and without the `project(VERSION …)` call
+block, without its inherited/project-specific prefix and without the `project(VERSION …)` call
 (`VERSION_NUMERIC`/`VERSION_FULL` feed `juce_add_gui_app(VERSION …)` in `juce/app/CMakeLists.txt`
 directly instead). The MSVC static-CRT policy comment (line 26-27 above, already present) already
 covers this — it was never actually dropped, only its accompanying prose was cut for brevity.
@@ -62,16 +63,16 @@ CMake configure error, not a soft no-op, so the file must grow with the ported l
 anticipating them.
 
 **DEC-BLD-003** — *Superseded, same session (owner decision, TASK-BLD-002 follow-up) — see the
-amendment below.* ~~Rename the version-string constants XplorerEditor names `XPL_*` to `XS56K_*`
+amendment below.* ~~Rename the version-string constants XplorerEditor prefixes to `XS56K_*`
 (`XS56K_JUCE_VERSION`, `XS56K_CATCH2_VERSION`, `XS56K_BUILD_APP`, `XS56K_BUILD_TESTS`) for the
-values this project itself declares~~ — while leaving the `xpl_*`/`xpl::*` **target and namespace**
-names (`xpl_midi`, `xpl_framework`, `xpl::warnings`) exactly as ported — those identifiers are
-already load-bearing throughout the ported header/source tree (namespaces, include paths under
-`xpl/`, CMake target names in both layers' own `CMakeLists.txt`), and renaming them is a separate,
-much larger change this task does not touch.
+values this project itself declares~~ — while leaving the ported **target and namespace** names
+exactly as ported — those identifiers were already load-bearing throughout the ported
+header/source tree (namespaces, include paths, CMake target names in both layers' own
+`CMakeLists.txt`), and renaming them was a separate, much larger change this task did not touch
+(done later by `ADR-BLD-004`).
 
-**Amended (owner decision, same session)** — No project-specific prefix at all: `XPL_*` is dropped
-outright (it is short for "Xplorer", irrelevant here — the same reasoning already applied to the
+**Amended (owner decision, same session)** — No project-specific prefix at all: the inherited
+prefix is dropped outright (it is short for "Xplorer", irrelevant here — the same reasoning already applied to the
 `juce/` source headers) but is **not** replaced by an `XS56K_*` prefix either, since these CMake
 options/cache variables are local to this build and self-explanatory without one
 (`BUILD_APP`, `BUILD_TESTS`, `JUCE_VERSION`, `CATCH2_VERSION`). Verified this creates no functional
@@ -121,15 +122,15 @@ flowchart TD
     end
 
     JUCE["FetchContent: JUCE 8.0.15"]
-    WARN["xpl::warnings\n-Wall -Wextra -Wpedantic -Werror"]
+    WARN["xs56k::warnings\n-Wall -Wextra -Wpedantic -Werror"]
 
     subgraph midi["juce/midi"]
-        M1["xpl_midi\n(backend-agnostic)"]
-        M2["xpl_midi_juce\n(JUCE adapter)"]
+        M1["xs56k_midi\n(backend-agnostic)"]
+        M2["xs56k_midi_juce\n(JUCE adapter)"]
     end
 
     subgraph fmw["juce/framework"]
-        F1["xpl_framework"]
+        F1["xs56k_framework"]
     end
 
     JUCE -->|"juce_audio_devices"| M2

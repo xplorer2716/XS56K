@@ -23,13 +23,13 @@ YAML syntax (see TASK-BLD-005's).
 ### TASK-BLD-001: Add the JUCE CMake build foundation
 - **Tier**: L
 - **Status**: Done
-- **Description**: Add `juce/CMakeLists.txt` (pinned JUCE 8.0.15 via `FetchContent`, `xpl::warnings`
+- **Description**: Add `juce/CMakeLists.txt` (pinned JUCE 8.0.15 via `FetchContent`, `xs56k::warnings`
   interface target, `BUILD_APP`/`BUILD_TESTS` options, `add_subdirectory(midi)` +
   `add_subdirectory(framework)`), adapted from XplorerEditor's own root build and trimmed to the
   layers this repository has.
 - **Requirement refs**: RQ-BLD-001, RQ-BLD-002, RQ-BLD-003
 - **ADR refs**: ADR-BLD-001
-- **Acceptance Criteria** (Gherkin): *Given* `juce/CMakeLists.txt`, *When* `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug` then `cmake --build juce/build` are run, *Then* configure succeeds, JUCE 8.0.15 is fetched, and `libxpl_midi.a`, `libxpl_midi_juce.a`, `libxpl_framework.a` are built with zero warnings. *Given* the same with `-DCMAKE_BUILD_TYPE=Release`, *When* built, *Then* it also succeeds.
+- **Acceptance Criteria** (Gherkin): *Given* `juce/CMakeLists.txt`, *When* `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug` then `cmake --build juce/build` are run, *Then* configure succeeds, JUCE 8.0.15 is fetched, and `libxs56k_midi.a`, `libxs56k_midi_juce.a`, `libxs56k_framework.a` are built with zero warnings. *Given* the same with `-DCMAKE_BUILD_TYPE=Release`, *When* built, *Then* it also succeeds.
 - **Dependencies**: None
 - **Assignee**: AI
 - **Verification**: Both configurations built successfully in this session (`ninja`, 25/25 targets each, no warnings). Confirmed `-Wall -Wextra -Wpedantic -Werror` present on project-code compile commands via `build.ninja` (grep on the `FLAGS` line for `AbstractParameter.cpp.o`). JUCE version confirmed fetched at tag `8.0.15` (configure log: `GIT_TAG 8.0.15`).
@@ -99,7 +99,7 @@ designed and ported. This is NOT TASK-005 of a future real app port — see each
 - **Status**: Done
 - **Description**: Add the `resolve-version` composite action (numeric/display/full forms from the
   commit's UTC committer timestamp and `github.ref`) and wire it into CMake's configure line via
-  `VERSION_NUMERIC`/`VERSION_FULL` (no `XPL_`/project-specific prefix — owner decision, same as
+  `VERSION_NUMERIC`/`VERSION_FULL` (no inherited/project-specific prefix — owner decision, same as
   TASK-BLD-002's follow-up).
 - **Requirement refs**: RQ-BLD-009
 - **ADR refs**: ADR-BLD-003
@@ -125,7 +125,7 @@ designed and ported. This is NOT TASK-005 of a future real app port — see each
 - **Dependencies**: TASK-BLD-006 (for `VERSION_NUMERIC`/`VERSION_FULL`, consumed by `build-app`).
 - **Assignee**: AI
 - **Verification**: `juce/app` configured (`-DBUILD_APP=ON`) and built clean in both Debug and Release on Linux, warnings-as-errors included; the produced binary launched under `xvfb-run` and ran its event loop until killed by `timeout` (not a crash — the X `BadAtom` lines are Xvfb's own known incomplete-EWMH-atom noise, not an application error). `juce/tools/generate_workflows.py` run, then `--check` immediately after: "15 generated workflows are up to date" (idempotent). All 18 workflow files and 4 composite-action files (`yaml.safe_load`) and `resolve-version.sh` (`bash -n`) parse without error. Windows and macOS legs of the generated matrix are unverified beyond syntax — no Windows/macOS runner available in this session; first real signal is their first CI run. **Defect found and fixed in the same task:** `.gitignore`'s inherited `build-*/` pattern (template init commit `a811402`) is unanchored and silently matched `.github/actions/build-app/` at any depth — `git status` showed it as untracked-and-about-to-be-added-looking but `git status <exact path>` actually reported "nothing to commit, working tree clean" for it, which is what surfaced the mismatch. Fixed by anchoring and scoping it to `/juce/build*/`, the only place local CMake build directories are actually created.
-- **Assumptions**: The placeholder app links `juce::juce_gui_extra` + `juce::juce_audio_devices` and the existing `xpl_midi_juce`/`xpl_framework` libraries, PRODUCT_NAME `"XS56K"` (so the built executable is named `XS56K`, matching `build-app`'s locate-by-name logic). No composite action for the placeholder's own source beyond what's listed — a single `Main.cpp` needs none. No other directory in this repository's history matches the old unanchored `.gitignore` pattern (checked: `find . -iname 'build-*' -type d` finds only the one that exposed the bug).
+- **Assumptions**: The placeholder app links `juce::juce_gui_extra` + `juce::juce_audio_devices` and the existing `xs56k_midi_juce`/`xs56k_framework` libraries, PRODUCT_NAME `"XS56K"` (so the built executable is named `XS56K`, matching `build-app`'s locate-by-name logic). No composite action for the placeholder's own source beyond what's listed — a single `Main.cpp` needs none. No other directory in this repository's history matches the old unanchored `.gitignore` pattern (checked: `find . -iname 'build-*' -type d` finds only the one that exposed the bug).
 
 ### TASK-BLD-007: Implement the cut-deployment production workflow
 - **Tier**: M
