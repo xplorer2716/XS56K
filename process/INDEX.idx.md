@@ -66,8 +66,8 @@ RQ-BLD-008|106-114||Generated workflows over hand-duplicated files
 RQ-BLD-009|115-123||Commit-derived version, single derivation
 RQ-BLD-010|124-132||Production cut by an explicit manual action
 RQ-BLD-013|133-142|Satisfied — TASK-BLD-009 (code, CMake, CI) and TASK-BLD-010 (process artifacts, `AGENTS.md`); see their Verification fields for what was and was not exercised.|No project prefix inherited from XplorerEditor
-RQ-BLD-014|143-153||Tests run in every deployment workflow
-RQ-BLD-011|156-165|Satisfied — cross-checked via `mcp__github__list_branches`, which reports `main` with `protected: true`. The specific rule contents were not independently re-derived (no branch-protection-rules-detail API in this session's tool set), so only the boolean fact is verified, not the exact configuration.|Explicit branch protection on `main`
+RQ-BLD-014|143-154|Satisfied for the canary workflows — TASK-BLD-011 (38e5c39: suite passing on GCC, MSVC and Apple Clang, Debug and Release); the preprod and prod workflows carry the same generated step and have not run yet.|Tests run in every deployment workflow
+RQ-BLD-011|157-166|Satisfied — cross-checked via `mcp__github__list_branches`, which reports `main` with `protected: true`. The specific rule contents were not independently re-derived (no branch-protection-rules-detail API in this session's tool set), so only the boolean fact is verified, not the exact configuration.|Explicit branch protection on `main`
 @process/1.requirements/RQ-FMW-midiapp-framework.md
 @process/1.requirements/RQ-MID-midi-layer.md
 @process/2.architecture/ADR-AKM-001-akm-transport-architecture.md
@@ -127,4 +127,4 @@ TASK-BLD-009|21-34|Done|Rename CMake targets, alias, macro and source identifier
 TASK-BLD-010|35-45|Done|Align process artifacts and `AGENTS.md` to the new names
 @process/3.plan/PLAN-BLD-003-tests-in-every-generated-workflow.md
 PLAN-BLD-003|1-29||Every Generated Workflow Runs the Test Suites
-TASK-BLD-011|19-29|In Progress|Pass `run-tests: true` from the generator to every workflow
+TASK-BLD-011|19-29|Done|Pass `run-tests: true` from the generator to every workflow

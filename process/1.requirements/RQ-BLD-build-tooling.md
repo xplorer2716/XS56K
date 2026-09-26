@@ -148,6 +148,7 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the generator, *When* it is run and then run with `--check`, *Then* the fifteen workflows are up to date and the `build-app` step of each passes `run-tests: true`. *Given* a canary workflow of each platform and configuration, *When* it runs on a pushed branch, *Then* its log shows `ctest` running the whole suite, and it succeeds only if every test passed. *Given* a workflow whose tests fail, *When* it runs, *Then* its package and publish steps do not run.
 - **Dependencies**: RQ-BLD-002; RQ-BLD-007; RQ-BLD-008; RQ-AKM-016; ADR-BLD-005
+- **Status**: Satisfied for the canary workflows — TASK-BLD-011 (38e5c39: suite passing on GCC, MSVC and Apple Clang, Debug and Release); the preprod and prod workflows carry the same generated step and have not run yet.
 
 ---
 
