@@ -294,6 +294,7 @@ namespace akm::harness
                                                                + knownStateText() + ")");
                 _log.note("observation: frames sent " + std::to_string(_result.framesSent) + ", received "
                           + std::to_string(_result.framesReceived));
+                _log.flush();
             }
 
         private:
@@ -316,8 +317,11 @@ namespace akm::harness
                 return Timed<Result>{*slot->value(), slot->at() - submitted};
             }
 
+            // What the previous step recorded is written now, before the next command is submitted: never while one
+            // is in flight, so that writing to the console cannot delay the exchanges the log records.
             void begin(const std::string& title)
             {
+                _log.flush();
                 ++_step;
                 _log.note("step " + std::to_string(_step) + ": " + title);
             }
@@ -474,6 +478,7 @@ namespace akm::harness
                 begin(title);
                 for (int index = 0; index < _options.echoRepeats; ++index)
                 {
+                    _log.flush();
                     std::array<std::uint8_t, ECHO_DATA_SIZE> payload = ECHO_PAYLOAD;
                     payload[ECHO_VARYING_INDEX] = static_cast<std::uint8_t>(index & ECHO_VARYING_MASK);
                     const auto timed = echoOnce(payload);
@@ -583,6 +588,8 @@ namespace akm::harness
                      + (options.touchLcdSettings ? ", Sync LCD, Auto screen update" : "")
                      + " and Still Alive on and off, and ends by putting them back: checksums off, Still Alive off,"
                      + " Notification on" + (options.touchLcdSettings ? ", Sync LCD on, Auto screen update off." : "."));
+            log.note("The log is written between the steps, never while a command is in flight, so that writing it "
+                     "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }
     }
 

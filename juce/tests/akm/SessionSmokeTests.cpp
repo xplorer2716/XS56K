@@ -26,8 +26,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <regex>
+#include <set>
 #include <sstream>
+#include <streambuf>
 #include <string>
 #include <vector>
 
@@ -114,6 +117,30 @@ namespace
             host.send(frame.bytes);
         }
     }
+
+    // A stream buffer that notes how many frames the host had sent each time something is written to it, and keeps
+    // what was written.
+    class ProgressBuffer final : public std::streambuf
+    {
+    public:
+        explicit ProgressBuffer(std::function<std::size_t()> framesSent) : _framesSent(std::move(framesSent)) {}
+
+        [[nodiscard]] const std::set<std::size_t>& framesSentWhenWritten() const { return _moments; }
+        [[nodiscard]] const std::string& text() const { return _text; }
+
+    protected:
+        int_type overflow(int_type character) override
+        {
+            _moments.insert(_framesSent());
+            _text.push_back(static_cast<char>(character));
+            return traits_type::not_eof(character);
+        }
+
+    private:
+        std::function<std::size_t()> _framesSent;
+        std::set<std::size_t> _moments;
+        std::string _text;
+    };
 
     std::vector<std::string> linesOf(const std::string& text)
     {
@@ -343,6 +370,21 @@ TEST_CASE("Given a run, When its log is read, Then it holds one OUT line per fra
     CHECK(result.framesReceived == rig.backend.emittedBySamplers().size());
     CHECK(countLines(text, "OUT") == result.framesSent);
     CHECK(countLines(text, "IN") == result.framesReceived);
+    // In order: a confirmation is logged after the frame that it answers, whichever thread it arrived on.
+    constexpr std::size_t USER_REF_INDEX = akm::FIRST_USER_REF_INDEX;
+    const std::regex frameLine(R"(^\s*\d+\.\d{3}\s+(OUT|IN)\s+((?:[0-9A-F]{2})(?: [0-9A-F]{2})*)(?: \|.*)?$)");
+    std::set<std::string> sentUserRefs;
+    for (const std::string& line : linesOf(text))
+    {
+        std::smatch match;
+        if (!std::regex_match(line, match, frameLine))
+            continue;
+        const std::string userRef = match[2].str().substr(USER_REF_INDEX * 3, 2);
+        if (match[1].str() == "OUT")
+            sentUserRefs.insert(userRef);
+        else
+            CHECK(sentUserRefs.count(userRef) == 1);
+    }
     CHECK_THAT(text, ContainsSubstring("# XS56K AKM session smoke test"));
     CHECK_THAT(text, ContainsSubstring("# step 1:"));
     const std::size_t observations = text.find("# observations");
@@ -353,6 +395,28 @@ TEST_CASE("Given a run, When its log is read, Then it holds one OUT line per fra
     CHECK_THAT(text, ContainsSubstring("# observation: OS version 2.10 (sub-version 0)"));
     CHECK_THAT(text, ContainsSubstring("# observation: messages rejected by the session: 0"));
     CHECK_THAT(text, ContainsSubstring("# observation: sampler left in the known state"));
+}
+
+TEST_CASE("Given a run followed while its log is written, When the lines come out, Then they come out along the run, between the steps, and the last ones at its end [TASK-AKM-013, RQ-AKM-017]",
+          "[akm][smoke]")
+{
+    // The first real run showed what writing the log while an exchange is in flight costs: about 12 ms a line, on
+    // the very callback the sampler's answers arrive on. The scenario writes between its steps instead.
+    // About one moment per step (24) and one per timed Echo round trip (50), out of the 75 frames.
+    constexpr std::size_t ENOUGH_DISTINCT_MOMENTS = 60;
+    constexpr std::size_t EARLY = 3;
+    Rig rig;
+    ProgressBuffer buffer([&rig] { return rig.backend.sentByHost().size(); });
+    std::ostream log(&buffer);
+
+    const SessionSmokeResult result = akm::harness::runSessionSmokeTest(rig.backend, rig.driver, rig.options(), log);
+
+    const std::set<std::size_t>& moments = buffer.framesSentWhenWritten();
+    CHECK(moments.size() >= ENOUGH_DISTINCT_MOMENTS);
+    REQUIRE_FALSE(moments.empty());
+    CHECK(*moments.begin() <= EARLY);
+    CHECK(*moments.rbegin() == result.framesSent);
+    CHECK_THAT(buffer.text(), ContainsSubstring("# observation: frames sent"));
 }
 
 TEST_CASE("Given a run, When it ends, Then the last frames it sent are the closing commands, checksums off first, then Still Alive off, Notification on, Sync LCD on and Auto screen update off [TASK-AKM-013, RQ-AKM-018]",

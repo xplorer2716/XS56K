@@ -10,7 +10,9 @@ DEC-AKM-005 and DEC-AKM-007 were reworked, DEC-AKM-003 and DEC-AKM-008 amended, 
 DEC-AKM-010 added. DEC-AKM-006 is unchanged, as confirmed by the owner. After the first contact with the
 S5000 (TASK-AKM-012, `OBSERVATIONS-RQ-AKM-017-first-contact.md`), DEC-AKM-006, DEC-AKM-007 and DEC-AKM-009 record what
 was observed. The session core (TASK-AKM-006) added DEC-AKM-011, and the item catalogue (TASK-AKM-008)
-DEC-AKM-012, which completes DEC-AKM-003 and amends DEC-AKM-009 where they say so.
+DEC-AKM-012, which completes DEC-AKM-003 and amends DEC-AKM-009 where they say so. The session smoke test on the
+real sampler (TASK-AKM-013, `OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`) confirmed DEC-AKM-007 and DEC-AKM-009
+through the session itself and changed none of the decisions; it is noted in DEC-AKM-006, DEC-AKM-007 and DEC-AKM-009.
 
 ## Context
 
@@ -124,7 +126,9 @@ are named constants. Measured on an S5000 (OS 2.14) through a USB MIDI interface
 §02 items tried: the OK arrives 6 to 8 ms after the command is sent, the DONE or REPLY 9 to 12 ms after. Provisional
 defaults, to be revisited with the slow operations of TASK-AKM-010: command timeout **2 s** (about 170 times the
 slowest answer seen; long operations are covered by Still Alive restarting it, RQ-AKM-011), discovery window
-**500 ms** (about 40 times), maximum total wait **60 s** (not measured).
+**500 ms** (about 40 times), maximum total wait **60 s** (not measured). The log of the session smoke test on the
+same sampler (TASK-AKM-013, `OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`, F10) is not a source of latency: the
+log itself slowed the exchanges it recorded, so the figures above stand.
 
 ### DEC-AKM-007: Session opening — discovery first, DeviceID binding, then §00 established explicitly
 `Session::open(config, …)` is asynchronous and runs, in order (RQ-AKM-039, RQ-AKM-040):
@@ -151,6 +155,10 @@ spec's advice, Table 5 note, so that another port's selection cannot change ours
 on, restored on close); **Still Alive on** (avoids false timeouts on long operations); **Notification and Auto
 screen update unchanged** (no documented reason to change either). The values are confirmed or changed by the
 observations of RQ-AKM-017.
+Run by hand on the real S5000 (TASK-AKM-013; `Session::open` will automate it, TASK-AKM-009): a Query to DeviceID 0
+with a checksum appended is accepted while checksums are off; the sampler answered with its own DeviceID, which
+is the target that was verified and bound; and the settings then established one command at a time — the checksum
+mode first — were all accepted, Sync LCD and Auto screen update included, which OS 2.14 has.
 
 ### DEC-AKM-008: Test seams — a simulated sampler modelled on the spec, and a scenario driver
 The simulated sampler of RQ-AKM-016 is a `MidiBackend` implementation in the test tree, built as a small model
@@ -187,7 +195,11 @@ with the mode in force when the command arrived and the DONE with the mode after
 the checksum-mode command itself differ (switching on: OK without, DONE with a checksum; switching off: the
 reverse), which is why the session decodes that command's confirmations in mode `Unknown`; a command whose checksum
 is missing or wrong while the mode is on gets an OK and then ERROR `81` (129), both with a checksum; a checksum
-appended while the mode is off is ignored.
+appended while the mode is off is ignored. Reproduced through the session on the real S5000 (TASK-AKM-013): the
+session decoded the confirmations of the checksum-mode command in mode `Unknown`, in both directions, and its mode
+followed the sampler — unknown, off, on, off — with every later command framed accordingly; the REPLYs of the Echo
+and of the OS version items were read with the checksum on, and the same rule (an OK follows the setting in force
+when the command arrived) was seen for Notification.
 
 ### DEC-AKM-010: Command sequences abort on failure
 Besides single commands, `Session::submitSequence(commands, completion)` runs its commands in order with none
@@ -274,9 +286,13 @@ theirs (RQ-AKM-020); each open session costs one thread; the data file needs hum
 **Risks to check on the real sampler.** Settled by the first contact (TASK-AKM-012,
 `OBSERVATIONS-RQ-AKM-017-first-contact.md`): a confirmation carries the sampler's own DeviceID; with the mode
 on every confirmation carries a checksum, the Reply ID included; the OK of the checksum-mode command follows
-the old mode and its DONE the new one. Still open, for TASK-AKM-010: whether the JUCE backend delivers the
+the old mode and its DONE the new one. Settled by the session smoke test (TASK-AKM-013,
+`OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): the session core ran 75 commands on the JUCE backend and its
+own threads without one message rejected, lost or unmatched, JUCE delivered every SysEx whole, and Sync LCD and Auto
+screen update are accepted by OS 2.14. Still open, for TASK-AKM-010: whether the JUCE backend delivers the
 two-byte `F0 F7` of Still Alive on Windows, whatever the driver does (the code classifies it as SysEx); how a
-sampler on an older OS answers `&03`, `&05` and `&07`; whether §00 settings survive a power cycle; how long
+sampler on an older OS answers `&03`, `&05` and `&07`; latencies over repeated runs, measured without the log in the
+way; whether §00 settings survive a power cycle; how long
 the slow operations take, which is what the provisional timeout and maximum total wait wait for; and how often
 an ERROR follows a REPLY (it is reported as a late-error diagnostic, since the command has already completed
 with its data).

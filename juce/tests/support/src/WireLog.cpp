@@ -41,33 +41,83 @@ namespace akm::harness
     {
     }
 
-    void WireLog::note(std::string_view text)
+    WireLog::~WireLog()
+    {
+        flush();
+    }
+
+    void WireLog::record(Entry entry)
     {
         const std::lock_guard lock(_mutex);
-        _out << "# " << text << "\n";
+        switch (entry.kind)
+        {
+            case Kind::Outgoing:
+                ++_framesSent;
+                break;
+            case Kind::Incoming:
+                ++_framesReceived;
+                if (isStillAlive(entry.frame))
+                    ++_stillAlive;
+                break;
+            case Kind::Note:
+            case Kind::InputError:
+                break;
+        }
+        _pending.push_back(std::move(entry));
+    }
+
+    void WireLog::note(std::string_view text)
+    {
+        record(Entry{Kind::Note, {}, {}, std::string(text)});
     }
 
     void WireLog::outgoing(std::span<const std::uint8_t> frame)
     {
-        const std::lock_guard lock(_mutex);
-        ++_framesSent;
-        _out << secondsText(_scheduler.now() - _start) << "  OUT  " << hex(frame) << "\n";
+        record(Entry{Kind::Outgoing, elapsed(), std::vector<std::uint8_t>(frame.begin(), frame.end()), {}});
     }
 
     void WireLog::incoming(std::span<const std::uint8_t> frame)
     {
-        const std::lock_guard lock(_mutex);
-        ++_framesReceived;
-        if (isStillAlive(frame))
-            ++_stillAlive;
-        _out << secondsText(_scheduler.now() - _start) << "  IN   " << hex(frame)
-             << " | off: " << reading(frame, ChecksumMode::Off) << " | on: " << reading(frame, ChecksumMode::On) << "\n";
+        record(Entry{Kind::Incoming, elapsed(), std::vector<std::uint8_t>(frame.begin(), frame.end()), {}});
     }
 
     void WireLog::inputError(std::string_view description)
     {
-        const std::lock_guard lock(_mutex);
-        _out << "# input error: " << description << "\n";
+        record(Entry{Kind::InputError, {}, {}, std::string(description)});
+    }
+
+    void WireLog::flush()
+    {
+        const std::lock_guard writing(_writeMutex);
+        std::vector<Entry> entries;
+        {
+            const std::lock_guard lock(_mutex);
+            entries.swap(_pending);
+        }
+        for (const Entry& entry : entries)
+            write(entry);
+        _out << std::flush;
+    }
+
+    void WireLog::write(const Entry& entry)
+    {
+        switch (entry.kind)
+        {
+            case Kind::Note:
+                _out << "# " << entry.text << "\n";
+                break;
+            case Kind::Outgoing:
+                _out << secondsText(entry.at) << "  OUT  " << hex(entry.frame) << "\n";
+                break;
+            case Kind::Incoming:
+                _out << secondsText(entry.at) << "  IN   " << hex(entry.frame) << " | off: "
+                     << reading(entry.frame, ChecksumMode::Off) << " | on: " << reading(entry.frame, ChecksumMode::On)
+                     << "\n";
+                break;
+            case Kind::InputError:
+                _out << "# input error: " << entry.text << "\n";
+                break;
+        }
     }
 
     std::size_t WireLog::framesSent() const

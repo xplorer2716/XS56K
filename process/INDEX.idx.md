@@ -20,7 +20,7 @@ RQ-AKM-013|155-163||Checksum mode command (§00/&04)
 RQ-AKM-014|164-172||Other configuration toggles
 RQ-AKM-015|173-181||Echo round trip
 RQ-AKM-016|182-190||Validation against a simulated sampler
-RQ-AKM-017|191-200|first contact done (TASK-AKM-012, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md`): OS version, DeviceID carried by confirmations, frame shapes, checksum behaviour and first latencies are observed. TASK-AKM-013 adds a smoke test of a real session on the sampler (discovery, checksum mode, 50 timed Echo round trips, the OS version and every §00 toggle through the session and the JUCE backend), to be run by the owner before the session opening and closing are built on the session core. Remaining, for TASK-AKM-010: slow operations, `F0 F7` delivery when a command is slow, defaults of the other §00 items, persistence across a power cycle, and the suite itself.|Validation against the real sampler
+RQ-AKM-017|191-200|first contact done (TASK-AKM-012, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md`): OS version, DeviceID carried by confirmations, frame shapes, checksum behaviour and first latencies are observed. TASK-AKM-013 ran a real session on the sampler (2026-09-26, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): discovery, the checksum mode in both directions, 50 Echo round trips, the OS version and every §00 toggle, through the session and the JUCE backend, with no message rejected, lost or unmatched. Its latencies are not usable, the log having slowed the exchanges it recorded (F10); the buffered log that replaces it is to be run once more. Remaining, for TASK-AKM-010: latencies over 50 repeated Echo round trips, slow operations, `F0 F7` delivery when a command is slow, defaults of the other §00 items, persistence across a power cycle, and the suite itself.|Validation against the real sampler
 RQ-AKM-018|201-209||Real-sampler tests leave a known state
 RQ-AKM-039|210-218||Session opening — discovery, then target DeviceID from configuration
 RQ-AKM-040|219-227||Known §00 state when a session opens
@@ -72,19 +72,19 @@ RQ-BLD-011|157-166|Satisfied — cross-checked via `mcp__github__list_branches`,
 @process/1.requirements/RQ-FMW-midiapp-framework.md
 @process/1.requirements/RQ-MID-midi-layer.md
 @process/2.architecture/ADR-AKM-001-akm-transport-architecture.md
-ADR-AKM-001|1-351|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
-DEC-AKM-001|49-56||A new static library `xs56k_akm`, depending on `xs56k_midi` only
-DEC-AKM-002|57-69||Three layers inside the library
-DEC-AKM-003|70-85||Items are data — a reviewed data file, a generated table and a generic executor
-DEC-AKM-004|86-105||One serial executor per session; callback completion; explicit close
-DEC-AKM-005|106-115||Frames are sent only from the executor; confirmations are enqueued, never handled inline
-DEC-AKM-006|116-128||Time is injected through a `Scheduler`
-DEC-AKM-007|129-154||Session opening — discovery first, DeviceID binding, then §00 established explicitly
-DEC-AKM-008|155-172||Test seams — a simulated sampler modelled on the spec, and a scenario driver
-DEC-AKM-009|173-191||The checksum mode is a tri-state — on, off or unknown
-DEC-AKM-010|192-199||Command sequences abort on failure
-DEC-AKM-011|200-227||A command carries options — what the session cannot read back or infer
-DEC-AKM-012|228-260||The item catalogue — one data file, one generated table, read by the encoder, the decoder and the codec
+ADR-AKM-001|1-367|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
+DEC-AKM-001|51-58||A new static library `xs56k_akm`, depending on `xs56k_midi` only
+DEC-AKM-002|59-71||Three layers inside the library
+DEC-AKM-003|72-87||Items are data — a reviewed data file, a generated table and a generic executor
+DEC-AKM-004|88-107||One serial executor per session; callback completion; explicit close
+DEC-AKM-005|108-117||Frames are sent only from the executor; confirmations are enqueued, never handled inline
+DEC-AKM-006|118-132||Time is injected through a `Scheduler`
+DEC-AKM-007|133-162||Session opening — discovery first, DeviceID binding, then §00 established explicitly
+DEC-AKM-008|163-180||Test seams — a simulated sampler modelled on the spec, and a scenario driver
+DEC-AKM-009|181-203||The checksum mode is a tri-state — on, off or unknown
+DEC-AKM-010|204-211||Command sequences abort on failure
+DEC-AKM-011|212-239||A command carries options — what the session cannot read back or infer
+DEC-AKM-012|240-272||The item catalogue — one data file, one generated table, read by the encoder, the decoder and the codec
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -100,6 +100,7 @@ DEC-BLD-027|35-43||Live descriptions follow; provenance stays
 ADR-BLD-005|1-76|Accepted — owner decision ("les tests devraient être exécutés dans toutes les targets"); implemented by|Every Generated Workflow Runs the Test Suites
 DEC-BLD-028|24-36||The generator passes `run-tests: true` to `build-app` in every workflow
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
+@process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md
 PLAN-AKM-001|1-208||Transport and SysEx Configuration (Phase A, lots A0+A1)
@@ -115,7 +116,7 @@ TASK-AKM-009|142-155|Not Started|Session opening
 TASK-AKM-010|156-169|Not Started|Real-sampler suite and observations
 TASK-AKM-011|170-183|Not Started|Session closing
 TASK-AKM-012|184-197|Done|First contact with the sampler
-TASK-AKM-013|198-208|In Progress|Session smoke test on the real sampler
+TASK-AKM-013|198-208|Done|Session smoke test on the real sampler
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
