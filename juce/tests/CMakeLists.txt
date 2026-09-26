@@ -8,6 +8,7 @@ add_subdirectory(compile_checks)
 add_subdirectory(probe)
 
 add_executable(xs56k_akm_tests
+    akm/CapturedFramesTests.cpp
     akm/ChecksumTests.cpp
     akm/CommandEncodingTests.cpp
     akm/ConfirmationDecodingTests.cpp

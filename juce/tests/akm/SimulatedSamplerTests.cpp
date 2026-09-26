@@ -209,7 +209,7 @@ TEST_CASE("Given the user-ref count in the device byte, When a command with two 
     CHECK(confirmationAt(messages, 1).userRefs == bytes({0x10, 0x11}));
 }
 
-TEST_CASE("Given checksums on in the simulation and a frame without checksum, When it is sent, Then it answers ERROR 81 [RQ-AKM-016, RQ-AKM-003]",
+TEST_CASE("Given checksums on in the simulation and a frame without checksum, When it is sent, Then it answers OK then ERROR 81 [RQ-AKM-016, RQ-AKM-003]",
           "[akm][simulated]")
 {
     Rig rig;
@@ -218,10 +218,12 @@ TEST_CASE("Given checksums on in the simulation and a frame without checksum, Wh
 
     rig.host.send(query());
 
-    // The sampler is now in mode on, so its confirmations carry a checksum.
+    // As observed on the S5000: the OK goes out on receipt, then the ERROR; the sampler is in mode on, so
+    // both carry a checksum.
     const auto messages = rig.host.decoded(ChecksumMode::On);
-    REQUIRE(messages.size() == 1);
-    const Confirmation& error = confirmationAt(messages, 0);
+    REQUIRE(messages.size() == 2);
+    CHECK(confirmationAt(messages, 0).replyId == akm::ReplyId::Ok);
+    const Confirmation& error = confirmationAt(messages, 1);
     CHECK(error.replyId == akm::ReplyId::Error);
     CHECK(error.data == bytes({0x01, 0x01}));
     CHECK(akm::errorNumber(error) == 0x81);
@@ -253,27 +255,42 @@ TEST_CASE("Given checksums off and a frame with a trailing checksum, When it is 
     CHECK(rig.host.replyIds(ChecksumMode::Off) == bytes({OK, DONE}));
 }
 
-TEST_CASE("Given a command that changes the checksum mode, When the sampler confirms it, Then the confirmation uses the previous mode unless the knob says otherwise [RQ-AKM-016, RQ-AKM-041]",
+TEST_CASE("Given a command that changes the checksum mode, When the sampler confirms it, Then its OK follows the previous mode and its DONE the new one, unless the knob says otherwise [RQ-AKM-016, RQ-AKM-041]",
           "[akm][simulated]")
 {
-    SECTION("previous mode by default")
+    SECTION("the new mode for the DONE by default, as observed on the S5000")
     {
         Rig rig;
+        rig.host.send(sysexConfig(0x00, 0x04, {0x01}));
+
+        // OK, sent before the change, has no checksum; DONE has one: 10 + 44 + 00 + 04 = 58.
+        REQUIRE(rig.host.arrivalCount() == 2);
+        CHECK(rig.host.arrivals()[0].bytes == bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x4F, 0x00, 0x04, 0xF7}));
+        CHECK(rig.host.arrivals()[1].bytes == bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x44, 0x00, 0x04, 0x58, 0xF7}));
+    }
+    SECTION("switching off: the OK has a checksum, the DONE none")
+    {
+        Rig rig;
+        rig.host.send(sysexConfig(0x00, 0x04, {0x01}));
+        rig.host.clear();
+
+        // The command, sent with a checksum since they are on: 10 + 00 + 04 + 00 = 14.
+        rig.host.send(bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x00, 0x04, 0x00, 0x14, 0xF7}));
+
+        // OK: 10 + 4F + 00 + 04 = 63; DONE without a checksum.
+        REQUIRE(rig.host.arrivalCount() == 2);
+        CHECK(rig.host.arrivals()[0].bytes == bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x4F, 0x00, 0x04, 0x63, 0xF7}));
+        CHECK(rig.host.arrivals()[1].bytes == bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x44, 0x00, 0x04, 0xF7}));
+    }
+    SECTION("the previous mode when the knob is off")
+    {
+        Rig rig;
+        rig.sampler.setBehaviour(SamplerBehaviour{.checksumChangeAppliesToOwnConfirmation = false});
         rig.host.send(sysexConfig(0x00, 0x04, {0x01}));
 
         // OK and DONE, without a checksum: 9 bytes each.
         REQUIRE(rig.host.arrivalCount() == 2);
         CHECK(rig.host.arrivals()[1].bytes == bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x44, 0x00, 0x04, 0xF7}));
-    }
-    SECTION("new mode when the knob is set")
-    {
-        Rig rig;
-        rig.sampler.setBehaviour(SamplerBehaviour{.checksumChangeAppliesToOwnConfirmation = true});
-        rig.host.send(sysexConfig(0x00, 0x04, {0x01}));
-
-        // OK, sent before the change, has none; DONE has one: 10 + 44 + 00 + 04 = 58.
-        REQUIRE(rig.host.arrivalCount() == 2);
-        CHECK(rig.host.arrivals()[1].bytes == bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x44, 0x00, 0x04, 0x58, 0xF7}));
     }
 }
 

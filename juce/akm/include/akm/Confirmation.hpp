@@ -84,8 +84,9 @@ namespace akm
     /// before F7, Off keeps every byte after the item as data, and Unknown decodes by the expected length
     /// of the data (OK and DONE none, ERROR two, the Echo REPLY four) and accepts one extra byte only if
     /// it is a valid checksum. The checksum covers the bytes from the first user-ref to the last data
-    /// byte, the Reply ID included; that this is what the sampler sends has not been checked on hardware
-    /// (RQ-AKM-017).
+    /// byte, the Reply ID included, as observed on an S5000 running OS 2.14 (first-contact probe,
+    /// TASK-AKM-012). While a command switches the mode, its OK follows the previous mode and its DONE the new
+    /// one: decode the confirmations of such a command in mode Unknown.
     /// [RQ-AKM-003, RQ-AKM-004, RQ-AKM-006, RQ-AKM-041, ADR-AKM-001 (DEC-AKM-002, DEC-AKM-009)]
     [[nodiscard]] DecodedMessage decodeMessage(std::span<const std::uint8_t> frame, ChecksumMode mode);
 

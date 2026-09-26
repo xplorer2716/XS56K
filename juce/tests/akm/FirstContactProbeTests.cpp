@@ -55,9 +55,9 @@ namespace
     constexpr std::size_t stepCount = 15;
     constexpr std::uint8_t firstUserRef = 0x10;
 
-    // Every step but one (the Query without checksum while checksums are on, ERROR 81 alone) is answered
-    // by an OK and one more confirmation, on a sampler with notifications on.
-    constexpr std::size_t expectedReceivedFrames = 2 * stepCount - 1;
+    // Every step is answered by an OK and one more confirmation, on a sampler with notifications on (also the
+    // Query without checksum while checksums are on: OK, then ERROR 129), as the real S5000 did: 30 frames.
+    constexpr std::size_t expectedReceivedFrames = 2 * stepCount;
 
     // The frames of the sequence for a target with DeviceID 0 and the other DeviceID 5, from the spec.
     std::vector<Bytes> expectedFrames()

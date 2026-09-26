@@ -3,7 +3,7 @@
 #next FTR-AKM-005 RQ-AKM-045 RQ-BLD-015 ADR-AKM-002 DEC-AKM-011 ADR-BLD-006 DEC-BLD-029 PLAN-AKM-002 TASK-AKM-013 PLAN-BLD-004 TASK-BLD-012
 @process/1.requirements/DRAFT-s5000-midi-primitives-and-workflows.md
 @process/1.requirements/FTR-AKM-001-transport-et-config-sysex.md
-FTR-AKM-001|1-300||Transport and SysEx Configuration
+FTR-AKM-001|1-301||Transport and SysEx Configuration
 RQ-AKM-001|47-55||Command frame encoding
 RQ-AKM-002|56-64||Value formats
 RQ-AKM-003|65-73||Checksum generation and verification
@@ -20,16 +20,16 @@ RQ-AKM-013|155-163||Checksum mode command (§00/&04)
 RQ-AKM-014|164-172||Other configuration toggles
 RQ-AKM-015|173-181||Echo round trip
 RQ-AKM-016|182-190||Validation against a simulated sampler
-RQ-AKM-017|191-199||Validation against the real sampler
-RQ-AKM-018|200-208||Real-sampler tests leave a known state
-RQ-AKM-039|209-217||Session opening — discovery, then target DeviceID from configuration
-RQ-AKM-040|218-226||Known §00 state when a session opens
-RQ-AKM-041|227-235||Unknown checksum mode
-RQ-AKM-042|236-244||Session closing
-RQ-AKM-043|245-253||Command sequences stop at the first failure
-RQ-AKM-044|254-265|observed on the real sampler by the first-contact probe (TASK-AKM-012); the typed primitive comes with the item catalogue (TASK-AKM-008).|Sampler operating-system version
-RQ-AKM-019|268-278||Independence from the MIDI backend
-RQ-AKM-020|279-291||Non-blocking completion
+RQ-AKM-017|191-200|first contact done (TASK-AKM-012, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md`): OS version, DeviceID carried by confirmations, frame shapes, checksum behaviour and first latencies are observed. Remaining, for TASK-AKM-010: 50 repeated Echo round trips, slow operations, `F0 F7` delivery, defaults of the other §00 items, persistence across a power cycle.|Validation against the real sampler
+RQ-AKM-018|201-209||Real-sampler tests leave a known state
+RQ-AKM-039|210-218||Session opening — discovery, then target DeviceID from configuration
+RQ-AKM-040|219-227||Known §00 state when a session opens
+RQ-AKM-041|228-236||Unknown checksum mode
+RQ-AKM-042|237-245||Session closing
+RQ-AKM-043|246-254||Command sequences stop at the first failure
+RQ-AKM-044|255-266|observed on the real sampler by the first-contact probe (TASK-AKM-012); the typed primitive comes with the item catalogue (TASK-AKM-008).|Sampler operating-system version
+RQ-AKM-019|269-279||Independence from the MIDI backend
+RQ-AKM-020|280-292||Non-blocking completion
 @process/1.requirements/FTR-AKM-002-program.md
 FTR-AKM-002|1-121||Program Primitives (§0A)
 RQ-AKM-021|52-60||Program lifecycle primitives
@@ -72,17 +72,17 @@ RQ-BLD-011|157-166|Satisfied — cross-checked via `mcp__github__list_branches`,
 @process/1.requirements/RQ-FMW-midiapp-framework.md
 @process/1.requirements/RQ-MID-midi-layer.md
 @process/2.architecture/ADR-AKM-001-akm-transport-architecture.md
-ADR-AKM-001|1-259|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
-DEC-AKM-001|46-53||A new static library `xs56k_akm`, depending on `xs56k_midi` only
-DEC-AKM-002|54-66||Three layers inside the library
-DEC-AKM-003|67-80||Items are data — a reviewed data file, a generated table and a generic executor
-DEC-AKM-004|81-100||One serial executor per session; callback completion; explicit close
-DEC-AKM-005|101-110||Frames are sent only from the executor; confirmations are enqueued, never handled inline
-DEC-AKM-006|111-119||Time is injected through a `Scheduler`
-DEC-AKM-007|120-144||Session opening — discovery first, DeviceID binding, then §00 established explicitly
-DEC-AKM-008|145-158||Test seams — a simulated sampler modelled on the spec, and a scenario driver
-DEC-AKM-009|159-169||The checksum mode is a tri-state — on, off or unknown
-DEC-AKM-010|170-177||Command sequences abort on failure
+ADR-AKM-001|1-273|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
+DEC-AKM-001|48-55||A new static library `xs56k_akm`, depending on `xs56k_midi` only
+DEC-AKM-002|56-68||Three layers inside the library
+DEC-AKM-003|69-82||Items are data — a reviewed data file, a generated table and a generic executor
+DEC-AKM-004|83-102||One serial executor per session; callback completion; explicit close
+DEC-AKM-005|103-112||Frames are sent only from the executor; confirmations are enqueued, never handled inline
+DEC-AKM-006|113-125||Time is injected through a `Scheduler`
+DEC-AKM-007|126-151||Session opening — discovery first, DeviceID binding, then §00 established explicitly
+DEC-AKM-008|152-165||Test seams — a simulated sampler modelled on the spec, and a scenario driver
+DEC-AKM-009|166-183||The checksum mode is a tri-state — on, off or unknown
+DEC-AKM-010|184-191||Command sequences abort on failure
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -97,6 +97,7 @@ DEC-BLD-027|35-43||Live descriptions follow; provenance stays
 @process/2.architecture/ADR-BLD-005-tests-in-every-generated-workflow.md
 ADR-BLD-005|1-76|Accepted — owner decision ("les tests devraient être exécutés dans toutes les targets"); implemented by|Every Generated Workflow Runs the Test Suites
 DEC-BLD-028|24-36||The generator passes `run-tests: true` to `build-app` in every workflow
+@process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md
 PLAN-AKM-001|1-192||Transport and SysEx Configuration (Phase A, lots A0+A1)
@@ -111,7 +112,7 @@ TASK-AKM-008|126-139|Not Started|Item catalogue and §00 primitives
 TASK-AKM-009|140-153|Not Started|Session opening
 TASK-AKM-010|154-167|Not Started|Real-sampler suite and observations
 TASK-AKM-011|168-181|Not Started|Session closing
-TASK-AKM-012|182-192|In Progress|First contact with the sampler
+TASK-AKM-012|182-192|Done|First contact with the sampler
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

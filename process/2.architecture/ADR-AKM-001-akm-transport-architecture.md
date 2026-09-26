@@ -7,7 +7,9 @@ RQ-AKM-017. Motivated by FTR-AKM-001 (RQ-AKM-001 to RQ-AKM-020,
 RQ-AKM-039 to RQ-AKM-043); it also fixes the primitive shape that FTR-AKM-002 to FTR-AKM-004 build on.
 Amended in the session that drafted it, after an independent review by a second model: DEC-AKM-004,
 DEC-AKM-005 and DEC-AKM-007 were reworked, DEC-AKM-003 and DEC-AKM-008 amended, DEC-AKM-009 and
-DEC-AKM-010 added. DEC-AKM-006 is unchanged, as confirmed by the owner.
+DEC-AKM-010 added. DEC-AKM-006 is unchanged, as confirmed by the owner. After the first contact with the
+S5000 (TASK-AKM-012, `OBSERVATIONS-RQ-AKM-017-first-contact.md`), DEC-AKM-006, DEC-AKM-007 and DEC-AKM-009 record what
+was observed.
 
 ## Context
 
@@ -115,7 +117,11 @@ The session never reads a clock or starts a timer itself. It uses a `Scheduler` 
 would put a JUCE type in the interface) and a manual one, advanced by tests. The timeout (RQ-AKM-010), the
 discovery window (RQ-AKM-012) and the Still Alive restart (RQ-AKM-011) all go through it, so that the
 timeout scenarios of RQ-AKM-016 run in well under a second of test time. The default timeout and window
-are named constants, provisional until RQ-AKM-017 has measured them.
+are named constants. Measured on an S5000 (OS 2.14) through a USB MIDI interface, for Query, Echo and the §00 and
+§02 items tried: the OK arrives 6 to 8 ms after the command is sent, the DONE or REPLY 9 to 12 ms after. Provisional
+defaults, to be revisited with the slow operations of TASK-AKM-010: command timeout **2 s** (about 170 times the
+slowest answer seen; long operations are covered by Still Alive restarting it, RQ-AKM-011), discovery window
+**500 ms** (about 40 times), maximum total wait **60 s** (not measured).
 
 ### DEC-AKM-007: Session opening — discovery first, DeviceID binding, then §00 established explicitly
 `Session::open(config, …)` is asynchronous and runs, in order (RQ-AKM-039, RQ-AKM-040):
@@ -129,14 +135,15 @@ are named constants, provisional until RQ-AKM-017 has measured them.
    execute, every command addressed to another);
 4. bind the target: from here on every command carries it;
 5. **establish §00**: checksum mode first, with a checksum appended, and its DONE moves the mode from unknown
-   to known; then the other settings of the configuration, each explicitly. A setting the sampler answers with
+   to known (that command's confirmations are decoded in mode unknown: its OK follows the previous mode and its
+   DONE the new one, DEC-AKM-009); then the other settings of the configuration, each explicitly. A setting the sampler answers with
    ERROR `00` (not supported) — `&03` and `&07` do not exist before OS 2.00 and 2.10 — leaves the session
    open in a degraded mode, listed in the session's report; any other failure or timeout fails the open;
 6. report ready only after all of it has completed.
 Each §00 setting of the configuration is a tri-state: on, off, or left unchanged (not sent). Provisional
-defaults, each with its reason: **checksum off** (the spec's default; the reply format with checksum on is not
-yet observed, a sampler reboot mid-session would silently return to off, and other programs sharing the port
-would be disturbed — it can be switched on by configuration once RQ-AKM-017 has run); **Sync LCD off** (the
+defaults, each with its reason: **checksum off** (the spec's default, found on the S5000 at first contact; the reply format with checksum on is
+now known, but a sampler reboot mid-session would silently return to off, and other programs sharing the port
+would be disturbed — it can be switched on by configuration); **Sync LCD off** (the
 spec's advice, Table 5 note, so that another port's selection cannot change ours; the sampler's own default is
 on, restored on close); **Still Alive on** (avoids false timeouts on long operations); **Notification and Auto
 screen update unchanged** (no documented reason to change either). The values are confirmed or changed by the
@@ -166,6 +173,13 @@ extra trailing byte only if it is a valid checksum; a command whose REPLY has a 
 (`Refused{ChecksumModeUnknown}`) until the mode is known. The mode is `Unknown` when a session starts, after a
 checksum-mode command that failed or timed out, and after a run of consecutive confirmations failing
 verification (a sampler reboot); each such change is reported.
+Observed on the S5000 (OS 2.14, first contact): with the mode on, every confirmation carries a checksum — OK, DONE, REPLY
+and ERROR — over the bytes from the first user-ref to the last data byte, the Reply ID included; the OK is formed
+with the mode in force when the command arrived and the DONE with the mode after it ran, so the two confirmations of
+the checksum-mode command itself differ (switching on: OK without, DONE with a checksum; switching off: the
+reverse), which is why the session decodes that command's confirmations in mode `Unknown`; a command whose checksum
+is missing or wrong while the mode is on gets an OK and then ERROR `81` (129), both with a checksum; a checksum
+appended while the mode is off is ignored.
 
 ### DEC-AKM-010: Command sequences abort on failure
 Besides single commands, `Session::submitSequence(commands, completion)` runs its commands in order with none

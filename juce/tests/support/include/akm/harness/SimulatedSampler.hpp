@@ -87,8 +87,10 @@ namespace akm::harness
         Scheduler::Clock::duration stillAliveInterval = std::chrono::seconds(1);
         ConfirmationDeviceId confirmationDeviceId = ConfirmationDeviceId::Own;
         /// Whether the DONE of the command that switches checksums on or off already follows the new
-        /// mode (the spec does not say); the OK never does, being sent before the command runs.
-        bool checksumChangeAppliesToOwnConfirmation = false;
+        /// mode. The S5000 (OS 2.14) does, and that is the default: its OK, sent before the command runs,
+        /// follows the previous mode (first-contact probe, TASK-AKM-012). Set to false to model a sampler that
+        /// confirms in the previous mode.
+        bool checksumChangeAppliesToOwnConfirmation = true;
     };
 
     /// A command the sampler accepted: addressed to it, well framed, with a valid checksum when checksums

@@ -302,6 +302,10 @@ namespace akm::harness
                 && data.back() == checksum(message.subspan(FIRST_USER_REF_INDEX, endIndex - CHECKSUM_SIZE - FIRST_USER_REF_INDEX));
             if (!valid)
             {
+                // Observed on the S5000: OK first, since it is sent as soon as the frame arrives, then the ERROR;
+                // both carry a checksum, checksums being on.
+                if (before.notification)
+                    confirmations.push_back(confirmation(REPLY_OK, {}, true));
                 confirmations.push_back(confirmation(REPLY_ERROR, errorData(error_number::CHECKSUM_INVALID), true));
                 return confirmations;
             }
