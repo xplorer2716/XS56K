@@ -164,7 +164,11 @@ for (manual scheduler and executor: `advance`, `runUntilIdle`; real ones: waitin
 runs on the simulated sampler in CI and on `JuceMidiBackend` against the real S5000 (RQ-AKM-019). The
 real-sampler suite is opt-in (not run by default CI), configured by the DeviceID, the two port names and an
 optional sample name (RQ-AKM-038), and ends by restoring a known state (RQ-AKM-018). The tests use Catch2 under
-`juce/tests/`, as `ADR-BLD-001` anticipated for `BUILD_TESTS`.
+`juce/tests/`, as `ADR-BLD-001` anticipated for `BUILD_TESTS`. A scenario that drives a real session logs every
+frame through two port decorators (`LoggingInputPort`, `LoggingOutputPort`, over one `WireLog`) rather than through
+the session: the log holds what is on the wire, in the format of the first-contact probe, on either backend and
+without the session knowing (TASK-AKM-013, `runSessionSmokeTest`, run against the real sampler by
+`xs56k_akm_probe --session`).
 
 ### DEC-AKM-009: The checksum mode is a tri-state — on, off or unknown
 The codec takes a checksum mode of `On`, `Off` or `Unknown` (RQ-AKM-003, RQ-AKM-041). Sending: a checksum is

@@ -20,12 +20,14 @@ add_executable(xs56k_akm_tests
     akm/SamplerErrorTests.cpp
     akm/ScenarioTests.cpp
     akm/SchedulerTests.cpp
+    akm/SessionSmokeTests.cpp
     akm/SessionTests.cpp
     akm/SessionThreadingTests.cpp
     akm/SimulatedSamplerTests.cpp
     akm/SysExConfigTests.cpp
     akm/SystemVersionTests.cpp
-    akm/ValueFormatTests.cpp)
+    akm/ValueFormatTests.cpp
+    akm/WireLogTests.cpp)
 target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k_akm
     xs56k_akm_test_support

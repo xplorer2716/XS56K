@@ -53,6 +53,12 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   shows the MIDI ports; `xs56k_akm_probe --in "<port the sampler sends on>" --out "<port it receives on>"`
   sends fifteen SysEx frames one at a time and writes `akm-probe-<UTC date>.log`. It switches the
   sampler's checksum and Still Alive settings on and off and ends with both off. [RQ-AKM-017, RQ-AKM-044, TASK-AKM-012]
+- **Session smoke test** (needs the sampler; run by the owner): `xs56k_akm_probe --session --in "<port the sampler sends on>"
+  --out "<port it receives on>"` (same program, same ports) drives a real `Session` through discovery, the checksum mode,
+  50 timed Echo round trips, the OS version and the other section 00 settings, writes `akm-session-<UTC date>.log` and
+  ends with checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves
+  Sync LCD and Auto screen update alone. Exit status 0 when every step went as it had to, 2 when no sampler answered
+  at the DeviceID, 3 otherwise. [RQ-AKM-017, TASK-AKM-013]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`
   (`python` on Windows) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
   table is out of date, `--coverage` compares the data file with the spec's item list

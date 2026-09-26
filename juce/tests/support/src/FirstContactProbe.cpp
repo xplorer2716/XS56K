@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/Confirmation.hpp"
 #include "akm/Protocol.hpp"
 #include "akm/SamplerError.hpp"
+#include "akm/harness/WireFormat.hpp"
 
 namespace akm::harness
 {
@@ -185,69 +186,6 @@ namespace akm::harness
             const auto shape = shapeOf(received.bytes);
             return shape && shape->firstUserRef == userRef
                    && (shape->replyId == REPLY_DONE || shape->replyId == REPLY_REPLY || shape->replyId == REPLY_ERROR);
-        }
-
-        std::string hex(std::span<const std::uint8_t> bytes)
-        {
-            std::ostringstream text;
-            text << std::hex << std::uppercase << std::setfill('0');
-            for (std::size_t index = 0; index < bytes.size(); ++index)
-                text << (index == 0 ? "" : " ") << std::setw(2) << static_cast<unsigned int>(bytes[index]);
-            return text.str();
-        }
-
-        std::string hexOrDash(const Bytes& bytes)
-        {
-            return bytes.empty() ? "-" : hex(bytes);
-        }
-
-        std::string secondsText(Clock::duration elapsed)
-        {
-            std::ostringstream text;
-            text << std::fixed << std::setprecision(3) << std::setw(9) << std::chrono::duration<double>(elapsed).count();
-            return text.str();
-        }
-
-        long long millisecondsOf(Clock::duration duration)
-        {
-            return std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
-        }
-
-        // How a received message reads under one checksum mode.
-        std::string reading(const Bytes& bytes, ChecksumMode mode)
-        {
-            const DecodedMessage decoded = decodeMessage(bytes, mode);
-            if (std::holds_alternative<StillAliveMessage>(decoded))
-                return "still alive (F0 F7)";
-            if (const auto* rejected = std::get_if<Rejected>(&decoded))
-                return "rejected: " + std::string(describe(rejected->reason));
-            const Confirmation& confirmation = std::get<Confirmation>(decoded);
-            std::ostringstream text;
-            switch (confirmation.replyId)
-            {
-                case ReplyId::Ok:
-                    text << "OK";
-                    break;
-                case ReplyId::Done:
-                    text << "DONE";
-                    break;
-                case ReplyId::Reply:
-                    text << "REPLY";
-                    break;
-                case ReplyId::Error:
-                {
-                    const auto number = errorNumber(confirmation);
-                    if (number)
-                        text << "ERROR " << *number << " (" << describeError(*number).meaning << ")";
-                    else
-                        text << "ERROR (no error number)";
-                    break;
-                }
-            }
-            text << " dev " << static_cast<unsigned int>(confirmation.deviceId) << " ref " << hex(confirmation.userRefs)
-                 << " sec " << hex(std::vector<std::uint8_t>{confirmation.section}) << " item "
-                 << hex(std::vector<std::uint8_t>{confirmation.item}) << " data " << hexOrDash(confirmation.data);
-            return text.str();
         }
 
         // The data of the terminal REPLY of a step, read as if checksums were off (they are, at the steps
