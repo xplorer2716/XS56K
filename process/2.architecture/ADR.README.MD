@@ -1,1 +1,0 @@
-This folder contains the Architecture Decisions Records (ADR)

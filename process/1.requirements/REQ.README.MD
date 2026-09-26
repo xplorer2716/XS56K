@@ -1,1 +1,0 @@
-This folder contains the PRD documents with the requirements
