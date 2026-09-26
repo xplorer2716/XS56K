@@ -114,6 +114,17 @@ TEST_CASE("Given the manual executor, When a task asks whether it is on the exec
     CHECK_FALSE(executor.isCurrentThread());
 }
 
+TEST_CASE("Given each executor, When asked whether it runs its tasks on a thread of its own, Then the manual one says no and the real one yes [RQ-AKM-042]",
+          "[akm][executor]")
+{
+    // A session destroyed without a close waits for its shutdown only on an executor that can run it by itself.
+    const ManualExecutor manual;
+    const ThreadExecutor real;
+
+    CHECK_FALSE(manual.runsOnItsOwnThread());
+    CHECK(real.runsOnItsOwnThread());
+}
+
 TEST_CASE("Given a task posted from another thread, When the test thread drains the manual executor, Then it runs there [RQ-AKM-016, RQ-AKM-020]",
           "[akm][executor][manual]")
 {

@@ -198,6 +198,8 @@ namespace akm::test
         /// How long a helper waits for something to happen: long enough for the real driver, free on the
         /// manual one.
         static constexpr auto DEFAULT_WAIT = std::chrono::seconds(2);
+        /// Longer than the session's own command timeout, which a close on a silent sampler waits out once.
+        static constexpr auto CLOSE_WAIT = std::chrono::seconds(10);
 
         explicit SessionHarness(harness::ScenarioDriver& driver, SessionTiming timing = {},
                                 harness::SamplerConfig config = {}, bool bindTargetAtStart = true)
@@ -291,14 +293,21 @@ namespace akm::test
         }
 
         /// Closes the session and waits for it, so that no completion can run after the test's recorders die.
-        void closeAndWait()
+        /// The wait is long enough for a sampler that never answers: the closing gives up after one timeout.
+        void closeAndWait() { static_cast<void>(closeForResult()); }
+
+        /// Closes the session, waits for it, and returns how it went; a session already closed by this harness
+        /// gives the result it had.
+        [[nodiscard]] std::optional<CloseResult> closeForResult(Scheduler::Clock::duration timeout = CLOSE_WAIT)
         {
             if (_closed)
-                return;
-            auto done = std::make_shared<Latched<bool>>();
-            if (_session.close([done] { done->set(true); }))
-                static_cast<void>(waitUntil([done] { return done->isSet(); }));
+                return _closeResult;
+            auto done = std::make_shared<Latched<CloseResult>>();
+            if (_session.close([done](const CloseResult& result) { done->set(result); }))
+                static_cast<void>(waitUntil([done] { return done->isSet(); }, timeout));
             _closed = true;
+            _closeResult = done->value();
+            return _closeResult;
         }
 
         // --- what went on the wire ---
@@ -376,6 +385,7 @@ namespace akm::test
         std::unique_ptr<common::midi::MidiInputPort> _input;
         std::unique_ptr<common::midi::MidiOutputPort> _output;
         bool _closed = false;
+        std::optional<CloseResult> _closeResult;
         // Last, so that it is destroyed first: it stops the input port it was given.
         Session _session;
     };

@@ -102,6 +102,40 @@ namespace akm
         Open,
         OpenFailed,
         Closing,
+        Closed,
+    };
+
+    /// The value a setting has on a sampler that nobody has touched, which a closing puts back: checksums off and
+    /// Sync LCD on (the spec, p. 4 and the introductions of §0A and §0E), Notification on and Still Alive off (found
+    /// at the first contact with the S5000, TASK-AKM-012), Auto screen update off (assumed: the spec states no default,
+    /// and the sampler's own is not observable, §00 having no Get). [RQ-AKM-042, RQ-AKM-018, RQ-AKM-017]
+    [[nodiscard]] constexpr bool samplerDefault(SamplerSetting setting)
+    {
+        switch (setting)
+        {
+            case SamplerSetting::Checksums:
+                return false;
+            case SamplerSetting::Notification:
+                return true;
+            case SamplerSetting::SyncLcd:
+                return true;
+            case SamplerSetting::AutoScreenUpdate:
+                return false;
+            case SamplerSetting::StillAlive:
+                return false;
+        }
+        return false;
+    }
+
+    /// How a close went: which settings the session put back, and which it could not, for the application to
+    /// report. A setting that was refused, or that timed out, or that was not tried because the sampler had stopped
+    /// answering, is in `notRestored`; a close always finishes. [RQ-AKM-042]
+    struct CloseResult
+    {
+        std::vector<SamplerSetting> restored;
+        std::vector<SamplerSetting> notRestored;
+
+        [[nodiscard]] bool restoredAll() const { return notRestored.empty(); }
     };
 
     /// Short names, for the diagnostics and the logs. [RQ-AKM-039, RQ-AKM-040]

@@ -73,19 +73,19 @@ RQ-BLD-011|167-176|Satisfied — cross-checked via `mcp__github__list_branches`,
 @process/1.requirements/RQ-FMW-midiapp-framework.md
 @process/1.requirements/RQ-MID-midi-layer.md
 @process/2.architecture/ADR-AKM-001-akm-transport-architecture.md
-ADR-AKM-001|1-389|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
+ADR-AKM-001|1-406|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
 DEC-AKM-001|51-58||A new static library `xs56k_akm`, depending on `xs56k_midi` only
 DEC-AKM-002|59-71||Three layers inside the library
 DEC-AKM-003|72-87||Items are data — a reviewed data file, a generated table and a generic executor
-DEC-AKM-004|88-107||One serial executor per session; callback completion; explicit close
-DEC-AKM-005|108-117||Frames are sent only from the executor; confirmations are enqueued, never handled inline
-DEC-AKM-006|118-132||Time is injected through a `Scheduler`
-DEC-AKM-007|133-184||Session opening — discovery first, DeviceID binding, then §00 established explicitly
-DEC-AKM-008|185-202||Test seams — a simulated sampler modelled on the spec, and a scenario driver
-DEC-AKM-009|203-225||The checksum mode is a tri-state — on, off or unknown
-DEC-AKM-010|226-233||Command sequences abort on failure
-DEC-AKM-011|234-261||A command carries options — what the session cannot read back or infer
-DEC-AKM-012|262-294||The item catalogue — one data file, one generated table, read by the encoder, the decoder and the codec
+DEC-AKM-004|88-124||One serial executor per session; callback completion; explicit close
+DEC-AKM-005|125-134||Frames are sent only from the executor; confirmations are enqueued, never handled inline
+DEC-AKM-006|135-149||Time is injected through a `Scheduler`
+DEC-AKM-007|150-201||Session opening — discovery first, DeviceID binding, then §00 established explicitly
+DEC-AKM-008|202-219||Test seams — a simulated sampler modelled on the spec, and a scenario driver
+DEC-AKM-009|220-242||The checksum mode is a tri-state — on, off or unknown
+DEC-AKM-010|243-250||Command sequences abort on failure
+DEC-AKM-011|251-278||A command carries options — what the session cannot read back or infer
+DEC-AKM-012|279-311||The item catalogue — one data file, one generated table, read by the encoder, the decoder and the codec
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -115,7 +115,7 @@ TASK-AKM-007|114-127|Done|Simulated sampler and scenario harness
 TASK-AKM-008|128-141|Done|Item catalogue and §00 primitives
 TASK-AKM-009|142-155|Done|Session opening
 TASK-AKM-010|156-169|Not Started|Real-sampler suite and observations
-TASK-AKM-011|170-183|Not Started|Session closing
+TASK-AKM-011|170-183|Done|Session closing
 TASK-AKM-012|184-197|Done|First contact with the sampler
 TASK-AKM-013|198-208|Done|Session smoke test on the real sampler
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md

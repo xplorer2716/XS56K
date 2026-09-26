@@ -20,8 +20,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <chrono>
 #include <cstddef>
 #include <deque>
+#include <future>
 #include <set>
 #include <utility>
 #include <variant>
@@ -57,18 +59,49 @@ namespace akm
             std::uint8_t item = 0;
             bool completedByReply = false;
         };
+
+        /// The order a closing puts the settings back in: the checksum mode first, so that what follows is framed as
+        /// the sampler will then expect, then the settings in the order of the spec's items. [RQ-AKM-042]
+        constexpr std::array<SamplerSetting, 5> RESTORE_ORDER{SamplerSetting::Checksums, SamplerSetting::StillAlive,
+                                                              SamplerSetting::Notification, SamplerSetting::SyncLcd,
+                                                              SamplerSetting::AutoScreenUpdate};
+
+        /// How long a session destroyed without a close waits for its shutdown, in command timeouts and a grace: the
+        /// first restoring command that times out ends the restoring, so one timeout is the worst case.
+        constexpr int CLOSE_WAIT_IN_COMMAND_TIMEOUTS = 2;
+        constexpr std::chrono::milliseconds CLOSE_WAIT_GRACE{1000};
+
+        ItemId itemOf(SamplerSetting setting)
+        {
+            switch (setting)
+            {
+                case SamplerSetting::Checksums:
+                    return ItemId::SysExChecksum;
+                case SamplerSetting::Notification:
+                    return ItemId::SysExNotification;
+                case SamplerSetting::SyncLcd:
+                    return ItemId::SysExSyncLcd;
+                case SamplerSetting::AutoScreenUpdate:
+                    return ItemId::SysExAutoScreenUpdate;
+                case SamplerSetting::StillAlive:
+                    return ItemId::SysExStillAlive;
+            }
+            return ItemId::SysExChecksum;
+        }
     }
 
     /// Everything the session owns. Its state is touched on the executor's thread only, except the few
     /// atomics a caller may read from its own. [ADR-AKM-001 (DEC-AKM-004)]
     struct Session::Impl
     {
-        /// Who a unit is for: the application, whose commands are refused while the session is not open, or the
-        /// opening itself, whose commands are the only ones sent then. [RQ-AKM-039]
+        /// Who a unit is for: the application, whose commands are refused while the session is not open or once it
+        /// is closing, the opening, whose commands are the only ones sent before it has succeeded, or the closing,
+        /// whose commands are the only ones sent once the session is closing. [RQ-AKM-039, RQ-AKM-042]
         enum class Purpose
         {
             Application,
             Opening,
+            Closing,
         };
 
         /// One entry of the queue: a single command, or a sequence that runs as one with nothing
@@ -157,8 +190,17 @@ namespace akm
         int checksumFailures = 0;
         std::deque<CompletedCommand> completed;
         std::optional<Opening> opening;
-        /// The settings an open has changed on the sampler, for the closing to put back. [RQ-AKM-042]
-        std::vector<SamplerSetting> changedByOpen;
+
+        /// What a close in progress carries from one restoring command to the next. [RQ-AKM-042]
+        struct Closing
+        {
+            CloseCompletion completion;
+            std::deque<SamplerSetting> pending;
+            CloseResult result;
+        };
+        std::optional<Closing> closingContext;
+        /// The settings the session has tried to change on the sampler, for the closing to put back. [RQ-AKM-042]
+        std::set<SamplerSetting> changed;
 
         /// Runs `work` on the session thread, or not at all if the session is gone by then.
         void postToSession(Task work)
@@ -182,7 +224,8 @@ namespace akm
 
         void enqueue(const std::shared_ptr<Unit>& unit)
         {
-            if (closing.load())
+            // Once the session is closing, only the closing's own commands are sent.
+            if (closing.load() && unit->purpose != Purpose::Closing)
             {
                 refuseWhole(unit, RefusalReason::SessionClosed);
                 return;
@@ -261,6 +304,11 @@ namespace akm
                 recordResult(unit, Refused{RefusalReason::NotEncodable});
                 return false;
             }
+
+            // Tried, whether or not the sampler confirms it: a command that timed out may well have been carried
+            // out, and the closing puts back what may have changed (RQ-AKM-042).
+            if (request.options.changesSetting)
+                changed.insert(*request.options.changesSetting);
 
             InFlight flight;
             flight.unit = unit;
@@ -468,6 +516,9 @@ namespace akm
                                     : ChecksumMode::Unknown);
             if (options.stillAliveAfterDone && succeeded(result))
                 stillAlive.store(*options.stillAliveAfterDone);
+            // A setting the sampler does not have has not been changed: there is nothing for a close to put back.
+            if (options.changesSetting && notSupported(result))
+                changed.erase(*options.changesSetting);
 
             remember(CompletedCommand{flight.userRef, flight.section, flight.item,
                                       std::holds_alternative<Reply>(result)});
@@ -509,16 +560,22 @@ namespace akm
 
         // --- opening (DEC-AKM-007) ---
 
-        /// Sends a command on behalf of the opening, which the gate on the application's commands lets through.
-        void submitForOpening(CommandRequest request, CommandCompletion completion)
+        /// Sends a command on behalf of the session itself — the opening or the closing — which the gates on the
+        /// application's commands let through.
+        void submitInternal(Purpose purpose, CommandRequest request, CommandCompletion completion)
         {
             auto unit = std::make_shared<Unit>();
-            unit->purpose = Purpose::Opening;
+            unit->purpose = purpose;
             unit->requests.push_back(std::move(request));
             unit->completion = [completion = std::move(completion)](const SequenceResult& outcome) {
                 completion(outcome.results.front());
             };
             enqueue(unit);
+        }
+
+        void submitForOpening(CommandRequest request, CommandCompletion completion)
+        {
+            submitInternal(Purpose::Opening, std::move(request), std::move(completion));
         }
 
         /// The settings to establish, in order: the checksum mode first, always, then each other setting that is
@@ -531,6 +588,7 @@ namespace akm
             checksums.item = ItemId::SysExChecksum;
             checksums.on = config.checksums;
             checksums.options.checksumModeAfterDone = config.checksums;
+            checksums.options.changesSetting = SamplerSetting::Checksums;
             steps.push_back(std::move(checksums));
 
             const auto add = [&steps](SamplerSetting setting, ItemId item, SettingChoice choice, bool optional,
@@ -542,6 +600,7 @@ namespace akm
                 step.item = item;
                 step.on = choice == SettingChoice::On;
                 step.optional = optional;
+                step.options.changesSetting = setting;
                 if (trackedByTheSession != nullptr)
                     step.options.*trackedByTheSession = step.on;
                 steps.push_back(std::move(step));
@@ -668,7 +727,9 @@ namespace akm
         {
             const Step& step = opening->steps[opening->nextStep];
             if (succeeded(result))
-                changedByOpen.push_back(step.setting);
+            {
+                // Nothing to keep: the session remembered that it tried to change the setting when it sent it.
+            }
             else if (wasCancelled(result))
             {
                 opening->result.status = OpenStatus::Cancelled;
@@ -699,8 +760,81 @@ namespace akm
                 completion(result);
         }
 
-        /// The last task of a session: the command in flight and everything queued end as `Cancelled`.
-        /// [RQ-AKM-042]
+        // --- closing (DEC-AKM-004, DEC-AKM-007) ---
+
+        /// The last task that is the application's: what is in flight or queued ends as `Cancelled`, then the closing
+        /// puts back what the session changed, one command at a time. [RQ-AKM-042]
+        void beginClose(CloseCompletion completion)
+        {
+            cancelEverything();
+            Closing context;
+            context.completion = std::move(completion);
+            for (const SamplerSetting setting : RESTORE_ORDER)
+            {
+                if (changed.count(setting) != 0)
+                    context.pending.push_back(setting);
+            }
+            closingContext = std::move(context);
+            restoreNext();
+        }
+
+        void restoreNext()
+        {
+            if (closingContext->pending.empty())
+            {
+                finishClose();
+                return;
+            }
+            const SamplerSetting setting = closingContext->pending.front();
+            const bool on = samplerDefault(setting);
+            CommandOptions options;
+            // What the session follows about the port follows the restoring too.
+            if (setting == SamplerSetting::Checksums)
+                options.checksumModeAfterDone = on;
+            if (setting == SamplerSetting::StillAlive)
+                options.stillAliveAfterDone = on;
+            submitInternal(Purpose::Closing, makeRequest(itemOf(setting), {on ? 1 : 0}, std::move(options)),
+                           [this, setting](const CommandResult& result) { onRestored(setting, result); });
+        }
+
+        void onRestored(SamplerSetting setting, const CommandResult& result)
+        {
+            CloseResult& outcome = closingContext->result;
+            closingContext->pending.pop_front();
+            if (succeeded(result))
+                outcome.restored.push_back(setting);
+            else
+            {
+                outcome.notRestored.push_back(setting);
+                if (std::holds_alternative<Timeout>(result))
+                {
+                    // The sampler is not answering: a port that did not answer this one will not answer the others.
+                    for (const SamplerSetting left : closingContext->pending)
+                        outcome.notRestored.push_back(left);
+                    closingContext->pending.clear();
+                }
+            }
+            // On a turn of its own, so that a refusal on the spot cannot make the closing recurse.
+            postToSession([this] {
+                if (closingContext)
+                    restoreNext();
+            });
+        }
+
+        void finishClose()
+        {
+            // The input is stopped from the session's own thread and never from the backend's callback: a JUCE input
+            // cannot be stopped from inside its own callback.
+            input.stop();
+            lifecycle.store(SessionState::Closed);
+            CloseResult result = std::move(closingContext->result);
+            const CloseCompletion completion = std::move(closingContext->completion);
+            closingContext.reset();
+            if (completion)
+                completion(result);
+        }
+
+        /// The command in flight and everything queued end as `Cancelled`. [RQ-AKM-042]
         void cancelEverything()
         {
             if (inFlight)
@@ -747,9 +881,20 @@ namespace akm
 
     Session::~Session()
     {
-        _impl->alive->store(false);
-        _impl->input.stop();
-        _impl->input.setCallbacks({});
+        Impl* impl = _impl.get();
+        // A session that was not closed shuts down as close() does — where its executor can run the work without
+        // anyone driving it, and from a thread that is not its own (RQ-AKM-042).
+        if (impl->executor.runsOnItsOwnThread() && !impl->executor.isCurrentThread())
+        {
+            const auto done = std::make_shared<std::promise<void>>();
+            std::future<void> finished = done->get_future();
+            if (close(CloseCompletion([done](const CloseResult&) { done->set_value(); })))
+                static_cast<void>(
+                    finished.wait_for(impl->timing.commandTimeout * CLOSE_WAIT_IN_COMMAND_TIMEOUTS + CLOSE_WAIT_GRACE));
+        }
+        impl->alive->store(false);
+        impl->input.stop();
+        impl->input.setCallbacks({});
     }
 
     void Session::open(SessionConfig config, OpenCompletion completion)
@@ -762,9 +907,10 @@ namespace akm
 
     SessionState Session::state() const
     {
-        if (_impl->closing.load())
+        const SessionState state = _impl->lifecycle.load();
+        if (state != SessionState::Closed && _impl->closing.load())
             return SessionState::Closing;
-        return _impl->lifecycle.load();
+        return state;
     }
 
     void Session::bindTarget(std::uint8_t deviceId)
@@ -811,22 +957,24 @@ namespace akm
         impl->postToSession([impl, unit] { impl->enqueue(unit); });
     }
 
-    bool Session::close(Task onClosed)
+    bool Session::close(CloseCompletion onClosed)
     {
-        // Closing from a completion would stop the input port from inside its own callback chain and wait
-        // on the thread that has to do the work (DEC-AKM-004).
+        // Closing from a completion would wait on the thread that has to do the work (DEC-AKM-004).
         if (_impl->executor.isCurrentThread())
             return false;
         if (_impl->closing.exchange(true))
             return false;
 
-        _impl->input.stop();
         Impl* impl = _impl.get();
-        impl->postToSession([impl, onClosed = std::move(onClosed)] {
-            impl->cancelEverything();
+        impl->postToSession([impl, onClosed = std::move(onClosed)]() mutable { impl->beginClose(std::move(onClosed)); });
+        return true;
+    }
+
+    bool Session::close(Task onClosed)
+    {
+        return close(CloseCompletion([onClosed = std::move(onClosed)](const CloseResult&) {
             if (onClosed)
                 onClosed();
-        });
-        return true;
+        }));
     }
 }

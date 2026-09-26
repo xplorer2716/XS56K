@@ -59,28 +59,36 @@ namespace akm
     {
         CommandOptions options;
         options.checksumModeAfterDone = on;
+        options.changesSetting = SamplerSetting::Checksums;
         submitToggle(session, ItemId::SysExChecksum, on, std::move(options), std::move(completion));
     }
 
     void setNotification(Session& session, bool on, CommandCompletion completion)
     {
-        submitToggle(session, ItemId::SysExNotification, on, {}, std::move(completion));
+        CommandOptions options;
+        options.changesSetting = SamplerSetting::Notification;
+        submitToggle(session, ItemId::SysExNotification, on, std::move(options), std::move(completion));
     }
 
     void setSyncLcd(Session& session, bool on, CommandCompletion completion)
     {
-        submitToggle(session, ItemId::SysExSyncLcd, on, {}, std::move(completion));
+        CommandOptions options;
+        options.changesSetting = SamplerSetting::SyncLcd;
+        submitToggle(session, ItemId::SysExSyncLcd, on, std::move(options), std::move(completion));
     }
 
     void setAutoScreenUpdate(Session& session, bool on, CommandCompletion completion)
     {
-        submitToggle(session, ItemId::SysExAutoScreenUpdate, on, {}, std::move(completion));
+        CommandOptions options;
+        options.changesSetting = SamplerSetting::AutoScreenUpdate;
+        submitToggle(session, ItemId::SysExAutoScreenUpdate, on, std::move(options), std::move(completion));
     }
 
     void setStillAlive(Session& session, bool on, CommandCompletion completion)
     {
         CommandOptions options;
         options.stillAliveAfterDone = on;
+        options.changesSetting = SamplerSetting::StillAlive;
         submitToggle(session, ItemId::SysExStillAlive, on, std::move(options), std::move(completion));
     }
 

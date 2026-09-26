@@ -38,6 +38,7 @@ namespace akm
     public:
         void post(Task task) override;
         [[nodiscard]] bool isCurrentThread() const override;
+        [[nodiscard]] bool runsOnItsOwnThread() const override { return false; }
 
         /// Runs the queued tasks, and those they post, in posting order until the queue is empty. Returns
         /// how many ran.

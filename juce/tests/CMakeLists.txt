@@ -20,6 +20,7 @@ add_executable(xs56k_akm_tests
     akm/SamplerErrorTests.cpp
     akm/ScenarioTests.cpp
     akm/SchedulerTests.cpp
+    akm/SessionCloseTests.cpp
     akm/SessionOpenTests.cpp
     akm/SessionSmokeTests.cpp
     akm/SessionTests.cpp

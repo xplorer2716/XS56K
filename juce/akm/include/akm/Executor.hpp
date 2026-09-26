@@ -38,5 +38,10 @@ namespace akm
         /// Whether the calling thread is inside a task of this executor. A session uses it to refuse
         /// (and assert against) a close() from one of its own completions.
         [[nodiscard]] virtual bool isCurrentThread() const = 0;
+
+        /// Whether the executor runs its tasks without anyone driving it. A manual one runs them only when a
+        /// test drains it, so waiting for a task on it would never end; a session destroyed without a
+        /// close waits for its shutdown only where this is true. [RQ-AKM-042]
+        [[nodiscard]] virtual bool runsOnItsOwnThread() const = 0;
     };
 }

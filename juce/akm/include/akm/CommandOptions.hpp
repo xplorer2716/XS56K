@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/CommandResult.hpp"
 #include "akm/Confirmation.hpp"
 #include "akm/Scheduler.hpp"
+#include "akm/SessionConfig.hpp"
 
 namespace akm
 {
@@ -74,6 +75,10 @@ namespace akm
         /// Set by the Still Alive command (§00/&07): the DONE starts or stops treating a received
         /// `F0 F7` as a reason to restart the pending command's timeout. [RQ-AKM-011, RQ-AKM-014]
         std::optional<bool> stillAliveAfterDone{};
+        /// Set by the primitives of section 00 and by the opening: the session remembers that it tried to change
+        /// this setting, so that a close puts it back to its documented default. A command that changes a setting
+        /// without saying so is not remembered. [RQ-AKM-042]
+        std::optional<SamplerSetting> changesSetting{};
         /// Discovery: instead of completing on the first DONE, the command collects every matching
         /// confirmation for this long, reports each to `onConfirmation`, and then completes as `Done`
         /// — empty window included, which is not an error. [RQ-AKM-012]

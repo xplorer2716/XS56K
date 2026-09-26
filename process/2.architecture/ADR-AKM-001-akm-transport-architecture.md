@@ -105,6 +105,23 @@ input callback, the scheduler's timer thread, and callers of `submit()`.
   the same session code.
 Diagnostics of RQ-AKM-006 go to an injected `DiagnosticSink`, so the library depends on no logger.
 
+As built (TASK-AKM-011). `close(CloseCompletion)` no longer stops the input on the caller's thread: the input stays
+started until the settings are back, since the restoring commands need their confirmations, and it is stopped
+by the last task, on the session thread and never on the backend's callback thread. The session remembers every
+§00 setting it *tried* to change — by the opening and by the primitives of section 00, through
+`CommandOptions::changesSetting`, when the command is sent and whether or not it is confirmed, since a command that
+timed out may have been carried out — and forgets one the sampler answered ERROR 00 to. A command that changes a
+setting without saying so is not remembered. The close then puts each remembered setting back to its documented
+default (`samplerDefault`: checksums off, Notification on, Sync LCD on, Auto screen update off, Still Alive off),
+one command at a time, in the order checksum mode, Still Alive, Notification, Sync LCD, Auto screen update. A
+restoring command that is refused or fails is reported and the next is tried; **the first one that times out ends
+the restoring**, and the rest are reported as not restored — a sampler that did not answer one will not answer the
+others, and a close costs one timeout, not one per setting. `CloseResult` lists what was put back and what was
+not. A session destroyed without a close does the same when its executor `runsOnItsOwnThread()` (a new member of
+`Executor`, true for the worker thread and false for the manual executor, which only its owner drains); the
+destructor waits at most two command timeouts and a second, then tears down anyway, and on a manual executor it
+does not wait at all. `SessionState::Closed` follows `Closing`.
+
 ### DEC-AKM-005: Frames are sent only from the executor; confirmations are enqueued, never handled inline
 The frame is passed to `MidiOutputPort::send` only from the session's executor; the input callback copies the
 message and posts a "received" task. Consequences: a confirmation delivered synchronously inside `send()`

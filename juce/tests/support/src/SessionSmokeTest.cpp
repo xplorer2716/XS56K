@@ -239,16 +239,36 @@ namespace akm::harness
                 echoes();
                 checksumOnAndOff();
                 toggles();
-                closing();
             }
 
+            // The session's own close puts back what it changed: the checksum mode first (with a checksum whatever
+            // the mode, spec p. 4), then Still Alive, Notification, Sync LCD and Auto screen update, each to its
+            // documented default. It runs on the real sampler like the rest; the log is written before it and after,
+            // never while its commands are in flight. [RQ-AKM-042, RQ-AKM-018]
             void closeSession()
             {
-                const auto closed = std::make_shared<Slot<bool>>();
+                _log.note("closing: the session puts back the settings it changed");
+                _log.flush();
+                const auto closed = std::make_shared<Slot<CloseResult>>();
                 Scheduler& clock = _driver.scheduler();
-                if (_session.close([closed, &clock] { closed->set(true, clock.now()); }))
-                    static_cast<void>(_driver.waitUntil([closed] { return closed->isSet(); }, CLOSE_PATIENCE));
+                if (_session.close([closed, &clock](const CloseResult& outcome) { closed->set(outcome, clock.now()); }))
+                    static_cast<void>(_driver.waitUntil([closed] { return closed->isSet(); }, patience()));
                 _result.finalChecksumMode = _session.checksumMode();
+
+                const std::optional<CloseResult> outcome = closed->value();
+                if (!outcome)
+                {
+                    _log.note("  the close did not complete within " + millisecondsText(patience()));
+                    return;
+                }
+                for (const SamplerSetting setting : outcome->restored)
+                    _log.note("  put back: " + std::string(describe(setting)));
+                for (const SamplerSetting setting : outcome->notRestored)
+                {
+                    _log.note("  NOT put back: " + std::string(describe(setting)));
+                    _result.failedSteps.push_back("closing: " + std::string(describe(setting)) + " not put back");
+                }
+                _result.knownStateRestored = outcome->restoredAll();
             }
 
             void observe()
@@ -519,28 +539,6 @@ namespace akm::harness
                 }
                 setting("Still Alive on (section 00, item 07)", Expect::Answer, &setStillAlive, true);
                 setting("Still Alive off", Expect::Answer, &setStillAlive, false);
-            }
-
-            // Sent whatever happened before, and the checksum command first: it works whichever the sampler's
-            // real state (spec p. 4), so the others are framed the way the sampler expects.
-            void closing()
-            {
-                _log.note("closing: leave the sampler in a known state, whatever happened above");
-                bool restored = true;
-                const auto restore = [this, &restored](const std::string& title, Expect expect, Setter set, bool on) {
-                    const bool accepted = acceptable(setting(title, expect, set, on), expect);
-                    restored = restored && accepted;
-                };
-                restore("Closing: checksums off, sent with a checksum whatever the state", Expect::Success,
-                        &setChecksumMode, false);
-                restore("Closing: Still Alive off", Expect::Answer, &setStillAlive, false);
-                restore("Closing: Notification on", Expect::Success, &setNotification, true);
-                if (_options.touchLcdSettings)
-                {
-                    restore("Closing: Sync LCD on", Expect::Answer, &setSyncLcd, true);
-                    restore("Closing: Auto screen update off", Expect::Answer, &setAutoScreenUpdate, false);
-                }
-                _result.knownStateRestored = restored;
             }
 
             [[nodiscard]] std::string latencySummary() const

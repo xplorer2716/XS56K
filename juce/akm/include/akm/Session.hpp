@@ -59,6 +59,7 @@ namespace akm
     using CommandCompletion = std::function<void(const CommandResult&)>;
     using SequenceCompletion = std::function<void(const SequenceResult&)>;
     using OpenCompletion = std::function<void(const OpenResult&)>;
+    using CloseCompletion = std::function<void(const CloseResult&)>;
 
     /// The state machine of one MIDI port pair: user-ref allocation and matching, one command in flight
     /// with the others queued in order, completion on DONE, REPLY or ERROR, timeout, Still Alive,
@@ -73,8 +74,11 @@ namespace akm
     /// ADR-AKM-001 (DEC-AKM-002, DEC-AKM-004, DEC-AKM-005, DEC-AKM-009, DEC-AKM-010, DEC-AKM-011)]
     ///
     /// The ports outlive the session. The constructor registers the input callback and starts the input,
-    /// as DEC-AKM-005 requires before the first send; `close()` stops it. A session SHALL be closed, and
-    /// its executor left idle, before it is destroyed.
+    /// as DEC-AKM-005 requires before the first send; `close()` stops it. A session should be closed, and
+    /// its executor left idle, before it is destroyed. One that is not closed shuts down as `close()` does
+    /// when its executor runs on a thread of its own, and the destructor then waits, for a bounded time, for the
+    /// settings to be put back; on a manual executor, which only its owner drains, it cannot wait and does not.
+    /// A session SHALL NOT be destroyed while a `close()` is in progress. [RQ-AKM-042]
     ///
     /// A session is used in two ways. The application calls `open()` and waits for its completion: the
     /// session discovers the samplers, verifies and binds the target's DeviceID, and establishes the section
@@ -130,12 +134,18 @@ namespace akm
         /// at once with no result. [RQ-AKM-043, ADR-AKM-001 (DEC-AKM-010)]
         void submitSequence(std::vector<CommandRequest> requests, SequenceCompletion completion);
 
-        /// Stops the input port, then completes the command in flight and every queued command as
-        /// `Cancelled` and runs `onClosed`, both on the session thread. Returns false, changing nothing,
-        /// when it is called from the session thread — closing from one of the session's own completions
-        /// is forbidden — or when the session is already closing. Commands submitted afterwards are
-        /// refused with `RefusalReason::SessionClosed`. Restoring the §00 settings is TASK-AKM-011.
-        /// [RQ-AKM-042, ADR-AKM-001 (DEC-AKM-004)]
+        /// Closes the session and returns at once, from any thread but the session's own. On the session thread:
+        /// the command in flight and every queued command complete as `Cancelled` (an open that is still going
+        /// ends as cancelled); then each §00 setting the session tried to change is put back to its documented
+        /// default (`samplerDefault`), the checksum mode first and with a checksum appended, one command at a time;
+        /// then the input port is stopped; then `onClosed` runs with what was and was not put back. A refused or
+        /// failed restoring command is reported and the next is tried; the first one that times out ends the
+        /// restoring — a sampler that does not answer one will not answer the others — and the rest are reported
+        /// as not restored. A close always finishes. Commands submitted after `close()` are refused with
+        /// `RefusalReason::SessionClosed`. Returns false, changing nothing, when it is called from the session
+        /// thread — closing from one of the session's own completions is forbidden — or when the session is
+        /// already closing. [RQ-AKM-042, ADR-AKM-001 (DEC-AKM-004, DEC-AKM-007)]
+        [[nodiscard]] bool close(CloseCompletion onClosed);
         [[nodiscard]] bool close(Task onClosed);
 
     private:

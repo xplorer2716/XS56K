@@ -43,6 +43,7 @@ namespace akm
 
         void post(Task task) override;
         [[nodiscard]] bool isCurrentThread() const override;
+        [[nodiscard]] bool runsOnItsOwnThread() const override { return true; }
 
     private:
         void run();
