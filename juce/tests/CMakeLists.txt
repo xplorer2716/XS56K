@@ -7,8 +7,10 @@ add_executable(xs56k_akm_tests
     akm/ChecksumTests.cpp
     akm/CommandEncodingTests.cpp
     akm/ConfirmationDecodingTests.cpp
+    akm/ExecutorTests.cpp
     akm/LibraryInfoTests.cpp
     akm/SamplerErrorTests.cpp
+    akm/SchedulerTests.cpp
     akm/ValueFormatTests.cpp)
 target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k_akm
