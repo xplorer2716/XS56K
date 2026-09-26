@@ -56,6 +56,9 @@ jobs:
           config: release
           version-numeric: ${{ steps.version.outputs.numeric }}
           version-full: ${{ steps.version.outputs.full }}
+          # Every workflow runs the test suites on its own platform and configuration, before
+          # anything is packaged or published: a failing ctest stops the job. [RQ-BLD-014, ADR-BLD-005]
+          run-tests: true
 
       # Runs on push only. For prod the only trigger IS a tag push, so this
       # never excludes anything there; for preprod it is what keeps a pull

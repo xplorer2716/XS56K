@@ -95,6 +95,9 @@ it is only as real as the placeholder is: a production deployment today packages
 not the XS56K editor. The matrix, versioning and cut-deployment mechanics are proven; the product
 they will eventually ship is not yet built.
 
+**Tests.** The generated workflows built and packaged without running a test; from ADR-BLD-005
+(DEC-BLD-028, RQ-BLD-014) each one runs the suites before packaging.
+
 **Verified only on Linux.** `windows-x64` and `macos-arm64` legs of the matrix have no runner
 available in this session to build on — checked for YAML validity and structural correctness
 (mirrors the already-Linux-verified `linux-x64` legs closely enough to expect the same result), but

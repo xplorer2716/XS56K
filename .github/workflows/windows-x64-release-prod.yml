@@ -47,6 +47,9 @@ jobs:
           config: release
           version-numeric: ${{ steps.version.outputs.numeric }}
           version-full: ${{ steps.version.outputs.full }}
+          # Every workflow runs the test suites on its own platform and configuration, before
+          # anything is packaged or published: a failing ctest stops the job. [RQ-BLD-014, ADR-BLD-005]
+          run-tests: true
 
       # The tag is minted by cut-deployment from this same commit, so the two
       # agree by construction. Checking says so out loud, and catches a tag

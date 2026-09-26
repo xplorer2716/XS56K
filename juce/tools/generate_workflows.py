@@ -18,7 +18,9 @@ check as `<caller> / <job>`, and a matrix reports `<workflow> / build
 exists to produce.
 
 Everything a workflow actually DOES lives in .github/actions/. What is
-generated here is only a name, a trigger and a call sequence.
+generated here is only a name, a trigger and a call sequence — and the
+decision to run the test suites in every one of them (RQ-BLD-014,
+ADR-BLD-005).
 
 Reduced from XplorerEditor's own matrix: no build-provenance attestation, no
 macOS launch-screenshot step — both explicitly out of scope for now
@@ -126,6 +128,9 @@ CHECKOUT = """
           config: {config}
           version-numeric: ${{{{ steps.version.outputs.numeric }}}}
           version-full: ${{{{ steps.version.outputs.full }}}}
+          # Every workflow runs the test suites on its own platform and configuration, before
+          # anything is packaged or published: a failing ctest stops the job. [RQ-BLD-014, ADR-BLD-005]
+          run-tests: true
 """
 
 TAG_GUARD = """

@@ -140,6 +140,15 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
 - **Dependencies**: RQ-BLD-002; RQ-BLD-003; ADR-BLD-004
 - **Status**: Satisfied — TASK-BLD-009 (code, CMake, CI) and TASK-BLD-010 (process artifacts, `AGENTS.md`); see their Verification fields for what was and was not exercised.
 
+### RQ-BLD-014: Tests run in every deployment workflow
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN a deployment workflow of RQ-BLD-007 runs, it SHALL build the test suites on its own operating system and in its own configuration, run them with `ctest` before packaging or publishing, and fail without packaging or publishing if any test fails.
+- **Rationale**: the AKM layer is threaded and timing-sensitive, and the three platforms use three compilers (MSVC, Apple Clang, GCC) under `-Werror`; a suite that runs on one platform in one configuration says nothing about what is shipped on the others — the first GCC build of the simulated sampler (TASK-AKM-007) was rejected for a warning MSVC does not raise.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the generator, *When* it is run and then run with `--check`, *Then* the fifteen workflows are up to date and the `build-app` step of each passes `run-tests: true`. *Given* a canary workflow of each platform and configuration, *When* it runs on a pushed branch, *Then* its log shows `ctest` running the whole suite, and it succeeds only if every test passed. *Given* a workflow whose tests fail, *When* it runs, *Then* its package and publish steps do not run.
+- **Dependencies**: RQ-BLD-002; RQ-BLD-007; RQ-BLD-008; RQ-AKM-016; ADR-BLD-005
+
 ---
 
 ## Non-Functional Requirements — implemented by the owner directly

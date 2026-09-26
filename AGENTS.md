@@ -46,7 +46,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   (`BUILD_TESTS` defaults to `OFF`; Catch2 is fetched by CMake, pinned in `juce/CMakeLists.txt`). With
   a multi-configuration generator (Visual Studio, Xcode) add `--config <cfg>` to the build and
   `-C <cfg>` to `ctest`. Test sources live under `juce/tests/`, mirroring the library they exercise.
-  The linux-headless canary and preprod workflows run exactly this. [RQ-AKM-016, TASK-AKM-003]
+  The linux-headless canary and preprod workflows run exactly this, and every generated workflow runs
+  the suite in its own configuration. [RQ-AKM-016, RQ-BLD-014, TASK-AKM-003]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
@@ -64,8 +65,10 @@ again once a real editor UI exists.
     required first.
   - CI: `linux-headless-canary.yml`/`linux-headless-preprod.yml` build the headless libraries only.
     `juce/tools/generate_workflows.py` generates 15 more (`<os>-<arch>-<config>-<stage>`,
-    `windows-x64`/`macos-arm64`/`linux-x64` × canary/dev/prod) that build, package and — on `dev`
-    and `prod` — publish the placeholder app as a GitHub Release (`ADR-BLD-003`). `cut-deployment.yml`
+    `windows-x64`/`macos-arm64`/`linux-x64` × canary/dev/prod) that build, run the test suites
+    (`ctest`, before anything is packaged: a failing test stops the job — `RQ-BLD-014`,
+    `ADR-BLD-005`), package and — on `dev` and `prod` — publish the placeholder app as a GitHub
+    Release (`ADR-BLD-003`). `cut-deployment.yml`
     (`workflow_dispatch` on `main`) triggers the three `prod` ones by pushing a version tag —
     **not yet usable**: it needs a `CUT_DEPLOYMENT` repository secret (a PAT) that has not been
     added (`GITHUB_TOKEN` can't trigger other workflows when it pushes). No SBOM/icon/AppImage/
