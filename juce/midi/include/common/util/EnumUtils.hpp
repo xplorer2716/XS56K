@@ -26,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <type_traits>
 
-namespace xpl::util
+namespace common::util
 {
     template <typename Enum>
     [[nodiscard]] constexpr std::underlying_type_t<Enum> toUnderlying(Enum value) noexcept

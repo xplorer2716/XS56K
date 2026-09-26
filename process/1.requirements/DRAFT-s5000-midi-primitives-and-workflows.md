@@ -319,7 +319,7 @@ flowchart LR
   framing, confirmations, sections §00/§06/§08/§0A
 - `juce/framework/include/midiapp/controller/AbstractController.hpp`,
   `juce/framework/include/midiapp/model/{AbstractParameter,AbstractTone,OrderedParameterMap}.hpp`,
-  `juce/midi/include/xpl/midi/{MockMidiBackend,JuceMidiBackend}.hpp` — architecture héritée de
+  `juce/midi/include/common/midi/{MockMidiBackend,JuceMidiBackend}.hpp` — architecture héritée de
   XplorerEditor, lue avant de proposer ce plan
 - `documents/akai_s5000_s6000_user_manual.1.21.pdf` — pages **vues visuellement** (`poppler-utils`
   installé en session pour cela, le `.md` extrait ne rend pas la mise en page) : p.14 (face avant
