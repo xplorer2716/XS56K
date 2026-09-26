@@ -15,7 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include "akm/testing/SimulatedMidiBackend.hpp"
+#include "akm/harness/SimulatedMidiBackend.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -25,7 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "akm/ThreadExecutor.hpp"
 
-namespace akm::testing
+namespace akm::harness
 {
     using common::midi::MessageType;
     using common::midi::MidiInputCallbacks;

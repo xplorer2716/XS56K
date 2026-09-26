@@ -19,11 +19,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Never called: it exists so that the build proves that a scenario written against `MidiBackend&` (here
 // the Echo scenario, the plan's first hardware test) compiles against JuceMidiBackend, the backend that
 // talks to the real S5000. [TASK-AKM-007, RQ-AKM-016, RQ-AKM-019, ADR-AKM-001 (DEC-AKM-008)]
-#include "akm/testing/EchoScenario.hpp"
-#include "akm/testing/ScenarioDriver.hpp"
+#include "akm/harness/EchoScenario.hpp"
+#include "akm/harness/ScenarioDriver.hpp"
 #include "common/midi/JuceMidiBackend.hpp"
 
-namespace akm::testing
+namespace akm::harness
 {
     EchoResult compileCheckEchoScenarioOnJuceBackend(const ScenarioTarget& target)
     {

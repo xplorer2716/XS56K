@@ -15,7 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include "akm/testing/SimulatedSampler.hpp"
+#include "akm/harness/SimulatedSampler.hpp"
 
 #include <algorithm>
 #include <cstddef>
@@ -26,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/SamplerError.hpp"
 #include "common/midi/MidiMessage.hpp"
 
-namespace akm::testing
+namespace akm::harness
 {
     namespace
     {

@@ -29,19 +29,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <utility>
 #include <vector>
 
-#include "akm/testing/EchoScenario.hpp"
-#include "akm/testing/ScenarioDriver.hpp"
-#include "akm/testing/SimulatedMidiBackend.hpp"
+#include "akm/harness/EchoScenario.hpp"
+#include "akm/harness/ScenarioDriver.hpp"
+#include "akm/harness/SimulatedMidiBackend.hpp"
 
 using namespace std::chrono_literals;
-using akm::testing::DeliveryMode;
-using akm::testing::EchoResult;
-using akm::testing::ManualScenarioDriver;
-using akm::testing::RealScenarioDriver;
-using akm::testing::SamplerBehaviour;
-using akm::testing::SamplerConfig;
-using akm::testing::ScenarioTarget;
-using akm::testing::SimulatedMidiBackend;
+using akm::harness::DeliveryMode;
+using akm::harness::EchoResult;
+using akm::harness::ManualScenarioDriver;
+using akm::harness::RealScenarioDriver;
+using akm::harness::SamplerBehaviour;
+using akm::harness::SamplerConfig;
+using akm::harness::ScenarioTarget;
+using akm::harness::SimulatedMidiBackend;
 
 namespace
 {
@@ -150,7 +150,7 @@ TEST_CASE("Given the Echo scenario on the simulated sampler, When it runs, Then 
     SimulatedMidiBackend backend(driver.scheduler());
     backend.addSampler();
 
-    const EchoResult result = akm::testing::runEchoScenario(backend, driver, targetOf(backend), echoPayload);
+    const EchoResult result = akm::harness::runEchoScenario(backend, driver, targetOf(backend), echoPayload);
 
     CHECK(result.answered);
     CHECK(result.echoed == echoPayload);
@@ -166,7 +166,7 @@ TEST_CASE("Given the Echo scenario, When it runs in each checksum mode, Then the
         SimulatedMidiBackend backend(driver.scheduler());
         backend.addSampler();
 
-        const EchoResult result = akm::testing::runEchoScenario(backend, driver, targetOf(backend), echoPayload, mode);
+        const EchoResult result = akm::harness::runEchoScenario(backend, driver, targetOf(backend), echoPayload, mode);
 
         CHECK(result.answered);
         CHECK(result.echoed == echoPayload);
@@ -181,7 +181,7 @@ TEST_CASE("Given a sampler that stays silent, When the Echo scenario runs, Then 
     backend.addSampler().setBehaviour(SamplerBehaviour{.silent = true});
     const auto start = driver.scheduler().now();
 
-    const EchoResult result = akm::testing::runEchoScenario(backend, driver, targetOf(backend), echoPayload,
+    const EchoResult result = akm::harness::runEchoScenario(backend, driver, targetOf(backend), echoPayload,
                                                             akm::ChecksumMode::Unknown, 2s);
 
     CHECK_FALSE(result.answered);
@@ -198,7 +198,7 @@ TEST_CASE("Given a sampler that answers after 1500 ms, When the Echo scenario ru
         SimulatedMidiBackend backend(driver.scheduler());
         backend.addSampler().setBehaviour(SamplerBehaviour{.replyDelay = 1500ms});
 
-        const EchoResult result = akm::testing::runEchoScenario(backend, driver, targetOf(backend), echoPayload,
+        const EchoResult result = akm::harness::runEchoScenario(backend, driver, targetOf(backend), echoPayload,
                                                                 akm::ChecksumMode::Unknown, timeout);
 
         CHECK(result.answered == expectAnswer);
@@ -212,7 +212,7 @@ TEST_CASE("Given a sampler with another DeviceID, When the Echo scenario targets
     SimulatedMidiBackend backend(driver.scheduler());
     backend.addSampler(SamplerConfig{.deviceId = 3});
 
-    const EchoResult result = akm::testing::runEchoScenario(backend, driver, targetOf(backend, 5), echoPayload);
+    const EchoResult result = akm::harness::runEchoScenario(backend, driver, targetOf(backend, 5), echoPayload);
 
     CHECK_FALSE(result.answered);
 }
@@ -225,7 +225,7 @@ TEST_CASE("Given a target whose ports do not exist, When the Echo scenario runs,
     backend.addSampler();
     const auto start = driver.scheduler().now();
 
-    const EchoResult result = akm::testing::runEchoScenario(backend, driver, ScenarioTarget{"nowhere in", "nowhere out", 0},
+    const EchoResult result = akm::harness::runEchoScenario(backend, driver, ScenarioTarget{"nowhere in", "nowhere out", 0},
                                                             echoPayload);
 
     CHECK_FALSE(result.answered);
@@ -241,7 +241,7 @@ TEST_CASE("Given the Echo scenario, When it runs on the real driver against a sa
     backend.addSampler();
     backend.setDeliveryMode(DeliveryMode::OnOtherThread);
 
-    const EchoResult result = akm::testing::runEchoScenario(backend, driver, targetOf(backend), echoPayload,
+    const EchoResult result = akm::harness::runEchoScenario(backend, driver, targetOf(backend), echoPayload,
                                                             akm::ChecksumMode::Unknown, 10s);
 
     CHECK(result.answered);

@@ -33,7 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/Confirmation.hpp"
 #include "akm/ManualScheduler.hpp"
 #include "akm/RealScheduler.hpp"
-#include "akm/testing/SimulatedMidiBackend.hpp"
+#include "akm/harness/SimulatedMidiBackend.hpp"
 
 using namespace std::chrono_literals;
 using akm::ChecksumMode;
@@ -41,11 +41,11 @@ using akm::Confirmation;
 using akm::test::Bytes;
 using akm::test::HostProbe;
 using akm::test::bytes;
-using akm::testing::ConfirmationDeviceId;
-using akm::testing::DeliveryMode;
-using akm::testing::SamplerBehaviour;
-using akm::testing::SamplerConfig;
-using akm::testing::SimulatedMidiBackend;
+using akm::harness::ConfirmationDeviceId;
+using akm::harness::DeliveryMode;
+using akm::harness::SamplerBehaviour;
+using akm::harness::SamplerConfig;
+using akm::harness::SimulatedMidiBackend;
 
 namespace
 {
@@ -75,7 +75,7 @@ namespace
     {
         akm::ManualScheduler scheduler;
         SimulatedMidiBackend backend{scheduler};
-        akm::testing::SimulatedSampler& sampler = backend.addSampler();
+        akm::harness::SimulatedSampler& sampler = backend.addSampler();
         HostProbe host{backend, backend.inputName(), backend.outputName()};
     };
 

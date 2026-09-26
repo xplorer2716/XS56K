@@ -15,7 +15,7 @@ GNU Affero General Public License for more details.
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
-#include "akm/testing/EchoScenario.hpp"
+#include "akm/harness/EchoScenario.hpp"
 
 #include <algorithm>
 #include <mutex>
@@ -28,7 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/Command.hpp"
 #include "akm/Confirmation.hpp"
 
-namespace akm::testing
+namespace akm::harness
 {
     namespace
     {
