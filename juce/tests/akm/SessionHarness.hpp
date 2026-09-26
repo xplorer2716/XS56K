@@ -66,6 +66,11 @@ namespace akm::test
     /// F0, the two IDs, <dev>, one user-ref, the section, the item and F7.
     inline constexpr std::size_t SENT_FRAME_OVERHEAD = 8;
     inline constexpr std::size_t CHECKSUM_SIZE = 1;
+    // A confirmation: F0 47 5E <dev> <user-ref> <reply ID> <section> <item> <data...> [<chk>] F7.
+    inline constexpr std::size_t CONFIRMATION_REPLY_INDEX = FIRST_USER_REF_INDEX + 1;
+    inline constexpr std::size_t CONFIRMATION_SECTION_INDEX = FIRST_USER_REF_INDEX + 2;
+    inline constexpr std::size_t CONFIRMATION_ITEM_INDEX = FIRST_USER_REF_INDEX + 3;
+    inline constexpr std::size_t CONFIRMATION_DATA_INDEX = FIRST_USER_REF_INDEX + 4;
 
     /// A value a completion sets on the session's thread and the test reads on its own.
     template <typename T>
@@ -322,13 +327,27 @@ namespace akm::test
                                             std::uint8_t deviceId = 0, bool withChecksum = false) const
         {
             const Bytes sent = sentFrames().at(index);
-            Bytes frame{common::midi::SYSEX_START, AKAI_MANUFACTURER_ID, SAMPLER_MODEL_ID, deviceId,
-                        sent.at(SENT_USER_REF_INDEX), static_cast<std::uint8_t>(replyId), sent.at(SENT_SECTION_INDEX),
-                        sent.at(SENT_ITEM_INDEX)};
-            frame.insert(frame.end(), data.begin(), data.end());
+            // Written into storage of its final size rather than grown with insert(): GCC 11 at -O2 reads the
+            // reallocation path of vector::insert on a short vector as a read past its end, a false positive
+            // of -Wstringop-overread that -Werror turns into an error (linux-x64-release-canary, TASK-AKM-006).
+            const std::size_t checksumSize = withChecksum ? CHECKSUM_SIZE : 0;
+            Bytes frame(CONFIRMATION_DATA_INDEX + data.size() + checksumSize + END_BYTE_SIZE);
+            frame[0] = common::midi::SYSEX_START;
+            frame[MANUFACTURER_ID_INDEX] = AKAI_MANUFACTURER_ID;
+            frame[MODEL_ID_INDEX] = SAMPLER_MODEL_ID;
+            frame[DEVICE_BYTE_INDEX] = deviceId;
+            frame[FIRST_USER_REF_INDEX] = sent.at(SENT_USER_REF_INDEX);
+            frame[CONFIRMATION_REPLY_INDEX] = static_cast<std::uint8_t>(replyId);
+            frame[CONFIRMATION_SECTION_INDEX] = sent.at(SENT_SECTION_INDEX);
+            frame[CONFIRMATION_ITEM_INDEX] = sent.at(SENT_ITEM_INDEX);
+            std::copy(data.begin(), data.end(), frame.begin() + CONFIRMATION_DATA_INDEX);
             if (withChecksum)
-                frame.push_back(checksum(std::span<const std::uint8_t>(frame).subspan(FIRST_USER_REF_INDEX)));
-            frame.push_back(common::midi::SYSEX_END);
+            {
+                const std::size_t checksumIndex = frame.size() - END_BYTE_SIZE - CHECKSUM_SIZE;
+                frame[checksumIndex] = checksum(std::span<const std::uint8_t>(frame).subspan(
+                    FIRST_USER_REF_INDEX, checksumIndex - FIRST_USER_REF_INDEX));
+            }
+            frame.back() = common::midi::SYSEX_END;
             return frame;
         }
 
