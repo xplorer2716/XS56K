@@ -1,6 +1,5 @@
-# CI for the JUCE (C++) port: headless build (and tests, once a test suite
-# exists) of the non-UI layers, for the dev (integration) branch's
-# pre-production stream.
+# CI for the JUCE (C++) port: headless build and tests of the non-UI layers,
+# for the dev (integration) branch's pre-production stream.
 #
 # See linux-headless-canary.yml for why this is outside the deployment naming
 # scheme XplorerEditor uses once an app exists: no GUI application layer is
@@ -13,7 +12,8 @@
 # for its preprod stream, minus the publish step (there is nothing to
 # publish here yet).
 #
-# [RQ-BLD-005, RQ-BLD-006, ADR-BLD-002 (DEC-BLD-004, DEC-BLD-005, DEC-BLD-006), TASK-BLD-002]
+# [RQ-BLD-005, RQ-BLD-006, ADR-BLD-002 (DEC-BLD-004, DEC-BLD-005, DEC-BLD-006), TASK-BLD-002,
+#  RQ-AKM-016, ADR-AKM-001 (DEC-AKM-008), TASK-AKM-003]
 name: linux-headless-preprod
 
 # paths below: only a change under juce/ (or to this file) can affect whether the
@@ -45,12 +45,10 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev
 
       - name: Configure
-        run: cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug
+        run: cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 
       - name: Build
         run: cmake --build juce/build -j"$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc)"
 
-      # No test suite exists yet in this repository (BUILD_TESTS
-      # defaults OFF, no juce/tests directory). Once one is added, this
-      # workflow should configure with -DBUILD_TESTS=ON and run
-      # `ctest --test-dir juce/build --output-on-failure` here.
+      - name: Test
+        run: ctest --test-dir juce/build --output-on-failure

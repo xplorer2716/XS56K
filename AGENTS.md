@@ -17,8 +17,10 @@ the Oberheim Xpander/Matrix-12, itself a JUCE C++ port of a .NET application) �
 CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. `juce/app` is a
 **minimal, intentionally undesigned placeholder** (a bare `juce::DocumentWindow`) — not `model`,
 `controller`, `settings`, or any real editor UI — that exists solely so the build/version/deploy
-plumbing has a real GUI target to exercise. Reference documentation lives in `documents/`, and
-`process/` holds the AGNOS planning skeleton.
+plumbing has a real GUI target to exercise. `juce/akm` is the S5000 SysEx layer (namespace `akm`,
+library `xs56k_akm`), written for this repository, not ported: it depends on `xs56k_midi` only and
+exposes no JUCE type in its public headers (`ADR-AKM-001`, `FTR-AKM-001`). Reference documentation
+lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
 `documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
@@ -36,18 +38,21 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev` on Linux. JUCE itself is fetched by CMake
   (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately. [RQ-BLD-001]
 - **Build (libraries only):** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
-  (builds the `xs56k_midi`/`xs56k_midi_juce` and `xs56k_framework` static libraries only). [RQ-BLD-002]
+  (builds the `xs56k_midi`/`xs56k_midi_juce`, `xs56k_framework` and `xs56k_akm` static libraries only). [RQ-BLD-002, RQ-AKM-019]
 - **Build (with the placeholder app):** add `-DBUILD_APP=ON` (and, to embed a real version,
   `-DVERSION_NUMERIC=... -DVERSION_FULL=...` — see `.github/actions/resolve-version`); produces
   an `XS56K` executable that opens one placeholder window. [RQ-BLD-007]
-- **Test:** not defined yet — no `juce/tests` directory exists. `BUILD_TESTS` (CMake option,
-  default `OFF`) is reserved for it. [RQ-BLD-002]
+- **Test:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build juce/build -j"$(nproc)" && ctest --test-dir juce/build --output-on-failure`
+  (`BUILD_TESTS` defaults to `OFF`; Catch2 is fetched by CMake, pinned in `juce/CMakeLists.txt`). With
+  a multi-configuration generator (Visual Studio, Xcode) add `--config <cfg>` to the build and
+  `-C <cfg>` to `ctest`. Test sources live under `juce/tests/`, mirroring the library they exercise.
+  The linux-headless canary and preprod workflows run exactly this. [RQ-AKM-016, TASK-AKM-003]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
 
-Do not invent commands beyond these; check `CONTRIBUTING.md` and this file again once a test
-suite or a real editor UI exists.
+Do not invent commands beyond these; check `CONTRIBUTING.md` (which still has none) and this file
+again once a real editor UI exists.
 
 ## Conventions
 

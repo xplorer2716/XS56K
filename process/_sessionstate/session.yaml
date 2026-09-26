@@ -1,2 +1,2 @@
-unit_tests: false
+unit_tests: true
 platform: windows

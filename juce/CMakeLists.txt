@@ -8,7 +8,8 @@
 # split are carried over from xplorer2716/XplorerEditor's own juce/CMakeLists.txt
 # (see documents/INDEX.md / AGENTS.md for that repo's role as the source this
 # framework and MIDI layer were ported from). Trimmed to what this repository
-# actually has: only the midi, framework and a MINIMAL PLACEHOLDER app layer
+# actually has: only the midi, framework, akm (the S5000 SysEx layer, native to
+# this repository) and a MINIMAL PLACEHOLDER app layer
 # (juce/app — see its own CMakeLists.txt) exist so far — no model/controller/
 # settings layer, so there is no real editor UI, only enough of a GUI target
 # to exercise the versioning/deployment-matrix/cut-deployment plumbing below.
@@ -78,6 +79,12 @@ if(BUILD_TESTS)
         GIT_TAG v${CATCH2_VERSION}
         GIT_SHALLOW TRUE)
     FetchContent_MakeAvailable(Catch2)
+    # Catch2's headers are third-party code like JUCE's: the strict warnings below
+    # are for project code only, so its include directories are marked SYSTEM
+    # (FetchContent's SYSTEM keyword needs CMake 3.25, this file only requires 3.22).
+    # [RQ-BLD-003, TASK-AKM-003]
+    set_target_properties(Catch2 PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
+        "$<TARGET_PROPERTY:Catch2,INTERFACE_INCLUDE_DIRECTORIES>")
     list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
     include(CTest)
     include(Catch)
@@ -101,9 +108,10 @@ add_library(xs56k::warnings ALIAS xs56k_warnings)
 # --- Layer libraries, bottom-up [RQ-BLD-002] ---
 add_subdirectory(midi)
 add_subdirectory(framework)
+add_subdirectory(akm)  # [RQ-AKM-019, ADR-AKM-001 (DEC-AKM-001)]
 
 if(BUILD_TESTS)
-    add_subdirectory(tests)  # not yet ported — TASK-BLD-005 backlog
+    add_subdirectory(tests)  # [RQ-AKM-016, ADR-AKM-001 (DEC-AKM-008), TASK-AKM-003]
 endif()
 
 if(BUILD_APP)
