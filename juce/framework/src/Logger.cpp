@@ -90,7 +90,7 @@ namespace midiapp::service
         // UTC timestamp with millisecond precision, hand-rolled rather than
         // via std::format/chrono-io: both need a <format> the pinned Linux CI
         // toolchain does not ship (GCC 11; see PortableFormat.hpp).
-        // [RQ-BLD-025, ADR-BLD-004 (DEC-BLD-021)]
+        // [XplorerEditor RQ-BLD-025, ADR-BLD-004 (DEC-BLD-021)]
         std::string formatTimestamp()
         {
             const auto now = std::chrono::floor<std::chrono::milliseconds>(std::chrono::system_clock::now());

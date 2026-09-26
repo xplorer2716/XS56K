@@ -40,7 +40,7 @@ namespace common::midi
             return {};
         }
 
-        MidiMessage toXplMessage(const juce::MidiMessage& message)
+        MidiMessage toCommonMessage(const juce::MidiMessage& message)
         {
             return MidiMessage::fromRawBytes(
                 std::span<const std::uint8_t>(message.getRawData(),
@@ -100,20 +100,20 @@ namespace common::midi
                 {
                     return;
                 }
-                const auto xplMessage = toXplMessage(message);
-                switch (xplMessage.type())
+                const auto commonMessage = toCommonMessage(message);
+                switch (commonMessage.type())
                 {
                     case MessageType::Channel: // [RQ-MID-020]
-                        if (_callbacks.onChannelMessage) _callbacks.onChannelMessage(xplMessage);
+                        if (_callbacks.onChannelMessage) _callbacks.onChannelMessage(commonMessage);
                         break;
                     case MessageType::SysEx:
-                        if (_callbacks.onSysExMessage) _callbacks.onSysExMessage(xplMessage);
+                        if (_callbacks.onSysExMessage) _callbacks.onSysExMessage(commonMessage);
                         break;
                     case MessageType::SysCommon: // [RQ-MID-022]
-                        if (_callbacks.onSysCommonMessage) _callbacks.onSysCommonMessage(xplMessage);
+                        if (_callbacks.onSysCommonMessage) _callbacks.onSysCommonMessage(commonMessage);
                         break;
                     case MessageType::SysRealtime:
-                        if (_callbacks.onSysRealtimeMessage) _callbacks.onSysRealtimeMessage(xplMessage);
+                        if (_callbacks.onSysRealtimeMessage) _callbacks.onSysRealtimeMessage(commonMessage);
                         break;
                     case MessageType::Invalid:
                         break;

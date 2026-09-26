@@ -25,6 +25,6 @@ namespace common::midi
     std::string libraryName();
 
     /// JUCE version string reported by the JUCE backend adapter library.
-    /// Defined in xpl_midi_juce; linking it proves the JUCE toolchain works.
+    /// Defined in xs56k_midi_juce; linking it proves the JUCE toolchain works.
     std::string juceVersion();
 }

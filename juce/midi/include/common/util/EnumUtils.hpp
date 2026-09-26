@@ -18,8 +18,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 // Local equivalent of C++23's std::to_underlying. The project targets C++20
-// (RQ-BLD-003; a standard bump was rejected in ADR-BLD-004 for CI/Linux
-// toolchain reasons), so this is hand-rolled instead. Lives in xpl_midi, the
+// (RQ-BLD-003; a standard bump was rejected in XplorerEditor's ADR-BLD-004 for
+// CI/Linux toolchain reasons), so this is hand-rolled instead. Lives in xs56k_midi, the
 // one library every other layer depends on transitively, so it has a single
 // definition reachable everywhere — not because it is MIDI-specific.
 // [cpp:S7035]

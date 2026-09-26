@@ -38,7 +38,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # juce_audio_devices (xpl_midi_juce) needs the ALSA headers even in a
+      # juce_audio_devices (xs56k_midi_juce) needs the ALSA headers even in a
       # headless (no GUI app) configuration.
       - name: Install ALSA headers (juce_audio_devices)
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libasound2-dev

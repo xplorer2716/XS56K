@@ -31,8 +31,8 @@ target_compile_definitions(XS56KApp PRIVATE
     VERSION_FULL_STRING="${VERSION_FULL}")
 
 target_link_libraries(XS56KApp PRIVATE
-    xpl_midi_juce
-    xpl_framework
+    xs56k_midi_juce
+    xs56k_framework
     juce::juce_gui_extra
     juce::juce_audio_devices
-    xpl::warnings)
+    xs56k::warnings)

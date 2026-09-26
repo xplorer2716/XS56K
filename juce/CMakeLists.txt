@@ -19,8 +19,9 @@ cmake_minimum_required(VERSION 3.22)
 # CI passes these on the configure line; .github/actions/resolve-version is the
 # one place either value is computed, from the commit being built — adapted
 # from XplorerEditor's own root CMakeLists.txt (AGENTS.md), same reasoning,
-# renamed without its "XPL_" prefix (owner decision, TASK-BLD-002 follow-up;
-# ADR-BLD-001's amended DEC-BLD-003) and without a project-specific one either.
+# renamed without its inherited project prefix (owner decision, TASK-BLD-002
+# follow-up; ADR-BLD-001's amended DEC-BLD-003) and without a project-specific
+# one either.
 #
 # The default is what a local build reports, chosen to be unmistakably not a
 # deployment: 0.0.0.0-local sorts below everything and cannot be confused with
@@ -83,19 +84,19 @@ if(BUILD_TESTS)
 endif()
 
 # --- Strict warnings for project code only (not JUCE module sources) [RQ-BLD-003] ---
-add_library(xpl_warnings INTERFACE)
+add_library(xs56k_warnings INTERFACE)
 if(MSVC)
-    target_compile_options(xpl_warnings INTERFACE /W4 /WX /permissive-)
+    target_compile_options(xs56k_warnings INTERFACE /W4 /WX /permissive-)
 else()
-    target_compile_options(xpl_warnings INTERFACE -Wall -Wextra -Wpedantic -Werror)
+    target_compile_options(xs56k_warnings INTERFACE -Wall -Wextra -Wpedantic -Werror)
     if(CMAKE_C_COMPILER_ID STREQUAL "GNU")
         # See XplorerEditor's juce/CMakeLists.txt: GCC's -Wmaybe-uninitialized
         # false-positives on JUCE's vendored SheenBidi.c. Scoped to C only.
-        target_compile_options(xpl_warnings INTERFACE
+        target_compile_options(xs56k_warnings INTERFACE
             $<$<COMPILE_LANGUAGE:C>:-Wno-error=maybe-uninitialized>)
     endif()
 endif()
-add_library(xpl::warnings ALIAS xpl_warnings)
+add_library(xs56k::warnings ALIAS xs56k_warnings)
 
 # --- Layer libraries, bottom-up [RQ-BLD-002] ---
 add_subdirectory(midi)

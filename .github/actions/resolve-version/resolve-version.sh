@@ -8,7 +8,7 @@
 # derivation, same reasoning (see ADR-BLD-003), same stage names ("preprod",
 # not "dev" — owner decision, aligned with XplorerEditor's own naming after
 # an initial deviation was caught and reverted, see ADR-BLD-002) and no
-# "XPL_" prefix on the env var (owner decision, TASK-BLD-002 follow-up; see
+# project prefix on the env var (owner decision, TASK-BLD-002 follow-up; see
 # ADR-BLD-001's amended DEC-BLD-003).
 #
 # Three forms, because no single string can serve every consumer:
