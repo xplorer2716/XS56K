@@ -5,12 +5,14 @@
 
 add_subdirectory(support)
 add_subdirectory(compile_checks)
+add_subdirectory(probe)
 
 add_executable(xs56k_akm_tests
     akm/ChecksumTests.cpp
     akm/CommandEncodingTests.cpp
     akm/ConfirmationDecodingTests.cpp
     akm/ExecutorTests.cpp
+    akm/FirstContactProbeTests.cpp
     akm/LibraryInfoTests.cpp
     akm/SamplerErrorTests.cpp
     akm/ScenarioTests.cpp

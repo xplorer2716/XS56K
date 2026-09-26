@@ -647,3 +647,49 @@ TEST_CASE("Given the real scheduler and a reply delay, When the delay has passed
     REQUIRE(arrivals.size() == 2);
     CHECK(arrivals[0].thread != std::this_thread::get_id());
 }
+
+TEST_CASE("Given the OS version requests of section 02, When they are sent, Then the REPLY carries the major and minor numbers, then a null sub-version [RQ-AKM-016, RQ-AKM-044]",
+          "[akm][simulated]")
+{
+    akm::ManualScheduler scheduler;
+    SimulatedMidiBackend backend(scheduler);
+    backend.addSampler(SamplerConfig{.deviceId = 0, .osVersion = {2, 10}});
+    HostProbe host(backend, backend.inputName(), backend.outputName());
+
+    host.send(bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x02, 0x00, 0xF7}));  // §02 &00: Get OS software version
+    host.send(bytes({0xF0, 0x47, 0x5E, 0x00, 0x11, 0x02, 0x01, 0xF7}));  // §02 &01: Get the sub-version
+
+    const auto messages = host.decoded(ChecksumMode::Off);
+    REQUIRE(messages.size() == 4);
+    CHECK(confirmationAt(messages, 1).replyId == akm::ReplyId::Reply);
+    CHECK(confirmationAt(messages, 1).data == bytes({0x02, 0x0A}));
+    CHECK(confirmationAt(messages, 3).replyId == akm::ReplyId::Reply);
+    CHECK(confirmationAt(messages, 3).data == bytes({0x00}));
+}
+
+TEST_CASE("Given an older OS version, When the OS version is requested, Then the numbers are those of that version [RQ-AKM-016, RQ-AKM-044]",
+          "[akm][simulated]")
+{
+    akm::ManualScheduler scheduler;
+    SimulatedMidiBackend backend(scheduler);
+    backend.addSampler(SamplerConfig{.deviceId = 0, .osVersion = {1, 30}});
+    HostProbe host(backend, backend.inputName(), backend.outputName());
+
+    host.send(bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x02, 0x00, 0xF7}));
+
+    const auto messages = host.decoded(ChecksumMode::Off);
+    REQUIRE(messages.size() == 2);
+    CHECK(confirmationAt(messages, 1).data == bytes({0x01, 0x1E}));
+}
+
+TEST_CASE("Given an item of section 02 other than the version ones, When it is sent, Then the sampler answers ERROR 0 [RQ-AKM-016]",
+          "[akm][simulated]")
+{
+    Rig rig;
+
+    rig.host.send(bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x02, 0x05, 0xF7}));
+
+    const auto messages = rig.host.decoded(ChecksumMode::Off);
+    REQUIRE(messages.size() == 2);
+    CHECK(akm::errorNumber(confirmationAt(messages, 1)) == 0x00);
+}

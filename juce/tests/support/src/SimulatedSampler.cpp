@@ -38,6 +38,13 @@ namespace akm::harness
         constexpr std::uint8_t REPLY_REPLY = 0x52;
         constexpr std::uint8_t REPLY_ERROR = 0x45;
 
+        // Section §02 (system) and its two version items, spec Tables 6 and 7.
+        constexpr std::uint8_t SECTION_SYSTEM = 0x02;
+        constexpr std::uint8_t ITEM_OS_VERSION = 0x00;
+        constexpr std::uint8_t ITEM_OS_SUB_VERSION = 0x01;
+        // The spec says the sub-version is always zero for now (Table 6, footnote a).
+        constexpr std::uint8_t OS_SUB_VERSION = 0;
+
         // Section §00 and its items, spec Table 5 (there is no item 02).
         constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
         constexpr std::uint8_t ITEM_QUERY = 0x00;
@@ -100,11 +107,26 @@ namespace akm::harness
             return done();
         }
 
-        // Only §00 is modelled. A byte after the data an item expects is ignored, as the spec says of a
-        // checksum sent while checksums are off.
+        Outcome executeSystem(std::uint8_t item, const OsVersion& osVersion)
+        {
+            switch (item)
+            {
+                case ITEM_OS_VERSION:
+                    return reply(Bytes{static_cast<std::uint8_t>(osVersion.major), static_cast<std::uint8_t>(osVersion.minor)});
+                case ITEM_OS_SUB_VERSION:
+                    return reply(Bytes{OS_SUB_VERSION});
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
+        // Only §00 and the two version items of §02 are modelled. A byte after the data an item expects is
+        // ignored, as the spec says of a checksum sent while checksums are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion)
         {
+            if (section == SECTION_SYSTEM)
+                return executeSystem(item, osVersion);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)

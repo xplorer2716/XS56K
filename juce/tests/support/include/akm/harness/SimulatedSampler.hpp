@@ -104,8 +104,9 @@ namespace akm::harness
 
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
-    /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. Only §00 is modelled; any other
-    /// section answers ERROR 0 (not supported) until the lots that need it (FTR-AKM-002 to 004) add theirs.
+    /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. Only §00 and the two version items
+    /// of §02 (RQ-AKM-044) are modelled; any other section or item answers ERROR 0 (not supported) until the
+    /// lots that need it (FTR-AKM-002 to 004) add theirs.
     /// The frames it builds are written out from the spec, not with the codec under test.
     /// [RQ-AKM-016, ADR-AKM-001 (DEC-AKM-008)]
     ///

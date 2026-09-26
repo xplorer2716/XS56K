@@ -48,6 +48,11 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `-C <cfg>` to `ctest`. Test sources live under `juce/tests/`, mirroring the library they exercise.
   The linux-headless canary and preprod workflows run exactly this, and every generated workflow runs
   the suite in its own configuration. [RQ-AKM-016, RQ-BLD-014, TASK-AKM-003]
+- **First-contact probe** (needs the sampler; run by the owner): built by the test command above as
+  `xs56k_akm_probe` (`juce/<build dir>/tests/probe/`, with a `<config>` folder on Visual Studio). `xs56k_akm_probe --list`
+  shows the MIDI ports; `xs56k_akm_probe --in "<port the sampler sends on>" --out "<port it receives on>"`
+  sends fifteen SysEx frames one at a time and writes `akm-probe-<UTC date>.log`. It switches the
+  sampler's checksum and Still Alive settings on and off and ends with both off. [RQ-AKM-017, RQ-AKM-044, TASK-AKM-012]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

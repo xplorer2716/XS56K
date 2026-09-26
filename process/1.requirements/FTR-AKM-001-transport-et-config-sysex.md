@@ -14,8 +14,8 @@ session opening and closing (discovery, DeviceID binding, known §00 state), and
 Configuration: `&00` Query, `&01` Notification, `&03` Sync LCD, `&04` Checksum, `&05` Auto screen
 update, `&06` Echo, `&07` Still Alive — the spec has no `&02`).
 
-**Out of scope.** Any other section (§02 System, §04 MIDI configuration, and the Program / Keygroup /
-Zone sections of FTR-AKM-002 to FTR-AKM-004); anything composed from primitives (Phase B
+**Out of scope.** Any other section (§02 System, apart from its two version items of RQ-AKM-044, §04
+MIDI configuration, and the Program / Keygroup / Zone sections of FTR-AKM-002 to FTR-AKM-004); anything composed from primitives (Phase B
 workflows); any user interface. Where the AKM code lives (own library or extension of the MIDI
 layer) is an architecture decision, made in an ADR, not here.
 
@@ -24,7 +24,7 @@ plan's "Get after Set confirms the value" criterion cannot apply to it. Its proo
 mock and on the real sampler, plus the Echo round trip (RQ-AKM-015); the state left on the real
 sampler is handled by RQ-AKM-018.
 
-**Exit criterion.** RQ-AKM-001 to RQ-AKM-016, RQ-AKM-019, RQ-AKM-020 and RQ-AKM-039 to RQ-AKM-043 pass
+**Exit criterion.** RQ-AKM-001 to RQ-AKM-016, RQ-AKM-019, RQ-AKM-020 and RQ-AKM-039 to RQ-AKM-044 pass
 against the simulated sampler in CI; RQ-AKM-017 has been run against the real S5000 and its observations recorded.
 
 **Sources.** `documents/akai_s5000_s6000_sysex_spec_2.10.pdf.md` (printed pages 1–7, tables 1–3 and
@@ -251,6 +251,16 @@ answer independently); a **command** is one SysEx message sent to the sampler; a
 - **Acceptance Criteria** (Gherkin): *Given* a sequence of a select and two sets and an ERROR answering the select, *When* it runs, *Then* the two sets are never sent, both complete as cancelled and the failure index is 0. *Given* a sequence running and another command submitted meanwhile, *When* the sequence ends, *Then* the other command ran after it, not between its commands. *Given* every command succeeding, *When* the sequence ends, *Then* the result of each is reported in order.
 - **Dependencies**: RQ-AKM-008; RQ-AKM-009
 
+### RQ-AKM-044: Sampler operating-system version
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the version of the sampler's operating system is requested, the AKM layer SHALL send Get Operating System Software Version (§02/&00) and Get the Sub-Version (§02/&01) and return the major and minor numbers (Data1 and Data2 of the first REPLY) and the sub-version (Data1 of the second), so that the application can decide which items the connected sampler supports instead of trying them and interpreting ERROR `00`.
+- **Rationale**: owner decision (TASK-AKM-012): items exist only since certain OS versions (Sync LCD since 2.00, Still Alive since 2.10, RQ-AKM-013 and RQ-AKM-040), and an application that adapts to the version it meets needs to read it; §02/&00 and §02/&01 are the two items of Table 6 that give it (the spec says the sub-version is always zero for now).
+- **Priority**: Should
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler running OS 2.10, *When* the version is requested, *Then* the result is major 2, minor 10, sub-version 0. *Given* a sampler that answers ERROR to the sub-version request, *When* the version is requested, *Then* the major and minor numbers are still returned and the sub-version is reported as unavailable. *Given* a sampler that answers ERROR to the first request, *When* the version is requested, *Then* the failure is reported and nothing is assumed about the version.
+- **Dependencies**: RQ-AKM-004; RQ-AKM-009; RQ-AKM-013; RQ-AKM-017
+- **Status**: observed on the real sampler by the first-contact probe (TASK-AKM-012); the typed primitive comes with the item catalogue (TASK-AKM-008).
+
 ---
 
 ## Non-Functional Requirements
@@ -287,4 +297,4 @@ answer independently); a **command** is one SysEx message sent to the sampler; a
 - **Matching a confirmation's DeviceID when the target is `0`** (RQ-AKM-007): provisionally any responder is accepted, matching on user-refs, section and item; the final rule is fixed after the observations of RQ-AKM-017, because the spec is ambiguous about which DeviceID a reply carries (p. 6: the sampler's own; the confirmation format: as sent).
 - **Default state of the §00 items** (RQ-AKM-018, RQ-AKM-042): the spec documents checksum as off by default (p. 4) and synchronisation as on by default (introductions of §0A and §0E); it states no default for Notification, Auto screen update or Still Alive (Table 5 states none for any item); those are observed and recorded under RQ-AKM-017.
 - **Sync LCD across ports** (RQ-AKM-014, RQ-AKM-040): Table 5 footnote a warns that with synchronisation on, a program change made by SysEx on one port also changes the selection on another port that has it on, and advises turning it off except when needed. ADR-AKM-001 (DEC-AKM-007) provisionally sets it off when a session opens and restores it on close (RQ-AKM-042); FTR-AKM-002 revisits this when the first program-selecting primitive exists.
-- **Older OS versions** (RQ-AKM-040): the spec says Sync LCD exists since OS 2.00 and Still Alive since OS 2.10; how a sampler on an older OS answers, and which OS the owner's sampler runs, are recorded under RQ-AKM-017.
+- **Older OS versions** (RQ-AKM-040): the spec says Sync LCD exists since OS 2.00 and Still Alive since OS 2.10; how a sampler on an older OS answers, and which OS the owner's sampler runs, are recorded under RQ-AKM-017 (the OS version is read with §02/&00, RQ-AKM-044).

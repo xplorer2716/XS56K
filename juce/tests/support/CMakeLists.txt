@@ -4,6 +4,7 @@
 
 add_library(xs56k_akm_test_support STATIC
     src/EchoScenario.cpp
+    src/FirstContactProbe.cpp
     src/ScenarioDriver.cpp
     src/SimulatedMidiBackend.cpp
     src/SimulatedSampler.cpp)
