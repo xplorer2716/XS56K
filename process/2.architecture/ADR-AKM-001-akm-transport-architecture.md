@@ -189,6 +189,34 @@ keygroup (spec state model), so "select, then set" is one unit; a select that ti
 would edit the wrong item. A sequence does not protect against another port changing the selection, which
 turning Sync LCD off addresses (DEC-AKM-007).
 
+### DEC-AKM-011: A command carries options — what the session cannot read back or infer
+A submitted command is a `CommandRequest`: the `Command` itself (section, item, data) and a `CommandOptions`
+whose every field has a default that suits a plain Set addressed to the bound target. The Items layer fills
+them per spec item (DEC-AKM-003); the Session layer never special-cases an item code. Added in TASK-AKM-006,
+the fields are:
+- **`timeout` and `maxTotalWait`**, per command, over the session's own values (RQ-AKM-010);
+- **`addressing`**: the bound target, or broadcast for discovery — a broadcast command accepts a confirmation
+  from any DeviceID, since each sampler answers with its own (DEC-AKM-007, RQ-AKM-012);
+- **`expectedReply`**: whether the codec can delimit this command's reply while the checksum mode is unknown
+  (a DONE, or the Echo REPLY) or not (every other Get), the second being refused with
+  `Refused{ChecksumModeUnknown}` until the mode is known (RQ-AKM-041, DEC-AKM-009);
+- **`checksumModeAfterDone` and `stillAliveAfterDone`**: §00 cannot be read back (there is no Get), so a
+  setting's new value travels with the command that sets it and is applied by its own DONE. Carrying them on
+  the command rather than through a separate setter is what makes the change atomic with the completion: a
+  command already queued behind it is encoded after the switch, never before. A checksum-mode command is also
+  sent with a checksum whatever the mode in force, and its own confirmations are decoded in mode `Unknown`
+  (RQ-AKM-013);
+- **`collectionWindow` and `onConfirmation`**: a command may collect every matching confirmation for a window
+  and complete as `Done` when it ends — the shape discovery needs (RQ-AKM-012). An empty window is not an
+  error, and this keeps the six results of DEC-AKM-004 as they are: the caller accumulates what it needs
+  from the observer instead of a seventh result kind carrying a list.
+
+`Session::close(onClosed)` is asynchronous for the same reason the completions are: the executor is injected
+and shared with the driver, so the session cannot join it; it stops the input port on the calling thread, then
+its last task cancels what is left and calls back on the session thread. It returns `false`, changing nothing,
+when called from the session thread — DEC-AKM-004 forbids closing from a completion, and a returned refusal is
+testable where an assertion would abort the test process.
+
 ## Consequences
 
 **Easier.** The codec and the session are independently testable; a new section is a record in a data file; a
@@ -202,12 +230,15 @@ theirs (RQ-AKM-020); each open session costs one thread; the data file needs hum
 `Scheduler`, the `Executor` and the test tree are new build surface (Catch2 becomes a dependency once
 `BUILD_TESTS` is on, a Tier L change in its own task).
 
-**Risks to check on the real sampler.** Which DeviceID a confirmation carries (as sent, or the sampler's own);
-the shape of the DONE of the checksum-mode command and whether confirmations carry a checksum while it is on;
-whether the JUCE backend delivers the two-byte `F0 F7` of Still Alive on Windows, whatever the driver does
-(the code classifies it as SysEx); how a sampler on an older OS answers `&03`, `&05` and `&07`; whether §00
-settings survive a power cycle; and how often an ERROR follows a REPLY (it is reported as a late-error
-diagnostic, since the command has already completed with its data).
+**Risks to check on the real sampler.** Settled by the first contact (TASK-AKM-012,
+`OBSERVATIONS-RQ-AKM-017-first-contact.md`): a confirmation carries the sampler's own DeviceID; with the mode
+on every confirmation carries a checksum, the Reply ID included; the OK of the checksum-mode command follows
+the old mode and its DONE the new one. Still open, for TASK-AKM-010: whether the JUCE backend delivers the
+two-byte `F0 F7` of Still Alive on Windows, whatever the driver does (the code classifies it as SysEx); how a
+sampler on an older OS answers `&03`, `&05` and `&07`; whether §00 settings survive a power cycle; how long
+the slow operations take, which is what the provisional timeout and maximum total wait wait for; and how often
+an ERROR follows a REPLY (it is reported as a late-error diagnostic, since the command has already completed
+with its data).
 
 **Unchanged.** `xs56k_midi`, `MockMidiBackend`, `xs56k_framework` and the placeholder application.
 
@@ -249,7 +280,7 @@ flowchart TB
     end
     subgraph akm["xs56k_akm (DEC-AKM-001)"]
         ITEMS["Items: data file -> generated table + typed helpers\n(DEC-AKM-003)"]
-        subgraph sess["Session: one per port (DEC-AKM-002, 004, 005, 007, 010)"]
+        subgraph sess["Session: one per port (DEC-AKM-002, 004, 005, 007, 010, 011)"]
             EXE["Serial executor\nall state, sends, completions"]
         end
         COD["Codec: pure functions, checksum mode on|off|unknown\n(DEC-AKM-009)"]
