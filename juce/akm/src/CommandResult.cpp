@@ -43,6 +43,8 @@ namespace akm
                 return "checksum mode unknown: this command's reply could not be delimited";
             case RefusalReason::NoTargetBound:
                 return "no target bound: no sampler DeviceID has been bound to this session";
+            case RefusalReason::SessionNotOpen:
+                return "session not open: it is opening, or its open failed";
             case RefusalReason::SessionClosed:
                 return "session closed";
         }

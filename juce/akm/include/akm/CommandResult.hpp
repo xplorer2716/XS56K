@@ -35,6 +35,7 @@ namespace akm
         ArgumentOutOfRange,   ///< an argument is outside the range the catalogue gives it (RQ-AKM-014, RQ-AKM-015)
         ChecksumModeUnknown,  ///< its REPLY cannot be delimited while the mode is unknown (RQ-AKM-041)
         NoTargetBound,        ///< it is addressed to the bound target and none is bound yet (RQ-AKM-039)
+        SessionNotOpen,       ///< the session is opening, or its open failed: no command but the opening's (RQ-AKM-039)
         SessionClosed,        ///< it was submitted after close() (RQ-AKM-042)
     };
 

@@ -150,6 +150,16 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
 - **Dependencies**: RQ-BLD-002; RQ-BLD-007; RQ-BLD-008; RQ-AKM-016; ADR-BLD-005
 - **Status**: Satisfied for the canary workflows — TASK-BLD-011 (38e5c39: suite passing on GCC, MSVC and Apple Clang, Debug and Release); the preprod and prod workflows carry the same generated step and have not run yet.
 
+### RQ-BLD-015: Mutation checks that leave the working tree alone
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN a mutation check is requested for a list of alterations of source files, the test tooling SHALL apply each alteration in an isolated copy of the tree with its own build directory, run the tests that exercise the altered code under a per-test time limit, report for each alteration whether at least one test failed, and leave the working tree and its build directory untouched.
+- **Rationale**: a mutation check — an alteration made on purpose to see whether a test fails, which is how the AKM tests are shown to protect their behaviour — run in place edits the files and the build directory the developer is working in, costs a rebuild and the whole suite per alteration (about a minute each, eighteen alterations for one task), and one test that hangs under an alteration blocks the whole batch. All three happened during TASK-AKM-009; the owner asked for the check to be made independent of the working tree, and scheduled it after PLAN-AKM-001.
+- **Priority**: Could
+- **Acceptance Criteria** (Gherkin): *Given* a list of alterations, *When* the check runs, *Then* the files and the build directory of the working tree are byte for byte unchanged while it runs and afterwards, and each alteration is reported as caught (a test failed, timed out, or the build broke) or missed (every test passed). *Given* two alterations and two workers, *When* the check runs, *Then* they run at the same time, each in its own copy. *Given* an alteration under which a test hangs, *When* the check runs, *Then* it is reported as caught by timeout and the next one runs. *Given* an alteration whose text is found no time or more than once, *When* the check runs, *Then* it is reported as skipped and not applied.
+- **Dependencies**: RQ-BLD-002; RQ-AKM-016
+- **Status**: Not started — TASK-BLD-012 (PLAN-BLD-004).
+
 ---
 
 ## Non-Functional Requirements — implemented by the owner directly

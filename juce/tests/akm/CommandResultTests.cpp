@@ -70,13 +70,14 @@ TEST_CASE("Given a sequence outcome, When asked whether all its commands succeed
     CHECK_FALSE(failed.allSucceeded());
 }
 
-TEST_CASE("Given each reason a command is refused, When described, Then each has its own text and an unknown one says so [RQ-AKM-001, RQ-AKM-014, RQ-AKM-041, RQ-AKM-042]",
+TEST_CASE("Given each reason a command is refused, When described, Then each has its own text and an unknown one says so [RQ-AKM-001, RQ-AKM-014, RQ-AKM-039, RQ-AKM-041, RQ-AKM-042]",
           "[akm][result]")
 {
     using akm::RefusalReason;
     const RefusalReason reasons[] = {RefusalReason::NotEncodable,       RefusalReason::WrongArgumentCount,
                                      RefusalReason::ArgumentOutOfRange, RefusalReason::ChecksumModeUnknown,
-                                     RefusalReason::NoTargetBound,      RefusalReason::SessionClosed};
+                                     RefusalReason::NoTargetBound,      RefusalReason::SessionNotOpen,
+                                     RefusalReason::SessionClosed};
 
     std::set<std::string> distinct;
     for (const RefusalReason reason : reasons)
@@ -89,6 +90,7 @@ TEST_CASE("Given each reason a command is refused, When described, Then each has
     CHECK_THAT(text(RefusalReason::ArgumentOutOfRange), ContainsSubstring("range"));
     CHECK_THAT(text(RefusalReason::WrongArgumentCount), ContainsSubstring("number of arguments"));
     CHECK_THAT(text(RefusalReason::ChecksumModeUnknown), ContainsSubstring("checksum mode unknown"));
+    CHECK_THAT(text(RefusalReason::SessionNotOpen), ContainsSubstring("not open"));
     CHECK_THAT(text(static_cast<RefusalReason>(UNDEFINED_ENUMERATOR)), ContainsSubstring("unknown"));
 }
 

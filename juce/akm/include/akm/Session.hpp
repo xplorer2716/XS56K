@@ -30,6 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/DiagnosticSink.hpp"
 #include "akm/Executor.hpp"
 #include "akm/Scheduler.hpp"
+#include "akm/SessionConfig.hpp"
 #include "akm/Task.hpp"
 #include "common/midi/MidiPorts.hpp"
 
@@ -45,16 +46,19 @@ namespace akm
     /// be unknown — what a sampler reboot looks like from here. [RQ-AKM-041]
     inline constexpr int DEFAULT_CHECKSUM_FAILURES_BEFORE_UNKNOWN = 3;
 
-    /// The named, configurable durations of one session. [RQ-AKM-010, RQ-AKM-041]
+    /// The named, configurable durations of one session. [RQ-AKM-010, RQ-AKM-012, RQ-AKM-041]
     struct SessionTiming
     {
         Scheduler::Clock::duration commandTimeout = DEFAULT_COMMAND_TIMEOUT;
         Scheduler::Clock::duration maxTotalWait = DEFAULT_MAX_TOTAL_WAIT;
+        /// How long the discovery of an opening listens for the samplers' answers.
+        Scheduler::Clock::duration discoveryWindow = DEFAULT_DISCOVERY_WINDOW;
         int checksumFailuresBeforeUnknown = DEFAULT_CHECKSUM_FAILURES_BEFORE_UNKNOWN;
     };
 
     using CommandCompletion = std::function<void(const CommandResult&)>;
     using SequenceCompletion = std::function<void(const SequenceResult&)>;
+    using OpenCompletion = std::function<void(const OpenResult&)>;
 
     /// The state machine of one MIDI port pair: user-ref allocation and matching, one command in flight
     /// with the others queued in order, completion on DONE, REPLY or ERROR, timeout, Still Alive,
@@ -71,6 +75,13 @@ namespace akm
     /// The ports outlive the session. The constructor registers the input callback and starts the input,
     /// as DEC-AKM-005 requires before the first send; `close()` stops it. A session SHALL be closed, and
     /// its executor left idle, before it is destroyed.
+    ///
+    /// A session is used in two ways. The application calls `open()` and waits for its completion: the
+    /// session discovers the samplers, verifies and binds the target's DeviceID, and establishes the section
+    /// 00 settings (RQ-AKM-039, RQ-AKM-040, ADR-AKM-001 DEC-AKM-007); until it is open, and after an open
+    /// that failed, the application's commands are refused, and the only commands sent are the opening's own.
+    /// Or it is driven without `open()` — the tests of the session core and the probes do — and then runs
+    /// whatever is submitted, the target being bound by hand.
     class Session
     {
     public:
@@ -82,22 +93,36 @@ namespace akm
         Session(const Session&) = delete;
         Session& operator=(const Session&) = delete;
 
+        /// Opens the session and returns at once, from any thread; `completion` runs on the session thread,
+        /// once, whatever the outcome — a refusal included, never from `open()`'s own thread. In order: the
+        /// discovery (a Query to DeviceID 0, listening for `SessionTiming::discoveryWindow`); the target's
+        /// DeviceID verified — absent, or ambiguous, ends the open, and nothing else has been sent — and
+        /// bound; then the checksum mode with a checksum appended whatever mode is assumed, and each other
+        /// setting of the configuration that is not `Unchanged`, one command at a time. A setting the sampler
+        /// answers ERROR 00 to, among Sync LCD, Auto screen update and Still Alive, is listed and the open
+        /// goes on (degraded); any other failure ends it. An open can be retried after it failed. [RQ-AKM-039,
+        /// RQ-AKM-040, RQ-AKM-041, ADR-AKM-001 (DEC-AKM-007)]
+        void open(SessionConfig config, OpenCompletion completion);
+
         /// Binds the DeviceID that every following `Addressing::BoundTarget` command is addressed to, and
         /// that its confirmations must carry. Callable from any thread; it takes effect on the session
-        /// thread, so it is ordered with the commands submitted around it. TASK-AKM-009's `open()` calls
-        /// it once discovery has verified the target. [RQ-AKM-007, RQ-AKM-039]
+        /// thread, so it is ordered with the commands submitted around it. `open()` binds the target once
+        /// the discovery has verified it; a session driven without `open()` binds it by hand.
+        /// [RQ-AKM-007, RQ-AKM-039]
         void bindTarget(std::uint8_t deviceId);
 
         /// A snapshot, readable from any thread: the bound target, the checksum mode the session assumes
-        /// for this port (`Unknown` until a checksum-mode command succeeds), and whether a received
-        /// `F0 F7` restarts the pending command's timeout.
+        /// for this port (`Unknown` until a checksum-mode command succeeds), whether a received `F0 F7`
+        /// restarts the pending command's timeout, and where the session is in its life.
         [[nodiscard]] std::optional<std::uint8_t> boundTarget() const;
         [[nodiscard]] ChecksumMode checksumMode() const;
         [[nodiscard]] bool stillAliveMonitoring() const;
+        [[nodiscard]] SessionState state() const;
 
         /// Queues one command and returns at once, from any thread. `completion` runs on the session
-        /// thread, in completion order, exactly once — an immediate refusal included. [RQ-AKM-008,
-        /// RQ-AKM-020]
+        /// thread, in completion order, exactly once — an immediate refusal included, such as
+        /// `RefusalReason::SessionNotOpen` while the session is opening. [RQ-AKM-008, RQ-AKM-020,
+        /// RQ-AKM-039]
         void submit(CommandRequest request, CommandCompletion completion);
 
         /// Queues commands that run in order with nothing else interleaved; when one fails, the rest

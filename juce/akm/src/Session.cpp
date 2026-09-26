@@ -22,11 +22,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <atomic>
 #include <cstddef>
 #include <deque>
+#include <set>
 #include <utility>
 #include <variant>
 
 #include "akm/Command.hpp"
 #include "akm/Confirmation.hpp"
+#include "akm/ItemRequest.hpp"
 #include "akm/Protocol.hpp"
 #include "akm/SamplerError.hpp"
 #include "common/midi/MidiMessage.hpp"
@@ -61,10 +63,19 @@ namespace akm
     /// atomics a caller may read from its own. [ADR-AKM-001 (DEC-AKM-004)]
     struct Session::Impl
     {
+        /// Who a unit is for: the application, whose commands are refused while the session is not open, or the
+        /// opening itself, whose commands are the only ones sent then. [RQ-AKM-039]
+        enum class Purpose
+        {
+            Application,
+            Opening,
+        };
+
         /// One entry of the queue: a single command, or a sequence that runs as one with nothing
         /// interleaved. A single command is a sequence of one. [RQ-AKM-043, ADR-AKM-001 (DEC-AKM-010)]
         struct Unit
         {
+            Purpose purpose = Purpose::Application;
             std::vector<CommandRequest> requests;
             std::vector<CommandResult> results;
             std::optional<std::size_t> failureIndex;
@@ -108,11 +119,35 @@ namespace akm
         /// handed to the executor then does nothing instead of touching a dead session.
         const std::shared_ptr<std::atomic<bool>> alive = std::make_shared<std::atomic<bool>>(true);
 
+        /// One step of the establishment of the section 00 settings: what to send and what its failure means. An
+        /// optional setting is one an older OS may lack, which answers ERROR 00 and is no reason to refuse the
+        /// connection (RQ-AKM-040).
+        struct Step
+        {
+            SamplerSetting setting = SamplerSetting::Checksums;
+            ItemId item = ItemId::SysExChecksum;
+            bool on = false;
+            bool optional = false;
+            CommandOptions options;
+        };
+
+        /// What an open in progress carries from one command to the next. [RQ-AKM-039, RQ-AKM-040]
+        struct Opening
+        {
+            SessionConfig config;
+            OpenCompletion completion;
+            std::set<std::uint8_t> responders;
+            std::vector<Step> steps;
+            std::size_t nextStep = 0;
+            OpenResult result;
+        };
+
         // Written on the session thread, readable from any.
         std::atomic<int> target{NO_TARGET};
         std::atomic<ChecksumMode> mode{ChecksumMode::Unknown};
         std::atomic<bool> stillAlive{false};
         std::atomic<bool> closing{false};
+        std::atomic<SessionState> lifecycle{SessionState::Unopened};
 
         // The session thread's own state: no lock, because nothing else touches it.
         std::deque<std::shared_ptr<Unit>> queue;
@@ -121,6 +156,9 @@ namespace akm
         std::uint64_t nextGeneration = 0;
         int checksumFailures = 0;
         std::deque<CompletedCommand> completed;
+        std::optional<Opening> opening;
+        /// The settings an open has changed on the sampler, for the closing to put back. [RQ-AKM-042]
+        std::vector<SamplerSetting> changedByOpen;
 
         /// Runs `work` on the session thread, or not at all if the session is gone by then.
         void postToSession(Task work)
@@ -148,6 +186,18 @@ namespace akm
             {
                 refuseWhole(unit, RefusalReason::SessionClosed);
                 return;
+            }
+            // While the session is opening, and after an open that failed, only the opening's commands are sent:
+            // nothing the application submits may reach the sampler before the target is verified and the
+            // settings are established (RQ-AKM-039).
+            if (unit->purpose == Purpose::Application)
+            {
+                const SessionState state = lifecycle.load();
+                if (state == SessionState::Opening || state == SessionState::OpenFailed)
+                {
+                    refuseWhole(unit, RefusalReason::SessionNotOpen);
+                    return;
+                }
             }
             queue.push_back(unit);
             pump();
@@ -457,6 +507,198 @@ namespace akm
             complete(Done{});
         }
 
+        // --- opening (DEC-AKM-007) ---
+
+        /// Sends a command on behalf of the opening, which the gate on the application's commands lets through.
+        void submitForOpening(CommandRequest request, CommandCompletion completion)
+        {
+            auto unit = std::make_shared<Unit>();
+            unit->purpose = Purpose::Opening;
+            unit->requests.push_back(std::move(request));
+            unit->completion = [completion = std::move(completion)](const SequenceResult& outcome) {
+                completion(outcome.results.front());
+            };
+            enqueue(unit);
+        }
+
+        /// The settings to establish, in order: the checksum mode first, always, then each other setting that is
+        /// not left unchanged, in the order of the spec's items. [RQ-AKM-040]
+        static std::vector<Step> stepsOf(const SessionConfig& config)
+        {
+            std::vector<Step> steps;
+            Step checksums;
+            checksums.setting = SamplerSetting::Checksums;
+            checksums.item = ItemId::SysExChecksum;
+            checksums.on = config.checksums;
+            checksums.options.checksumModeAfterDone = config.checksums;
+            steps.push_back(std::move(checksums));
+
+            const auto add = [&steps](SamplerSetting setting, ItemId item, SettingChoice choice, bool optional,
+                                      std::optional<bool> CommandOptions::*trackedByTheSession) {
+                if (choice == SettingChoice::Unchanged)
+                    return;
+                Step step;
+                step.setting = setting;
+                step.item = item;
+                step.on = choice == SettingChoice::On;
+                step.optional = optional;
+                if (trackedByTheSession != nullptr)
+                    step.options.*trackedByTheSession = step.on;
+                steps.push_back(std::move(step));
+            };
+            add(SamplerSetting::Notification, ItemId::SysExNotification, config.notification, false, nullptr);
+            add(SamplerSetting::SyncLcd, ItemId::SysExSyncLcd, config.syncLcd, true, nullptr);
+            add(SamplerSetting::AutoScreenUpdate, ItemId::SysExAutoScreenUpdate, config.autoScreenUpdate, true, nullptr);
+            add(SamplerSetting::StillAlive, ItemId::SysExStillAlive, config.stillAlive, true,
+                &CommandOptions::stillAliveAfterDone);
+            return steps;
+        }
+
+        void beginOpen(SessionConfig config, OpenCompletion completion)
+        {
+            OpenResult refused;
+            refused.targetDeviceId = config.targetDeviceId;
+            const SessionState state = lifecycle.load();
+            if (closing.load())
+                refused.status = OpenStatus::Cancelled;
+            else if (state == SessionState::Opening || state == SessionState::Open)
+                refused.status = OpenStatus::AlreadyOpen;
+            else if (config.targetDeviceId > DEVICE_ID_MAX)
+                refused.status = OpenStatus::InvalidDeviceId;
+            else
+            {
+                lifecycle.store(SessionState::Opening);
+                // A retry after a failed open starts from nothing bound.
+                target.store(NO_TARGET);
+                Opening context;
+                context.steps = stepsOf(config);
+                context.result.targetDeviceId = config.targetDeviceId;
+                context.config = std::move(config);
+                context.completion = std::move(completion);
+                opening = std::move(context);
+                startDiscovery();
+                return;
+            }
+            completion(refused);
+        }
+
+        /// A Query to every sampler, collecting the DeviceID of every confirmation of the window — an ERROR
+        /// answer counts as a sampler being present. [RQ-AKM-012, RQ-AKM-039]
+        void startDiscovery()
+        {
+            CommandOptions options;
+            options.addressing = Addressing::Broadcast;
+            options.collectionWindow = timing.discoveryWindow;
+            options.onConfirmation = [this](const Confirmation& confirmation) {
+                if (opening)
+                    opening->responders.insert(confirmation.deviceId);
+            };
+            submitForOpening(makeRequest(ItemId::SysExQuery, std::span<const std::int64_t>{}, std::move(options)),
+                             [this](const CommandResult& result) { onDiscovered(result); });
+        }
+
+        static bool wasCancelled(const CommandResult& result)
+        {
+            const auto* refused = std::get_if<Refused>(&result);
+            return std::holds_alternative<Cancelled>(result)
+                   || (refused != nullptr && refused->reason == RefusalReason::SessionClosed);
+        }
+
+        void onDiscovered(const CommandResult& result)
+        {
+            if (!succeeded(result))
+            {
+                opening->result.status = wasCancelled(result) ? OpenStatus::Cancelled : OpenStatus::DiscoveryFailed;
+                finishOpen();
+                return;
+            }
+
+            OpenResult& outcome = opening->result;
+            outcome.responders.assign(opening->responders.begin(), opening->responders.end());
+            const auto answeredAs = [&outcome](std::uint32_t deviceId) {
+                return std::find(outcome.responders.begin(), outcome.responders.end(), deviceId) != outcome.responders.end();
+            };
+            const std::uint32_t wanted = opening->config.targetDeviceId;
+            // A target of 0, or a sampler answering as 0, reaches every sampler: with more than one present, it
+            // would edit the wrong machine (DEC-AKM-007), which is told before the target is found absent.
+            if (outcome.responders.size() > 1 && (wanted == 0 || answeredAs(0)))
+                outcome.status = OpenStatus::AmbiguousSamplers;
+            else if (!answeredAs(wanted))
+                outcome.status = OpenStatus::NoSamplerAtTarget;
+            else
+            {
+                target.store(static_cast<int>(wanted));
+                continueOpening();
+                return;
+            }
+            finishOpen();
+        }
+
+        /// Goes on with the next setting on a turn of its own, so that a step refused on the spot cannot make the
+        /// opening recurse.
+        void continueOpening()
+        {
+            postToSession([this] {
+                if (opening)
+                    establishNext();
+            });
+        }
+
+        void establishNext()
+        {
+            if (opening->nextStep >= opening->steps.size())
+            {
+                opening->result.status =
+                    opening->result.unsupported.empty() ? OpenStatus::Ready : OpenStatus::ReadyDegraded;
+                finishOpen();
+                return;
+            }
+            const Step& step = opening->steps[opening->nextStep];
+            submitForOpening(makeRequest(step.item, {step.on ? 1 : 0}, step.options),
+                             [this](const CommandResult& result) { onStepDone(result); });
+        }
+
+        static bool notSupported(const CommandResult& result)
+        {
+            const auto* error = std::get_if<Error>(&result);
+            return error != nullptr && error->number == error_number::NOT_SUPPORTED;
+        }
+
+        void onStepDone(const CommandResult& result)
+        {
+            const Step& step = opening->steps[opening->nextStep];
+            if (succeeded(result))
+                changedByOpen.push_back(step.setting);
+            else if (wasCancelled(result))
+            {
+                opening->result.status = OpenStatus::Cancelled;
+                finishOpen();
+                return;
+            }
+            else if (step.optional && notSupported(result))
+                opening->result.unsupported.push_back(step.setting);
+            else
+            {
+                opening->result.status = OpenStatus::SettingFailed;
+                opening->result.failedSetting = step.setting;
+                opening->result.failedResult = result;
+                finishOpen();
+                return;
+            }
+            ++opening->nextStep;
+            continueOpening();
+        }
+
+        void finishOpen()
+        {
+            OpenResult result = std::move(opening->result);
+            const OpenCompletion completion = std::move(opening->completion);
+            opening.reset();
+            lifecycle.store(result.ready() ? SessionState::Open : SessionState::OpenFailed);
+            if (completion)
+                completion(result);
+        }
+
         /// The last task of a session: the command in flight and everything queued end as `Cancelled`.
         /// [RQ-AKM-042]
         void cancelEverything()
@@ -508,6 +750,21 @@ namespace akm
         _impl->alive->store(false);
         _impl->input.stop();
         _impl->input.setCallbacks({});
+    }
+
+    void Session::open(SessionConfig config, OpenCompletion completion)
+    {
+        Impl* impl = _impl.get();
+        impl->postToSession([impl, config = std::move(config), completion = std::move(completion)]() mutable {
+            impl->beginOpen(std::move(config), std::move(completion));
+        });
+    }
+
+    SessionState Session::state() const
+    {
+        if (_impl->closing.load())
+            return SessionState::Closing;
+        return _impl->lifecycle.load();
     }
 
     void Session::bindTarget(std::uint8_t deviceId)

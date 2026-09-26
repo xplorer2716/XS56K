@@ -261,6 +261,16 @@ namespace akm::test
             return latched->value();
         }
 
+        /// Opens the session with `config` (TASK-AKM-009) and waits for the result.
+        [[nodiscard]] std::optional<OpenResult> openAndWait(SessionConfig config,
+                                                            Scheduler::Clock::duration timeout = DEFAULT_WAIT)
+        {
+            auto latched = std::make_shared<Latched<OpenResult>>();
+            _session.open(std::move(config), [latched](const OpenResult& result) { latched->set(result); });
+            static_cast<void>(waitUntil([latched] { return latched->isSet(); }, timeout));
+            return latched->value();
+        }
+
         /// Runs the §00/&04 command that switches the port's checksum mode, as TASK-AKM-008's helper will.
         [[nodiscard]] std::optional<CommandResult> establishChecksumMode(bool on)
         {

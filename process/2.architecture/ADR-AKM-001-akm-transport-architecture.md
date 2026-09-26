@@ -155,10 +155,32 @@ spec's advice, Table 5 note, so that another port's selection cannot change ours
 on, restored on close); **Still Alive on** (avoids false timeouts on long operations); **Notification and Auto
 screen update unchanged** (no documented reason to change either). The values are confirmed or changed by the
 observations of RQ-AKM-017.
-Run by hand on the real S5000 (TASK-AKM-013; `Session::open` will automate it, TASK-AKM-009): a Query to DeviceID 0
+Run by hand on the real S5000 (TASK-AKM-013; `Session::open` automates it, TASK-AKM-009): a Query to DeviceID 0
 with a checksum appended is accepted while checksums are off; the sampler answered with its own DeviceID, which
 is the target that was verified and bound; and the settings then established one command at a time — the checksum
 mode first — were all accepted, Sync LCD and Auto screen update included, which OS 2.14 has.
+
+As built (TASK-AKM-009). `Session::open(SessionConfig, OpenCompletion)` runs the steps above on the session thread,
+each command on a turn of its own, and delivers its result there, never from `open()`'s own thread. The input is
+started by the constructor, so step 1 is done before `open()` is called. The discovery is a broadcast Query with a
+collection window (`SessionTiming::discoveryWindow`, 500 ms by default) and every confirmation of the window, an
+ERROR included, adds its DeviceID. The verification tests **ambiguity before absence**: with more than one
+responder and either a target of 0 or a responder answering as 0, the open is `AmbiguousSamplers`, whichever
+DeviceIDs answered; otherwise a target that is not among the responders is `NoSamplerAtTarget`, reported with the
+list of responders (empty when nobody answered); a target above 31 is `InvalidDeviceId`, before any frame. The
+target is bound only once verified. The establishment sends the checksum mode first, with a checksum appended, then
+the settings of the configuration that are not `Unchanged`, in the order Notification, Sync LCD, Auto screen
+update, Still Alive; ERROR 00 to Sync LCD, Auto screen update or Still Alive lists the setting in
+`OpenResult::unsupported` and goes on (`ReadyDegraded`); any other outcome to any setting, ERROR 00 to the checksum
+mode or to Notification included, ends the open as `SettingFailed` naming the setting and its result.
+`SessionConfig` holds the checksum mode as a boolean, since the session must know it, and the four other settings as
+on, off or unchanged, with the defaults above. **Until the open has succeeded, and after one that failed, the
+application's commands are refused with `RefusalReason::SessionNotOpen`**; the opening's own commands pass. That is
+how "no command other than the discovery before the open has succeeded" (RQ-AKM-039) holds, the establishment
+commands being part of the open. A session on which `open()` is never called runs commands as before, the target
+bound by hand: the tests of the session core and the probes depend on it. A failed open can be retried; a second
+`open()` on an opening or open session is refused (`AlreadyOpen`); a `close()` during the open ends it as
+`Cancelled`. The settings the open changed are kept, for the closing to put back (TASK-AKM-011).
 
 ### DEC-AKM-008: Test seams — a simulated sampler modelled on the spec, and a scenario driver
 The simulated sampler of RQ-AKM-016 is a `MidiBackend` implementation in the test tree, built as a small model
