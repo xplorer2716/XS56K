@@ -4,7 +4,12 @@
 # Test sources mirror the tree of the library they exercise (akm/ for xs56k_akm).
 
 add_executable(xs56k_akm_tests
-    akm/LibraryInfoTests.cpp)
+    akm/ChecksumTests.cpp
+    akm/CommandEncodingTests.cpp
+    akm/ConfirmationDecodingTests.cpp
+    akm/LibraryInfoTests.cpp
+    akm/SamplerErrorTests.cpp
+    akm/ValueFormatTests.cpp)
 target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k_akm
     Catch2::Catch2WithMain

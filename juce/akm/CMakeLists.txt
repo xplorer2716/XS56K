@@ -4,6 +4,12 @@
 # [RQ-AKM-019, RQ-BLD-003, ADR-AKM-001 (DEC-AKM-001)]
 
 add_library(xs56k_akm STATIC
-    src/LibraryInfo.cpp)
+    src/ByteReader.cpp
+    src/ByteWriter.cpp
+    src/Checksum.cpp
+    src/Command.cpp
+    src/Confirmation.cpp
+    src/LibraryInfo.cpp
+    src/SamplerError.cpp)
 target_include_directories(xs56k_akm PUBLIC include)
 target_link_libraries(xs56k_akm PUBLIC xs56k_midi PRIVATE xs56k::warnings)
