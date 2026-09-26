@@ -3,6 +3,9 @@
 # Catch2 is fetched and CTest/Catch are included by the root juce/CMakeLists.txt.
 # Test sources mirror the tree of the library they exercise (akm/ for xs56k_akm).
 
+add_subdirectory(support)
+add_subdirectory(compile_checks)
+
 add_executable(xs56k_akm_tests
     akm/ChecksumTests.cpp
     akm/CommandEncodingTests.cpp
@@ -10,10 +13,13 @@ add_executable(xs56k_akm_tests
     akm/ExecutorTests.cpp
     akm/LibraryInfoTests.cpp
     akm/SamplerErrorTests.cpp
+    akm/ScenarioTests.cpp
     akm/SchedulerTests.cpp
+    akm/SimulatedSamplerTests.cpp
     akm/ValueFormatTests.cpp)
 target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k_akm
+    xs56k_akm_test_support
     Catch2::Catch2WithMain
     xs56k::warnings)
 catch_discover_tests(xs56k_akm_tests)

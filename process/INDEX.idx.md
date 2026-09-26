@@ -101,7 +101,7 @@ TASK-AKM-003|56-69|Done|Library skeleton and test scaffolding
 TASK-AKM-004|70-83|Done|Codec
 TASK-AKM-005|84-97|Done|Scheduler and executor
 TASK-AKM-006|98-111|Not Started|Session core
-TASK-AKM-007|112-125|Not Started|Simulated sampler and scenario harness
+TASK-AKM-007|112-125|Done|Simulated sampler and scenario harness
 TASK-AKM-008|126-139|Not Started|Item catalogue and §00 primitives
 TASK-AKM-009|140-153|Not Started|Session opening
 TASK-AKM-010|154-167|Not Started|Real-sampler suite and observations
