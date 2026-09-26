@@ -260,6 +260,34 @@ TEST_CASE("Given the mode unknown and a REPLY of variable length, When decoded, 
     CHECK(rejectionOf(replyFrameChecksummed, ChecksumMode::Unknown) == RejectReason::UnknownDataLength);
 }
 
+TEST_CASE("Given the mode unknown and the REPLY of the OS version items, When decoded with and without a checksum, Then their data bytes are kept, the length coming from the catalogue [RQ-AKM-041, RQ-AKM-044, ADR-AKM-001 (DEC-AKM-012)]",
+          "[akm][confirmation]")
+{
+    // §02 item 00: major 2, minor 14. Checksum: 13 + 52 + 02 + 00 + 02 + 0E = 77.
+    const Bytes version = bytes({0xF0, 0x47, 0x5E, 0x00, 0x13, 0x52, 0x02, 0x00, 0x02, 0x0E, 0xF7});
+    const Bytes versionChecksummed = bytes({0xF0, 0x47, 0x5E, 0x00, 0x13, 0x52, 0x02, 0x00, 0x02, 0x0E, 0x77, 0xF7});
+    // §02 item 01: sub-version 0. Checksum: 14 + 52 + 02 + 01 + 00 = 69.
+    const Bytes subVersion = bytes({0xF0, 0x47, 0x5E, 0x00, 0x14, 0x52, 0x02, 0x01, 0x00, 0xF7});
+    const Bytes subVersionChecksummed = bytes({0xF0, 0x47, 0x5E, 0x00, 0x14, 0x52, 0x02, 0x01, 0x00, 0x69, 0xF7});
+
+    CHECK(decodeConfirmation(version, ChecksumMode::Unknown).data == bytes({0x02, 0x0E}));
+    CHECK(decodeConfirmation(versionChecksummed, ChecksumMode::Unknown).data == bytes({0x02, 0x0E}));
+    CHECK(decodeConfirmation(subVersion, ChecksumMode::Unknown).data == bytes({0x00}));
+    CHECK(decodeConfirmation(subVersionChecksummed, ChecksumMode::Unknown).data == bytes({0x00}));
+    // A wrong extra byte is still refused, as for the Echo.
+    const Bytes wrong = bytes({0xF0, 0x47, 0x5E, 0x00, 0x13, 0x52, 0x02, 0x00, 0x02, 0x0E, 0x76, 0xF7});
+    CHECK(rejectionOf(wrong, ChecksumMode::Unknown) == RejectReason::BadChecksum);
+}
+
+TEST_CASE("Given the mode unknown and a REPLY for an item that is a Set in the catalogue, When decoded, Then its length is unknown and it is rejected [RQ-AKM-041]",
+          "[akm][confirmation]")
+{
+    // §00 item 01 (Notification) is answered by DONE: a REPLY naming it has no length to read.
+    const Bytes stray = bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x52, 0x00, 0x01, 0x01, 0xF7});
+
+    CHECK(rejectionOf(stray, ChecksumMode::Unknown) == RejectReason::UnknownDataLength);
+}
+
 TEST_CASE("Given the Still Alive message F0 F7, When decoded in any checksum mode, Then it is not malformed [RQ-AKM-006]",
           "[akm][confirmation]")
 {

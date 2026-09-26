@@ -13,12 +13,16 @@ add_library(xs56k_akm STATIC
     src/CommandResult.cpp
     src/Confirmation.cpp
     src/DiagnosticSink.cpp
+    src/ItemCatalogue.cpp
+    src/ItemRequest.cpp
     src/LibraryInfo.cpp
     src/ManualExecutor.cpp
     src/ManualScheduler.cpp
     src/RealScheduler.cpp
     src/SamplerError.cpp
     src/Session.cpp
+    src/SysExConfig.cpp
+    src/SystemVersion.cpp
     src/ThreadExecutor.cpp
     src/TimerQueue.cpp)
 target_include_directories(xs56k_akm PUBLIC include)

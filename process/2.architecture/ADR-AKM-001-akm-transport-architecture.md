@@ -9,7 +9,8 @@ Amended in the session that drafted it, after an independent review by a second 
 DEC-AKM-005 and DEC-AKM-007 were reworked, DEC-AKM-003 and DEC-AKM-008 amended, DEC-AKM-009 and
 DEC-AKM-010 added. DEC-AKM-006 is unchanged, as confirmed by the owner. After the first contact with the
 S5000 (TASK-AKM-012, `OBSERVATIONS-RQ-AKM-017-first-contact.md`), DEC-AKM-006, DEC-AKM-007 and DEC-AKM-009 record what
-was observed.
+was observed. The session core (TASK-AKM-006) added DEC-AKM-011, and the item catalogue (TASK-AKM-008)
+DEC-AKM-012, which completes DEC-AKM-003 and amends DEC-AKM-009 where they say so.
 
 ## Context
 
@@ -75,10 +76,12 @@ and a check that the checked-in table matches its data file guards against drift
 validator (which refuses an out-of-range value without sending, RQ-AKM-001, RQ-AKM-014, RQ-AKM-015) and
 REPLY decoder serve every record; the typed per-section helpers are thin wrappers over it. The table is not
 generated from the TSV itself: its range columns are free text extracted from a PDF and the spec has known
-errata. This lot has 7 records (§00), none needing more than plain arguments; the schema must later express
+errata. This lot has 9 records — the 7 of §00 and the two version items of §02 (RQ-AKM-044) — none needing
+more than plain arguments; the schema must later express
 conditional arguments (§0A `&0A`), ranges on combined values, replies whose set count depends on the current
 keygroup or zone (RQ-AKM-031, RQ-AKM-036) and the alternative and blocked layouts (§2A, §38 to §3E). That
-extension is designed when FTR-AKM-002 is refined, with the first items that need it, not before.
+extension is designed when FTR-AKM-002 is refined, with the first items that need it, not before. The schema
+and the mechanism as built are DEC-AKM-012.
 
 ### DEC-AKM-004: One serial executor per session; callback completion; explicit close
 A session owns one serial executor: tasks run one at a time, in the order they were posted. Everything that
@@ -168,7 +171,8 @@ The codec takes a checksum mode of `On`, `Off` or `Unknown` (RQ-AKM-003, RQ-AKM-
 appended when the mode is `On` or `Unknown` (the sampler ignores it when checksums are off, p. 4) and omitted
 when it is `Off`; it is computed when the frame is sent, not when the command is submitted, since the mode may
 change in between. Receiving: `On` verifies and strips the last byte; `Off` treats every byte as data;
-`Unknown` decodes by the item's expected data length (OK and DONE none, ERROR two, Echo four) and accepts one
+`Unknown` decodes by the item's expected data length (OK and DONE none, ERROR two, a REPLY the length its item
+has in the catalogue — the Echo's four bytes, the version items' two and one; DEC-AKM-012) and accepts one
 extra trailing byte only if it is a valid checksum; a command whose REPLY has a variable length is refused
 (`Refused{ChecksumModeUnknown}`) until the mode is known. The mode is `Unknown` when a session starts, after a
 checksum-mode command that failed or timed out, and after a run of consecutive confirmations failing
@@ -216,6 +220,39 @@ and shared with the driver, so the session cannot join it; it stops the input po
 its last task cancels what is left and calls back on the session thread. It returns `false`, changing nothing,
 when called from the session thread — DEC-AKM-004 forbids closing from a completion, and a returned refusal is
 testable where an assertion would abort the test process.
+
+### DEC-AKM-012: The item catalogue — one data file, one generated table, read by the encoder, the decoder and the codec
+Decided in TASK-AKM-008, completing DEC-AKM-003.
+- **Data file.** `juce/akm/data/items.json`, JSON so that the generating script needs no dependency. It
+  declares the sections in scope, each `complete` or `partial` with the spec table it comes from, and one
+  record per item: a PascalCase `id`, section and item as two hexadecimal digits, a `name`, a `kind` (`set`,
+  answered by DONE, or `get`, answered by a REPLY), the `args` a command carries and the `reply` a Get returns
+  — each a name, a format (byte, word, dword or a signed one) and an inclusive range — and the requirement IDs
+  it serves, so that a search for an RQ finds its records. FTR-AKM-001 holds nine: the seven of §00 and the two
+  version items of §02. Strings, qwords, conditional arguments and the layouts of §2A and §38 to §3E are added
+  with the first item that needs one; the script refuses a record that uses a format it does not know.
+- **Generated table.** `juce/tools/generate_akm_items.py` writes
+  `juce/akm/include/akm/ItemTable.generated.hpp`: an `ItemId` enumeration, one enumerator per record in file
+  order, and a `constexpr` `ITEM_TABLE` of `ItemDescriptor` indexed by it. `--check` fails when the checked-in
+  table differs from what the data file generates. `--coverage` compares the data file with the spec's item
+  list (`sysex_spec.items.tsv`): every command row of a section declared complete must have a record, every
+  record a row, and the argument count and the ranges that can be read from the row's text must agree; what
+  cannot be compared (free text, a reply the spec lists in no separate row) is reported, never guessed. The
+  script runs by hand and as three ctest entries when Python 3 is found, and never during the build.
+- **Who reads the table.** The generic encoder and range validator (`makeRequest`) and REPLY decoder
+  (`decodeReply`) serve every record; the typed helpers — `discover`, `setChecksumMode`, the four toggles,
+  `echo`, `queryOsVersion` — are thin wrappers over them. So does the codec: in checksum mode `Unknown` it reads
+  the length of a REPLY from the catalogue (`ItemDescriptor::fixedReplyLength`), which replaces the Echo case
+  that DEC-AKM-009 had hard-coded. A REPLY naming an item the catalogue does not list, or a Set, still has no
+  length that can be read and is rejected. The session keeps refusing with `ChecksumModeUnknown` a command
+  whose reply the codec cannot delimit (`ExpectedReply`, DEC-AKM-011); no catalogued item needs it yet.
+- **Refusing without sending.** `makeRequest` checks the number of values and each value against its range;
+  when one fails it returns a request whose `refusal` is set (`WrongArgumentCount` or `ArgumentOutOfRange`)
+  and whose data is empty, rather than reporting the failure on the calling thread. The session sends
+  nothing and completes it as `Refused` like any other refusal: on its own thread, in its turn in the queue,
+  cancelling the rest of a sequence (DEC-AKM-004, DEC-AKM-010). The typed helpers take a `bool` for the
+  toggles, so a value other than 0 or 1 cannot be written through them; the refusal of `2` that RQ-AKM-014
+  asks for is proved on the generic path.
 
 ## Consequences
 
@@ -270,6 +307,11 @@ with its data).
   mode is unknown (DEC-AKM-009).
 - **A fixed delay between commands**: rejected — the spec's own recommendation is confirmation-based
   synchronisation (RQ-AKM-008).
+- **A list of fixed-length REPLYs kept in the codec** (the Echo, then each item as it appears): rejected — it
+  would be a second truth about item lengths beside the catalogue, and would drift (DEC-AKM-012).
+- **YAML or a hand-written table for the data file**: rejected for now — YAML needs a dependency for the
+  script, and a C++ table cannot be compared with the spec without a parser; JSON is read by the standard
+  library and diffs line by line.
 
 ## Diagram
 
@@ -279,7 +321,7 @@ flowchart TB
         CTRL["S5000 controller"]
     end
     subgraph akm["xs56k_akm (DEC-AKM-001)"]
-        ITEMS["Items: data file -> generated table + typed helpers\n(DEC-AKM-003)"]
+        ITEMS["Items: data file -> generated table + typed helpers\n(DEC-AKM-003, DEC-AKM-012)"]
         subgraph sess["Session: one per port (DEC-AKM-002, 004, 005, 007, 010, 011)"]
             EXE["Serial executor\nall state, sends, completions"]
         end
@@ -295,6 +337,7 @@ flowchart TB
         SIM["SimulatedSampler = model of the spec\n(tests, DEC-AKM-008)"]
     end
     CTRL --> ITEMS --> EXE --> COD
+    COD -. "reads REPLY lengths (DEC-AKM-012)" .-> ITEMS
     SCH -. "posts timeout tasks" .-> EXE
     BE -. "input callback posts, never handles" .-> EXE
     EXE --> DIAG

@@ -707,6 +707,47 @@ TEST_CASE("Given a command carrying a byte above 7F, When it is submitted, Then 
     CHECK(harness.sentCount() == 0);
 }
 
+TEST_CASE("Given a request that was refused before it reached the session, When it is submitted, Then it completes as refused with no frame sent and not from the submitting thread [RQ-AKM-001, RQ-AKM-014, ADR-AKM-001 (DEC-AKM-012)]",
+          "[akm][session]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver, fastTiming()};
+
+    CommandRequest request;
+    request.refusal = RefusalReason::ArgumentOutOfRange;
+    harness.submit(std::move(request));
+    CHECK(harness.recorder().count() == 0);
+
+    harness.settle();
+    const std::vector<CommandResult> results = harness.recorder().results();
+    REQUIRE(results.size() == 1);
+    REQUIRE(is<Refused>(results.front()));
+    CHECK(std::get<Refused>(results.front()).reason == RefusalReason::ArgumentOutOfRange);
+    CHECK(harness.sentCount() == 0);
+}
+
+TEST_CASE("Given a sequence whose second command was refused before it reached the session, When it runs, Then the first is sent, the second is refused, the third is cancelled and the failure index is 1 [RQ-AKM-043, ADR-AKM-001 (DEC-AKM-010, DEC-AKM-012)]",
+          "[akm][session]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver, fastTiming()};
+
+    CommandRequest refused;
+    refused.refusal = RefusalReason::WrongArgumentCount;
+    const auto outcome = harness.submitSequenceAndWait(
+        {CommandRequest{toggle(akm::test::ITEM_AUTO_SCREEN_UPDATE, akm::test::TOGGLE_ON), {}}, refused,
+         CommandRequest{toggle(akm::test::ITEM_NOTIFICATION, akm::test::TOGGLE_ON), {}}});
+
+    REQUIRE(outcome.has_value());
+    REQUIRE(outcome->results.size() == 3);
+    CHECK(is<Done>(outcome->results[0]));
+    REQUIRE(is<Refused>(outcome->results[1]));
+    CHECK(std::get<Refused>(outcome->results[1]).reason == RefusalReason::WrongArgumentCount);
+    CHECK(is<Cancelled>(outcome->results[2]));
+    CHECK(outcome->failureIndex == 1);
+    CHECK(harness.sentCount() == 1);
+}
+
 TEST_CASE("Given a session with no target bound, When a command addressed to the target is submitted, Then it is refused, while a broadcast command still goes out [RQ-AKM-007, RQ-AKM-039]",
           "[akm][session]")
 {

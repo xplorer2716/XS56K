@@ -179,6 +179,11 @@ namespace akm
         bool startCommand(const std::shared_ptr<Unit>& unit)
         {
             const CommandRequest request = unit->requests[unit->next];
+            if (request.refusal)
+            {
+                recordResult(unit, Refused{*request.refusal});
+                return false;
+            }
             const bool broadcast = request.options.addressing == Addressing::Broadcast;
             if (!broadcast && target.load() == NO_TARGET)
             {

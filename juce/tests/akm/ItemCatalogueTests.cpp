@@ -1,0 +1,327 @@
+/*
+XS56K - a realtime editor for the AKAI S5000/S6000 samplers
+Copyright (C) 2026 https://github.com/xplorer2716
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+// The item catalogue (the generated table and its lookup) and what the generic encoder, range validator
+// and REPLY decoder do with a record. The synthetic descriptors cover the value formats that no record of
+// section 00 or of the two version items uses yet.
+// [TASK-AKM-008, RQ-AKM-001, RQ-AKM-002, RQ-AKM-014, RQ-AKM-015, RQ-AKM-041, RQ-AKM-044,
+// ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+#include <catch2/catch_test_macros.hpp>
+
+#include <array>
+#include <cstdint>
+#include <optional>
+#include <span>
+#include <utility>
+#include <vector>
+
+#include "TestBytes.hpp"
+#include "akm/CommandResult.hpp"
+#include "akm/ItemCatalogue.hpp"
+#include "akm/ItemRequest.hpp"
+
+using akm::ExpectedReply;
+using akm::ItemDescriptor;
+using akm::ItemId;
+using akm::ItemKind;
+using akm::RefusalReason;
+using akm::ValueFormat;
+using akm::ValueSpec;
+using akm::test::Bytes;
+using akm::test::bytes;
+
+namespace
+{
+    // The catalogue as the spec's tables 5 to 7 give it: what each enumerator must resolve to.
+    struct Expected
+    {
+        ItemId id;
+        std::uint8_t section;
+        std::uint8_t item;
+        ItemKind kind;
+        std::size_t argumentCount;
+        std::optional<std::size_t> replyLength;
+    };
+
+    const std::array<Expected, 9> CATALOGUE{{
+        {ItemId::SysExQuery, 0x00, 0x00, ItemKind::Set, 0, std::nullopt},
+        {ItemId::SysExNotification, 0x00, 0x01, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SysExSyncLcd, 0x00, 0x03, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SysExChecksum, 0x00, 0x04, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SysExAutoScreenUpdate, 0x00, 0x05, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SysExEcho, 0x00, 0x06, ItemKind::Get, 4, 4},
+        {ItemId::SysExStillAlive, 0x00, 0x07, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SystemOsVersion, 0x02, 0x00, ItemKind::Get, 0, 2},
+        {ItemId::SystemOsSubVersion, 0x02, 0x01, ItemKind::Get, 0, 1},
+    }};
+
+    constexpr std::size_t SYSEX_CONFIG_ITEM_COUNT = 7;
+    constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
+
+    // One argument of every numeric format, with the ranges the formats allow.
+    constexpr std::array<ValueSpec, 6> EVERY_FORMAT{{
+        {"byte", ValueFormat::Byte, 0, 127},
+        {"word", ValueFormat::Word, 0, 16383},
+        {"dword", ValueFormat::Dword, 0, 268435455},
+        {"signedByte", ValueFormat::SignedByte, -127, 127},
+        {"signedWord", ValueFormat::SignedWord, -16383, 16383},
+        {"signedDword", ValueFormat::SignedDword, -268435455, 268435455},
+    }};
+    constexpr ItemDescriptor EVERY_FORMAT_ITEM{"Every format", 0x10, 0x22, ItemKind::Get, EVERY_FORMAT, EVERY_FORMAT};
+
+    // An argument whose range is narrower than its format, for the range validator.
+    constexpr std::array<ValueSpec, 1> NARROW{{{"narrow", ValueFormat::Word, 10, 20}}};
+    constexpr ItemDescriptor NARROW_ITEM{"Narrow", 0x10, 0x23, ItemKind::Set, NARROW, {}};
+
+    using Values = std::vector<std::int64_t>;
+}
+
+TEST_CASE("Given the catalogue, When each enumerator is resolved, Then it gives the record of the spec with its section, item, kind and argument count [RQ-AKM-001, RQ-AKM-044]",
+          "[akm][catalogue]")
+{
+    for (const Expected& expected : CATALOGUE)
+    {
+        const ItemDescriptor& record = akm::descriptor(expected.id);
+        CHECK(record.section == expected.section);
+        CHECK(record.item == expected.item);
+        CHECK(record.kind == expected.kind);
+        CHECK(record.args.size() == expected.argumentCount);
+        CHECK_FALSE(record.name.empty());
+    }
+}
+
+TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven items of the spec and no other record shares a section and item [RQ-AKM-012 to RQ-AKM-015]",
+          "[akm][catalogue]")
+{
+    std::size_t sysexConfig = 0;
+    for (const ItemDescriptor& record : akm::ITEM_TABLE)
+    {
+        if (record.section == SECTION_SYSEX_CONFIG)
+            ++sysexConfig;
+        CHECK(akm::findItem(record.section, record.item) == &record);
+    }
+
+    CHECK(sysexConfig == SYSEX_CONFIG_ITEM_COUNT);
+    CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size());
+}
+
+TEST_CASE("Given a section and an item, When looked up, Then a record is found and an item of the spec that is not catalogued is not [RQ-AKM-041]",
+          "[akm][catalogue]")
+{
+    for (const Expected& expected : CATALOGUE)
+        CHECK(akm::findItem(expected.section, expected.item) == &akm::descriptor(expected.id));
+
+    // Section 00 has no item 02 (the spec skips it); section 0A is not catalogued yet.
+    CHECK(akm::findItem(0x00, 0x02) == nullptr);
+    CHECK(akm::findItem(0x0A, 0x05) == nullptr);
+    // The same item code in another section is another item.
+    CHECK(akm::findItem(0x02, 0x06) == nullptr);
+}
+
+TEST_CASE("Given each record, When the length of its REPLY is asked, Then a Set has none and a Get has the total width of its values [RQ-AKM-041]",
+          "[akm][catalogue]")
+{
+    for (const Expected& expected : CATALOGUE)
+        CHECK(akm::descriptor(expected.id).fixedReplyLength() == expected.replyLength);
+}
+
+TEST_CASE("Given each value format, When its width is asked, Then it is the number of data bytes the spec gives it [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    CHECK(akm::valueWidth(ValueFormat::Byte) == 1);
+    CHECK(akm::valueWidth(ValueFormat::Word) == 2);
+    CHECK(akm::valueWidth(ValueFormat::Dword) == 4);
+    // A sign byte, then the magnitude in a byte, a word or a dword.
+    CHECK(akm::valueWidth(ValueFormat::SignedByte) == 2);
+    CHECK(akm::valueWidth(ValueFormat::SignedWord) == 3);
+    CHECK(akm::valueWidth(ValueFormat::SignedDword) == 5);
+    CHECK(EVERY_FORMAT_ITEM.fixedReplyLength() == 1 + 2 + 4 + 2 + 3 + 5);
+}
+
+TEST_CASE("Given the values 01 23 45 67, When the Echo is encoded, Then the command carries section 00, item 06 and the four bytes [RQ-AKM-015]",
+          "[akm][catalogue]")
+{
+    const akm::CommandRequest request = akm::makeRequest(ItemId::SysExEcho, {0x01, 0x23, 0x45, 0x67});
+
+    CHECK_FALSE(request.refusal.has_value());
+    CHECK(request.command.section == 0x00);
+    CHECK(request.command.item == 0x06);
+    CHECK(request.command.data == bytes({0x01, 0x23, 0x45, 0x67}));
+    CHECK(request.options.expectedReply == ExpectedReply::Delimited);
+}
+
+TEST_CASE("Given each toggle and each value 0 and 1, When encoded, Then the command carries section 00, that item code and that data byte [RQ-AKM-014]",
+          "[akm][catalogue]")
+{
+    const std::array<std::pair<ItemId, std::uint8_t>, 5> toggles{{{ItemId::SysExNotification, 0x01},
+                                                                  {ItemId::SysExSyncLcd, 0x03},
+                                                                  {ItemId::SysExChecksum, 0x04},
+                                                                  {ItemId::SysExAutoScreenUpdate, 0x05},
+                                                                  {ItemId::SysExStillAlive, 0x07}}};
+    for (const auto& [id, itemCode] : toggles)
+    {
+        for (const std::int64_t value : {0, 1})
+        {
+            const akm::CommandRequest request = akm::makeRequest(id, {value});
+
+            CHECK_FALSE(request.refusal.has_value());
+            CHECK(request.command.section == 0x00);
+            CHECK(request.command.item == itemCode);
+            CHECK(request.command.data == bytes({static_cast<unsigned int>(value)}));
+        }
+    }
+}
+
+TEST_CASE("Given the value 2 for each toggle, When encoded, Then it is refused as out of range and no data is produced [RQ-AKM-014]",
+          "[akm][catalogue]")
+{
+    for (const ItemId id : {ItemId::SysExNotification, ItemId::SysExSyncLcd, ItemId::SysExChecksum,
+                            ItemId::SysExAutoScreenUpdate, ItemId::SysExStillAlive})
+    {
+        const akm::CommandRequest request = akm::makeRequest(id, {2});
+
+        REQUIRE(request.refusal.has_value());
+        CHECK(*request.refusal == RefusalReason::ArgumentOutOfRange);
+        CHECK(request.command.data.empty());
+    }
+}
+
+TEST_CASE("Given a byte 80 or a negative value for the Echo, When encoded, Then it is refused as out of range [RQ-AKM-015]",
+          "[akm][catalogue]")
+{
+    for (const Values& values : {Values{0x01, 0x23, 0x45, 0x80}, Values{-1, 0, 0, 0}, Values{0, 0, 0, 1000}})
+    {
+        const akm::CommandRequest request = akm::makeRequest(ItemId::SysExEcho, values);
+
+        REQUIRE(request.refusal.has_value());
+        CHECK(*request.refusal == RefusalReason::ArgumentOutOfRange);
+    }
+}
+
+TEST_CASE("Given too few or too many values, When encoded, Then the command is refused for its number of arguments [RQ-AKM-001, RQ-AKM-015]",
+          "[akm][catalogue]")
+{
+    const std::array<std::pair<ItemId, Values>, 4> wrong{{{ItemId::SysExEcho, {0x01, 0x23, 0x45}},
+                                                          {ItemId::SysExEcho, {0x01, 0x23, 0x45, 0x67, 0x00}},
+                                                          {ItemId::SysExQuery, {0}},
+                                                          {ItemId::SysExNotification, {}}}};
+    for (const auto& [id, values] : wrong)
+    {
+        const akm::CommandRequest request = akm::makeRequest(id, values);
+
+        REQUIRE(request.refusal.has_value());
+        CHECK(*request.refusal == RefusalReason::WrongArgumentCount);
+    }
+}
+
+TEST_CASE("Given an item without arguments, When encoded, Then it carries no data [RQ-AKM-012, RQ-AKM-044]",
+          "[akm][catalogue]")
+{
+    for (const ItemId id : {ItemId::SysExQuery, ItemId::SystemOsVersion, ItemId::SystemOsSubVersion})
+    {
+        const akm::CommandRequest request = akm::makeRequest(id, std::span<const std::int64_t>{});
+
+        CHECK_FALSE(request.refusal.has_value());
+        CHECK(request.command.data.empty());
+    }
+}
+
+TEST_CASE("Given options for the command, When it is encoded, Then they are kept on the request [RQ-AKM-012, RQ-AKM-013]",
+          "[akm][catalogue]")
+{
+    akm::CommandOptions options;
+    options.addressing = akm::Addressing::Broadcast;
+    options.checksumModeAfterDone = true;
+
+    const akm::CommandRequest request = akm::makeRequest(ItemId::SysExChecksum, {1}, options);
+
+    CHECK(request.options.addressing == akm::Addressing::Broadcast);
+    CHECK(request.options.checksumModeAfterDone == true);
+}
+
+TEST_CASE("Given a value of each numeric format, When encoded, Then the bytes are those the spec gives [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    const std::array<std::int64_t, 6> values{{5, 385, 268435455, -5, -37, 1}};
+
+    const akm::CommandRequest request = akm::makeRequest(EVERY_FORMAT_ITEM, values);
+
+    CHECK_FALSE(request.refusal.has_value());
+    // byte 5 | word 385 = 03 01 | dword 128^4-1 | signed byte -5 = 01 05 | signed word -37 = 01 00 25 | signed dword +1.
+    CHECK(request.command.data == bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00,
+                                         0x00, 0x00, 0x00, 0x01}));
+}
+
+TEST_CASE("Given a value outside the range of the record but inside its format, When encoded, Then it is refused, and the bounds themselves are accepted [RQ-AKM-001]",
+          "[akm][catalogue]")
+{
+    for (const std::int64_t value : {9, 21, 16383})
+    {
+        const std::array<std::int64_t, 1> values{{value}};
+        const akm::CommandRequest request = akm::makeRequest(NARROW_ITEM, values);
+
+        REQUIRE(request.refusal.has_value());
+        CHECK(*request.refusal == RefusalReason::ArgumentOutOfRange);
+    }
+    for (const std::int64_t value : {10, 15, 20})
+    {
+        const std::array<std::int64_t, 1> values{{value}};
+        CHECK_FALSE(akm::makeRequest(NARROW_ITEM, values).refusal.has_value());
+    }
+}
+
+TEST_CASE("Given the data of an OS version REPLY, When decoded, Then the major and minor numbers come back [RQ-AKM-044]",
+          "[akm][catalogue]")
+{
+    const auto version = akm::decodeReply(ItemId::SystemOsVersion, bytes({0x02, 0x0E}));
+    const auto subVersion = akm::decodeReply(ItemId::SystemOsSubVersion, bytes({0x00}));
+
+    REQUIRE(version.has_value());
+    CHECK(*version == Values{2, 14});
+    REQUIRE(subVersion.has_value());
+    CHECK(*subVersion == Values{0});
+}
+
+TEST_CASE("Given the data of an Echo REPLY, When decoded, Then the four bytes come back [RQ-AKM-015]", "[akm][catalogue]")
+{
+    const auto echoed = akm::decodeReply(ItemId::SysExEcho, bytes({0x01, 0x23, 0x45, 0x66}));
+
+    REQUIRE(echoed.has_value());
+    CHECK(*echoed == Values{0x01, 0x23, 0x45, 0x66});
+}
+
+TEST_CASE("Given reply data that is too short, too long or not made of data bytes, When decoded, Then nothing is returned [RQ-AKM-044]",
+          "[akm][catalogue]")
+{
+    CHECK_FALSE(akm::decodeReply(ItemId::SystemOsVersion, bytes({0x02})).has_value());
+    CHECK_FALSE(akm::decodeReply(ItemId::SystemOsVersion, bytes({0x02, 0x0E, 0x5F})).has_value());
+    CHECK_FALSE(akm::decodeReply(ItemId::SystemOsVersion, bytes({0x02, 0x8E})).has_value());
+    CHECK_FALSE(akm::decodeReply(ItemId::SystemOsVersion, Bytes{}).has_value());
+}
+
+TEST_CASE("Given the data of a REPLY of every numeric format, When decoded, Then the values of the spec's examples come back [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    const Bytes data = bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00, 0x00, 0x00,
+                              0x00, 0x01});
+
+    const auto values = akm::decodeReply(EVERY_FORMAT_ITEM, data);
+
+    REQUIRE(values.has_value());
+    CHECK(*values == Values{5, 385, 268435455, -5, -37, 1});
+}

@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 
 #include "akm/Command.hpp"
+#include "akm/CommandResult.hpp"
 #include "akm/Confirmation.hpp"
 #include "akm/Scheduler.hpp"
 
@@ -80,10 +81,15 @@ namespace akm
         ConfirmationObserver onConfirmation{};
     };
 
-    /// One command and everything the session needs to run it. [ADR-AKM-001 (DEC-AKM-011)]
+    /// One command and everything the session needs to run it. [ADR-AKM-001 (DEC-AKM-011, DEC-AKM-012)]
     struct CommandRequest
     {
         Command command{};
         CommandOptions options{};
+        /// Set by whoever built the request when it cannot be sent — the catalogue found an argument out of
+        /// range. The session then sends nothing and completes it as `Refused` like any other refusal:
+        /// on its own thread, in its turn in the queue, and cancelling the rest of its sequence.
+        /// [RQ-AKM-001, RQ-AKM-014, RQ-AKM-015, RQ-AKM-043]
+        std::optional<RefusalReason> refusal{};
     };
 }

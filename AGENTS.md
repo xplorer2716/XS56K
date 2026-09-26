@@ -53,6 +53,12 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   shows the MIDI ports; `xs56k_akm_probe --in "<port the sampler sends on>" --out "<port it receives on>"`
   sends fifteen SysEx frames one at a time and writes `akm-probe-<UTC date>.log`. It switches the
   sampler's checksum and Still Alive settings on and off and ends with both off. [RQ-AKM-017, RQ-AKM-044, TASK-AKM-012]
+- **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`
+  (`python` on Windows) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
+  table is out of date, `--coverage` compares the data file with the spec's item list
+  (`documents/_index/sysex_spec.items.tsv`). Never edit the generated header by hand, and no script runs during the
+  build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
+  ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

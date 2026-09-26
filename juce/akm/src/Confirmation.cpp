@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <cstddef>
 
+#include "akm/ItemCatalogue.hpp"
 #include "akm/Protocol.hpp"
 #include "common/midi/MidiMessage.hpp"
 
@@ -37,10 +38,6 @@ namespace akm
         // Bytes a checksum-mode-Unknown decoder expects after the item, by kind of confirmation (DEC-AKM-009).
         constexpr std::size_t NO_DATA_LENGTH = 0;
         constexpr std::size_t ERROR_DATA_LENGTH = 2;
-        constexpr std::size_t ECHO_DATA_LENGTH = 4;
-        // The Echo Message, §00 item 06, is the only REPLY of fixed length that a session in mode Unknown sends.
-        constexpr std::uint8_t ECHO_SECTION = 0x00;
-        constexpr std::uint8_t ECHO_ITEM = 0x06;
 
         constexpr std::string_view UNKNOWN_REASON_TEXT = "unknown rejection reason";
 
@@ -73,9 +70,14 @@ namespace akm
                 case ReplyId::Error:
                     return ERROR_DATA_LENGTH;
                 case ReplyId::Reply:
-                    if (section == ECHO_SECTION && item == ECHO_ITEM)
-                        return ECHO_DATA_LENGTH;
-                    return std::nullopt;
+                {
+                    // The catalogue gives the length of every REPLY it lists (ADR-AKM-001, DEC-AKM-012); the
+                    // REPLY of an item it does not list, or of a Set, has no length that can be read.
+                    const ItemDescriptor* record = findItem(section, item);
+                    if (record == nullptr)
+                        return std::nullopt;
+                    return record->fixedReplyLength();
+                }
             }
             return std::nullopt;
         }

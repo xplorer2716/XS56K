@@ -710,3 +710,23 @@ TEST_CASE("Given an item of section 02 other than the version ones, When it is s
     REQUIRE(messages.size() == 2);
     CHECK(akm::errorNumber(confirmationAt(messages, 1)) == 0x00);
 }
+
+TEST_CASE("Given a sampler told to refuse an item, When the item is sent, Then it answers OK then that ERROR and does not execute it, while other items are unaffected [RQ-AKM-016, RQ-AKM-044]",
+          "[akm][simulated]")
+{
+    constexpr unsigned int OUT_OF_RANGE = 0x02;
+    Rig rig;
+    rig.sampler.setBehaviour(SamplerBehaviour{.itemErrors = {{0x00, 0x05, OUT_OF_RANGE}}});
+
+    rig.host.send(sysexConfig(0x00, 0x05, {0x01}));  // &05: auto screen update ON, refused
+    rig.host.send(sysexConfig(0x00, 0x03, {0x00}));  // &03: sync LCD OFF, not refused
+
+    const auto messages = rig.host.decoded(ChecksumMode::Off);
+    REQUIRE(messages.size() == 4);
+    CHECK(confirmationAt(messages, 0).replyId == akm::ReplyId::Ok);
+    CHECK(confirmationAt(messages, 1).replyId == akm::ReplyId::Error);
+    CHECK(akm::errorNumber(confirmationAt(messages, 1)) == OUT_OF_RANGE);
+    CHECK(confirmationAt(messages, 3).replyId == akm::ReplyId::Done);
+    CHECK_FALSE(rig.sampler.settings().autoScreenUpdate);
+    CHECK_FALSE(rig.sampler.settings().syncLcd);
+}

@@ -26,11 +26,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
-    /// Why the session did not send a command at all. [RQ-AKM-001, RQ-AKM-041, RQ-AKM-042, RQ-AKM-043,
-    /// ADR-AKM-001 (DEC-AKM-004)]
+    /// Why the session did not send a command at all. [RQ-AKM-001, RQ-AKM-014, RQ-AKM-015, RQ-AKM-041,
+    /// RQ-AKM-042, RQ-AKM-043, ADR-AKM-001 (DEC-AKM-004, DEC-AKM-012)]
     enum class RefusalReason
     {
         NotEncodable,         ///< the codec could not build a legal frame from it (RQ-AKM-001)
+        WrongArgumentCount,   ///< the item takes another number of arguments (RQ-AKM-001)
+        ArgumentOutOfRange,   ///< an argument is outside the range the catalogue gives it (RQ-AKM-014, RQ-AKM-015)
         ChecksumModeUnknown,  ///< its REPLY cannot be delimited while the mode is unknown (RQ-AKM-041)
         NoTargetBound,        ///< it is addressed to the bound target and none is bound yet (RQ-AKM-039)
         SessionClosed,        ///< it was submitted after close() (RQ-AKM-042)

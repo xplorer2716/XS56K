@@ -35,6 +35,10 @@ namespace akm
         {
             case RefusalReason::NotEncodable:
                 return "not encodable: the command cannot form a legal frame";
+            case RefusalReason::WrongArgumentCount:
+                return "wrong number of arguments for this item";
+            case RefusalReason::ArgumentOutOfRange:
+                return "argument out of range for this item";
             case RefusalReason::ChecksumModeUnknown:
                 return "checksum mode unknown: this command's reply could not be delimited";
             case RefusalReason::NoTargetBound:

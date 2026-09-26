@@ -318,7 +318,14 @@ namespace akm::harness
         if (before.notification)
             confirmations.push_back(confirmation(REPLY_OK, {}, before.checksum));
 
-        const Outcome outcome = execute(section, item, data, _settings, _config.osVersion);
+        // An item the sampler was told to refuse fails with its ERROR and does not run.
+        const auto refused = std::find_if(_behaviour.itemErrors.begin(), _behaviour.itemErrors.end(),
+                                          [section, item](const ItemError& candidate) {
+                                              return candidate.section == section && candidate.item == item;
+                                          });
+        const Outcome outcome = refused != _behaviour.itemErrors.end()
+                                    ? failure(refused->number)
+                                    : execute(section, item, data, _settings, _config.osVersion);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

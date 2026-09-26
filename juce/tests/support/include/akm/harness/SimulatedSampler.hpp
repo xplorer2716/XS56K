@@ -69,6 +69,16 @@ namespace akm::harness
         Echoed,
     };
 
+    /// An item the sampler refuses: it answers OK, then an ERROR with this number, and does not execute the
+    /// command. What an older OS does with an item it does not have (ERROR 0), or a busy one with another.
+    /// [RQ-AKM-016, RQ-AKM-044]
+    struct ItemError
+    {
+        std::uint8_t section = 0;
+        std::uint8_t item = 0;
+        std::uint16_t number = 0;
+    };
+
     /// What a real bus does badly, switchable per sampler.
     struct SamplerBehaviour
     {
@@ -83,6 +93,8 @@ namespace akm::harness
         std::vector<std::vector<std::uint8_t>> junkBeforeReply{};
         /// After a REPLY, an ERROR with this number (spec p. 6: possible but unlikely).
         std::optional<std::uint16_t> errorAfterReply{};
+        /// Items answered with an ERROR instead of being executed.
+        std::vector<ItemError> itemErrors{};
         /// While Still Alive is on and a reply is delayed, an `F0 F7` this often (spec: about every second).
         Scheduler::Clock::duration stillAliveInterval = std::chrono::seconds(1);
         ConfirmationDeviceId confirmationDeviceId = ConfirmationDeviceId::Own;

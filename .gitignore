@@ -73,3 +73,5 @@ vcpkg_installed/
 Testing/
 .cache/
 .grepai/
+# Python bytecode of the tools' unit tests (juce/tests/tools)
+__pycache__/
