@@ -80,9 +80,9 @@ namespace akm::harness
         int timesEachReply = 1;
         /// Raw messages sent before the confirmations of every command: foreign SysEx, malformed frames,
         /// `F0 F7`.
-        std::vector<std::vector<std::uint8_t>> junkBeforeReply;
+        std::vector<std::vector<std::uint8_t>> junkBeforeReply{};
         /// After a REPLY, an ERROR with this number (spec p. 6: possible but unlikely).
-        std::optional<std::uint16_t> errorAfterReply;
+        std::optional<std::uint16_t> errorAfterReply{};
         /// While Still Alive is on and a reply is delayed, an `F0 F7` this often (spec: about every second).
         Scheduler::Clock::duration stillAliveInterval = std::chrono::seconds(1);
         ConfirmationDeviceId confirmationDeviceId = ConfirmationDeviceId::Own;
