@@ -13,6 +13,10 @@ was observed. The session core (TASK-AKM-006) added DEC-AKM-011, and the item ca
 DEC-AKM-012, which completes DEC-AKM-003 and amends DEC-AKM-009 where they say so. The session smoke test on the
 real sampler (TASK-AKM-013, `OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`) confirmed DEC-AKM-007 and DEC-AKM-009
 through the session itself and changed none of the decisions; it is noted in DEC-AKM-006, DEC-AKM-007 and DEC-AKM-009.
+The session opening (TASK-AKM-009) and closing (TASK-AKM-011) are recorded "as built" in DEC-AKM-007 and DEC-AKM-004, and
+the real-sampler suite (TASK-AKM-010) in DEC-AKM-008; the suite's run on the S5000 is the owner's, and the provisional values of
+DEC-AKM-006 and DEC-AKM-007 are set from its log. The Diagram section holds the global architecture, the class diagrams,
+the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
 ## Context
 
@@ -217,6 +221,31 @@ the session: the log holds what is on the wire, in the format of the first-conta
 without the session knowing (TASK-AKM-013, `runSessionSmokeTest`, run against the real sampler by
 `xs56k_akm_probe --session`).
 
+As built (TASK-AKM-010). The real-sampler suite is a function of the test-support library, like the first-contact probe
+and the smoke test, not a second Catch2 executable: `akm::harness::runRealSamplerSuite(backend, driver, options, log)`.
+The owner runs it against the S5000 with `xs56k_akm_probe --suite` (opt-in, ports and DeviceID on the command line), and
+`ctest` runs the same function against the simulated sampler (tag `[suite]`), on manual time and, once, on the real
+scheduler with a sampler answering from its own thread — so that a failure on the hardware is an observation about the
+sampler, not a defect of the suite. It is a list of checks, each on a session of its own opened with `Session::open` and
+closed with `Session::close`, the first users of the real opening and closing on hardware: open and close; Echo returns
+the bytes sent; 50 timed Echo round trips (minimum, median, 95th percentile and maximum, and a check that the maximum is
+shorter than the command timeout in use); the OS version; checksums on and off through the session; a close that puts
+back every setting after all of them were switched; and a check that fails half way. RQ-AKM-018 is met by
+construction and proved by that last check: every session of a check is held by a guard whose destructor closes
+it, so a check that throws (which is what a failed assertion does) leaves the sampler as the close leaves it, and
+the check throws on purpose with the checksums on and asserts that the guard's close sent checksums off and got its
+DONE. Two more checks are opt-in because they need the owner or reach outside §00 and §02: `--power-cycle` asks the owner
+to switch the sampler off and on while a session with checksums on and Notification off is open, then Echoes until the
+sampler answers — which shows whether the settings survive a power cycle and, when they do not, exercises on the real
+sampler the recovery of DEC-AKM-009 (three confirmations that fail verification make the mode unknown); and
+`--slow-operation` sends one command outside §00 and §02, "update the list of disks" (§10/&01), with Still Alive on, to see
+whether `F0 F7` reaches the host and whether the session waits. That command reads and changes nothing that is stored,
+and it is the only one; every other frame of the suite is a §00 item or one of the two version items of §02, which a test
+asserts on the simulated sampler. A check that finds no sampler at the target ends the suite with nothing more sent. The
+log is the one of the smoke test (buffered wire log, written between steps, an observations block) with one line per
+check. The optional sample name of RQ-AKM-038 belongs to the tests of FTR-AKM-004, the first to create anything on the
+sampler; this suite takes none, since it changes only §00 settings.
+
 ### DEC-AKM-009: The checksum mode is a tri-state — on, off or unknown
 The codec takes a checksum mode of `On`, `Off` or `Unknown` (RQ-AKM-003, RQ-AKM-041). Sending: a checksum is
 appended when the mode is `On` or `Unknown` (the sampler ignores it when checksums are off, p. 4) and omitted
@@ -271,8 +300,9 @@ the fields are:
   from the observer instead of a seventh result kind carrying a list.
 
 `Session::close(onClosed)` is asynchronous for the same reason the completions are: the executor is injected
-and shared with the driver, so the session cannot join it; it stops the input port on the calling thread, then
-its last task cancels what is left and calls back on the session thread. It returns `false`, changing nothing,
+and shared with the driver, so the session cannot join it; its tasks cancel what is left, put the settings back
+and stop the input port (DEC-AKM-004, as built in TASK-AKM-011), and the last one calls back on the session
+thread. It returns `false`, changing nothing,
 when called from the session thread — DEC-AKM-004 forbids closing from a completion, and a returned refusal is
 testable where an assertion would abort the test process.
 
@@ -328,7 +358,9 @@ on every confirmation carries a checksum, the Reply ID included; the OK of the c
 the old mode and its DONE the new one. Settled by the session smoke test (TASK-AKM-013,
 `OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): the session core ran 75 commands on the JUCE backend and its
 own threads without one message rejected, lost or unmatched, JUCE delivered every SysEx whole, and Sync LCD and Auto
-screen update are accepted by OS 2.14. Still open, for TASK-AKM-010: whether the JUCE backend delivers the
+screen update are accepted by OS 2.14. TASK-AKM-010 built the suite that observes what follows
+(`xs56k_akm_probe --suite`, with `--power-cycle` and `--slow-operation`); its run on the S5000 is the owner's, and this list
+is updated from its log. Still open until then: whether the JUCE backend delivers the
 two-byte `F0 F7` of Still Alive on Windows, whatever the driver does (the code classifies it as SysEx); how a
 sampler on an older OS answers `&03`, `&05` and `&07`; latencies over repeated runs, measured without the log in the
 way; whether §00 settings survive a power cycle; how long
@@ -404,3 +436,765 @@ flowchart TB
     BE --- JUCEB
     BE --- SIM
 ```
+
+The diagram above is the decision in one picture. The sections below are the same architecture, as built up to TASK-AKM-011, seen four
+ways: the layers and what depends on what, the threads, the classes and value types, and the key use cases in
+sequence; the validation set-up follows the layers. A domain dictionary ends the document. Names are the names of the
+code (`juce/akm/include/akm/`, `juce/tests/support/`).
+
+### Global architecture
+
+**Layers and dependencies.** Arrows read "uses". Nothing in `xs56k_akm` includes a JUCE header (RQ-AKM-019, DEC-AKM-001),
+and the codec at the bottom has no I/O, no clock and no state (DEC-AKM-002, DEC-AKM-009).
+
+```mermaid
+flowchart TB
+    subgraph callers["Callers (any thread)"]
+        APP["Application / Phase B controller<br/>(FTR-AKM-002 to 004, later)"]
+        PROBE["xs56k_akm_probe<br/>first contact, smoke test, suite<br/>(the owner, real S5000)"]
+        TESTS["xs56k_akm_tests<br/>(ctest, CI)"]
+    end
+    subgraph akm["xs56k_akm, namespace akm (DEC-AKM-001)"]
+        subgraph items["Items layer (DEC-AKM-003, DEC-AKM-012)"]
+            PRIM["Typed primitives<br/>discover, setChecksumMode, setNotification, setSyncLcd,<br/>setAutoScreenUpdate, setStillAlive, echo, queryOsVersion"]
+            REQ["makeRequest and decodeReply<br/>generic encoder, range validator, REPLY decoder"]
+            CAT["ItemCatalogue<br/>ItemTable.generated.hpp"]
+            DATA[("items.json<br/>generate_akm_items.py")]
+        end
+        subgraph sesslayer["Session layer (DEC-AKM-002, 004, 005, 007, 010, 011)"]
+            SES["Session<br/>open, submit, submitSequence, close"]
+            EXE["Executor<br/>ThreadExecutor or ManualExecutor"]
+            SCH["Scheduler<br/>RealScheduler or ManualScheduler"]
+            DIAG["DiagnosticSink"]
+        end
+        subgraph codec["Codec layer, pure functions (DEC-AKM-009)"]
+            ENC["encodeCommand<br/>Command to frame"]
+            DEC["decodeMessage<br/>frame to Confirmation, StillAliveMessage or Rejected"]
+            CHK["checksum and ChecksumMode<br/>On, Off, Unknown"]
+        end
+    end
+    subgraph midi["xs56k_midi (RQ-MID)"]
+        BE["MidiBackend<br/>MidiInputPort, MidiOutputPort"]
+    end
+    subgraph impls["Backends"]
+        JUCEB["JuceMidiBackend"]
+        MOCK["MockMidiBackend"]
+        SIMB["SimulatedMidiBackend + SimulatedSampler<br/>(tests, DEC-AKM-008)"]
+    end
+    S5000[("AKAI S5000 / S6000<br/>ports A and B")]
+    APP --> PRIM
+    PROBE --> PRIM
+    TESTS --> PRIM
+    PRIM --> REQ --> CAT
+    DATA -. "generates" .-> CAT
+    PRIM --> SES
+    SES --> EXE
+    SES --> SCH
+    SES --> DIAG
+    SES --> ENC
+    SES --> DEC
+    ENC --> CHK
+    DEC --> CHK
+    DEC -. "reads REPLY lengths (DEC-AKM-012)" .-> CAT
+    SES -->|"send, only from the executor"| BE
+    BE -. "input callback posts a task, never handles" .-> SES
+    BE --- JUCEB
+    BE --- MOCK
+    BE --- SIMB
+    JUCEB --- S5000
+```
+
+**Threads.** One session has one serial executor. Three kinds of thread only post tasks; everything that reads or changes the
+session, sends a frame or calls a completion runs on the session thread (DEC-AKM-004, DEC-AKM-005). In the tests the
+executor and the scheduler are manual and are drained by the scenario's own thread (DEC-AKM-008).
+
+```mermaid
+flowchart LR
+    subgraph callerthreads["Caller threads (UI, tests)"]
+        CALL["open, submit, submitSequence, close<br/>only post a task"]
+    end
+    subgraph backendthread["Backend input thread (JUCE, one per device)"]
+        CB["onSysExMessage<br/>copies the message and posts a task"]
+    end
+    subgraph timerthread["Scheduler timer thread"]
+        TMR["fires a due timer<br/>and posts a task"]
+    end
+    subgraph sessionthread["Session thread (ThreadExecutor)"]
+        Q["serial task queue"]
+        ST["session state<br/>target, checksum mode, FIFO, command in flight,<br/>settings the session changed"]
+        SEND["MidiOutputPort send<br/>(blocks on Windows until the driver is done)"]
+        CMP["completions and diagnostics<br/>run here, never on another thread"]
+    end
+    CALL --> Q
+    CB --> Q
+    TMR --> Q
+    Q --> ST
+    ST --> SEND
+    ST --> CMP
+```
+
+**Validation.** The same scenario source runs against the simulated sampler in CI and against the real S5000 through
+`xs56k_akm_probe` (RQ-AKM-016, RQ-AKM-017, RQ-AKM-019, DEC-AKM-008). The log is written between the steps, never while a
+command is in flight, so that writing it cannot slow what it records.
+
+```mermaid
+flowchart LR
+    subgraph scenarios["Scenarios written against MidiBackend and ScenarioDriver (test-support library)"]
+        ECHO["runEchoScenario"]
+        FCP["runFirstContactProbe<br/>15 frames, no session"]
+        SMK["runSessionSmokeTest<br/>primitives driven by hand"]
+        SUITE["runRealSamplerSuite<br/>Session open and close on each check"]
+    end
+    DRV["ScenarioDriver<br/>ManualScenarioDriver: manual time<br/>RealScenarioDriver: real time"]
+    WL["WireLog with LoggingInputPort and LoggingOutputPort<br/>buffered, flushed between steps"]
+    subgraph ci["CI: ctest on every push"]
+        SIMB2["SimulatedMidiBackend and SimulatedSampler<br/>model of the spec<br/>knobs: silent, delay, ERROR per item, F0 F7, power cycle"]
+    end
+    subgraph ownerrun["The owner, real S5000"]
+        JB["JuceMidiBackend<br/>through xs56k_akm_probe"]
+        HW[("S5000, OS 2.14<br/>ESI M8U eX interface")]
+    end
+    OBS["OBSERVATIONS-RQ-AKM-017-*.md<br/>the log kept verbatim,<br/>decisions amended from it"]
+    scenarios --> DRV
+    scenarios --> WL
+    scenarios --> SIMB2
+    scenarios --> JB
+    JB --> HW
+    JB -. "log" .-> OBS
+```
+
+### Class diagram
+
+Four views of the entities this ADR creates. The interfaces at the top of the first one are the seams: everything
+the session touches from outside arrives through one of them (DEC-AKM-004, DEC-AKM-006, DEC-AKM-008).
+
+**The session and what it is given** (DEC-AKM-001, 004, 005, 006):
+
+```mermaid
+classDiagram
+    direction LR
+    class Session {
+        +open(SessionConfig config, OpenCompletion done)
+        +submit(CommandRequest request, CommandCompletion done)
+        +submitSequence(vector~CommandRequest~ requests, SequenceCompletion done)
+        +close(CloseCompletion done) bool
+        +bindTarget(uint8_t deviceId)
+        +state() SessionState
+        +checksumMode() ChecksumMode
+        +boundTarget() optional~uint8_t~
+        +stillAliveMonitoring() bool
+    }
+    class SessionTiming {
+        +commandTimeout
+        +maxTotalWait
+        +discoveryWindow
+        +checksumFailuresBeforeUnknown
+    }
+    class Executor {
+        <<interface>>
+        +post(Task task)
+        +isCurrentThread() bool
+        +runsOnItsOwnThread() bool
+    }
+    class ThreadExecutor
+    class ManualExecutor
+    class Scheduler {
+        <<interface>>
+        +now() time_point
+        +scheduleAfter(duration delay, Task task) TimerHandle
+    }
+    class RealScheduler
+    class ManualScheduler
+    class TimerHandle {
+        +cancel()
+    }
+    class DiagnosticSink {
+        <<interface>>
+        +report(Diagnostic diagnostic)
+    }
+    class NullDiagnosticSink
+    class MidiBackend {
+        <<interface>>
+        +openInput(string name) MidiInputPort
+        +openOutput(string name) MidiOutputPort
+    }
+    class MidiInputPort {
+        <<interface>>
+        +setCallbacks(MidiInputCallbacks callbacks)
+        +start()
+        +stop()
+    }
+    class MidiOutputPort {
+        <<interface>>
+        +send(MidiMessage message)
+    }
+    class JuceMidiBackend
+    class MockMidiBackend
+    class SimulatedMidiBackend
+    Session o-- SessionTiming
+    Session --> Executor : every state change is a task
+    Session --> Scheduler : timeouts, windows, Still Alive
+    Session --> DiagnosticSink : reports
+    Session --> MidiInputPort : starts and stops
+    Session --> MidiOutputPort : sends, from the executor only
+    Executor <|.. ThreadExecutor
+    Executor <|.. ManualExecutor
+    Scheduler <|.. RealScheduler
+    Scheduler <|.. ManualScheduler
+    Scheduler ..> TimerHandle : returns
+    DiagnosticSink <|.. NullDiagnosticSink
+    MidiBackend <|.. JuceMidiBackend
+    MidiBackend <|.. MockMidiBackend
+    MidiBackend <|.. SimulatedMidiBackend
+    MidiBackend ..> MidiInputPort : opens
+    MidiBackend ..> MidiOutputPort : opens
+```
+
+**What crosses the session's API** (DEC-AKM-004, 007, 010, 011): a request in, a result out, a configuration for the opening.
+
+```mermaid
+classDiagram
+    direction LR
+    class CommandRequest {
+        +Command command
+        +CommandOptions options
+        +optional~RefusalReason~ refusal
+    }
+    class Command {
+        +uint8_t section
+        +uint8_t item
+        +vector~uint8_t~ data
+    }
+    class CommandOptions {
+        +optional timeout
+        +optional maxTotalWait
+        +Addressing addressing
+        +ExpectedReply expectedReply
+        +optional~bool~ checksumModeAfterDone
+        +optional~bool~ stillAliveAfterDone
+        +optional~SamplerSetting~ changesSetting
+        +optional collectionWindow
+        +ConfirmationObserver onConfirmation
+    }
+    class CommandResult {
+        <<variant>>
+        Done
+        Reply with data
+        Error with number
+        Timeout
+        Refused with reason
+        Cancelled
+    }
+    class SequenceResult {
+        +vector~CommandResult~ results
+        +optional~size_t~ failureIndex
+        +allSucceeded() bool
+    }
+    class SessionConfig {
+        +uint32_t targetDeviceId
+        +bool checksums
+        +SettingChoice notification
+        +SettingChoice syncLcd
+        +SettingChoice autoScreenUpdate
+        +SettingChoice stillAlive
+    }
+    class OpenResult {
+        +OpenStatus status
+        +uint32_t targetDeviceId
+        +vector~uint8_t~ responders
+        +vector~SamplerSetting~ unsupported
+        +optional~SamplerSetting~ failedSetting
+        +CommandResult failedResult
+        +ready() bool
+    }
+    class CloseResult {
+        +vector~SamplerSetting~ restored
+        +vector~SamplerSetting~ notRestored
+        +restoredAll() bool
+    }
+    class SessionState {
+        <<enumeration>>
+        Unopened
+        Opening
+        Open
+        OpenFailed
+        Closing
+        Closed
+    }
+    class OpenStatus {
+        <<enumeration>>
+        Ready
+        ReadyDegraded
+        NoSamplerAtTarget
+        AmbiguousSamplers
+        InvalidDeviceId
+        DiscoveryFailed
+        SettingFailed
+        AlreadyOpen
+        Cancelled
+    }
+    class SamplerSetting {
+        <<enumeration>>
+        Checksums
+        Notification
+        SyncLcd
+        AutoScreenUpdate
+        StillAlive
+    }
+    class SettingChoice {
+        <<enumeration>>
+        Unchanged
+        On
+        Off
+    }
+    class RefusalReason {
+        <<enumeration>>
+        NotEncodable
+        WrongArgumentCount
+        ArgumentOutOfRange
+        ChecksumModeUnknown
+        NoTargetBound
+        SessionNotOpen
+        SessionClosed
+    }
+    class ChecksumMode {
+        <<enumeration>>
+        On
+        Off
+        Unknown
+    }
+    CommandRequest *-- Command
+    CommandRequest *-- CommandOptions
+    CommandRequest ..> RefusalReason : refused without sending
+    CommandOptions ..> SamplerSetting : changesSetting
+    SequenceResult o-- CommandResult
+    SessionConfig ..> SettingChoice
+    OpenResult ..> OpenStatus
+    OpenResult o-- CommandResult : failedResult
+    OpenResult ..> SamplerSetting
+    CloseResult ..> SamplerSetting
+```
+
+**The codec and the items** (DEC-AKM-002, 003, 009, 012): pure functions and the descriptors they read.
+
+```mermaid
+classDiagram
+    direction LR
+    class Codec {
+        <<functions>>
+        +encodeCommand(deviceId, userRefs, command, mode) EncodeResult
+        +decodeMessage(frame, mode) DecodedMessage
+        +checksum(bytes) uint8_t
+    }
+    class DecodedMessage {
+        <<variant>>
+        Confirmation
+        StillAliveMessage
+        Rejected
+    }
+    class Confirmation {
+        +uint8_t deviceId
+        +vector~uint8_t~ userRefs
+        +ReplyId replyId
+        +uint8_t section
+        +uint8_t item
+        +vector~uint8_t~ data
+    }
+    class ReplyId {
+        <<enumeration>>
+        Ok 4F
+        Done 44
+        Reply 52
+        Error 45
+    }
+    class Rejected {
+        +RejectReason reason
+    }
+    class ItemDescriptor {
+        +string_view name
+        +uint8_t section
+        +uint8_t item
+        +ItemKind kind
+        +span~ValueSpec~ args
+        +span~ValueSpec~ reply
+        +fixedReplyLength() optional~size_t~
+    }
+    class ValueSpec {
+        +string_view name
+        +ValueFormat format
+        +int64_t min
+        +int64_t max
+    }
+    class ItemKind {
+        <<enumeration>>
+        Set
+        Get
+    }
+    class ValueFormat {
+        <<enumeration>>
+        Byte
+        Word
+        Dword
+        SignedByte
+        SignedWord
+        SignedDword
+    }
+    class ItemCatalogue {
+        <<functions>>
+        +descriptor(ItemId id) ItemDescriptor
+        +findItem(section, item) ItemDescriptor
+    }
+    class ItemRequest {
+        <<functions>>
+        +makeRequest(ItemId id, values) CommandRequest
+        +decodeReply(ItemId id, data) optional values
+    }
+    class SysExConfig {
+        <<functions>>
+        +discover(session, done, window)
+        +setChecksumMode(session, on, done)
+        +setNotification(session, on, done)
+        +setSyncLcd(session, on, done)
+        +setAutoScreenUpdate(session, on, done)
+        +setStillAlive(session, on, done)
+        +echo(session, data, done)
+    }
+    class SystemVersion {
+        <<functions>>
+        +queryOsVersion(session, done)
+    }
+    Codec ..> DecodedMessage : returns
+    DecodedMessage o-- Confirmation
+    DecodedMessage o-- Rejected
+    Confirmation ..> ReplyId
+    ItemDescriptor o-- ValueSpec
+    ItemDescriptor ..> ItemKind
+    ValueSpec ..> ValueFormat
+    ItemCatalogue ..> ItemDescriptor : generated table
+    ItemRequest ..> ItemCatalogue : reads
+    Codec ..> ItemCatalogue : REPLY length when the mode is unknown
+    SysExConfig ..> ItemRequest : builds requests
+    SystemVersion ..> ItemRequest : builds requests
+```
+
+**The test seams** (DEC-AKM-008): what stands in for the sampler and for time, and what the owner's run adds.
+
+```mermaid
+classDiagram
+    direction LR
+    class SimulatedMidiBackend {
+        +addSampler(SamplerConfig config) SimulatedSampler
+        +setDeliveryMode(DeliveryMode mode)
+        +sentByHost() vector~MidiMessage~
+        +emittedBySamplers() vector~MidiMessage~
+    }
+    class SimulatedSampler {
+        +setBehaviour(SamplerBehaviour behaviour)
+        +settings() SamplerSettings
+        +powerCycle()
+        +acceptedCommands() vector~AcceptedCommand~
+    }
+    class SamplerBehaviour {
+        +silent
+        +replyDelay
+        +itemErrors
+        +stillAliveInterval
+        +confirmationDeviceId
+    }
+    class SamplerSettings {
+        +notification
+        +checksum
+        +syncLcd
+        +autoScreenUpdate
+        +stillAlive
+    }
+    class ScenarioDriver {
+        <<interface>>
+        +scheduler() Scheduler
+        +executor() Executor
+        +elapse(duration d)
+        +waitUntil(condition, timeout) bool
+    }
+    class ManualScenarioDriver
+    class RealScenarioDriver
+    class WireLog {
+        +note(text)
+        +outgoing(frame)
+        +incoming(frame)
+        +flush()
+        +stillAliveMessages() size_t
+    }
+    class LoggingInputPort
+    class LoggingOutputPort
+    class RealSuiteOptions {
+        +ScenarioTarget target
+        +commandTimeout
+        +echoRepeats
+        +bool slowOperation
+        +bool powerCycle
+        +askOwner
+    }
+    class RealSuiteResult {
+        +vector~CheckReport~ checks
+        +echoLatencies
+        +stillAliveMessagesSeen
+        +bool knownStateRestored
+        +passed() bool
+    }
+    class CheckReport {
+        +string title
+        +CheckOutcome outcome
+        +string detail
+    }
+    class GuardedSession {
+        +open(config) OpenResult
+        +close() CloseResult
+    }
+    SimulatedMidiBackend --|> MidiBackend
+    SimulatedMidiBackend o-- SimulatedSampler
+    SimulatedSampler o-- SamplerBehaviour
+    SimulatedSampler o-- SamplerSettings
+    ScenarioDriver <|.. ManualScenarioDriver
+    ScenarioDriver <|.. RealScenarioDriver
+    ManualScenarioDriver *-- ManualExecutor
+    ManualScenarioDriver *-- ManualScheduler
+    RealScenarioDriver *-- ThreadExecutor
+    RealScenarioDriver *-- RealScheduler
+    LoggingInputPort --|> MidiInputPort
+    LoggingOutputPort --|> MidiOutputPort
+    LoggingInputPort ..> WireLog
+    LoggingOutputPort ..> WireLog
+    RealSuiteResult o-- CheckReport
+    GuardedSession *-- Session : one per check
+    GuardedSession ..> RealSuiteResult : records what the close put back
+```
+
+### Sequence diagrams
+
+The key use cases. Every completion and every diagnostic runs on the session thread; the arrows to the caller
+are completions, not returns.
+
+**Opening a session** (RQ-AKM-039, RQ-AKM-040, DEC-AKM-007). Nothing but the discovery is sent before the target is verified, and
+the application's commands are refused until the open has succeeded.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as Caller
+    participant S as Session (session thread)
+    participant HW as Sampler, through the ports
+    App->>S: open(SessionConfig, completion)
+    Note over S: the input port was started by the constructor
+    S->>HW: Query to DeviceID 0, checksum appended (the mode is unknown)
+    loop discovery window, 500 ms by default
+        HW-->>S: OK, DONE or ERROR, each with the sampler's own DeviceID
+        Note over S: the DeviceID joins the responders
+    end
+    alt target absent, or several samplers and the target is 0 or a responder is 0
+        S-->>App: OpenResult NoSamplerAtTarget or AmbiguousSamplers, nothing else was sent
+    else target among the responders
+        Note over S: the target is bound
+        S->>HW: checksum mode command, with a checksum whatever the mode
+        HW-->>S: OK in the old mode, DONE in the new mode
+        Note over S: mode Unknown becomes On or Off, the change is remembered for the close
+        loop each setting not Unchanged, in the order Notification, Sync LCD, Auto screen update, Still Alive
+            S->>HW: Set item
+            alt DONE
+                HW-->>S: DONE
+            else ERROR 00 on Sync LCD, Auto screen update or Still Alive
+                HW-->>S: ERROR 00, listed as unsupported, the open goes on degraded
+            else any other ERROR, or a timeout
+                HW-->>S: ERROR or nothing
+                S-->>App: OpenResult SettingFailed
+            end
+        end
+        S-->>App: OpenResult Ready or ReadyDegraded
+    end
+```
+
+**One command, from submit to completion** (RQ-AKM-007 to RQ-AKM-011, DEC-AKM-004, DEC-AKM-005). One command is in
+flight per port; the confirmation is the flow control. The frame is sent only from the executor, and a confirmation
+that arrives before `send` returns is handled after the sending task, never inline.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as Caller
+    participant Q as Executor (session thread)
+    participant S as Session
+    participant T as Scheduler
+    participant B as Ports
+    participant HW as Sampler
+    App->>Q: submit(CommandRequest, completion), posts a task
+    Q->>S: task, enqueue
+    alt refused before sending (argument out of range, session not open or closed, REPLY not delimited while the mode is unknown)
+        S-->>App: completion Refused, in queue order
+    else accepted
+        Note over S: the command waits in the FIFO until the port is free
+        S->>S: allocate a user-ref, record the command in flight
+        S->>B: send the frame, encoded with the checksum mode in force now
+        B->>HW: frame
+        S->>T: scheduleAfter(timeout), with a generation token
+        HW-->>B: OK
+        B-->>Q: input callback copies the message and posts a task
+        Q->>S: decode, match user-ref and DeviceID, an OK completes nothing
+        alt DONE or REPLY
+            HW-->>B: DONE or REPLY with data
+            B-->>Q: post
+            Q->>S: decode and complete, cancel the timer
+            S-->>App: completion Done or Reply
+        else ERROR
+            HW-->>B: ERROR n
+            S-->>App: completion Error n
+        else F0 F7 while Still Alive is on
+            HW-->>B: F0 F7, about every second
+            B-->>Q: post
+            Q->>S: restart the timeout, never beyond the maximum total wait
+        else nothing before the timeout
+            T-->>Q: timer task posted
+            Q->>S: the generation still matches, complete and release the port
+            S-->>App: completion Timeout
+        end
+        S->>S: send the next queued command
+    end
+```
+
+**Closing a session** (RQ-AKM-042, DEC-AKM-004 as built in TASK-AKM-011). A close from one of the session's own completions is refused
+(`close` returns false and changes nothing). A close always finishes.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant App as Caller
+    participant S as Session (session thread)
+    participant HW as Sampler
+    participant In as MidiInputPort
+    App->>S: close(completion), returns true at once
+    Note over S: state Closing, the command in flight and the queued ones complete as Cancelled
+    loop each setting the session tried to change, in the order checksums, Still Alive, Notification, Sync LCD, Auto screen update
+        S->>HW: Set item to its documented default, the checksum command carries a checksum
+        alt DONE
+            HW-->>S: DONE, listed as restored
+        else refused or ERROR
+            HW-->>S: ERROR, listed as not restored, the next one is tried
+        else timeout
+            Note over S: the first timeout ends the restoring, the remaining settings are listed as not restored
+        end
+    end
+    S->>In: stop, on the session thread and never on the backend callback
+    Note over S: state Closed
+    S-->>App: CloseResult with restored and notRestored
+```
+
+**A sampler that restarted under an open session** (RQ-AKM-041, DEC-AKM-009). The session assumes checksums on; the sampler came back with
+checksums off. After three confirmations in a row that fail verification the session no longer trusts its mode and reads
+the next confirmation by the length its item has in the catalogue. Exercised on the simulated sampler in CI; the
+`--power-cycle` check of the real-sampler suite does it on the S5000.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant S as Session (mode On)
+    participant HW as Sampler
+    Note over HW: power cycle, the sampler starts with checksums off
+    S->>HW: Echo, with a checksum (ignored while checksums are off)
+    HW-->>S: OK without a checksum
+    Note over S: the last byte is read as a checksum, verification fails, count 1
+    HW-->>S: REPLY without a checksum
+    Note over S: verification fails, count 2, no completion, the Echo times out
+    S->>HW: next Echo
+    HW-->>S: OK without a checksum
+    Note over S: verification fails, count 3, the mode becomes Unknown and the change is reported
+    HW-->>S: REPLY without a checksum
+    Note over S: decoded by the expected length in mode Unknown, the Echo completes
+```
+
+**A run of the real-sampler suite** (RQ-AKM-017, RQ-AKM-018, DEC-AKM-008). Every check has its own session held by a guard; a
+check that fails, or throws, leaves the sampler as the close leaves it.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant O as Owner
+    participant P as xs56k_akm_probe --suite
+    participant R as runRealSamplerSuite
+    participant G as GuardedSession
+    participant S as Session
+    participant HW as S5000
+    O->>P: run with the two ports and the DeviceID
+    P->>R: JuceMidiBackend, RealScenarioDriver, options, log
+    R->>R: open the two ports once and wrap them with the logging decorators
+    loop each check
+        R->>G: create a guard, and with it a new Session on the same ports
+        G->>S: open(config)
+        S->>HW: discovery, then the settings
+        R->>S: the check's own commands, Echo, OS version, settings
+        S->>HW: frames
+        HW-->>S: confirmations
+        alt the check ends well
+            R->>G: close and verify what was put back
+            G->>S: close(completion)
+        else the check throws
+            Note over G: unwinding destroys the guard, its destructor closes the session
+            G->>S: close(completion)
+        end
+        S->>HW: restoring commands, checksums off first
+        HW-->>S: DONE for each
+        S-->>G: CloseResult
+    end
+    R-->>P: RealSuiteResult, and the log with its observations block
+    P-->>O: exit status 0, 2 or 3, and the log file
+```
+
+## Domain dictionary
+
+The words of the domain, in the sense the requirements and the code give them. `§` numbers are sections of the spec
+(`documents/akai_s5000_s6000_sysex_spec_2.10.pdf`); a name in `code font` is a name in `juce/akm/` or `juce/tests/support/`.
+
+| Term | Meaning | In the code and the requirements |
+|---|---|---|
+| Sampler | An AKAI S5000 or S6000 controlled by SysEx. Its OS version (OS 2.14 on the owner's) decides which items it has. | RQ-AKM-044, `OsVersionReport` |
+| Port A / port B | The sampler's two MIDI port pairs. Each decodes and answers on its own and has its own §00 settings; one session drives one pair. | DEC-AKM-002, RQ-AKM-014 |
+| SysEx frame | One System Exclusive message, `F0 47 5E <dev> <user-refs> <section> <item> <data> [checksum] F7`, every data byte at most `7F`. | RQ-AKM-001, `encodeCommand` |
+| DeviceID | 0 to 31, set on the sampler itself and unreadable by SysEx. A sampler answers a frame carrying its own DeviceID or 0; a frame with DeviceID 0 is answered by every sampler, each with its own. | RQ-AKM-012, RQ-AKM-039 |
+| `<dev>` byte | Carries the DeviceID in bits 0-4 and the number of user-refs minus one in bits 5-6. | `Confirmation::deviceId` |
+| User-ref | One to four free bytes the host chooses, echoed in every confirmation, used to match a confirmation to its command. | RQ-AKM-007, `Confirmation::userRefs` |
+| Section, item | The two bytes that name a spec item: a section (§00 SysEx configuration, §02 System, §0A Program, ...) and an item within it. | `Command::section`, `Command::item` |
+| Set / Get | A command that changes a value (confirmed by DONE) or reads one (confirmed by a REPLY). | `ItemKind` |
+| Command | What is sent apart from the addressing: section, item, data bytes. | `Command` |
+| Command request | A command with the options the session cannot infer, and a refusal when it cannot be sent. | `CommandRequest`, `CommandOptions`, DEC-AKM-011 |
+| Confirmation | A frame the sampler sends back, with a Reply ID. | `Confirmation`, `decodeMessage` |
+| Reply ID | `4F` OK (received, being processed), `44` DONE (completed), `52` REPLY (completed, data follows), `45` ERROR (failed, number follows). | `ReplyId`, RQ-AKM-004 |
+| Error number | Two data bytes, `d1 * 128 + d2`: 0 not supported, 1 invalid format, 2 out of range, 3 unknown, 129 checksum invalid, ... | `describeError`, RQ-AKM-005 |
+| Notification | The §00 setting (`&01`) that makes the sampler send the OK. DONE, REPLY and ERROR cannot be disabled. | `SamplerSetting::Notification`, RQ-AKM-009 |
+| Checksum | The 8-bit wrapping sum from the first user-ref to the last data byte, masked to 7 bits, placed before `F7`. | `checksum`, RQ-AKM-003 |
+| Checksum mode | Whether the sampler adds and expects checksums on a port (§00 `&04`). It cannot be read back, so the session tracks it as On, Off or Unknown; a checksum is sent when it is On or Unknown. | `ChecksumMode`, DEC-AKM-009, RQ-AKM-041 |
+| Sync LCD | §00 `&03`, since OS 2.00: the sampler's front-panel selection follows a selection made by SysEx. Advised off unless needed, since another port can change it. | `SamplerSetting::SyncLcd`, RQ-AKM-014 |
+| Auto screen update | §00 `&05`: the LCD refreshes by itself when a value changes. | `SamplerSetting::AutoScreenUpdate` |
+| Still Alive | §00 `&07`, since OS 2.10: while a command is pending the sampler sends the two-byte message `F0 F7` about every second, so that a slow operation is not taken for a dead sampler. | `SamplerSetting::StillAlive`, RQ-AKM-011 |
+| Query | §00 `&00`. Answered by OK and DONE; sent to DeviceID 0 it is how the samplers present are found. | RQ-AKM-012 |
+| Echo | §00 `&06`: four data bytes sent and returned in a REPLY; the exchange that proves the link. | `echo`, RQ-AKM-015 |
+| Discovery | A broadcast Query with a collection window; the distinct DeviceIDs that answered are the responders. | `discover`, `SessionTiming::discoveryWindow` |
+| Responder | A DeviceID that answered the discovery. | `OpenResult::responders` |
+| Target | The DeviceID the session addresses, taken from the configuration and bound after the discovery has verified it. | `SessionConfig::targetDeviceId`, `Session::bindTarget` |
+| Ambiguous | Several samplers answered and either the target is 0 or one of them has DeviceID 0, which would execute every command. | `OpenStatus::AmbiguousSamplers` |
+| Session | The state machine of one port pair: target, checksum mode, queue, one command in flight, settings it changed. | `Session`, DEC-AKM-002 |
+| Open / degraded | The session established the §00 settings; degraded when the sampler answered ERROR 0 to an optional setting (an older OS). | `OpenStatus::Ready`, `ReadyDegraded` |
+| Close / known state | The session puts back what it changed to the documented defaults: checksums off, Still Alive off, Notification on, Sync LCD on, Auto screen update off. | `CloseResult`, `samplerDefault`, RQ-AKM-042 |
+| Command in flight | The one command sent and not yet completed; the confirmation is the flow control, there is no fixed delay between commands. | RQ-AKM-008 |
+| Timeout / maximum total wait | The time a command waits for its DONE, REPLY or ERROR, and the longest it may stay pending, which Still Alive cannot extend. | `SessionTiming`, RQ-AKM-010, DEC-AKM-006 |
+| Completion | The callback that receives a command's result, on the session thread, exactly once. | `CommandCompletion`, RQ-AKM-020 |
+| Result | `Done`, `Reply`, `Error`, `Timeout`, `Refused` or `Cancelled`. | `CommandResult`, DEC-AKM-004 |
+| Refusal | A command that is not sent: an argument out of range, the session not open, a REPLY that cannot be delimited while the mode is unknown. | `RefusalReason` |
+| Sequence | Commands run in order with nothing interleaved; the rest is cancelled at the first failure. | `submitSequence`, DEC-AKM-010 |
+| Executor | The serial task queue of a session, on a worker thread or drained by a test. | `Executor`, DEC-AKM-004 |
+| Scheduler | Injected time: the clock and one-shot timers, real or manual. | `Scheduler`, DEC-AKM-006 |
+| Diagnostic | A report that is not a result: a rejected message, an unsolicited confirmation, a late ERROR after a REPLY, a change of checksum mode. | `DiagnosticSink`, RQ-AKM-006 |
+| Item catalogue | The table of spec items generated from a reviewed data file; it tells the encoder how to write and the codec how long a REPLY is. | `ItemDescriptor`, DEC-AKM-003, DEC-AKM-012 |
+| Simulated sampler | A model of the spec that stands in for the sampler in CI, with knobs for what a real bus does badly. | `SimulatedSampler`, DEC-AKM-008 |
+| Scenario / driver | A sequence written once against `MidiBackend&` and a `ScenarioDriver` that hides how time is waited for, so it runs on the simulator and on the real sampler. | `ScenarioDriver`, RQ-AKM-016 |
+| Wire log | The record of every frame in both directions with its time, kept in memory and written between steps. | `WireLog` |
+| First contact / smoke test / suite | The three runs against the real sampler: fifteen frames without a session (TASK-AKM-012), a session driven by hand (TASK-AKM-013), and the checks on sessions opened and closed for real (TASK-AKM-010). | `xs56k_akm_probe` |
+| Observation | A fact about the real sampler recorded from a log, which confirms or amends a decision. | RQ-AKM-017, `OBSERVATIONS-RQ-AKM-017-*.md` |
+| Guard | The object around a check's session whose destructor closes it, so that a failed check leaves the sampler in the known state. | `GuardedSession`, RQ-AKM-018 |
+| Phase A / Phase B | Phase A is the transport this ADR builds; Phase B is the S5000 controller that will sit on it. | DEC-AKM-001 |

@@ -21,8 +21,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // goes out and what comes back to a log, on the console and in a file. The logic is
 // akm::harness::runFirstContactProbe, which CI runs against the simulated sampler. With --session it runs
 // the session smoke test instead, akm::harness::runSessionSmokeTest: a real Session driven through the
-// section 00 primitives, logged the same way.
-// [TASK-AKM-012, TASK-AKM-013, RQ-AKM-017, RQ-AKM-018, RQ-AKM-044, ADR-AKM-001 (DEC-AKM-007, DEC-AKM-009)]
+// section 00 primitives, logged the same way. With --suite it runs the real-sampler suite,
+// akm::harness::runRealSamplerSuite: checks on sessions opened with Session::open and closed with Session::close,
+// and the observations of RQ-AKM-017 that remain.
+// [TASK-AKM-010, TASK-AKM-012, TASK-AKM-013, RQ-AKM-017, RQ-AKM-018, RQ-AKM-044,
+// ADR-AKM-001 (DEC-AKM-007, DEC-AKM-009)]
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <ctime>
@@ -36,6 +40,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "akm/Protocol.hpp"
 #include "akm/harness/FirstContactProbe.hpp"
+#include "akm/harness/RealSamplerSuite.hpp"
 #include "akm/harness/ScenarioDriver.hpp"
 #include "akm/harness/SessionSmokeTest.hpp"
 #include "common/midi/JuceMidiBackend.hpp"
@@ -46,7 +51,7 @@ namespace
     constexpr int EXIT_OK = 0;
     constexpr int EXIT_USAGE = 1;
     constexpr int EXIT_NO_ANSWER = 2;
-    constexpr int EXIT_STEP_FAILED = 3;  // --session: the sampler answered, but a step did not go as it had to
+    constexpr int EXIT_STEP_FAILED = 3;  // --session, --suite: the sampler answered, but a step or a check did not go as it had to
 
     constexpr std::uint32_t DEFAULT_DEVICE_ID = 0;  // the sampler's default DeviceID
     constexpr std::uint32_t DEFAULT_OTHER_DEVICE_ID = 5;
@@ -59,6 +64,8 @@ namespace
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --session --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
+        "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
+        "                  [--power-cycle] [--slow-operation] [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
         "  --in, --out        the sampler's MIDI input port (what it sends) and output port (what it receives),\n"
@@ -68,15 +75,25 @@ namespace
         "  --session          run the session smoke test instead of the first-contact probe: a real session\n"
         "                     driven through discovery, the checksum mode, Echo, the OS version and the other\n"
         "                     section 00 settings\n"
-        "  --no-lcd           with --session, do not switch Sync LCD and Auto screen update\n"
+        "  --suite            run the real-sampler suite instead: seven checks, each on a session opened with\n"
+        "                     Session::open and closed with Session::close (open and close, Echo, 50 timed Echo round\n"
+        "                     trips, the OS version, checksums on and off, every setting put back, a check that fails\n"
+        "                     half way), then the observations of RQ-AKM-017\n"
+        "  --no-lcd           with --session or --suite, do not switch Sync LCD and Auto screen update\n"
+        "  --power-cycle      with --suite, an extra check: it asks you to switch the sampler off and on while a\n"
+        "                     session is open, to see what survives\n"
+        "  --slow-operation   with --suite, an extra check: it sends one command outside sections 00 and 02, \"update the\n"
+        "                     list of disks\" (section 10, item 01), with Still Alive on, to see whether F0 F7\n"
+        "                     messages reach this computer while the sampler works\n"
         "  --timeout-ms       how long each step waits for an answer (default 3000)\n"
         "  --log              the log file (default akm-probe-<UTC date and time>.log, or akm-session-... with\n"
-        "                     --session, in this directory)\n"
+        "                     --session, or akm-suite-... with --suite, in this directory)\n"
         "  --yes              do not ask for confirmation before sending\n"
         "\n"
         "The probe switches the sampler's checksum and Still Alive settings on and off and ends with both off.\n"
-        "The session smoke test also switches Notification, Sync LCD and Auto screen update, and ends with\n"
-        "checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off.\n";
+        "The session smoke test and the suite also switch Notification, Sync LCD and Auto screen update, and end with\n"
+        "checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off.\n"
+        "None of them changes a stored program, multi or sample.\n";
 
     struct Arguments
     {
@@ -84,6 +101,9 @@ namespace
         bool help = false;
         bool yes = false;
         bool session = false;
+        bool suite = false;
+        bool powerCycle = false;
+        bool slowOperation = false;
         bool noLcd = false;
         std::string input;
         std::string output;
@@ -134,6 +154,12 @@ namespace
                 parsed.yes = true;
             else if (option == "--session")
                 parsed.session = true;
+            else if (option == "--suite")
+                parsed.suite = true;
+            else if (option == "--power-cycle")
+                parsed.powerCycle = true;
+            else if (option == "--slow-operation")
+                parsed.slowOperation = true;
             else if (option == "--no-lcd")
                 parsed.noLcd = true;
             else if (option == "--in" || option == "--out" || option == "--log")
@@ -164,6 +190,10 @@ namespace
             else
                 parsed.error = "unknown option " + option;
         }
+        if (parsed.error.empty() && parsed.session && parsed.suite)
+            parsed.error = "--session and --suite cannot be used together";
+        if (parsed.error.empty() && !parsed.suite && (parsed.powerCycle || parsed.slowOperation))
+            parsed.error = "--power-cycle and --slow-operation need --suite";
         return parsed;
     }
 
@@ -249,7 +279,7 @@ int main(int argc, char** argv)
         return EXIT_USAGE;
     }
 
-    const std::string logPrefix = arguments.session ? "akm-session-" : "akm-probe-";
+    const std::string logPrefix = arguments.suite ? "akm-suite-" : arguments.session ? "akm-session-" : "akm-probe-";
     const std::string logPath = arguments.logPath.empty() ? logPrefix + utcNow(true) + ".log" : arguments.logPath;
     std::ofstream file(logPath);
     if (!file)
@@ -260,7 +290,20 @@ int main(int argc, char** argv)
 
     if (!arguments.yes)
     {
-        if (arguments.session)
+        if (arguments.suite)
+        {
+            std::cout << "The real-sampler suite will send SysEx frames to \"" << arguments.output << "\" and listen on \""
+                      << arguments.input << "\".\n"
+                      << "Each check opens a session and closes it. It switches the sampler's checksum, Notification, Still Alive"
+                      << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
+                      << "checksums off, Still Alive off, Notification on"
+                      << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off") << ". It changes no stored program, multi or sample.\n";
+            if (arguments.slowOperation)
+                std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
+            if (arguments.powerCycle)
+                std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
+        }
+        else if (arguments.session)
             std::cout << "The session smoke test will send SysEx frames to \"" << arguments.output << "\" and listen on \""
                       << arguments.input << "\".\n"
                       << "It switches the sampler's checksum, Notification, Still Alive"
@@ -281,6 +324,34 @@ int main(int argc, char** argv)
     const akm::harness::ScenarioTarget target{arguments.input, arguments.output, arguments.deviceId};
 
     akm::harness::RealScenarioDriver driver;
+    if (arguments.suite)
+    {
+        akm::harness::RealSuiteOptions options;
+        options.target = target;
+        options.commandTimeout = std::chrono::milliseconds(arguments.timeoutMs);
+        options.touchLcdSettings = !arguments.noLcd;
+        options.slowOperation = arguments.slowOperation;
+        options.powerCycle = arguments.powerCycle;
+        options.startedAt = utcNow(false);
+        options.askOwner = [](const std::string& instruction) {
+            std::cout << "\n>>> " << instruction << "\n    Press Enter when it is done, or type skip to skip this check: " << std::flush;
+            std::string answer;
+            std::getline(std::cin, answer);
+            return answer != "skip";
+        };
+
+        const akm::harness::RealSuiteResult result = akm::harness::runRealSamplerSuite(backend, driver, options, log);
+        log << std::flush;
+
+        std::cout << "\nLog written to " << logPath << "\n";
+        if (!result.portsOpened)
+            return EXIT_USAGE;
+        const auto answered = std::find(result.discoveredDeviceIds.begin(), result.discoveredDeviceIds.end(),
+                                        static_cast<std::uint8_t>(arguments.deviceId));
+        if (answered == result.discoveredDeviceIds.end())
+            return EXIT_NO_ANSWER;
+        return result.passed() && result.knownStateRestored ? EXIT_OK : EXIT_STEP_FAILED;
+    }
     if (arguments.session)
     {
         akm::harness::SessionSmokeOptions options;

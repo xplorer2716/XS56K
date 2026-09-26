@@ -35,7 +35,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 namespace akm::harness
 {
     /// Round trips of the Echo timed in a run: what RQ-AKM-017 asks of the latency measurement.
-    inline constexpr int DEFAULT_SMOKE_ECHO_ROUND_TRIPS = 50;
+    inline constexpr int DEFAULT_SMOKE_ECHO_ROUND_TRIPS = ECHO_LATENCY_ROUND_TRIPS;
 
     struct SessionSmokeOptions
     {
@@ -77,16 +77,17 @@ namespace akm::harness
         bool knownStateRestored = false;
     };
 
-    /// A run of the session and the section 00 primitives against a sampler, before the session opening and closing
-    /// exist: it opens the two ports of `options.target`, puts a logging decorator on each so that every frame on
-    /// the wire is in the log, and drives a `Session` on the driver's scheduler and executor through discovery
-    /// with the target's DeviceID verified (nothing more is sent if it is not among the answers), the checksum mode
-    /// command, the OS version, timed Echo round trips, the checksum mode on and off again with an Echo and the OS
-    /// version in each, Notification, Sync LCD, Auto screen update and Still Alive on and off, and closing commands
-    /// that leave the sampler in a known state (checksums off, Still Alive off, Notification on, Sync LCD on, Auto
-    /// screen update off — the first three found at the first contact, the others the spec's or assumed defaults)
-    /// whatever happened before. A step that must succeed and does not is recorded in `failedSteps`; an item an
-    /// older OS lacks may answer ERROR, which is an observation. The log ends with an observations block.
+    /// A run of the session and the section 00 primitives against a sampler, the opening done by hand so that the
+    /// primitives are exercised one by one (`runRealSamplerSuite` runs `Session::open` itself): it opens the two ports
+    /// of `options.target`, puts a logging decorator on each so that every frame on the wire is in the log, and drives a
+    /// `Session` on the driver's scheduler and executor through discovery with the target's DeviceID verified (nothing
+    /// more is sent if it is not among the answers), the checksum mode command, the OS version, timed Echo round trips,
+    /// the checksum mode on and off again with an Echo and the OS version in each, Notification, Sync LCD, Auto screen
+    /// update and Still Alive on and off, and then `Session::close`, which puts back what the run changed (checksums
+    /// off, Still Alive off, Notification on, Sync LCD on, Auto screen update off — the first three found at the first
+    /// contact, the others the spec's or assumed defaults) whatever happened before. A step that must succeed and does
+    /// not is recorded in `failedSteps`; an item an older OS lacks may answer ERROR, which is an observation. The log
+    /// ends with an observations block.
     ///
     /// It is written against `MidiBackend&` and a ScenarioDriver only, so it runs on the simulated sampler in CI and
     /// on JuceMidiBackend against the real S5000 (`xs56k_akm_probe --session`).

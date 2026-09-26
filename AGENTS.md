@@ -59,6 +59,18 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   ends with checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves
   Sync LCD and Auto screen update alone. Exit status 0 when every step went as it had to, 2 when no sampler answered
   at the DeviceID, 3 otherwise. [RQ-AKM-017, TASK-AKM-013]
+- **Real-sampler suite** (needs the sampler; run by the owner, opt-in, never run by CI against hardware):
+  `xs56k_akm_probe --suite --in "<port the sampler sends on>" --out "<port it receives on>"` (same program, same ports)
+  runs seven checks, each on a session opened with `Session::open` and closed with `Session::close` — open and close,
+  Echo, 50 timed Echo round trips, the OS version, checksums on and off, every setting put back, and a check that fails
+  half way and must leave the sampler in the known state — writes `akm-suite-<UTC date>.log` and ends with the
+  observations of RQ-AKM-017. It changes only section 00 settings, never a program, multi or sample, and ends with checksums
+  off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves Sync LCD and Auto screen
+  update alone. Two extra checks are asked for: `--power-cycle` asks you to switch the sampler off and on while a
+  session is open, and `--slow-operation` sends one command outside sections 00 and 02 ("update the list of disks",
+  section 10 item 01) with Still Alive on, to see whether `F0 F7` reaches the host. Exit status 0 when every check
+  passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
+  suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`
   (`python` on Windows) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
   table is out of date, `--coverage` compares the data file with the spec's item list

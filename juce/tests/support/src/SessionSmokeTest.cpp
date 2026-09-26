@@ -34,6 +34,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/DiagnosticSink.hpp"
 #include "akm/SamplerError.hpp"
 #include "akm/SysExConfig.hpp"
+#include "ScenarioSupport.hpp"
 #include "akm/harness/WireFormat.hpp"
 #include "akm/harness/WireLog.hpp"
 
@@ -41,62 +42,11 @@ namespace akm::harness
 {
     namespace
     {
-        using Clock = Scheduler::Clock;
+        using namespace detail;
 
         // The scenario waits for the completion of a step this many times the step's own timeout, which the session
         // enforces itself: a wait that runs out means a completion was lost, and is reported as such.
         constexpr int PATIENCE_IN_STEP_TIMEOUTS = 2;
-        constexpr Clock::duration CLOSE_PATIENCE = std::chrono::seconds(5);
-
-        // The bytes of the first Echo; the timed ones change the first byte, so that a late REPLY cannot pass for
-        // the answer to the next.
-        const std::array<std::uint8_t, ECHO_DATA_SIZE> ECHO_PAYLOAD{{0x01, 0x23, 0x45, 0x67}};
-        constexpr std::size_t ECHO_VARYING_INDEX = 0;
-        constexpr int ECHO_VARYING_MASK = 0x7F;
-
-        std::string modeName(ChecksumMode mode)
-        {
-            switch (mode)
-            {
-                case ChecksumMode::On:
-                    return "on";
-                case ChecksumMode::Off:
-                    return "off";
-                case ChecksumMode::Unknown:
-                    return "unknown";
-            }
-            return "unknown";
-        }
-
-        std::string millisecondsText(Clock::duration duration)
-        {
-            return std::to_string(millisecondsOf(duration)) + " ms";
-        }
-
-        std::string listOfIds(const std::vector<std::uint8_t>& ids)
-        {
-            if (ids.empty())
-                return "none";
-            std::ostringstream text;
-            for (std::size_t index = 0; index < ids.size(); ++index)
-                text << (index == 0 ? "" : " ") << static_cast<unsigned int>(ids[index]);
-            return text.str();
-        }
-
-        std::string outcomeText(const CommandResult& result)
-        {
-            if (std::holds_alternative<Done>(result))
-                return "DONE";
-            if (const auto* reply = std::get_if<Reply>(&result))
-                return "REPLY data " + hexOrDash(reply->data);
-            if (const auto* error = std::get_if<Error>(&result))
-                return "ERROR " + std::to_string(error->number) + " (" + std::string(describeError(error->number).meaning) + ")";
-            if (std::holds_alternative<Timeout>(result))
-                return "TIMEOUT";
-            if (const auto* refused = std::get_if<Refused>(&result))
-                return "REFUSED (" + std::string(describe(refused->reason)) + ")";
-            return "CANCELLED";
-        }
 
         // What a step must come to. A sampler on an older OS lacks some items and answers ERROR to them, which
         // is something to observe, not a failure of the session.
@@ -113,118 +63,11 @@ namespace akm::harness
             return succeeded(result) || std::holds_alternative<Error>(result);
         }
 
-        // A value a completion produces on the session's thread and the scenario reads on its own.
-        template <typename T>
-        class Slot
-        {
-        public:
-            void set(T value, Clock::time_point at)
-            {
-                const std::lock_guard lock(_mutex);
-                _value = std::move(value);
-                _at = at;
-            }
-
-            [[nodiscard]] bool isSet() const
-            {
-                const std::lock_guard lock(_mutex);
-                return _value.has_value();
-            }
-
-            [[nodiscard]] std::optional<T> value() const
-            {
-                const std::lock_guard lock(_mutex);
-                return _value;
-            }
-
-            [[nodiscard]] Clock::time_point at() const
-            {
-                const std::lock_guard lock(_mutex);
-                return _at;
-            }
-
-        private:
-            mutable std::mutex _mutex;
-            std::optional<T> _value;
-            Clock::time_point _at{};
-        };
-
-        template <typename Result>
-        struct Timed
-        {
-            Result result;
-            Clock::duration latency;
-        };
-
-        // Logs what the session reports besides results, and counts it.
-        class SmokeDiagnostics final : public DiagnosticSink
-        {
-        public:
-            explicit SmokeDiagnostics(WireLog& log) : _log(log) {}
-
-            void report(const Diagnostic& diagnostic) override
-            {
-                std::string text(describe(diagnostic.kind));
-                {
-                    const std::lock_guard lock(_mutex);
-                    switch (diagnostic.kind)
-                    {
-                        case DiagnosticKind::RejectedMessage:
-                            ++_rejected;
-                            if (diagnostic.rejection)
-                                text += ": " + std::string(describe(*diagnostic.rejection));
-                            break;
-                        case DiagnosticKind::UnsolicitedConfirmation:
-                            ++_unsolicited;
-                            break;
-                        case DiagnosticKind::LateErrorAfterReply:
-                            ++_lateErrors;
-                            break;
-                        case DiagnosticKind::ChecksumModeChanged:
-                            if (diagnostic.checksumMode)
-                            {
-                                text += ": " + modeName(*diagnostic.checksumMode);
-                                _modeChanges.push_back(modeName(*diagnostic.checksumMode));
-                            }
-                            break;
-                    }
-                }
-                _log.note("diagnostic: " + text);
-            }
-
-            [[nodiscard]] std::size_t rejected() const { return read(_rejected); }
-            [[nodiscard]] std::size_t unsolicited() const { return read(_unsolicited); }
-            [[nodiscard]] std::size_t lateErrors() const { return read(_lateErrors); }
-
-            [[nodiscard]] std::string modeChanges() const
-            {
-                const std::lock_guard lock(_mutex);
-                std::string chain = "unknown";
-                for (const std::string& mode : _modeChanges)
-                    chain += " -> " + mode;
-                return chain;
-            }
-
-        private:
-            [[nodiscard]] std::size_t read(const std::size_t& counter) const
-            {
-                const std::lock_guard lock(_mutex);
-                return counter;
-            }
-
-            WireLog& _log;
-            mutable std::mutex _mutex;
-            std::size_t _rejected = 0;
-            std::size_t _unsolicited = 0;
-            std::size_t _lateErrors = 0;
-            std::vector<std::string> _modeChanges;
-        };
-
         // The sequence itself, on a session that is already wired to the ports.
         class Smoke
         {
         public:
-            Smoke(WireLog& log, ScenarioDriver& driver, Session& session, SmokeDiagnostics& diagnostics,
+            Smoke(WireLog& log, ScenarioDriver& driver, Session& session, ScenarioDiagnostics& diagnostics,
                   const SessionSmokeOptions& options, SessionSmokeResult& result)
                 : _log(log), _driver(driver), _session(session), _diagnostics(diagnostics), _options(options),
                   _result(result)
@@ -327,14 +170,7 @@ namespace akm::harness
             template <typename Result, typename Launch>
             std::optional<Timed<Result>> await(Launch&& launch)
             {
-                const auto slot = std::make_shared<Slot<Result>>();
-                Scheduler& clock = _driver.scheduler();
-                const Clock::time_point submitted = clock.now();
-                launch(std::function<void(const Result&)>(
-                    [slot, &clock](const Result& result) { slot->set(result, clock.now()); }));
-                if (!_driver.waitUntil([slot] { return slot->isSet(); }, patience()))
-                    return std::nullopt;
-                return Timed<Result>{*slot->value(), slot->at() - submitted};
+                return awaitCompletion<Result>(_driver, patience(), std::forward<Launch>(launch));
             }
 
             // What the previous step recorded is written now, before the next command is submitted: never while one
@@ -499,8 +335,7 @@ namespace akm::harness
                 for (int index = 0; index < _options.echoRepeats; ++index)
                 {
                     _log.flush();
-                    std::array<std::uint8_t, ECHO_DATA_SIZE> payload = ECHO_PAYLOAD;
-                    payload[ECHO_VARYING_INDEX] = static_cast<std::uint8_t>(index & ECHO_VARYING_MASK);
+                    const std::array<std::uint8_t, ECHO_DATA_SIZE> payload = echoPayload(index);
                     const auto timed = echoOnce(payload);
                     if (!timed || !timed->result.succeeded())
                     {
@@ -543,10 +378,7 @@ namespace akm::harness
 
             [[nodiscard]] std::string latencySummary() const
             {
-                std::vector<Clock::duration> sorted = _result.echoLatencies;
-                std::sort(sorted.begin(), sorted.end());
-                return "min " + millisecondsText(sorted.front()) + ", median " + millisecondsText(sorted[sorted.size() / 2])
-                       + ", max " + millisecondsText(sorted.back());
+                return latencyText(latencyStats(_result.echoLatencies));
             }
 
             [[nodiscard]] std::string failedStepsText() const
@@ -569,7 +401,7 @@ namespace akm::harness
             WireLog& _log;
             ScenarioDriver& _driver;
             Session& _session;
-            SmokeDiagnostics& _diagnostics;
+            ScenarioDiagnostics& _diagnostics;
             const SessionSmokeOptions& _options;
             SessionSmokeResult& _result;
             int _step = 0;
@@ -616,7 +448,7 @@ namespace akm::harness
         // stops the input port before anything the input's callback touches is gone.
         LoggingInputPort loggedInput(*input, log);
         LoggingOutputPort loggedOutput(*output, log);
-        SmokeDiagnostics diagnostics(log);
+        ScenarioDiagnostics diagnostics(log);
         SessionTiming timing;
         timing.commandTimeout = options.stepTimeout;
         Session session(timing, driver.executor(), driver.scheduler(), loggedInput, loggedOutput, diagnostics);

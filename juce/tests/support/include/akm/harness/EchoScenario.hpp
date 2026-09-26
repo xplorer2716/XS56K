@@ -28,6 +28,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm::harness
 {
+    /// Round trips of the Echo timed in a run against a sampler: what RQ-AKM-017 asks of the latency measurement.
+    inline constexpr int ECHO_LATENCY_ROUND_TRIPS = 50;
+
     /// Where a scenario talks to: the two port names of the sampler and the DeviceID to address.
     struct ScenarioTarget
     {

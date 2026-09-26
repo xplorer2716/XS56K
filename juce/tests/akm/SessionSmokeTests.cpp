@@ -34,7 +34,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <vector>
 
-#include "HostProbe.hpp"
+#include "AwkwardSampler.hpp"
 #include "TestBytes.hpp"
 #include "akm/Command.hpp"
 #include "akm/Protocol.hpp"
@@ -102,21 +102,6 @@ namespace
         SimulatedMidiBackend backend{driver.scheduler()};
         SimulatedSampler& sampler;
     };
-
-    // Leaves the sampler as an earlier program might have: checksums on, notification off, Sync LCD off, Auto
-    // screen update on and Still Alive on, sent through the codec with the checksum each frame needs.
-    void leaveInAwkwardState(Rig& rig)
-    {
-        akm::test::HostProbe host(rig.backend, rig.backend.inputName(), rig.backend.outputName());
-        const std::vector<std::pair<std::uint8_t, std::uint8_t>> changes{{0x01, 0}, {0x03, 0}, {0x05, 1}, {0x07, 1}, {0x04, 1}};
-        ChecksumMode mode = ChecksumMode::Off;
-        std::uint8_t userRef = 0x30;
-        for (const auto& [item, value] : changes)
-        {
-            const akm::EncodeResult frame = akm::encodeCommand(0, Bytes{userRef++}, Command{0x00, item, {value}}, mode);
-            host.send(frame.bytes);
-        }
-    }
 
     // A stream buffer that notes how many frames the host had sent each time something is written to it, and keeps
     // what was written.
@@ -197,7 +182,7 @@ TEST_CASE("Given a sampler left with checksums on, notification off, Sync LCD of
           "[akm][smoke]")
 {
     Rig rig;
-    leaveInAwkwardState(rig);
+    akm::test::leaveInAwkwardState(rig.backend);
     const SamplerSettings before = rig.sampler.settings();
     REQUIRE(before.checksum);
     REQUIRE_FALSE(before.notification);
