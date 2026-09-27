@@ -658,6 +658,30 @@
       "id": "ProgramGetCrossfade", "section": "0A", "item": "15", "name": "Get Keygroup Crossfade", "kind": "get",
       "args": [], "reply": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
       "requirements": ["RQ-AKM-022", "RQ-AKM-023"]
+    },
+    {
+      "id": "ProgramGetIndex", "section": "0A", "item": "12", "name": "Get Current Program Index", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-023"]
+    },
+    {
+      "id": "ProgramGetAllNumbers", "section": "0A", "item": "18", "name": "Get the Program Numbers of all Programs in memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "enabled", "format": "byte", "min": 0, "max": 1},
+        {"name": "number", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-023"]
+    },
+    {
+      "id": "ProgramGetAllNames", "section": "0A", "item": "19", "name": "Get the names of all Programs in memory", "kind": "get",
+      "args": [],
+      "reply": [{"name": "name", "format": "string", "min": 0, "max": 20}],
+      "requirements": ["RQ-AKM-023"]
     }
   ]
 }

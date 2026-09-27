@@ -131,6 +131,9 @@ namespace akm
         ProgramGetNumber,
         ProgramGetKeygroupCount,
         ProgramGetCrossfade,
+        ProgramGetIndex,
+        ProgramGetAllNumbers,
+        ProgramGetAllNames,
     };
 
     namespace item_data
@@ -600,10 +603,21 @@ namespace akm
         inline constexpr std::array<ValueSpec, 1> PROGRAM_GET_CROSSFADE_REPLY{{
             {"enabled", ValueFormat::Byte, 0, 1},
         }};
+        inline constexpr std::array<ValueSpec, 2> PROGRAM_GET_INDEX_REPLY{{
+            {"indexMsb", ValueFormat::Byte, 0, 127},
+            {"indexLsb", ValueFormat::Byte, 0, 127},
+        }};
+        inline constexpr std::array<ValueSpec, 2> PROGRAM_GET_ALL_NUMBERS_REPLY{{
+            {"enabled", ValueFormat::Byte, 0, 1},
+            {"number", ValueFormat::Byte, 0, 127},
+        }};
+        inline constexpr std::array<ValueSpec, 1> PROGRAM_GET_ALL_NAMES_REPLY{{
+            {"name", ValueFormat::String, 0, 20},
+        }};
     }
 
     /// Every record of the data file, indexed by ItemId.
-    inline constexpr std::array<ItemDescriptor, 100> ITEM_TABLE{{
+    inline constexpr std::array<ItemDescriptor, 103> ITEM_TABLE{{
         // section 00 item 00 [RQ-AKM-012]
         {"Query", 0x00, 0x00, ItemKind::Set, {}, {}},
         // section 00 item 01 [RQ-AKM-014]
@@ -804,5 +818,11 @@ namespace akm
         {"Get Number of Keygroups in Current Program", 0x0A, 0x14, ItemKind::Get, {}, item_data::PROGRAM_GET_KEYGROUP_COUNT_REPLY},
         // section 0A item 15 [RQ-AKM-022, RQ-AKM-023]
         {"Get Keygroup Crossfade", 0x0A, 0x15, ItemKind::Get, {}, item_data::PROGRAM_GET_CROSSFADE_REPLY},
+        // section 0A item 12 [RQ-AKM-023]
+        {"Get Current Program Index", 0x0A, 0x12, ItemKind::Get, {}, item_data::PROGRAM_GET_INDEX_REPLY},
+        // section 0A item 18 [RQ-AKM-023]
+        {"Get the Program Numbers of all Programs in memory", 0x0A, 0x18, ItemKind::Get, {}, item_data::PROGRAM_GET_ALL_NUMBERS_REPLY},
+        // section 0A item 19 [RQ-AKM-023]
+        {"Get the names of all Programs in memory", 0x0A, 0x19, ItemKind::Get, {}, item_data::PROGRAM_GET_ALL_NAMES_REPLY},
     }};
 }

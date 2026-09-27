@@ -255,7 +255,8 @@ def render(catalogue):
         arguments = f"item_data::{constant}_ARGS" if entry["args"] else "{}"
         reply = f"item_data::{constant}_REPLY" if entry.get("reply") else "{}"
         lines.append(f"        // section {entry['section']} item {entry['item']} [{', '.join(entry['requirements'])}]")
-        lines.append(f"        {{\"{entry['name']}\", 0x{entry['section']}, 0x{entry['item']}, "
+        # json.dumps escapes quotes and backslashes the same way a C++ string literal needs them.
+        lines.append(f"        {{{json.dumps(entry['name'])}, 0x{entry['section']}, 0x{entry['item']}, "
                      f"ItemKind::{KINDS[entry['kind']]}, {arguments}, {reply}}},")
     lines += ["    }};", "}", ""]
     return "\n".join(lines)

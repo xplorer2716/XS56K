@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "akm/CommandResult.hpp"
 #include "akm/Session.hpp"
@@ -134,4 +135,47 @@ namespace akm
 
     /// Gets the current program's keygroup crossfade (§0A/&15). [RQ-AKM-022, RQ-AKM-023]
     void getKeygroupCrossfade(Session& session, ProgramCrossfadeCompletion completion);
+
+    // General program information of section 0A (§0A/&12, &18, &19). [RQ-AKM-023]
+
+    /// [RQ-AKM-023]
+    struct ProgramIndexResult
+    {
+        std::optional<int> index{};
+        CommandResult outcome{};
+    };
+    using ProgramIndexCompletion = std::function<void(const ProgramIndexResult&)>;
+
+    /// Gets the current program's index, its position in memory (§0A/&12). [RQ-AKM-023]
+    void getProgramIndex(Session& session, ProgramIndexCompletion completion);
+
+    /// One entry per program in memory, in memory order (spec Table 14, footnote b); an empty entry
+    /// means that program's front-panel number display is off. Empty (not one empty entry) when the
+    /// command did not complete on a decodable REPLY. [RQ-AKM-023]
+    struct AllProgramNumbersResult
+    {
+        std::optional<std::vector<std::optional<int>>> numbers{};
+        CommandResult outcome{};
+    };
+    using AllProgramNumbersCompletion = std::function<void(const AllProgramNumbersResult&)>;
+
+    /// Gets the "Program Numbers" of every program in memory (§0A/&18), converted to front-panel numbers
+    /// like `getProgramNumber`. Refused as `ChecksumModeUnknown` while the port's checksum mode is
+    /// unknown: the REPLY repeats a record once per program, so it has no fixed length either
+    /// (ADR-AKM-001, DEC-AKM-014). [RQ-AKM-023, RQ-AKM-041]
+    void getAllProgramNumbers(Session& session, AllProgramNumbersCompletion completion);
+
+    /// One entry per program in memory, in memory order. Empty when the command did not complete on a
+    /// decodable REPLY. [RQ-AKM-023]
+    struct AllProgramNamesResult
+    {
+        std::optional<std::vector<std::string>> names{};
+        CommandResult outcome{};
+    };
+    using AllProgramNamesCompletion = std::function<void(const AllProgramNamesResult&)>;
+
+    /// Gets the names of every program in memory (§0A/&19). Refused as `ChecksumModeUnknown` while the
+    /// port's checksum mode is unknown, for the same reason as `getAllProgramNumbers`. [RQ-AKM-023,
+    /// RQ-AKM-041, ADR-AKM-001 (DEC-AKM-014)]
+    void getAllProgramNames(Session& session, AllProgramNamesCompletion completion);
 }

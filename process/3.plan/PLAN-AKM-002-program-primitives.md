@@ -185,17 +185,18 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-017: General program information, including all programs in memory
 - **Tier**: L
-- **Status**: Not Started
-- **Description**: Implement Get Number of Programs (`&10`), Get Program Number (`&11`), Get Program
-  Index (`&12`), Get Program Name (`&13`), Get Number of Keygroups (`&14`) and reuse Get Crossfade
-  (`&15`) for the current program; Get the Program Numbers of all programs (`&18`) and Get the names
-  of all programs (`&19`) for every program in memory. `&18`/`&19` are this lot's first REPLY that
-  repeats a record (an on/off-plus-number pair, or a name) an a priori unknown number of times — decode
-  it locally (bespoke, like the OS-version primitive of TASK-AKM-008, not through the single-value
-  generic `decodeReply`), and record the approach as a new `DEC-AKM-*` in ADR-AKM-001 so FTR-AKM-003
+- **Status**: Done
+- **Description**: `&10`, `&11`, `&13`, `&14` and `&15` of RQ-AKM-023's current-program information were
+  already delivered by TASK-AKM-015/016 (their own acceptance criteria needed the Gets to verify by).
+  This task adds Get Program Index (`&12`, current-program, fits the generic path) and, for every
+  program in memory, Get the "Program Numbers" (`&18`) and Get the names (`&19`). `&18`/`&19` are this
+  lot's first REPLY that repeats a record (an on/off-plus-number pair, or a name) an a priori unknown
+  number of times — decoded locally (bespoke, like the OS-version primitive of TASK-AKM-008, not through
+  the single-value generic `decodeReply`), recorded as DEC-AKM-014 in ADR-AKM-001 so FTR-AKM-003
   (RQ-AKM-031) and FTR-AKM-004 (RQ-AKM-036) can cite it instead of re-deciding it.
 - **Requirement refs**: RQ-AKM-023, RQ-AKM-002
-- **ADR refs**: ADR-AKM-001 (new decision, this task; DEC-AKM-003, DEC-AKM-012)
+- **ADR refs**: ADR-AKM-001 (new decision DEC-AKM-014, this task; DEC-AKM-003, DEC-AKM-011, DEC-AKM-012,
+  DEC-AKM-013)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-023 — *Given* a simulated sampler
   holding programs `A`, `B`, `C`, *When* the names of all programs are read, *Then* the result is the
   ordered list `A`, `B`, `C`. *Given* the current program, *When* its index, name and keygroup count
@@ -204,8 +205,21 @@ This plan implements the tasks in the format specified below.
   correctly at that boundary too.
 - **Dependencies**: TASK-AKM-014, TASK-AKM-015, TASK-AKM-016
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 389/389 (6 new in `ProgramGeneralInfoTests.cpp`:
+  empty and one-program boundaries for both all-programs Gets, the ordered A/B/C name list, front-panel
+  numbers across two programs (one on, one off) in memory order, index read-back after create and after
+  select, and the `ChecksumModeUnknown` gate for both). `--coverage`: 94/95 rows, no problems (also fixed
+  a real bug it caught: `generate_akm_items.py` embedded an item's `name` into the generated header
+  without escaping quotes — `json.dumps` now does it, and my own `&18` name, which had quotes, is the
+  item that found the bug). Not verified: real sampler; mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `&18`/`&19`'s `items.json` `reply` documents one record's shape only (matching
+  `&03`'s precedent), not the repeated whole; both are gated `NeedsKnownChecksumMode` like
+  `getCurrentProgramName`, so `ItemDescriptor::fixedReplyLength()`'s one-record width (silently wrong for
+  the actual wire reply) is never consulted. `&18`'s numbers are converted to front-panel, like `&11`
+  (Table 14 footnote a repeats Table 13's). `&12` fits the generic path (fixed 2-byte reply) and got a
+  typed wrapper for consistency with the rest of this identity-shaped group (TASK-AKM-016's own
+  reasoning, not TASK-AKM-018 to 022's). RQ-AKM-023's Gherkin "zero programs" boundary was reachable (no
+  guard prevents an empty catalogue) and is tested; the plan's "(if reachable)" hedge did not apply.
 
 ---
 

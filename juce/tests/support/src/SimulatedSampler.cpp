@@ -84,6 +84,10 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_PROGRAM_NUMBER = 0x11;
         constexpr std::uint8_t ITEM_GET_KEYGROUP_COUNT = 0x14;
         constexpr std::uint8_t ITEM_GET_CROSSFADE = 0x15;
+        // General program information of TASK-AKM-017 (RQ-AKM-023).
+        constexpr std::uint8_t ITEM_GET_INDEX = 0x12;
+        constexpr std::uint8_t ITEM_GET_ALL_NUMBERS = 0x18;
+        constexpr std::uint8_t ITEM_GET_ALL_NAMES = 0x19;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -370,6 +374,34 @@ namespace akm::harness
                 {
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(programs.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_INDEX:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_NUMBERS:
+                {
+                    // One (enabled, wire number) pair per program, memory order (Table 14, footnote b).
+                    akm::ByteWriter writer;
+                    for (const ProgramRecord& program : programs)
+                    {
+                        writer.appendByte(program.frontPanelNumber ? 1 : 0);
+                        writer.appendByte(program.frontPanelNumber
+                                              ? static_cast<std::uint32_t>(*program.frontPanelNumber - 1)
+                                              : 0);
+                    }
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_NAMES:
+                {
+                    akm::ByteWriter writer;
+                    for (const ProgramRecord& program : programs)
+                        writer.appendString(program.name);
                     return reply(writer.bytes());
                 }
                 case ITEM_GET_CURRENT_PROGRAM_NAME:

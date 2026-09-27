@@ -19,6 +19,8 @@ the real-sampler suite (TASK-AKM-010) in DEC-AKM-008. The owner's run of that su
 provisional values and found the risk to `--slow-operation` recorded there and in the Risks paragraph; DEC-AKM-007
 needed no change. The item catalogue's first String item (TASK-AKM-014, for FTR-AKM-002) added DEC-AKM-013,
 which completes DEC-AKM-003's deferral of strings and DEC-AKM-012's schema; it changed no other decision.
+The all-programs Gets (TASK-AKM-017) added DEC-AKM-014, completing DEC-AKM-013's own deferral of
+repeated-record REPLYs; it changed no other decision either.
 The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
@@ -388,6 +390,28 @@ name, Rename and Get Name of a Program).
 - **Left for a later item.** A REPLY that repeats a record or a string an a priori unknown number of times
   (Program `&18`/`&19`) is a second, separate gap in the one-value-per-`ValueSpec` decode contract; it is
   deferred to the task that first needs it (FTR-AKM-002's general program information), not resolved here.
+
+### DEC-AKM-014: A repeated-record REPLY is decoded outside the catalogue too, gated the same way as `String`
+Decided in TASK-AKM-017, completing DEC-AKM-013's deferral, for RQ-AKM-023: Get the "Program Numbers" of
+all Programs (`&18`) and Get the names of all Programs (`&19`) each answer with a REPLY that repeats one
+record — a `(enabled, number)` pair for `&18`, a name for `&19` — once per program in memory, a count the
+REPLY carries by its own length, not as a prefix (spec Table 14, footnote b: read the count with `&10`
+first if the caller wants to size a buffer, but nothing in the wire format requires it).
+- **Catalogued for one record, decoded for as many as the data holds.** `items.json` declares each
+  item's `reply` as the shape of a single record (matching DEC-AKM-013's precedent for `&03`'s
+  conditional shape: the catalogue documents and coverage-checks a record, not the whole wire answer).
+  `getAllProgramNumbers` and `getAllProgramNames` read the REPLY's raw bytes directly — `&19` with the
+  codec's own `ByteReader::readStringList()` (added ahead of need, DEC-AKM-002, and unused until now),
+  `&18` with a small loop reading one `(enabled, number)` pair at a time until no bytes remain, failing
+  the whole decode on a short final record rather than returning a partial list.
+- **Gated like a `String` REPLY.** Neither item's true length is fixed, so both set
+  `ExpectedReply::NeedsKnownChecksumMode` (DEC-AKM-011): the session refuses them outright while the
+  port's checksum mode is unknown, the same guard `getCurrentProgramName` uses for the same reason
+  (DEC-AKM-013) — `ItemDescriptor::fixedReplyLength()` is left computing the one-record width, which is
+  simply never consulted for these two items once the gate is in place.
+- **Program numbers are converted to front-panel, like `&0A`/`&11`.** Table 14's own footnote a repeats
+  Table 13's: the wire number is the front-panel one minus one. `getAllProgramNumbers` returns one
+  `std::optional<int>` per program (empty when that program's display is off), already converted.
 
 ## Consequences
 

@@ -128,10 +128,10 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     }
 
     CHECK(sysexConfig == SYSEX_CONFIG_ITEM_COUNT);
-    // CATALOGUE tracks only sections 00 and 02; TASK-AKM-015, 016 and 018 to 022 added 91 records of
-    // section 0A (8 lifecycle/info + 7 structure/identity + 76 parameter-group items), which this count
-    // includes without tracking them here too (see ProgramPrimitivesTests.cpp and the other test files).
-    constexpr std::size_t PROGRAM_ITEM_COUNT = 91;
+    // CATALOGUE tracks only sections 00 and 02; TASK-AKM-015 to 022 (all but the guarded &07 of
+    // TASK-AKM-023) added 94 records of section 0A, which this count includes without tracking them here
+    // too (see ProgramPrimitivesTests.cpp and the other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT = 94;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

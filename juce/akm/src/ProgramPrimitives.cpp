@@ -20,7 +20,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <span>
 #include <utility>
+#include <vector>
 
+#include "akm/ByteReader.hpp"
 #include "akm/ByteWriter.hpp"
 #include "akm/ItemRequest.hpp"
 
@@ -220,6 +222,71 @@ namespace akm
                                const auto values = decodeReply(ItemId::ProgramGetCrossfade, rep->data);
                                if (values && values->size() == 1)
                                    result.enabled = (*values)[0] != 0;
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getProgramIndex(Session& session, ProgramIndexCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::ProgramGetIndex, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           ProgramIndexResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::ProgramGetIndex, rep->data);
+                               if (values && values->size() == 2)
+                                   result.index = static_cast<int>((*values)[0] * DATA_BYTE_BASE + (*values)[1]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getAllProgramNumbers(Session& session, AllProgramNumbersCompletion completion)
+    {
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::ProgramGetAllNumbers, NO_VALUES, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           AllProgramNumbersResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               ByteReader reader(rep->data);
+                               std::vector<std::optional<int>> numbers;
+                               bool malformed = false;
+                               while (reader.remaining() > 0 && !malformed)
+                               {
+                                   const auto enabled = reader.readByte();
+                                   const auto number = reader.readByte();
+                                   if (!enabled || !number)
+                                   {
+                                       malformed = true;
+                                       break;
+                                   }
+                                   // Table 14, footnote a: the wire number is the front-panel one minus one.
+                                   numbers.push_back(*enabled != 0 ? std::optional<int>(*number + 1) : std::nullopt);
+                               }
+                               if (!malformed)
+                                   result.numbers = std::move(numbers);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getAllProgramNames(Session& session, AllProgramNamesCompletion completion)
+    {
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::ProgramGetAllNames, NO_VALUES, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           AllProgramNamesResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               ByteReader reader(rep->data);
+                               result.names = reader.readStringList();
                            }
                            if (completion)
                                completion(result);
