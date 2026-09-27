@@ -154,7 +154,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-029: Filter group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `setFilterMode`/`getFilterMode` (`&20`/`&28`, 0–25),
   `setFilterCutoff`/`getFilterCutoff` (`&21`/`&29`, 0–100),
   `setFilterResonance`/`getFilterResonance` (`&22`/`&2A`, 0–15),
@@ -170,8 +170,12 @@ This plan implements the tasks in the format specified below.
   the same test runs on the test program, *Then* it passes unchanged.
 - **Dependencies**: TASK-AKM-026
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: N/A — not started
-- **Assumptions**: None
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 410/410 (same pre-existing Python failure
+  excluded). `KeygroupFilterTests.cpp` (2 cases): all six items round-trip, including both Mod Input
+  extremes (1 and 3); filter mode 26 is refused without sending. Not verified: real sampler (deferred to
+  TASK-AKM-033); mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `KEYGROUP_PARAMETER_GROUP_RANGES` grown by one row (`{0x20, 0x25, 0x08}`), no other
+  engine change.
 
 ---
 

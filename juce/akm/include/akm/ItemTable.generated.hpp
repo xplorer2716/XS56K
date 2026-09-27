@@ -159,6 +159,18 @@ namespace akm
         KeygroupGetLevel,
         KeygroupGetPitchModValue,
         KeygroupGetAmpModValue,
+        KeygroupSetFilterMode,
+        KeygroupSetFilterCutoff,
+        KeygroupSetFilterResonance,
+        KeygroupSetFilterKeyboardTrack,
+        KeygroupSetFilterModInputValue,
+        KeygroupSetFilterAttenuation,
+        KeygroupGetFilterMode,
+        KeygroupGetFilterCutoff,
+        KeygroupGetFilterResonance,
+        KeygroupGetFilterKeyboardTrack,
+        KeygroupGetFilterModInputValue,
+        KeygroupGetFilterAttenuation,
     };
 
     namespace item_data
@@ -727,10 +739,54 @@ namespace akm
             {"sign", ValueFormat::Byte, 0, 1},
             {"magnitude", ValueFormat::Byte, 0, 100},
         }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_FILTER_MODE_ARGS{{
+            {"mode", ValueFormat::Byte, 0, 25},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_FILTER_CUTOFF_ARGS{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_FILTER_RESONANCE_ARGS{{
+            {"value", ValueFormat::Byte, 0, 15},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_FILTER_KEYBOARD_TRACK_ARGS{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 36},
+        }};
+        inline constexpr std::array<ValueSpec, 3> KEYGROUP_SET_FILTER_MOD_INPUT_VALUE_ARGS{{
+            {"modInput", ValueFormat::Byte, 1, 3},
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_FILTER_ATTENUATION_ARGS{{
+            {"value", ValueFormat::Byte, 0, 5},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_FILTER_MODE_REPLY{{
+            {"mode", ValueFormat::Byte, 0, 25},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_FILTER_CUTOFF_REPLY{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_FILTER_RESONANCE_REPLY{{
+            {"value", ValueFormat::Byte, 0, 15},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_FILTER_KEYBOARD_TRACK_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 36},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_FILTER_MOD_INPUT_VALUE_ARGS{{
+            {"modInput", ValueFormat::Byte, 1, 3},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_FILTER_MOD_INPUT_VALUE_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_FILTER_ATTENUATION_REPLY{{
+            {"value", ValueFormat::Byte, 0, 5},
+        }};
     }
 
     /// Every record of the data file, indexed by ItemId.
-    inline constexpr std::array<ItemDescriptor, 128> ITEM_TABLE{{
+    inline constexpr std::array<ItemDescriptor, 140> ITEM_TABLE{{
         // section 00 item 00 [RQ-AKM-012]
         {"Query", 0x00, 0x00, ItemKind::Set, {}, {}},
         // section 00 item 01 [RQ-AKM-014]
@@ -987,5 +1043,29 @@ namespace akm
         {"Get Pitch Mod Value", 0x08, 0x1B, ItemKind::Get, item_data::KEYGROUP_GET_PITCH_MOD_VALUE_ARGS, item_data::KEYGROUP_GET_PITCH_MOD_VALUE_REPLY},
         // section 08 item 1C [RQ-AKM-030]
         {"Get Amp Mod Value", 0x08, 0x1C, ItemKind::Get, item_data::KEYGROUP_GET_AMP_MOD_VALUE_ARGS, item_data::KEYGROUP_GET_AMP_MOD_VALUE_REPLY},
+        // section 08 item 20 [RQ-AKM-030]
+        {"Set Filter Mode", 0x08, 0x20, ItemKind::Set, item_data::KEYGROUP_SET_FILTER_MODE_ARGS, {}},
+        // section 08 item 21 [RQ-AKM-030]
+        {"Set Filter Cutoff Frequency", 0x08, 0x21, ItemKind::Set, item_data::KEYGROUP_SET_FILTER_CUTOFF_ARGS, {}},
+        // section 08 item 22 [RQ-AKM-030]
+        {"Set Filter Resonance", 0x08, 0x22, ItemKind::Set, item_data::KEYGROUP_SET_FILTER_RESONANCE_ARGS, {}},
+        // section 08 item 23 [RQ-AKM-030]
+        {"Set Filter Keyboard Track", 0x08, 0x23, ItemKind::Set, item_data::KEYGROUP_SET_FILTER_KEYBOARD_TRACK_ARGS, {}},
+        // section 08 item 24 [RQ-AKM-030]
+        {"Set Filter Mod Input Value", 0x08, 0x24, ItemKind::Set, item_data::KEYGROUP_SET_FILTER_MOD_INPUT_VALUE_ARGS, {}},
+        // section 08 item 25 [RQ-AKM-030]
+        {"Set Filter Attenuation", 0x08, 0x25, ItemKind::Set, item_data::KEYGROUP_SET_FILTER_ATTENUATION_ARGS, {}},
+        // section 08 item 28 [RQ-AKM-030]
+        {"Get Filter Mode", 0x08, 0x28, ItemKind::Get, {}, item_data::KEYGROUP_GET_FILTER_MODE_REPLY},
+        // section 08 item 29 [RQ-AKM-030]
+        {"Get Filter Cutoff Frequency", 0x08, 0x29, ItemKind::Get, {}, item_data::KEYGROUP_GET_FILTER_CUTOFF_REPLY},
+        // section 08 item 2A [RQ-AKM-030]
+        {"Get Filter Resonance", 0x08, 0x2A, ItemKind::Get, {}, item_data::KEYGROUP_GET_FILTER_RESONANCE_REPLY},
+        // section 08 item 2B [RQ-AKM-030]
+        {"Get Filter Keyboard Track", 0x08, 0x2B, ItemKind::Get, {}, item_data::KEYGROUP_GET_FILTER_KEYBOARD_TRACK_REPLY},
+        // section 08 item 2C [RQ-AKM-030]
+        {"Get Filter Mod Input Value", 0x08, 0x2C, ItemKind::Get, item_data::KEYGROUP_GET_FILTER_MOD_INPUT_VALUE_ARGS, item_data::KEYGROUP_GET_FILTER_MOD_INPUT_VALUE_REPLY},
+        // section 08 item 2D [RQ-AKM-030]
+        {"Get Filter Attenuation", 0x08, 0x2D, ItemKind::Get, {}, item_data::KEYGROUP_GET_FILTER_ATTENUATION_REPLY},
     }};
 }

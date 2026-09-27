@@ -826,6 +826,72 @@
       "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 1}],
       "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
       "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterMode", "section": "08", "item": "20", "name": "Set Filter Mode", "kind": "set",
+      "args": [{"name": "mode", "format": "byte", "min": 0, "max": 25}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterCutoff", "section": "08", "item": "21", "name": "Set Filter Cutoff Frequency", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterResonance", "section": "08", "item": "22", "name": "Set Filter Resonance", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 15}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterKeyboardTrack", "section": "08", "item": "23", "name": "Set Filter Keyboard Track", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterModInputValue", "section": "08", "item": "24", "name": "Set Filter Mod Input Value", "kind": "set",
+      "args": [{"name": "modInput", "format": "byte", "min": 1, "max": 3}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterAttenuation", "section": "08", "item": "25", "name": "Set Filter Attenuation", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 5}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterMode", "section": "08", "item": "28", "name": "Get Filter Mode", "kind": "get",
+      "args": [],
+      "reply": [{"name": "mode", "format": "byte", "min": 0, "max": 25}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterCutoff", "section": "08", "item": "29", "name": "Get Filter Cutoff Frequency", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterResonance", "section": "08", "item": "2A", "name": "Get Filter Resonance", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 15}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterKeyboardTrack", "section": "08", "item": "2B", "name": "Get Filter Keyboard Track", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterModInputValue", "section": "08", "item": "2C", "name": "Get Filter Mod Input Value", "kind": "get",
+      "args": [{"name": "modInput", "format": "byte", "min": 1, "max": 3}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterAttenuation", "section": "08", "item": "2D", "name": "Get Filter Attenuation", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 5}],
+      "requirements": ["RQ-AKM-030"]
     }
   ]
 }
