@@ -655,6 +655,10 @@ TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected,
               ContainsSubstring("keygroup parameter items of the six groups round-tripped"));
     // expect()'s "as expected" lines go to the log, not to a check's own detail, as above.
     CHECK_THAT(log.str(), ContainsSubstring("all 3 keygroups read back Low Note 50"));
+    // Catches, on the mock too, the real-S5000 bug (TASK-AKM-033) where the test program's guard ran
+    // its cleanup after closeAndVerify had already closed the session it needs, leaving the test
+    // program undeleted: this asserts the program count the check itself verifies is restored.
+    CHECK_THAT(log.str(), ContainsSubstring("the number of programs is back to what it was before (2)"));
 }
 
 TEST_CASE("Given the default options, When the suite runs, Then it never sends a section 0A command, and the program lifecycle checks do not run [TASK-AKM-024, RQ-AKM-027]",

@@ -1059,6 +1059,19 @@ namespace akm::harness
                 GuardedSession guarded(_rig);
                 guarded.open(baseConfig());
 
+                const auto before = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                if (!before || !before->result.count)
+                    throw CheckFailure("could not read the number of programs before creating the test program");
+                const int countBefore = *before->result.count;
+
+                // The guard's own destructor (reselect, delete, restore the original selection) must run before
+                // closeAndVerify below closes the session it needs for that — hence this nested scope, the same
+                // shape programLifecycleOnTestProgram uses. Missing it here first (found on the real S5000, not the
+                // mock: TASK-AKM-033) left the test program undeleted, the guard's cleanup silently failing against
+                // an already-closed session.
+                {
                 GuardedTestProgram program(_rig, guarded.session());
                 finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
 
@@ -1150,7 +1163,14 @@ namespace akm::harness
                 }
                 else
                     finding("no program was current before: the wrong-program refusal is not exercised this run");
+                }
+                finding("test program deleted and the original selection restored by the guard");
 
+                const auto after = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                expect(after && after->result.count == countBefore,
+                       "the number of programs is back to what it was before (" + std::to_string(countBefore) + ")");
                 closeAndVerify(guarded);
             }
 

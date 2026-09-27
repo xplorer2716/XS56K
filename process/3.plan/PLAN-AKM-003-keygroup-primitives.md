@@ -304,17 +304,40 @@ This plan implements the tasks in the format specified below.
   `getForAllKeygroups` (RQ-AKM-031 proven again, this time inside the real-sampler suite itself rather
   than only a unit test), and exercises the wrong-program refusal for `selectKeygroup`. Two `[suite]`
   mock tests updated (`AUTOMATIC_CHECKS + 2` → `+3`) and one added, proving the new check's findings
-  against the simulated sampler (KEEP1/KEEP2 scenario). **Not yet run by the owner on the real S5000** —
-  this is the one piece of TASK-AKM-033 that needs hardware, and it is what would confirm or correct the
-  `&64`/`&6C` "distinct parameter" assumption (TASK-AKM-032) and the "&48"/"&5F" erratum readings
-  (TASK-AKM-030, 031). Mutation testing blocked, as in prior tasks.
+  against the simulated sampler (KEEP1/KEEP2 scenario).
+  **Run by the owner on a real S5000, 2026-09-27** (`akm-suite-20260927-224303.log`): 10/10 checks
+  passed, all 39 keygroup parameter items round-tripped on keygroup 2 (Filter/Amplitude Envelope's
+  `&48`/`&5F` included — both read back the value their Set wrote, confirming the "Off Velocity->Release"
+  reading over the REPLY table's "...Rate"), and the keygroup-0 shape set Low Note once and read `32 32
+  32` (three keygroups, all 0x32 = 50) back through `getForAllKeygroups` in one frame. `&64`/`&6C`
+  round-tripped too (`14` set and read back at ref `7F`/`00`) but this run had only one keygroup-owning
+  program, so it does not by itself distinguish "distinct parameter" from "alias of `&61`/`&69`" — that
+  needs a run where both are set to *different* values and both read back, still open.
+  **A real defect was found and fixed from this run, not by any test beforehand**: the log's own tail
+  showed `reselect the test program before deleting it: failed (REFUSED (session closed))` — the check
+  reported PASSED regardless, because `GuardedTestProgram`'s destructor catches everything, but it had
+  in fact left "XS56K_SUITE_TEST" (3 keygroups) undeleted on the sampler. Root cause:
+  `keygroupsOnTestProgram` declared its `GuardedTestProgram` in the function's own scope, so its
+  destructor (which reselects and deletes the test program) ran *after* `closeAndVerify(guarded)` had
+  already closed the session it needs — unlike `programLifecycleOnTestProgram`, which wraps the same
+  guard in a nested `{ }` block precisely so its destructor runs first. Fixed by adding that nested
+  scope here too, plus the "number of programs is back to what it was before" verification this check
+  had omitted (present in the program-lifecycle check since TASK-AKM-024, and the exact assertion that
+  would have caught this in either mock or real testing had it been there from the start) — `ctest`
+  418/418 after the fix, the KEEP1/KEEP2 mock test strengthened to assert on that message.
+  **The owner's sampler still has the orphaned test program from the failed run**; a corrected re-run
+  will delete it (its guard now runs before the close), or the owner can delete it by hand first.
+  Mutation testing blocked, as in prior tasks.
 - **Assumptions**: The wrong-program refusal is tested only for `selectKeygroup` (not for a keygroup-
   level Set while a non-test, non-zero keygroup is merely selected) since `GuardedTestProgram`'s own
   `expectOnTestProgram` already refuses **any** command while the current program is not the test one,
   regardless of which keygroup — the same mechanism TASK-AKM-024 proved for §0A commands, reused as-is
   rather than re-proven per item. Keygroup 2 (not 1) is used for the main round trip, so the check does
   not rely on the untested assumption that keygroup 1 is what a fresh program defaults to (verified
-  separately by TASK-AKM-026's own tests) — it explicitly selects 2 first.
+  separately by TASK-AKM-026's own tests) — it explicitly selects 2 first. Not yet confirmed: the
+  `&64`/`&6C` "distinct parameter" reading (needs a differing-values round trip); the wrong-program
+  refusal for keygroup commands (this run had no original program to navigate back to, same as check 8's
+  own history).
 
 ---
 
