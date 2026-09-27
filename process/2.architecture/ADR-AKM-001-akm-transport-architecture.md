@@ -17,7 +17,9 @@ The session opening (TASK-AKM-009) and closing (TASK-AKM-011) are recorded "as b
 the real-sampler suite (TASK-AKM-010) in DEC-AKM-008. The owner's run of that suite on the S5000
 (2026-09-27, `OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`) confirms the provisional values of DEC-AKM-006 at their
 provisional values and found the risk to `--slow-operation` recorded there and in the Risks paragraph; DEC-AKM-007
-needed no change. The Diagram section holds the global architecture, the class diagrams,
+needed no change. The item catalogue's first String item (TASK-AKM-014, for FTR-AKM-002) added DEC-AKM-013,
+which completes DEC-AKM-003's deferral of strings and DEC-AKM-012's schema; it changed no other decision.
+The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
 ## Context
@@ -362,6 +364,30 @@ Decided in TASK-AKM-008, completing DEC-AKM-003.
   cancelling the rest of a sequence (DEC-AKM-004, DEC-AKM-010). The typed helpers take a `bool` for the
   toggles, so a value other than 0 or 1 cannot be written through them; the refusal of `2` that RQ-AKM-014
   asks for is proved on the generic path.
+
+### DEC-AKM-013: A `String` value format, encoded and decoded outside the generic `int64_t` path
+Decided in TASK-AKM-014, completing DEC-AKM-003's deferral of strings and DEC-AKM-012's schema, for
+FTR-AKM-002 (RQ-AKM-002): the first items to be catalogued that carry an ASCII name (Create, Select by
+name, Rename and Get Name of a Program).
+- **A new `ValueFormat::String`.** Its width is not fixed (`valueWidth` returns `UNDEFINED_VALUE_WIDTH`);
+  `ItemDescriptor::fixedReplyLength()` returns nothing for a REPLY that carries one, exactly as it already
+  did for a REPLY the catalogue does not list — so a String REPLY is refused as `ChecksumModeUnknown` while
+  the port's mode is unknown, with no change to `Confirmation.cpp`. For `ValueSpec`, `min`/`max` become the
+  allowed character count instead of a numeric range; the spec itself gives none, but real hardware can: the
+  Program name is capped at 20 characters, observed by the owner on an S5000, 2026-09-27
+  (`documents/_index/sysex_spec.kb.md`, "Common value codes") — not yet confirmed for the other name fields
+  (Sample, Multi, Disk file/folder), which keep their own bound when their lot catalogues them.
+- **Encoded and decoded through dedicated functions, not `makeRequest`/`decodeReply`.** Those two stay
+  `std::span<const std::int64_t>`-only: widening their signature to a value that can also be text would touch
+  every existing call site and every future numeric item for a need only the String items have. Instead
+  `makeStringRequest` and `decodeStringReply` serve exactly the items whose args or reply is one `String`
+  value, built on `ByteWriter::appendString` / `ByteReader::readString`, which already existed (added ahead
+  of need, DEC-AKM-002) — this task is the catalogue and generic-request layer catching up to them, not a
+  new codec capability. `appendValue`/`readValue`'s switches gained a `String` case returning failure, so an
+  item is never silently misread if it is ever passed to the numeric path by mistake.
+- **Left for a later item.** A REPLY that repeats a record or a string an a priori unknown number of times
+  (Program `&18`/`&19`) is a second, separate gap in the one-value-per-`ValueSpec` decode contract; it is
+  deferred to the task that first needs it (FTR-AKM-002's general program information), not resolved here.
 
 ## Consequences
 

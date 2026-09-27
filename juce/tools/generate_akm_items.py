@@ -42,11 +42,15 @@ EXIT_MISMATCH = 1
 EXIT_INVALID = 2
 
 # Value formats of the spec (pp. 8-9) the schema supports: name -> (C++ enumerator, minimum, maximum).
-# Strings, qwords and the conditional layouts of later sections are added when the first item that
-# needs one is catalogued (DEC-AKM-003).
+# Qwords and the conditional layouts of later sections are added when the first item that needs one is
+# catalogued (DEC-AKM-003). "string" was added by DEC-AKM-013 for the first items that carry an ASCII
+# name (FTR-AKM-002): min/max are a character count, not a numeric range: STRING_MAX_LENGTH is a generous
+# structural ceiling, not a spec or hardware limit — each item declares its own real bound (e.g. Program
+# names: 0-20, observed on a real S5000, documents/_index/sysex_spec.kb.md "Common value codes").
 BYTE_MAX = 127
 WORD_MAX = 128 ** 2 - 1
 DWORD_MAX = 128 ** 4 - 1
+STRING_MAX_LENGTH = 255
 FORMATS = {
     "byte": ("Byte", 0, BYTE_MAX),
     "word": ("Word", 0, WORD_MAX),
@@ -54,6 +58,7 @@ FORMATS = {
     "signed_byte": ("SignedByte", -BYTE_MAX, BYTE_MAX),
     "signed_word": ("SignedWord", -WORD_MAX, WORD_MAX),
     "signed_dword": ("SignedDword", -DWORD_MAX, DWORD_MAX),
+    "string": ("String", 0, STRING_MAX_LENGTH),
 }
 KINDS = {"set": "Set", "get": "Get"}
 

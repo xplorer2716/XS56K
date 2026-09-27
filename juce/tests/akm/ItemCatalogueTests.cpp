@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -87,6 +88,16 @@ namespace
     // An argument whose range is narrower than its format, for the range validator.
     constexpr std::array<ValueSpec, 1> NARROW{{{"narrow", ValueFormat::Word, 10, 20}}};
     constexpr ItemDescriptor NARROW_ITEM{"Narrow", 0x10, 0x23, ItemKind::Set, NARROW, {}};
+
+    // A single String value, 0-20 characters — the range TASK-AKM-015 gives the Program name items
+    // (documents/_index/sysex_spec.kb.md, "Common value codes"); no record of this lot uses String yet
+    // (ADR-AKM-001, DEC-AKM-013), so this descriptor, like EVERY_FORMAT_ITEM and NARROW_ITEM, is synthetic.
+    constexpr std::array<ValueSpec, 1> STRING_VALUE{{{"text", ValueFormat::String, 0, 20}}};
+    constexpr ItemDescriptor STRING_ITEM{"String", 0x10, 0x24, ItemKind::Get, STRING_VALUE, STRING_VALUE};
+    // Exactly one reply value, but not a String: proves the check also looks at the format, not just
+    // the count (EVERY_FORMAT_ITEM's six values already prove the count is checked).
+    constexpr std::array<ValueSpec, 1> SINGLE_BYTE{{{"value", ValueFormat::Byte, 0, 127}}};
+    constexpr ItemDescriptor NOT_A_STRING_ITEM{"Not a string", 0x10, 0x25, ItemKind::Get, {}, SINGLE_BYTE};
 
     using Values = std::vector<std::int64_t>;
 }
@@ -151,6 +162,18 @@ TEST_CASE("Given each value format, When its width is asked, Then it is the numb
     CHECK(akm::valueWidth(ValueFormat::SignedWord) == 3);
     CHECK(akm::valueWidth(ValueFormat::SignedDword) == 5);
     CHECK(EVERY_FORMAT_ITEM.fixedReplyLength() == 1 + 2 + 4 + 2 + 3 + 5);
+}
+
+TEST_CASE("Given the String value format, When its width is asked, Then it is undefined: a String has no fixed width [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    CHECK(akm::valueWidth(ValueFormat::String) == akm::UNDEFINED_VALUE_WIDTH);
+}
+
+TEST_CASE("Given a record whose REPLY carries a String, When the length of its REPLY is asked, Then it is not fixed [RQ-AKM-041]",
+          "[akm][catalogue]")
+{
+    CHECK(STRING_ITEM.fixedReplyLength() == std::nullopt);
 }
 
 TEST_CASE("Given the values 01 23 45 67, When the Echo is encoded, Then the command carries section 00, item 06 and the four bytes [RQ-AKM-015]",
@@ -285,6 +308,49 @@ TEST_CASE("Given a value outside the range of the record but inside its format, 
     }
 }
 
+TEST_CASE("Given an ASCII name inside its range, When makeStringRequest encodes it, Then the command carries the name followed by 00 [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, "TESTPRG");
+
+    CHECK_FALSE(request.refusal.has_value());
+    CHECK(request.command.section == 0x10);
+    CHECK(request.command.item == 0x24);
+    // "TESTPRG" in ASCII.
+    CHECK(request.command.data == bytes({0x54, 0x45, 0x53, 0x54, 0x50, 0x52, 0x47, 0x00}));
+}
+
+TEST_CASE("Given a name longer than the item's character-count range, When makeStringRequest encodes it, Then it is refused as out of range and no data is produced [RQ-AKM-001]",
+          "[akm][catalogue]")
+{
+    const std::string tooLong(21, 'A');
+
+    const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, tooLong);
+
+    REQUIRE(request.refusal.has_value());
+    CHECK(*request.refusal == RefusalReason::ArgumentOutOfRange);
+    CHECK(request.command.data.empty());
+}
+
+TEST_CASE("Given a name that is not 7-bit ASCII or contains a 00 byte, When makeStringRequest encodes it, Then it is refused as not encodable [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    for (const std::string& text : {std::string("A\x80"), std::string("A\0B", 3)})
+    {
+        const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, text);
+
+        REQUIRE(request.refusal.has_value());
+        CHECK(*request.refusal == RefusalReason::NotEncodable);
+    }
+}
+
+TEST_CASE("Given an item without exactly one String argument, When makeStringRequest is called, Then it is refused for its number of arguments [RQ-AKM-001]",
+          "[akm][catalogue]")
+{
+    CHECK(*akm::makeStringRequest(NARROW_ITEM, "text").refusal == RefusalReason::WrongArgumentCount);
+    CHECK(*akm::makeStringRequest(EVERY_FORMAT_ITEM, "text").refusal == RefusalReason::WrongArgumentCount);
+}
+
 TEST_CASE("Given the data of an OS version REPLY, When decoded, Then the major and minor numbers come back [RQ-AKM-044]",
           "[akm][catalogue]")
 {
@@ -324,4 +390,30 @@ TEST_CASE("Given the data of a REPLY of every numeric format, When decoded, Then
 
     REQUIRE(values.has_value());
     CHECK(*values == Values{5, 385, 268435455, -5, -37, 1});
+}
+
+TEST_CASE("Given the data of a String REPLY, When decodeStringReply reads it, Then the name comes back [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    // "TESTPRG" in ASCII.
+    const auto text = akm::decodeStringReply(STRING_ITEM, bytes({0x54, 0x45, 0x53, 0x54, 0x50, 0x52, 0x47, 0x00}));
+
+    REQUIRE(text.has_value());
+    CHECK(*text == "TESTPRG");
+}
+
+TEST_CASE("Given reply data that is not exactly one null-terminated string, When decodeStringReply reads it, Then nothing is returned [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    // No terminator; a terminator followed by trailing bytes; empty data.
+    CHECK_FALSE(akm::decodeStringReply(STRING_ITEM, bytes({0x41, 0x42})).has_value());
+    CHECK_FALSE(akm::decodeStringReply(STRING_ITEM, bytes({0x41, 0x42, 0x00, 0x43})).has_value());
+    CHECK_FALSE(akm::decodeStringReply(STRING_ITEM, Bytes{}).has_value());
+}
+
+TEST_CASE("Given an item without exactly one String reply, When decodeStringReply is called, Then nothing is returned [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    CHECK_FALSE(akm::decodeStringReply(EVERY_FORMAT_ITEM, bytes({0x41, 0x00})).has_value());
+    CHECK_FALSE(akm::decodeStringReply(NOT_A_STRING_ITEM, bytes({0x41, 0x00})).has_value());
 }

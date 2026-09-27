@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <initializer_list>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "akm/CommandOptions.hpp"
@@ -48,4 +50,18 @@ namespace akm
     [[nodiscard]] std::optional<std::vector<std::int64_t>> decodeReply(const ItemDescriptor& item,
                                                                         std::span<const std::uint8_t> data);
     [[nodiscard]] std::optional<std::vector<std::int64_t>> decodeReply(ItemId id, std::span<const std::uint8_t> data);
+
+    /// Encodes the one `String` argument of an item: refused as `WrongArgumentCount` when the item does
+    /// not take exactly one `String` argument, or as `NotEncodable` when `text` is not 7-bit ASCII or
+    /// contains a `00` byte. `options` are kept as given. [RQ-AKM-002, ADR-AKM-001 (DEC-AKM-013)]
+    [[nodiscard]] CommandRequest makeStringRequest(const ItemDescriptor& item, std::string_view text,
+                                                   CommandOptions options = {});
+    [[nodiscard]] CommandRequest makeStringRequest(ItemId id, std::string_view text, CommandOptions options = {});
+
+    /// Decodes the one `String` REPLY value of an item, or returns nothing when the item's REPLY is not
+    /// exactly one `String`, or `data` does not hold exactly one null-terminated ASCII string.
+    /// [RQ-AKM-002, ADR-AKM-001 (DEC-AKM-013)]
+    [[nodiscard]] std::optional<std::string> decodeStringReply(const ItemDescriptor& item,
+                                                                std::span<const std::uint8_t> data);
+    [[nodiscard]] std::optional<std::string> decodeStringReply(ItemId id, std::span<const std::uint8_t> data);
 }

@@ -94,8 +94,10 @@ class DataFileIsValidated(ScriptTest):
         self.assertIn(expected_text, result.stderr)
 
     def test_given_a_format_the_schema_does_not_support_when_read_then_it_is_refused_naming_the_record(self):
+        # "qword" is deferred like "string" was (DEC-AKM-003); unlike "string" (added by DEC-AKM-013,
+        # TASK-AKM-014), it is still unsupported, so it stays a valid example of a rejected format.
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExEcho")["args"][0]
-                                     .update(format="string"))
+                                     .update(format="qword"))
 
         self.assert_refused(variant, "SysExEcho")
 
