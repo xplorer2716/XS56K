@@ -178,4 +178,18 @@ namespace akm
     /// port's checksum mode is unknown, for the same reason as `getAllProgramNumbers`. [RQ-AKM-023,
     /// RQ-AKM-041, ADR-AKM-001 (DEC-AKM-014)]
     void getAllProgramNames(Session& session, AllProgramNamesCompletion completion);
+
+    /// Passed to `deleteAllPrograms` to prove the caller means it. A default `bool` could be satisfied by
+    /// accident (`true`, `1`, a stray flag); this enumerator cannot — it must be named. [RQ-AKM-025]
+    enum class ConfirmDeleteAllPrograms
+    {
+        IUnderstandThisDeletesEveryProgramInMemory,
+    };
+
+    /// Deletes every program in memory (§0A/&07) — irreversible without a saved backup. `confirmation`
+    /// has no default: sent only when it is the enumerator; `std::nullopt` refuses the command as
+    /// `NotConfirmed` without sending anything. No real-sampler test of any feature calls this.
+    /// [RQ-AKM-025]
+    void deleteAllPrograms(Session& session, std::optional<ConfirmDeleteAllPrograms> confirmation,
+                           CommandCompletion completion);
 }

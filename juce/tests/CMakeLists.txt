@@ -22,6 +22,7 @@ add_executable(xs56k_akm_tests
     akm/MidiTuneParametersTests.cpp
     akm/OutputParametersTests.cpp
     akm/PitchBendParametersTests.cpp
+    akm/ProgramDeleteAllGuardTests.cpp
     akm/ProgramGeneralInfoTests.cpp
     akm/ProgramPrimitivesTests.cpp
     akm/ProgramStructureTests.cpp

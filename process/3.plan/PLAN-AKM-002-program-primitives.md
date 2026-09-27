@@ -354,7 +354,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-023: Destructive command guard for "Delete ALL programs"
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&07` (Delete ALL programs from memory) so that it is sent only when the
   caller passes an explicit confirmation argument that no default supplies (e.g. a dedicated type, not
   a bare `bool`, so a call site cannot satisfy it by accident), and audit the real-sampler test sources
@@ -367,8 +367,20 @@ This plan implements the tasks in the format specified below.
   is no call.
 - **Dependencies**: TASK-AKM-015
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 391/391 (2 new in
+  `ProgramDeleteAllGuardTests.cpp`: `std::nullopt` refuses as `NotConfirmed` with nothing sent; the
+  enumerator sends `&07`, completes on DONE, and a following select confirms the sampler's programs are
+  gone). `--coverage`: section 0A now 95/95, complete. Audit re-run this session: `grep -r
+  "deleteAllPrograms\|ProgramDeleteAll" juce/tests/support juce/tests/probe` — no match. Not verified:
+  real sampler (deliberately — RQ-AKM-025 forbids it); mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `confirmation` (`std::optional<ConfirmDeleteAllPrograms>`) has no default value at
+  all, `completion` staying the trailing parameter (this file's own convention) rather than reordering
+  to let `confirmation` default to `std::nullopt`; every call site must name it explicitly, `nullopt`
+  included. `RefusalReason` gained a new enumerator, `NotConfirmed`: none of the existing ones fit "the
+  caller did not prove intent" (unlike TASK-AKM-014's `NotEncodable`/`ArgumentOutOfRange`, which already
+  covered that task's failure modes). Section 0A being fully catalogued (`items.json`'s `"complete":
+  true`) satisfies RQ-AKM-026's coverage count ahead of TASK-AKM-025, which still owns the `&2C`/`&2D`
+  errata resolution on the real sampler.
 
 ---
 

@@ -18,9 +18,9 @@
     {
       "section": "0A",
       "name": "Program",
-      "complete": false,
+      "complete": true,
       "spec": "Tables 13 and 14, pp. 20-25",
-      "note": "TASK-AKM-015: the lifecycle items of RQ-AKM-021 (&02, &03, &05, &06, &08, &09) plus the two Gets its own acceptance criteria verify by (&10, &13, also part of RQ-AKM-023). TASK-AKM-018 to 022: the 76 items of the five RQ-AKM-024 parameter groups. TASK-AKM-016: the structure/identity items of RQ-AKM-022 (&0A, &0B, &0C, &0D) plus &11, &14, &15 (also part of RQ-AKM-023) that its own acceptance criteria verify by. The rest of section 0A is added by PLAN-AKM-002's later tasks."
+      "note": "Section 0A is fully catalogued as of TASK-AKM-023: the lifecycle items of RQ-AKM-021 (TASK-AKM-015: &02, &03, &05, &06, &08, &09, plus &10 and &13), the structure/identity items of RQ-AKM-022 (TASK-AKM-016: &0A, &0B, &0C, &0D, plus &11, &14, &15), general program information (TASK-AKM-017: &12, &18, &19), the 76 items of RQ-AKM-024's five parameter groups (TASK-AKM-018 to 022), and the guarded &07 (TASK-AKM-023, RQ-AKM-025)."
     }
   ],
   "items": [
@@ -682,6 +682,11 @@
       "args": [],
       "reply": [{"name": "name", "format": "string", "min": 0, "max": 20}],
       "requirements": ["RQ-AKM-023"]
+    },
+    {
+      "id": "ProgramDeleteAll", "section": "0A", "item": "07", "name": "Delete ALL programs from memory", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-025"]
     }
   ]
 }

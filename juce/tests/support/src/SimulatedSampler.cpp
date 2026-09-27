@@ -88,6 +88,8 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_INDEX = 0x12;
         constexpr std::uint8_t ITEM_GET_ALL_NUMBERS = 0x18;
         constexpr std::uint8_t ITEM_GET_ALL_NAMES = 0x19;
+        // Destructive guard of TASK-AKM-023 (RQ-AKM-025).
+        constexpr std::uint8_t ITEM_DELETE_ALL = 0x07;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -294,6 +296,10 @@ namespace akm::harness
                     if (!current)
                         return failure(error_number::NOT_FOUND);
                     programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
+                    current.reset();
+                    return done();
+                case ITEM_DELETE_ALL:
+                    programs.clear();
                     current.reset();
                     return done();
                 case ITEM_RENAME_CURRENT_PROGRAM:

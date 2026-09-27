@@ -292,4 +292,20 @@ namespace akm
                                completion(result);
                        });
     }
+
+    void deleteAllPrograms(Session& session, std::optional<ConfirmDeleteAllPrograms> confirmation,
+                           CommandCompletion completion)
+    {
+        if (!confirmation)
+        {
+            const ItemDescriptor& item = descriptor(ItemId::ProgramDeleteAll);
+            CommandRequest request;
+            request.command.section = item.section;
+            request.command.item = item.item;
+            request.refusal = RefusalReason::NotConfirmed;
+            submitProgramRequest(session, std::move(request), std::move(completion));
+            return;
+        }
+        submitProgramRequest(session, makeRequest(ItemId::ProgramDeleteAll, NO_VALUES), std::move(completion));
+    }
 }
