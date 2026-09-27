@@ -19,5 +19,5 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace midiapp
 {
-    std::string libraryName() { return "xpl_framework"; }
+    std::string libraryName() { return "xs56k_framework"; }
 }

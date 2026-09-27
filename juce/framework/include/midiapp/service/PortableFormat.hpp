@@ -6,7 +6,7 @@
 // for AppImage glibc/libstdc++ portability rather than upgraded, because a
 // PPA-installed compiler would risk depending on a libstdc++ ABI newer than
 // the pinned image ships, which is exactly the failure the pin exists to
-// avoid. [RQ-BLD-025, ADR-BLD-004 (DEC-BLD-021)]
+// avoid. [XplorerEditor RQ-BLD-025, ADR-BLD-004 (DEC-BLD-021)]
 //
 // formatFallbackInto()/formatFallback() are compiled unconditionally (not
 // behind the #if below) so their substitution logic stays covered by unit

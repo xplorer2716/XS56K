@@ -1,0 +1,147 @@
+# Configures, builds and tests the GUI application for one platform and one
+# configuration, and reports where the artefacts landed.
+# [RQ-BLD-007, RQ-BLD-008, ADR-BLD-003]
+#
+# Adapted from xplorer2716/XplorerEditor's own .github/actions/build-app/action.yml
+# (AGENTS.md), trimmed to this repository's actual application: XS56KApp is a
+# MINIMAL PLACEHOLDER (juce/app — TASK-BLD-005), so the steps this repository
+# has no equivalent for are dropped rather than carried over unused:
+# - no SBOM (nothing generates one here — ADR-BLD-003's explicit out-of-scope list)
+# - no application icon / Windows .rc override (none exists — same list)
+# - no oberheim.syx-equivalent embedded asset (nothing to embed yet)
+#
+# Exists so the deployment workflows carry a name and a trigger and nothing
+# else: RQ-BLD-008 keeps the build/package/publish logic in one place instead
+# of duplicated across every generated workflow file.
+name: 'Build the XS56K application'
+description: 'Configures, builds and tests the GUI app for one platform/configuration; outputs the artefact directory.'
+
+inputs:
+  os:
+    description: 'windows | macos | linux'
+    required: true
+  config:
+    description: 'release | debug (lower case; mapped to the CMake spelling here)'
+    required: true
+  version-numeric:
+    description: 'Numeric version form, from resolve-version.'
+    required: true
+  version-full:
+    description: 'Full version form, from resolve-version.'
+    required: true
+  run-tests:
+    description: 'Whether to build and run the unit suites.'
+    default: 'false'
+
+outputs:
+  artefact-dir:
+    description: 'Directory holding the executable (or bundle).'
+    value: ${{ steps.locate.outputs.artefact-dir }}
+
+runs:
+  using: composite
+  steps:
+    # The GUI build needs the X11/font/audio/GL development headers, and so
+    # does juceaide, which JUCE builds first and runs at configure time.
+    # Deliberately NOT libcurl or WebKit: JUCE_USE_CURL=0 and
+    # JUCE_WEB_BROWSER=0 are set on the target, and installing them would
+    # link the deployment against libraries the user then has to have.
+    - name: Install the Linux GUI build dependencies
+      if: inputs.os == 'linux'
+      shell: bash
+      run: |
+        set -euo pipefail
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends \
+          libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev \
+          libxcomposite-dev libxext-dev \
+          libfreetype6-dev libfontconfig1-dev \
+          libasound2-dev libgl1-mesa-dev
+
+    - id: configure
+      shell: bash
+      env:
+        OS: ${{ inputs.os }}
+        CONFIG: ${{ inputs.config }}
+        NUMERIC: ${{ inputs.version-numeric }}
+        FULL: ${{ inputs.version-full }}
+        RUN_TESTS: ${{ inputs.run-tests }}
+      run: |
+        set -euo pipefail
+
+        # CMake's own spelling, from the workflow's lower-case one.
+        case "$CONFIG" in
+          release) cmake_config=Release ;;
+          debug)   cmake_config=Debug ;;
+          *) echo "::error::unsupported config '${CONFIG}'"; exit 1 ;;
+        esac
+        echo "cmake-config=${cmake_config}" >> "$GITHUB_OUTPUT"
+
+        # Both CMAKE_BUILD_TYPE and --config are passed downstream: Windows
+        # uses the multi-config Visual Studio generator, which ignores the
+        # former, and macOS/Linux use a single-config generator, which
+        # ignores the latter. Passing both keeps one script instead of a
+        # per-OS branch.
+        args=(
+          -S juce -B juce/build
+          "-DCMAKE_BUILD_TYPE=${cmake_config}"
+          -DBUILD_APP=ON
+          "-DBUILD_TESTS=$([ "$RUN_TESTS" = true ] && echo ON || echo OFF)"
+          "-DVERSION_NUMERIC=${NUMERIC}"
+          "-DVERSION_FULL=${FULL}"
+        )
+        case "$OS" in
+          windows) args+=(-G "Visual Studio 17 2022" -A x64) ;;
+          macos)   args+=(-DCMAKE_OSX_ARCHITECTURES=arm64) ;;
+          linux)   ;;
+        esac
+
+        cmake "${args[@]}"
+
+    - name: Build
+      shell: bash
+      # Bounded parallelism, not bare -j: on Make/Ninja, a bare -j means
+      # unlimited, which can fire every ready translation unit at once and
+      # OOM-kill the compiler on a small runner (XplorerEditor's own
+      # RQ-BLD-031 finding — its reasoning applies unchanged here, whatever
+      # this repository ends up naming the equivalent requirement).
+      run: |
+        set -euo pipefail
+        jobs="$(getconf _NPROCESSORS_ONLN 2>/dev/null || nproc 2>/dev/null || sysctl -n hw.ncpu 2>/dev/null || echo 2)"
+        cmake --build juce/build --config ${{ steps.configure.outputs.cmake-config }} -j "$jobs"
+
+    - name: Run unit tests
+      if: inputs.run-tests == 'true'
+      shell: bash
+      run: ctest --test-dir juce/build --build-config ${{ steps.configure.outputs.cmake-config }} --output-on-failure
+
+    - id: locate
+      shell: bash
+      env:
+        OS: ${{ inputs.os }}
+      run: |
+        set -euo pipefail
+
+        # Located, not hard-coded: JUCE decides the <target>_artefacts/<config>/
+        # layout and it is JUCE's to change. The macOS case looks one level
+        # deeper because the executable lives inside the bundle.
+        case "$OS" in
+          macos)
+            app=$(find juce/build -maxdepth 6 -type d -name 'XS56K.app' | head -n 1)
+            [ -n "$app" ] || { echo "::error::XS56K.app was not produced"; exit 1; }
+            dir="${app}/Contents/MacOS"
+            ;;
+          windows)
+            exe=$(find juce/build -type f -name 'XS56K.exe' | head -n 1)
+            [ -n "$exe" ] || { echo "::error::XS56K.exe was not produced"; exit 1; }
+            dir="$(dirname "$exe")"
+            ;;
+          linux)
+            exe=$(find juce/build -type f -name 'XS56K' -perm -u+x | head -n 1)
+            [ -n "$exe" ] || { echo "::error::XS56K was not produced"; exit 1; }
+            dir="$(dirname "$exe")"
+            ;;
+        esac
+
+        echo "artefact-dir=${dir}" >> "$GITHUB_OUTPUT"
+        echo "Built into ${dir}" >&2

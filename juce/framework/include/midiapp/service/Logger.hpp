@@ -73,7 +73,7 @@ namespace midiapp::service
         /// Writes one line under `domain` at `level`, prefixed with a UTC
         /// timestamp, the level, the domain and the call site -- but only
         /// when `domain` is enabled AND `level` passes the current
-        /// threshold. Reached only through `XPL_LOG()` below, so `file`/
+        /// threshold. Reached only through `XS56K_LOG()` below, so `file`/
         /// `line` are always the true call site rather than a value a
         /// caller could mistype or leave stale. [RQ-FMW-073]
         static void writeLine(LogDomain domain, TraceLevel level, const char* file, int line,
@@ -85,5 +85,5 @@ namespace midiapp::service
 /// (`__FILE__`/`__LINE__`) automatically. The sole sanctioned way to reach
 /// `Logger::writeLine`'s domain-aware overload. [RQ-FMW-073, RQ-FMW-074,
 /// RQ-FMW-075, RQ-FMW-076, ADR-FMW-001 (DEC-FMW-002)]
-#define XPL_LOG(domain, level, message) \
+#define XS56K_LOG(domain, level, message) \
     ::midiapp::service::Logger::writeLine((domain), (level), __FILE__, __LINE__, (message))

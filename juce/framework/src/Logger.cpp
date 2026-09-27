@@ -6,7 +6,7 @@
 // #68 and ADR-FMW-001 for the history. [RQ-FMW-070, RQ-FMW-073, RQ-NFR-008]
 #include "midiapp/service/Logger.hpp"
 
-#include "xpl/util/EnumUtils.hpp"
+#include "common/util/EnumUtils.hpp"
 
 #include <array>
 #include <atomic>
@@ -44,7 +44,7 @@ namespace midiapp::service
 
         std::size_t domainIndex(LogDomain domain)
         {
-            return static_cast<std::size_t>(xpl::util::toUnderlying(domain));
+            return static_cast<std::size_t>(common::util::toUnderlying(domain));
         }
 
         const char* levelName(TraceLevel level)
@@ -90,7 +90,7 @@ namespace midiapp::service
         // UTC timestamp with millisecond precision, hand-rolled rather than
         // via std::format/chrono-io: both need a <format> the pinned Linux CI
         // toolchain does not ship (GCC 11; see PortableFormat.hpp).
-        // [RQ-BLD-025, ADR-BLD-004 (DEC-BLD-021)]
+        // [XplorerEditor RQ-BLD-025, ADR-BLD-004 (DEC-BLD-021)]
         std::string formatTimestamp()
         {
             const auto now = std::chrono::floor<std::chrono::milliseconds>(std::chrono::system_clock::now());
@@ -180,7 +180,7 @@ namespace midiapp::service
                             const std::string& message)
     {
         if (!isDomainEnabled(domain) || level == TraceLevel::Off
-            || xpl::util::toUnderlying(level) > xpl::util::toUnderlying(g_level.load()))
+            || common::util::toUnderlying(level) > common::util::toUnderlying(g_level.load()))
         {
             return;
         }

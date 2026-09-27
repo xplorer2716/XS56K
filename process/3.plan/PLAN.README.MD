@@ -1,1 +1,0 @@
-This folder contains the plans and task related to ADRs implementation

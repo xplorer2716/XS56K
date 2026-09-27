@@ -11,21 +11,101 @@ Guidance for AI coding agents working in this repository.
 - **Stack:** C++ / [JUCE](https://juce.com/) 8.0.15
 - **Status:** experimental
 
-No source code exists yet beyond reference documentation (`documents/`) and the
-`process/` planning skeleton. Update this section once the repository layout is real.
+`juce/midi` and `juce/framework` are ported from
+[xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor) (a real-time editor for
+the Oberheim Xpander/Matrix-12, itself a JUCE C++ port of a .NET application) — this repository's
+CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. `juce/app` is a
+**minimal, intentionally undesigned placeholder** (a bare `juce::DocumentWindow`) — not `model`,
+`controller`, `settings`, or any real editor UI — that exists solely so the build/version/deploy
+plumbing has a real GUI target to exercise. `juce/akm` is the S5000 SysEx layer (namespace `akm`,
+library `xs56k_akm`), written for this repository, not ported: it depends on `xs56k_midi` only and
+exposes no JUCE type in its public headers (`ADR-AKM-001`, `FTR-AKM-001`). Reference documentation
+lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
 `documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
 
+The build system itself is a traceable AGNOS artifact: `process/1.requirements/RQ-BLD-build-tooling.md`,
+`process/2.architecture/ADR-BLD-001` through `ADR-BLD-003`, and
+`process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md` — the last of these lists what is
+already done and what remains (blocked) to fully reproduce XplorerEditor's build system here.
+
 ## Commands
 
-Install, build, test and lint commands are not defined yet — there is no buildable
-code in the repository at this stage. Do not invent commands; check `CONTRIBUTING.md`
-and this file again once they exist.
+- **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
+  (ALSA headers, needed by `juce_audio_devices`); the GUI target (`BUILD_APP=ON`) additionally
+  needs `libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libxext-dev
+  libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev` on Linux. JUCE itself is fetched by CMake
+  (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately. [RQ-BLD-001]
+- **Build (libraries only):** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
+  (builds the `xs56k_midi`/`xs56k_midi_juce`, `xs56k_framework` and `xs56k_akm` static libraries only). [RQ-BLD-002, RQ-AKM-019]
+- **Build (with the placeholder app):** add `-DBUILD_APP=ON` (and, to embed a real version,
+  `-DVERSION_NUMERIC=... -DVERSION_FULL=...` — see `.github/actions/resolve-version`); produces
+  an `XS56K` executable that opens one placeholder window. [RQ-BLD-007]
+- **Test:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build juce/build -j"$(nproc)" && ctest --test-dir juce/build --output-on-failure`
+  (`BUILD_TESTS` defaults to `OFF`; Catch2 is fetched by CMake, pinned in `juce/CMakeLists.txt`). With
+  a multi-configuration generator (Visual Studio, Xcode) add `--config <cfg>` to the build and
+  `-C <cfg>` to `ctest`. Test sources live under `juce/tests/`, mirroring the library they exercise.
+  The linux-headless canary and preprod workflows run exactly this, and every generated workflow runs
+  the suite in its own configuration. [RQ-AKM-016, RQ-BLD-014, TASK-AKM-003]
+- **First-contact probe** (needs the sampler; run by the owner): built by the test command above as
+  `xs56k_akm_probe` (`juce/<build dir>/tests/probe/`, with a `<config>` folder on Visual Studio). `xs56k_akm_probe --list`
+  shows the MIDI ports; `xs56k_akm_probe --in "<port the sampler sends on>" --out "<port it receives on>"`
+  sends fifteen SysEx frames one at a time and writes `akm-probe-<UTC date>.log`. It switches the
+  sampler's checksum and Still Alive settings on and off and ends with both off. [RQ-AKM-017, RQ-AKM-044, TASK-AKM-012]
+- **Session smoke test** (needs the sampler; run by the owner): `xs56k_akm_probe --session --in "<port the sampler sends on>"
+  --out "<port it receives on>"` (same program, same ports) drives a real `Session` through discovery, the checksum mode,
+  50 timed Echo round trips, the OS version and the other section 00 settings, writes `akm-session-<UTC date>.log` and
+  ends with checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves
+  Sync LCD and Auto screen update alone. Exit status 0 when every step went as it had to, 2 when no sampler answered
+  at the DeviceID, 3 otherwise. [RQ-AKM-017, TASK-AKM-013]
+- **Real-sampler suite** (needs the sampler; run by the owner, opt-in, never run by CI against hardware):
+  `xs56k_akm_probe --suite --in "<port the sampler sends on>" --out "<port it receives on>"` (same program, same ports)
+  runs seven checks, each on a session opened with `Session::open` and closed with `Session::close` — open and close,
+  Echo, 50 timed Echo round trips, the OS version, checksums on and off, every setting put back, and a check that fails
+  half way and must leave the sampler in the known state — writes `akm-suite-<UTC date>.log` and ends with the
+  observations of RQ-AKM-017. It changes only section 00 settings, never a program, multi or sample, and ends with checksums
+  off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves Sync LCD and Auto screen
+  update alone. Two extra checks are asked for: `--power-cycle` asks you to switch the sampler off and on while a
+  session is open, and `--slow-operation` sends one command outside sections 00 and 02 ("update the list of disks",
+  section 10 item 01) with Still Alive on, to see whether `F0 F7` reaches the host. Observed once on an S5000
+  (OS 2.14, no disk drive attached): `--slow-operation` got no reply at all, `F0 F7` included, and left the sampler
+  answering no SysEx — a fresh discovery included — until it was power-cycled by hand; run `--power-cycle` on its
+  own, not together with `--slow-operation`, if the point is to test persistence across a graceful restart
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). Exit status 0 when every check
+  passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
+  suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]
+- **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`
+  (`python` on Windows) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
+  table is out of date, `--coverage` compares the data file with the spec's item list
+  (`documents/_index/sysex_spec.items.tsv`). Never edit the generated header by hand, and no script runs during the
+  build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
+  ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+- **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
+  -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
+  `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
+
+Do not invent commands beyond these; check `CONTRIBUTING.md` (which still has none) and this file
+again once a real editor UI exists.
 
 ## Conventions
 
-- Default branch: `main`
+- **Branches — two long-lived** (`ADR-BLD-002`, adapted from XplorerEditor's own `ADR-BLD-003`; `RQ-BLD-005`):
+  - `main` — production. Protected (`RQ-BLD-011`, configured by the owner directly in GitHub's
+    settings — `mcp__github__list_branches` confirms `protected: true`).
+  - `dev` — integration, the **default branch**. Base for pull requests and for AGNOS sessions.
+  - `feature/*` (or other short-lived branches) — canary: built by CI on every push, no merge
+    required first.
+  - CI: `linux-headless-canary.yml`/`linux-headless-preprod.yml` build the headless libraries only.
+    `juce/tools/generate_workflows.py` generates 15 more (`<os>-<arch>-<config>-<stage>`,
+    `windows-x64`/`macos-arm64`/`linux-x64` × canary/dev/prod) that build, run the test suites
+    (`ctest`, before anything is packaged: a failing test stops the job — `RQ-BLD-014`,
+    `ADR-BLD-005`), package and — on `dev` and `prod` — publish the placeholder app as a GitHub
+    Release (`ADR-BLD-003`). `cut-deployment.yml`
+    (`workflow_dispatch` on `main`) triggers the three `prod` ones by pushing a version tag —
+    **not yet usable**: it needs a `CUT_DEPLOYMENT` repository secret (a PAT) that has not been
+    added (`GITHUB_TOKEN` can't trigger other workflows when it pushes). No SBOM/icon/AppImage/
+    code-signing exists — explicitly out of scope until the placeholder becomes a real UI.
 - Branch naming: `type/short-description`
 - Commit messages: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - Versioning: [SemVer](https://semver.org/spec/v2.0.0.html) — record user-facing changes in `CHANGELOG.md` under `[Unreleased]`.

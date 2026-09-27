@@ -26,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //     send(). A test can therefore assert immediately after injecting, with no
 //     wait and no polling. The real backend delivers on a JUCE-owned callback
 //     thread instead, so a test that depends on that asynchrony must use the
-//     JUCE backend (see the virtual-cable scenarios in xpl_tests_midi_juce).
+//     JUCE backend (see the JUCE backend's virtual-cable test scenarios).
 //   * Every message sent to an output is CAPTURED, so a test asserts on the
 //     exact byte sequence the controller produced.
 //   * An output can be LOOPED BACK to an input (connectLoopback), which is how
@@ -35,12 +35,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // Device names are the identity: openInput/openOutput fail for a name that was
 // not registered with addInputDevice/addOutputDevice first, mirroring the real
 // backend's behaviour when a device is absent.
-#include "xpl/midi/MockMidiBackend.hpp"
+#include "common/midi/MockMidiBackend.hpp"
 
 #include <algorithm>
 #include <map>
 
-namespace xpl::midi
+namespace common::midi
 {
     // All mutable state lives here, behind a shared_ptr held by the backend AND
     // by every port it opened. That is what makes destruction order irrelevant:
