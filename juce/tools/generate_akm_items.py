@@ -309,7 +309,8 @@ def spec_domains(row):
     domains = [first]
     if second != "N/A":
         domains.append(second)
-        for marker in re.finditer(r"<Data(\d+)>=([^;]*)", second):
+        # "=" is not always there before the range (e.g. "<Data3>0-100", &23's own column, no "=").
+        for marker in re.finditer(r"<Data(\d+)>=?\s*([^;]*)", second):
             domains.append(marker.group(2))
     return domains
 

@@ -21,9 +21,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstddef>
 #include <utility>
 
+#include <array>
+
 #include "akm/ByteReader.hpp"
 #include "akm/ByteWriter.hpp"
 #include "akm/Checksum.hpp"
+#include "akm/ItemCatalogue.hpp"
+#include "akm/ItemDescriptor.hpp"
 #include "akm/Protocol.hpp"
 #include "akm/SamplerError.hpp"
 #include "common/midi/MidiMessage.hpp"
@@ -156,6 +160,86 @@ namespace akm::harness
             return done();
         }
 
+        // Each Set item of the Output, MIDI/Tune, Pitch Bend, LFO and Keygroup Modulation Sources groups
+        // (RQ-AKM-024) has its Get at a fixed offset within its group (spec Tables 13-14): a byte range,
+        // not a per-item table, since the pattern is uniform within each group.
+        struct ParameterGroupRange
+        {
+            std::uint8_t setFirst;
+            std::uint8_t setLast;
+            std::uint8_t offsetToGet;
+        };
+        constexpr std::array<ParameterGroupRange, 5> PARAMETER_GROUP_RANGES{{
+            {0x20, 0x25, 0x08},  // Output
+            {0x30, 0x34, 0x08},  // MIDI/Tune
+            {0x40, 0x47, 0x08},  // Pitch Bend
+            {0x50, 0x5F, 0x10},  // LFOs
+            {0x70, 0x72, 0x04},  // Keygroup Modulation Sources
+        }};
+
+        std::size_t totalWidth(std::span<const akm::ValueSpec> values)
+        {
+            std::size_t total = 0;
+            for (const akm::ValueSpec& value : values)
+                total += akm::valueWidth(value.format);
+            return total;
+        }
+
+        // A Set writes [selector bytes][value bytes] (the paired Get's own args and reply give their
+        // widths); a Get reads back the value stored for its selector, or width-many zero bytes when
+        // nothing was set yet. Generic over every item of the five groups: a new item is a new catalogue
+        // record, not new code here either. An item outside all five ranges is not supported, whether or
+        // not a program is current; one inside them needs a current program, checked only once it is
+        // known to be recognised. [RQ-AKM-024, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+        Outcome executeParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                      std::optional<std::size_t>& current)
+        {
+            for (const ParameterGroupRange& range : PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    ProgramRecord& program = programs[*current];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_PROGRAM, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    program.parameters[{item, std::move(key)}] = std::move(value);
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const ProgramRecord& program = programs[*current];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_PROGRAM, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    const auto found = program.parameters.find({setItem, key});
+                    if (found != program.parameters.end())
+                        return reply(found->second);
+                    return reply(Bytes(valueWidth, 0));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
         Outcome executeProgram(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
                                std::optional<std::size_t>& current)
         {
@@ -226,7 +310,7 @@ namespace akm::harness
                     return reply(writer.bytes());
                 }
                 default:
-                    return failure(error_number::NOT_SUPPORTED);
+                    return executeParameterGroup(item, data, programs, current);
             }
         }
 

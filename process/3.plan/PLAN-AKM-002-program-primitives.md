@@ -202,13 +202,17 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-018: Output parameter group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Set/Get Loudness (`&20`/`&28`), Velocity Sensitivity (`&21`/`&29`), Amp
   Mod Source/Value for Amp Mod 1 and 2 (`&22`/`&2A`, `&23`/`&2B`) and Pan Mod Source/Value for Pan Mod
   1, 2 and 3 (`&24`/`&2C`, `&25`/`&2D`) — 6 Set items, 6 Get items, 6 REPLY formats — each with a Set
-  test followed by a Get test verified by read-back.
+  test followed by a Get test verified by read-back. Catalogued only (no per-item typed helper): every
+  value fits the existing byte/no-selector-or-selector shape, so the generic `makeRequest`/`decodeReply`
+  already serves them (DEC-AKM-003). Extends the simulated sampler (DEC-AKM-008) with a single generic
+  §0A parameter-group mechanism (byte-width-driven from the catalogue itself) that also serves
+  TASK-AKM-019 to 022 unchanged.
 - **Requirement refs**: RQ-AKM-024
-- **ADR refs**: ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)
+- **ADR refs**: ADR-AKM-001 (DEC-AKM-003, DEC-AKM-008, DEC-AKM-012)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-024 — *Given* each Set item of this
   group, *When* a value inside its range is set then read back on the simulated sampler, *Then* the
   value read equals the value set. *Given* a value outside the range (e.g. Amp Mod Source above 14, or
@@ -217,8 +221,21 @@ This plan implements the tasks in the format specified below.
   passes unchanged.
 - **Dependencies**: TASK-AKM-015
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 371/371 (2 new in `OutputParametersTests.cpp`:
+  all 6 items round-tripped in one table-driven test, plus a range-refusal spot check). `--coverage`
+  clean (also fixed a pre-existing regex bug it exposed: `spec_domains` required `=` after `<DataN>`,
+  but &23/&25's own column has none). Not verified: real sampler (TASK-AKM-024); mutation testing
+  (blocked by the session's security classifier, as in TASK-AKM-014/015).
+- **Assumptions**: Every item of this group fits `byte`, one value per spec column (no `SignedByte`/
+  `Word`: they would total fewer values than the spec's own columns, breaking `--coverage`'s comparison,
+  as `&06`/`&10` already showed in TASK-AKM-015). `items.json` was authored for all five parameter
+  groups (76 items) in this task's own commit, one data-file edit being far cheaper to review and
+  coverage-check than five; TASK-AKM-019 to 022 add only their own round-trip test file, no further
+  catalogue or mock change. The generic mock mechanism (`ProgramRecord::parameters`,
+  keyed by (Set item, selector bytes)) reads each pair's widths from the catalogue itself, so it needs no
+  per-item code; an item outside its five known ranges still answers `NOT_SUPPORTED` regardless of
+  whether a program is current (a pre-existing test assumed exactly this for section 0A generally, which
+  caught an ordering bug in an earlier version of this change).
 
 ---
 

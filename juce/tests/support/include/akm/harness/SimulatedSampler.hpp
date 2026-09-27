@@ -21,10 +21,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <compare>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "akm/Scheduler.hpp"
@@ -126,9 +128,17 @@ namespace akm::harness
         std::string name;
         int keygroupCount = 1;
         bool crossfade = false;
-
-        friend bool operator==(const ProgramRecord&, const ProgramRecord&) = default;
+        /// The Output, MIDI/Tune, Pitch Bend, LFO and Keygroup Modulation Sources parameters
+        /// (RQ-AKM-024): keyed by (the group's Set item code, the selector bytes a multi-instance item
+        /// carries, e.g. which LFO), holding the value bytes; read back by the paired Get item. Not
+        /// compared by `ProgramRecord`'s own `==` (only the fields the earlier lifecycle tests need are).
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
     };
+
+    inline bool operator==(const ProgramRecord& a, const ProgramRecord& b)
+    {
+        return a.name == b.name && a.keygroupCount == b.keygroupCount && a.crossfade == b.crossfade;
+    }
 
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,

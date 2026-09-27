@@ -203,6 +203,418 @@
       "args": [],
       "reply": [{"name": "name", "format": "string", "min": 0, "max": 20}],
       "requirements": ["RQ-AKM-021", "RQ-AKM-023"]
+    },
+
+    {
+      "id": "ProgramSetLoudness", "section": "0A", "item": "20", "name": "Set Loudness", "kind": "set",
+      "args": [{"name": "loudness", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetVelocitySensitivity", "section": "0A", "item": "21", "name": "Set Velocity Sensitivity", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetAmpModSource", "section": "0A", "item": "22", "name": "Set Amp Mod Source", "kind": "set",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 2}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetAmpModValue", "section": "0A", "item": "23", "name": "Set Amp Mod Value", "kind": "set",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 2}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetPanModSource", "section": "0A", "item": "24", "name": "Set Pan Mod Source", "kind": "set",
+      "args": [{"name": "panMod", "format": "byte", "min": 1, "max": 3}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetPanModValue", "section": "0A", "item": "25", "name": "Set Pan Mod Value", "kind": "set",
+      "args": [{"name": "panMod", "format": "byte", "min": 1, "max": 3}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLoudness", "section": "0A", "item": "28", "name": "Get Loudness", "kind": "get",
+      "args": [], "reply": [{"name": "loudness", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetVelocitySensitivity", "section": "0A", "item": "29", "name": "Get Velocity Sensitivity", "kind": "get",
+      "args": [], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetAmpModSource", "section": "0A", "item": "2A", "name": "Get Amp Mod Source", "kind": "get",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetAmpModValue", "section": "0A", "item": "2B", "name": "Get Amp Mod Value", "kind": "get",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPanModSource", "section": "0A", "item": "2C", "name": "Get Pan Mod Source", "kind": "get",
+      "args": [{"name": "panMod", "format": "byte", "min": 1, "max": 3}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPanModValue", "section": "0A", "item": "2D", "name": "Get Pan Mod Value", "kind": "get",
+      "args": [{"name": "panMod", "format": "byte", "min": 1, "max": 3}], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+
+    {
+      "id": "ProgramSetSemitoneTune", "section": "0A", "item": "30", "name": "Set Semitone Tune", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetFineTune", "section": "0A", "item": "31", "name": "Set Fine Tune", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetTuneTemplate", "section": "0A", "item": "32", "name": "Set Tune Template", "kind": "set",
+      "args": [{"name": "template", "format": "byte", "min": 0, "max": 7}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetUserTuneTemplate", "section": "0A", "item": "33", "name": "Set User Tune Template", "kind": "set",
+      "args": [
+        {"name": "note0Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note0Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note1Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note1Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note2Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note2Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note3Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note3Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note4Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note4Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note5Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note5Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note6Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note6Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note7Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note7Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note8Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note8Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note9Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note9Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note10Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note10Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note11Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note11Magnitude", "format": "byte", "min": 0, "max": 50}
+      ],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetKey", "section": "0A", "item": "34", "name": "Set Key", "kind": "set",
+      "args": [{"name": "key", "format": "byte", "min": 0, "max": 11}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetSemitoneTune", "section": "0A", "item": "38", "name": "Get Semitone Tune", "kind": "get",
+      "args": [], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetFineTune", "section": "0A", "item": "39", "name": "Get Fine Tune", "kind": "get",
+      "args": [], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetTuneTemplate", "section": "0A", "item": "3A", "name": "Get Tune Template", "kind": "get",
+      "args": [], "reply": [{"name": "template", "format": "byte", "min": 0, "max": 7}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetUserTuneTemplate", "section": "0A", "item": "3B", "name": "Get User Tune Template", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "note0Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note0Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note1Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note1Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note2Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note2Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note3Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note3Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note4Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note4Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note5Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note5Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note6Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note6Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note7Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note7Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note8Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note8Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note9Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note9Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note10Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note10Magnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "note11Sign", "format": "byte", "min": 0, "max": 1}, {"name": "note11Magnitude", "format": "byte", "min": 0, "max": 50}
+      ],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetKey", "section": "0A", "item": "3C", "name": "Get Key", "kind": "get",
+      "args": [], "reply": [{"name": "key", "format": "byte", "min": 0, "max": 11}],
+      "requirements": ["RQ-AKM-024"]
+    },
+
+    {
+      "id": "ProgramSetPitchBendUp", "section": "0A", "item": "40", "name": "Set Pitch Bend Up", "kind": "set",
+      "args": [{"name": "semitones", "format": "byte", "min": 0, "max": 24}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetPitchBendDown", "section": "0A", "item": "41", "name": "Set Pitch Bend Down", "kind": "set",
+      "args": [{"name": "semitones", "format": "byte", "min": 0, "max": 24}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetBendMode", "section": "0A", "item": "42", "name": "Set Bend Mode", "kind": "set",
+      "args": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetAftertouchValue", "section": "0A", "item": "43", "name": "Set Aftertouch Value", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 12}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLegato", "section": "0A", "item": "44", "name": "Set Legato Setting", "kind": "set",
+      "args": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetPortamentoEnable", "section": "0A", "item": "45", "name": "Set Portamento Enable", "kind": "set",
+      "args": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetPortamentoMode", "section": "0A", "item": "46", "name": "Set Portamento Mode", "kind": "set",
+      "args": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetPortamentoTime", "section": "0A", "item": "47", "name": "Set Portamento Time", "kind": "set",
+      "args": [{"name": "time", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPitchBendUp", "section": "0A", "item": "48", "name": "Get Pitch Bend Up", "kind": "get",
+      "args": [], "reply": [{"name": "semitones", "format": "byte", "min": 0, "max": 24}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPitchBendDown", "section": "0A", "item": "49", "name": "Get Pitch Bend Down", "kind": "get",
+      "args": [], "reply": [{"name": "semitones", "format": "byte", "min": 0, "max": 24}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetBendMode", "section": "0A", "item": "4A", "name": "Get Bend Mode", "kind": "get",
+      "args": [], "reply": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetAftertouchValue", "section": "0A", "item": "4B", "name": "Get Aftertouch Value", "kind": "get",
+      "args": [], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 12}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLegato", "section": "0A", "item": "4C", "name": "Get Legato Setting", "kind": "get",
+      "args": [], "reply": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPortamentoEnable", "section": "0A", "item": "4D", "name": "Get Portamento Enable", "kind": "get",
+      "args": [], "reply": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPortamentoMode", "section": "0A", "item": "4E", "name": "Get Portamento Mode", "kind": "get",
+      "args": [], "reply": [{"name": "mode", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPortamentoTime", "section": "0A", "item": "4F", "name": "Get Portamento Time", "kind": "get",
+      "args": [], "reply": [{"name": "time", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+
+    {
+      "id": "ProgramSetLfoRate", "section": "0A", "item": "50", "name": "Set LFO Rate", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "rate", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoDelay", "section": "0A", "item": "51", "name": "Set LFO Delay", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "delay", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoDepth", "section": "0A", "item": "52", "name": "Set LFO Depth", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "depth", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoWaveform", "section": "0A", "item": "53", "name": "Set LFO Waveform", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "waveform", "format": "byte", "min": 0, "max": 8}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoSync", "section": "0A", "item": "54", "name": "Set LFO Sync", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 1}, {"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoRetrigger", "section": "0A", "item": "55", "name": "Set LFO Re-trigger", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 2, "max": 2}, {"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoRateModSource", "section": "0A", "item": "56", "name": "Set LFO Rate Mod Source", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoRateModValue", "section": "0A", "item": "57", "name": "Set LFO Rate Mod Value", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoDelayModSource", "section": "0A", "item": "58", "name": "Set LFO Delay Mod Source", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoDelayModValue", "section": "0A", "item": "59", "name": "Set LFO Delay Mod Value", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoDepthModSource", "section": "0A", "item": "5A", "name": "Set LFO Depth Mod Source", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoDepthModValue", "section": "0A", "item": "5B", "name": "Set LFO Depth Mod Value", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoModwheel", "section": "0A", "item": "5C", "name": "Set LFO Modwheel", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 1}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoAftertouch", "section": "0A", "item": "5D", "name": "Set LFO Aftertouch", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 1}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoMidiClockSyncEnable", "section": "0A", "item": "5E", "name": "Set LFO MIDI Clock Sync Enable", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 2, "max": 2}, {"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetLfoMidiClockSyncDivision", "section": "0A", "item": "5F", "name": "Set LFO MIDI Clock Sync Division", "kind": "set",
+      "args": [{"name": "lfo", "format": "byte", "min": 2, "max": 2}, {"name": "division", "format": "byte", "min": 0, "max": 68}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoRate", "section": "0A", "item": "60", "name": "Get LFO Rate", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "rate", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoDelay", "section": "0A", "item": "61", "name": "Get LFO Delay", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "delay", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoDepth", "section": "0A", "item": "62", "name": "Get LFO Depth", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "depth", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoWaveform", "section": "0A", "item": "63", "name": "Get LFO Waveform", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "waveform", "format": "byte", "min": 0, "max": 8}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoSync", "section": "0A", "item": "64", "name": "Get LFO Sync", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 1}], "reply": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoRetrigger", "section": "0A", "item": "65", "name": "Get LFO Re-trigger", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 2, "max": 2}], "reply": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoRateModSource", "section": "0A", "item": "66", "name": "Get LFO Rate Mod Source", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoRateModValue", "section": "0A", "item": "67", "name": "Get LFO Rate Mod Value", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoDelayModSource", "section": "0A", "item": "68", "name": "Get LFO Delay Mod Source", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoDelayModValue", "section": "0A", "item": "69", "name": "Get LFO Delay Mod Value", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoDepthModSource", "section": "0A", "item": "6A", "name": "Get LFO Depth Mod Source", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoDepthModValue", "section": "0A", "item": "6B", "name": "Get LFO Depth Mod Value", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoModwheel", "section": "0A", "item": "6C", "name": "Get LFO Modwheel", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 1}], "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoAftertouch", "section": "0A", "item": "6D", "name": "Get LFO Aftertouch", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 1, "max": 1}], "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoMidiClockSyncEnable", "section": "0A", "item": "6E", "name": "Get LFO MIDI Clock Sync Enable", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 2, "max": 2}], "reply": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetLfoMidiClockSyncDivision", "section": "0A", "item": "6F", "name": "Get LFO MIDI Clock Sync Division", "kind": "get",
+      "args": [{"name": "lfo", "format": "byte", "min": 2, "max": 2}], "reply": [{"name": "division", "format": "byte", "min": 0, "max": 68}],
+      "requirements": ["RQ-AKM-024"]
+    },
+
+    {
+      "id": "ProgramSetPitchModSource", "section": "0A", "item": "70", "name": "Set Pitch Mod Source", "kind": "set",
+      "args": [{"name": "pitchMod", "format": "byte", "min": 1, "max": 2}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetKeygroupAmpModSource", "section": "0A", "item": "71", "name": "Set Amp Mod Source (Keygroup Modulation Sources)", "kind": "set",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 1}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramSetFilterModInputSource", "section": "0A", "item": "72", "name": "Set Filter Mod Input Source", "kind": "set",
+      "args": [{"name": "modInput", "format": "byte", "min": 1, "max": 3}, {"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetPitchModSource", "section": "0A", "item": "74", "name": "Get Pitch Mod Source", "kind": "get",
+      "args": [{"name": "pitchMod", "format": "byte", "min": 1, "max": 2}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetKeygroupAmpModSource", "section": "0A", "item": "75", "name": "Get Amp Mod Source (Keygroup Modulation Sources)", "kind": "get",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 1}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
+    },
+    {
+      "id": "ProgramGetFilterModInputSource", "section": "0A", "item": "76", "name": "Get Filter Mod Input Source", "kind": "get",
+      "args": [{"name": "modInput", "format": "byte", "min": 1, "max": 3}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
+      "requirements": ["RQ-AKM-024"]
     }
   ]
 }

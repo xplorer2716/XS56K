@@ -121,19 +121,19 @@ TASK-AKM-011|172-185|Done|Session closing
 TASK-AKM-012|186-199|Done|First contact with the sampler
 TASK-AKM-013|200-210|Done|Session smoke test on the real sampler
 @process/3.plan/PLAN-AKM-002-program-primitives.md
-PLAN-AKM-002|1-360||Program Primitives (Phase A, lot A2)
+PLAN-AKM-002|1-374||Program Primitives (Phase A, lot A2)
 TASK-AKM-014|57-118|Done|Item catalogue support for a single string value
 TASK-AKM-015|119-153|Done|Program lifecycle primitives
 TASK-AKM-016|154-176|Not Started|Program structure and identity primitives
 TASK-AKM-017|177-202|Not Started|General program information, including all programs in memory
-TASK-AKM-018|203-224|Not Started|Output parameter group (Set and Get)
-TASK-AKM-019|225-242|Not Started|MIDI/Tune parameter group (Set and Get)
-TASK-AKM-020|243-260|Not Started|Pitch Bend parameter group (Set and Get)
-TASK-AKM-021|261-281|Not Started|LFO parameter groups (Set and Get, LFO 1 and 2)
-TASK-AKM-022|282-298|Not Started|Keygroup Modulation Sources parameter group (Set and Get)
-TASK-AKM-023|299-318|Not Started|Destructive command guard for "Delete ALL programs"
-TASK-AKM-024|319-341|Not Started|Real-sampler test harness — dedicated test program
-TASK-AKM-025|342-360|Not Started|Coverage of section §0A and errata resolution
+TASK-AKM-018|203-238|Done|Output parameter group (Set and Get)
+TASK-AKM-019|239-256|Not Started|MIDI/Tune parameter group (Set and Get)
+TASK-AKM-020|257-274|Not Started|Pitch Bend parameter group (Set and Get)
+TASK-AKM-021|275-295|Not Started|LFO parameter groups (Set and Get, LFO 1 and 2)
+TASK-AKM-022|296-312|Not Started|Keygroup Modulation Sources parameter group (Set and Get)
+TASK-AKM-023|313-332|Not Started|Destructive command guard for "Delete ALL programs"
+TASK-AKM-024|333-355|Not Started|Real-sampler test harness — dedicated test program
+TASK-AKM-025|356-374|Not Started|Coverage of section §0A and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
