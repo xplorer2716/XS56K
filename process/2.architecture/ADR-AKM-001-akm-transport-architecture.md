@@ -14,8 +14,10 @@ DEC-AKM-012, which completes DEC-AKM-003 and amends DEC-AKM-009 where they say s
 real sampler (TASK-AKM-013, `OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`) confirmed DEC-AKM-007 and DEC-AKM-009
 through the session itself and changed none of the decisions; it is noted in DEC-AKM-006, DEC-AKM-007 and DEC-AKM-009.
 The session opening (TASK-AKM-009) and closing (TASK-AKM-011) are recorded "as built" in DEC-AKM-007 and DEC-AKM-004, and
-the real-sampler suite (TASK-AKM-010) in DEC-AKM-008; the suite's run on the S5000 is the owner's, and the provisional values of
-DEC-AKM-006 and DEC-AKM-007 are set from its log. The Diagram section holds the global architecture, the class diagrams,
+the real-sampler suite (TASK-AKM-010) in DEC-AKM-008. The owner's run of that suite on the S5000
+(2026-09-27, `OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`) confirms the provisional values of DEC-AKM-006 at their
+provisional values and found the risk to `--slow-operation` recorded there and in the Risks paragraph; DEC-AKM-007
+needed no change. The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
 ## Context
@@ -151,6 +153,21 @@ slowest answer seen; long operations are covered by Still Alive restarting it, R
 same sampler (TASK-AKM-013, `OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`, F10) is not a source of latency: the
 log itself slowed the exchanges it recorded, so the figures above stand.
 
+As observed (TASK-AKM-010, `OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, 2026-09-27). The suite's own buffered log
+(its checks 1–7) confirms the first contact's figures with the log no longer in the way, as TASK-AKM-013's F10
+predicted: OK 7 to 8 ms after the command, DONE or REPLY 12 to 13 ms after; 50 timed Echo round trips gave minimum
+12 ms, median 12 ms, 95th percentile 13 ms, maximum 13 ms. The command timeout of **2 s** and the discovery window
+of **500 ms** are confirmed at their provisional values (a margin of about 150 and 40 times respectively over what
+was measured); every open in the suite bound DeviceID 0 within the window (537 ms measured: the window plus the
+establishment commands). The maximum total wait of **60 s** is not set by this run: the one slow operation tried,
+"update the list of disks" (§10/&01, no §00 or §02 item), was accepted with an OK and then answered nothing at all —
+no DONE, no ERROR and **no `F0 F7`** — within the 3 s command timeout the suite used for that check, and the sampler
+then answered no further SysEx of any kind, discovery included, until the owner power-cycled it by hand. Whether this
+sampler simply does not send Still Alive during this operation, or was stuck below its SysEx handler before it
+could, cannot be told from the wire; either way RQ-AKM-011's rationale — that `&07` covers a long operation — is
+**not confirmed for §10/&01 without media attached**, and 60 s is left as it was rather than raised or lowered from
+one inconclusive data point.
+
 ### DEC-AKM-007: Session opening — discovery first, DeviceID binding, then §00 established explicitly
 `Session::open(config, …)` is asynchronous and runs, in order (RQ-AKM-039, RQ-AKM-040):
 1. start the input port;
@@ -245,6 +262,13 @@ asserts on the simulated sampler. A check that finds no sampler at the target en
 log is the one of the smoke test (buffered wire log, written between steps, an observations block) with one line per
 check. The optional sample name of RQ-AKM-038 belongs to the tests of FTR-AKM-004, the first to create anything on the
 sampler; this suite takes none, since it changes only §00 settings.
+
+Observed on the S5000 (2026-09-27, `OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`): `--slow-operation` left the
+sampler answering no SysEx at all, a fresh discovery included, well past its timeout, with zero `F0 F7` received;
+run together with `--power-cycle` in the same suite, the power-cycle check's own opening then fails before it can
+ask the owner anything, which is correct (a session that never opened has nothing to close) but means the two
+options should not be relied on together to read persistence across a restart — `--power-cycle` alone, once the
+sampler answers again, is the way to test that.
 
 ### DEC-AKM-009: The checksum mode is a tri-state — on, off or unknown
 The codec takes a checksum mode of `On`, `Off` or `Unknown` (RQ-AKM-003, RQ-AKM-041). Sending: a checksum is
@@ -358,15 +382,17 @@ on every confirmation carries a checksum, the Reply ID included; the OK of the c
 the old mode and its DONE the new one. Settled by the session smoke test (TASK-AKM-013,
 `OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): the session core ran 75 commands on the JUCE backend and its
 own threads without one message rejected, lost or unmatched, JUCE delivered every SysEx whole, and Sync LCD and Auto
-screen update are accepted by OS 2.14. TASK-AKM-010 built the suite that observes what follows
-(`xs56k_akm_probe --suite`, with `--power-cycle` and `--slow-operation`); its run on the S5000 is the owner's, and this list
-is updated from its log. Still open until then: whether the JUCE backend delivers the
-two-byte `F0 F7` of Still Alive on Windows, whatever the driver does (the code classifies it as SysEx); how a
-sampler on an older OS answers `&03`, `&05` and `&07`; latencies over repeated runs, measured without the log in the
-way; whether §00 settings survive a power cycle; how long
-the slow operations take, which is what the provisional timeout and maximum total wait wait for; and how often
-an ERROR follows a REPLY (it is reported as a late-error diagnostic, since the command has already completed
-with its data).
+screen update are accepted by OS 2.14. TASK-AKM-010 built the suite and ran it on the S5000 (2026-09-27,
+`OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`): the seven automatic checks confirm the session core, the closing
+and its error recovery (RQ-AKM-018) on real hardware, and the latencies over 50 repeated Echo round trips, measured
+with the log no longer in the way (12 to 13 ms), confirm the timeout and discovery window of DEC-AKM-006. Settled,
+negatively: whether `F0 F7` is delivered stays unknown, because none was sent for the one slow operation tried, and
+that same run left the sampler answering no SysEx at all until power-cycled by hand — so the maximum total wait is
+not set, and RQ-AKM-011's assumption that Still Alive covers a long operation is not confirmed for it. Still open:
+how a sampler on an older OS answers `&03`, `&05` and `&07`; whether §00 settings survive a *graceful* power cycle
+(the check meant to observe this never opened, the sampler already being unresponsive from the operation above);
+how often an ERROR follows a REPLY (it is reported as a late-error diagnostic, since the command has already
+completed with its data); and the same slow operation with disk media attached.
 
 **Unchanged.** `xs56k_midi`, `MockMidiBackend`, `xs56k_framework` and the placeholder application.
 

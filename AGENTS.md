@@ -68,7 +68,11 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves Sync LCD and Auto screen
   update alone. Two extra checks are asked for: `--power-cycle` asks you to switch the sampler off and on while a
   session is open, and `--slow-operation` sends one command outside sections 00 and 02 ("update the list of disks",
-  section 10 item 01) with Still Alive on, to see whether `F0 F7` reaches the host. Exit status 0 when every check
+  section 10 item 01) with Still Alive on, to see whether `F0 F7` reaches the host. Observed once on an S5000
+  (OS 2.14, no disk drive attached): `--slow-operation` got no reply at all, `F0 F7` included, and left the sampler
+  answering no SysEx — a fresh discovery included — until it was power-cycled by hand; run `--power-cycle` on its
+  own, not together with `--slow-operation`, if the point is to test persistence across a graceful restart
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`

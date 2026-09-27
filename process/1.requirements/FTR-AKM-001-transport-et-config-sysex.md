@@ -142,6 +142,12 @@ answer independently); a **command** is one SysEx message sent to the sampler; a
 - **Priority**: Should
 - **Acceptance Criteria** (Gherkin): *Given* a pending command with timeout T and `F0 F7` received every T/2 for 3T followed by a DONE, *When* they arrive, *Then* the command completes as successful and never times out. *Given* Still Alive OFF, *When* `F0 F7` arrives, *Then* it does not restart the timeout.
 - **Dependencies**: RQ-AKM-010; RQ-AKM-014
+- **Status**: confirmed for §00 commands (none of them runs long enough to need it). Not confirmed for a genuinely
+  slow operation: the real-sampler suite's one attempt (§10/&01, "update the list of disks", TASK-AKM-010,
+  2026-09-27) got no `F0 F7` at all before its command timed out, and the sampler then stopped answering any SysEx
+  until power-cycled by hand — see `process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`.
+  FTR-AKM-004 (disk operations) should not assume this mechanism alone keeps a long disk operation distinguishable
+  from a hang.
 
 ### RQ-AKM-012: Sampler discovery (Query)
 - **Category**: Functional
@@ -196,7 +202,7 @@ answer independently); a **command** is one SysEx message sent to the sampler; a
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the S5000 connected and its ports visible to the system, *When* the Echo test runs, *Then* the REPLY equals the bytes sent. *Given* 50 repeated Echo round trips, *When* they complete, *Then* the minimum, median and maximum latency are recorded and the RQ-AKM-010 default and the RQ-AKM-012 window are set from them with the margin stated. *Given* the observed frames, *When* they are recorded, *Then* at least one captured DONE, REPLY and ERROR frame replaces the constructed examples of RQ-AKM-004.
 - **Dependencies**: RQ-AKM-001 to RQ-AKM-015
-- **Status**: first contact done (TASK-AKM-012, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md`): OS version, DeviceID carried by confirmations, frame shapes, checksum behaviour and first latencies are observed. TASK-AKM-013 ran a real session on the sampler (2026-09-26, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): discovery, the checksum mode in both directions, 50 Echo round trips, the OS version and every §00 toggle, through the session and the JUCE backend, with no message rejected, lost or unmatched. Its latencies are not usable, the log having slowed the exchanges it recorded (F10); the buffered log that replaces it is to be run once more. TASK-AKM-010 wrote the suite itself (`xs56k_akm_probe --suite`, with `--power-cycle` and `--slow-operation`; its seven automatic checks and its two opt-in ones are proved against the simulated sampler in CI, and it sends only §00 items and the two version items of §02 unless `--slow-operation` is given). Remaining, for the owner's run of it on the S5000: the latencies over 50 repeated Echo round trips, from which the timeout, the maximum total wait and the discovery window are set, whether `F0 F7` is delivered when a command is slow, the defaults of the other §00 items, and persistence across a power cycle.
+- **Status**: first contact done (TASK-AKM-012, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md`): OS version, DeviceID carried by confirmations, frame shapes, checksum behaviour and first latencies are observed. TASK-AKM-013 ran a real session on the sampler (2026-09-26, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): discovery, the checksum mode in both directions, 50 Echo round trips, the OS version and every §00 toggle, through the session and the JUCE backend, with no message rejected, lost or unmatched. Its latencies are not usable, the log having slowed the exchanges it recorded (F10); the buffered log that replaces it is to be run once more. TASK-AKM-010 wrote the suite itself (`xs56k_akm_probe --suite`, with `--power-cycle` and `--slow-operation`; its seven automatic checks and its two opt-in ones are proved against the simulated sampler in CI, and it sends only §00 items and the two version items of §02 unless `--slow-operation` is given). The owner ran it on the S5000 on 2026-09-27 (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`): the 50 timed Echo round trips gave minimum 12 ms, median 12 ms, 95th percentile 13 ms, maximum 13 ms, from which the timeout (2 s) and discovery window (500 ms) of DEC-AKM-006 are confirmed at their provisional values. `F0 F7` was not observed: the one slow operation tried ("update the list of disks", §10/&01) was accepted and then answered nothing at all, Still Alive included, and left the sampler unresponsive to any SysEx — a fresh discovery included — until it was power-cycled by hand, so neither `F0 F7` delivery, nor the maximum total wait, nor persistence across a *graceful* power cycle is settled by this run.
 
 ### RQ-AKM-018: Real-sampler tests leave a known state
 - **Category**: Functional
@@ -206,6 +212,13 @@ answer independently); a **command** is one SysEx message sent to the sampler; a
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* a real-sampler test that sets checksum ON then fails an assertion, *When* the test ends, *Then* checksum OFF has been sent and DONE received. *Given* the whole real-sampler suite, *When* it ends, *Then* no program, multi or sample of the sampler has been created, changed or deleted.
 - **Dependencies**: RQ-AKM-013; RQ-AKM-014; RQ-AKM-017
+- **Status**: proved by the real-sampler suite (TASK-AKM-010, 2026-09-27): a check made to throw with checksums on
+  left the sampler put back to off, confirmed by its DONE (first criterion); every command the suite sent was a
+  section 00 item or a section 02 version item, so the second criterion holds by construction. One check ("update
+  the list of disks", outside both those sections and opt-in) could not be put back — its own closing command got
+  no reply — and the suite reported that truthfully rather than assuming success; the sampler needed a manual
+  power cycle, done by the owner, to answer SysEx again. See
+  `process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`.
 
 ### RQ-AKM-039: Session opening — discovery, then target DeviceID from configuration
 - **Category**: Functional
@@ -292,7 +305,7 @@ answer independently); a **command** is one SysEx message sent to the sampler; a
 
 ## Open points
 
-- **Timeout, maximum total wait and discovery-window values** (RQ-AKM-010, RQ-AKM-012), and the number of failed verifications that makes the checksum mode unknown (RQ-AKM-041): unknown until RQ-AKM-017 has run. Until then the architecture uses provisional named constants, replaced by the measured values.
+- **Timeout and discovery-window values** (RQ-AKM-010, RQ-AKM-012): confirmed at their provisional values (2 s, 500 ms) by the real-sampler suite's run (TASK-AKM-010, 2026-09-27, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`), whose 50 Echo round trips gave a maximum of 13 ms. **Maximum total wait** stays open: the one slow operation tried left the sampler answering nothing at all, `F0 F7` included, so no value is supported by evidence yet. The number of failed verifications that makes the checksum mode unknown (RQ-AKM-041) is unchanged (3, as coded and as reproduced on the real sampler).
 - **Where the AKM code lives, threading, time injection and the shape of primitives**: decided in ADR-AKM-001 (Accepted, amended after an independent review, `process/2.architecture/REVIEW-ADR-AKM-001-opus.md`).
 - **Application settings** (storage, editing UI, MIDI port names, target DeviceID, the §00 values of RQ-AKM-040): not part of this feature, which only receives them as configuration when a session is opened (RQ-AKM-039); to be specified with the application's settings layer, which does not exist in this repository yet.
 - **Matching a confirmation's DeviceID** (RQ-AKM-007): settled by the first contact with the S5000 — a confirmation carries the sampler's own DeviceID (a Query to DeviceID 5 was confirmed with 0), so the DeviceID expected is the bound target.

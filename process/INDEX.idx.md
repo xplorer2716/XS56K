@@ -3,7 +3,7 @@
 #next FTR-AKM-005 RQ-AKM-045 RQ-BLD-016 ADR-AKM-002 DEC-AKM-013 ADR-BLD-006 DEC-BLD-029 PLAN-AKM-002 TASK-AKM-014 PLAN-BLD-005 TASK-BLD-013
 @process/1.requirements/DRAFT-s5000-midi-primitives-and-workflows.md
 @process/1.requirements/FTR-AKM-001-transport-et-config-sysex.md
-FTR-AKM-001|1-301||Transport and SysEx Configuration
+FTR-AKM-001|1-314||Transport and SysEx Configuration
 RQ-AKM-001|47-55||Command frame encoding
 RQ-AKM-002|56-64||Value formats
 RQ-AKM-003|65-73||Checksum generation and verification
@@ -14,22 +14,22 @@ RQ-AKM-007|101-109||User-ref allocation and confirmation matching
 RQ-AKM-008|110-118||One outstanding command per port
 RQ-AKM-009|119-127||Completion of a command
 RQ-AKM-010|128-136||Timeout
-RQ-AKM-011|137-145||Still Alive handling
-RQ-AKM-012|146-154||Sampler discovery (Query)
-RQ-AKM-013|155-163||Checksum mode command (§00/&04)
-RQ-AKM-014|164-172||Other configuration toggles
-RQ-AKM-015|173-181||Echo round trip
-RQ-AKM-016|182-190||Validation against a simulated sampler
-RQ-AKM-017|191-200|first contact done (TASK-AKM-012, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md`): OS version, DeviceID carried by confirmations, frame shapes, checksum behaviour and first latencies are observed. TASK-AKM-013 ran a real session on the sampler (2026-09-26, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): discovery, the checksum mode in both directions, 50 Echo round trips, the OS version and every §00 toggle, through the session and the JUCE backend, with no message rejected, lost or unmatched. Its latencies are not usable, the log having slowed the exchanges it recorded (F10); the buffered log that replaces it is to be run once more. TASK-AKM-010 wrote the suite itself (`xs56k_akm_probe --suite`, with `--power-cycle` and `--slow-operation`; its seven automatic checks and its two opt-in ones are proved against the simulated sampler in CI, and it sends only §00 items and the two version items of §02 unless `--slow-operation` is given). Remaining, for the owner's run of it on the S5000: the latencies over 50 repeated Echo round trips, from which the timeout, the maximum total wait and the discovery window are set, whether `F0 F7` is delivered when a command is slow, the defaults of the other §00 items, and persistence across a power cycle.|Validation against the real sampler
-RQ-AKM-018|201-209||Real-sampler tests leave a known state
-RQ-AKM-039|210-218||Session opening — discovery, then target DeviceID from configuration
-RQ-AKM-040|219-227||Known §00 state when a session opens
-RQ-AKM-041|228-236||Unknown checksum mode
-RQ-AKM-042|237-245||Session closing
-RQ-AKM-043|246-254||Command sequences stop at the first failure
-RQ-AKM-044|255-266|observed on the real sampler by the first-contact probe (TASK-AKM-012); the typed primitive `queryOsVersion` is delivered with the item catalogue (TASK-AKM-008) and proved on the simulated sampler only; running it through a session on the real sampler is part of TASK-AKM-010.|Sampler operating-system version
-RQ-AKM-019|269-279||Independence from the MIDI backend
-RQ-AKM-020|280-292||Non-blocking completion
+RQ-AKM-011|137-151|confirmed for §00 commands (none of them runs long enough to need it). Not confirmed for a genuinely|Still Alive handling
+RQ-AKM-012|152-160||Sampler discovery (Query)
+RQ-AKM-013|161-169||Checksum mode command (§00/&04)
+RQ-AKM-014|170-178||Other configuration toggles
+RQ-AKM-015|179-187||Echo round trip
+RQ-AKM-016|188-196||Validation against a simulated sampler
+RQ-AKM-017|197-206|first contact done (TASK-AKM-012, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md`): OS version, DeviceID carried by confirmations, frame shapes, checksum behaviour and first latencies are observed. TASK-AKM-013 ran a real session on the sampler (2026-09-26, `process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md`): discovery, the checksum mode in both directions, 50 Echo round trips, the OS version and every §00 toggle, through the session and the JUCE backend, with no message rejected, lost or unmatched. Its latencies are not usable, the log having slowed the exchanges it recorded (F10); the buffered log that replaces it is to be run once more. TASK-AKM-010 wrote the suite itself (`xs56k_akm_probe --suite`, with `--power-cycle` and `--slow-operation`; its seven automatic checks and its two opt-in ones are proved against the simulated sampler in CI, and it sends only §00 items and the two version items of §02 unless `--slow-operation` is given). The owner ran it on the S5000 on 2026-09-27 (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`): the 50 timed Echo round trips gave minimum 12 ms, median 12 ms, 95th percentile 13 ms, maximum 13 ms, from which the timeout (2 s) and discovery window (500 ms) of DEC-AKM-006 are confirmed at their provisional values. `F0 F7` was not observed: the one slow operation tried ("update the list of disks", §10/&01) was accepted and then answered nothing at all, Still Alive included, and left the sampler unresponsive to any SysEx — a fresh discovery included — until it was power-cycled by hand, so neither `F0 F7` delivery, nor the maximum total wait, nor persistence across a *graceful* power cycle is settled by this run.|Validation against the real sampler
+RQ-AKM-018|207-222|proved by the real-sampler suite (TASK-AKM-010, 2026-09-27): a check made to throw with checksums on|Real-sampler tests leave a known state
+RQ-AKM-039|223-231||Session opening — discovery, then target DeviceID from configuration
+RQ-AKM-040|232-240||Known §00 state when a session opens
+RQ-AKM-041|241-249||Unknown checksum mode
+RQ-AKM-042|250-258||Session closing
+RQ-AKM-043|259-267||Command sequences stop at the first failure
+RQ-AKM-044|268-279|observed on the real sampler by the first-contact probe (TASK-AKM-012); the typed primitive `queryOsVersion` is delivered with the item catalogue (TASK-AKM-008) and proved on the simulated sampler only; running it through a session on the real sampler is part of TASK-AKM-010.|Sampler operating-system version
+RQ-AKM-019|282-292||Independence from the MIDI backend
+RQ-AKM-020|293-305||Non-blocking completion
 @process/1.requirements/FTR-AKM-002-program.md
 FTR-AKM-002|1-121||Program Primitives (§0A)
 RQ-AKM-021|52-60||Program lifecycle primitives
@@ -73,19 +73,19 @@ RQ-BLD-011|167-176|Satisfied — cross-checked via `mcp__github__list_branches`,
 @process/1.requirements/RQ-FMW-midiapp-framework.md
 @process/1.requirements/RQ-MID-midi-layer.md
 @process/2.architecture/ADR-AKM-001-akm-transport-architecture.md
-ADR-AKM-001|1-1200|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
-DEC-AKM-001|55-62||A new static library `xs56k_akm`, depending on `xs56k_midi` only
-DEC-AKM-002|63-75||Three layers inside the library
-DEC-AKM-003|76-91||Items are data — a reviewed data file, a generated table and a generic executor
-DEC-AKM-004|92-128||One serial executor per session; callback completion; explicit close
-DEC-AKM-005|129-138||Frames are sent only from the executor; confirmations are enqueued, never handled inline
-DEC-AKM-006|139-153||Time is injected through a `Scheduler`
-DEC-AKM-007|154-205||Session opening — discovery first, DeviceID binding, then §00 established explicitly
-DEC-AKM-008|206-248||Test seams — a simulated sampler modelled on the spec, and a scenario driver
-DEC-AKM-009|249-271||The checksum mode is a tri-state — on, off or unknown
-DEC-AKM-010|272-279||Command sequences abort on failure
-DEC-AKM-011|280-308||A command carries options — what the session cannot read back or infer
-DEC-AKM-012|309-341||The item catalogue — one data file, one generated table, read by the encoder, the decoder and the codec
+ADR-AKM-001|1-1226|Accepted — reviewed and accepted by the owner (TASK-AKM-002); implementation is TASK-AKM-003 onward|AKM Transport Architecture — Library, Layers, Primitive Shape, Threading, Time and Session Opening
+DEC-AKM-001|57-64||A new static library `xs56k_akm`, depending on `xs56k_midi` only
+DEC-AKM-002|65-77||Three layers inside the library
+DEC-AKM-003|78-93||Items are data — a reviewed data file, a generated table and a generic executor
+DEC-AKM-004|94-130||One serial executor per session; callback completion; explicit close
+DEC-AKM-005|131-140||Frames are sent only from the executor; confirmations are enqueued, never handled inline
+DEC-AKM-006|141-170||Time is injected through a `Scheduler`
+DEC-AKM-007|171-222||Session opening — discovery first, DeviceID binding, then §00 established explicitly
+DEC-AKM-008|223-272||Test seams — a simulated sampler modelled on the spec, and a scenario driver
+DEC-AKM-009|273-295||The checksum mode is a tri-state — on, off or unknown
+DEC-AKM-010|296-303||Command sequences abort on failure
+DEC-AKM-011|304-332||A command carries options — what the session cannot read back or infer
+DEC-AKM-012|333-365||The item catalogue — one data file, one generated table, read by the encoder, the decoder and the codec
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -101,10 +101,11 @@ DEC-BLD-027|35-43||Live descriptions follow; provenance stays
 ADR-BLD-005|1-76|Accepted — owner decision ("les tests devraient être exécutés dans toutes les targets"); implemented by|Every Generated Workflow Runs the Test Suites
 DEC-BLD-028|24-36||The generator passes `run-tests: true` to `build-app` in every workflow
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
+@process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md
-PLAN-AKM-001|1-208||Transport and SysEx Configuration (Phase A, lots A0+A1)
+PLAN-AKM-001|1-210||Transport and SysEx Configuration (Phase A, lots A0+A1)
 TASK-AKM-001|30-43|Done|Author the Phase A feature files
 TASK-AKM-002|44-57|Done|Decide the AKM architecture
 TASK-AKM-003|58-71|Done|Library skeleton and test scaffolding
@@ -114,10 +115,10 @@ TASK-AKM-006|100-113|Done|Session core
 TASK-AKM-007|114-127|Done|Simulated sampler and scenario harness
 TASK-AKM-008|128-141|Done|Item catalogue and §00 primitives
 TASK-AKM-009|142-155|Done|Session opening
-TASK-AKM-010|156-169|In Progress - the suite is written and proved against the simulated sampler; what remains is the owner's run on the S5000 and the settings and amendments that its log gives (see Verification)|Real-sampler suite and observations
-TASK-AKM-011|170-183|Done|Session closing
-TASK-AKM-012|184-197|Done|First contact with the sampler
-TASK-AKM-013|198-208|Done|Session smoke test on the real sampler
+TASK-AKM-010|156-171|Done|Real-sampler suite and observations
+TASK-AKM-011|172-185|Done|Session closing
+TASK-AKM-012|186-199|Done|First contact with the sampler
+TASK-AKM-013|200-210|Done|Session smoke test on the real sampler
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
