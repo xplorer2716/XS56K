@@ -279,7 +279,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-033: Real-sampler test harness — keygroups of the dedicated test program
 - **Tier**: L
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: Extend `xs56k_akm_probe --suite` with the §08 checks this lot unlocks, reusing
   FTR-AKM-002's `GuardedTestProgram` (`XS56K_SUITE_TEST`): add keygroups to it, round-trip every Set/Get
   pair of TASK-AKM-027 to 032 on its keygroups, and exercise the keygroup-0 ("all") Get/Set shape of
@@ -325,9 +325,12 @@ This plan implements the tasks in the format specified below.
   had omitted (present in the program-lifecycle check since TASK-AKM-024, and the exact assertion that
   would have caught this in either mock or real testing had it been there from the start) — `ctest`
   418/418 after the fix, the KEEP1/KEEP2 mock test strengthened to assert on that message.
-  **The owner's sampler still has the orphaned test program from the failed run**; a corrected re-run
-  will delete it (its guard now runs before the close), or the owner can delete it by hand first.
-  Mutation testing blocked, as in prior tasks.
+  **Re-run by the owner after the fix, same day** (`akm-suite-20260927-225235.log`, orphaned test
+  program deleted by hand first): 10/10 again, and this time "test program deleted: done" /
+  "test program deleted and the original selection restored by the guard" both log *before* the
+  session closes, "the number of programs is back to what it was before (0)" holds, and the owner
+  confirmed on the sampler's own screen that no program remains. Fix confirmed on real hardware, not
+  just by re-reasoning about the mock. Mutation testing blocked, as in prior tasks.
 - **Assumptions**: The wrong-program refusal is tested only for `selectKeygroup` (not for a keygroup-
   level Set while a non-test, non-zero keygroup is merely selected) since `GuardedTestProgram`'s own
   `expectOnTestProgram` already refuses **any** command while the current program is not the test one,

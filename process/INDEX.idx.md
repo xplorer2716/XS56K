@@ -137,7 +137,7 @@ TASK-AKM-023|355-386|Done|Destructive command guard for "Delete ALL programs"
 TASK-AKM-024|387-449|Done|Real-sampler test harness — dedicated test program
 TASK-AKM-025|450-474|Done|Coverage of section §0A and errata resolution
 @process/3.plan/PLAN-AKM-003-keygroup-primitives.md
-PLAN-AKM-003|1-365||Keygroup Primitives (Phase A, lot A3)
+PLAN-AKM-003|1-368||Keygroup Primitives (Phase A, lot A3)
 TASK-AKM-026|46-96|Done|Keygroup selection and the all-keygroups reply
 TASK-AKM-027|97-129|Done|General Options group (Set and Get)
 TASK-AKM-028|130-154|Done|Keygroup Pitch/Amp group (Set and Get)
@@ -145,8 +145,8 @@ TASK-AKM-029|155-181|Done|Filter group (Set and Get)
 TASK-AKM-030|182-210|Done|Filter Envelope group (Set and Get)
 TASK-AKM-031|211-235|Done|Amplitude Envelope group (Set and Get)
 TASK-AKM-032|236-279|Done|Aux Envelope group (Set and Get)
-TASK-AKM-033|280-343|In Progress|Real-sampler test harness — keygroups of the dedicated test program
-TASK-AKM-034|344-365|Not Started|Coverage of section §08 and remaining errata resolution
+TASK-AKM-033|280-346|Done|Real-sampler test harness — keygroups of the dedicated test program
+TASK-AKM-034|347-368|Not Started|Coverage of section §08 and remaining errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
