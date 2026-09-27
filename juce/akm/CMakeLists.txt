@@ -18,6 +18,7 @@ add_library(xs56k_akm STATIC
     src/LibraryInfo.cpp
     src/ManualExecutor.cpp
     src/ManualScheduler.cpp
+    src/ProgramPrimitives.cpp
     src/RealScheduler.cpp
     src/SamplerError.cpp
     src/Session.cpp

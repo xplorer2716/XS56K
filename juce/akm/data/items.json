@@ -14,6 +14,13 @@
       "complete": false,
       "spec": "Tables 6 and 7, pp. 10-11",
       "note": "Only the two version items of RQ-AKM-044; the rest of the section is not part of FTR-AKM-001."
+    },
+    {
+      "section": "0A",
+      "name": "Program",
+      "complete": false,
+      "spec": "Tables 13 and 14, pp. 20-25",
+      "note": "TASK-AKM-015: the lifecycle items of RQ-AKM-021 (&02, &03, &05, &06, &08, &09) plus the two Gets its own acceptance criteria verify by (&10, &13, also part of RQ-AKM-023). The rest of section 0A is added by PLAN-AKM-002's later tasks."
     }
   ],
   "items": [
@@ -113,6 +120,89 @@
       "args": [],
       "reply": [{"name": "subVersion", "format": "byte", "min": 0, "max": 127}],
       "requirements": ["RQ-AKM-044"]
+    },
+    {
+      "id": "ProgramCreate",
+      "section": "0A",
+      "item": "02",
+      "name": "Create Program",
+      "kind": "set",
+      "args": [{"name": "name", "format": "string", "min": 0, "max": 20}],
+      "requirements": ["RQ-AKM-021"]
+    },
+    {
+      "id": "ProgramCreateWithKeygroups",
+      "section": "0A",
+      "item": "03",
+      "name": "Create Program with keygroups",
+      "kind": "set",
+      "args": [
+        {"name": "keygroupCount", "format": "byte", "min": 1, "max": 99},
+        {"name": "name", "format": "string", "min": 0, "max": 20}
+      ],
+      "requirements": ["RQ-AKM-021"]
+    },
+    {
+      "id": "ProgramSelectByName",
+      "section": "0A",
+      "item": "05",
+      "name": "Select Program by name",
+      "kind": "set",
+      "args": [{"name": "name", "format": "string", "min": 0, "max": 20}],
+      "requirements": ["RQ-AKM-021"]
+    },
+    {
+      "id": "ProgramSelectByIndex",
+      "section": "0A",
+      "item": "06",
+      "name": "Select Program by index",
+      "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-021"]
+    },
+    {
+      "id": "ProgramDeleteCurrent",
+      "section": "0A",
+      "item": "08",
+      "name": "Delete the currently selected Program",
+      "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-021"]
+    },
+    {
+      "id": "ProgramRenameCurrent",
+      "section": "0A",
+      "item": "09",
+      "name": "Rename currently selected Program",
+      "kind": "set",
+      "args": [{"name": "name", "format": "string", "min": 0, "max": 20}],
+      "requirements": ["RQ-AKM-021"]
+    },
+    {
+      "id": "ProgramGetCount",
+      "section": "0A",
+      "item": "10",
+      "name": "Get Number of Programs in memory",
+      "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-021", "RQ-AKM-023"]
+    },
+    {
+      "id": "ProgramGetCurrentName",
+      "section": "0A",
+      "item": "13",
+      "name": "Get Current Program Name",
+      "kind": "get",
+      "args": [],
+      "reply": [{"name": "name", "format": "string", "min": 0, "max": 20}],
+      "requirements": ["RQ-AKM-021", "RQ-AKM-023"]
     }
   ]
 }

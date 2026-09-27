@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <mutex>
 #include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 #include "akm/Scheduler.hpp"
@@ -116,11 +117,25 @@ namespace akm::harness
         std::vector<std::uint8_t> data;  ///< without its checksum
     };
 
+    /// One program in the sampler's memory (§0A, spec Tables 13-14): only what TASK-AKM-015's lifecycle
+    /// primitives set or read. Where the spec is silent, the model chooses: a plain Create (`&02`) gives one
+    /// keygroup; creating a name that already exists among the sampler's programs fails as `COULD_NOT_CREATE`
+    /// (`&05`), the spec's own text for that error not saying when it applies. [RQ-AKM-021, RQ-AKM-022]
+    struct ProgramRecord
+    {
+        std::string name;
+        int keygroupCount = 1;
+        bool crossfade = false;
+
+        friend bool operator==(const ProgramRecord&, const ProgramRecord&) = default;
+    };
+
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
-    /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. Only §00 and the two version items
-    /// of §02 (RQ-AKM-044) are modelled; any other section or item answers ERROR 0 (not supported) until the
-    /// lots that need it (FTR-AKM-002 to 004) add theirs.
+    /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. §00, the two version items of §02
+    /// (RQ-AKM-044) and the program lifecycle and general-information items of §0A (RQ-AKM-021, RQ-AKM-023)
+    /// are modelled; any other section or item answers ERROR 0 (not supported) until the lots that need it
+    /// (the rest of FTR-AKM-002, FTR-AKM-003, FTR-AKM-004) add theirs.
     /// The frames it builds are written out from the spec, not with the codec under test.
     /// [RQ-AKM-016, ADR-AKM-001 (DEC-AKM-008)]
     ///
@@ -161,5 +176,9 @@ namespace akm::harness
         SamplerSettings _settings;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
+
+        // §0A program memory: not touched by powerCycle() (real sampler memory, unlike the §00 settings).
+        std::vector<ProgramRecord> _programs;
+        std::optional<std::size_t> _currentProgram;
     };
 }

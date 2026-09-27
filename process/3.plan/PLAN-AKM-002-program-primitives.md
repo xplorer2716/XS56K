@@ -118,7 +118,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-015: Program lifecycle primitives
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Create Program (`&02`, name only), Create Program with keygroups (`&03`,
   1–99 keygroups + name), Select by name (`&05`), Select by index (`&06`, zero-based word), Delete the
   current program (`&08`) and Rename the current program (`&09`), each completing on DONE, with ERROR
@@ -136,8 +136,18 @@ This plan implements the tasks in the format specified below.
   Get (`&13` name, `&10` count) confirming its effect.
 - **Dependencies**: TASK-AKM-014
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 369/369 (10 new in `ProgramPrimitivesTests.cpp`;
+  2 pre-existing `ItemCatalogueTests.cpp` assertions corrected for the 8 new catalogue entries).
+  `--coverage`: section 0A 8/95 rows, no problems. Not verified: real sampler (TASK-AKM-024); mutation
+  testing (blocked by the session's security classifier, as in TASK-AKM-014).
+- **Assumptions**: Plain Create defaults to 1 keygroup; a duplicate name on Create is ERROR `05` (spec
+  silent on both). `&06`/`&10` use two Byte values (msb/lsb), not Word, matching `SystemOsVersion`'s
+  precedent, so `--coverage` stays comparable; combined by hand in the typed helpers. `&03`'s mixed
+  byte+string args bypass `makeRequest`/`makeStringRequest` (hand-built with `ByteWriter`), reusing the
+  catalogue's own ranges. `getCurrentProgramName` sets `ExpectedReply::NeedsKnownChecksumMode` (a String
+  reply has no fixed length). The mock's §0A handlers ignore a trailing byte after their data (a
+  checksum the session appends whenever its mode is not known to be Off), matching §00's own convention.
+  Program numbering (FTR-AKM-002's other open point) is not resolved here; still TASK-AKM-016's.
 
 ---
 

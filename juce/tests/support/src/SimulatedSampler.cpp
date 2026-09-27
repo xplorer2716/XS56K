@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstddef>
 #include <utility>
 
+#include "akm/ByteReader.hpp"
+#include "akm/ByteWriter.hpp"
 #include "akm/Checksum.hpp"
 #include "akm/Protocol.hpp"
 #include "akm/SamplerError.hpp"
@@ -58,6 +60,18 @@ namespace akm::harness
         // OS versions that introduced an item (spec, modification history).
         constexpr OsVersion SYNC_LCD_SINCE{2, 0};
         constexpr OsVersion STILL_ALIVE_SINCE{2, 10};
+
+        // Section §0A (Program), spec Tables 13-14: the lifecycle and general-information items of
+        // TASK-AKM-015 (RQ-AKM-021, RQ-AKM-023). Other §0A items answer ERROR 0 until their own lot.
+        constexpr std::uint8_t SECTION_PROGRAM = 0x0A;
+        constexpr std::uint8_t ITEM_CREATE_PROGRAM = 0x02;
+        constexpr std::uint8_t ITEM_CREATE_PROGRAM_WITH_KEYGROUPS = 0x03;
+        constexpr std::uint8_t ITEM_SELECT_PROGRAM_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_SELECT_PROGRAM_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_DELETE_CURRENT_PROGRAM = 0x08;
+        constexpr std::uint8_t ITEM_RENAME_CURRENT_PROGRAM = 0x09;
+        constexpr std::uint8_t ITEM_GET_NUMBER_OF_PROGRAMS = 0x10;
+        constexpr std::uint8_t ITEM_GET_CURRENT_PROGRAM_NAME = 0x13;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -120,13 +134,112 @@ namespace akm::harness
             }
         }
 
-        // Only §00 and the two version items of §02 are modelled. A byte after the data an item expects is
-        // ignored, as the spec says of a checksum sent while checksums are off.
+        // A name with no terminator is an invalid format; a byte after it (a checksum sent while checksums
+        // are off) is ignored, as elsewhere in this model. One already held by another program cannot be
+        // created again (the spec's own COULD_NOT_CREATE, undated by it).
+        Outcome createProgram(const Bytes& data, int keygroupCount, std::vector<ProgramRecord>& programs,
+                              std::optional<std::size_t>& current)
+        {
+            akm::ByteReader reader(data);
+            const auto name = reader.readString();
+            if (!name)
+                return failure(error_number::INVALID_FORMAT);
+            if (std::any_of(programs.begin(), programs.end(),
+                            [&](const ProgramRecord& existing) { return existing.name == *name; }))
+                return failure(error_number::COULD_NOT_CREATE);
+
+            ProgramRecord record;
+            record.name = *name;
+            record.keygroupCount = keygroupCount;
+            programs.push_back(std::move(record));
+            current = programs.size() - 1;
+            return done();
+        }
+
+        Outcome executeProgram(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                               std::optional<std::size_t>& current)
+        {
+            constexpr int PLAIN_CREATE_KEYGROUP_COUNT = 1;
+            switch (item)
+            {
+                case ITEM_CREATE_PROGRAM:
+                    return createProgram(data, PLAIN_CREATE_KEYGROUP_COUNT, programs, current);
+                case ITEM_CREATE_PROGRAM_WITH_KEYGROUPS:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    return createProgram(Bytes(data.begin() + 1, data.end()), data.front(), programs, current);
+                }
+                case ITEM_SELECT_PROGRAM_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find_if(programs.begin(), programs.end(),
+                                                    [&](const ProgramRecord& p) { return p.name == *name; });
+                    if (found == programs.end())
+                        return failure(error_number::NOT_FOUND);
+                    current = static_cast<std::size_t>(found - programs.begin());
+                    return done();
+                }
+                case ITEM_SELECT_PROGRAM_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= programs.size())
+                        return failure(error_number::NOT_FOUND);
+                    current = *index;
+                    return done();
+                }
+                case ITEM_DELETE_CURRENT_PROGRAM:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
+                    current.reset();
+                    return done();
+                case ITEM_RENAME_CURRENT_PROGRAM:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    programs[*current].name = *name;
+                    return done();
+                }
+                case ITEM_GET_NUMBER_OF_PROGRAMS:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(programs.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_PROGRAM_NAME:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(programs[*current].name);
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
+        // Only §00, the two version items of §02, and the §0A items above are modelled. A byte after the
+        // data an item expects is ignored, as the spec says of a checksum sent while checksums are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
-                        const OsVersion& osVersion)
+                        const OsVersion& osVersion, std::vector<ProgramRecord>& programs,
+                        std::optional<std::size_t>& currentProgram)
         {
             if (section == SECTION_SYSTEM)
                 return executeSystem(item, osVersion);
+            if (section == SECTION_PROGRAM)
+                return executeProgram(item, data, programs, currentProgram);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -325,7 +438,7 @@ namespace akm::harness
                                           });
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
-                                    : execute(section, item, data, _settings, _config.osVersion);
+                                    : execute(section, item, data, _settings, _config.osVersion, _programs, _currentProgram);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

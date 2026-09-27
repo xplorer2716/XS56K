@@ -117,5 +117,5 @@ which are a later optimisation of what this lot does with the normal section; wo
 ## Open points
 
 - **Primitive shape** (one function per item, or a table-driven descriptor with generic Get/Set): decided by ADR-AKM-001 at the end of FTR-AKM-001; this feature's per-primitive requirements are written with that answer known.
-- **Sync LCD** (FTR-AKM-001 open point): whether program-selecting primitives switch it off is decided here, when the first program-selecting primitive exists.
+- **Sync LCD** (FTR-AKM-001 open point) — resolved by TASK-AKM-015: no program-lifecycle primitive touches it; the session's own default (off, ADR-AKM-001 DEC-AKM-007) and the spec's own recommendation already cover it.
 - **Program numbering across the spec** (front-panel 1–128 sent as 0–127, prefixed by an OFF/ON byte for `&0A`): to be pinned down against the real sampler while refining RQ-AKM-022.

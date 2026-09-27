@@ -128,7 +128,10 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     }
 
     CHECK(sysexConfig == SYSEX_CONFIG_ITEM_COUNT);
-    CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size());
+    // CATALOGUE tracks only sections 00 and 02; TASK-AKM-015 (ProgramPrimitivesTests.cpp) added 8 records
+    // of section 0A, which this count includes without tracking them here too.
+    constexpr std::size_t PROGRAM_ITEM_COUNT = 8;
+    CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
 TEST_CASE("Given a section and an item, When looked up, Then a record is found and an item of the spec that is not catalogued is not [RQ-AKM-041]",
@@ -137,9 +140,10 @@ TEST_CASE("Given a section and an item, When looked up, Then a record is found a
     for (const Expected& expected : CATALOGUE)
         CHECK(akm::findItem(expected.section, expected.item) == &akm::descriptor(expected.id));
 
-    // Section 00 has no item 02 (the spec skips it); section 0A is not catalogued yet.
+    // Section 00 has no item 02 (the spec skips it); &0A of section 0A (Set "Program Number") is not
+    // catalogued yet (TASK-AKM-016).
     CHECK(akm::findItem(0x00, 0x02) == nullptr);
-    CHECK(akm::findItem(0x0A, 0x05) == nullptr);
+    CHECK(akm::findItem(0x0A, 0x0A) == nullptr);
     // The same item code in another section is another item.
     CHECK(akm::findItem(0x02, 0x06) == nullptr);
 }
