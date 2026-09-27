@@ -20,7 +20,9 @@ provisional values and found the risk to `--slow-operation` recorded there and i
 needed no change. The item catalogue's first String item (TASK-AKM-014, for FTR-AKM-002) added DEC-AKM-013,
 which completes DEC-AKM-003's deferral of strings and DEC-AKM-012's schema; it changed no other decision.
 The all-programs Gets (TASK-AKM-017) added DEC-AKM-014, completing DEC-AKM-013's own deferral of
-repeated-record REPLYs; it changed no other decision either.
+repeated-record REPLYs; it changed no other decision either. Keygroup selection (TASK-AKM-026, FTR-AKM-003)
+added DEC-AKM-015, generalising DEC-AKM-014's decode into `decodeRepeatedReply` for §08's per-keygroup
+Gets; it changed no other decision.
 The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
@@ -412,6 +414,29 @@ first if the caller wants to size a buffer, but nothing in the wire format requi
 - **Program numbers are converted to front-panel, like `&0A`/`&11`.** Table 14's own footnote a repeats
   Table 13's: the wire number is the front-panel one minus one. `getAllProgramNumbers` returns one
   `std::optional<int>` per program (empty when that program's display is off), already converted.
+
+### DEC-AKM-015: The repeated-record REPLY decode is generalised into `ItemRequest`, for any item
+Decided in TASK-AKM-026, generalising DEC-AKM-014 for RQ-AKM-031: §08 (Keygroup) answers a Get with one
+value set per keygroup, in keygroup order, whenever keygroup 0 ("all") is current — the same repeated-
+record shape as `&18`/`&19`, but potentially every one of §08's ~34 Get items rather than two named ones.
+Writing 34 bespoke decode loops, one per item, would not scale the way `getAllProgramNumbers`/
+`getAllProgramNames`'s hand-written loops did for exactly two items.
+- **`decodeRepeatedReply(id, data)` joins `decodeReply`/`decodeStringReply` in `ItemRequest.hpp`.** It
+  reads `id`'s own REPLY shape (from the catalogue, unchanged since DEC-AKM-014: one record) as many
+  times as `data` holds, generic over any item — the same "a new item is a new record, not new code"
+  rule DEC-AKM-003 states for `makeRequest`/`decodeReply`, now extended to the repeated case too.
+  `getAllProgramNumbers`/`getAllProgramNames` keep their own hand-written loops (String's own
+  `readStringList` for `&19`; `&18`'s `(enabled, number)` pair does not fit `decodeRepeatedReply`'s
+  plain `int64_t` records without re-deriving the front-panel conversion) rather than being rewritten
+  onto the new function — not broken, so left alone.
+- **The count is checked by the caller, not the codec.** `decodeRepeatedReply` reports how many records
+  it decoded; whether that matches the current program's keygroup count (RQ-AKM-031's "mismatch" AC) is
+  `getForAllKeygroups`'s job (`KeygroupPrimitives.cpp`), which takes the expected count as an argument
+  rather than issuing a second command (`&14`) to read it itself — avoiding a nested round trip the
+  caller can usually avoid by already knowing the count.
+- **Gated like `&18`/`&19`.** `getForAllKeygroups` always sets `ExpectedReply::NeedsKnownChecksumMode`
+  (DEC-AKM-011, DEC-AKM-014): every item it is used for is variable-length by construction, not decided
+  per call.
 
 ## Consequences
 

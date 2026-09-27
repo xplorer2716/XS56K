@@ -146,6 +146,35 @@ namespace akm
         return decodeReply(descriptor(id), data);
     }
 
+    std::optional<std::vector<std::vector<std::int64_t>>> decodeRepeatedReply(const ItemDescriptor& item,
+                                                                               std::span<const std::uint8_t> data)
+    {
+        if (item.reply.empty())
+            return std::nullopt;
+
+        ByteReader reader(data);
+        std::vector<std::vector<std::int64_t>> records;
+        while (reader.remaining() > 0)
+        {
+            std::vector<std::int64_t> record;
+            record.reserve(item.reply.size());
+            for (const ValueSpec& spec : item.reply)
+            {
+                const std::optional<std::int64_t> value = readValue(reader, spec.format);
+                if (!value)
+                    return std::nullopt;
+                record.push_back(*value);
+            }
+            records.push_back(std::move(record));
+        }
+        return records;
+    }
+
+    std::optional<std::vector<std::vector<std::int64_t>>> decodeRepeatedReply(ItemId id, std::span<const std::uint8_t> data)
+    {
+        return decodeRepeatedReply(descriptor(id), data);
+    }
+
     namespace
     {
         // The one and only ValueSpec of a String item's single argument or reply, or null when the item

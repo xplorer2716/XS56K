@@ -129,9 +129,10 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
 
     CHECK(sysexConfig == SYSEX_CONFIG_ITEM_COUNT);
     // CATALOGUE tracks only sections 00 and 02; TASK-AKM-015 to 023 added 95 records of section 0A (now
-    // complete, TASK-AKM-023's guarded &07 included), which this count includes without tracking them
-    // here too (see ProgramPrimitivesTests.cpp and the other test files).
-    constexpr std::size_t PROGRAM_ITEM_COUNT = 95;
+    // complete, TASK-AKM-023's guarded &07 included), and TASK-AKM-026 added the first 2 of section 08
+    // (keygroup selection), which this count includes without tracking them here too (see
+    // ProgramPrimitivesTests.cpp and the other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
@@ -141,10 +142,11 @@ TEST_CASE("Given a section and an item, When looked up, Then a record is found a
     for (const Expected& expected : CATALOGUE)
         CHECK(akm::findItem(expected.section, expected.item) == &akm::descriptor(expected.id));
 
-    // Section 00 has no item 02 (the spec skips it); section 0A is complete as of TASK-AKM-023, so this
-    // now uses section 08 (Keygroup), not yet catalogued (FTR-AKM-003).
+    // Section 00 has no item 02 (the spec skips it); section 0A is complete as of TASK-AKM-023, and
+    // section 08's own selection items (&01, &02) are now catalogued (TASK-AKM-026), so this uses &04
+    // (Set Low Note), not catalogued until its own group's lot (TASK-AKM-027).
     CHECK(akm::findItem(0x00, 0x02) == nullptr);
-    CHECK(akm::findItem(0x08, 0x01) == nullptr);
+    CHECK(akm::findItem(0x08, 0x04) == nullptr);
     // The same item code in another section is another item.
     CHECK(akm::findItem(0x02, 0x06) == nullptr);
 }

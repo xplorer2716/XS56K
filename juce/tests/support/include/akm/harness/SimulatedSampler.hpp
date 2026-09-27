@@ -119,6 +119,17 @@ namespace akm::harness
         std::vector<std::uint8_t> data;  ///< without its checksum
     };
 
+    /// One keygroup of a program (§08, spec Tables 11-12): its General Options, Pitch/Amp, Filter, and
+    /// three envelope groups (RQ-AKM-030), stored the same generic way as `ProgramRecord::parameters` —
+    /// keyed by (the group's Set item code, the selector bytes a multi-instance item carries, e.g. which
+    /// Aux Rate), holding the value bytes; read back by the paired Get item. A newly added keygroup
+    /// starts with none set (a Get reads back width-many zero bytes, as `ProgramRecord::parameters`
+    /// already does for a program's own groups). [RQ-AKM-030]
+    struct KeygroupRecord
+    {
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
+    };
+
     /// One program in the sampler's memory (§0A, spec Tables 13-14): only what TASK-AKM-015's lifecycle
     /// primitives set or read. Where the spec is silent, the model chooses: a plain Create (`&02`) gives one
     /// keygroup; creating a name that already exists among the sampler's programs fails as `COULD_NOT_CREATE`
@@ -136,6 +147,10 @@ namespace akm::harness
         /// carries, e.g. which LFO), holding the value bytes; read back by the paired Get item. Not
         /// compared by `ProgramRecord`'s own `==` (only the fields the earlier lifecycle tests need are).
         std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
+        /// One entry per keygroup, `keygroupCount` long, in keygroup order starting at 1 (§08, RQ-AKM-030).
+        /// Kept in sync with `keygroupCount` by `&0B`/`&0C` (add/delete keygroups); not compared by
+        /// `ProgramRecord`'s own `==`.
+        std::vector<KeygroupRecord> keygroups{KeygroupRecord{}};
     };
 
     inline bool operator==(const ProgramRecord& a, const ProgramRecord& b)
@@ -193,5 +208,10 @@ namespace akm::harness
         // §0A program memory: not touched by powerCycle() (real sampler memory, unlike the §00 settings).
         std::vector<ProgramRecord> _programs;
         std::optional<std::size_t> _currentProgram;
+        // §08 current keygroup of the current program (RQ-AKM-028): the wire value, 1-99 or 0 for "all";
+        // reset whenever the current program changes, since a keygroup number is only meaningful within
+        // one program. A newly current program defaults to keygroup 1 (the spec does not say; observed on
+        // the real sampler when TASK-AKM-026's real-sampler test runs).
+        std::optional<int> _currentKeygroup;
     };
 }

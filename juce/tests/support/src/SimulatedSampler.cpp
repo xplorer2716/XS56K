@@ -91,6 +91,14 @@ namespace akm::harness
         // Destructive guard of TASK-AKM-023 (RQ-AKM-025).
         constexpr std::uint8_t ITEM_DELETE_ALL = 0x07;
 
+        // Section §08 (Keygroup), spec Tables 11-12: keygroup selection of TASK-AKM-026 (RQ-AKM-028).
+        // Other §08 items answer ERROR 0 until their own lot.
+        constexpr std::uint8_t SECTION_KEYGROUP = 0x08;
+        constexpr std::uint8_t ITEM_SELECT_KEYGROUP = 0x01;
+        constexpr std::uint8_t ITEM_GET_CURRENT_KEYGROUP = 0x02;
+        // A newly current program defaults to this keygroup (spec silent; TASK-AKM-026's assumption).
+        constexpr int DEFAULT_CURRENT_KEYGROUP = 1;
+
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
         constexpr std::size_t SECTION_AND_ITEM_SIZE = 2;
@@ -156,7 +164,7 @@ namespace akm::harness
         // are off) is ignored, as elsewhere in this model. One already held by another program cannot be
         // created again (the spec's own COULD_NOT_CREATE, undated by it).
         Outcome createProgram(const Bytes& data, int keygroupCount, std::vector<ProgramRecord>& programs,
-                              std::optional<std::size_t>& current)
+                              std::optional<std::size_t>& current, std::optional<int>& currentKeygroup)
         {
             akm::ByteReader reader(data);
             const auto name = reader.readString();
@@ -169,8 +177,10 @@ namespace akm::harness
             ProgramRecord record;
             record.name = *name;
             record.keygroupCount = keygroupCount;
+            record.keygroups.assign(static_cast<std::size_t>(keygroupCount), KeygroupRecord{});
             programs.push_back(std::move(record));
             current = programs.size() - 1;
+            currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
             return done();
         }
 
@@ -255,18 +265,18 @@ namespace akm::harness
         }
 
         Outcome executeProgram(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
-                               std::optional<std::size_t>& current)
+                               std::optional<std::size_t>& current, std::optional<int>& currentKeygroup)
         {
             constexpr int PLAIN_CREATE_KEYGROUP_COUNT = 1;
             switch (item)
             {
                 case ITEM_CREATE_PROGRAM:
-                    return createProgram(data, PLAIN_CREATE_KEYGROUP_COUNT, programs, current);
+                    return createProgram(data, PLAIN_CREATE_KEYGROUP_COUNT, programs, current, currentKeygroup);
                 case ITEM_CREATE_PROGRAM_WITH_KEYGROUPS:
                 {
                     if (data.empty())
                         return failure(error_number::INVALID_FORMAT);
-                    return createProgram(Bytes(data.begin() + 1, data.end()), data.front(), programs, current);
+                    return createProgram(Bytes(data.begin() + 1, data.end()), data.front(), programs, current, currentKeygroup);
                 }
                 case ITEM_SELECT_PROGRAM_BY_NAME:
                 {
@@ -279,6 +289,7 @@ namespace akm::harness
                     if (found == programs.end())
                         return failure(error_number::NOT_FOUND);
                     current = static_cast<std::size_t>(found - programs.begin());
+                    currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
                     return done();
                 }
                 case ITEM_SELECT_PROGRAM_BY_INDEX:
@@ -290,6 +301,7 @@ namespace akm::harness
                     if (*index >= programs.size())
                         return failure(error_number::NOT_FOUND);
                     current = *index;
+                    currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
                     return done();
                 }
                 case ITEM_DELETE_CURRENT_PROGRAM:
@@ -297,10 +309,12 @@ namespace akm::harness
                         return failure(error_number::NOT_FOUND);
                     programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
                     current.reset();
+                    currentKeygroup.reset();
                     return done();
                 case ITEM_DELETE_ALL:
                     programs.clear();
                     current.reset();
+                    currentKeygroup.reset();
                     return done();
                 case ITEM_RENAME_CURRENT_PROGRAM:
                 {
@@ -331,21 +345,29 @@ namespace akm::harness
                     return done();
                 }
                 case ITEM_ADD_KEYGROUPS:
+                {
                     if (!current)
                         return failure(error_number::NOT_FOUND);
                     if (data.empty())
                         return failure(error_number::INVALID_FORMAT);
-                    programs[*current].keygroupCount += data.front();
+                    ProgramRecord& program = programs[*current];
+                    program.keygroupCount += data.front();
+                    program.keygroups.resize(program.keygroups.size() + data.front());
                     return done();
+                }
                 case ITEM_DELETE_KEYGROUP:
+                {
                     if (!current)
                         return failure(error_number::NOT_FOUND);
                     if (data.empty())
                         return failure(error_number::INVALID_FORMAT);
-                    if (data.front() >= programs[*current].keygroupCount)
+                    ProgramRecord& program = programs[*current];
+                    if (data.front() >= program.keygroupCount)
                         return failure(error_number::KEYGROUP_NOT_IN_PROGRAM);
-                    --programs[*current].keygroupCount;
+                    --program.keygroupCount;
+                    program.keygroups.erase(program.keygroups.begin() + data.front());
                     return done();
+                }
                 case ITEM_SET_CROSSFADE:
                     if (!current)
                         return failure(error_number::NOT_FOUND);
@@ -429,16 +451,51 @@ namespace akm::harness
             }
         }
 
-        // Only §00, the two version items of §02, and the §0A items above are modelled. A byte after the
-        // data an item expects is ignored, as the spec says of a checksum sent while checksums are off.
+        // §08 keygroup selection of TASK-AKM-026 (RQ-AKM-028): `&01` selects 1-99, or 0 for "all
+        // keygroups"; `&02` gets which is current. Every other §08 item answers ERROR 0 until its own lot.
+        Outcome executeKeygroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                const std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup)
+        {
+            switch (item)
+            {
+                case ITEM_SELECT_KEYGROUP:
+                {
+                    if (!currentProgram)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    const int keygroup = data.front();
+                    if (keygroup != 0 && keygroup > programs[*currentProgram].keygroupCount)
+                        return failure(error_number::KEYGROUP_NOT_IN_PROGRAM);
+                    currentKeygroup = keygroup;
+                    return done();
+                }
+                case ITEM_GET_CURRENT_KEYGROUP:
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendByte(static_cast<std::uint32_t>(*currentKeygroup));
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
+        // Only §00, the two version items of §02, the §0A items above and §08 keygroup selection are
+        // modelled. A byte after the data an item expects is ignored, as the spec says of a checksum sent
+        // while checksums are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion, std::vector<ProgramRecord>& programs,
-                        std::optional<std::size_t>& currentProgram)
+                        std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup)
         {
             if (section == SECTION_SYSTEM)
                 return executeSystem(item, osVersion);
             if (section == SECTION_PROGRAM)
-                return executeProgram(item, data, programs, currentProgram);
+                return executeProgram(item, data, programs, currentProgram, currentKeygroup);
+            if (section == SECTION_KEYGROUP)
+                return executeKeygroup(item, data, programs, currentProgram, currentKeygroup);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -637,7 +694,8 @@ namespace akm::harness
                                           });
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
-                                    : execute(section, item, data, _settings, _config.osVersion, _programs, _currentProgram);
+                                    : execute(section, item, data, _settings, _config.osVersion, _programs, _currentProgram,
+                                              _currentKeygroup);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

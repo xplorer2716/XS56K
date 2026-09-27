@@ -15,6 +15,7 @@ add_library(xs56k_akm STATIC
     src/DiagnosticSink.cpp
     src/ItemCatalogue.cpp
     src/ItemRequest.cpp
+    src/KeygroupPrimitives.cpp
     src/LibraryInfo.cpp
     src/ManualExecutor.cpp
     src/ManualScheduler.cpp
