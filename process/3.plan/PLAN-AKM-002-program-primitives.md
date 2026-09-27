@@ -418,7 +418,11 @@ This plan implements the tasks in the format specified below.
   try (OS 2.14, 50 Echo round trips 12-14 ms, matching the earlier observations); check 9 (the
   fails-half-way check) failed on a real, previously unknown firmware behaviour, not a bug in the guard
   itself: with 0 programs in memory, `&19` (names) answers ERROR 4, not an empty REPLY, while `&10`
-  (count) answers a normal 0 — recorded in the KB and fixed (see Assumptions). Mutation testing still
+  (count) answers a normal 0 — recorded in the KB and fixed (see Assumptions). **Re-run by the owner on
+  the same real S5000, same day** (`akm-suite-20260927-185917.log`), after the fix: 9/9 passed, `&19`'s
+  ERROR 4 on the empty-memory list still observed on the wire (ref 04, sec 0A item 19) but now normalized
+  to an empty list before check 9 asserts on it; check 8 (all 38 parameter items, rename) passed again;
+  0 unsolicited/late-error/`F0 F7` frames; sampler ended in the known state. Mutation testing still
   blocked, as in prior tasks.
 - **Assumptions**: The Program-lot checks are opt-in, unlike the plan's original wording ("extend
   `xs56k_akm_probe --suite`... this unlocks"), which did not say whether automatic or opt-in: made
