@@ -892,6 +892,105 @@
       "args": [],
       "reply": [{"name": "value", "format": "byte", "min": 0, "max": 5}],
       "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvAttack", "section": "08", "item": "30", "name": "Set Filter Envelope Attack", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvVelocityToAttack", "section": "08", "item": "31", "name": "Set Filter Envelope Velocity->Attack", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvDecay", "section": "08", "item": "32", "name": "Set Filter Envelope Decay", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvSustain", "section": "08", "item": "33", "name": "Set Filter Envelope Sustain", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvRelease", "section": "08", "item": "34", "name": "Set Filter Envelope Release", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvOnVelocityToRelease", "section": "08", "item": "35", "name": "Set Filter Envelope On Velocity->Release", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvKeyscale", "section": "08", "item": "36", "name": "Set Filter Envelope Keyscale", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvDepth", "section": "08", "item": "37", "name": "Set Filter Envelope Depth", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFilterEnvOffVelocityToRelease", "section": "08", "item": "38", "name": "Set Filter Envelope Off Velocity->Release", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvAttack", "section": "08", "item": "40", "name": "Get Filter Envelope Attack", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvVelocityToAttack", "section": "08", "item": "41", "name": "Get Filter Envelope Velocity->Attack", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvDecay", "section": "08", "item": "42", "name": "Get Filter Envelope Decay", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvSustain", "section": "08", "item": "43", "name": "Get Filter Envelope Sustain", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvRelease", "section": "08", "item": "44", "name": "Get Filter Envelope Release", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvOnVelocityToRelease", "section": "08", "item": "45", "name": "Get Filter Envelope On Velocity->Release", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvKeyscale", "section": "08", "item": "46", "name": "Get Filter Envelope Keyscale", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvDepth", "section": "08", "item": "47", "name": "Get Filter Envelope Depth", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFilterEnvOffVelocityToRelease", "section": "08", "item": "48", "name": "Get Filter Envelope Off Velocity->Release", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
     }
   ]
 }

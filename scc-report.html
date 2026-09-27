@@ -1,0 +1,1233 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>scc report - XS56K</title>
+  <meta name="description" content="271 files · 40,351 SLOC · 29,959 ULOC (59.2% DRYness) · bus factor 1 · est. cost $1,311,561">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="scc analysed XS56K">
+  <meta property="og:description" content="271 files · 40,351 SLOC · 29,959 ULOC (59.2% DRYness) · bus factor 1 · est. cost $1,311,561">
+  <meta property="og:image" content="data:image/svg&#43;xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20630%22%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22630%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22180%22%20font-family%3D%22ui-monospace%2Cmonospace%22%20font-size%3D%2228%22%20fill%3D%22%23999%22%3E01%20OVERVIEW%3C%2Ftext%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22280%22%20font-family%3D%22system-ui%22%20font-size%3D%2272%22%20fill%3D%22%231a1a1a%22%20font-weight%3D%22700%22%3EXS56K%3C%2Ftext%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22360%22%20font-family%3D%22system-ui%22%20font-size%3D%2228%22%20fill%3D%22%23666%22%3E271%20files%20%C2%B7%2040%2C351%20SLOC%20%C2%B7%20DRYness%2059.2%25%3C%2Ftext%3E%0A%20%20%3Crect%20x%3D%2280%22%20y%3D%22420%22%20width%3D%221040%22%20height%3D%2210%22%20fill%3D%22%23eaeaea%22%2F%3E%0A%20%20%3Crect%20x%3D%2280%22%20y%3D%22420%22%20width%3D%22829.9%22%20height%3D%2210%22%20fill%3D%22%234a7daa%22%2F%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22560%22%20font-family%3D%22system-ui%22%20font-size%3D%2220%22%20fill%3D%22%23999%22%3Egenerated%20by%20scc%20%C2%B7%20github.com%2Fboyter%2Fscc%3C%2Ftext%3E%0A%3C%2Fsvg%3E">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="scc analysed XS56K">
+  <meta name="twitter:description" content="271 files · 40,351 SLOC · 29,959 ULOC (59.2% DRYness) · bus factor 1 · est. cost $1,311,561">
+  <meta name="twitter:image" content="data:image/svg&#43;xml;utf8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%201200%20630%22%3E%0A%20%20%3Crect%20width%3D%221200%22%20height%3D%22630%22%20fill%3D%22%23ffffff%22%2F%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22180%22%20font-family%3D%22ui-monospace%2Cmonospace%22%20font-size%3D%2228%22%20fill%3D%22%23999%22%3E01%20OVERVIEW%3C%2Ftext%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22280%22%20font-family%3D%22system-ui%22%20font-size%3D%2272%22%20fill%3D%22%231a1a1a%22%20font-weight%3D%22700%22%3EXS56K%3C%2Ftext%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22360%22%20font-family%3D%22system-ui%22%20font-size%3D%2228%22%20fill%3D%22%23666%22%3E271%20files%20%C2%B7%2040%2C351%20SLOC%20%C2%B7%20DRYness%2059.2%25%3C%2Ftext%3E%0A%20%20%3Crect%20x%3D%2280%22%20y%3D%22420%22%20width%3D%221040%22%20height%3D%2210%22%20fill%3D%22%23eaeaea%22%2F%3E%0A%20%20%3Crect%20x%3D%2280%22%20y%3D%22420%22%20width%3D%22829.9%22%20height%3D%2210%22%20fill%3D%22%234a7daa%22%2F%3E%0A%20%20%3Ctext%20x%3D%2280%22%20y%3D%22560%22%20font-family%3D%22system-ui%22%20font-size%3D%2220%22%20fill%3D%22%23999%22%3Egenerated%20by%20scc%20%C2%B7%20github.com%2Fboyter%2Fscc%3C%2Ftext%3E%0A%3C%2Fsvg%3E">
+
+  
+  <script>
+    (function() {
+      try {
+        var t = localStorage.getItem('scc-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    :root {
+      --bg: #ffffff; --bg-sunken: #fafafa; --fg: #1a1a1a; --fg-muted: #555555; --fg-dim: #888888;
+      --border: #e5e5e5; --border-strong: #cfcfcf; --link: #0b5ea8; --accent: #4a7daa; --accent-2: #2c7a7b;
+      --code-bg: #f5f5f3; --good: #0a7d4f; --warn: #b25400; --danger: #b3261e;
+      --code: #4a7daa; --blank: #cfcfcf; --comment: #93a6b8;
+      --hover-row: rgba(0,0,0,0.025);
+      color-scheme: light;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0f1115; --bg-sunken: #161a20; --fg: #e8e6e3; --fg-muted: #a8aeb6; --fg-dim: #7a818a;
+        --border: #262b33; --border-strong: #3a4049; --link: #6cb6ff; --accent: #6b9fd0; --accent-2: #5cb8b8;
+        --code-bg: #181c22; --good: #4ec9a0; --warn: #e0a060; --danger: #f08a82;
+        --code: #6b9fd0; --blank: #3a4049; --comment: #5d7a96;
+        --hover-row: rgba(255,255,255,0.04);
+        color-scheme: dark;
+      }
+    }
+    html[data-theme="light"] {
+      --bg: #ffffff; --bg-sunken: #fafafa; --fg: #1a1a1a; --fg-muted: #555555; --fg-dim: #888888;
+      --border: #e5e5e5; --border-strong: #cfcfcf; --link: #0b5ea8; --accent: #4a7daa; --accent-2: #2c7a7b;
+      --code-bg: #f5f5f3; --good: #0a7d4f; --warn: #b25400; --danger: #b3261e;
+      --code: #4a7daa; --blank: #cfcfcf; --comment: #93a6b8;
+      --hover-row: rgba(0,0,0,0.025); color-scheme: light;
+    }
+    html[data-theme="dark"] {
+      --bg: #0f1115; --bg-sunken: #161a20; --fg: #e8e6e3; --fg-muted: #a8aeb6; --fg-dim: #7a818a;
+      --border: #262b33; --border-strong: #3a4049; --link: #6cb6ff; --accent: #6b9fd0; --accent-2: #5cb8b8;
+      --code-bg: #181c22; --good: #4ec9a0; --warn: #e0a060; --danger: #f08a82;
+      --code: #6b9fd0; --blank: #3a4049; --comment: #5d7a96;
+      --hover-row: rgba(255,255,255,0.04); color-scheme: dark;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, ui-sans-serif, system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.55;
+      -webkit-font-smoothing: antialiased;
+    }
+    .mono { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap { max-width: 960px; margin: 0 auto; padding: 48px 32px 96px; }
+
+     
+    header.hero {
+      padding-bottom: 28px; margin-bottom: 56px;
+      border-bottom: 1px solid var(--border);
+    }
+    .crumb {
+      font: 500 12px ui-monospace, monospace;
+      color: var(--fg-dim); text-transform: uppercase; letter-spacing: 0.1em;
+      margin-bottom: 12px;
+    }
+    h1.title {
+      font-size: 38px; line-height: 1.15; font-weight: 700; margin: 0 0 10px;
+      letter-spacing: -0.015em;
+    }
+    p.tagline { margin: 0; color: var(--fg-muted); font-size: 16px; max-width: 64ch; }
+    .actions {
+      margin-top: 22px; display: flex; gap: 8px; flex-wrap: wrap;
+    }
+    .actions a, .actions button {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; font-size: 13px;
+      background: var(--bg); border: 1px solid var(--border-strong);
+      color: var(--fg); border-radius: 4px; text-decoration: none; cursor: pointer;
+      font-family: inherit; line-height: 1;
+    }
+    .actions a:hover, .actions button:hover { border-color: var(--fg-muted); background: var(--bg-sunken); text-decoration: none; }
+
+     
+    section { margin: 0 0 64px; }
+    section h2 {
+      font-size: 24px; font-weight: 700; margin: 0 0 18px;
+      display: flex; align-items: baseline; gap: 14px;
+      letter-spacing: -0.01em;
+    }
+    section h2 .num {
+      font-family: ui-monospace, monospace; font-size: 14px;
+      color: var(--fg-dim); font-weight: 500;
+      letter-spacing: 0.08em;
+    }
+    section h2 .count { color: var(--fg-dim); font-size: 13px; font-weight: 400; letter-spacing: 0; }
+    section .lede { margin: 0 0 22px; color: var(--fg-muted); font-size: 14px; max-width: 70ch; }
+
+    .submodel {
+      font-size: 12px; font-weight: 600; margin: 28px 0 10px;
+      color: var(--fg); text-transform: uppercase; letter-spacing: 0.1em;
+    }
+    .submodel:first-of-type { margin-top: 4px; }
+    .submodel-meaning {
+      display: inline; color: var(--fg-dim); font-weight: 400;
+      text-transform: none; letter-spacing: 0; margin-left: 4px;
+      font-size: 13px;
+    }
+
+     
+    .metrics {
+      display: grid; grid-template-columns: repeat(6, 1fr); gap: 0;
+      border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .metric { padding: 14px 16px; border-right: 1px solid var(--border); }
+    .metric:last-child { border-right: none; }
+    .metric .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-dim); }
+    .metric .value { font-family: ui-monospace, monospace; font-size: 22px; font-weight: 600; margin-top: 4px; color: var(--fg); }
+    .metric .sub { font-size: 11px; color: var(--fg-dim); margin-top: 2px; }
+    @media (max-width: 820px) { .metrics { grid-template-columns: repeat(3, 1fr); } .metric:nth-child(3n) { border-right: none; } }
+    @media (max-width: 480px) { .metrics { grid-template-columns: repeat(2, 1fr); } .metric { border-right: 1px solid var(--border) !important; } .metric:nth-child(2n) { border-right: none !important; } }
+
+     
+    .composition { margin-top: 28px; }
+    .composition .bar {
+      display: flex; width: 100%; height: 14px; border-radius: 2px; overflow: hidden;
+      background: var(--bg-sunken);
+    }
+    .composition .bar > span { display: block; height: 100%; }
+    .composition .legend {
+      margin-top: 10px; display: flex; gap: 22px; flex-wrap: wrap;
+      font-size: 13px; color: var(--fg-muted);
+    }
+    .composition .legend .sw { display: inline-block; width: 10px; height: 10px; border-radius: 1px; vertical-align: middle; margin-right: 6px; }
+    .composition .legend strong { color: var(--fg); font-family: ui-monospace, monospace; font-weight: 600; margin-left: 4px; }
+
+     
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th, td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--border); }
+    th { font-weight: 600; color: var(--fg-muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border-strong); }
+    td.num, th.num { text-align: right; font-family: ui-monospace, monospace; }
+    tbody tr:hover td { background: var(--hover-row); }
+    .ratio-cell { width: 120px; }
+    .ratio-cell .track {
+      display: block; width: 100%; height: 6px; background: var(--bg-sunken); border-radius: 1px; position: relative;
+    }
+    .ratio-cell .fill {
+      position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 1px;
+    }
+
+     
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      display: inline-flex; align-items: baseline; gap: 6px;
+      padding: 3px 9px; border: 1px solid var(--border-strong); border-radius: 3px;
+      font-size: 12.5px; color: var(--fg); background: var(--bg);
+      font-family: ui-monospace, monospace;
+    }
+    .tag.warn { border-color: rgba(178,84,0,0.35); color: var(--warn); }
+    .tag.danger { border-color: rgba(179,38,30,0.35); color: var(--danger); }
+    .tag.good { border-color: rgba(10,125,79,0.35); color: var(--good); }
+
+     
+    .spark { height: 22px; width: 140px; vertical-align: middle; display: inline-block; }
+    .spark path { fill: none; stroke: var(--accent); stroke-width: 1.5; }
+    .spark .fill { fill: var(--accent); opacity: 0.12; stroke: none; }
+
+     
+    .histo { width: 100%; height: auto; display: block; }
+    .histo rect { fill: var(--accent); }
+    .histo .label { font: 10px ui-monospace, monospace; fill: var(--fg-dim); }
+    .histo .value { font: 10px ui-monospace, monospace; fill: var(--fg); }
+    .histo .axis { stroke: var(--border); }
+
+     
+    details.files { margin-top: 10px; }
+    details.files > summary {
+      list-style: none; cursor: pointer; font-size: 13px; color: var(--link);
+      padding: 6px 0;
+    }
+    details.files > summary::-webkit-details-marker { display: none; }
+    details.files > summary::before { content: "▸ "; color: var(--fg-dim); }
+    details.files[open] > summary::before { content: "▾ "; }
+    details.files .inner { margin-top: 8px; max-height: 480px; overflow: auto; border: 1px solid var(--border); border-radius: 3px; }
+
+     
+    footer.bottom {
+      margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border);
+      display: flex; justify-content: space-between; align-items: center;
+      color: var(--fg-dim); font-size: 12px; flex-wrap: wrap; gap: 8px;
+    }
+  </style>
+</head>
+<body>
+<div class="wrap">
+
+  
+  <header class="hero">
+    <div class="crumb">scc report</div>
+    <h1 class="title">XS56K</h1>
+    <p class="tagline">Generated by <a href="https://github.com/boyter/scc">scc</a> - Sloc, Cloc and Code.</p>
+    <div class="actions">
+      <button type="button" onclick="navigator.clipboard&amp;&amp;navigator.clipboard.writeText(location.href);this.textContent='Copied';setTimeout(()=>this.textContent='Copy link',1500)">Copy link</button>
+      <button type="button" id="theme-toggle" title="Cycle theme: auto → light → dark" aria-label="Toggle theme">Theme: auto</button>
+    </div>
+  </header>
+  <section>
+    <h2><span class="num">01</span> Overview</h2>
+    <p class="lede">Aggregate counts across all source files in the working tree, with cost estimates and ULOC-based DRYness.</p>
+
+    <div class="metrics">
+      <div class="metric"><div class="label">Files</div><div class="value">271</div><div class="sub">13 languages</div></div>
+      <div class="metric"><div class="label">SLOC</div><div class="value">40,351</div><div class="sub">code lines</div></div>
+      <div class="metric"><div class="label">Comments</div><div class="value">5,400</div><div class="sub">10.7%</div></div>
+      <div class="metric"><div class="label">Complexity</div><div class="value">2,604</div><div class="sub">cyclomatic est.</div></div>
+      <div class="metric"><div class="label">ULOC</div><div class="value">29,959</div><div class="sub">DRYness 59.2%</div></div>
+      <div class="metric"><div class="label">Bytes</div><div class="value">2.7M</div><div class="sub">on disk</div></div>
+    </div>
+    <div class="composition">
+      <div class="bar" aria-label="Line composition: 79.8% code, 9.5% blank, 10.7% comment">
+        <span style="width: 79.8%; background: var(--code);"></span>
+        <span style="width: 9.5%; background: var(--blank);"></span>
+        <span style="width: 10.7%; background: var(--comment);"></span>
+      </div>
+      <div class="legend">
+        <span><span class="sw" style="background: var(--code)"></span>Code <strong>79.8%</strong></span>
+        <span><span class="sw" style="background: var(--blank)"></span>Blank <strong>9.5%</strong></span>
+        <span><span class="sw" style="background: var(--comment)"></span>Comment <strong>10.7%</strong></span>
+        <span style="margin-left: auto; color: var(--fg-dim);">50,569 total lines</span>
+      </div>
+    </div>
+  </section>
+  <section>
+    <h2><span class="num">02</span> Languages <span class="count">· 13 detected</span></h2>
+    <p class="lede">Per-language counts and share of total code. Bar shows code share; ULOC indicates how many lines are unique.</p>
+    <table>
+      <thead>
+        <tr>
+          <th>Language</th>
+          <th class="num">Files</th>
+          <th class="num">Code</th>
+          <th class="num">Comment</th>
+          <th class="num">Blank</th>
+          <th class="num">Complexity</th>
+          <th class="num">ULOC</th>
+          <th class="ratio-cell">Share</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f34b7d;margin-right:6px;vertical-align:middle;"></span>C&#43;&#43;</td>
+          <td class="num">89</td>
+          <td class="num">14,404</td>
+          <td class="num">2,285</td>
+          <td class="num">2,226</td>
+          <td class="num">2,190</td>
+          <td class="num">8,178</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 35.7%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>C&#43;&#43; Header</td>
+          <td class="num">65</td>
+          <td class="num">3,795</td>
+          <td class="num">2,192</td>
+          <td class="num">645</td>
+          <td class="num">62</td>
+          <td class="num">3,320</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 9.4%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#083fa1;margin-right:6px;vertical-align:middle;"></span>Markdown</td>
+          <td class="num">61</td>
+          <td class="num">15,893</td>
+          <td class="num">0</td>
+          <td class="num">1,377</td>
+          <td class="num">0</td>
+          <td class="num">13,819</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 39.4%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#cb171e;margin-right:6px;vertical-align:middle;"></span>YAML</td>
+          <td class="num">27</td>
+          <td class="num">1,293</td>
+          <td class="num">578</td>
+          <td class="num">201</td>
+          <td class="num">0</td>
+          <td class="num">688</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 3.2%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>CMake</td>
+          <td class="num">10</td>
+          <td class="num">251</td>
+          <td class="num">93</td>
+          <td class="num">32</td>
+          <td class="num">19</td>
+          <td class="num">312</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 0.6%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#292929;margin-right:6px;vertical-align:middle;"></span>JSON</td>
+          <td class="num">4</td>
+          <td class="num">1,018</td>
+          <td class="num">0</td>
+          <td class="num">6</td>
+          <td class="num">0</td>
+          <td class="num">380</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 2.5%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3572A5;margin-right:6px;vertical-align:middle;"></span>Python</td>
+          <td class="num">4</td>
+          <td class="num">798</td>
+          <td class="num">134</td>
+          <td class="num">151</td>
+          <td class="num">238</td>
+          <td class="num">831</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 2.0%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#89e051;margin-right:6px;vertical-align:middle;"></span>Shell</td>
+          <td class="num">4</td>
+          <td class="num">238</td>
+          <td class="num">56</td>
+          <td class="num">29</td>
+          <td class="num">21</td>
+          <td class="num">249</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 0.6%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>Powershell</td>
+          <td class="num">3</td>
+          <td class="num">236</td>
+          <td class="num">33</td>
+          <td class="num">21</td>
+          <td class="num">61</td>
+          <td class="num">232</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 0.6%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>Batch</td>
+          <td class="num">1</td>
+          <td class="num">52</td>
+          <td class="num">18</td>
+          <td class="num">12</td>
+          <td class="num">13</td>
+          <td class="num">60</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 0.1%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>License</td>
+          <td class="num">1</td>
+          <td class="num">544</td>
+          <td class="num">0</td>
+          <td class="num">117</td>
+          <td class="num">0</td>
+          <td class="num">545</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 1.3%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>Plain Text</td>
+          <td class="num">1</td>
+          <td class="num">1,828</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+          <td class="num">1,595</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 4.5%;"></span></span></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#9c4221;margin-right:6px;vertical-align:middle;"></span>TOML</td>
+          <td class="num">1</td>
+          <td class="num">1</td>
+          <td class="num">11</td>
+          <td class="num">1</td>
+          <td class="num">0</td>
+          <td class="num">13</td>
+          <td class="ratio-cell"><span class="track"><span class="fill" style="width: 0.0%;"></span></span></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <th>Total</th>
+          <th class="num">271</th>
+          <th class="num">40,351</th>
+          <th class="num">5,400</th>
+          <th class="num">4,818</th>
+          <th class="num">2,604</th>
+          <th class="num">29,959</th>
+          <th></th>
+        </tr>
+      </tfoot>
+    </table>
+  </section>
+  <section>
+    <h2><span class="num">03</span> Line length</h2>
+    <p class="lede">Distribution of characters per line, bucketed across all files. Helps spot files with unusually long lines.</p>
+    <svg class="histo" viewBox="0 0 720 170" role="img" aria-label="Line length histogram">
+      <line class="axis" x1="40" y1="140" x2="700" y2="140"/>
+      <g>
+        <rect x="50" y="12" width="80" height="128"/>
+        <rect x="140" y="65" width="80" height="75"/>
+        <rect x="230" y="72" width="80" height="68"/>
+        <rect x="320" y="70" width="80" height="70"/>
+        <rect x="410" y="90" width="80" height="50"/>
+        <rect x="500" y="104" width="80" height="36"/>
+        <rect x="590" y="120" width="80" height="20"/>
+      </g>
+      <g text-anchor="middle">
+        <text class="value" x="90" y="10" dy="-2">14,496</text>
+        <text class="label" x="90" y="158">0–20</text>
+        <text class="value" x="180" y="63" dy="-2">8,534</text>
+        <text class="label" x="180" y="158">20–40</text>
+        <text class="value" x="270" y="70" dy="-2">7,676</text>
+        <text class="label" x="270" y="158">40–60</text>
+        <text class="value" x="360" y="68" dy="-2">7,892</text>
+        <text class="label" x="360" y="158">60–80</text>
+        <text class="value" x="450" y="88" dy="-2">5,672</text>
+        <text class="label" x="450" y="158">80–100</text>
+        <text class="value" x="540" y="102" dy="-2">4,026</text>
+        <text class="label" x="540" y="158">100–120</text>
+        <text class="value" x="630" y="118" dy="-2">2,271</text>
+        <text class="label" x="630" y="158">120&#43;</text>
+      </g>
+    </svg>
+    <div style="display: flex; gap: 32px; margin-top: 14px; font-size: 13px; color: var(--fg-muted); flex-wrap: wrap;">
+      <div><span class="mono" style="color: var(--fg); font-weight: 600;">52.9</span> mean</div>
+      <div><span class="mono" style="color: var(--fg); font-weight: 600;">5,406</span> longest line (chars)</div>
+      <div><span class="mono" style="color: var(--fg); font-weight: 600;">10</span> outlier files tracked</div>
+    </div>
+  </section>
+  <section>
+    <h2><span class="num">04</span> Hotspots <span class="count">· top 12 of 270</span></h2>
+    <p class="lede">Files with the highest churn × complexity. High score = touched often and hard to reason about, prime targets for refactoring or test coverage.</p>
+    <table>
+      <thead>
+        <tr><th>File</th><th class="num">Score</th><th class="num">Commits</th><th class="num">Authors</th><th class="num">Churn</th><th class="num">Complexity</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">juce/tests/support/src/SimulatedSampler.cpp</td>
+          <td class="num">100.0</td>
+          <td class="num">16</td>
+          <td class="num">2</td>
+          <td class="num">1,177</td>
+          <td class="num">138</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/src/Session.cpp</td>
+          <td class="num">34.6</td>
+          <td class="num">5</td>
+          <td class="num">2</td>
+          <td class="num">2,008</td>
+          <td class="num">153</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/akm/SimulatedSamplerTests.cpp</td>
+          <td class="num">34.2</td>
+          <td class="num">6</td>
+          <td class="num">2</td>
+          <td class="num">1,500</td>
+          <td class="num">126</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/akm/ItemCatalogueTests.cpp</td>
+          <td class="num">33.7</td>
+          <td class="num">12</td>
+          <td class="num">2</td>
+          <td class="num">853</td>
+          <td class="num">62</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tools/generate_akm_items.py</td>
+          <td class="num">27.2</td>
+          <td class="num">5</td>
+          <td class="num">2</td>
+          <td class="num">863</td>
+          <td class="num">120</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/support/src/RealSamplerSuite.cpp</td>
+          <td class="num">24.1</td>
+          <td class="num">4</td>
+          <td class="num">2</td>
+          <td class="num">1,905</td>
+          <td class="num">133</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/probe/main.cpp</td>
+          <td class="num">22.0</td>
+          <td class="num">5</td>
+          <td class="num">2</td>
+          <td class="num">837</td>
+          <td class="num">97</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/akm/RealSamplerSuiteTests.cpp</td>
+          <td class="num">15.4</td>
+          <td class="num">3</td>
+          <td class="num">2</td>
+          <td class="num">1,284</td>
+          <td class="num">113</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/src/ProgramPrimitives.cpp</td>
+          <td class="num">14.7</td>
+          <td class="num">5</td>
+          <td class="num">1</td>
+          <td class="num">331</td>
+          <td class="num">65</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/akm/SessionTests.cpp</td>
+          <td class="num">13.5</td>
+          <td class="num">3</td>
+          <td class="num">2</td>
+          <td class="num">1,708</td>
+          <td class="num">99</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/akm/SessionSmokeTests.cpp</td>
+          <td class="num">9.6</td>
+          <td class="num">4</td>
+          <td class="num">2</td>
+          <td class="num">978</td>
+          <td class="num">53</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/midi/src/MockMidiBackend.cpp</td>
+          <td class="num">9.2</td>
+          <td class="num">6</td>
+          <td class="num">3</td>
+          <td class="num">407</td>
+          <td class="num">34</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+  <section>
+    <h2><span class="num">05</span> Change coupling <span class="count">· top 12 of 766</span></h2>
+    <p class="lede">File pairs that change together in the same commits. High coupling = an implicit dependency git enforces but the code doesn't; editing one usually means editing the other.</p>
+    <table>
+      <thead>
+        <tr><th>File A</th><th>File B</th><th class="num">Shared</th><th class="num">Coupling</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="mono">juce/tests/CMakeLists.txt</td>
+          <td class="mono">process/INDEX.idx.md</td>
+          <td class="num">21</td>
+          <td class="num">53.8%</td>
+        </tr>
+        <tr>
+          <td class="mono">process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md</td>
+          <td class="mono">process/INDEX.idx.md</td>
+          <td class="num">16</td>
+          <td class="num">36.4%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/support/src/SimulatedSampler.cpp</td>
+          <td class="mono">process/INDEX.idx.md</td>
+          <td class="num">13</td>
+          <td class="num">32.5%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/CMakeLists.txt</td>
+          <td class="mono">juce/tests/support/src/SimulatedSampler.cpp</td>
+          <td class="num">12</td>
+          <td class="num">44.4%</td>
+        </tr>
+        <tr>
+          <td class="mono">process/3.plan/PLAN-AKM-002-program-primitives.md</td>
+          <td class="mono">process/INDEX.idx.md</td>
+          <td class="num">12</td>
+          <td class="num">32.4%</td>
+        </tr>
+        <tr>
+          <td class="mono">process/2.architecture/ADR-AKM-001-akm-transport-architecture.md</td>
+          <td class="mono">process/INDEX.idx.md</td>
+          <td class="num">12</td>
+          <td class="num">30.8%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/CMakeLists.txt</td>
+          <td class="mono">process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md</td>
+          <td class="num">11</td>
+          <td class="num">31.4%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/akm/ItemCatalogueTests.cpp</td>
+          <td class="mono">process/INDEX.idx.md</td>
+          <td class="num">10</td>
+          <td class="num">25.6%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/data/items.json</td>
+          <td class="mono">juce/akm/include/akm/ItemTable.generated.hpp</td>
+          <td class="num">9</td>
+          <td class="num">69.2%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/data/items.json</td>
+          <td class="mono">juce/tests/akm/ItemCatalogueTests.cpp</td>
+          <td class="num">9</td>
+          <td class="num">64.3%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/include/akm/ItemTable.generated.hpp</td>
+          <td class="mono">juce/tests/akm/ItemCatalogueTests.cpp</td>
+          <td class="num">9</td>
+          <td class="num">64.3%</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/data/items.json</td>
+          <td class="mono">juce/tests/support/src/SimulatedSampler.cpp</td>
+          <td class="num">9</td>
+          <td class="num">50.0%</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+  <section>
+    <h2><span class="num">06</span> Authors <span class="count">· 4 contributors</span></h2>
+    <p class="lede">
+      Ownership measured by line-level git blame across the analysis window.
+      <span class="tag warn">Bus factor: 1</span>; Xplorer owns the most code in window.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Author</th>
+          <th class="num">Code</th>
+          <th class="num">Files</th>
+          <th class="num">Owns</th>
+          <th class="num">In window</th>
+          <th>Last commit</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Xplorer <span style="color: var(--fg-dim);" class="mono">&lt;170273431&#43;xplorer2716@users.noreply.github.com&gt;</span></td>
+          <td class="num">20,647</td>
+          <td class="num">189</td>
+          <td class="num">51.3%</td>
+          <td class="num">51.4%</td>
+          <td class="mono">2026-09-27</td>
+        </tr>
+        <tr>
+          <td>170273431&#43;xplorer2716@users.noreply.github.com <span style="color: var(--fg-dim);" class="mono">&lt;170273431&#43;xplorer2716@users.noreply.github.com&gt;</span></td>
+          <td class="num">17,205</td>
+          <td class="num">76</td>
+          <td class="num">42.8%</td>
+          <td class="num">42.8%</td>
+          <td class="mono">2026-09-27</td>
+        </tr>
+        <tr>
+          <td>Claude <span style="color: var(--fg-dim);" class="mono">&lt;noreply@anthropic.com&gt;</span></td>
+          <td class="num">2,351</td>
+          <td class="num">5</td>
+          <td class="num">5.8%</td>
+          <td class="num">5.8%</td>
+          <td class="mono">2026-09-25</td>
+        </tr>
+        <tr style="color: var(--fg-dim);">
+          <td></td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="num">-</td>
+          <td class="mono">before window</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+  <section>
+    <h2><span class="num">07</span> Timeline <span class="count">· 60 buckets</span></h2>
+    <p class="lede">Code lines by language over the analysed history window. Sparkline trajectory per language and per author.</p>
+    <table style="margin-top: 18px;">
+      <thead><tr><th>Language</th><th class="num">Start</th><th class="num">Now</th><th class="num">Δ</th><th>Trajectory</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#f34b7d;margin-right:6px;vertical-align:middle;"></span>C&#43;&#43;</td>
+          <td class="num">0</td>
+          <td class="num">24,851</td>
+          <td class="num" style="color: ZgotmplZ">&#43;24,851</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,20.6 L30.8,20.6 L33.2,20.6 L35.6,20.6 L38.0,20.6 L40.3,20.6 L42.7,20.6 L45.1,20.6 L47.5,20.6 L49.8,20.6 L52.2,20.6 L54.6,20.6 L56.9,20.6 L59.3,20.6 L61.7,20.6 L64.1,20.6 L66.4,20.6 L68.8,20.6 L71.2,20.6 L73.6,20.6 L75.9,20.6 L78.3,20.6 L80.7,20.6 L83.1,20.6 L85.4,20.6 L87.8,20.6 L90.2,20.6 L92.5,20.6 L94.9,20.6 L97.3,20.6 L99.7,20.6 L102.0,19.5 L104.4,17.7 L106.8,17.7 L109.2,16.9 L111.5,16.7 L113.9,13.6 L116.3,11.3 L118.6,11.3 L121.0,11.3 L123.4,11.3 L125.8,11.3 L128.1,11.3 L130.5,1.3 L132.9,1.3 L135.3,1.3 L137.6,0.9 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,20.6 L30.8,20.6 L33.2,20.6 L35.6,20.6 L38.0,20.6 L40.3,20.6 L42.7,20.6 L45.1,20.6 L47.5,20.6 L49.8,20.6 L52.2,20.6 L54.6,20.6 L56.9,20.6 L59.3,20.6 L61.7,20.6 L64.1,20.6 L66.4,20.6 L68.8,20.6 L71.2,20.6 L73.6,20.6 L75.9,20.6 L78.3,20.6 L80.7,20.6 L83.1,20.6 L85.4,20.6 L87.8,20.6 L90.2,20.6 L92.5,20.6 L94.9,20.6 L97.3,20.6 L99.7,20.6 L102.0,19.5 L104.4,17.7 L106.8,17.7 L109.2,16.9 L111.5,16.7 L113.9,13.6 L116.3,11.3 L118.6,11.3 L121.0,11.3 L123.4,11.3 L125.8,11.3 L128.1,11.3 L130.5,1.3 L132.9,1.3 L135.3,1.3 L137.6,0.9 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#083fa1;margin-right:6px;vertical-align:middle;"></span>Markdown</td>
+          <td class="num">0</td>
+          <td class="num">20,494</td>
+          <td class="num" style="color: ZgotmplZ">&#43;20,494</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,20.4 L30.8,20.4 L33.2,20.4 L35.6,20.4 L38.0,20.4 L40.3,20.4 L42.7,20.4 L45.1,20.4 L47.5,20.4 L49.8,20.4 L52.2,20.4 L54.6,20.4 L56.9,20.4 L59.3,20.4 L61.7,20.4 L64.1,20.4 L66.4,20.4 L68.8,20.4 L71.2,20.4 L73.6,20.4 L75.9,20.4 L78.3,20.4 L80.7,20.4 L83.1,20.4 L85.4,20.1 L87.8,19.5 L90.2,19.5 L92.5,19.5 L94.9,19.5 L97.3,19.5 L99.7,19.1 L102.0,16.6 L104.4,16.6 L106.8,16.6 L109.2,16.3 L111.5,16.0 L113.9,15.8 L116.3,13.1 L118.6,13.1 L121.0,13.1 L123.4,13.1 L125.8,13.1 L128.1,11.8 L130.5,0.9 L132.9,0.9 L135.3,0.9 L137.6,0.8 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,20.4 L30.8,20.4 L33.2,20.4 L35.6,20.4 L38.0,20.4 L40.3,20.4 L42.7,20.4 L45.1,20.4 L47.5,20.4 L49.8,20.4 L52.2,20.4 L54.6,20.4 L56.9,20.4 L59.3,20.4 L61.7,20.4 L64.1,20.4 L66.4,20.4 L68.8,20.4 L71.2,20.4 L73.6,20.4 L75.9,20.4 L78.3,20.4 L80.7,20.4 L83.1,20.4 L85.4,20.1 L87.8,19.5 L90.2,19.5 L92.5,19.5 L94.9,19.5 L97.3,19.5 L99.7,19.1 L102.0,16.6 L104.4,16.6 L106.8,16.6 L109.2,16.3 L111.5,16.0 L113.9,15.8 L116.3,13.1 L118.6,13.1 L121.0,13.1 L123.4,13.1 L125.8,13.1 L128.1,11.8 L130.5,0.9 L132.9,0.9 L135.3,0.9 L137.6,0.8 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>C&#43;&#43; Header</td>
+          <td class="num">0</td>
+          <td class="num">5,692</td>
+          <td class="num" style="color: ZgotmplZ">&#43;5,692</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,19.6 L30.8,19.6 L33.2,19.6 L35.6,19.6 L38.0,19.6 L40.3,19.6 L42.7,19.6 L45.1,19.6 L47.5,19.6 L49.8,19.6 L52.2,19.6 L54.6,19.6 L56.9,19.6 L59.3,19.6 L61.7,19.6 L64.1,19.6 L66.4,19.6 L68.8,19.6 L71.2,19.6 L73.6,19.6 L75.9,19.6 L78.3,19.6 L80.7,19.6 L83.1,19.6 L85.4,19.6 L87.8,19.6 L90.2,19.6 L92.5,19.6 L94.9,19.6 L97.3,19.6 L99.7,19.6 L102.0,18.6 L104.4,16.8 L106.8,16.8 L109.2,16.7 L111.5,16.7 L113.9,13.5 L116.3,11.9 L118.6,11.9 L121.0,11.9 L123.4,11.9 L125.8,11.9 L128.1,11.9 L130.5,1.5 L132.9,1.5 L135.3,1.5 L137.6,1.1 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,19.6 L30.8,19.6 L33.2,19.6 L35.6,19.6 L38.0,19.6 L40.3,19.6 L42.7,19.6 L45.1,19.6 L47.5,19.6 L49.8,19.6 L52.2,19.6 L54.6,19.6 L56.9,19.6 L59.3,19.6 L61.7,19.6 L64.1,19.6 L66.4,19.6 L68.8,19.6 L71.2,19.6 L73.6,19.6 L75.9,19.6 L78.3,19.6 L80.7,19.6 L83.1,19.6 L85.4,19.6 L87.8,19.6 L90.2,19.6 L92.5,19.6 L94.9,19.6 L97.3,19.6 L99.7,19.6 L102.0,18.6 L104.4,16.8 L106.8,16.8 L109.2,16.7 L111.5,16.7 L113.9,13.5 L116.3,11.9 L118.6,11.9 L121.0,11.9 L123.4,11.9 L125.8,11.9 L128.1,11.9 L130.5,1.5 L132.9,1.5 L135.3,1.5 L137.6,1.1 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>Plain Text</td>
+          <td class="num">0</td>
+          <td class="num">2,394</td>
+          <td class="num" style="color: ZgotmplZ">&#43;2,394</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,15.5 L30.8,15.5 L33.2,15.5 L35.6,15.5 L38.0,15.5 L40.3,15.5 L42.7,15.5 L45.1,15.5 L47.5,15.5 L49.8,15.5 L52.2,15.5 L54.6,15.5 L56.9,15.5 L59.3,15.5 L61.7,15.5 L64.1,15.5 L66.4,15.5 L68.8,15.5 L71.2,15.5 L73.6,15.5 L75.9,15.5 L78.3,15.5 L80.7,15.5 L83.1,15.5 L85.4,15.5 L87.8,15.5 L90.2,15.5 L92.5,15.5 L94.9,15.5 L97.3,15.5 L99.7,15.4 L102.0,13.8 L104.4,12.5 L106.8,12.5 L109.2,12.1 L111.5,12.0 L113.9,10.8 L116.3,10.6 L118.6,10.6 L121.0,10.6 L123.4,10.6 L125.8,10.6 L128.1,10.6 L130.5,0.3 L132.9,0.3 L135.3,0.3 L137.6,0.3 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,15.5 L30.8,15.5 L33.2,15.5 L35.6,15.5 L38.0,15.5 L40.3,15.5 L42.7,15.5 L45.1,15.5 L47.5,15.5 L49.8,15.5 L52.2,15.5 L54.6,15.5 L56.9,15.5 L59.3,15.5 L61.7,15.5 L64.1,15.5 L66.4,15.5 L68.8,15.5 L71.2,15.5 L73.6,15.5 L75.9,15.5 L78.3,15.5 L80.7,15.5 L83.1,15.5 L85.4,15.5 L87.8,15.5 L90.2,15.5 L92.5,15.5 L94.9,15.5 L97.3,15.5 L99.7,15.4 L102.0,13.8 L104.4,12.5 L106.8,12.5 L109.2,12.1 L111.5,12.0 L113.9,10.8 L116.3,10.6 L118.6,10.6 L121.0,10.6 L123.4,10.6 L125.8,10.6 L128.1,10.6 L130.5,0.3 L132.9,0.3 L135.3,0.3 L137.6,0.3 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#cb171e;margin-right:6px;vertical-align:middle;"></span>YAML</td>
+          <td class="num">0</td>
+          <td class="num">2,362</td>
+          <td class="num" style="color: ZgotmplZ">&#43;2,362</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,11.2 L30.8,11.2 L33.2,11.2 L35.6,11.2 L38.0,11.2 L40.3,11.2 L42.7,11.2 L45.1,11.2 L47.5,11.2 L49.8,11.2 L52.2,11.2 L54.6,11.2 L56.9,11.2 L59.3,11.2 L61.7,11.2 L64.1,11.2 L66.4,11.2 L68.8,11.2 L71.2,11.2 L73.6,11.2 L75.9,11.2 L78.3,11.2 L80.7,11.2 L83.1,11.2 L85.4,11.2 L87.8,11.2 L90.2,11.2 L92.5,11.2 L94.9,11.2 L97.3,11.2 L99.7,11.2 L102.0,11.1 L104.4,11.1 L106.8,11.1 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,11.2 L30.8,11.2 L33.2,11.2 L35.6,11.2 L38.0,11.2 L40.3,11.2 L42.7,11.2 L45.1,11.2 L47.5,11.2 L49.8,11.2 L52.2,11.2 L54.6,11.2 L56.9,11.2 L59.3,11.2 L61.7,11.2 L64.1,11.2 L66.4,11.2 L68.8,11.2 L71.2,11.2 L73.6,11.2 L75.9,11.2 L78.3,11.2 L80.7,11.2 L83.1,11.2 L85.4,11.2 L87.8,11.2 L90.2,11.2 L92.5,11.2 L94.9,11.2 L97.3,11.2 L99.7,11.2 L102.0,11.1 L104.4,11.1 L106.8,11.1 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#3572A5;margin-right:6px;vertical-align:middle;"></span>Python</td>
+          <td class="num">0</td>
+          <td class="num">1,422</td>
+          <td class="num" style="color: ZgotmplZ">&#43;1,422</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,19.0 L30.8,19.0 L33.2,19.0 L35.6,19.0 L38.0,19.0 L40.3,19.0 L42.7,19.0 L45.1,19.0 L47.5,19.0 L49.8,19.0 L52.2,19.0 L54.6,19.0 L56.9,19.0 L59.3,19.0 L61.7,19.0 L64.1,19.0 L66.4,19.0 L68.8,19.0 L71.2,19.0 L73.6,19.0 L75.9,19.0 L78.3,19.0 L80.7,19.0 L83.1,19.0 L85.4,19.0 L87.8,19.0 L90.2,19.0 L92.5,19.0 L94.9,19.0 L97.3,19.0 L99.7,19.0 L102.0,19.0 L104.4,19.0 L106.8,19.0 L109.2,18.9 L111.5,18.9 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,19.0 L30.8,19.0 L33.2,19.0 L35.6,19.0 L38.0,19.0 L40.3,19.0 L42.7,19.0 L45.1,19.0 L47.5,19.0 L49.8,19.0 L52.2,19.0 L54.6,19.0 L56.9,19.0 L59.3,19.0 L61.7,19.0 L64.1,19.0 L66.4,19.0 L68.8,19.0 L71.2,19.0 L73.6,19.0 L75.9,19.0 L78.3,19.0 L80.7,19.0 L83.1,19.0 L85.4,19.0 L87.8,19.0 L90.2,19.0 L92.5,19.0 L94.9,19.0 L97.3,19.0 L99.7,19.0 L102.0,19.0 L104.4,19.0 L106.8,19.0 L109.2,18.9 L111.5,18.9 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#292929;margin-right:6px;vertical-align:middle;"></span>JSON</td>
+          <td class="num">0</td>
+          <td class="num">1,043</td>
+          <td class="num" style="color: ZgotmplZ">&#43;1,043</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,21.7 L2.4,21.7 L4.7,21.7 L7.1,21.7 L9.5,21.7 L11.9,21.7 L14.2,21.7 L16.6,21.7 L19.0,21.7 L21.4,21.7 L23.7,21.7 L26.1,21.7 L28.5,21.7 L30.8,21.7 L33.2,21.7 L35.6,21.7 L38.0,21.7 L40.3,21.7 L42.7,21.7 L45.1,21.7 L47.5,21.7 L49.8,21.7 L52.2,21.7 L54.6,21.7 L56.9,21.7 L59.3,21.7 L61.7,21.7 L64.1,21.7 L66.4,21.7 L68.8,21.7 L71.2,21.7 L73.6,21.7 L75.9,21.7 L78.3,21.7 L80.7,21.7 L83.1,21.7 L85.4,22.0 L87.8,22.0 L90.2,22.0 L92.5,22.0 L94.9,22.0 L97.3,22.0 L99.7,21.9 L102.0,21.6 L104.4,21.6 L106.8,21.6 L109.2,21.6 L111.5,21.6 L113.9,19.1 L116.3,19.1 L118.6,19.1 L121.0,19.1 L123.4,19.1 L125.8,19.1 L128.1,19.1 L130.5,5.9 L132.9,5.9 L135.3,5.9 L137.6,4.5 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,21.7 L2.4,21.7 L4.7,21.7 L7.1,21.7 L9.5,21.7 L11.9,21.7 L14.2,21.7 L16.6,21.7 L19.0,21.7 L21.4,21.7 L23.7,21.7 L26.1,21.7 L28.5,21.7 L30.8,21.7 L33.2,21.7 L35.6,21.7 L38.0,21.7 L40.3,21.7 L42.7,21.7 L45.1,21.7 L47.5,21.7 L49.8,21.7 L52.2,21.7 L54.6,21.7 L56.9,21.7 L59.3,21.7 L61.7,21.7 L64.1,21.7 L66.4,21.7 L68.8,21.7 L71.2,21.7 L73.6,21.7 L75.9,21.7 L78.3,21.7 L80.7,21.7 L83.1,21.7 L85.4,22.0 L87.8,22.0 L90.2,22.0 L92.5,22.0 L94.9,22.0 L97.3,22.0 L99.7,21.9 L102.0,21.6 L104.4,21.6 L106.8,21.6 L109.2,21.6 L111.5,21.6 L113.9,19.1 L116.3,19.1 L118.6,19.1 L121.0,19.1 L123.4,19.1 L125.8,19.1 L128.1,19.1 L130.5,5.9 L132.9,5.9 L135.3,5.9 L137.6,4.5 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>License</td>
+          <td class="num">0</td>
+          <td class="num">535</td>
+          <td class="num" style="color: ZgotmplZ">&#43;535</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,0.0 L2.4,0.0 L4.7,0.0 L7.1,0.0 L9.5,0.0 L11.9,0.0 L14.2,0.0 L16.6,0.0 L19.0,0.0 L21.4,0.0 L23.7,0.0 L26.1,0.0 L28.5,11.0 L30.8,11.0 L33.2,11.0 L35.6,11.0 L38.0,11.0 L40.3,11.0 L42.7,11.0 L45.1,11.0 L47.5,11.0 L49.8,11.0 L52.2,11.0 L54.6,11.0 L56.9,11.0 L59.3,11.0 L61.7,11.0 L64.1,11.0 L66.4,11.0 L68.8,11.0 L71.2,11.0 L73.6,11.0 L75.9,11.0 L78.3,11.0 L80.7,11.0 L83.1,11.0 L85.4,11.0 L87.8,11.0 L90.2,11.0 L92.5,11.0 L94.9,11.0 L97.3,11.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,22.0 L132.9,22.0 L135.3,22.0 L137.6,22.0 L140.0,22.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,0.0 L2.4,0.0 L4.7,0.0 L7.1,0.0 L9.5,0.0 L11.9,0.0 L14.2,0.0 L16.6,0.0 L19.0,0.0 L21.4,0.0 L23.7,0.0 L26.1,0.0 L28.5,11.0 L30.8,11.0 L33.2,11.0 L35.6,11.0 L38.0,11.0 L40.3,11.0 L42.7,11.0 L45.1,11.0 L47.5,11.0 L49.8,11.0 L52.2,11.0 L54.6,11.0 L56.9,11.0 L59.3,11.0 L61.7,11.0 L64.1,11.0 L66.4,11.0 L68.8,11.0 L71.2,11.0 L73.6,11.0 L75.9,11.0 L78.3,11.0 L80.7,11.0 L83.1,11.0 L85.4,11.0 L87.8,11.0 L90.2,11.0 L92.5,11.0 L94.9,11.0 L97.3,11.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,22.0 L132.9,22.0 L135.3,22.0 L137.6,22.0 L140.0,22.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>Powershell</td>
+          <td class="num">0</td>
+          <td class="num">453</td>
+          <td class="num" style="color: ZgotmplZ">&#43;453</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,22.0 L30.8,22.0 L33.2,22.0 L35.6,22.0 L38.0,22.0 L40.3,22.0 L42.7,22.0 L45.1,22.0 L47.5,22.0 L49.8,22.0 L52.2,22.0 L54.6,22.0 L56.9,22.0 L59.3,22.0 L61.7,22.0 L64.1,22.0 L66.4,22.0 L68.8,22.0 L71.2,22.0 L73.6,22.0 L75.9,22.0 L78.3,22.0 L80.7,22.0 L83.1,22.0 L85.4,11.0 L87.8,11.0 L90.2,11.0 L92.5,11.0 L94.9,11.0 L97.3,11.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,22.0 L30.8,22.0 L33.2,22.0 L35.6,22.0 L38.0,22.0 L40.3,22.0 L42.7,22.0 L45.1,22.0 L47.5,22.0 L49.8,22.0 L52.2,22.0 L54.6,22.0 L56.9,22.0 L59.3,22.0 L61.7,22.0 L64.1,22.0 L66.4,22.0 L68.8,22.0 L71.2,22.0 L73.6,22.0 L75.9,22.0 L78.3,22.0 L80.7,22.0 L83.1,22.0 L85.4,11.0 L87.8,11.0 L90.2,11.0 L92.5,11.0 L94.9,11.0 L97.3,11.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#89e051;margin-right:6px;vertical-align:middle;"></span>Shell</td>
+          <td class="num">0</td>
+          <td class="num">428</td>
+          <td class="num" style="color: ZgotmplZ">&#43;428</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,20.8 L30.8,20.8 L33.2,20.8 L35.6,20.8 L38.0,20.8 L40.3,20.8 L42.7,20.8 L45.1,20.8 L47.5,20.8 L49.8,20.8 L52.2,20.8 L54.6,20.8 L56.9,20.8 L59.3,20.8 L61.7,20.8 L64.1,20.8 L66.4,20.8 L68.8,20.8 L71.2,20.8 L73.6,20.8 L75.9,20.8 L78.3,20.8 L80.7,20.8 L83.1,20.8 L85.4,11.0 L87.8,11.0 L90.2,11.0 L92.5,11.0 L94.9,11.0 L97.3,11.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,20.8 L30.8,20.8 L33.2,20.8 L35.6,20.8 L38.0,20.8 L40.3,20.8 L42.7,20.8 L45.1,20.8 L47.5,20.8 L49.8,20.8 L52.2,20.8 L54.6,20.8 L56.9,20.8 L59.3,20.8 L61.7,20.8 L64.1,20.8 L66.4,20.8 L68.8,20.8 L71.2,20.8 L73.6,20.8 L75.9,20.8 L78.3,20.8 L80.7,20.8 L83.1,20.8 L85.4,11.0 L87.8,11.0 L90.2,11.0 L92.5,11.0 L94.9,11.0 L97.3,11.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>Batch</td>
+          <td class="num">0</td>
+          <td class="num">104</td>
+          <td class="num" style="color: ZgotmplZ">&#43;104</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,22.0 L30.8,22.0 L33.2,22.0 L35.6,22.0 L38.0,22.0 L40.3,22.0 L42.7,22.0 L45.1,22.0 L47.5,22.0 L49.8,22.0 L52.2,22.0 L54.6,22.0 L56.9,22.0 L59.3,22.0 L61.7,22.0 L64.1,22.0 L66.4,22.0 L68.8,22.0 L71.2,22.0 L73.6,22.0 L75.9,22.0 L78.3,22.0 L80.7,22.0 L83.1,22.0 L85.4,22.0 L87.8,22.0 L90.2,22.0 L92.5,22.0 L94.9,22.0 L97.3,22.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,22.0 L30.8,22.0 L33.2,22.0 L35.6,22.0 L38.0,22.0 L40.3,22.0 L42.7,22.0 L45.1,22.0 L47.5,22.0 L49.8,22.0 L52.2,22.0 L54.6,22.0 L56.9,22.0 L59.3,22.0 L61.7,22.0 L64.1,22.0 L66.4,22.0 L68.8,22.0 L71.2,22.0 L73.6,22.0 L75.9,22.0 L78.3,22.0 L80.7,22.0 L83.1,22.0 L85.4,22.0 L87.8,22.0 L90.2,22.0 L92.5,22.0 L94.9,22.0 L97.3,22.0 L99.7,11.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0"/></svg></td>
+        </tr>
+        <tr>
+          <td><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#999999;margin-right:6px;vertical-align:middle;"></span>CMake</td>
+          <td class="num">0</td>
+          <td class="num">48</td>
+          <td class="num" style="color: ZgotmplZ">&#43;48</td>
+          <td><svg class="spark" viewBox="0 0 140 22"><path class="fill" d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,22.0 L30.8,22.0 L33.2,22.0 L35.6,22.0 L38.0,22.0 L40.3,22.0 L42.7,22.0 L45.1,22.0 L47.5,22.0 L49.8,22.0 L52.2,22.0 L54.6,22.0 L56.9,22.0 L59.3,22.0 L61.7,22.0 L64.1,22.0 L66.4,22.0 L68.8,22.0 L71.2,22.0 L73.6,22.0 L75.9,22.0 L78.3,22.0 L80.7,22.0 L83.1,22.0 L85.4,22.0 L87.8,22.0 L90.2,22.0 L92.5,22.0 L94.9,22.0 L97.3,22.0 L99.7,22.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0 L140.0,22.0 L0.0,22.0 Z"/><path d="M0.0,22.0 L2.4,22.0 L4.7,22.0 L7.1,22.0 L9.5,22.0 L11.9,22.0 L14.2,22.0 L16.6,22.0 L19.0,22.0 L21.4,22.0 L23.7,22.0 L26.1,22.0 L28.5,22.0 L30.8,22.0 L33.2,22.0 L35.6,22.0 L38.0,22.0 L40.3,22.0 L42.7,22.0 L45.1,22.0 L47.5,22.0 L49.8,22.0 L52.2,22.0 L54.6,22.0 L56.9,22.0 L59.3,22.0 L61.7,22.0 L64.1,22.0 L66.4,22.0 L68.8,22.0 L71.2,22.0 L73.6,22.0 L75.9,22.0 L78.3,22.0 L80.7,22.0 L83.1,22.0 L85.4,22.0 L87.8,22.0 L90.2,22.0 L92.5,22.0 L94.9,22.0 L97.3,22.0 L99.7,22.0 L102.0,11.0 L104.4,11.0 L106.8,11.0 L109.2,11.0 L111.5,11.0 L113.9,11.0 L116.3,11.0 L118.6,11.0 L121.0,11.0 L123.4,11.0 L125.8,11.0 L128.1,11.0 L130.5,0.0 L132.9,0.0 L135.3,0.0 L137.6,0.0 L140.0,0.0"/></svg></td>
+        </tr>
+      </tbody>
+    </table>
+    <h3 style="font-size: 14px; font-weight: 600; margin: 28px 0 8px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: 0.06em;">Author activity</h3>
+    <table>
+      <thead><tr><th>Author</th><th class="num">Commits</th><th class="num">Δ code</th><th>Activity</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>170273431&#43;xplorer2716@users.noreply.github.com</td>
+          <td class="num">57</td>
+          <td class="num" style="color: ZgotmplZ">&#43;34,510</td>
+          <td>
+            <svg class="spark" viewBox="0 0 200 22"><path d="M0.0,0.0 L3.4,22.0 L6.8,22.0 L10.2,22.0 L13.6,22.0 L16.9,22.0 L20.3,22.0 L23.7,22.0 L27.1,22.0 L30.5,22.0 L33.9,22.0 L37.3,22.0 L40.7,17.0 L44.1,22.0 L47.5,22.0 L50.8,22.0 L54.2,22.0 L57.6,22.0 L61.0,22.0 L64.4,22.0 L67.8,22.0 L71.2,22.0 L74.6,22.0 L78.0,22.0 L81.4,22.0 L84.7,22.0 L88.1,22.0 L91.5,22.0 L94.9,22.0 L98.3,22.0 L101.7,22.0 L105.1,22.0 L108.5,22.0 L111.9,22.0 L115.3,22.0 L118.6,22.0 L122.0,20.9 L125.4,22.0 L128.8,22.0 L132.2,22.0 L135.6,22.0 L139.0,22.0 L142.4,21.5 L145.8,15.9 L149.2,16.6 L152.5,22.0 L155.9,19.5 L159.3,21.4 L162.7,10.8 L166.1,12.9 L169.5,22.0 L172.9,22.0 L176.3,22.0 L179.7,22.0 L183.1,20.7 L186.4,16.8 L189.8,22.0 L193.2,22.0 L196.6,20.4 L200.0,17.9"/></svg>
+          </td>
+        </tr>
+        <tr>
+          <td>Claude</td>
+          <td class="num">18</td>
+          <td class="num" style="color: ZgotmplZ">&#43;4,554</td>
+          <td>
+            <svg class="spark" viewBox="0 0 200 22"><path d="M0.0,0.0 L3.4,22.0 L6.8,22.0 L10.2,22.0 L13.6,22.0 L16.9,22.0 L20.3,22.0 L23.7,22.0 L27.1,22.0 L30.5,22.0 L33.9,22.0 L37.3,22.0 L40.7,1.6 L44.1,22.0 L47.5,22.0 L50.8,22.0 L54.2,22.0 L57.6,22.0 L61.0,22.0 L64.4,22.0 L67.8,22.0 L71.2,22.0 L74.6,22.0 L78.0,22.0 L81.4,22.0 L84.7,22.0 L88.1,22.0 L91.5,22.0 L94.9,22.0 L98.3,22.0 L101.7,22.0 L105.1,22.0 L108.5,22.0 L111.9,22.0 L115.3,22.0 L118.6,22.0 L122.0,21.7 L125.4,19.4 L128.8,22.0 L132.2,22.0 L135.6,22.0 L139.0,22.0 L142.4,22.0 L145.8,22.0 L149.2,22.0 L152.5,22.0 L155.9,22.0 L159.3,22.0 L162.7,22.0 L166.1,22.0 L169.5,22.0 L172.9,22.0 L176.3,22.0 L179.7,22.0 L183.1,22.0 L186.4,22.0 L189.8,22.0 L193.2,22.0 L196.6,22.0 L200.0,22.0"/></svg>
+          </td>
+        </tr>
+        <tr>
+          <td>Xplorer</td>
+          <td class="num">3</td>
+          <td class="num" style="color: ZgotmplZ">&#43;20,805</td>
+          <td>
+            <svg class="spark" viewBox="0 0 200 22"><path d="M0.0,20.6 L3.4,22.0 L6.8,22.0 L10.2,22.0 L13.6,22.0 L16.9,22.0 L20.3,22.0 L23.7,22.0 L27.1,22.0 L30.5,22.0 L33.9,22.0 L37.3,22.0 L40.7,22.0 L44.1,22.0 L47.5,22.0 L50.8,22.0 L54.2,22.0 L57.6,22.0 L61.0,22.0 L64.4,22.0 L67.8,22.0 L71.2,22.0 L74.6,22.0 L78.0,22.0 L81.4,22.0 L84.7,22.0 L88.1,22.0 L91.5,22.0 L94.9,22.0 L98.3,22.0 L101.7,22.0 L105.1,22.0 L108.5,22.0 L111.9,22.0 L115.3,22.0 L118.6,22.0 L122.0,22.0 L125.4,22.0 L128.8,22.0 L132.2,22.0 L135.6,22.0 L139.0,22.0 L142.4,22.0 L145.8,22.0 L149.2,22.0 L152.5,22.0 L155.9,22.0 L159.3,22.0 L162.7,22.0 L166.1,22.0 L169.5,22.0 L172.9,22.0 L176.3,22.0 L179.7,22.0 L183.1,22.0 L186.4,0.0 L189.8,22.0 L193.2,22.0 L196.6,22.0 L200.0,22.0"/></svg>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+  <section>
+    <h2><span class="num">08</span> Cost estimate</h2>
+    <p class="lede">Two ways to value the codebase: human-build effort (COCOMO, Boehm 1981) and machine-rebuild effort (LOCOMO, LLM regeneration model).</p>
+    <h3 class="submodel">COCOMO <span class="submodel-meaning">: what it would have cost to write this from scratch with a team of developers</span></h3>
+    <div class="metrics">
+      <div class="metric"><div class="label">Effort</div><div class="value">116.5</div><div class="sub">person-months · organic</div></div>
+      <div class="metric"><div class="label">Cost to develop</div><div class="value">$1311561</div><div class="sub">avg $56,286 · ×2.4 overhead</div></div>
+      <div class="metric"><div class="label">Schedule</div><div class="value">15.2 mo</div><div class="sub">≈ 7.6 devs in parallel</div></div>
+    </div>
+    <h3 class="submodel">LOCOMO <span class="submodel-meaning">: what it would cost to regenerate this with an LLM and review the output</span></h3>
+    <div class="metrics">
+      <div class="metric"><div class="label">Regen tokens</div><div class="value">810K</div><div class="sub">output (in + out: 3.7M)</div></div>
+      <div class="metric"><div class="label">Regen time</div><div class="value">270.1 min</div><div class="sub">at typical stream rate</div></div>
+      <div class="metric"><div class="label">Human review</div><div class="value">7 hr</div><div class="sub">post-regeneration</div></div>
+    </div>
+  </section>
+  <section>
+    <h2><span class="num">09</span> Notable files</h2>
+    <p class="lede">Per-file detail for the full tree (271 files). Sorted by lines descending; first ten shown, expand to see the rest.</p>
+    <table>
+      <thead><tr><th>File</th><th class="num">Lines</th><th class="num">Code</th><th class="num">Comment</th><th class="num">Complexity</th><th class="num">Bytes</th><th class="num">ULOC</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="mono">documents/akai_s5000_s6000_user_manual.1.21.pdf.md</td>
+          <td class="num">7,314</td>
+          <td class="num">7,016</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+          <td class="num">441,486</td>
+          <td class="num">6,274</td>
+        </tr>
+        <tr>
+          <td class="mono">documents/akai_s5000_s6000_sysex_spec_2.10.pdf.md</td>
+          <td class="num">2,260</td>
+          <td class="num">2,215</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+          <td class="num">156,246</td>
+          <td class="num">1,852</td>
+        </tr>
+        <tr>
+          <td class="mono">documents/_index/sysex_spec.clean.txt</td>
+          <td class="num">1,828</td>
+          <td class="num">1,828</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+          <td class="num">121,940</td>
+          <td class="num">1,595</td>
+        </tr>
+        <tr>
+          <td class="mono">process/2.architecture/ADR-AKM-001-akm-transport-architecture.md</td>
+          <td class="num">1,301</td>
+          <td class="num">1,233</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+          <td class="num">80,249</td>
+          <td class="num">1,081</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/include/akm/ItemTable.generated.hpp</td>
+          <td class="num">1,189</td>
+          <td class="num">1,003</td>
+          <td class="num">181</td>
+          <td class="num">0</td>
+          <td class="num">65,455</td>
+          <td class="num">769</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/support/src/RealSamplerSuite.cpp</td>
+          <td class="num">1,111</td>
+          <td class="num">918</td>
+          <td class="num">98</td>
+          <td class="num">133</td>
+          <td class="num">64,035</td>
+          <td class="num">738</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/data/items.json</td>
+          <td class="num">996</td>
+          <td class="num">990</td>
+          <td class="num">0</td>
+          <td class="num">0</td>
+          <td class="num">51,241</td>
+          <td class="num">357</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/akm/src/Session.cpp</td>
+          <td class="num">980</td>
+          <td class="num">788</td>
+          <td class="num">107</td>
+          <td class="num">153</td>
+          <td class="num">41,816</td>
+          <td class="num">640</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/akm/SessionTests.cpp</td>
+          <td class="num">854</td>
+          <td class="num">666</td>
+          <td class="num">49</td>
+          <td class="num">99</td>
+          <td class="num">35,375</td>
+          <td class="num">371</td>
+        </tr>
+        <tr>
+          <td class="mono">juce/tests/support/src/SimulatedSampler.cpp</td>
+          <td class="num">791</td>
+          <td class="num">668</td>
+          <td class="num">72</td>
+          <td class="num">138</td>
+          <td class="num">40,193</td>
+          <td class="num">483</td>
+        </tr>
+      </tbody>
+    </table>
+    <details class="files"><summary>Show all 271 files</summary><div class="inner">
+      <table>
+        <thead><tr><th>File</th><th class="num">Lines</th><th class="num">Code</th><th class="num">Bytes</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">juce/tests/akm/SimulatedSamplerTests.cpp</td><td class="num">732</td><td class="num">571</td><td class="num">29,408</td></tr>
+          <tr><td class="mono">juce/tests/akm/RealSamplerSuiteTests.cpp</td><td class="num">668</td><td class="num">545</td><td class="num">29,536</td></tr>
+          <tr><td class="mono">LICENSE</td><td class="num">661</td><td class="num">544</td><td class="num">34,523</td></tr>
+          <tr><td class="mono">juce/tests/akm/SessionOpenTests.cpp</td><td class="num">655</td><td class="num">519</td><td class="num">28,274</td></tr>
+          <tr><td class="mono">process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md</td><td class="num">543</td><td class="num">531</td><td class="num">55,239</td></tr>
+          <tr><td class="mono">process/3.plan/PLAN-AKM-002-program-primitives.md</td><td class="num">474</td><td class="num">442</td><td class="num">35,977</td></tr>
+          <tr><td class="mono">juce/tests/akm/SessionSmokeTests.cpp</td><td class="num">472</td><td class="num">377</td><td class="num">19,792</td></tr>
+          <tr><td class="mono">juce/tests/support/src/SessionSmokeTest.cpp</td><td class="num">462</td><td class="num">388</td><td class="num">22,033</td></tr>
+          <tr><td class="mono">juce/tools/generate_akm_items.py</td><td class="num">431</td><td class="num">329</td><td class="num">19,619</td></tr>
+          <tr><td class="mono">juce/tests/akm/ItemCatalogueTests.cpp</td><td class="num">428</td><td class="num">323</td><td class="num">19,569</td></tr>
+          <tr><td class="mono">juce/tests/akm/SessionCloseTests.cpp</td><td class="num">422</td><td class="num">341</td><td class="num">18,111</td></tr>
+          <tr><td class="mono">juce/tests/akm/ConfirmationDecodingTests.cpp</td><td class="num">402</td><td class="num">294</td><td class="num">19,453</td></tr>
+          <tr><td class="mono">juce/tests/probe/main.cpp</td><td class="num">400</td><td class="num">341</td><td class="num">19,067</td></tr>
+          <tr><td class="mono">juce/tests/akm/SessionHarness.hpp</td><td class="num">392</td><td class="num">294</td><td class="num">17,649</td></tr>
+          <tr><td class="mono">juce/midi/src/MockMidiBackend.cpp</td><td class="num">391</td><td class="num">255</td><td class="num">16,484</td></tr>
+          <tr><td class="mono">juce/tests/akm/FirstContactProbeTests.cpp</td><td class="num">390</td><td class="num">300</td><td class="num">16,203</td></tr>
+          <tr><td class="mono">juce/tests/akm/WireLogTests.cpp</td><td class="num">386</td><td class="num">312</td><td class="num">15,251</td></tr>
+          <tr><td class="mono">juce/tests/akm/SysExConfigTests.cpp</td><td class="num">384</td><td class="num">295</td><td class="num">15,645</td></tr>
+          <tr><td class="mono">juce/tests/support/src/FirstContactProbe.cpp</td><td class="num">383</td><td class="num">322</td><td class="num">17,062</td></tr>
+          <tr><td class="mono">.github/instructions/agnos-sw-eng.instructions.md</td><td class="num">382</td><td class="num">291</td><td class="num">25,738</td></tr>
+          <tr><td class="mono">juce/tests/akm/ValueFormatTests.cpp</td><td class="num">368</td><td class="num">286</td><td class="num">12,082</td></tr>
+          <tr><td class="mono">juce/tests/akm/SchedulerTests.cpp</td><td class="num">352</td><td class="num">261</td><td class="num">11,348</td></tr>
+          <tr><td class="mono">process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md</td><td class="num">347</td><td class="num">335</td><td class="num">34,412</td></tr>
+          <tr><td class="mono">process/1.requirements/design-system-template.md</td><td class="num">331</td><td class="num">266</td><td class="num">15,964</td></tr>
+          <tr><td class="mono">juce/akm/src/ProgramPrimitives.cpp</td><td class="num">327</td><td class="num">270</td><td class="num">15,936</td></tr>
+          <tr><td class="mono">process/1.requirements/DRAFT-s5000-midi-primitives-and-workflows.md</td><td class="num">327</td><td class="num">265</td><td class="num">15,833</td></tr>
+          <tr><td class="mono">process/1.requirements/FTR-AKM-001-transport-et-config-sysex.md</td><td class="num">314</td><td class="num">271</td><td class="num">44,340</td></tr>
+          <tr><td class="mono">process/3.plan/PLAN-AKM-003-keygroup-primitives.md</td><td class="num">299</td><td class="num">273</td><td class="num">20,213</td></tr>
+          <tr><td class="mono">juce/tests/akm/ExecutorTests.cpp</td><td class="num">281</td><td class="num">210</td><td class="num">9,929</td></tr>
+          <tr><td class="mono">juce/tests/support/src/SimulatedMidiBackend.cpp</td><td class="num">280</td><td class="num">221</td><td class="num">10,169</td></tr>
+          <tr><td class="mono">juce/tests/support/src/ScenarioSupport.hpp</td><td class="num">265</td><td class="num">205</td><td class="num">9,882</td></tr>
+          <tr><td class="mono">juce/tools/generate_workflows.py</td><td class="num">264</td><td class="num">176</td><td class="num">11,532</td></tr>
+          <tr><td class="mono">juce/tests/akm/ScenarioTests.cpp</td><td class="num">249</td><td class="num">182</td><td class="num">9,745</td></tr>
+          <tr><td class="mono">juce/akm/src/ItemRequest.cpp</td><td class="num">242</td><td class="num">193</td><td class="num">9,089</td></tr>
+          <tr><td class="mono">juce/tests/akm/ProgramPrimitivesTests.cpp</td><td class="num">233</td><td class="num">175</td><td class="num">10,303</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/SimulatedSampler.hpp</td><td class="num">217</td><td class="num">110</td><td class="num">10,503</td></tr>
+          <tr><td class="mono">juce/akm/src/Confirmation.cpp</td><td class="num">212</td><td class="num">165</td><td class="num">9,626</td></tr>
+          <tr><td class="mono">process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md</td><td class="num">210</td><td class="num">178</td><td class="num">74,411</td></tr>
+          <tr><td class="mono">juce/midi/src/juce/JuceMidiBackend.cpp</td><td class="num">209</td><td class="num">158</td><td class="num">7,600</td></tr>
+          <tr><td class="mono">documents/_index/build_sysex_index.py</td><td class="num">205</td><td class="num">172</td><td class="num">8,771</td></tr>
+          <tr><td class="mono">juce/framework/src/AbstractController.cpp</td><td class="num">204</td><td class="num">163</td><td class="num">6,515</td></tr>
+          <tr><td class="mono">AGENTS.md</td><td class="num">198</td><td class="num">159</td><td class="num">12,212</td></tr>
+          <tr><td class="mono">juce/tests/akm/KeygroupPrimitivesTests.cpp</td><td class="num">198</td><td class="num">148</td><td class="num">8,753</td></tr>
+          <tr><td class="mono">juce/framework/src/Logger.cpp</td><td class="num">197</td><td class="num">143</td><td class="num">7,146</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ProgramPrimitives.hpp</td><td class="num">195</td><td class="num">84</td><td class="num">9,726</td></tr>
+          <tr><td class="mono">juce/tests/akm/SystemVersionTests.cpp</td><td class="num">194</td><td class="num">142</td><td class="num">7,925</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/controller/AbstractController.hpp</td><td class="num">185</td><td class="num">115</td><td class="num">8,987</td></tr>
+          <tr><td class="mono">juce/tests/akm/CommandEncodingTests.cpp</td><td class="num">183</td><td class="num">128</td><td class="num">7,616</td></tr>
+          <tr><td class="mono">juce/tests/akm/ProgramStructureTests.cpp</td><td class="num">183</td><td class="num">140</td><td class="num">7,732</td></tr>
+          <tr><td class="mono">juce/tests/tools/test_generate_akm_items.py</td><td class="num">183</td><td class="num">121</td><td class="num">8,170</td></tr>
+          <tr><td class="mono">juce/tests/akm/SessionThreadingTests.cpp</td><td class="num">181</td><td class="num">129</td><td class="num">7,382</td></tr>
+          <tr><td class="mono">documents/_index/sysex_spec.kb.md</td><td class="num">180</td><td class="num">168</td><td class="num">14,858</td></tr>
+          <tr><td class="mono">juce/tests/akm/ProgramGeneralInfoTests.cpp</td><td class="num">178</td><td class="num">134</td><td class="num">7,184</td></tr>
+          <tr><td class="mono">process/2.architecture/REVIEW-ADR-AKM-001-opus.md</td><td class="num">178</td><td class="num">147</td><td class="num">21,854</td></tr>
+          <tr><td class="mono">process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md</td><td class="num">177</td><td class="num">158</td><td class="num">16,355</td></tr>
+          <tr><td class="mono">process/1.requirements/RQ-BLD-build-tooling.md</td><td class="num">176</td><td class="num">150</td><td class="num">20,290</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/scripts/build-index.ps1</td><td class="num">172</td><td class="num">151</td><td class="num">8,262</td></tr>
+          <tr><td class="mono">process/INDEX.idx.md</td><td class="num">169</td><td class="num">169</td><td class="num">14,453</td></tr>
+          <tr><td class="mono">juce/tests/support/src/WireLog.cpp</td><td class="num">168</td><td class="num">132</td><td class="num">5,097</td></tr>
+          <tr><td class="mono">juce/tests/akm/CapturedFramesTests.cpp</td><td class="num">164</td><td class="num">113</td><td class="num">8,201</td></tr>
+          <tr><td class="mono">juce/framework/src/AbstractParameter.cpp</td><td class="num">163</td><td class="num">124</td><td class="num">4,566</td></tr>
+          <tr><td class="mono">juce/framework/src/AbstractControllerDevices.cpp</td><td class="num">162</td><td class="num">134</td><td class="num">7,421</td></tr>
+          <tr><td class="mono">process/2.architecture/ADR-BLD-003-deployment-matrix-and-versioning.md</td><td class="num">161</td><td class="num">134</td><td class="num">10,029</td></tr>
+          <tr><td class="mono">juce/midi/src/MidiMessage.cpp</td><td class="num">156</td><td class="num">122</td><td class="num">4,956</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Session.hpp</td><td class="num">155</td><td class="num">57</td><td class="num">9,568</td></tr>
+          <tr><td class="mono">.github/actions/build-app/action.yml</td><td class="num">147</td><td class="num">101</td><td class="num">5,970</td></tr>
+          <tr><td class="mono">process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md</td><td class="num">145</td><td class="num">119</td><td class="num">8,553</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/SessionConfig.hpp</td><td class="num">144</td><td class="num">88</td><td class="num">6,407</td></tr>
+          <tr><td class="mono">juce/framework/src/AbstractTone.cpp</td><td class="num">142</td><td class="num">109</td><td class="num">5,301</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/WireLog.hpp</td><td class="num">140</td><td class="num">80</td><td class="num">5,701</td></tr>
+          <tr><td class="mono">process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md</td><td class="num">140</td><td class="num">129</td><td class="num">12,174</td></tr>
+          <tr><td class="mono">juce/akm/src/ByteReader.cpp</td><td class="num">138</td><td class="num">107</td><td class="num">4,292</td></tr>
+          <tr><td class="mono">juce/tests/akm/SamplerErrorTests.cpp</td><td class="num">137</td><td class="num">94</td><td class="num">5,264</td></tr>
+          <tr><td class="mono">juce/tests/akm/KeygroupGeneralOptionsTests.cpp</td><td class="num">131</td><td class="num">94</td><td class="num">5,878</td></tr>
+          <tr><td class="mono">juce/tests/support/src/EchoScenario.cpp</td><td class="num">130</td><td class="num">95</td><td class="num">5,091</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/RealSamplerSuite.hpp</td><td class="num">128</td><td class="num">62</td><td class="num">7,030</td></tr>
+          <tr><td class="mono">.github/actions/publish-deployment/action.yml</td><td class="num">127</td><td class="num">82</td><td class="num">5,468</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/scripts/build-index.sh</td><td class="num">127</td><td class="num">112</td><td class="num">5,048</td></tr>
+          <tr><td class="mono">process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md</td><td class="num">125</td><td class="num">102</td><td class="num">7,992</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ItemDescriptor.hpp</td><td class="num">124</td><td class="num">76</td><td class="num">5,264</td></tr>
+          <tr><td class="mono">juce/tests/akm/CommandResultTests.cpp</td><td class="num">124</td><td class="num">86</td><td class="num">5,063</td></tr>
+          <tr><td class="mono">juce/tests/akm/HostProbe.hpp</td><td class="num">123</td><td class="num">86</td><td class="num">4,232</td></tr>
+          <tr><td class="mono">process/1.requirements/FTR-AKM-002-program.md</td><td class="num">121</td><td class="num">99</td><td class="num">10,678</td></tr>
+          <tr><td class="mono">juce/CMakeLists.txt</td><td class="num">119</td><td class="num">66</td><td class="num">5,180</td></tr>
+          <tr><td class="mono">.github/ISSUE_TEMPLATE/bug_report.yml</td><td class="num">113</td><td class="num">102</td><td class="num">3,358</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/CommandResult.hpp</td><td class="num">111</td><td class="num">58</td><td class="num">4,872</td></tr>
+          <tr><td class="mono">juce/akm/src/SysExConfig.cpp</td><td class="num">111</td><td class="num">79</td><td class="num">4,859</td></tr>
+          <tr><td class="mono">juce/midi/include/common/midi/MidiMessage.hpp</td><td class="num">108</td><td class="num">57</td><td class="num">4,335</td></tr>
+          <tr><td class="mono">juce/akm/src/ByteWriter.cpp</td><td class="num">107</td><td class="num">76</td><td class="num">3,357</td></tr>
+          <tr><td class="mono">process/1.requirements/FTR-AKM-003-keygroup.md</td><td class="num">107</td><td class="num">86</td><td class="num">9,017</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/model/AbstractParameter.hpp</td><td class="num">104</td><td class="num">49</td><td class="num">3,994</td></tr>
+          <tr><td class="mono">juce/tests/akm/LfoParametersTests.cpp</td><td class="num">102</td><td class="num">72</td><td class="num">5,526</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Confirmation.hpp</td><td class="num">101</td><td class="num">50</td><td class="num">4,940</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/CommandOptions.hpp</td><td class="num">100</td><td class="num">40</td><td class="num">5,323</td></tr>
+          <tr><td class="mono">juce/tests/support/src/WireFormat.cpp</td><td class="num">99</td><td class="num">74</td><td class="num">3,571</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/SysExConfig.hpp</td><td class="num">98</td><td class="num">41</td><td class="num">4,913</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/SessionSmokeTest.hpp</td><td class="num">98</td><td class="num">47</td><td class="num">5,267</td></tr>
+          <tr><td class="mono">.github/workflows/linux-x64-debug-preprod.yml</td><td class="num">97</td><td class="num">58</td><td class="num">3,843</td></tr>
+          <tr><td class="mono">.github/workflows/linux-x64-release-preprod.yml</td><td class="num">97</td><td class="num">58</td><td class="num">3,861</td></tr>
+          <tr><td class="mono">.github/workflows/macos-arm64-debug-preprod.yml</td><td class="num">97</td><td class="num">58</td><td class="num">3,859</td></tr>
+          <tr><td class="mono">.github/workflows/macos-arm64-release-preprod.yml</td><td class="num">97</td><td class="num">58</td><td class="num">3,877</td></tr>
+          <tr><td class="mono">.github/workflows/windows-x64-debug-preprod.yml</td><td class="num">97</td><td class="num">58</td><td class="num">3,861</td></tr>
+          <tr><td class="mono">.github/workflows/windows-x64-release-preprod.yml</td><td class="num">97</td><td class="num">58</td><td class="num">3,879</td></tr>
+          <tr><td class="mono">process/1.requirements/FTR-AKM-004-keygroup-zone.md</td><td class="num">96</td><td class="num">76</td><td class="num">9,054</td></tr>
+          <tr><td class="mono">.github/actions/package-deployment/action.yml</td><td class="num">94</td><td class="num">72</td><td class="num">3,371</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/SimulatedMidiBackend.hpp</td><td class="num">94</td><td class="num">45</td><td class="num">4,517</td></tr>
+          <tr><td class="mono">.github/skills/agnos-git-workflow/SKILL.md</td><td class="num">93</td><td class="num">69</td><td class="num">4,251</td></tr>
+          <tr><td class="mono">juce/framework/src/AbstractControllerWorker.cpp</td><td class="num">92</td><td class="num">77</td><td class="num">3,098</td></tr>
+          <tr><td class="mono">.github/instructions/dev-environment.instructions.md</td><td class="num">91</td><td class="num">73</td><td class="num">4,053</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Protocol.hpp</td><td class="num">90</td><td class="num">48</td><td class="num">3,649</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/service/Logger.hpp</td><td class="num">89</td><td class="num">41</td><td class="num">3,752</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/ScenarioDriver.hpp</td><td class="num">88</td><td class="num">43</td><td class="num">3,868</td></tr>
+          <tr><td class="mono">process/2.architecture/ADR-BLD-004-drop-legacy-project-prefix.md</td><td class="num">88</td><td class="num">73</td><td class="num">4,806</td></tr>
+          <tr><td class="mono">.github/ISSUE_TEMPLATE/feature_request.yml</td><td class="num">87</td><td class="num">79</td><td class="num">2,515</td></tr>
+          <tr><td class="mono">.github/workflows/linux-x64-release-prod.yml</td><td class="num">87</td><td class="num">50</td><td class="num">3,606</td></tr>
+          <tr><td class="mono">.github/workflows/macos-arm64-release-prod.yml</td><td class="num">87</td><td class="num">50</td><td class="num">3,616</td></tr>
+          <tr><td class="mono">.github/workflows/windows-x64-release-prod.yml</td><td class="num">87</td><td class="num">50</td><td class="num">3,618</td></tr>
+          <tr><td class="mono">juce/framework/src/DualDictionary.cpp</td><td class="num">87</td><td class="num">62</td><td class="num">2,920</td></tr>
+          <tr><td class="mono">juce/framework/src/OrderedParameterMap.cpp</td><td class="num">87</td><td class="num">62</td><td class="num">2,955</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/FirstContactProbe.hpp</td><td class="num">87</td><td class="num">42</td><td class="num">4,099</td></tr>
+          <tr><td class="mono">juce/akm/src/RealScheduler.cpp</td><td class="num">86</td><td class="num">60</td><td class="num">2,625</td></tr>
+          <tr><td class="mono">.github/workflows/cut-deployment.yml</td><td class="num">85</td><td class="num">41</td><td class="num">3,675</td></tr>
+          <tr><td class="mono">juce/midi/include/common/midi/MidiPorts.hpp</td><td class="num">85</td><td class="num">43</td><td class="num">3,289</td></tr>
+          <tr><td class="mono">CLAUDE.md</td><td class="num">84</td><td class="num">58</td><td class="num">2,894</td></tr>
+          <tr><td class="mono">juce/tests/akm/KeygroupFilterEnvelopeTests.cpp</td><td class="num">84</td><td class="num">51</td><td class="num">4,071</td></tr>
+          <tr><td class="mono">CODE_OF_CONDUCT.md</td><td class="num">83</td><td class="num">48</td><td class="num">5,537</td></tr>
+          <tr><td class="mono">juce/tests/akm/OutputParametersTests.cpp</td><td class="num">83</td><td class="num">54</td><td class="num">3,584</td></tr>
+          <tr><td class="mono">juce/tests/support/src/ScenarioDriver.cpp</td><td class="num">82</td><td class="num">54</td><td class="num">2,848</td></tr>
+          <tr><td class="mono">make-xs56k-win-local-release-no-tests.bat</td><td class="num">82</td><td class="num">52</td><td class="num">3,015</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/test-build-index.ps1</td><td class="num">81</td><td class="num">66</td><td class="num">4,513</td></tr>
+          <tr><td class="mono">CONTRIBUTING.md</td><td class="num">80</td><td class="num">54</td><td class="num">2,923</td></tr>
+          <tr><td class="mono">juce/midi/include/common/midi/MockMidiBackend.hpp</td><td class="num">80</td><td class="num">34</td><td class="num">3,421</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/model/AbstractTone.hpp</td><td class="num">79</td><td class="num">36</td><td class="num">3,402</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ItemRequest.hpp</td><td class="num">78</td><td class="num">32</td><td class="num">4,835</td></tr>
+          <tr><td class="mono">juce/tests/akm/KeygroupFilterTests.cpp</td><td class="num">77</td><td class="num">49</td><td class="num">3,247</td></tr>
+          <tr><td class="mono">juce/tests/akm/KeygroupPitchAmpTests.cpp</td><td class="num">77</td><td class="num">49</td><td class="num">3,163</td></tr>
+          <tr><td class="mono">juce/tests/akm/ProgramParameterRoundTrip.hpp</td><td class="num">77</td><td class="num">45</td><td class="num">3,691</td></tr>
+          <tr><td class="mono">juce/tests/support/src/ProgramParameterCases.cpp</td><td class="num">77</td><td class="num">50</td><td class="num">4,729</td></tr>
+          <tr><td class="mono">juce/akm/src/ThreadExecutor.cpp</td><td class="num">76</td><td class="num">49</td><td class="num">2,237</td></tr>
+          <tr><td class="mono">process/2.architecture/ADR-BLD-005-tests-in-every-generated-workflow.md</td><td class="num">76</td><td class="num">62</td><td class="num">4,484</td></tr>
+          <tr><td class="mono">juce/akm/src/SamplerError.cpp</td><td class="num">75</td><td class="num">52</td><td class="num">3,772</td></tr>
+          <tr><td class="mono">juce/tests/CMakeLists.txt</td><td class="num">74</td><td class="num">62</td><td class="num">3,015</td></tr>
+          <tr><td class="mono">.github/PULL_REQUEST_TEMPLATE.md</td><td class="num">73</td><td class="num">55</td><td class="num">2,265</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/test-build-index.sh</td><td class="num">73</td><td class="num">57</td><td class="num">3,520</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/DiagnosticSink.hpp</td><td class="num">73</td><td class="num">34</td><td class="num">2,777</td></tr>
+          <tr><td class="mono">juce/akm/src/KeygroupPrimitives.cpp</td><td class="num">73</td><td class="num">47</td><td class="num">3,396</td></tr>
+          <tr><td class="mono">juce/tests/akm/ProgramDeleteAllGuardTests.cpp</td><td class="num">73</td><td class="num">44</td><td class="num">3,077</td></tr>
+          <tr><td class="mono">juce/akm/src/SessionConfig.cpp</td><td class="num">71</td><td class="num">51</td><td class="num">2,712</td></tr>
+          <tr><td class="mono">juce/akm/src/SystemVersion.cpp</td><td class="num">71</td><td class="num">46</td><td class="num">2,942</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/service/PortableFormat.hpp</td><td class="num">71</td><td class="num">51</td><td class="num">2,491</td></tr>
+          <tr><td class="mono">juce/tests/akm/KeygroupModSourcesParametersTests.cpp</td><td class="num">71</td><td class="num">43</td><td class="num">3,210</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/KeygroupPrimitives.hpp</td><td class="num">70</td><td class="num">26</td><td class="num">3,396</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/model/OrderedParameterMap.hpp</td><td class="num">70</td><td class="num">33</td><td class="num">2,606</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/SamplerError.hpp</td><td class="num">69</td><td class="num">43</td><td class="num">3,282</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Scheduler.hpp</td><td class="num">69</td><td class="num">30</td><td class="num">2,598</td></tr>
+          <tr><td class="mono">juce/akm/src/ManualScheduler.cpp</td><td class="num">66</td><td class="num">41</td><td class="num">2,256</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ByteReader.hpp</td><td class="num">65</td><td class="num">29</td><td class="num">2,755</td></tr>
+          <tr><td class="mono">juce/akm/src/TimerQueue.cpp</td><td class="num">65</td><td class="num">42</td><td class="num">2,349</td></tr>
+          <tr><td class="mono">.github/actions/resolve-version/resolve-version.sh</td><td class="num">64</td><td class="num">21</td><td class="num">2,893</td></tr>
+          <tr><td class="mono">.github/workflows/linux-x64-debug-canary.yml</td><td class="num">63</td><td class="num">33</td><td class="num">2,377</td></tr>
+          <tr><td class="mono">.github/workflows/linux-x64-release-canary.yml</td><td class="num">63</td><td class="num">33</td><td class="num">2,391</td></tr>
+          <tr><td class="mono">.github/workflows/macos-arm64-debug-canary.yml</td><td class="num">63</td><td class="num">33</td><td class="num">2,389</td></tr>
+          <tr><td class="mono">.github/workflows/macos-arm64-release-canary.yml</td><td class="num">63</td><td class="num">33</td><td class="num">2,403</td></tr>
+          <tr><td class="mono">.github/workflows/windows-x64-debug-canary.yml</td><td class="num">63</td><td class="num">33</td><td class="num">2,391</td></tr>
+          <tr><td class="mono">.github/workflows/windows-x64-release-canary.yml</td><td class="num">63</td><td class="num">33</td><td class="num">2,405</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ByteWriter.hpp</td><td class="num">62</td><td class="num">28</td><td class="num">2,447</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/detail/TimerQueue.hpp</td><td class="num">62</td><td class="num">27</td><td class="num">2,275</td></tr>
+          <tr><td class="mono">juce/akm/src/Command.cpp</td><td class="num">62</td><td class="num">39</td><td class="num">2,532</td></tr>
+          <tr><td class="mono">juce/midi/src/SysexStreamIterator.cpp</td><td class="num">62</td><td class="num">39</td><td class="num">2,198</td></tr>
+          <tr><td class="mono">.github/workflows/linux-headless-canary.yml</td><td class="num">61</td><td class="num">23</td><td class="num">2,625</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Command.hpp</td><td class="num">61</td><td class="num">29</td><td class="num">2,329</td></tr>
+          <tr><td class="mono">juce/akm/src/ManualExecutor.cpp</td><td class="num">61</td><td class="num">37</td><td class="num">1,865</td></tr>
+          <tr><td class="mono">juce/app/src/Main.cpp</td><td class="num">61</td><td class="num">35</td><td class="num">2,302</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/controller/DualDictionary.hpp</td><td class="num">61</td><td class="num">24</td><td class="num">2,268</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/model/ToneIO.hpp</td><td class="num">60</td><td class="num">29</td><td class="num">1,943</td></tr>
+          <tr><td class="mono">.github/skills/agnos-git-workflow/scripts/validate-ids.sh</td><td class="num">59</td><td class="num">48</td><td class="num">1,033</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/EchoScenario.hpp</td><td class="num">59</td><td class="num">28</td><td class="num">2,609</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ThreadExecutor.hpp</td><td class="num">58</td><td class="num">28</td><td class="num">2,146</td></tr>
+          <tr><td class="mono">README.md</td><td class="num">57</td><td class="num">34</td><td class="num">1,042</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/RealScheduler.hpp</td><td class="num">57</td><td class="num">26</td><td class="num">2,121</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/SystemVersion.hpp</td><td class="num">57</td><td class="num">22</td><td class="num">2,486</td></tr>
+          <tr><td class="mono">process/1.requirements/RQ-FMW-midiapp-framework.md</td><td class="num">57</td><td class="num">40</td><td class="num">9,580</td></tr>
+          <tr><td class="mono">juce/akm/src/CommandResult.cpp</td><td class="num">55</td><td class="num">35</td><td class="num">2,225</td></tr>
+          <tr><td class="mono">juce/tests/akm/ChecksumTests.cpp</td><td class="num">55</td><td class="num">26</td><td class="num">2,212</td></tr>
+          <tr><td class="mono">.github/workflows/linux-headless-preprod.yml</td><td class="num">54</td><td class="num">28</td><td class="num">1,926</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ManualExecutor.hpp</td><td class="num">53</td><td class="num">22</td><td class="num">2,034</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ManualScheduler.hpp</td><td class="num">53</td><td class="num">20</td><td class="num">2,152</td></tr>
+          <tr><td class="mono">juce/tests/akm/MidiTuneParametersTests.cpp</td><td class="num">53</td><td class="num">25</td><td class="num">2,435</td></tr>
+          <tr><td class="mono">juce/tests/akm/SeededPrograms.hpp</td><td class="num">53</td><td class="num">26</td><td class="num">2,536</td></tr>
+          <tr><td class="mono">juce/tests/akm/PitchBendParametersTests.cpp</td><td class="num">52</td><td class="num">27</td><td class="num">2,436</td></tr>
+          <tr><td class="mono">juce/framework/src/SingleInstanceGuard.cpp</td><td class="num">50</td><td class="num">46</td><td class="num">1,194</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/WireFormat.hpp</td><td class="num">49</td><td class="num">14</td><td class="num">2,143</td></tr>
+          <tr><td class="mono">juce/midi/include/common/midi/JuceMidiBackend.hpp</td><td class="num">48</td><td class="num">19</td><td class="num">1,914</td></tr>
+          <tr><td class="mono">juce/midi/include/common/midi/SysexStreamIterator.hpp</td><td class="num">48</td><td class="num">18</td><td class="num">1,751</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Executor.hpp</td><td class="num">47</td><td class="num">13</td><td class="num">2,134</td></tr>
+          <tr><td class="mono">juce/tests/akm/AwkwardSampler.hpp</td><td class="num">47</td><td class="num">23</td><td class="num">1,972</td></tr>
+          <tr><td class="mono">juce/framework/src/FileUtils.cpp</td><td class="num">46</td><td class="num">39</td><td class="num">1,644</td></tr>
+          <tr><td class="mono">process/3.plan/PLAN-BLD-002-drop-legacy-project-prefix.md</td><td class="num">45</td><td class="num">37</td><td class="num">5,410</td></tr>
+          <tr><td class="mono">juce/tests/support/include/akm/harness/ProgramParameterCases.hpp</td><td class="num">43</td><td class="num">14</td><td class="num">1,797</td></tr>
+          <tr><td class="mono">.github/ISSUE_TEMPLATE/documentation.yml</td><td class="num">42</td><td class="num">38</td><td class="num">1,222</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Checksum.hpp</td><td class="num">42</td><td class="num">13</td><td class="num">1,723</td></tr>
+          <tr><td class="mono">juce/akm/src/DiagnosticSink.cpp</td><td class="num">42</td><td class="num">23</td><td class="num">1,528</td></tr>
+          <tr><td class="mono">juce/tests/CheckNoJuceIncludes.cmake</td><td class="num">39</td><td class="num">24</td><td class="num">1,525</td></tr>
+          <tr><td class="mono">juce/app/CMakeLists.txt</td><td class="num">38</td><td class="num">17</td><td class="num">1,798</td></tr>
+          <tr><td class="mono">juce/tests/akm/TestBytes.hpp</td><td class="num">38</td><td class="num">16</td><td class="num">1,291</td></tr>
+          <tr><td class="mono">.github/skills/agnos-git-workflow/scripts/validate-ids.ps1</td><td class="num">37</td><td class="num">19</td><td class="num">803</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/ItemCatalogue.hpp</td><td class="num">37</td><td class="num">13</td><td class="num">1,413</td></tr>
+          <tr><td class="mono">juce/midi/include/common/util/EnumUtils.hpp</td><td class="num">36</td><td class="num">10</td><td class="num">1,429</td></tr>
+          <tr><td class="mono">juce/tests/akm/LibraryInfoTests.cpp</td><td class="num">35</td><td class="num">11</td><td class="num">1,293</td></tr>
+          <tr><td class="mono">process/1.requirements/RQ-MID-midi-layer.md</td><td class="num">35</td><td class="num">24</td><td class="num">3,318</td></tr>
+          <tr><td class="mono">.github/actions/resolve-version/action.yml</td><td class="num">34</td><td class="num">24</td><td class="num">1,511</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/SKILL.md</td><td class="num">34</td><td class="num">26</td><td class="num">1,672</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/service/SingleInstanceGuard.hpp</td><td class="num">34</td><td class="num">25</td><td class="num">888</td></tr>
+          <tr><td class="mono">juce/tests/compile_checks/EchoScenarioOnJuce.cpp</td><td class="num">34</td><td class="num">12</td><td class="num">1,469</td></tr>
+          <tr><td class="mono">SECURITY.md</td><td class="num">33</td><td class="num">22</td><td class="num">1,217</td></tr>
+          <tr><td class="mono">juce/akm/src/ItemCatalogue.cpp</td><td class="num">33</td><td class="num">12</td><td class="num">1,329</td></tr>
+          <tr><td class="mono">juce/akm/CMakeLists.txt</td><td class="num">32</td><td class="num">26</td><td class="num">1,109</td></tr>
+          <tr><td class="mono">juce/akm/src/Checksum.cpp</td><td class="num">31</td><td class="num">12</td><td class="num">1,100</td></tr>
+          <tr><td class="mono">juce/midi/include/common/midi/LibraryInfo.hpp</td><td class="num">30</td><td class="num">7</td><td class="num">1,109</td></tr>
+          <tr><td class="mono">process/3.plan/PLAN-BLD-004-mutation-checks-outside-the-working-tree.md</td><td class="num">30</td><td class="num">24</td><td class="num">3,298</td></tr>
+          <tr><td class="mono">process/3.plan/PLAN-BLD-003-tests-in-every-generated-workflow.md</td><td class="num">29</td><td class="num">23</td><td class="num">2,582</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/Task.hpp</td><td class="num">27</td><td class="num">6</td><td class="num">1,020</td></tr>
+          <tr><td class="mono">juce/akm/include/akm/LibraryInfo.hpp</td><td class="num">26</td><td class="num">6</td><td class="num">936</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/LibraryInfo.hpp</td><td class="num">26</td><td class="num">6</td><td class="num">918</td></tr>
+          <tr><td class="mono">SUPPORT.md</td><td class="num">25</td><td class="num">17</td><td class="num">1,017</td></tr>
+          <tr><td class="mono">documents/INDEX.md</td><td class="num">25</td><td class="num">18</td><td class="num">2,659</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/service/FileUtils.hpp</td><td class="num">25</td><td class="num">10</td><td class="num">1,210</td></tr>
+          <tr><td class="mono">juce/midi/src/juce/JuceBackendInfo.cpp</td><td class="num">25</td><td class="num">6</td><td class="num">967</td></tr>
+          <tr><td class="mono">CHANGELOG.md</td><td class="num">24</td><td class="num">17</td><td class="num">704</td></tr>
+          <tr><td class="mono">juce/akm/src/LibraryInfo.cpp</td><td class="num">23</td><td class="num">5</td><td class="num">855</td></tr>
+          <tr><td class="mono">juce/framework/src/LibraryInfo.cpp</td><td class="num">23</td><td class="num">5</td><td class="num">874</td></tr>
+          <tr><td class="mono">juce/midi/CMakeLists.txt</td><td class="num">23</td><td class="num">18</td><td class="num">854</td></tr>
+          <tr><td class="mono">juce/midi/src/LibraryInfo.cpp</td><td class="num">23</td><td class="num">5</td><td class="num">878</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/expected/nominal.idx.md</td><td class="num">22</td><td class="num">22</td><td class="num">926</td></tr>
+          <tr><td class="mono">juce/framework/include/midiapp/controller/EventDispatcher.hpp</td><td class="num">22</td><td class="num">16</td><td class="num">587</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/1.requirements/FTR-TST-001.md</td><td class="num">19</td><td class="num">14</td><td class="num">321</td></tr>
+          <tr><td class="mono">.claude/settings.json</td><td class="num">17</td><td class="num">17</td><td class="num">2,547</td></tr>
+          <tr><td class="mono">.claude/skills/agnos-git-workflow/SKILL.md</td><td class="num">17</td><td class="num">13</td><td class="num">996</td></tr>
+          <tr><td class="mono">juce/tests/support/CMakeLists.txt</td><td class="num">17</td><td class="num">13</td><td class="num">746</td></tr>
+          <tr><td class="mono">.claude/skills/agnos-index/SKILL.md</td><td class="num">16</td><td class="num">12</td><td class="num">800</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/2.architecture/ADR-TST-001.md</td><td class="num">15</td><td class="num">10</td><td class="num">176</td></tr>
+          <tr><td class="mono">juce/framework/CMakeLists.txt</td><td class="num">15</td><td class="num">14</td><td class="num">584</td></tr>
+          <tr><td class="mono">.rtk/filters.toml</td><td class="num">13</td><td class="num">1</td><td class="num">477</td></tr>
+          <tr><td class="mono">process/_sessionstate/METRICS_LOG.md</td><td class="num">11</td><td class="num">9</td><td class="num">470</td></tr>
+          <tr><td class="mono">juce/tests/compile_checks/CMakeLists.txt</td><td class="num">10</td><td class="num">6</td><td class="num">462</td></tr>
+          <tr><td class="mono">juce/tests/probe/CMakeLists.txt</td><td class="num">9</td><td class="num">5</td><td class="num">449</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/3.plan/PLAN-TST-001.md</td><td class="num">8</td><td class="num">6</td><td class="num">158</td></tr>
+          <tr><td class="mono">.mcp.json</td><td class="num">8</td><td class="num">8</td><td class="num">109</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/expected/duplicate.idx.md</td><td class="num">7</td><td class="num">7</td><td class="num">283</td></tr>
+          <tr><td class="mono">.github/ISSUE_TEMPLATE/config.yml</td><td class="num">5</td><td class="num">5</td><td class="num">232</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/duplicate/process/1.requirements/FTR-DUP-001.md</td><td class="num">5</td><td class="num">3</td><td class="num">72</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/1.requirements/FTR-DEM-001.md</td><td class="num">4</td><td class="num">3</td><td class="num">89</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/1.requirements/sub/FTR-TST-002.md</td><td class="num">4</td><td class="num">3</td><td class="num">71</td></tr>
+          <tr><td class="mono">.vscode/settings.json</td><td class="num">3</td><td class="num">3</td><td class="num">79</td></tr>
+          <tr><td class="mono">process/_sessionstate/session.yaml</td><td class="num">2</td><td class="num">2</td><td class="num">165</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/1.requirements/design-system-template.md</td><td class="num">1</td><td class="num">1</td><td class="num">33</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/2.architecture/ADR.README.MD</td><td class="num">1</td><td class="num">1</td><td class="num">31</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/3.plan/old.idx.md</td><td class="num">1</td><td class="num">1</td><td class="num">31</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/_sessionstate/METRICS_LOG.md</td><td class="num">1</td><td class="num">1</td><td class="num">26</td></tr>
+          <tr><td class="mono">process/_sessionstate/SESSIONSTATE.README.MD</td><td class="num">1</td><td class="num">1</td><td class="num">40</td></tr>
+          <tr><td class="mono">.github/skills/agnos-index/tests/fixtures/nominal/process/3.plan/empty.md</td><td class="num">0</td><td class="num">0</td><td class="num">0</td></tr>
+        </tbody>
+      </table>
+    </div></details>
+  </section>
+
+  <footer class="bottom">
+    <div>Generated by <a href="https://github.com/boyter/scc">scc</a> v4.1.0 · 2026-09-27 19:54 UTC · analysed in 15.5s</div>
+    <div>Single self-contained HTML · view-source friendly</div>
+  </footer>
+
+</div>
+
+<script>
+  (function() {
+    var btn = document.getElementById('theme-toggle');
+    if (!btn) return;
+    var html = document.documentElement;
+    var label = function() {
+      var t = html.getAttribute('data-theme');
+      btn.textContent = 'Theme: ' + (t || 'auto');
+    };
+    label();
+    btn.addEventListener('click', function() {
+      var current = html.getAttribute('data-theme');
+      var next = current === null ? 'light' : (current === 'light' ? 'dark' : null);
+      if (next === null) {
+        html.removeAttribute('data-theme');
+        try { localStorage.removeItem('scc-theme'); } catch (e) {}
+      } else {
+        html.setAttribute('data-theme', next);
+        try { localStorage.setItem('scc-theme', next); } catch (e) {}
+      }
+      label();
+    });
+  })();
+</script>
+</body>
+</html>

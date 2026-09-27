@@ -181,7 +181,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-030: Filter Envelope group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `&30`–`&38` set / `&40`–`&48` get, nine pairs of the current keygroup's filter
   envelope: Attack (0–100), Velocity→Attack (sign + 0–100), Decay (0–100), Sustain (0–100), Release
   (0–100), On Velocity→Release (sign + 0–100), Keyscale (sign + 0–100), Depth (sign + 0–100), Off
@@ -196,8 +196,15 @@ This plan implements the tasks in the format specified below.
   whether `&48` is the same parameter as `&38` regardless of its REPLY table label.
 - **Dependencies**: TASK-AKM-026
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: N/A — not started
-- **Assumptions**: None
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 412/412 (same pre-existing Python failure
+  excluded). `KeygroupFilterEnvelopeTests.cpp` (2 cases): all nine items round-trip on the mock,
+  `&38`→`&48` included; Attack 101 is refused without sending. The `&48` erratum is not yet resolved by
+  real-sampler observation, only by the mock's own round trip (the catalogue already treats `&48` as
+  `&38`'s Get) — real confirmation is TASK-AKM-033's, alongside every other group. Not verified: real
+  sampler; mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `KEYGROUP_PARAMETER_GROUP_RANGES` grown by one row (`{0x30, 0x38, 0x10}`). Item names
+  spell "->", not the spec's "→", matching every other item already in `items.json` (no name comparison
+  in `--coverage`, so this changes nothing checked, only the source file's own encoding safety).
 
 ---
 
