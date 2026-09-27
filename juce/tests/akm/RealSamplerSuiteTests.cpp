@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 
 #include "AwkwardSampler.hpp"
+#include "SeededPrograms.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
 #include "akm/harness/ScenarioDriver.hpp"
 #include "akm/harness/SimulatedMidiBackend.hpp"
@@ -59,6 +60,7 @@ namespace
 
     constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
     constexpr std::uint8_t SECTION_SYSTEM = 0x02;
+    constexpr std::uint8_t SECTION_PROGRAM = 0x0A;
     constexpr std::uint8_t SECTION_DISK_TOOLS = 0x10;
     constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
     constexpr std::uint8_t ITEM_SYNC_LCD = 0x03;
@@ -613,4 +615,54 @@ TEST_CASE("Given a target that is not on the backend, When the suite runs, Then 
     CHECK_FALSE(result.portsOpened);
     CHECK(result.checks.empty());
     CHECK_THAT(log.str(), ContainsSubstring("input port not found"));
+}
+
+TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected, When the suite runs with the program lifecycle checks, Then both pass, KEEP1 is current again and only KEEP1 and KEEP2 remain [TASK-AKM-024, RQ-AKM-027]",
+          "[akm][suite]")
+{
+    Rig rig;
+    akm::test::seedPrograms(rig.backend, {"KEEP1", "KEEP2"}, 0);
+    RealSuiteOptions options = rig.options();
+    options.programLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    // expect()'s "as expected" lines go to the log, not to a check's own detail (built from finding()
+    // calls only) - matching how the existing power-cycle tests read the same kind of assertion.
+    CHECK_THAT(log.str(), ContainsSubstring("navigated away to the program that was current before"));
+    CHECK_THAT(log.str(), ContainsSubstring("refused before sending"));
+    CHECK_THAT(log.str(), ContainsSubstring("the programs it held before (2)"));
+    CHECK_THAT(log.str(), ContainsSubstring("the program that was current before is current again"));
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then it never sends a section 0A command, and the program lifecycle checks do not run [TASK-AKM-024, RQ-AKM-027]",
+          "[akm][suite]")
+{
+    Rig rig;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, rig.options(), log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_PROGRAM);
+}
+
+TEST_CASE("Given no program current when the suite runs with the program lifecycle checks, Then the wrong-program refusal is skipped and no program is current again afterward [TASK-AKM-024, RQ-AKM-027]",
+          "[akm][suite]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.programLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "reserved test name").detail,
+              ContainsSubstring("wrong-program refusal is not exercised"));
 }

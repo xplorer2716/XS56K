@@ -386,7 +386,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-024: Real-sampler test harness — dedicated test program
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement the RQ-AKM-027 guard for every real-sampler test of this feature: create,
   select, change and delete only a program under a reserved test name; delete it before returning even
   when a test fails or is interrupted (an RAII-style guard, mirroring how RQ-AKM-018's closing put
@@ -402,8 +402,27 @@ This plan implements the tasks in the format specified below.
   *Then* it is refused before sending.
 - **Dependencies**: TASK-AKM-015, TASK-AKM-016, TASK-AKM-017
 - **Assignee**: AI, with the owner running the real-sampler suite
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 394/394. The two new checks are opt-in
+  (`--program-lifecycle`, `RealSuiteOptions::programLifecycle`, default off) and proven against the
+  *simulated* sampler by 3 new `[suite]` tests in `RealSamplerSuiteTests.cpp`: the KEEP1/KEEP2 scenario
+  of RQ-AKM-027's own AC (both checks pass, the log shows the wrong-program refusal, the restored
+  program count and name); the default suite still sends no section 0A command at all (unchanged
+  invariant); no program current at all skips the refusal half cleanly. Not verified: the real S5000 —
+  the owner runs `xs56k_akm_probe --suite --program-lifecycle`; mutation testing (blocked, as in prior
+  tasks).
+- **Assumptions**: The Program-lot checks are opt-in, unlike the plan's original wording ("extend
+  `xs56k_akm_probe --suite`... this unlocks"), which did not say whether automatic or opt-in: made
+  opt-in to keep the existing suite's own documented invariant ("changes only section 00 settings... never
+  a stored program") true by default, matching `--power-cycle`/`--slow-operation`'s precedent, and to
+  avoid updating `AUTOMATIC_CHECKS` in roughly fifteen existing tests for no behavioural need. The guard
+  (`GuardedTestProgram`, private to `RealSamplerSuite.cpp`, mirroring `GuardedSession`) tracks its
+  program by the fixed name `XS56K_SUITE_TEST`; a check must not rename the test program away from that
+  name without renaming it back before returning, or the guard's own cleanup cannot find it again — the
+  two checks added here never rename it, so this is not exercised, only documented. The wrong-program
+  refusal check is skipped (not failed) when no program was current at the start, since there is then
+  nothing to navigate away to. A `SeededPrograms.hpp` test helper sends raw encoded §0A frames through
+  `HostProbe` (mirroring `AwkwardSampler.hpp` for §00) to pre-load the simulated sampler before the suite
+  runs, since the suite opens its own sessions and cannot be handed one already positioned.
 
 ---
 

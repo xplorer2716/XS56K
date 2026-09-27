@@ -33,6 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/Command.hpp"
 #include "akm/CommandOptions.hpp"
 #include "akm/CommandResult.hpp"
+#include "akm/ProgramPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
 #include "akm/harness/WireFormat.hpp"
 #include "akm/harness/WireLog.hpp"
@@ -251,6 +252,139 @@ namespace akm::harness
             Session _session;
         };
 
+        // The reserved name every real-sampler test of this feature creates its program under (RQ-AKM-027); well
+        // inside the 20-character limit observed on a real S5000 (documents/_index/sysex_spec.kb.md, "Common value
+        // codes"), and unlikely to collide with a program already in the sampler's memory.
+        constexpr std::string_view TEST_PROGRAM_NAME = "XS56K_SUITE_TEST";
+
+        // Wraps one program created under TEST_PROGRAM_NAME for the life of one check (RQ-AKM-027): on construction,
+        // records the sampler's current program name, if any, then creates the test program, which Create makes
+        // current. On destruction, even when the check throws half way, it reselects the test program by name and
+        // deletes it, then reselects the program that was current before — logged, nothing let out of the
+        // destructor, mirroring how GuardedSession always closes. `expectOnTestProgram` refuses a launch, without
+        // sending it, when the current program is not the test one, so a check cannot act on a program the suite
+        // did not create by mistake.
+        class GuardedTestProgram
+        {
+        public:
+            GuardedTestProgram(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                _originalName = currentProgramNameOrEmpty();
+                expectCreated();
+            }
+
+            ~GuardedTestProgram()
+            {
+                try
+                {
+                    if (!isCurrent())
+                        trySelectByName(std::string(TEST_PROGRAM_NAME), "reselect the test program before deleting it");
+                    if (isCurrent())
+                    {
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(),
+                            [this](CommandCompletion done) { deleteCurrentProgram(_session, std::move(done)); });
+                        _rig.log.note(std::string("  test program deleted: ")
+                                      + (timed && succeeded(timed->result) ? "done"
+                                                                            : "failed ("
+                                                                                  + (timed ? outcomeText(timed->result)
+                                                                                          : std::string("no completion"))
+                                                                                  + ")"));
+                    }
+                    else
+                        _rig.log.note("  the test program could not be reselected to delete it; it may already be gone");
+                    if (_originalName)
+                        trySelectByName(*_originalName, "reselect the program that was current before");
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the test program guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedTestProgram(const GuardedTestProgram&) = delete;
+            GuardedTestProgram& operator=(const GuardedTestProgram&) = delete;
+
+            [[nodiscard]] bool hadOriginalProgram() const { return _originalName.has_value(); }
+
+            [[nodiscard]] bool isCurrent()
+            {
+                const auto name = currentProgramNameOrEmpty();
+                return name && *name == std::string(TEST_PROGRAM_NAME);
+            }
+
+            // Navigates away from the test program to the one that was current before, to let a check prove
+            // expectOnTestProgram refuses; false when there was none, or reselecting it failed.
+            [[nodiscard]] bool selectOriginalProgram()
+            {
+                if (!_originalName)
+                    return false;
+                return trySelectByName(*_originalName, "select the original program (to prove the wrong-program refusal)");
+            }
+
+            [[nodiscard]] bool selectTestProgramAgain()
+            {
+                return trySelectByName(std::string(TEST_PROGRAM_NAME), "reselect the test program");
+            }
+
+            // Runs `launch` only when the test program is current; otherwise refuses before sending, and the check
+            // fails. [RQ-AKM-027]
+            void expectOnTestProgram(const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                if (!isCurrent())
+                    throw CheckFailure(title + ": refused before sending, the current program is not the test one");
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [this, &launch](CommandCompletion done) { launch(_session, std::move(done)); });
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience())
+                                       + ": the session lost it");
+                _rig.log.note("  " + title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                if (!succeeded(timed->result))
+                    throw CheckFailure(title + ": " + outcomeText(timed->result));
+            }
+
+        private:
+            [[nodiscard]] std::optional<std::string> currentProgramNameOrEmpty()
+            {
+                const auto timed = awaitCompletion<ProgramNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [this](ProgramNameCompletion done) { getCurrentProgramName(_session, std::move(done)); });
+                if (!timed)
+                    return std::nullopt;
+                return timed->result.name;
+            }
+
+            void expectCreated()
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this](CommandCompletion done) {
+                    createProgram(_session, std::string(TEST_PROGRAM_NAME), std::move(done));
+                });
+                if (!timed || !succeeded(timed->result))
+                    throw CheckFailure("could not create the test program \"" + std::string(TEST_PROGRAM_NAME)
+                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                _rig.log.note("  test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+            }
+
+            // Never throws: used both by the destructor and by the public navigation helpers, which report success
+            // through their own return value instead.
+            bool trySelectByName(const std::string& name, const std::string& title)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this, &name](CommandCompletion done) {
+                    selectProgramByName(_session, name, std::move(done));
+                });
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note(std::string("  ") + title + ": "
+                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                return ok;
+            }
+
+            Rig& _rig;
+            Session& _session;
+            std::optional<std::string> _originalName;
+        };
+
         // The checks, one after the other.
         class Suite
         {
@@ -271,6 +405,13 @@ namespace akm::harness
                     check("a slow operation with Still Alive on", &Suite::slowOperation);
                 if (_rig.options.powerCycle)
                     check("a power cycle while a session is open", &Suite::powerCycle);
+                if (_rig.options.programLifecycle)
+                {
+                    check("create, change and select a program under a reserved test name, then delete it",
+                          &Suite::programLifecycleOnTestProgram);
+                    check("a program check that fails half way still deletes the test program and restores the selection",
+                          &Suite::failedProgramCheckLeavesTheKnownState);
+                }
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -727,6 +868,124 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-027: creates a program under the reserved test name (GuardedTestProgram's constructor),
+            // changes it (add keygroups, crossfade), proves expectOnTestProgram refuses once the current program is
+            // no longer the test one, then lets the guard delete it and restore the original selection — verified
+            // by the program count being back to what it was.
+            void programLifecycleOnTestProgram()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto before = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                if (!before || !before->result.count)
+                    throw CheckFailure("could not read the number of programs before creating the test program");
+                const int countBefore = *before->result.count;
+
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+
+                    program.expectOnTestProgram("add 3 keygroups", [](Session& session, CommandCompletion done) {
+                        addKeygroupsToProgram(session, 3, std::move(done));
+                    });
+                    const auto keygroups = awaitCompletion<ProgramKeygroupCountResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
+                            getProgramKeygroupCount(guarded.session(), std::move(done));
+                        });
+                    expect(keygroups && keygroups->result.count == 4, "the keygroup count read back is 4 (1 default + 3 added)");
+
+                    program.expectOnTestProgram("set crossfade on", [](Session& session, CommandCompletion done) {
+                        setKeygroupCrossfade(session, true, std::move(done));
+                    });
+                    const auto crossfade = awaitCompletion<ProgramCrossfadeResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](ProgramCrossfadeCompletion done) { getKeygroupCrossfade(guarded.session(), std::move(done)); });
+                    expect(crossfade && crossfade->result.enabled == true, "crossfade read back on");
+
+                    if (program.hadOriginalProgram())
+                    {
+                        expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                        bool refused = false;
+                        try
+                        {
+                            program.expectOnTestProgram("set crossfade off (on the wrong program)",
+                                                        [](Session& session, CommandCompletion done) {
+                                                            setKeygroupCrossfade(session, false, std::move(done));
+                                                        });
+                        }
+                        catch (const CheckFailure&)
+                        {
+                            refused = true;
+                        }
+                        expect(refused, "acting on the program that is current but not the test one was refused before sending");
+                        expect(program.selectTestProgramAgain(), "reselected the test program");
+                    }
+                    else
+                        finding("no program was current before: the wrong-program refusal is not exercised this run");
+                }
+                finding("test program deleted and the original selection restored by the guard");
+
+                const auto after = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                expect(after && after->result.count == countBefore,
+                       "the number of programs is back to what it was before (" + std::to_string(countBefore) + ")");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-027: a program check that fails half way, with the test program current, still leaves the
+            // sampler exactly as it held it before — the failure is thrown through the guard's scope, as a failed
+            // assertion would be.
+            void failedProgramCheckLeavesTheKnownState()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto namesBeforeResult = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                if (!namesBeforeResult || !namesBeforeResult->result.names)
+                    throw CheckFailure("could not read the names of all programs before the test program is created");
+                const std::vector<std::string> namesBefore = *namesBeforeResult->result.names;
+                const auto originalResult = awaitCompletion<ProgramNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramNameCompletion done) { getCurrentProgramName(guarded.session(), std::move(done)); });
+                if (!originalResult)
+                    throw CheckFailure("could not read the current program's name before the test program is created");
+                const std::optional<std::string> originalName = originalResult->result.name;
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    finding("test program created for a check that fails on purpose");
+                    throw CheckFailure("this check fails on purpose, with the test program current");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The GuardedTestProgram above has already been destroyed, its cleanup already run, by the time
+                    // the exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+
+                const auto namesAfterResult = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                expect(namesAfterResult && namesAfterResult->result.names == namesBefore,
+                       "the sampler holds exactly the programs it held before (" + std::to_string(namesBefore.size()) + ")");
+                const auto currentAfterResult = awaitCompletion<ProgramNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramNameCompletion done) { getCurrentProgramName(guarded.session(), std::move(done)); });
+                expect(currentAfterResult && currentAfterResult->result.name == originalName,
+                       "the program that was current before is current again");
+                closeAndVerify(guarded);
+            }
+
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
@@ -747,6 +1006,10 @@ namespace akm::harness
                 log.note("It also sends one command outside sections 00 and 02, asked for with --slow-operation: update the list of disks (section 10, item 01).");
             if (options.powerCycle)
                 log.note("It also asks you to power-cycle the sampler while a session is open (--power-cycle).");
+            if (options.programLifecycle)
+                log.note(std::string("It also creates, changes, selects and deletes a program under the reserved name \"")
+                         + std::string(TEST_PROGRAM_NAME) + "\" (--program-lifecycle, RQ-AKM-027): the only checks that touch a "
+                         + "stored program, and only one the suite created itself, always deleted again.");
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }

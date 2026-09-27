@@ -52,6 +52,10 @@ namespace akm::harness
         /// The optional check that asks the owner to power-cycle the sampler while a session is open, to see what
         /// survives it. It needs `askOwner`.
         bool powerCycle = false;
+        /// The optional checks that create, select, change and delete a program under a reserved test name
+        /// (RQ-AKM-027): off by default, like `slowOperation` and `powerCycle`, since they are the only checks that
+        /// touch a stored program at all (every other check changes section 00 settings only).
+        bool programLifecycle = false;
         /// Tells the owner what to do and returns once they have done it, or false when they decline. It runs on the
         /// scenario's thread, with nothing in flight and the log written up to that point.
         std::function<bool(const std::string& instruction)> askOwner;
@@ -109,14 +113,16 @@ namespace akm::harness
     /// (RQ-AKM-018). In order: open and close; Echo returns the bytes sent; the round trips of the latency
     /// measurement; the OS version; checksums on and off; the close puts back every setting, all of them switched
     /// first; a check that fails half way leaves the sampler in the known state; then, if asked for, the slow
-    /// operation and the power cycle. A check that finds no sampler at the target ends the suite: nothing else is
+    /// operation, the power cycle, and the program lifecycle checks — the only ones that touch a stored program, and
+    /// only one of their own, created under a reserved name and always deleted again, even when a check fails half
+    /// way (RQ-AKM-027). A check that finds no sampler at the target ends the suite: nothing else is
     /// sent. Everything is logged as by the session smoke test (the wire in the format of the first-contact probe,
     /// buffered so that the log cannot slow what it records), and the log ends with the observations of RQ-AKM-017.
     ///
     /// It is written against `MidiBackend&` and a ScenarioDriver only, so it runs on the simulated sampler in CI and on
-    /// JuceMidiBackend against the real S5000. [TASK-AKM-010, RQ-AKM-010, RQ-AKM-011, RQ-AKM-012, RQ-AKM-013,
-    /// RQ-AKM-015, RQ-AKM-017, RQ-AKM-018, RQ-AKM-019, RQ-AKM-039, RQ-AKM-040, RQ-AKM-041, RQ-AKM-042, RQ-AKM-044,
-    /// ADR-AKM-001 (DEC-AKM-006, DEC-AKM-007, DEC-AKM-008)]
+    /// JuceMidiBackend against the real S5000. [TASK-AKM-010, TASK-AKM-024, RQ-AKM-010, RQ-AKM-011, RQ-AKM-012,
+    /// RQ-AKM-013, RQ-AKM-015, RQ-AKM-017, RQ-AKM-018, RQ-AKM-019, RQ-AKM-025, RQ-AKM-027, RQ-AKM-039, RQ-AKM-040,
+    /// RQ-AKM-041, RQ-AKM-042, RQ-AKM-044, ADR-AKM-001 (DEC-AKM-006, DEC-AKM-007, DEC-AKM-008)]
     RealSuiteResult runRealSamplerSuite(common::midi::MidiBackend& backend, ScenarioDriver& driver,
                                         const RealSuiteOptions& options, std::ostream& log);
 }

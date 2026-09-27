@@ -65,7 +65,8 @@ namespace
         "  xs56k_akm_probe --session --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
-        "                  [--power-cycle] [--slow-operation] [--timeout-ms N] [--log <file>] [--yes]\n"
+        "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--timeout-ms N] [--log <file>]\n"
+        "                  [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
         "  --in, --out        the sampler's MIDI input port (what it sends) and output port (what it receives),\n"
@@ -85,6 +86,9 @@ namespace
         "  --slow-operation   with --suite, an extra check: it sends one command outside sections 00 and 02, \"update the\n"
         "                     list of disks\" (section 10, item 01), with Still Alive on, to see whether F0 F7\n"
         "                     messages reach this computer while the sampler works\n"
+        "  --program-lifecycle  with --suite, two extra checks: they create, change, select and delete a program\n"
+        "                     under the reserved name \"XS56K_SUITE_TEST\", and restore the program that was\n"
+        "                     current before (RQ-AKM-027) - the only checks that touch a stored program\n"
         "  --timeout-ms       how long each step waits for an answer (default 3000)\n"
         "  --log              the log file (default akm-probe-<UTC date and time>.log, or akm-session-... with\n"
         "                     --session, or akm-suite-... with --suite, in this directory)\n"
@@ -93,7 +97,8 @@ namespace
         "The probe switches the sampler's checksum and Still Alive settings on and off and ends with both off.\n"
         "The session smoke test and the suite also switch Notification, Sync LCD and Auto screen update, and end with\n"
         "checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off.\n"
-        "None of them changes a stored program, multi or sample.\n";
+        "None of them changes a stored program, multi or sample, unless --program-lifecycle is given, and then only\n"
+        "the one program it creates itself and always deletes again.\n";
 
     struct Arguments
     {
@@ -104,6 +109,7 @@ namespace
         bool suite = false;
         bool powerCycle = false;
         bool slowOperation = false;
+        bool programLifecycle = false;
         bool noLcd = false;
         std::string input;
         std::string output;
@@ -160,6 +166,8 @@ namespace
                 parsed.powerCycle = true;
             else if (option == "--slow-operation")
                 parsed.slowOperation = true;
+            else if (option == "--program-lifecycle")
+                parsed.programLifecycle = true;
             else if (option == "--no-lcd")
                 parsed.noLcd = true;
             else if (option == "--in" || option == "--out" || option == "--log")
@@ -192,8 +200,8 @@ namespace
         }
         if (parsed.error.empty() && parsed.session && parsed.suite)
             parsed.error = "--session and --suite cannot be used together";
-        if (parsed.error.empty() && !parsed.suite && (parsed.powerCycle || parsed.slowOperation))
-            parsed.error = "--power-cycle and --slow-operation need --suite";
+        if (parsed.error.empty() && !parsed.suite && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle))
+            parsed.error = "--power-cycle, --slow-operation and --program-lifecycle need --suite";
         return parsed;
     }
 
@@ -297,11 +305,15 @@ int main(int argc, char** argv)
                       << "Each check opens a session and closes it. It switches the sampler's checksum, Notification, Still Alive"
                       << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
                       << "checksums off, Still Alive off, Notification on"
-                      << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off") << ". It changes no stored program, multi or sample.\n";
+                      << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off")
+                      << (arguments.programLifecycle ? ".\n" : ". It changes no stored program, multi or sample.\n");
             if (arguments.slowOperation)
                 std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
             if (arguments.powerCycle)
                 std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
+            if (arguments.programLifecycle)
+                std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", and restore\n"
+                          << "the program that was current before; no other program, multi or sample is touched.\n";
         }
         else if (arguments.session)
             std::cout << "The session smoke test will send SysEx frames to \"" << arguments.output << "\" and listen on \""
@@ -332,6 +344,7 @@ int main(int argc, char** argv)
         options.touchLcdSettings = !arguments.noLcd;
         options.slowOperation = arguments.slowOperation;
         options.powerCycle = arguments.powerCycle;
+        options.programLifecycle = arguments.programLifecycle;
         options.startedAt = utcNow(false);
         options.askOwner = [](const std::string& instruction) {
             std::cout << "\n>>> " << instruction << "\n    Press Enter when it is done, or type skip to skip this check: " << std::flush;
