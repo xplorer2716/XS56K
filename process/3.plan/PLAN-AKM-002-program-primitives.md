@@ -449,7 +449,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-025: Coverage of section §0A and errata resolution
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the 95 command rows and 46 REPLY rows of section `0A` to `items.json` coverage
   (or list an explicit exclusion reason for any row this lot does not implement) and run
   `generate_akm_items.py --coverage` to confirm none is unaccounted for. Resolve the KB errata that
@@ -464,5 +464,11 @@ This plan implements the tasks in the format specified below.
   RQ-AKM-017/018).
 - **Dependencies**: TASK-AKM-018, TASK-AKM-019, TASK-AKM-020, TASK-AKM-021, TASK-AKM-022, TASK-AKM-023
 - **Assignee**: AI, with the owner running the real-sampler observation
-- **Verification**: N/A — not started
+- **Verification**: `--coverage`: `unaccounted: none` (95 command + 46 REPLY rows of §0A). `--check`:
+  generated header up to date. `&2C`/`&2D` erratum resolved by existing evidence, not a new run:
+  TASK-AKM-024's `akm-suite-20260927-185917.log` (check 8) already round-trips Set &24 → Get &2C and
+  Set &25 → Get &2D on the real S5000, both exact — recorded in the KB.
+- **Assumptions**: No dedicated real-sampler run was needed: the Gherkin's "observed on the real
+  sampler" is satisfied because `&24`/`&2C` and `&25`/`&2D` are two of the 38 Set/Get pairs
+  `programLifecycleOnTestProgram` already exercises (TASK-AKM-024), so the evidence pre-existed.
 - **Assumptions**: None yet

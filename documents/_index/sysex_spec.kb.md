@@ -171,7 +171,10 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
 - §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11).
 - T10 `&27{39}` labelled "Set Zone Semitone Tune" in a REPLY table (= Get) (p14).
-- T14 `&2C/&2D` "Amp Pan Source/Value" [?] = Pan Mod Source/Value (commands &24/&25/&2C/&2D are Pan Mod) (p24).
+- T14 `&2C/&2D` "Amp Pan Source/Value" = Pan Mod Source/Value (commands &24/&25/&2C/&2D are Pan Mod) (p24).
+  Confirmed on a real S5000, 2026-09-27 (`akm-suite-20260927-185917.log`, TASK-AKM-025): `&24`
+  (Set Pan Mod Source, panMod 3) set to `02`, `&2C` (panMod 3) read back `02`; `&25` (Set Pan Mod
+  Value, panMod 1) set to `01 0A`, `&2D` (panMod 1) read back `01 0A` — both round trips exact.
 - T11 `&64{100}` "Set Aux Env. Velocity→Rate (4 only)" [?] = Off Velocity→Rate (its Get &6C is "Off Velocity→Rate") (p17).
 - T12 `&48`, `&5F` reply say "Off Velocity→Rate" while commands say "Off Velocity→Release" (p19).
 - §00 has no item &02 (not listed).
