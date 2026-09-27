@@ -453,8 +453,91 @@ namespace akm::harness
 
         // §08 keygroup selection of TASK-AKM-026 (RQ-AKM-028): `&01` selects 1-99, or 0 for "all
         // keygroups"; `&02` gets which is current. Every other §08 item answers ERROR 0 until its own lot.
+        // Each Set item of §08's parameter groups (RQ-AKM-030) has its Get at a fixed offset within its
+        // group (spec Tables 11-12), the same contiguous-range shape as §0A's five (PARAMETER_GROUP_RANGES
+        // above). One row per group, grown one at a time as TASK-AKM-027 to 032 catalogue each.
+        constexpr std::array<ParameterGroupRange, 1> KEYGROUP_PARAMETER_GROUP_RANGES{{
+            {0x04, 0x09, 0x06},  // General Options
+        }};
+
+        // A Set while keygroup 0 ("all") is current writes every keygroup of the current program with the
+        // same value (RQ-AKM-028's AC); a Get while keygroup 0 is current answers one value set per
+        // keygroup, in keygroup order (RQ-AKM-031) — the client decodes that shape with
+        // `decodeRepeatedReply` (DEC-AKM-015). Otherwise both act on the one selected keygroup, reading
+        // back width-many zero bytes when nothing was set yet, exactly as `executeParameterGroup` does for
+        // a program. [RQ-AKM-028, RQ-AKM-030, RQ-AKM-031]
+        Outcome executeKeygroupParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                              const std::optional<std::size_t>& currentProgram,
+                                              const std::optional<int>& currentKeygroup)
+        {
+            for (const ParameterGroupRange& range : KEYGROUP_PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    ProgramRecord& program = programs[*currentProgram];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_KEYGROUP, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    if (*currentKeygroup == 0)
+                    {
+                        for (KeygroupRecord& keygroup : program.keygroups)
+                            keygroup.parameters[{item, key}] = value;
+                    }
+                    else
+                    {
+                        program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)].parameters[{item, std::move(key)}] =
+                            std::move(value);
+                    }
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    const ProgramRecord& program = programs[*currentProgram];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_KEYGROUP, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    const auto valueOf = [&](const KeygroupRecord& keygroup) {
+                        const auto found = keygroup.parameters.find({setItem, key});
+                        return found != keygroup.parameters.end() ? found->second : Bytes(valueWidth, 0);
+                    };
+                    if (*currentKeygroup == 0)
+                    {
+                        Bytes concatenated;
+                        for (const KeygroupRecord& keygroup : program.keygroups)
+                        {
+                            const Bytes value = valueOf(keygroup);
+                            concatenated.insert(concatenated.end(), value.begin(), value.end());
+                        }
+                        return reply(std::move(concatenated));
+                    }
+                    return reply(valueOf(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
         Outcome executeKeygroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
-                                const std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup)
+                                std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup)
         {
             switch (item)
             {
@@ -479,7 +562,7 @@ namespace akm::harness
                     return reply(writer.bytes());
                 }
                 default:
-                    return failure(error_number::NOT_SUPPORTED);
+                    return executeKeygroupParameterGroup(item, data, programs, currentProgram, currentKeygroup);
             }
         }
 

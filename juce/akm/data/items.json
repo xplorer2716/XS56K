@@ -705,6 +705,72 @@
       "args": [],
       "reply": [{"name": "keygroup", "format": "byte", "min": 0, "max": 99}],
       "requirements": ["RQ-AKM-028"]
+    },
+    {
+      "id": "KeygroupSetLowNote", "section": "08", "item": "04", "name": "Set Low Note", "kind": "set",
+      "args": [{"name": "note", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupSetHighNote", "section": "08", "item": "05", "name": "Set High Note", "kind": "set",
+      "args": [{"name": "note", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupSetMuteGroup", "section": "08", "item": "06", "name": "Set Mute Group", "kind": "set",
+      "args": [{"name": "muteGroup", "format": "byte", "min": 0, "max": 32}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupSetFxOverride", "section": "08", "item": "07", "name": "Set FX override", "kind": "set",
+      "args": [{"name": "fx", "format": "byte", "min": 0, "max": 4}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupSetFxSendLevel", "section": "08", "item": "08", "name": "Set FX Send Level", "kind": "set",
+      "args": [{"name": "level", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupSetZoneCrossfade", "section": "08", "item": "09", "name": "Set Zone Crossfade", "kind": "set",
+      "args": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupGetLowNote", "section": "08", "item": "0A", "name": "Get Low Note", "kind": "get",
+      "args": [],
+      "reply": [{"name": "note", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupGetHighNote", "section": "08", "item": "0B", "name": "Get High Note", "kind": "get",
+      "args": [],
+      "reply": [{"name": "note", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupGetMuteGroup", "section": "08", "item": "0C", "name": "Get Mute Group", "kind": "get",
+      "args": [],
+      "reply": [{"name": "muteGroup", "format": "byte", "min": 0, "max": 32}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupGetFxOverride", "section": "08", "item": "0D", "name": "Get FX override", "kind": "get",
+      "args": [],
+      "reply": [{"name": "fx", "format": "byte", "min": 0, "max": 4}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupGetFxSendLevel", "section": "08", "item": "0E", "name": "Get FX Send Level", "kind": "get",
+      "args": [],
+      "reply": [{"name": "level", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupGetZoneCrossfade", "section": "08", "item": "0F", "name": "Get Zone Crossfade", "kind": "get",
+      "args": [],
+      "reply": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-029"]
     }
   ]
 }

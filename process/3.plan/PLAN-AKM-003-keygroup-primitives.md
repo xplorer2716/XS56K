@@ -96,7 +96,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-027: General Options group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `setLowNote`/`getLowNote` (`&04`/`&0A`, 21–127), `setHighNote`/`getHighNote`
   (`&05`/`&0B`, 21–127), `setMuteGroup`/`getMuteGroup` (`&06`/`&0C`, 0 or 1–32),
   `setFxOverride`/`getFxOverride` (`&07`/`&0D`, 0=off/1=FX1/2=FX2/3=RV3/4=RV4),
@@ -111,8 +111,19 @@ This plan implements the tasks in the format specified below.
   program of FTR-AKM-002, *When* the same test runs, *Then* it passes unchanged.
 - **Dependencies**: TASK-AKM-026
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: N/A — not started
-- **Assumptions**: None
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 406/406 (same pre-existing Python failure
+  excluded). `KeygroupGeneralOptionsTests.cpp` (4 cases): all six items round-trip; Low Note 20 is
+  refused without sending; **RQ-AKM-031 proven end to end for the first time against a real per-keygroup
+  item** (`&04`/`&0A`, Low Note) — a 3-keygroup program with keygroup 0 current, Set to 40, then
+  `getForAllKeygroups` decodes three records, all 40; a wrong expected count (4, not 3) leaves `values`
+  empty, closing TASK-AKM-026's deferred AC. Not verified: real sampler (no owner run yet — deferred to
+  TASK-AKM-033, which round-trips every group at once); mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `KEYGROUP_PARAMETER_GROUP_RANGES` (`SimulatedSampler.cpp`, mirroring §0A's own
+  `PARAMETER_GROUP_RANGES`) introduced here with General Options as its first row, grown one row per
+  TASK-AKM-028 to 032 rather than declared all at once — matching TASK-AKM-018's own precedent for §0A.
+  Mute Group's range is catalogued as a single `0-32` byte (the spec's "0=OFF, 1-32=value" is one
+  contiguous range, not two), same choice as `KEYGROUP_NOT_IN_PROGRAM`-adjacent items elsewhere in this
+  plan.
 
 ---
 

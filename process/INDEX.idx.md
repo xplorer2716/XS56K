@@ -137,16 +137,16 @@ TASK-AKM-023|355-386|Done|Destructive command guard for "Delete ALL programs"
 TASK-AKM-024|387-449|Done|Real-sampler test harness — dedicated test program
 TASK-AKM-025|450-474|Done|Coverage of section §0A and errata resolution
 @process/3.plan/PLAN-AKM-003-keygroup-primitives.md
-PLAN-AKM-003|1-273||Keygroup Primitives (Phase A, lot A3)
+PLAN-AKM-003|1-284||Keygroup Primitives (Phase A, lot A3)
 TASK-AKM-026|46-96|Done|Keygroup selection and the all-keygroups reply
-TASK-AKM-027|97-118|Not Started|General Options group (Set and Get)
-TASK-AKM-028|119-139|Not Started|Keygroup Pitch/Amp group (Set and Get)
-TASK-AKM-029|140-162|Not Started|Filter group (Set and Get)
-TASK-AKM-030|163-184|Not Started|Filter Envelope group (Set and Get)
-TASK-AKM-031|185-205|Not Started|Amplitude Envelope group (Set and Get)
-TASK-AKM-032|206-230|Not Started|Aux Envelope group (Set and Get)
-TASK-AKM-033|231-253|Not Started|Real-sampler test harness — keygroups of the dedicated test program
-TASK-AKM-034|254-273|Not Started|Coverage of section §08 and remaining errata resolution
+TASK-AKM-027|97-129|Done|General Options group (Set and Get)
+TASK-AKM-028|130-150|Not Started|Keygroup Pitch/Amp group (Set and Get)
+TASK-AKM-029|151-173|Not Started|Filter group (Set and Get)
+TASK-AKM-030|174-195|Not Started|Filter Envelope group (Set and Get)
+TASK-AKM-031|196-216|Not Started|Amplitude Envelope group (Set and Get)
+TASK-AKM-032|217-241|Not Started|Aux Envelope group (Set and Get)
+TASK-AKM-033|242-264|Not Started|Real-sampler test harness — keygroups of the dedicated test program
+TASK-AKM-034|265-284|Not Started|Coverage of section §08 and remaining errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
