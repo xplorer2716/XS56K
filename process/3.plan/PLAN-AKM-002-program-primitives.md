@@ -153,12 +153,13 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-016: Program structure and identity primitives
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Set "Program Number" (`&0A`, an OFF/ON byte plus, only when ON, a
   0–127 number), Add Keygroups (`&0B`, 1–98), Delete Keygroup (`&0C`, zero-based 0–98) and Set/Get
-  Keygroup Crossfade (`&0D`/`&15`), refusing an out-of-range value without sending. Resolve the
-  "program numbering across the spec" open point of FTR-AKM-002 (front-panel 1–128 sent as 0–127,
-  prefixed by the OFF/ON byte) against the real sampler.
+  Keygroup Crossfade (`&0D`/`&15`), refusing an out-of-range value without sending. Resolves the
+  "program numbering across the spec" open point of FTR-AKM-002 directly from the spec itself (Table 13,
+  footnote a: "numbers 1-128 shall be transmitted as 0-127") — no real sampler needed, this was in the
+  TSV's footnote table all along, not an unresolvable ambiguity.
 - **Requirement refs**: RQ-AKM-022
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-003, DEC-AKM-011)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-022 — *Given* a program with 1
@@ -169,8 +170,16 @@ This plan implements the tasks in the format specified below.
   task decided it should (0-based or 1-based), recorded as this task's resolution of the open point.
 - **Dependencies**: TASK-AKM-015
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 383/383 (6 new in `ProgramStructureTests.cpp`:
+  add/get keygroup count, refuse 0 keygroups, delete a keygroup and the `KEYGROUP_NOT_IN_PROGRAM` error,
+  crossfade round trip, Program Number round trip front-panel 1 and 128 with the wire byte checked
+  directly (0 and 127), and the front-panel range refusal). `--coverage`: 91/95 rows, no problems. Not
+  verified: real sampler; mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `&0A` (Set Program Number) is hand-encoded (`ByteWriter`), like `&03`: Data2 is only
+  sent when Data1=ON, which `makeRequest`'s fixed arg count cannot express. Typed wrappers were added
+  for all 7 items of this task (`ProgramPrimitives.hpp`), unlike TASK-AKM-018 to 022's bulk parameter
+  groups: this group is identity/lifecycle-shaped (paired with TASK-AKM-015, likely called together by a
+  future controller), small (7 items), and `&0A` needed bespoke code regardless.
 
 ---
 

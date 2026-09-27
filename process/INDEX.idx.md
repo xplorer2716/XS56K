@@ -121,19 +121,19 @@ TASK-AKM-011|172-185|Done|Session closing
 TASK-AKM-012|186-199|Done|First contact with the sampler
 TASK-AKM-013|200-210|Done|Session smoke test on the real sampler
 @process/3.plan/PLAN-AKM-002-program-primitives.md
-PLAN-AKM-002|1-393||Program Primitives (Phase A, lot A2)
+PLAN-AKM-002|1-402||Program Primitives (Phase A, lot A2)
 TASK-AKM-014|57-118|Done|Item catalogue support for a single string value
 TASK-AKM-015|119-153|Done|Program lifecycle primitives
-TASK-AKM-016|154-176|Not Started|Program structure and identity primitives
-TASK-AKM-017|177-202|Not Started|General program information, including all programs in memory
-TASK-AKM-018|203-241|Done|Output parameter group (Set and Get)
-TASK-AKM-019|242-263|Done|MIDI/Tune parameter group (Set and Get)
-TASK-AKM-020|264-284|Done|Pitch Bend parameter group (Set and Get)
-TASK-AKM-021|285-310|Done|LFO parameter groups (Set and Get, LFO 1 and 2)
-TASK-AKM-022|311-331|Done|Keygroup Modulation Sources parameter group (Set and Get)
-TASK-AKM-023|332-351|Not Started|Destructive command guard for "Delete ALL programs"
-TASK-AKM-024|352-374|Not Started|Real-sampler test harness — dedicated test program
-TASK-AKM-025|375-393|Not Started|Coverage of section §0A and errata resolution
+TASK-AKM-016|154-185|Done|Program structure and identity primitives
+TASK-AKM-017|186-211|Not Started|General program information, including all programs in memory
+TASK-AKM-018|212-250|Done|Output parameter group (Set and Get)
+TASK-AKM-019|251-272|Done|MIDI/Tune parameter group (Set and Get)
+TASK-AKM-020|273-293|Done|Pitch Bend parameter group (Set and Get)
+TASK-AKM-021|294-319|Done|LFO parameter groups (Set and Get, LFO 1 and 2)
+TASK-AKM-022|320-340|Done|Keygroup Modulation Sources parameter group (Set and Get)
+TASK-AKM-023|341-360|Not Started|Destructive command guard for "Delete ALL programs"
+TASK-AKM-024|361-383|Not Started|Real-sampler test harness — dedicated test program
+TASK-AKM-025|384-402|Not Started|Coverage of section §0A and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

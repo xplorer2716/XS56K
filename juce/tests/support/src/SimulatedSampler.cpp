@@ -76,6 +76,14 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_RENAME_CURRENT_PROGRAM = 0x09;
         constexpr std::uint8_t ITEM_GET_NUMBER_OF_PROGRAMS = 0x10;
         constexpr std::uint8_t ITEM_GET_CURRENT_PROGRAM_NAME = 0x13;
+        // Structure/identity items of TASK-AKM-016 (RQ-AKM-022, RQ-AKM-023).
+        constexpr std::uint8_t ITEM_SET_PROGRAM_NUMBER = 0x0A;
+        constexpr std::uint8_t ITEM_ADD_KEYGROUPS = 0x0B;
+        constexpr std::uint8_t ITEM_DELETE_KEYGROUP = 0x0C;
+        constexpr std::uint8_t ITEM_SET_CROSSFADE = 0x0D;
+        constexpr std::uint8_t ITEM_GET_PROGRAM_NUMBER = 0x11;
+        constexpr std::uint8_t ITEM_GET_KEYGROUP_COUNT = 0x14;
+        constexpr std::uint8_t ITEM_GET_CROSSFADE = 0x15;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -294,6 +302,69 @@ namespace akm::harness
                         return failure(error_number::INVALID_FORMAT);
                     programs[*current].name = *name;
                     return done();
+                }
+                case ITEM_SET_PROGRAM_NUMBER:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() == 0)
+                    {
+                        programs[*current].frontPanelNumber.reset();
+                        return done();
+                    }
+                    if (data.size() < 2)
+                        return failure(error_number::INVALID_FORMAT);
+                    // The wire number is the front-panel one minus one (spec Table 13, footnote a).
+                    programs[*current].frontPanelNumber = data[1] + 1;
+                    return done();
+                }
+                case ITEM_ADD_KEYGROUPS:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    programs[*current].keygroupCount += data.front();
+                    return done();
+                case ITEM_DELETE_KEYGROUP:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() >= programs[*current].keygroupCount)
+                        return failure(error_number::KEYGROUP_NOT_IN_PROGRAM);
+                    --programs[*current].keygroupCount;
+                    return done();
+                case ITEM_SET_CROSSFADE:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return setToggle(data, programs[*current].crossfade);
+                case ITEM_GET_PROGRAM_NUMBER:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const std::optional<int>& number = programs[*current].frontPanelNumber;
+                    akm::ByteWriter writer;
+                    writer.appendByte(number ? 1 : 0);
+                    writer.appendByte(number ? static_cast<std::uint32_t>(*number - 1) : 0);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_KEYGROUP_COUNT:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendByte(static_cast<std::uint32_t>(programs[*current].keygroupCount));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CROSSFADE:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendByte(programs[*current].crossfade ? 1 : 0);
+                    return reply(writer.bytes());
                 }
                 case ITEM_GET_NUMBER_OF_PROGRAMS:
                 {

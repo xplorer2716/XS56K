@@ -23,6 +23,7 @@ add_executable(xs56k_akm_tests
     akm/OutputParametersTests.cpp
     akm/PitchBendParametersTests.cpp
     akm/ProgramPrimitivesTests.cpp
+    akm/ProgramStructureTests.cpp
     akm/RealSamplerSuiteTests.cpp
     akm/SamplerErrorTests.cpp
     akm/ScenarioTests.cpp

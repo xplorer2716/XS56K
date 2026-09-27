@@ -79,4 +79,59 @@ namespace akm
     /// checksum mode is unknown, since a String REPLY has no fixed length to delimit it by
     /// (ADR-AKM-001, DEC-AKM-013). [RQ-AKM-021, RQ-AKM-023, RQ-AKM-041]
     void getCurrentProgramName(Session& session, ProgramNameCompletion completion);
+
+    // The structure and identity primitives of section 0A (§0A/&0A-&0D, &11, &14, &15). [RQ-AKM-022]
+
+    /// Sets or clears the "Program Number" front-panel display (§0A/&0A). `frontPanelNumber` is the
+    /// number as shown on the front panel (1-128); the wire carries it minus one (spec Table 13,
+    /// footnote a) — resolving FTR-AKM-002's "program numbering" open point. `std::nullopt` switches it
+    /// off. A number outside 1-128 is refused without sending. [RQ-AKM-022]
+    void setProgramNumber(Session& session, std::optional<int> frontPanelNumber, CommandCompletion completion);
+
+    /// `frontPanelNumber` is empty when the display is off (or the command did not complete on a REPLY
+    /// of the length the catalogue gives it); `outcome` is the result of the command. [RQ-AKM-022,
+    /// RQ-AKM-023]
+    struct ProgramNumberResult
+    {
+        std::optional<int> frontPanelNumber{};
+        CommandResult outcome{};
+    };
+    using ProgramNumberCompletion = std::function<void(const ProgramNumberResult&)>;
+
+    /// Gets the current program's "Program Number" (§0A/&11), converted back to the front-panel number.
+    /// [RQ-AKM-022, RQ-AKM-023]
+    void getProgramNumber(Session& session, ProgramNumberCompletion completion);
+
+    /// Adds `count` keygroups (1-98) to the current program (§0A/&0B); an out-of-range count is refused
+    /// without sending. [RQ-AKM-022]
+    void addKeygroupsToProgram(Session& session, int count, CommandCompletion completion);
+
+    /// Deletes keygroup `keygroup` (zero-based, 0-98) from the current program (§0A/&0C); ERROR 385
+    /// (`error_number::KEYGROUP_NOT_IN_PROGRAM`) when it does not exist. [RQ-AKM-022]
+    void deleteKeygroupFromProgram(Session& session, int keygroup, CommandCompletion completion);
+
+    /// Sets the current program's keygroup crossfade (§0A/&0D). [RQ-AKM-022]
+    void setKeygroupCrossfade(Session& session, bool on, CommandCompletion completion);
+
+    /// [RQ-AKM-022, RQ-AKM-023]
+    struct ProgramKeygroupCountResult
+    {
+        std::optional<int> count{};
+        CommandResult outcome{};
+    };
+    using ProgramKeygroupCountCompletion = std::function<void(const ProgramKeygroupCountResult&)>;
+
+    /// Gets the number of keygroups in the current program (§0A/&14). [RQ-AKM-022, RQ-AKM-023]
+    void getProgramKeygroupCount(Session& session, ProgramKeygroupCountCompletion completion);
+
+    /// [RQ-AKM-022, RQ-AKM-023]
+    struct ProgramCrossfadeResult
+    {
+        std::optional<bool> enabled{};
+        CommandResult outcome{};
+    };
+    using ProgramCrossfadeCompletion = std::function<void(const ProgramCrossfadeResult&)>;
+
+    /// Gets the current program's keygroup crossfade (§0A/&15). [RQ-AKM-022, RQ-AKM-023]
+    void getKeygroupCrossfade(Session& session, ProgramCrossfadeCompletion completion);
 }

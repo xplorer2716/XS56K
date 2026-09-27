@@ -20,7 +20,7 @@
       "name": "Program",
       "complete": false,
       "spec": "Tables 13 and 14, pp. 20-25",
-      "note": "TASK-AKM-015: the lifecycle items of RQ-AKM-021 (&02, &03, &05, &06, &08, &09) plus the two Gets its own acceptance criteria verify by (&10, &13, also part of RQ-AKM-023). The rest of section 0A is added by PLAN-AKM-002's later tasks."
+      "note": "TASK-AKM-015: the lifecycle items of RQ-AKM-021 (&02, &03, &05, &06, &08, &09) plus the two Gets its own acceptance criteria verify by (&10, &13, also part of RQ-AKM-023). TASK-AKM-018 to 022: the 76 items of the five RQ-AKM-024 parameter groups. TASK-AKM-016: the structure/identity items of RQ-AKM-022 (&0A, &0B, &0C, &0D) plus &11, &14, &15 (also part of RQ-AKM-023) that its own acceptance criteria verify by. The rest of section 0A is added by PLAN-AKM-002's later tasks."
     }
   ],
   "items": [
@@ -615,6 +615,49 @@
       "id": "ProgramGetFilterModInputSource", "section": "0A", "item": "76", "name": "Get Filter Mod Input Source", "kind": "get",
       "args": [{"name": "modInput", "format": "byte", "min": 1, "max": 3}], "reply": [{"name": "source", "format": "byte", "min": 0, "max": 14}],
       "requirements": ["RQ-AKM-024"]
+    },
+
+    {
+      "id": "ProgramSetNumber", "section": "0A", "item": "0A", "name": "Set Program Number", "kind": "set",
+      "args": [
+        {"name": "enabled", "format": "byte", "min": 0, "max": 1},
+        {"name": "number", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-022"]
+    },
+    {
+      "id": "ProgramAddKeygroups", "section": "0A", "item": "0B", "name": "Add Keygroups to Program", "kind": "set",
+      "args": [{"name": "count", "format": "byte", "min": 1, "max": 98}],
+      "requirements": ["RQ-AKM-022"]
+    },
+    {
+      "id": "ProgramDeleteKeygroup", "section": "0A", "item": "0C", "name": "Delete Keygroup from Program", "kind": "set",
+      "args": [{"name": "keygroup", "format": "byte", "min": 0, "max": 98}],
+      "requirements": ["RQ-AKM-022"]
+    },
+    {
+      "id": "ProgramSetCrossfade", "section": "0A", "item": "0D", "name": "Set Keygroup Crossfade", "kind": "set",
+      "args": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-022"]
+    },
+    {
+      "id": "ProgramGetNumber", "section": "0A", "item": "11", "name": "Get Current Program's Program Number", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "enabled", "format": "byte", "min": 0, "max": 1},
+        {"name": "number", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-022", "RQ-AKM-023"]
+    },
+    {
+      "id": "ProgramGetKeygroupCount", "section": "0A", "item": "14", "name": "Get Number of Keygroups in Current Program", "kind": "get",
+      "args": [], "reply": [{"name": "count", "format": "byte", "min": 0, "max": 99}],
+      "requirements": ["RQ-AKM-022", "RQ-AKM-023"]
+    },
+    {
+      "id": "ProgramGetCrossfade", "section": "0A", "item": "15", "name": "Get Keygroup Crossfade", "kind": "get",
+      "args": [], "reply": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-022", "RQ-AKM-023"]
     }
   ]
 }

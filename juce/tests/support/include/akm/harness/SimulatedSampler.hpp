@@ -128,6 +128,9 @@ namespace akm::harness
         std::string name;
         int keygroupCount = 1;
         bool crossfade = false;
+        /// The front-panel "Program Number" (§0A/&0A, 1-128; the wire carries it minus one, Table 13
+        /// footnote a), or empty when it is off. [RQ-AKM-022]
+        std::optional<int> frontPanelNumber{};
         /// The Output, MIDI/Tune, Pitch Bend, LFO and Keygroup Modulation Sources parameters
         /// (RQ-AKM-024): keyed by (the group's Set item code, the selector bytes a multi-instance item
         /// carries, e.g. which LFO), holding the value bytes; read back by the paired Get item. Not

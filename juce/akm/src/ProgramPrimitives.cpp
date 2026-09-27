@@ -128,4 +128,101 @@ namespace akm
                                completion(result);
                        });
     }
+
+    void setProgramNumber(Session& session, std::optional<int> frontPanelNumber, CommandCompletion completion)
+    {
+        // The front-panel range (spec Table 13, footnote a); &0A's Data1/Data2 shape is conditional on
+        // Data1, so it is written by hand rather than through makeRequest.
+        constexpr int FRONT_PANEL_MIN = 1;
+        constexpr int FRONT_PANEL_MAX = 128;
+        const ItemDescriptor& item = descriptor(ItemId::ProgramSetNumber);
+
+        CommandRequest request;
+        request.command.section = item.section;
+        request.command.item = item.item;
+
+        ByteWriter writer;
+        if (!frontPanelNumber)
+        {
+            writer.appendByte(0);
+        }
+        else if (*frontPanelNumber < FRONT_PANEL_MIN || *frontPanelNumber > FRONT_PANEL_MAX)
+        {
+            request.refusal = RefusalReason::ArgumentOutOfRange;
+            submitProgramRequest(session, std::move(request), std::move(completion));
+            return;
+        }
+        else
+        {
+            writer.appendByte(1);
+            writer.appendByte(static_cast<std::uint32_t>(*frontPanelNumber - 1));
+        }
+        request.command.data = writer.bytes();
+        submitProgramRequest(session, std::move(request), std::move(completion));
+    }
+
+    void getProgramNumber(Session& session, ProgramNumberCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::ProgramGetNumber, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           ProgramNumberResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::ProgramGetNumber, rep->data);
+                               if (values && values->size() == 2 && (*values)[0] != 0)
+                                   result.frontPanelNumber = static_cast<int>((*values)[1] + 1);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void addKeygroupsToProgram(Session& session, int count, CommandCompletion completion)
+    {
+        submitProgramRequest(session, makeRequest(ItemId::ProgramAddKeygroups, {static_cast<std::int64_t>(count)}),
+                             std::move(completion));
+    }
+
+    void deleteKeygroupFromProgram(Session& session, int keygroup, CommandCompletion completion)
+    {
+        submitProgramRequest(session, makeRequest(ItemId::ProgramDeleteKeygroup, {static_cast<std::int64_t>(keygroup)}),
+                             std::move(completion));
+    }
+
+    void setKeygroupCrossfade(Session& session, bool on, CommandCompletion completion)
+    {
+        submitProgramRequest(session, makeRequest(ItemId::ProgramSetCrossfade, {on ? 1 : 0}), std::move(completion));
+    }
+
+    void getProgramKeygroupCount(Session& session, ProgramKeygroupCountCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::ProgramGetKeygroupCount, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           ProgramKeygroupCountResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::ProgramGetKeygroupCount, rep->data);
+                               if (values && values->size() == 1)
+                                   result.count = static_cast<int>((*values)[0]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getKeygroupCrossfade(Session& session, ProgramCrossfadeCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::ProgramGetCrossfade, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           ProgramCrossfadeResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::ProgramGetCrossfade, rep->data);
+                               if (values && values->size() == 1)
+                                   result.enabled = (*values)[0] != 0;
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
 }
