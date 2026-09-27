@@ -413,8 +413,13 @@ This plan implements the tasks in the format specified below.
   other file — TASK-AKM-018 to 022's own mock tests keep their separate tables); this re-run of the
   simulated-sampler suite caught a real bug in the extension itself before it reached hardware: the first
   chosen rename target was 24 characters, over the observed 20-character limit, correctly refused — fixed
-  to 18. Not verified: the real S5000 — the owner runs `xs56k_akm_probe --suite --program-lifecycle`;
-  mutation testing (blocked, as in prior tasks).
+  to 18. **Run by the owner on a real S5000, 2026-09-27** (`akm-suite-20260927-184408.log`): checks 1-8
+  passed, including all 38 parameter items and the rename, round-tripped on real hardware on the first
+  try (OS 2.14, 50 Echo round trips 12-14 ms, matching the earlier observations); check 9 (the
+  fails-half-way check) failed on a real, previously unknown firmware behaviour, not a bug in the guard
+  itself: with 0 programs in memory, `&19` (names) answers ERROR 4, not an empty REPLY, while `&10`
+  (count) answers a normal 0 — recorded in the KB and fixed (see Assumptions). Mutation testing still
+  blocked, as in prior tasks.
 - **Assumptions**: The Program-lot checks are opt-in, unlike the plan's original wording ("extend
   `xs56k_akm_probe --suite`... this unlocks"), which did not say whether automatic or opt-in: made
   opt-in to keep the existing suite's own documented invariant ("changes only section 00 settings... never
@@ -428,6 +433,13 @@ This plan implements the tasks in the format specified below.
   nothing to navigate away to. A `SeededPrograms.hpp` test helper sends raw encoded §0A frames through
   `HostProbe` (mirroring `AwkwardSampler.hpp` for §00) to pre-load the simulated sampler before the suite
   runs, since the suite opens its own sessions and cannot be handed one already positioned.
+  `getAllProgramNames`/`getAllProgramNumbers` now normalize the real S5000's ERROR 4 on 0 programs to an
+  empty list (`outcome` still carries the raw ERROR, for a caller that wants it): `&18` was not directly
+  observed with 0 programs, only `&19`, and is assumed to match it on the strength of sharing the same
+  spec table and wording — worth confirming on its own if it ever matters. The simulated sampler was
+  updated to answer ERROR 4 for `&18`/`&19` with 0 programs, so the pre-existing "no programs" mock test
+  (`ProgramGeneralInfoTests.cpp`) still passes unchanged: it asserts the primitive's normalized result,
+  which the fix keeps identical.
 
 ---
 

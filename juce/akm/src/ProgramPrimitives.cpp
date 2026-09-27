@@ -25,6 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/ByteReader.hpp"
 #include "akm/ByteWriter.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/SamplerError.hpp"
 
 namespace akm
 {
@@ -39,6 +40,17 @@ namespace akm
         void submitProgramRequest(Session& session, CommandRequest request, CommandCompletion completion)
         {
             session.submit(std::move(request), std::move(completion));
+        }
+
+        // §0A's "all Programs in memory" replies (&18, &19) answer ERROR 4 (not found) instead of an
+        // empty REPLY when there are none, unlike &10 (Get Number of Programs), which answers a normal
+        // REPLY of 0 (observed on a real S5000, documents/_index/sysex_spec.kb.md, "Common value codes").
+        // getAllProgramNumbers/getAllProgramNames treat it as an empty list, not a failure, so both
+        // report "how many" the same way whether the sampler says so with data or with this error.
+        bool answersEmptyMemory(const CommandResult& outcome)
+        {
+            const auto* error = std::get_if<Error>(&outcome);
+            return error != nullptr && error->number == error_number::NOT_FOUND;
         }
     }
 
@@ -251,7 +263,9 @@ namespace akm
         session.submit(makeRequest(ItemId::ProgramGetAllNumbers, NO_VALUES, std::move(options)),
                        [completion = std::move(completion)](const CommandResult& outcome) {
                            AllProgramNumbersResult result{std::nullopt, outcome};
-                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           if (answersEmptyMemory(outcome))
+                               result.numbers = std::vector<std::optional<int>>{};
+                           else if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
                            {
                                ByteReader reader(rep->data);
                                std::vector<std::optional<int>> numbers;
@@ -283,7 +297,9 @@ namespace akm
         session.submit(makeRequest(ItemId::ProgramGetAllNames, NO_VALUES, std::move(options)),
                        [completion = std::move(completion)](const CommandResult& outcome) {
                            AllProgramNamesResult result{std::nullopt, outcome};
-                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           if (answersEmptyMemory(outcome))
+                               result.names = std::vector<std::string>{};
+                           else if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
                            {
                                ByteReader reader(rep->data);
                                result.names = reader.readStringList();

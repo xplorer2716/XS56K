@@ -110,6 +110,13 @@ Blocked (multi-request): 38 KG zone · 3A keygroup · 3C program · 3E multi.
 - Name fields (string, p8-9): the spec states no maximum length. Program name (§0A): observed capped
   at 20 characters on a real S5000 [owner, 2026-09-27] — not yet confirmed for other name fields
   (Sample, Multi, Disk file/folder).
+- §0A "all Programs in memory" replies (`&18`, `&19`): the spec is silent on what an empty memory (0
+  programs) answers. Observed on a real S5000 [owner, 2026-09-27]: `&19` (names) answers ERROR 4 (not
+  found), not an empty REPLY, when there are 0 programs; `&10` (Get Number of Programs) answers a normal
+  REPLY of 0 for the same state. `&18` (numbers) is not directly observed but is assumed to match `&19`
+  (same table, same "several Data fields... one set for every Program" wording) — TASK-AKM-024's
+  `getAllProgramNames`/`getAllProgramNumbers` normalize this ERROR to an empty list rather than
+  surfacing it as a failure, and the simulated sampler was updated to reproduce it.
 - MIDI channel 0–31 = 1A…16B · note 21–127 = A-1…G8 · pan 14–114 = L50…R50, centre 64.
 - Output (zone §06/&04): 0 MULTI, 1–8 op1/2…op15/16, 9–24 op1…op16. Output (multi part §0C/&14): 0–7 stereo pairs, 8–23 op1…op16.
 - FX send/override: 0 OFF, 1 FX1, 2 FX2, 3 RV3, 4 RV4.

@@ -392,6 +392,10 @@ namespace akm::harness
                 }
                 case ITEM_GET_ALL_NUMBERS:
                 {
+                    // Observed on a real S5000: ERROR 4 with 0 programs, not an empty REPLY, unlike &10
+                    // (documents/_index/sysex_spec.kb.md, "Common value codes").
+                    if (programs.empty())
+                        return failure(error_number::NOT_FOUND);
                     // One (enabled, wire number) pair per program, memory order (Table 14, footnote b).
                     akm::ByteWriter writer;
                     for (const ProgramRecord& program : programs)
@@ -405,6 +409,8 @@ namespace akm::harness
                 }
                 case ITEM_GET_ALL_NAMES:
                 {
+                    if (programs.empty())
+                        return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     for (const ProgramRecord& program : programs)
                         writer.appendString(program.name);
