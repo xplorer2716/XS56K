@@ -177,6 +177,10 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
   Confirmed on a real S5000, 2026-09-27 (`akm-suite-20260927-185917.log`, TASK-AKM-025): `&24`
   (Set Pan Mod Source, panMod 3) set to `02`, `&2C` (panMod 3) read back `02`; `&25` (Set Pan Mod
   Value, panMod 1) set to `01 0A`, `&2D` (panMod 1) read back `01 0A` — both round trips exact.
-- T11 `&64{100}` "Set Aux Env. Velocity→Rate (4 only)" [?] = Off Velocity→Rate (its Get &6C is "Off Velocity→Rate") (p17).
+- T11 `&64{100}` "Set Aux Env. Velocity→Rate (4 only)" = Off Velocity→Rate (its Get &6C is "Off
+  Velocity→Rate") (p17). Resolved (TASK-AKM-034): confirmed distinct from `&61`/`&69` on a real S5000,
+  2026-09-27 (`akm-suite-20260927-225906.log`) — `&61` (Aux Rate 4) set to sign 1/mag 99, `&64` (Aux Rate
+  4) set to sign 0/mag 5, then `&69` read back `1 99` and `&6C` read back `0 5`: independent storage,
+  not an alias.
 - T12 `&48`, `&5F` reply say "Off Velocity→Rate" while commands say "Off Velocity→Release" (p19).
 - §00 has no item &02 (not listed).

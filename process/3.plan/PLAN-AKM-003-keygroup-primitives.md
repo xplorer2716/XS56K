@@ -338,23 +338,22 @@ This plan implements the tasks in the format specified below.
   rather than re-proven per item. Keygroup 2 (not 1) is used for the main round trip, so the check does
   not rely on the untested assumption that keygroup 1 is what a fresh program defaults to (verified
   separately by TASK-AKM-026's own tests) — it explicitly selects 2 first. Not yet confirmed: the
-  `&64`/`&6C` "distinct parameter" reading (needs a differing-values round trip); the wrong-program
-  refusal for keygroup commands (this run had no original program to navigate back to, same as check 8's
-  own history).
+  wrong-program refusal for keygroup commands (this run had no original program to navigate back to,
+  same as check 8's own history). The `&64`/`&6C` "distinct parameter" reading was confirmed by a
+  follow-up cross-check (TASK-AKM-034).
 
 ---
 
 ### TASK-AKM-034: Coverage of section §08 and remaining errata resolution
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Confirm `generate_akm_items.py --coverage` reports section `08` complete with no row
   unaccounted for (80 command rows, 40 REPLY rows — already true as of TASK-AKM-032, which also resolved
   the one erratum needing no hardware: `&6C` numbered 107 instead of 108, via `KNOWN_DEC_ERRATA`, KB
-  updated). What remains here is confirming, by real-sampler observation (TASK-AKM-033), whether `&64`/
-  `&6C` ("Off Velocity->Rate", Aux Rate 4 only) is truly a parameter distinct from `&61`/`&69`
-  ("Velocity->Rate") or the same one under a second alias — the catalogue currently assumes distinct, by
-  analogy with the Filter/Amplitude Envelope groups' own On/Off Release pairs — and recording that
-  resolution in the KB.
+  updated). The remaining question — whether `&64`/`&6C` ("Off Velocity->Rate", Aux Rate 4 only) is a
+  parameter distinct from `&61`/`&69` ("Velocity->Rate") or the same one under a second alias — needed a
+  dedicated real-sampler cross-check (added to `keygroupsOnTestProgram`, observational only): set both
+  at Aux Rate 4 to different marker values, read both back.
 - **Requirement refs**: RQ-AKM-032
 - **ADR refs**: None
 - **Acceptance Criteria** (Gherkin): *Given* the 80 command rows and 40 REPLY rows of section `08`,
@@ -364,5 +363,9 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-AKM-027, TASK-AKM-028, TASK-AKM-029, TASK-AKM-030, TASK-AKM-031, TASK-AKM-032,
   TASK-AKM-033
 - **Assignee**: AI, with the owner running the real-sampler observation
-- **Verification**: N/A — not started
+- **Verification**: Confirmed on a real S5000, 2026-09-27 (`akm-suite-20260927-225906.log`): `&61`
+  (Aux Rate 4) set to sign 1/mag 99, `&64` (Aux Rate 4) set to sign 0/mag 5; read back, `&69` gave
+  `1 99` and `&6C` gave `0 5` — independent storage, confirming the catalogue's "distinct parameter"
+  reading. KB updated. `--coverage` already reported section `08` complete (TASK-AKM-032). Mutation
+  testing blocked, as in prior tasks.
 - **Assumptions**: None
