@@ -5,6 +5,7 @@
 add_library(xs56k_akm_test_support STATIC
     src/EchoScenario.cpp
     src/FirstContactProbe.cpp
+    src/KeygroupParameterCases.cpp
     src/ProgramParameterCases.cpp
     src/RealSamplerSuite.cpp
     src/ScenarioDriver.cpp

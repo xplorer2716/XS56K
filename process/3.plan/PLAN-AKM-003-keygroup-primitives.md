@@ -279,7 +279,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-033: Real-sampler test harness — keygroups of the dedicated test program
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: Extend `xs56k_akm_probe --suite` with the §08 checks this lot unlocks, reusing
   FTR-AKM-002's `GuardedTestProgram` (`XS56K_SUITE_TEST`): add keygroups to it, round-trip every Set/Get
   pair of TASK-AKM-027 to 032 on its keygroups, and exercise the keygroup-0 ("all") Get/Set shape of
@@ -295,8 +295,26 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-AKM-026, TASK-AKM-027, TASK-AKM-028, TASK-AKM-029, TASK-AKM-030, TASK-AKM-031,
   TASK-AKM-032; FTR-AKM-002 (TASK-AKM-024, `GuardedTestProgram`)
 - **Assignee**: AI, with the owner running the real-sampler suite
-- **Verification**: N/A — not started
-- **Assumptions**: None
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 418/418 (same pre-existing Python failure
+  excluded). New `KeygroupParameterCases.hpp/cpp` (39 Set/Get pairs, independent values from the six mock
+  test files' own tables, matching TASK-AKM-024's precedent for programs). New check
+  `keygroupsOnTestProgram`, gated by the existing `--program-lifecycle` flag (a third check alongside
+  TASK-AKM-024's two): adds 2 keygroups (count reads back 3), selects keygroup 2, round-trips all 39
+  items on it, selects keygroup 0 ("all"), sets Low Note once and reads it back for all 3 keygroups via
+  `getForAllKeygroups` (RQ-AKM-031 proven again, this time inside the real-sampler suite itself rather
+  than only a unit test), and exercises the wrong-program refusal for `selectKeygroup`. Two `[suite]`
+  mock tests updated (`AUTOMATIC_CHECKS + 2` → `+3`) and one added, proving the new check's findings
+  against the simulated sampler (KEEP1/KEEP2 scenario). **Not yet run by the owner on the real S5000** —
+  this is the one piece of TASK-AKM-033 that needs hardware, and it is what would confirm or correct the
+  `&64`/`&6C` "distinct parameter" assumption (TASK-AKM-032) and the "&48"/"&5F" erratum readings
+  (TASK-AKM-030, 031). Mutation testing blocked, as in prior tasks.
+- **Assumptions**: The wrong-program refusal is tested only for `selectKeygroup` (not for a keygroup-
+  level Set while a non-test, non-zero keygroup is merely selected) since `GuardedTestProgram`'s own
+  `expectOnTestProgram` already refuses **any** command while the current program is not the test one,
+  regardless of which keygroup — the same mechanism TASK-AKM-024 proved for §0A commands, reused as-is
+  rather than re-proven per item. Keygroup 2 (not 1) is used for the main round trip, so the check does
+  not rely on the untested assumption that keygroup 1 is what a fresh program defaults to (verified
+  separately by TASK-AKM-026's own tests) — it explicitly selects 2 first.
 
 ---
 

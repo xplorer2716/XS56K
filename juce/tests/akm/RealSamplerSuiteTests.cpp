@@ -628,7 +628,7 @@ TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected,
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
 
-    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 3);
     checkAllPassed(result);
     // expect()'s "as expected" lines go to the log, not to a check's own detail (built from finding()
     // calls only) - matching how the existing power-cycle tests read the same kind of assertion.
@@ -636,6 +636,25 @@ TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected,
     CHECK_THAT(log.str(), ContainsSubstring("refused before sending"));
     CHECK_THAT(log.str(), ContainsSubstring("the programs it held before (2)"));
     CHECK_THAT(log.str(), ContainsSubstring("the program that was current before is current again"));
+}
+
+TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected, When the suite runs with the program lifecycle checks, Then the keygroup check round-trips every section 08 item and only KEEP1 and KEEP2 remain [TASK-AKM-033, RQ-AKM-030, RQ-AKM-031, RQ-AKM-033]",
+          "[akm][suite]")
+{
+    Rig rig;
+    akm::test::seedPrograms(rig.backend, {"KEEP1", "KEEP2"}, 0);
+    RealSuiteOptions options = rig.options();
+    options.programLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 3);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "round-trip every §08 parameter item").detail,
+              ContainsSubstring("keygroup parameter items of the six groups round-tripped"));
+    // expect()'s "as expected" lines go to the log, not to a check's own detail, as above.
+    CHECK_THAT(log.str(), ContainsSubstring("all 3 keygroups read back Low Note 50"));
 }
 
 TEST_CASE("Given the default options, When the suite runs, Then it never sends a section 0A command, and the program lifecycle checks do not run [TASK-AKM-024, RQ-AKM-027]",
@@ -661,7 +680,7 @@ TEST_CASE("Given no program current when the suite runs with the program lifecyc
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
 
-    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 3);
     checkAllPassed(result);
     CHECK_THAT(reportOf(result, "reserved test name").detail,
               ContainsSubstring("wrong-program refusal is not exercised"));

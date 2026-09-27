@@ -86,9 +86,11 @@ namespace
         "  --slow-operation   with --suite, an extra check: it sends one command outside sections 00 and 02, \"update the\n"
         "                     list of disks\" (section 10, item 01), with Still Alive on, to see whether F0 F7\n"
         "                     messages reach this computer while the sampler works\n"
-        "  --program-lifecycle  with --suite, two extra checks: they create, change, select and delete a program\n"
-        "                     under the reserved name \"XS56K_SUITE_TEST\", and restore the program that was\n"
-        "                     current before (RQ-AKM-027) - the only checks that touch a stored program\n"
+        "  --program-lifecycle  with --suite, three extra checks: they create, change, select and delete a\n"
+        "                     program under the reserved name \"XS56K_SUITE_TEST\", add keygroups to it and\n"
+        "                     round-trip every section 08 item on them, and restore the program that was\n"
+        "                     current before (RQ-AKM-027, RQ-AKM-030, RQ-AKM-033) - the only checks that touch a\n"
+        "                     stored program\n"
         "  --timeout-ms       how long each step waits for an answer (default 3000)\n"
         "  --log              the log file (default akm-probe-<UTC date and time>.log, or akm-session-... with\n"
         "                     --session, or akm-suite-... with --suite, in this directory)\n"
@@ -312,8 +314,9 @@ int main(int argc, char** argv)
             if (arguments.powerCycle)
                 std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
             if (arguments.programLifecycle)
-                std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", and restore\n"
-                          << "the program that was current before; no other program, multi or sample is touched.\n";
+                std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", add\n"
+                          << "keygroups to it, round-trip every section 08 item on them, and restore the program that was\n"
+                          << "current before; no other program, multi or sample is touched.\n";
         }
         else if (arguments.session)
             std::cout << "The session smoke test will send SysEx frames to \"" << arguments.output << "\" and listen on \""

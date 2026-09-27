@@ -35,8 +35,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/CommandResult.hpp"
 #include "akm/ItemCatalogue.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
+#include "akm/harness/KeygroupParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/WireFormat.hpp"
 #include "akm/harness/WireLog.hpp"
@@ -422,6 +424,8 @@ namespace akm::harness
                           &Suite::programLifecycleOnTestProgram);
                     check("a program check that fails half way still deletes the test program and restores the selection",
                           &Suite::failedProgramCheckLeavesTheKnownState);
+                    check("add keygroups to the test program and round-trip every §08 parameter item, including keygroup 0 (all)",
+                          &Suite::keygroupsOnTestProgram);
                 }
             }
 
@@ -1046,6 +1050,110 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-028, RQ-AKM-030, RQ-AKM-031, RQ-AKM-033: keygroups added to the test program, every
+            // §08 parameter item round-tripped on one of them, then the keygroup-0 ("all") shape, and the
+            // wrong-program refusal for a keygroup-level command — the same guard as the program lifecycle
+            // check, so acting on a program the suite did not create is refused before sending.
+            void keygroupsOnTestProgram()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                GuardedTestProgram program(_rig, guarded.session());
+                finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+
+                program.expectOnTestProgram("add 2 keygroups", [](Session& session, CommandCompletion done) {
+                    addKeygroupsToProgram(session, 2, std::move(done));
+                });
+                const auto keygroupCountResult = awaitCompletion<ProgramKeygroupCountResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
+                        getProgramKeygroupCount(guarded.session(), std::move(done));
+                    });
+                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                    throw CheckFailure("could not read the keygroup count after adding keygroups");
+                const int keygroupCount = *keygroupCountResult->result.count;
+                expect(keygroupCount == 3, "the keygroup count read back is 3 (1 default + 2 added)");
+
+                program.expectOnTestProgram("select keygroup 2", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 2, std::move(done));
+                });
+                const auto currentResult = awaitCompletion<CurrentKeygroupResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](CurrentKeygroupCompletion done) { getCurrentKeygroup(guarded.session(), std::move(done)); });
+                expect(currentResult && currentResult->result.keygroup == 2, "keygroup 2 read back as current");
+
+                for (const KeygroupParameterCase& parameterCase : allKeygroupParameterCases())
+                {
+                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                    const std::string title(descriptor(parameterCase.setId).name);
+
+                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                    });
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                        });
+                    if (!timed)
+                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                    if (!succeeded(timed->result))
+                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                    const auto* replyData = std::get_if<Reply>(&timed->result);
+                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                    if (!decoded || *decoded != expectedValue)
+                        throw CheckFailure("get " + title + ": read back "
+                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                           + valuesText(expectedValue));
+                }
+                finding(std::to_string(allKeygroupParameterCases().size())
+                        + " keygroup parameter items of the six groups round-tripped on keygroup 2");
+
+                // RQ-AKM-031: keygroup 0 ("all") — Set Low Note once, Get it back for every keygroup.
+                program.expectOnTestProgram("select keygroup 0 (all)", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 0, std::move(done));
+                });
+                program.expectOnTestProgram("set Low Note for all keygroups", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::KeygroupSetLowNote, {50}), std::move(done));
+                });
+                const auto allResult = awaitCompletion<AllKeygroupsResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, keygroupCount](AllKeygroupsCompletion done) {
+                        getForAllKeygroups(guarded.session(), ItemId::KeygroupGetLowNote, keygroupCount, std::move(done));
+                    });
+                const bool allLowNote50 = allResult && allResult->result.values
+                                           && allResult->result.values->size() == static_cast<std::size_t>(keygroupCount)
+                                           && std::all_of(allResult->result.values->begin(), allResult->result.values->end(),
+                                                          [](const std::vector<std::int64_t>& record) {
+                                                              return record == std::vector<std::int64_t>{50};
+                                                          });
+                expect(allLowNote50, "all " + std::to_string(keygroupCount) + " keygroups read back Low Note 50");
+
+                if (program.hadOriginalProgram())
+                {
+                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                    bool refused = false;
+                    try
+                    {
+                        program.expectOnTestProgram("select keygroup 0 (on the wrong program)",
+                                                    [](Session& session, CommandCompletion done) {
+                                                        selectKeygroup(session, 0, std::move(done));
+                                                    });
+                    }
+                    catch (const CheckFailure&)
+                    {
+                        refused = true;
+                    }
+                    expect(refused, "selecting keygroup 0 on the program that is current but not the test one was refused before sending");
+                    expect(program.selectTestProgramAgain(), "reselected the test program");
+                }
+                else
+                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+
+                closeAndVerify(guarded);
+            }
+
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
@@ -1068,8 +1176,9 @@ namespace akm::harness
                 log.note("It also asks you to power-cycle the sampler while a session is open (--power-cycle).");
             if (options.programLifecycle)
                 log.note(std::string("It also creates, changes, selects and deletes a program under the reserved name \"")
-                         + std::string(TEST_PROGRAM_NAME) + "\" (--program-lifecycle, RQ-AKM-027): the only checks that touch a "
-                         + "stored program, and only one the suite created itself, always deleted again.");
+                         + std::string(TEST_PROGRAM_NAME) + "\" (--program-lifecycle, RQ-AKM-027), and adds keygroups to it to "
+                         + "round-trip every section 08 item (RQ-AKM-030, RQ-AKM-033): the only checks that touch a stored "
+                         + "program, and only one the suite created itself, always deleted again.");
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }
