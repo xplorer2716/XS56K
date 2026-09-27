@@ -33,8 +33,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/Command.hpp"
 #include "akm/CommandOptions.hpp"
 #include "akm/CommandResult.hpp"
+#include "akm/ItemCatalogue.hpp"
+#include "akm/ItemRequest.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
+#include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/WireFormat.hpp"
 #include "akm/harness/WireLog.hpp"
 
@@ -144,6 +147,14 @@ namespace akm::harness
         bool contains(const std::vector<SamplerSetting>& settings, SamplerSetting wanted)
         {
             return std::find(settings.begin(), settings.end(), wanted) != settings.end();
+        }
+
+        std::string valuesText(const std::vector<std::int64_t>& values)
+        {
+            std::string text;
+            for (const std::int64_t value : values)
+                text += (text.empty() ? "" : ", ") + std::to_string(value);
+            return "[" + text + "]";
         }
 
         // A session opened through `Session::open` and closed through `Session::close`, whatever becomes of the check
@@ -869,9 +880,10 @@ namespace akm::harness
             }
 
             // RQ-AKM-027: creates a program under the reserved test name (GuardedTestProgram's constructor),
-            // changes it (add keygroups, crossfade), proves expectOnTestProgram refuses once the current program is
-            // no longer the test one, then lets the guard delete it and restore the original selection — verified
-            // by the program count being back to what it was.
+            // changes it (add keygroups, crossfade, rename and back, every item of RQ-AKM-024's five parameter
+            // groups), proves expectOnTestProgram refuses once the current program is no longer the test one, then
+            // lets the guard delete it and restore the original selection — verified by the program count being
+            // back to what it was.
             void programLifecycleOnTestProgram()
             {
                 GuardedSession guarded(_rig);
@@ -904,6 +916,54 @@ namespace akm::harness
                         _rig.driver, _rig.commandPatience(),
                         [&guarded](ProgramCrossfadeCompletion done) { getKeygroupCrossfade(guarded.session(), std::move(done)); });
                     expect(crossfade && crossfade->result.enabled == true, "crossfade read back on");
+
+                    // RQ-AKM-021: rename, then rename back to the reserved name before anything else runs, so the
+                    // guard (which tracks its program by that name) can still find it if this or a later step throws.
+                    // Within the 20-character name limit observed on a real S5000 (kb.md, "Common value codes"):
+                    // TEST_PROGRAM_NAME is 16 characters, leaving room for "_2" but not a longer suffix.
+                    const std::string renamedTo = std::string(TEST_PROGRAM_NAME) + "_2";
+                    program.expectOnTestProgram("rename the test program", [&renamedTo](Session& session, CommandCompletion done) {
+                        renameCurrentProgram(session, renamedTo, std::move(done));
+                    });
+                    const auto renamedName = awaitCompletion<ProgramNameResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](ProgramNameCompletion done) { getCurrentProgramName(guarded.session(), std::move(done)); });
+                    expect(renamedName && renamedName->result.name == renamedTo, "the new name read back");
+                    const auto renameBack = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                            renameCurrentProgram(guarded.session(), std::string(TEST_PROGRAM_NAME), std::move(done));
+                        });
+                    if (!renameBack || !succeeded(renameBack->result))
+                        throw CheckFailure("could not rename the test program back to \"" + std::string(TEST_PROGRAM_NAME) + "\"");
+
+                    // RQ-AKM-024: every item of the five parameter groups, Set then Get, verified by read-back.
+                    for (const ProgramParameterCase& parameterCase : allProgramParameterCases())
+                    {
+                        const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                        const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                        const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                        const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                        const std::string title(descriptor(parameterCase.setId).name);
+
+                        program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                            session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                        });
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                            });
+                        if (!timed)
+                            throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                        if (!succeeded(timed->result))
+                            throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                        const auto* replyData = std::get_if<Reply>(&timed->result);
+                        const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                        if (!decoded || *decoded != expectedValue)
+                            throw CheckFailure("get " + title + ": read back "
+                                               + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                               + valuesText(expectedValue));
+                    }
+                    finding(std::to_string(allProgramParameterCases().size()) + " parameter items of the five groups round-tripped");
 
                     if (program.hadOriginalProgram())
                     {

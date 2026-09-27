@@ -407,9 +407,14 @@ This plan implements the tasks in the format specified below.
   *simulated* sampler by 3 new `[suite]` tests in `RealSamplerSuiteTests.cpp`: the KEEP1/KEEP2 scenario
   of RQ-AKM-027's own AC (both checks pass, the log shows the wrong-program refusal, the restored
   program count and name); the default suite still sends no section 0A command at all (unchanged
-  invariant); no program current at all skips the refusal half cleanly. Not verified: the real S5000 —
-  the owner runs `xs56k_akm_probe --suite --program-lifecycle`; mutation testing (blocked, as in prior
-  tasks).
+  invariant); no program current at all skips the refusal half cleanly. Extended (same session, owner's
+  request): `programLifecycleOnTestProgram` now also renames the test program (and back) and round-trips
+  all 38 Set/Get pairs of RQ-AKM-024's five parameter groups (`ProgramParameterCases.hpp`, shared with no
+  other file — TASK-AKM-018 to 022's own mock tests keep their separate tables); this re-run of the
+  simulated-sampler suite caught a real bug in the extension itself before it reached hardware: the first
+  chosen rename target was 24 characters, over the observed 20-character limit, correctly refused — fixed
+  to 18. Not verified: the real S5000 — the owner runs `xs56k_akm_probe --suite --program-lifecycle`;
+  mutation testing (blocked, as in prior tasks).
 - **Assumptions**: The Program-lot checks are opt-in, unlike the plan's original wording ("extend
   `xs56k_akm_probe --suite`... this unlocks"), which did not say whether automatic or opt-in: made
   opt-in to keep the existing suite's own documented invariant ("changes only section 00 settings... never
