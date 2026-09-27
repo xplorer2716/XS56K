@@ -456,11 +456,12 @@ namespace akm::harness
         // Each Set item of §08's parameter groups (RQ-AKM-030) has its Get at a fixed offset within its
         // group (spec Tables 11-12), the same contiguous-range shape as §0A's five (PARAMETER_GROUP_RANGES
         // above). One row per group, grown one at a time as TASK-AKM-027 to 032 catalogue each.
-        constexpr std::array<ParameterGroupRange, 4> KEYGROUP_PARAMETER_GROUP_RANGES{{
+        constexpr std::array<ParameterGroupRange, 5> KEYGROUP_PARAMETER_GROUP_RANGES{{
             {0x04, 0x09, 0x06},  // General Options
             {0x10, 0x14, 0x08},  // Pitch/Amp
             {0x20, 0x25, 0x08},  // Filter
             {0x30, 0x38, 0x10},  // Filter Envelope
+            {0x50, 0x57, 0x08},  // Amplitude Envelope
         }};
 
         // A Set while keygroup 0 ("all") is current writes every keygroup of the current program with the

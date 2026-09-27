@@ -189,6 +189,22 @@ namespace akm
         KeygroupGetFilterEnvKeyscale,
         KeygroupGetFilterEnvDepth,
         KeygroupGetFilterEnvOffVelocityToRelease,
+        KeygroupSetAmpEnvAttack,
+        KeygroupSetAmpEnvVelocityToAttack,
+        KeygroupSetAmpEnvDecay,
+        KeygroupSetAmpEnvSustain,
+        KeygroupSetAmpEnvRelease,
+        KeygroupSetAmpEnvOnVelocityToRelease,
+        KeygroupSetAmpEnvKeyscale,
+        KeygroupSetAmpEnvOffVelocityToRelease,
+        KeygroupGetAmpEnvAttack,
+        KeygroupGetAmpEnvVelocityToAttack,
+        KeygroupGetAmpEnvDecay,
+        KeygroupGetAmpEnvSustain,
+        KeygroupGetAmpEnvRelease,
+        KeygroupGetAmpEnvOnVelocityToRelease,
+        KeygroupGetAmpEnvKeyscale,
+        KeygroupGetAmpEnvOffVelocityToRelease,
     };
 
     namespace item_data
@@ -865,10 +881,66 @@ namespace akm
             {"sign", ValueFormat::Byte, 0, 1},
             {"magnitude", ValueFormat::Byte, 0, 100},
         }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_AMP_ENV_ATTACK_ARGS{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_AMP_ENV_VELOCITY_TO_ATTACK_ARGS{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_AMP_ENV_DECAY_ARGS{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_AMP_ENV_SUSTAIN_ARGS{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_SET_AMP_ENV_RELEASE_ARGS{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_AMP_ENV_ON_VELOCITY_TO_RELEASE_ARGS{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_AMP_ENV_KEYSCALE_ARGS{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_AMP_ENV_OFF_VELOCITY_TO_RELEASE_ARGS{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AMP_ENV_ATTACK_REPLY{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_AMP_ENV_VELOCITY_TO_ATTACK_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AMP_ENV_DECAY_REPLY{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AMP_ENV_SUSTAIN_REPLY{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AMP_ENV_RELEASE_REPLY{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_AMP_ENV_ON_VELOCITY_TO_RELEASE_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_AMP_ENV_KEYSCALE_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_AMP_ENV_OFF_VELOCITY_TO_RELEASE_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
     }
 
     /// Every record of the data file, indexed by ItemId.
-    inline constexpr std::array<ItemDescriptor, 158> ITEM_TABLE{{
+    inline constexpr std::array<ItemDescriptor, 174> ITEM_TABLE{{
         // section 00 item 00 [RQ-AKM-012]
         {"Query", 0x00, 0x00, ItemKind::Set, {}, {}},
         // section 00 item 01 [RQ-AKM-014]
@@ -1185,5 +1257,37 @@ namespace akm
         {"Get Filter Envelope Depth", 0x08, 0x47, ItemKind::Get, {}, item_data::KEYGROUP_GET_FILTER_ENV_DEPTH_REPLY},
         // section 08 item 48 [RQ-AKM-030, RQ-AKM-032]
         {"Get Filter Envelope Off Velocity->Release", 0x08, 0x48, ItemKind::Get, {}, item_data::KEYGROUP_GET_FILTER_ENV_OFF_VELOCITY_TO_RELEASE_REPLY},
+        // section 08 item 50 [RQ-AKM-030]
+        {"Set Amplitude Envelope Attack", 0x08, 0x50, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_ATTACK_ARGS, {}},
+        // section 08 item 51 [RQ-AKM-030]
+        {"Set Amplitude Envelope Velocity->Attack", 0x08, 0x51, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_VELOCITY_TO_ATTACK_ARGS, {}},
+        // section 08 item 52 [RQ-AKM-030]
+        {"Set Amplitude Envelope Decay", 0x08, 0x52, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_DECAY_ARGS, {}},
+        // section 08 item 53 [RQ-AKM-030]
+        {"Set Amplitude Envelope Sustain", 0x08, 0x53, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_SUSTAIN_ARGS, {}},
+        // section 08 item 54 [RQ-AKM-030]
+        {"Set Amplitude Envelope Release", 0x08, 0x54, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_RELEASE_ARGS, {}},
+        // section 08 item 55 [RQ-AKM-030]
+        {"Set Amplitude Envelope On Velocity->Release", 0x08, 0x55, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_ON_VELOCITY_TO_RELEASE_ARGS, {}},
+        // section 08 item 56 [RQ-AKM-030]
+        {"Set Amplitude Envelope Keyscale", 0x08, 0x56, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_KEYSCALE_ARGS, {}},
+        // section 08 item 57 [RQ-AKM-030, RQ-AKM-032]
+        {"Set Amplitude Envelope Off Velocity->Release", 0x08, 0x57, ItemKind::Set, item_data::KEYGROUP_SET_AMP_ENV_OFF_VELOCITY_TO_RELEASE_ARGS, {}},
+        // section 08 item 58 [RQ-AKM-030]
+        {"Get Amplitude Envelope Attack", 0x08, 0x58, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_ATTACK_REPLY},
+        // section 08 item 59 [RQ-AKM-030]
+        {"Get Amplitude Envelope Velocity->Attack", 0x08, 0x59, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_VELOCITY_TO_ATTACK_REPLY},
+        // section 08 item 5A [RQ-AKM-030]
+        {"Get Amplitude Envelope Decay", 0x08, 0x5A, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_DECAY_REPLY},
+        // section 08 item 5B [RQ-AKM-030]
+        {"Get Amplitude Envelope Sustain", 0x08, 0x5B, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_SUSTAIN_REPLY},
+        // section 08 item 5C [RQ-AKM-030]
+        {"Get Amplitude Envelope Release", 0x08, 0x5C, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_RELEASE_REPLY},
+        // section 08 item 5D [RQ-AKM-030]
+        {"Get Amplitude Envelope On Velocity->Release", 0x08, 0x5D, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_ON_VELOCITY_TO_RELEASE_REPLY},
+        // section 08 item 5E [RQ-AKM-030]
+        {"Get Amplitude Envelope Keyscale", 0x08, 0x5E, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_KEYSCALE_REPLY},
+        // section 08 item 5F [RQ-AKM-030, RQ-AKM-032]
+        {"Get Amplitude Envelope Off Velocity->Release", 0x08, 0x5F, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_OFF_VELOCITY_TO_RELEASE_REPLY},
     }};
 }

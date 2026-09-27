@@ -991,6 +991,94 @@
       "args": [],
       "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
       "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvAttack", "section": "08", "item": "50", "name": "Set Amplitude Envelope Attack", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvVelocityToAttack", "section": "08", "item": "51", "name": "Set Amplitude Envelope Velocity->Attack", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvDecay", "section": "08", "item": "52", "name": "Set Amplitude Envelope Decay", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvSustain", "section": "08", "item": "53", "name": "Set Amplitude Envelope Sustain", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvRelease", "section": "08", "item": "54", "name": "Set Amplitude Envelope Release", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvOnVelocityToRelease", "section": "08", "item": "55", "name": "Set Amplitude Envelope On Velocity->Release", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvKeyscale", "section": "08", "item": "56", "name": "Set Amplitude Envelope Keyscale", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpEnvOffVelocityToRelease", "section": "08", "item": "57", "name": "Set Amplitude Envelope Off Velocity->Release", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvAttack", "section": "08", "item": "58", "name": "Get Amplitude Envelope Attack", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvVelocityToAttack", "section": "08", "item": "59", "name": "Get Amplitude Envelope Velocity->Attack", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvDecay", "section": "08", "item": "5A", "name": "Get Amplitude Envelope Decay", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvSustain", "section": "08", "item": "5B", "name": "Get Amplitude Envelope Sustain", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvRelease", "section": "08", "item": "5C", "name": "Get Amplitude Envelope Release", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvOnVelocityToRelease", "section": "08", "item": "5D", "name": "Get Amplitude Envelope On Velocity->Release", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvKeyscale", "section": "08", "item": "5E", "name": "Get Amplitude Envelope Keyscale", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpEnvOffVelocityToRelease", "section": "08", "item": "5F", "name": "Get Amplitude Envelope Off Velocity->Release", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
     }
   ]
 }
