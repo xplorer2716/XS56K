@@ -129,7 +129,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-028: Keygroup Pitch/Amp group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `setSemitoneTune`/`getSemitoneTune` (`&10`/`&18`, sign + 0–36),
   `setFineTune`/`getFineTune` (`&11`/`&19`, sign + 0–50), `setKeygroupLevel`/`getKeygroupLevel`
   (`&12`/`&1A`, 0–10, −30 dB to +30 dB steps), `setPitchModValue`/`getPitchModValue` (`&13`/`&1B`,
@@ -143,8 +143,12 @@ This plan implements the tasks in the format specified below.
   test runs on the test program, *Then* it passes unchanged.
 - **Dependencies**: TASK-AKM-026
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: N/A — not started
-- **Assumptions**: None
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 408/408 (same pre-existing Python failure
+  excluded). `KeygroupPitchAmpTests.cpp` (2 cases): all five items round-trip, including both Pitch Mod
+  instances (1 and 2); a Pitch Mod selector of 3 is refused without sending. Not verified: real sampler
+  (deferred to TASK-AKM-033); mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `KEYGROUP_PARAMETER_GROUP_RANGES` grown by one row (`{0x10, 0x14, 0x08}`), no other
+  change to the engine TASK-AKM-027 introduced.
 
 ---
 

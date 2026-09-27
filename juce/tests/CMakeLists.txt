@@ -18,6 +18,7 @@ add_executable(xs56k_akm_tests
     akm/ItemCatalogueTests.cpp
     akm/KeygroupGeneralOptionsTests.cpp
     akm/KeygroupModSourcesParametersTests.cpp
+    akm/KeygroupPitchAmpTests.cpp
     akm/KeygroupPrimitivesTests.cpp
     akm/LfoParametersTests.cpp
     akm/LibraryInfoTests.cpp

@@ -771,6 +771,61 @@
       "args": [],
       "reply": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}],
       "requirements": ["RQ-AKM-029"]
+    },
+    {
+      "id": "KeygroupSetSemitoneTune", "section": "08", "item": "10", "name": "Set Semitone Tune", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetFineTune", "section": "08", "item": "11", "name": "Set Fine Tune", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetLevel", "section": "08", "item": "12", "name": "Set Keygroup Level", "kind": "set",
+      "args": [{"name": "value", "format": "byte", "min": 0, "max": 10}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetPitchModValue", "section": "08", "item": "13", "name": "Set Pitch Mod Value", "kind": "set",
+      "args": [{"name": "pitchMod", "format": "byte", "min": 1, "max": 2}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAmpModValue", "section": "08", "item": "14", "name": "Set Amp Mod Value", "kind": "set",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 1}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetSemitoneTune", "section": "08", "item": "18", "name": "Get Semitone Tune", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetFineTune", "section": "08", "item": "19", "name": "Get Fine Tune", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetLevel", "section": "08", "item": "1A", "name": "Get Keygroup Level", "kind": "get",
+      "args": [],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 10}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetPitchModValue", "section": "08", "item": "1B", "name": "Get Pitch Mod Value", "kind": "get",
+      "args": [{"name": "pitchMod", "format": "byte", "min": 1, "max": 2}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAmpModValue", "section": "08", "item": "1C", "name": "Get Amp Mod Value", "kind": "get",
+      "args": [{"name": "ampMod", "format": "byte", "min": 1, "max": 1}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
     }
   ]
 }
