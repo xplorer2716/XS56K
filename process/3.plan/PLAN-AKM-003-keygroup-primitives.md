@@ -235,7 +235,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-032: Aux Envelope group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `setAuxEnvRate`/`getAuxEnvRate` (`&60`/`&68`, Aux Rate 1–4, 0–100),
   `setAuxEnvVelocityToRate`/`getAuxEnvVelocityToRate` (`&61`/`&69`, Aux Rate 1 or 4, sign + 0–100),
   `setAuxEnvKeyboardToR2R4`/`getAuxEnvKeyboardToR2R4` (`&62`/`&6A`, sign + 0–100),
@@ -253,8 +253,27 @@ This plan implements the tasks in the format specified below.
   they alias the same stored value or are distinct is observed and recorded.
 - **Dependencies**: TASK-AKM-026
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: N/A — not started
-- **Assumptions**: None
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 417/417 (same pre-existing Python failure
+  excluded). `KeygroupAuxEnvelopeTests.cpp` (3 cases): all seven cases of the five items round-trip
+  (Aux Rate 1 and 4 both exercised); `&61`/`&64` proven to store independently in the mock (as the
+  catalogue's "distinct parameter" reading implies); Aux Rate 5 is refused without sending. Section 08
+  is now 80/80 commands, 40/40 REPLY formats — `items.json`'s section entry flipped to `complete: true`.
+  The `&6C` numbered-107 erratum surfaced immediately as a real `--coverage` failure once `&6C` was
+  catalogued (not deferred to TASK-AKM-034 as planned: a red `ctest` cannot wait) — fixed by adding
+  `KNOWN_DEC_ERRATA` to `generate_akm_items.py`, confirmed needing no hardware, KB updated. Not verified:
+  real sampler, in particular whether `&64`/`&6C` truly is distinct from `&61`/`&69` (TASK-AKM-033);
+  mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `&64`/`&6C` ("Off Velocity->Rate", Aux Rate 4 only) is catalogued as its own parameter,
+  distinct from `&61`/`&69` ("Velocity->Rate"), by analogy with the Filter and Amplitude Envelope groups'
+  own On/Off Velocity->Release pairs (both have exactly this shape: a general item plus a release/off-
+  only counterpart) — the spec's wording is consistent with this reading (`&6C`'s own REPLY name already
+  says "Off", unlike `&64`'s command name, which is the actual erratum: a missing "Off" prefix, not a
+  wrong "Rate" vs "Release" suffix like `&48`/`&5F`). TASK-AKM-033 confirms or corrects this on real
+  hardware; if wrong, the fix is a rename plus removing the two items from `KEYGROUP_PARAMETER_GROUP_RANGES`'s
+  generic treatment, not a redesign. `KNOWN_DEC_ERRATA` in `generate_akm_items.py` is a set of
+  `(section, item)` pairs, checked against the KB's own errata list — a new entry needs a matching KB
+  line, so the exception stays traceable to its documented reason rather than becoming a silent escape
+  hatch for future mismatches.
 
 ---
 
@@ -284,12 +303,14 @@ This plan implements the tasks in the format specified below.
 ### TASK-AKM-034: Coverage of section §08 and remaining errata resolution
 - **Tier**: M
 - **Status**: Not Started
-- **Description**: Add the 80 command rows and 40 REPLY rows of section `08` to `items.json` coverage
-  (or list an explicit exclusion reason for any row this lot does not implement) and run
-  `generate_akm_items.py --coverage` to confirm none is unaccounted for. Resolve the KB erratum not
-  already settled by TASK-AKM-030/031/032 in passing — `&6C` numbered 107 instead of 108 (a
-  documentation-only slip, confirmable from the TSV alone, no hardware needed) — and record every
-  §08 erratum's resolution in the KB in one place.
+- **Description**: Confirm `generate_akm_items.py --coverage` reports section `08` complete with no row
+  unaccounted for (80 command rows, 40 REPLY rows — already true as of TASK-AKM-032, which also resolved
+  the one erratum needing no hardware: `&6C` numbered 107 instead of 108, via `KNOWN_DEC_ERRATA`, KB
+  updated). What remains here is confirming, by real-sampler observation (TASK-AKM-033), whether `&64`/
+  `&6C` ("Off Velocity->Rate", Aux Rate 4 only) is truly a parameter distinct from `&61`/`&69`
+  ("Velocity->Rate") or the same one under a second alias — the catalogue currently assumes distinct, by
+  analogy with the Filter/Amplitude Envelope groups' own On/Off Release pairs — and recording that
+  resolution in the KB.
 - **Requirement refs**: RQ-AKM-032
 - **ADR refs**: None
 - **Acceptance Criteria** (Gherkin): *Given* the 80 command rows and 40 REPLY rows of section `08`,

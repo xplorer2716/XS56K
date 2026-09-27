@@ -17,9 +17,10 @@ add_executable(xs56k_akm_tests
     akm/FirstContactProbeTests.cpp
     akm/ItemCatalogueTests.cpp
     akm/KeygroupAmplitudeEnvelopeTests.cpp
-    akm/KeygroupGeneralOptionsTests.cpp
+    akm/KeygroupAuxEnvelopeTests.cpp
     akm/KeygroupFilterEnvelopeTests.cpp
     akm/KeygroupFilterTests.cpp
+    akm/KeygroupGeneralOptionsTests.cpp
     akm/KeygroupModSourcesParametersTests.cpp
     akm/KeygroupPitchAmpTests.cpp
     akm/KeygroupPrimitivesTests.cpp

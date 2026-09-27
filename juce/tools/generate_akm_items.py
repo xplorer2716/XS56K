@@ -335,6 +335,12 @@ def compare_values(owner, label, values, row):
     return problems, notes
 
 
+# (section, item) pairs where the spec's own decimal column disagrees with its hex one — a documented
+# transcription slip in the PDF itself (documents/_index/sysex_spec.kb.md, "Spec errata /
+# inconsistencies"), not a mistake in this catalogue: noted, not flagged as a problem.
+KNOWN_DEC_ERRATA = {("08", "6C")}  # &6C listed as decimal 107 (= &6B's own), should be 108 (T11/T12)
+
+
 def coverage(catalogue, spec):
     """Compares the data file with the spec rows; returns (report lines, problems)."""
     report, problems = [], []
@@ -360,10 +366,15 @@ def coverage(catalogue, spec):
         if command is None:
             problems.append(f"{owner}: no row for {section} &{item} in the spec table")
             continue
-        record_problems = []
+        record_problems, notes = [], []
         if int(command["dec"]) != int(item, 16):
-            record_problems.append(f"{owner}: the spec gives item {command['dec']} decimal, not {int(item, 16)}")
-        found, notes = compare_values(owner, "args", entry["args"], command)
+            message = f"{owner}: the spec gives item {command['dec']} decimal, not {int(item, 16)}"
+            if (section, item) in KNOWN_DEC_ERRATA:
+                notes.append(f"{message} (known spec erratum, not a catalogue problem)")
+            else:
+                record_problems.append(message)
+        found, more_notes = compare_values(owner, "args", entry["args"], command)
+        notes += more_notes
         record_problems += found
         if entry["kind"] == "get":
             reply = spec.get(("R", section, item))

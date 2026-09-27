@@ -205,6 +205,16 @@ namespace akm
         KeygroupGetAmpEnvOnVelocityToRelease,
         KeygroupGetAmpEnvKeyscale,
         KeygroupGetAmpEnvOffVelocityToRelease,
+        KeygroupSetAuxEnvRate,
+        KeygroupSetAuxEnvVelocityToRate,
+        KeygroupSetAuxEnvKeyboardToR2R4,
+        KeygroupSetAuxEnvLevel,
+        KeygroupSetAuxEnvOffVelocityToRate,
+        KeygroupGetAuxEnvRate,
+        KeygroupGetAuxEnvVelocityToRate,
+        KeygroupGetAuxEnvKeyboardToR2R4,
+        KeygroupGetAuxEnvLevel,
+        KeygroupGetAuxEnvOffVelocityToRate,
     };
 
     namespace item_data
@@ -937,10 +947,62 @@ namespace akm
             {"sign", ValueFormat::Byte, 0, 1},
             {"magnitude", ValueFormat::Byte, 0, 100},
         }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_AUX_ENV_RATE_ARGS{{
+            {"auxRate", ValueFormat::Byte, 1, 4},
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 3> KEYGROUP_SET_AUX_ENV_VELOCITY_TO_RATE_ARGS{{
+            {"auxRate", ValueFormat::Byte, 1, 4},
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_AUX_ENV_KEYBOARD_TO_R2_R4_ARGS{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_SET_AUX_ENV_LEVEL_ARGS{{
+            {"auxLevel", ValueFormat::Byte, 1, 4},
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 3> KEYGROUP_SET_AUX_ENV_OFF_VELOCITY_TO_RATE_ARGS{{
+            {"auxRate", ValueFormat::Byte, 4, 4},
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AUX_ENV_RATE_ARGS{{
+            {"auxRate", ValueFormat::Byte, 1, 4},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AUX_ENV_RATE_REPLY{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AUX_ENV_VELOCITY_TO_RATE_ARGS{{
+            {"auxRate", ValueFormat::Byte, 1, 4},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_AUX_ENV_VELOCITY_TO_RATE_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_AUX_ENV_KEYBOARD_TO_R2_R4_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AUX_ENV_LEVEL_ARGS{{
+            {"auxLevel", ValueFormat::Byte, 1, 4},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AUX_ENV_LEVEL_REPLY{{
+            {"value", ValueFormat::Byte, 0, 100},
+        }};
+        inline constexpr std::array<ValueSpec, 1> KEYGROUP_GET_AUX_ENV_OFF_VELOCITY_TO_RATE_ARGS{{
+            {"auxRate", ValueFormat::Byte, 4, 4},
+        }};
+        inline constexpr std::array<ValueSpec, 2> KEYGROUP_GET_AUX_ENV_OFF_VELOCITY_TO_RATE_REPLY{{
+            {"sign", ValueFormat::Byte, 0, 1},
+            {"magnitude", ValueFormat::Byte, 0, 100},
+        }};
     }
 
     /// Every record of the data file, indexed by ItemId.
-    inline constexpr std::array<ItemDescriptor, 174> ITEM_TABLE{{
+    inline constexpr std::array<ItemDescriptor, 184> ITEM_TABLE{{
         // section 00 item 00 [RQ-AKM-012]
         {"Query", 0x00, 0x00, ItemKind::Set, {}, {}},
         // section 00 item 01 [RQ-AKM-014]
@@ -1289,5 +1351,25 @@ namespace akm
         {"Get Amplitude Envelope Keyscale", 0x08, 0x5E, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_KEYSCALE_REPLY},
         // section 08 item 5F [RQ-AKM-030, RQ-AKM-032]
         {"Get Amplitude Envelope Off Velocity->Release", 0x08, 0x5F, ItemKind::Get, {}, item_data::KEYGROUP_GET_AMP_ENV_OFF_VELOCITY_TO_RELEASE_REPLY},
+        // section 08 item 60 [RQ-AKM-030]
+        {"Set Aux Env. Rate", 0x08, 0x60, ItemKind::Set, item_data::KEYGROUP_SET_AUX_ENV_RATE_ARGS, {}},
+        // section 08 item 61 [RQ-AKM-030]
+        {"Set Aux Env. Velocity->Rate", 0x08, 0x61, ItemKind::Set, item_data::KEYGROUP_SET_AUX_ENV_VELOCITY_TO_RATE_ARGS, {}},
+        // section 08 item 62 [RQ-AKM-030]
+        {"Set Aux Env. Keyboard->R2/R4", 0x08, 0x62, ItemKind::Set, item_data::KEYGROUP_SET_AUX_ENV_KEYBOARD_TO_R2_R4_ARGS, {}},
+        // section 08 item 63 [RQ-AKM-030]
+        {"Set Aux Env. Level", 0x08, 0x63, ItemKind::Set, item_data::KEYGROUP_SET_AUX_ENV_LEVEL_ARGS, {}},
+        // section 08 item 64 [RQ-AKM-030, RQ-AKM-032]
+        {"Set Aux Env. Off Velocity->Rate (Aux Rate 4 only)", 0x08, 0x64, ItemKind::Set, item_data::KEYGROUP_SET_AUX_ENV_OFF_VELOCITY_TO_RATE_ARGS, {}},
+        // section 08 item 68 [RQ-AKM-030]
+        {"Get Aux Env. Rate", 0x08, 0x68, ItemKind::Get, item_data::KEYGROUP_GET_AUX_ENV_RATE_ARGS, item_data::KEYGROUP_GET_AUX_ENV_RATE_REPLY},
+        // section 08 item 69 [RQ-AKM-030]
+        {"Get Aux Env. Velocity->Rate", 0x08, 0x69, ItemKind::Get, item_data::KEYGROUP_GET_AUX_ENV_VELOCITY_TO_RATE_ARGS, item_data::KEYGROUP_GET_AUX_ENV_VELOCITY_TO_RATE_REPLY},
+        // section 08 item 6A [RQ-AKM-030]
+        {"Get Aux Env. Keyboard->R2/R4", 0x08, 0x6A, ItemKind::Get, {}, item_data::KEYGROUP_GET_AUX_ENV_KEYBOARD_TO_R2_R4_REPLY},
+        // section 08 item 6B [RQ-AKM-030]
+        {"Get Aux Env. Level", 0x08, 0x6B, ItemKind::Get, item_data::KEYGROUP_GET_AUX_ENV_LEVEL_ARGS, item_data::KEYGROUP_GET_AUX_ENV_LEVEL_REPLY},
+        // section 08 item 6C [RQ-AKM-030, RQ-AKM-032]
+        {"Get Aux Env. Off Velocity->Rate (Aux Rate 4 only)", 0x08, 0x6C, ItemKind::Get, item_data::KEYGROUP_GET_AUX_ENV_OFF_VELOCITY_TO_RATE_ARGS, item_data::KEYGROUP_GET_AUX_ENV_OFF_VELOCITY_TO_RATE_REPLY},
     }};
 }

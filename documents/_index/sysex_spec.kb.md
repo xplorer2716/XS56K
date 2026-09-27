@@ -165,7 +165,9 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
 &03 data wheel: d1 0 fwd/1 back, d2 clicks 1–8 · &04 ASCII key. DONE = queued, not executed (T30 fn a).
 
 ## Spec errata / inconsistencies (checked against the PDF)
-- T11/T12 `&6C{107}` → &6C is 108 (T11 p18, T12 p19).
+- T11/T12 `&6C{107}` → &6C is 108 (T11 p18, T12 p19). Resolved (TASK-AKM-032): confirmable from the TSV
+  alone, no hardware needed — `juce/tools/generate_akm_items.py`'s `KNOWN_DEC_ERRATA` excepts `08 &6C`
+  from the item-vs-decimal sanity check that would otherwise flag it as a catalogue mistake.
 - T20 `&0E{13}` "Get the name of the specified disk" → &0E is 14 (p32).
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).

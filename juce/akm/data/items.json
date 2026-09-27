@@ -25,9 +25,9 @@
     {
       "section": "08",
       "name": "Keygroup",
-      "complete": false,
+      "complete": true,
       "spec": "Tables 11 and 12, pp. 15-19",
-      "note": "Started at TASK-AKM-026 with keygroup selection (RQ-AKM-028: &01, &02); the six Set/Get parameter groups of RQ-AKM-030 (TASK-AKM-027 to 032) follow."
+      "note": "Section 08 is fully catalogued as of TASK-AKM-032: keygroup selection (RQ-AKM-028: &01, &02) and the six Set/Get parameter groups of RQ-AKM-030 (General Options, Pitch/Amp, Filter, Filter Envelope, Amplitude Envelope, Aux Envelope; TASK-AKM-027 to 032), 80/80 command rows and 40/40 REPLY formats. `&64`/`&6C` (Aux Envelope) is catalogued as a parameter distinct from `&61`/`&69`, pending real-sampler confirmation (RQ-AKM-032, TASK-AKM-033)."
     }
   ],
   "items": [
@@ -1077,6 +1077,61 @@
     {
       "id": "KeygroupGetAmpEnvOffVelocityToRelease", "section": "08", "item": "5F", "name": "Get Amplitude Envelope Off Velocity->Release", "kind": "get",
       "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
+    },
+    {
+      "id": "KeygroupSetAuxEnvRate", "section": "08", "item": "60", "name": "Set Aux Env. Rate", "kind": "set",
+      "args": [{"name": "auxRate", "format": "byte", "min": 1, "max": 4}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAuxEnvVelocityToRate", "section": "08", "item": "61", "name": "Set Aux Env. Velocity->Rate", "kind": "set",
+      "args": [{"name": "auxRate", "format": "byte", "min": 1, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAuxEnvKeyboardToR2R4", "section": "08", "item": "62", "name": "Set Aux Env. Keyboard->R2/R4", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAuxEnvLevel", "section": "08", "item": "63", "name": "Set Aux Env. Level", "kind": "set",
+      "args": [{"name": "auxLevel", "format": "byte", "min": 1, "max": 4}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupSetAuxEnvOffVelocityToRate", "section": "08", "item": "64", "name": "Set Aux Env. Off Velocity->Rate (Aux Rate 4 only)", "kind": "set",
+      "args": [{"name": "auxRate", "format": "byte", "min": 4, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
+    },
+    {
+      "id": "KeygroupGetAuxEnvRate", "section": "08", "item": "68", "name": "Get Aux Env. Rate", "kind": "get",
+      "args": [{"name": "auxRate", "format": "byte", "min": 1, "max": 4}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAuxEnvVelocityToRate", "section": "08", "item": "69", "name": "Get Aux Env. Velocity->Rate", "kind": "get",
+      "args": [{"name": "auxRate", "format": "byte", "min": 1, "max": 4}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAuxEnvKeyboardToR2R4", "section": "08", "item": "6A", "name": "Get Aux Env. Keyboard->R2/R4", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAuxEnvLevel", "section": "08", "item": "6B", "name": "Get Aux Env. Level", "kind": "get",
+      "args": [{"name": "auxLevel", "format": "byte", "min": 1, "max": 4}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-030"]
+    },
+    {
+      "id": "KeygroupGetAuxEnvOffVelocityToRate", "section": "08", "item": "6C", "name": "Get Aux Env. Off Velocity->Rate (Aux Rate 4 only)", "kind": "get",
+      "args": [{"name": "auxRate", "format": "byte", "min": 4, "max": 4}],
       "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
       "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
     }
