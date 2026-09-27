@@ -241,7 +241,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-019: MIDI/Tune parameter group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Set/Get Semitone Tune (`&30`/`&38`), Fine Tune (`&31`/`&39`), Tune
   Template (`&32`/`&3A`), User Tune Template (`&33`/`&3B`, 12 chained ± values, one per semitone
   starting at C) and Key (`&34`/`&3C`) — 5 Set items, 5 Get items, 5 REPLY formats.
@@ -252,14 +252,18 @@ This plan implements the tasks in the format specified below.
   order (C first), and a 13th value or one outside ±50 is refused without sending.
 - **Dependencies**: TASK-AKM-015
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 377/377 (`MidiTuneParametersTests.cpp`, 1
+  table-driven test, all 5 items incl. the 24-value User Tune Template). Wrong-count/out-of-range
+  refusal not re-tested per item: already generic (`ItemCatalogueTests.cpp`). Not verified: real sampler
+  (TASK-AKM-024); mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `items.json` for this group was authored in TASK-AKM-018's commit; this task adds
+  only its test file.
 
 ---
 
 ### TASK-AKM-020: Pitch Bend parameter group (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Set/Get Pitch Bend Up (`&40`/`&48`), Pitch Bend Down (`&41`/`&49`), Bend
   Mode (`&42`/`&4A`), Aftertouch Value (`&43`/`&4B`), Legato (`&44`/`&4C`), Portamento Enable
   (`&45`/`&4D`), Portamento Mode (`&46`/`&4E`) and Portamento Time (`&47`/`&4F`) — 8 Set items, 8 Get
@@ -270,14 +274,17 @@ This plan implements the tasks in the format specified below.
   this group's 8 items.
 - **Dependencies**: TASK-AKM-015
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 377/377 (`PitchBendParametersTests.cpp`, 1
+  table-driven test, all 8 items). Not verified: real sampler (TASK-AKM-024); mutation testing (blocked,
+  as in prior tasks).
+- **Assumptions**: `items.json` for this group was authored in TASK-AKM-018's commit; this task adds
+  only its test file.
 
 ---
 
 ### TASK-AKM-021: LFO parameter groups (Set and Get, LFO 1 and 2)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Set/Get Rate, Delay, Depth, Waveform, Sync (LFO1 only)/Re-trigger (LFO2
   only), Rate/Delay/Depth Mod Source and Value, Modwheel (LFO1 only), Aftertouch (LFO1 only) and MIDI
   Clock Sync Enable/Division (LFO2 only) (`&50`–`&5F` Set, `&60`–`&6F` Get) — `<Data1>` selects LFO 1
@@ -291,14 +298,19 @@ This plan implements the tasks in the format specified below.
   for the other LFO's index, *Then* it is refused without sending.
 - **Dependencies**: TASK-AKM-015
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 377/377 (`LfoParametersTests.cpp`, 1
+  table-driven test round-tripping all 32 items across both LFOs where both apply, plus the dedicated
+  Sync/Re-trigger cross-LFO refusal test). Not verified: real sampler (TASK-AKM-024); mutation testing
+  (blocked, as in prior tasks).
+- **Assumptions**: `items.json` for this group was authored in TASK-AKM-018's commit; this task adds
+  only its test file. LFO1-only/LFO2-only items use a degenerate `min==max` selector range, refused
+  generically like any other out-of-range argument — no special-case code.
 
 ---
 
 ### TASK-AKM-022: Keygroup Modulation Sources parameter group (Set and Get)
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Set/Get Pitch Mod Source (Pitch Mod 1 or 2, `&70`/`&74`), Amp Mod Source
   (Amp Mod 1 only, `&71`/`&75`) and Filter Mod Input Source (Mod Input 1, 2 or 3, `&72`/`&76`) — 3 Set
   items, 3 Get items, 3 REPLY formats, each a modulation-source value 0–14 (Table 15).
@@ -308,8 +320,12 @@ This plan implements the tasks in the format specified below.
   this group's 3 items; a modulation source above 14 is refused without sending.
 - **Dependencies**: TASK-AKM-015
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: N/A — not started
-- **Assumptions**: None yet
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 377/377 (`KeygroupModSourcesParametersTests.cpp`,
+  2 tests: round trip of all 3 items, and the out-of-range refusal). Not verified: real sampler
+  (TASK-AKM-024); mutation testing (blocked, as in prior tasks).
+- **Assumptions**: `items.json` for this group was authored in TASK-AKM-018's commit; this task adds
+  only its test file. This closes the 5 parameter-group tasks (018-022): all 76 items of RQ-AKM-024 are
+  now catalogued and round-trip-proved on the simulated sampler.
 
 ---
 

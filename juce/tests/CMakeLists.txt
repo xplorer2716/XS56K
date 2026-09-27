@@ -16,8 +16,12 @@ add_executable(xs56k_akm_tests
     akm/ExecutorTests.cpp
     akm/FirstContactProbeTests.cpp
     akm/ItemCatalogueTests.cpp
+    akm/KeygroupModSourcesParametersTests.cpp
+    akm/LfoParametersTests.cpp
     akm/LibraryInfoTests.cpp
+    akm/MidiTuneParametersTests.cpp
     akm/OutputParametersTests.cpp
+    akm/PitchBendParametersTests.cpp
     akm/ProgramPrimitivesTests.cpp
     akm/RealSamplerSuiteTests.cpp
     akm/SamplerErrorTests.cpp
