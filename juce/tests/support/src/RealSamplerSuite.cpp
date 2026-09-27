@@ -1124,6 +1124,37 @@ namespace akm::harness
                 finding(std::to_string(allKeygroupParameterCases().size())
                         + " keygroup parameter items of the six groups round-tripped on keygroup 2");
 
+                // RQ-AKM-032: whether &61 (Velocity->Rate, Aux Rate 4) and &64 (Off Velocity->Rate, Aux Rate 4
+                // only) share one stored value or are independent — still open after TASK-AKM-033's first run,
+                // which never set both at Aux Rate 4. Observational only: it does not fail the check either way.
+                program.expectOnTestProgram("set Aux Env. Velocity->Rate (Aux Rate 4) to a marker value",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::KeygroupSetAuxEnvVelocityToRate, {4, 1, 99}),
+                                                               std::move(done));
+                                            });
+                program.expectOnTestProgram("set Aux Env. Off Velocity->Rate (Aux Rate 4) to a different marker value",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::KeygroupSetAuxEnvOffVelocityToRate, {4, 0, 5}),
+                                                               std::move(done));
+                                            });
+                const auto velocityToRateAgain = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(ItemId::KeygroupGetAuxEnvVelocityToRate, {4}), std::move(done));
+                    });
+                const auto offVelocityToRateAgain = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(ItemId::KeygroupGetAuxEnvOffVelocityToRate, {4}), std::move(done));
+                    });
+                const auto* velocityReply = velocityToRateAgain ? std::get_if<Reply>(&velocityToRateAgain->result) : nullptr;
+                const auto* offVelocityReply = offVelocityToRateAgain ? std::get_if<Reply>(&offVelocityToRateAgain->result) : nullptr;
+                const auto velocityDecoded = velocityReply ? decodeReply(ItemId::KeygroupGetAuxEnvVelocityToRate, velocityReply->data) : std::nullopt;
+                const auto offVelocityDecoded =
+                    offVelocityReply ? decodeReply(ItemId::KeygroupGetAuxEnvOffVelocityToRate, offVelocityReply->data) : std::nullopt;
+                finding("Aux Rate 4 cross-check: &69 (Velocity->Rate) reads "
+                        + (velocityDecoded ? valuesText(*velocityDecoded) : std::string("nothing decodable")) + ", &6C (Off Velocity->Rate) reads "
+                        + (offVelocityDecoded ? valuesText(*offVelocityDecoded) : std::string("nothing decodable"))
+                        + " -- distinct if 1 99 and 0 5 respectively, aliased if both read the same value");
+
                 // RQ-AKM-031: keygroup 0 ("all") — Set Low Note once, Get it back for every keygroup.
                 program.expectOnTestProgram("select keygroup 0 (all)", [](Session& session, CommandCompletion done) {
                     selectKeygroup(session, 0, std::move(done));
