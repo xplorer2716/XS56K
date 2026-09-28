@@ -172,7 +172,10 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
 - §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11).
-- T10 `&27{39}` labelled "Set Zone Semitone Tune" in a REPLY table (= Get) (p14).
+- T10 `&27{39}` labelled "Set Zone Semitone Tune" in a REPLY table (= Get) (p14). Resolved
+  (TASK-AKM-039): confirmed on a real S5000, 2026-09-28 (`akm-suite-20260928-182549.log`) — `&07`
+  (Set Zone Semitone Tune, zone 3) set to `01 0C`, `&27` read back `01 0C`: it is the Get, as the row's
+  own data columns already implied.
 - T14 `&2C/&2D` "Amp Pan Source/Value" = Pan Mod Source/Value (commands &24/&25/&2C/&2D are Pan Mod) (p24).
   Confirmed on a real S5000, 2026-09-27 (`akm-suite-20260927-185917.log`, TASK-AKM-025): `&24`
   (Set Pan Mod Source, panMod 3) set to `02`, `&2C` (panMod 3) read back `02`; `&25` (Set Pan Mod

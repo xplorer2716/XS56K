@@ -275,7 +275,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-039: Coverage of section §06 and remaining errata resolution
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Confirm `generate_akm_items.py --coverage` reports section `06` complete (28
   command rows, 14 REPLY rows, no row unaccounted for). Resolve the `&27` erratum (REPLY labelled
   "Set Zone Semitone Tune" where the Get is meant, `documents/_index/sysex_spec.kb.md` errata list) by
@@ -289,5 +289,13 @@ This plan implements the tasks in the format specified below.
   observation that supports it.
 - **Dependencies**: TASK-AKM-035, TASK-AKM-036, TASK-AKM-037, TASK-AKM-038
 - **Assignee**: AI, with the owner running the real-sampler observation
-- **Verification**: Not yet run.
-- **Assumptions**: None yet — recorded when the task starts.
+- **Verification**: `generate_akm_items.py --coverage` reports `section 06: 28 of 28 spec rows covered
+  (Keygroup Zone, complete)`, exit 0, no problems. The `&27` erratum's observation was already produced
+  by TASK-AKM-038's own real-sampler run (2026-09-28, `akm-suite-20260928-182549.log`, part of the
+  ordinary zone-parameter round trip: `&07` set to `01 0C`, `&27` read back `01 0C`) — no separate
+  hardware run was needed for this task. `documents/_index/sysex_spec.kb.md`'s errata list entry for
+  `T10 &27{39}` updated with the resolution and the log reference. `ctest` 433/433 (the same pre-existing
+  `akm_item_catalogue_script_tests` Python failure excluded) after the KB edit, confirming nothing else
+  changed. FTR-AKM-004 (RQ-AKM-034 to RQ-AKM-038) is now fully implemented and verified, closing
+  PLAN-AKM-004.
+- **Assumptions**: None.
