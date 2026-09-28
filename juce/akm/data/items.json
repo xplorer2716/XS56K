@@ -28,6 +28,13 @@
       "complete": true,
       "spec": "Tables 11 and 12, pp. 15-19",
       "note": "Section 08 is fully catalogued as of TASK-AKM-032: keygroup selection (RQ-AKM-028: &01, &02) and the six Set/Get parameter groups of RQ-AKM-030 (General Options, Pitch/Amp, Filter, Filter Envelope, Amplitude Envelope, Aux Envelope; TASK-AKM-027 to 032), 80/80 command rows and 40/40 REPLY formats. `&64`/`&6C` (Aux Envelope) is catalogued as a parameter distinct from `&61`/`&69`, pending real-sampler confirmation (RQ-AKM-032, TASK-AKM-033)."
+    },
+    {
+      "section": "06",
+      "name": "Keygroup Zone",
+      "complete": false,
+      "spec": "Tables 9 and 10, pp. 12-14",
+      "note": "TASK-AKM-035 catalogues the 13 non-sample Set/Get parameter items of RQ-AKM-034 (zone number 0-4 as the first argument of every item; a zone has no `current` selection state of its own, unlike Program/Keygroup). `&27`'s REPLY is catalogued as the Get despite its own command-table label reading \"Set Zone Semitone Tune\" (RQ-AKM-037 erratum). Sample assignment (RQ-AKM-035, &01/&21) is TASK-AKM-036's."
     }
   ],
   "items": [
@@ -1134,6 +1141,149 @@
       "args": [{"name": "auxRate", "format": "byte", "min": 4, "max": 4}],
       "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
       "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
+    },
+    {
+      "id": "ZoneSetLevel", "section": "06", "item": "02", "name": "Set Zone Level", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetPanBalance", "section": "06", "item": "03", "name": "Set Zone Pan/Balance", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "panBalance", "format": "byte", "min": 14, "max": 114}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetOutput", "section": "06", "item": "04", "name": "Set Zone Output", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "output", "format": "byte", "min": 0, "max": 24}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetFilter", "section": "06", "item": "05", "name": "Set Zone Filter", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetFineTune", "section": "06", "item": "06", "name": "Set Zone Fine Tune", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetSemitoneTune", "section": "06", "item": "07", "name": "Set Zone Semitone Tune", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetKeyboardTrack", "section": "06", "item": "08", "name": "Set Zone Keyboard Track", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetPlayback", "section": "06", "item": "09", "name": "Set Zone Playback", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "mode", "format": "byte", "min": 0, "max": 6}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetVelocityToStart", "section": "06", "item": "0A", "name": "Set Zone Velocity->Start", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitudeMsb", "format": "byte", "min": 0, "max": 127}, {"name": "magnitudeLsb", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetHighVelocity", "section": "06", "item": "0B", "name": "Set Zone High Velocity", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "velocity", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetLowVelocity", "section": "06", "item": "0C", "name": "Set Zone Low Velocity", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "velocity", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetMute", "section": "06", "item": "0D", "name": "Set Zone Mute", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneSetSolo", "section": "06", "item": "0E", "name": "Set Zone Solo", "kind": "set",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetLevel", "section": "06", "item": "22", "name": "Get Zone Level", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetPanBalance", "section": "06", "item": "23", "name": "Get Zone Pan/Balance", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "panBalance", "format": "byte", "min": 14, "max": 114}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetOutput", "section": "06", "item": "24", "name": "Get Zone Output", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "output", "format": "byte", "min": 0, "max": 24}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetFilter", "section": "06", "item": "25", "name": "Get Zone Filter", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetFineTune", "section": "06", "item": "26", "name": "Get Zone Fine Tune", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetSemitoneTune", "section": "06", "item": "27", "name": "Get Zone Semitone Tune", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-034", "RQ-AKM-037"]
+    },
+    {
+      "id": "ZoneGetKeyboardTrack", "section": "06", "item": "28", "name": "Get Zone Keyboard Track", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetPlayback", "section": "06", "item": "29", "name": "Get Zone Playback", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "mode", "format": "byte", "min": 0, "max": 6}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetVelocityToStart", "section": "06", "item": "2A", "name": "Get Zone Velocity->Start", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitudeMsb", "format": "byte", "min": 0, "max": 127}, {"name": "magnitudeLsb", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetHighVelocity", "section": "06", "item": "2B", "name": "Get Zone High Velocity", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "velocity", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetLowVelocity", "section": "06", "item": "2C", "name": "Get Zone Low Velocity", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "velocity", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetMute", "section": "06", "item": "2D", "name": "Get Zone Mute", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetSolo", "section": "06", "item": "2E", "name": "Get Zone Solo", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-034"]
     }
   ]
 }

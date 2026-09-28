@@ -46,7 +46,8 @@ add_executable(xs56k_akm_tests
     akm/SysExConfigTests.cpp
     akm/SystemVersionTests.cpp
     akm/ValueFormatTests.cpp
-    akm/WireLogTests.cpp)
+    akm/WireLogTests.cpp
+    akm/ZoneParametersTests.cpp)
 target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k_akm
     xs56k_akm_test_support

@@ -99,6 +99,10 @@ namespace akm::harness
         // A newly current program defaults to this keygroup (spec silent; TASK-AKM-026's assumption).
         constexpr int DEFAULT_CURRENT_KEYGROUP = 1;
 
+        // Section §06 (keygroup zone), spec Tables 9 and 10: the non-sample Set/Get parameter items of
+        // TASK-AKM-035 (RQ-AKM-034). Sample assignment (&01/&21, RQ-AKM-035) is TASK-AKM-036's.
+        constexpr std::uint8_t SECTION_ZONE = 0x06;
+
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
         constexpr std::size_t SECTION_AND_ITEM_SIZE = 2;
@@ -571,13 +575,98 @@ namespace akm::harness
             }
         }
 
-        // Only §00, the two version items of §02, the §0A items above and §08 keygroup selection are
-        // modelled. A byte after the data an item expects is ignored, as the spec says of a checksum sent
-        // while checksums are off.
+        // §06 zone parameters (RQ-AKM-034): the 13 non-sample Set/Get items (Level..Solo; &01 Sample is
+        // TASK-AKM-036's own String path), the same contiguous-range shape as §0A/§08 above, but stored in
+        // `KeygroupRecord::zoneParameters` rather than `parameters` (§06 and §08 item codes overlap) and
+        // keyed by the zone number the item's own args/reply already carry as their first byte — no extra
+        // "zone 0 = all four zones" fan-out here yet: not exercised by this task's acceptance criteria,
+        // left to TASK-AKM-037 (RQ-AKM-036) alongside the repeated-REPLY decode it needs on the client
+        // side. A Set/Get while keygroup 0 is current still fans out over every keygroup of the program,
+        // identically to `executeKeygroupParameterGroup`, since a zone acts on the *current keygroup*
+        // like any other §08 item (RQ-AKM-028). [TASK-AKM-035]
+        constexpr std::array<ParameterGroupRange, 1> ZONE_PARAMETER_GROUP_RANGES{{
+            {0x02, 0x0E, 0x20},  // Level .. Solo
+        }};
+
+        Outcome executeZoneParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                          const std::optional<std::size_t>& currentProgram,
+                                          const std::optional<int>& currentKeygroup)
+        {
+            for (const ParameterGroupRange& range : ZONE_PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    ProgramRecord& program = programs[*currentProgram];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_ZONE, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    if (*currentKeygroup == 0)
+                    {
+                        for (KeygroupRecord& keygroup : program.keygroups)
+                            keygroup.zoneParameters[{item, key}] = value;
+                    }
+                    else
+                    {
+                        program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)].zoneParameters[{item, std::move(key)}] =
+                            std::move(value);
+                    }
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    const ProgramRecord& program = programs[*currentProgram];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_ZONE, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    const auto valueOf = [&](const KeygroupRecord& keygroup) {
+                        const auto found = keygroup.zoneParameters.find({setItem, key});
+                        return found != keygroup.zoneParameters.end() ? found->second : Bytes(valueWidth, 0);
+                    };
+                    if (*currentKeygroup == 0)
+                    {
+                        Bytes concatenated;
+                        for (const KeygroupRecord& keygroup : program.keygroups)
+                        {
+                            const Bytes value = valueOf(keygroup);
+                            concatenated.insert(concatenated.end(), value.begin(), value.end());
+                        }
+                        return reply(std::move(concatenated));
+                    }
+                    return reply(valueOf(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
+        // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection and §06's
+        // non-sample parameters (RQ-AKM-034) are modelled. A byte after the data an item expects is
+        // ignored, as the spec says of a checksum sent while checksums are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion, std::vector<ProgramRecord>& programs,
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup)
         {
+            if (section == SECTION_ZONE)
+                return executeZoneParameterGroup(item, data, programs, currentProgram, currentKeygroup);
             if (section == SECTION_SYSTEM)
                 return executeSystem(item, osVersion);
             if (section == SECTION_PROGRAM)

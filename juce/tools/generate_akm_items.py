@@ -309,7 +309,13 @@ def spec_domains(row):
         return []
     domains = [first]
     if second != "N/A":
-        domains.append(second)
+        # "second" itself is a domain only when it carries content of its own before any embedded
+        # <DataN> reference (e.g. a Set row's "0, 1 ; <Data3>(MSB) ; <Data4>(LSB)", where the leading
+        # "0, 1" is the sign field). When it starts with a marker (a REPLY row's own "<Data2>(MSB) ;
+        # <Data3>(LSB)", the sign already given its own column in "first"), that leading content does
+        # not exist and "second" would otherwise be counted as a spurious extra domain.
+        if not second.startswith("<Data"):
+            domains.append(second)
         # "=" is not always there before the range (e.g. "<Data3>0-100", &23's own column, no "=").
         for marker in re.finditer(r"<Data(\d+)>=?\s*([^;]*)", second):
             domains.append(marker.group(2))

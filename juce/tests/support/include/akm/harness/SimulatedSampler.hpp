@@ -128,6 +128,11 @@ namespace akm::harness
     struct KeygroupRecord
     {
         std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
+        /// The §06 zone parameters (RQ-AKM-034), stored the same generic way but kept in a map of its
+        /// own: §06 and §08 item codes overlap (both have a &04, for instance), so a shared map would
+        /// collide. Keyed by (the group's Set item code, the zone number byte 0-4), holding the value
+        /// bytes; read back by the paired Get item. [TASK-AKM-035]
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> zoneParameters;
     };
 
     /// One program in the sampler's memory (§0A, spec Tables 13-14): only what TASK-AKM-015's lifecycle
