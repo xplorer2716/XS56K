@@ -132,10 +132,10 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // complete, TASK-AKM-023's guarded &07 included), TASK-AKM-026 to 032 added section 08's selection
     // (2), General Options (12), Pitch/Amp (10), Filter (12), Filter Envelope (18), Amplitude Envelope
     // (16) and Aux Envelope (10) — complete too (80/80 commands, 40/40 REPLY formats) — and TASK-AKM-035
-    // added section 06's 13 non-sample zone parameters, 26 records (Level..Solo, Set and Get; sample
-    // assignment is TASK-AKM-036's) — which this count includes without tracking them here too (see
-    // ProgramPrimitivesTests.cpp and the other test files).
-    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 26;
+    // to 036 added section 06's 28 records: the 13 non-sample zone parameters (Level..Solo, Set and Get)
+    // and sample assignment by name (&01/&21) — 06 now complete too (28/28 commands) — which this count
+    // includes without tracking them here too (see ProgramPrimitivesTests.cpp and the other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
@@ -145,10 +145,11 @@ TEST_CASE("Given a section and an item, When looked up, Then a record is found a
     for (const Expected& expected : CATALOGUE)
         CHECK(akm::findItem(expected.section, expected.item) == &akm::descriptor(expected.id));
 
-    // Section 00 has no item 02 (the spec skips it); sections 0A (TASK-AKM-023) and 08 (TASK-AKM-032)
-    // are now both complete, so this uses section 06 (Keygroup Zone), not yet catalogued (FTR-AKM-004).
+    // Section 00 has no item 02 (the spec skips it); sections 0A (TASK-AKM-023), 08 (TASK-AKM-032) and
+    // 06 (TASK-AKM-036) are now all complete, so this uses section 02 (System), still partial: only its
+    // two version items (RQ-AKM-044) are catalogued, not &02.
     CHECK(akm::findItem(0x00, 0x02) == nullptr);
-    CHECK(akm::findItem(0x06, 0x01) == nullptr);
+    CHECK(akm::findItem(0x02, 0x02) == nullptr);
     // The same item code in another section is another item.
     CHECK(akm::findItem(0x02, 0x06) == nullptr);
 }

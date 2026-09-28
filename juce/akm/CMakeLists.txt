@@ -27,6 +27,7 @@ add_library(xs56k_akm STATIC
     src/SysExConfig.cpp
     src/SystemVersion.cpp
     src/ThreadExecutor.cpp
-    src/TimerQueue.cpp)
+    src/TimerQueue.cpp
+    src/ZonePrimitives.cpp)
 target_include_directories(xs56k_akm PUBLIC include)
 target_link_libraries(xs56k_akm PUBLIC xs56k_midi Threads::Threads PRIVATE xs56k::warnings)

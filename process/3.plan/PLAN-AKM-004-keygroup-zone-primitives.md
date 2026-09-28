@@ -111,7 +111,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-036: Zone sample assignment by name
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `Set Zone Sample` (`&01`, zone number + name as `ValueFormat::String`, reusing
   `makeStringRequest`/DEC-AKM-013) and `Get Zone Sample` (`&21`, `decodeStringReply`), reporting
   ERROR `04` as "sample not found (<name>)" and the REPLY's single byte `00` case as "no sample
@@ -127,8 +127,38 @@ This plan implements the tasks in the format specified below.
   without sending.
 - **Dependencies**: None
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: Not yet run.
-- **Assumptions**: None yet — recorded when the task starts.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 426/426 (the same pre-existing
+  `akm_item_catalogue_script_tests` Python failure excluded). `ZoneSampleTests.cpp` (5 cases): a
+  configured sample (`KICK`) assigns and reads back, the frame's data checked byte for byte (`01 4B 49
+  43 4B 00`); an unset zone's Get returns an empty (present, not absent) name — the single-`00`-byte
+  REPLY; an unconfigured name fails ERROR 04; a byte above `7F` is refused without sending
+  (`RefusalReason::NotEncodable`); a zone outside 0-4 is refused without sending
+  (`ArgumentOutOfRange`). `--coverage` now reports section `06` 28/28 (complete). Two other tests needed
+  updating for reasons unrelated to this task's own logic but caused by it: `ItemCatalogueTests.cpp`'s
+  total-item-count assertion (+2, one already anticipated in TASK-AKM-035's own commit) and its
+  "an item of the spec that is not catalogued" negative example, which had used section 06 item `01` —
+  now catalogued — swapped for section 02 item `02` (still partial, only its two version items are
+  catalogued). Not verified: real sampler (deferred to TASK-AKM-038); mutation testing (blocked, as in
+  prior tasks).
+- **Assumptions**: The sample name's length bound (`0-255`, `STRING_MAX_LENGTH`) is the generator's
+  generic structural ceiling, not a real hardware limit — unlike Program names (0-20), no owner
+  observation exists yet for Sample names (DEC-AKM-013 says each name field keeps its own bound "when
+  their lot catalogues them"); TASK-AKM-038/039's real-sampler run is where this gets confirmed or
+  tightened, the same way Program's 20-character bound was found. `setZoneSample`/`getZoneSample` are
+  hand-written wrappers (`ZonePrimitives.hpp/.cpp`, a new file pair, registered in
+  `juce/akm/CMakeLists.txt`) rather than going through `makeRequest`/`makeStringRequest`, because
+  neither fits the byte+String mixed shape — the same reason `createProgramWithKeygroups` (§0A/&03)
+  already bypasses them; `RQ-AKM-035`'s own "IF ERROR 04 THEN report it as 'sample not found' with the
+  name given" is left undecorated at this layer, matching `selectProgramByName`'s own ERROR 04
+  precedent (TASK-AKM-026's assumption): the caller already holds the name and composes that text
+  itself from the raw `Error`. `SimulatedSampler` gained a `setSampleNames` knob (empty by default,
+  mirroring `setBehaviour`) and a dedicated `executeZone` dispatch for `&01`/`&21` ahead of
+  `executeZoneParameterGroup`, storing the encoded name (with its `00` terminator) in the existing
+  `zoneParameters` map under the *Set* item's own code — an unset zone's default (`Bytes{0}`, a lone
+  terminator) already decodes as "no sample assigned" with no separate code path needed. Keygroup 0
+  ("all") fan-out is deliberately not modelled for this item (`executeZone` fails `NOT_FOUND` instead):
+  RQ-AKM-035's own acceptance criteria never exercise it, unlike the 13 numeric items, which get it for
+  free from the shared `executeZoneParameterGroup` code.
 
 ---
 

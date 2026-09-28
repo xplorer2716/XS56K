@@ -184,6 +184,11 @@ namespace akm::harness
         void setBehaviour(SamplerBehaviour behaviour);
         [[nodiscard]] SamplerBehaviour behaviour() const;
 
+        /// The sample names §06/&01 (Set Zone Sample) accepts; assigning any other name fails with
+        /// ERROR 04, the spec's "requested item not found" (RQ-AKM-035). Empty by default: a test that
+        /// wants a successful assignment must call this first, like `setBehaviour`.
+        void setSampleNames(std::vector<std::string> names);
+
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.
         void powerCycle();
@@ -207,6 +212,7 @@ namespace akm::harness
         mutable std::mutex _mutex;
         SamplerBehaviour _behaviour;
         SamplerSettings _settings;
+        std::vector<std::string> _sampleNames;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
 

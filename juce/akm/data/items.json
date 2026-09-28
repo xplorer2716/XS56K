@@ -32,9 +32,9 @@
     {
       "section": "06",
       "name": "Keygroup Zone",
-      "complete": false,
+      "complete": true,
       "spec": "Tables 9 and 10, pp. 12-14",
-      "note": "TASK-AKM-035 catalogues the 13 non-sample Set/Get parameter items of RQ-AKM-034 (zone number 0-4 as the first argument of every item; a zone has no `current` selection state of its own, unlike Program/Keygroup). `&27`'s REPLY is catalogued as the Get despite its own command-table label reading \"Set Zone Semitone Tune\" (RQ-AKM-037 erratum). Sample assignment (RQ-AKM-035, &01/&21) is TASK-AKM-036's."
+      "note": "Section 06 is fully catalogued as of TASK-AKM-036: the 13 non-sample Set/Get parameter items of RQ-AKM-034 (TASK-AKM-035; zone number 0-4 as the first argument of every item, a zone has no `current` selection state of its own, unlike Program/Keygroup) and sample assignment by name (RQ-AKM-035, &01/&21, TASK-AKM-036) — 28/28 command rows. `&27`'s REPLY is catalogued as the Get despite its own command-table label reading \"Set Zone Semitone Tune\" (RQ-AKM-037 erratum, pending real-sampler confirmation, TASK-AKM-039)."
     }
   ],
   "items": [
@@ -1143,6 +1143,14 @@
       "requirements": ["RQ-AKM-030", "RQ-AKM-032"]
     },
     {
+      "id": "ZoneSetSample", "section": "06", "item": "01", "name": "Set Zone Sample", "kind": "set",
+      "args": [
+        {"name": "zone", "format": "byte", "min": 0, "max": 4},
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-035"]
+    },
+    {
       "id": "ZoneSetLevel", "section": "06", "item": "02", "name": "Set Zone Level", "kind": "set",
       "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 100}],
       "requirements": ["RQ-AKM-034"]
@@ -1206,6 +1214,12 @@
       "id": "ZoneSetSolo", "section": "06", "item": "0E", "name": "Set Zone Solo", "kind": "set",
       "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
       "requirements": ["RQ-AKM-034"]
+    },
+    {
+      "id": "ZoneGetSample", "section": "06", "item": "21", "name": "Get Zone Sample", "kind": "get",
+      "args": [{"name": "zone", "format": "byte", "min": 0, "max": 4}],
+      "reply": [{"name": "name", "format": "string", "min": 0, "max": 255}],
+      "requirements": ["RQ-AKM-035"]
     },
     {
       "id": "ZoneGetLevel", "section": "06", "item": "22", "name": "Get Zone Level", "kind": "get",

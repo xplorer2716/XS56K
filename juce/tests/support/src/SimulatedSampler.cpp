@@ -100,8 +100,10 @@ namespace akm::harness
         constexpr int DEFAULT_CURRENT_KEYGROUP = 1;
 
         // Section §06 (keygroup zone), spec Tables 9 and 10: the non-sample Set/Get parameter items of
-        // TASK-AKM-035 (RQ-AKM-034). Sample assignment (&01/&21, RQ-AKM-035) is TASK-AKM-036's.
+        // TASK-AKM-035 (RQ-AKM-034) and sample assignment by name (TASK-AKM-036, RQ-AKM-035).
         constexpr std::uint8_t SECTION_ZONE = 0x06;
+        constexpr std::uint8_t ITEM_SET_ZONE_SAMPLE = 0x01;
+        constexpr std::uint8_t ITEM_GET_ZONE_SAMPLE = 0x21;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -658,15 +660,66 @@ namespace akm::harness
             return failure(error_number::NOT_SUPPORTED);
         }
 
+        // §06/&01 (Set Zone Sample) and &21 (Get Zone Sample), RQ-AKM-035: a String value, so it is
+        // decoded/encoded by hand here rather than through the generic byte-width mechanism
+        // `executeZoneParameterGroup` uses for the other 13 items — the same reason `setZoneSample`
+        // itself does not go through `makeStringRequest` (ADR-AKM-001, DEC-AKM-013). `sampleNames` models
+        // the sampler's own sample memory: assigning a name not in it fails as ERROR 04 ("requested item
+        // not found"), the spec's own wording for the case. Stored in `zoneParameters` too, keyed by the
+        // Set item so a Get finds it the same way, value bytes being the encoded name plus its `00`
+        // terminator — so an unset zone's default (`Bytes{0}`, a lone terminator) already decodes as the
+        // spec's "no sample assigned" REPLY without a separate code path. Keygroup 0 ("all") is not
+        // modelled for this item: not exercised by RQ-AKM-035's own acceptance criteria, unlike the
+        // numeric zone items, which get it "for free" from `executeZoneParameterGroup`'s shared code.
+        Outcome executeZone(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                            const std::optional<std::size_t>& currentProgram, const std::optional<int>& currentKeygroup,
+                            const std::vector<std::string>& sampleNames)
+        {
+            switch (item)
+            {
+                case ITEM_SET_ZONE_SAMPLE:
+                {
+                    if (!currentProgram || !currentKeygroup || *currentKeygroup == 0)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto zone = reader.readByte();
+                    const auto name = reader.readString();
+                    if (!zone || !name)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (std::find(sampleNames.begin(), sampleNames.end(), *name) == sampleNames.end())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(*name);
+                    programs[*currentProgram].keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]
+                        .zoneParameters[{ITEM_SET_ZONE_SAMPLE, Bytes{*zone}}] = writer.bytes();
+                    return done();
+                }
+                case ITEM_GET_ZONE_SAMPLE:
+                {
+                    if (!currentProgram || !currentKeygroup || *currentKeygroup == 0)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    const KeygroupRecord& keygroup =
+                        programs[*currentProgram].keygroups[static_cast<std::size_t>(*currentKeygroup - 1)];
+                    const auto found = keygroup.zoneParameters.find({ITEM_SET_ZONE_SAMPLE, Bytes{data.front()}});
+                    return reply(found != keygroup.zoneParameters.end() ? found->second : Bytes{0});
+                }
+                default:
+                    return executeZoneParameterGroup(item, data, programs, currentProgram, currentKeygroup);
+            }
+        }
+
         // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection and §06's
-        // non-sample parameters (RQ-AKM-034) are modelled. A byte after the data an item expects is
+        // parameters (RQ-AKM-034, RQ-AKM-035) are modelled. A byte after the data an item expects is
         // ignored, as the spec says of a checksum sent while checksums are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion, std::vector<ProgramRecord>& programs,
-                        std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup)
+                        std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
+                        const std::vector<std::string>& sampleNames)
         {
             if (section == SECTION_ZONE)
-                return executeZoneParameterGroup(item, data, programs, currentProgram, currentKeygroup);
+                return executeZone(item, data, programs, currentProgram, currentKeygroup, sampleNames);
             if (section == SECTION_SYSTEM)
                 return executeSystem(item, osVersion);
             if (section == SECTION_PROGRAM)
@@ -727,6 +780,12 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         _behaviour = std::move(behaviour);
+    }
+
+    void SimulatedSampler::setSampleNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _sampleNames = std::move(names);
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
@@ -872,7 +931,7 @@ namespace akm::harness
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
                                     : execute(section, item, data, _settings, _config.osVersion, _programs, _currentProgram,
-                                              _currentKeygroup);
+                                              _currentKeygroup, _sampleNames);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)
