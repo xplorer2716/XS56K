@@ -780,16 +780,20 @@ namespace akm::harness
         Bytes buildConfirmation(std::uint8_t deviceByte, const Bytes& userRefs, std::uint8_t replyId, std::uint8_t section,
                                 std::uint8_t item, const Bytes& data, bool withChecksum)
         {
-            Bytes frame{common::midi::SYSEX_START, AKAI_MANUFACTURER_ID, SAMPLER_MODEL_ID, deviceByte};
-            frame.insert(frame.end(), userRefs.begin(), userRefs.end());
-            frame.push_back(replyId);
-            frame.push_back(section);
-            frame.push_back(item);
-            frame.insert(frame.end(), data.begin(), data.end());
-            if (withChecksum)
-                frame.push_back(checksum(std::span<const std::uint8_t>(frame).subspan(FIRST_USER_REF_INDEX)));
-            frame.push_back(common::midi::SYSEX_END);
-            return frame;
+    Bytes frame{common::midi::SYSEX_START, AKAI_MANUFACTURER_ID, SAMPLER_MODEL_ID, deviceByte};
+    if (!userRefs.empty())  {// Add this guard
+        frame.insert(frame.end(), userRefs.begin(), userRefs.end());
+    }
+    frame.push_back(replyId);
+    frame.push_back(section);
+    frame.push_back(item);
+    if (!data.empty())  // Also add this guard for consistency
+        frame.insert(frame.end(), data.begin(), data.end());
+    if (withChecksum) {
+        frame.push_back(checksum(std::span<const std::uint8_t>(frame).subspan(FIRST_USER_REF_INDEX)));
+    }
+    frame.push_back(common::midi::SYSEX_END);
+    return frame;
         }
     }
 
