@@ -68,8 +68,8 @@ RQ-BLD-009|115-123||Commit-derived version, single derivation
 RQ-BLD-010|124-132||Production cut by an explicit manual action
 RQ-BLD-013|133-142|Satisfied — TASK-BLD-009 (code, CMake, CI) and TASK-BLD-010 (process artifacts, `AGENTS.md`); see their Verification fields for what was and was not exercised.|No project prefix inherited from XplorerEditor
 RQ-BLD-014|143-152|Satisfied for the canary workflows — TASK-BLD-011 (38e5c39: suite passing on GCC, MSVC and Apple Clang, Debug and Release); the preprod and prod workflows carry the same generated step and have not run yet.|Tests run in every deployment workflow
-RQ-BLD-015|153-164|Not started — TASK-BLD-012 (PLAN-BLD-004).|Mutation checks that leave the working tree alone
-RQ-BLD-011|167-176|Satisfied — cross-checked via `mcp__github__list_branches`, which reports `main` with `protected: true`. The specific rule contents were not independently re-derived (no branch-protection-rules-detail API in this session's tool set), so only the boolean fact is verified, not the exact configuration.|Explicit branch protection on `main`
+RQ-BLD-015|153-167|Satisfied — TASK-BLD-012 (PLAN-BLD-004): `juce/tools/mutate.py`, proved against a fixture|Mutation checks that leave the working tree alone
+RQ-BLD-011|170-179|Satisfied — cross-checked via `mcp__github__list_branches`, which reports `main` with `protected: true`. The specific rule contents were not independently re-derived (no branch-protection-rules-detail API in this session's tool set), so only the boolean fact is verified, not the exact configuration.|Explicit branch protection on `main`
 @process/1.requirements/RQ-FMW-midiapp-framework.md
 @process/1.requirements/RQ-MID-midi-layer.md
 @process/2.architecture/ADR-AKM-001-akm-transport-architecture.md
@@ -137,5 +137,5 @@ TASK-BLD-010|35-45|Done|Align process artifacts and `AGENTS.md` to the new names
 PLAN-BLD-003|1-29||Every Generated Workflow Runs the Test Suites
 TASK-BLD-011|19-29|Done|Pass `run-tests: true` from the generator to every workflow
 @process/3.plan/PLAN-BLD-004-mutation-checks-outside-the-working-tree.md
-PLAN-BLD-004|1-30||Mutation checks that leave the working tree alone
-TASK-BLD-012|20-30|Not Started|Mutation check tool on isolated copies
+PLAN-BLD-004|1-92||Mutation checks that leave the working tree alone
+TASK-BLD-012|20-92|Done|Mutation check tool on isolated copies

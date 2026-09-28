@@ -158,7 +158,10 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
 - **Priority**: Could
 - **Acceptance Criteria** (Gherkin): *Given* a list of alterations, *When* the check runs, *Then* the files and the build directory of the working tree are byte for byte unchanged while it runs and afterwards, and each alteration is reported as caught (a test failed, timed out, or the build broke) or missed (every test passed). *Given* two alterations and two workers, *When* the check runs, *Then* they run at the same time, each in its own copy. *Given* an alteration under which a test hangs, *When* the check runs, *Then* it is reported as caught by timeout and the next one runs. *Given* an alteration whose text is found no time or more than once, *When* the check runs, *Then* it is reported as skipped and not applied. *Given* an alteration of one source file, *When* the check runs, *Then* only the target that contains it is rebuilt and only the tests selected for it are run, never the whole suite, and the check stops at the first test that fails.
 - **Dependencies**: RQ-BLD-002; RQ-AKM-016
-- **Status**: Not started — TASK-BLD-012 (PLAN-BLD-004).
+- **Status**: Satisfied — TASK-BLD-012 (PLAN-BLD-004): `juce/tools/mutate.py`, proved against a fixture
+  project (all five Gherkin clauses) and once against the real project (`akm/src/Session.cpp`); see its
+  Verification field for what was and was not exercised — notably, TASK-AKM-009's own eighteen
+  alterations could not be replayed (kept in that session's scratchpad, not in this repository).
 
 ---
 
