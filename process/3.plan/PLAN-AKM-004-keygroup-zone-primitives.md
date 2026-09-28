@@ -210,7 +210,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-038: Real-sampler test harness — zones of the dedicated test program
 - **Tier**: L
-- **Status**: In Progress — code and mock verification done; the owner's real-sampler run is pending
+- **Status**: Done
 - **Description**: Extend `xs56k_akm_probe --suite` (`RealSamplerSuite.cpp`) with the §06 checks this
   lot unlocks, reusing `GuardedTestProgram` and the keygroups TASK-AKM-033 already adds to it: round-
   trip every item of TASK-AKM-035 on a zone of one of those keygroups, exercise the zone-0 ("all four")
@@ -244,8 +244,18 @@ This plan implements the tasks in the format specified below.
   back. New `ZoneParameterCases.hpp/.cpp` (independent values from `ZoneParametersTests.cpp`'s own table,
   on zone 3, matching TASK-AKM-024/033's precedent for programs and keygroups). New `--sample-name NAME`
   CLI option on `xs56k_akm_probe --suite` (needs `--program-lifecycle`), plumbed through
-  `RealSuiteOptions::sampleName`. Not verified: real sampler — **the owner's turn**, see below; mutation
-  testing (blocked, as in prior tasks, RQ-BLD-015/TASK-BLD-012 not done).
+  `RealSuiteOptions::sampleName`.
+  **Run by the owner on a real S5000, 2026-09-28** (`akm-suite-20260928-182549.log`, sample "AMEN"
+  already loaded in the sampler's memory, not used by any program): 11/11 checks passed, 0 failed, 0
+  skipped. All 13 zone parameter items round-tripped on zone 3 of keygroup 2, Velocity→Start's
+  zone+sign+MSB+LSB split-byte shape included (`03 01 02 32` set, `01 02 32` read back). Zone 0 ("all
+  four"): Level set to 77 on zone 0 of keygroup 2, all four zones of keygroup 2 read back 77. Keygroup 0
+  + zone 0: Level set to 88, all 8 records (2 keygroups × 4 zones) of the REPLY read back 88, in the
+  keygroup-major/zone-minor order `getForAllZonesAllKeygroups` expects. Sample assignment: "AMEN"
+  assigned to zone 1 of keygroup 2 and read back unchanged. The check 10 (§08 keygroup) run in the same
+  session also passed (39 items), confirming no regression from this task's `SimulatedSampler`
+  refactor carries over to the real sampler's own §08 behaviour. Mutation testing still blocked
+  (RQ-BLD-015/TASK-BLD-012 not done).
 - **Assumptions**: `zonesOnTestProgram` is its own check function (not folded into `keygroupsOnTestProgram`),
   reusing the same guard shape and re-adding its own keygroup rather than reusing keygroup 2 from the
   keygroup check's own run — each check opens its own session (`GuardedSession`) and its own test program
@@ -257,10 +267,9 @@ This plan implements the tasks in the format specified below.
   documented in the log); RQ-AKM-038's "operator names a sample already in memory" is taken literally: the
   check never creates one, so a wrong or empty `--sample-name` fails the assignment sub-step with ERROR 04
   rather than being caught earlier — acceptable, since the log names the sample tried and the failure is
-  self-explanatory. **The owner still needs to run `xs56k_akm_probe --suite --program-lifecycle
-  [--sample-name <a sample already in the sampler's memory>] --in <port> --out <port>` on the real S5000**
-  for this task's own acceptance criterion ("every TASK-AKM-035 to 037 item round-trips on real hardware")
-  and to confirm the design choices above hold outside the mock.
+  self-explanatory. The real run above (`&07` Set Semitone Tune to sign 1/magnitude 12, `&27` read back
+  `01 0C`) already gives the real-sampler observation RQ-AKM-037's `&27` erratum needs; TASK-AKM-039
+  records it formally rather than re-running it.
 
 ---
 
