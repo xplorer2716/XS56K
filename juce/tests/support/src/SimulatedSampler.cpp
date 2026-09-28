@@ -580,15 +580,16 @@ namespace akm::harness
         // §06 zone parameters (RQ-AKM-034): the 13 non-sample Set/Get items (Level..Solo; &01 Sample is
         // TASK-AKM-036's own String path), the same contiguous-range shape as §0A/§08 above, but stored in
         // `KeygroupRecord::zoneParameters` rather than `parameters` (§06 and §08 item codes overlap) and
-        // keyed by the zone number the item's own args/reply already carry as their first byte — no extra
-        // "zone 0 = all four zones" fan-out here yet: not exercised by this task's acceptance criteria,
-        // left to TASK-AKM-037 (RQ-AKM-036) alongside the repeated-REPLY decode it needs on the client
-        // side. A Set/Get while keygroup 0 is current still fans out over every keygroup of the program,
-        // identically to `executeKeygroupParameterGroup`, since a zone acts on the *current keygroup*
-        // like any other §08 item (RQ-AKM-028). [TASK-AKM-035]
+        // keyed by the zone number the item's own args/reply already carry as their first byte. Zone 0
+        // ("all four") fans out over zones 1-4 exactly as keygroup 0 already fans out over
+        // `program.keygroups` — the two dimensions combine, so keygroup 0 + zone 0 writes or reads every
+        // zone of every keygroup, keygroup-major (RQ-AKM-036, TASK-AKM-037): the shape
+        // `getForAllZonesAllKeygroups` expects from `decodeRepeatedReply` on the client side.
+        // [TASK-AKM-035, TASK-AKM-037]
         constexpr std::array<ParameterGroupRange, 1> ZONE_PARAMETER_GROUP_RANGES{{
             {0x02, 0x0E, 0x20},  // Level .. Solo
         }};
+        constexpr std::array<std::uint8_t, 4> EVERY_ZONE{{1, 2, 3, 4}};
 
         Outcome executeZoneParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
                                           const std::optional<std::size_t>& currentProgram,
@@ -609,18 +610,28 @@ namespace akm::harness
                     const std::size_t valueWidth = totalWidth(getDescriptor->reply);
                     if (data.size() < selectorWidth + valueWidth)
                         return failure(error_number::INVALID_FORMAT);
-                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
-                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    const std::uint8_t zone = data[0];
+                    const Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                                      data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    const auto writeToKeygroup = [&](KeygroupRecord& keygroup) {
+                        if (zone == 0)
+                        {
+                            for (const std::uint8_t z : EVERY_ZONE)
+                                keygroup.zoneParameters[{item, Bytes{z}}] = value;
+                        }
+                        else
+                        {
+                            keygroup.zoneParameters[{item, Bytes{zone}}] = value;
+                        }
+                    };
                     if (*currentKeygroup == 0)
                     {
                         for (KeygroupRecord& keygroup : program.keygroups)
-                            keygroup.zoneParameters[{item, key}] = value;
+                            writeToKeygroup(keygroup);
                     }
                     else
                     {
-                        program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)].zoneParameters[{item, std::move(key)}] =
-                            std::move(value);
+                        writeToKeygroup(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]);
                     }
                     return done();
                 }
@@ -639,22 +650,33 @@ namespace akm::harness
                     const std::size_t valueWidth = totalWidth(getDescriptor->reply);
                     if (data.size() < selectorWidth)
                         return failure(error_number::INVALID_FORMAT);
-                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    const auto valueOf = [&](const KeygroupRecord& keygroup) {
-                        const auto found = keygroup.zoneParameters.find({setItem, key});
+                    const std::uint8_t zone = data[0];
+                    const auto valueOf = [&](const KeygroupRecord& keygroup, std::uint8_t z) {
+                        const auto found = keygroup.zoneParameters.find({setItem, Bytes{z}});
                         return found != keygroup.zoneParameters.end() ? found->second : Bytes(valueWidth, 0);
+                    };
+                    const auto readFromKeygroup = [&](const KeygroupRecord& keygroup) {
+                        if (zone != 0)
+                            return valueOf(keygroup, zone);
+                        Bytes concatenated;
+                        for (const std::uint8_t z : EVERY_ZONE)
+                        {
+                            const Bytes value = valueOf(keygroup, z);
+                            concatenated.insert(concatenated.end(), value.begin(), value.end());
+                        }
+                        return concatenated;
                     };
                     if (*currentKeygroup == 0)
                     {
                         Bytes concatenated;
                         for (const KeygroupRecord& keygroup : program.keygroups)
                         {
-                            const Bytes value = valueOf(keygroup);
+                            const Bytes value = readFromKeygroup(keygroup);
                             concatenated.insert(concatenated.end(), value.begin(), value.end());
                         }
                         return reply(std::move(concatenated));
                     }
-                    return reply(valueOf(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
+                    return reply(readFromKeygroup(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
                 }
             }
             return failure(error_number::NOT_SUPPORTED);

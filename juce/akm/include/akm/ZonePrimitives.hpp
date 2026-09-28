@@ -21,8 +21,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "akm/CommandResult.hpp"
+#include "akm/ItemCatalogue.hpp"
 #include "akm/Session.hpp"
 
 namespace akm
@@ -53,4 +55,42 @@ namespace akm
     /// `ChecksumModeUnknown` while the port's checksum mode is unknown, since a String REPLY has no fixed
     /// length to delimit it by (ADR-AKM-001, DEC-AKM-013). [RQ-AKM-035]
     void getZoneSample(Session& session, int zone, ZoneSampleCompletion completion);
+
+    // "Several zones" REPLY shapes (RQ-AKM-036): a Get issued with zone 0 answers one value set per zone
+    // of the current keygroup; issued with zone 0 while keygroup 0 is also current, one value set per
+    // zone of every keygroup. Both reuse `decodeRepeatedReply` (ADR-AKM-001, DEC-AKM-015, already
+    // generalised "for any item"), the same way `getForAllKeygroups` does for keygroups — no new decode
+    // mechanism, only composing the existing one and, for the second shape, reshaping its flat result.
+
+    /// One decoded value set per zone of the current keygroup, in zone order starting at 1 (RQ-AKM-036);
+    /// empty when the command did not complete on a decodable REPLY, or the number of sets decoded
+    /// differs from `expectedZoneCount` (normally 4) — a mismatch is not distinguished from any other
+    /// decode failure: both leave `values` empty, `outcome` still carrying the raw result.
+    struct AllZonesResult
+    {
+        std::optional<std::vector<std::vector<std::int64_t>>> values{};
+        CommandResult outcome{};
+    };
+    using AllZonesCompletion = std::function<void(const AllZonesResult&)>;
+
+    /// Issues Get `getId` with zone 0 ("all four"), decoding its REPLY as one value set per zone
+    /// (RQ-AKM-036). [RQ-AKM-036]
+    void getForAllZones(Session& session, ItemId getId, int expectedZoneCount, AllZonesCompletion completion);
+
+    /// One decoded value set per zone of every keygroup of the current program — `values[keygroup][zone]`,
+    /// keygroup order starting at 1, zone order starting at 1 within each keygroup (RQ-AKM-036); empty
+    /// when the command did not complete on a decodable REPLY, or the total number of sets decoded
+    /// differs from `expectedKeygroupCount * expectedZoneCount`.
+    struct AllZonesAllKeygroupsResult
+    {
+        std::optional<std::vector<std::vector<std::vector<std::int64_t>>>> values{};
+        CommandResult outcome{};
+    };
+    using AllZonesAllKeygroupsCompletion = std::function<void(const AllZonesAllKeygroupsResult&)>;
+
+    /// Issues Get `getId` with zone 0 while keygroup 0 ("all") is current, decoding its REPLY as one
+    /// value set per zone of every keygroup and reshaping the flat, keygroup-major decode into
+    /// `values[keygroup][zone]`. [RQ-AKM-036]
+    void getForAllZonesAllKeygroups(Session& session, ItemId getId, int expectedKeygroupCount, int expectedZoneCount,
+                                    AllZonesAllKeygroupsCompletion completion);
 }

@@ -148,12 +148,12 @@ TASK-AKM-032|236-279|Done|Aux Envelope group (Set and Get)
 TASK-AKM-033|280-346|Done|Real-sampler test harness — keygroups of the dedicated test program
 TASK-AKM-034|347-371|Done|Coverage of section §08 and remaining errata resolution
 @process/3.plan/PLAN-AKM-004-keygroup-zone-primitives.md
-PLAN-AKM-004|1-233||Keygroup Zone Primitives (Phase A, lot A4)
+PLAN-AKM-004|1-254||Keygroup Zone Primitives (Phase A, lot A4)
 TASK-AKM-035|57-111|Done|Zone parameters (Set and Get)
 TASK-AKM-036|112-164|Done|Zone sample assignment by name
-TASK-AKM-037|165-189|Not Started|Replies covering several zones
-TASK-AKM-038|190-215|Not Started|Real-sampler test harness — zones of the dedicated test program
-TASK-AKM-039|216-233|Not Started|Coverage of section §06 and remaining errata resolution
+TASK-AKM-037|165-210|Done|Replies covering several zones
+TASK-AKM-038|211-236|Not Started|Real-sampler test harness — zones of the dedicated test program
+TASK-AKM-039|237-254|Not Started|Coverage of section §06 and remaining errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

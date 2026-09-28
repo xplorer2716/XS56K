@@ -70,4 +70,62 @@ namespace akm
                                completion(result);
                        });
     }
+
+    namespace
+    {
+        constexpr std::int64_t ALL_ZONES = 0;
+    }
+
+    void getForAllZones(Session& session, ItemId getId, int expectedZoneCount, AllZonesCompletion completion)
+    {
+        // The number of records is unknown until decoded, like §08's own all-keygroups Get
+        // (`getForAllKeygroups`, ADR-AKM-001 DEC-AKM-015): refused while the port's checksum mode is
+        // unknown.
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(getId, {ALL_ZONES}, std::move(options)),
+                       [getId, expectedZoneCount, completion = std::move(completion)](const CommandResult& outcome) {
+                           AllZonesResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto records = decodeRepeatedReply(getId, rep->data);
+                               if (records && records->size() == static_cast<std::size_t>(expectedZoneCount))
+                                   result.values = records;
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getForAllZonesAllKeygroups(Session& session, ItemId getId, int expectedKeygroupCount, int expectedZoneCount,
+                                    AllZonesAllKeygroupsCompletion completion)
+    {
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(
+            makeRequest(getId, {ALL_ZONES}, std::move(options)),
+            [getId, expectedKeygroupCount, expectedZoneCount, completion = std::move(completion)](const CommandResult& outcome) {
+                AllZonesAllKeygroupsResult result{std::nullopt, outcome};
+                if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                {
+                    const auto records = decodeRepeatedReply(getId, rep->data);
+                    const auto expectedTotal =
+                        static_cast<std::size_t>(expectedKeygroupCount) * static_cast<std::size_t>(expectedZoneCount);
+                    if (records && records->size() == expectedTotal)
+                    {
+                        std::vector<std::vector<std::vector<std::int64_t>>> reshaped;
+                        reshaped.reserve(static_cast<std::size_t>(expectedKeygroupCount));
+                        auto position = records->begin();
+                        for (int keygroup = 0; keygroup < expectedKeygroupCount; ++keygroup)
+                        {
+                            reshaped.emplace_back(position, position + expectedZoneCount);
+                            position += expectedZoneCount;
+                        }
+                        result.values = std::move(reshaped);
+                    }
+                }
+                if (completion)
+                    completion(result);
+            });
+    }
 }

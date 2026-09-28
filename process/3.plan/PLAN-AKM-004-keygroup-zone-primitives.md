@@ -169,7 +169,7 @@ This plan implements the tasks in the format specified below.
   zones 1–4 within each). A mismatched count fails with a mismatch error instead of a partial result,
   the same contract `getForAllKeygroups` already gives (RQ-AKM-031, TASK-AKM-026).
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Requirement refs**: RQ-AKM-036
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-014, DEC-AKM-015 — extended for the zone and zone×keygroup
   shapes; a new `DEC-AKM-*` is added only if the nested shape does not fit as an extension, decided
@@ -182,8 +182,29 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-AKM-035 (needs a catalogued §06 item to decode against); FTR-AKM-003
   (`getForAllKeygroups`, TASK-AKM-026) for the keygroup dimension
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: Not yet run.
-- **Assumptions**: None yet — recorded when the task starts.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 431/431 (the same pre-existing
+  `akm_item_catalogue_script_tests` Python failure excluded). New `ZoneAllZonesTests.cpp` (5 cases):
+  zone 0 decodes 4 values in zone order against a real item (`ZoneGetLevel`, no stand-in needed —
+  TASK-AKM-035 already catalogued one, unlike TASK-AKM-026's own first proof); a wrong expected zone
+  count leaves `values` empty; a 2-keygroup program with keygroup 0 and zone 0 current decodes 8 values
+  as `values[keygroup][zone]`, each keygroup's 4 zones set to distinct marker values beforehand and
+  checked in order; a wrong expected keygroup count (times zone count) leaves the nested result empty;
+  a Set with zone 0 writes the same value to all four zones of the current keygroup, confirmed by
+  reading each one back. No other test file needed updating (the simulator change is additive: zone
+  1-4 and keygroup non-0 behaviour is unchanged, confirmed by the full suite).
+- **Assumptions**: No new `DEC-AKM-*` entry: the nested keygroup×zone shape did not need one, because
+  `decodeRepeatedReply`'s existing flat decode (DEC-AKM-015) already produces exactly
+  `expectedKeygroupCount * expectedZoneCount` records in keygroup-major, zone-minor order once the
+  simulated sampler answers that way — `getForAllZonesAllKeygroups` only has to check the total and
+  reshape the flat list into `values[keygroup][zone]`, a pure composition of `getForAllZones`'s own
+  building blocks, not a new codec capability. `SimulatedSampler`'s `executeZoneParameterGroup` was
+  rewritten (not just extended) so that zone 0 fans out over zones 1-4 the same way keygroup 0 already
+  fans out over `program.keygroups` — the two loops nest for a Set/Get with both current keygroup 0 and
+  zone 0, which is what produces the keygroup-major/zone-minor concatenation
+  `getForAllZonesAllKeygroups` expects; this replaces TASK-AKM-035's own "zone 0 fan-out not modelled
+  yet" note. Zone Sample assignment (`executeZone`'s own `&01`/`&21` handling, TASK-AKM-036) is
+  untouched: kg0 remains unmodelled there (still `NOT_FOUND`), since RQ-AKM-036 is about the 13 numeric
+  items' Get shape, not sample assignment, and no acceptance criterion here exercises it.
 
 ---
 
