@@ -13,6 +13,7 @@ add_library(xs56k_akm_test_support STATIC
     src/SimulatedMidiBackend.cpp
     src/SimulatedSampler.cpp
     src/WireFormat.cpp
-    src/WireLog.cpp)
+    src/WireLog.cpp
+    src/ZoneParameterCases.cpp)
 target_include_directories(xs56k_akm_test_support PUBLIC include)
 target_link_libraries(xs56k_akm_test_support PUBLIC xs56k_akm PRIVATE xs56k::warnings)

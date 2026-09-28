@@ -628,7 +628,7 @@ TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected,
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
 
-    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 3);
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 4);
     checkAllPassed(result);
     // expect()'s "as expected" lines go to the log, not to a check's own detail (built from finding()
     // calls only) - matching how the existing power-cycle tests read the same kind of assertion.
@@ -649,7 +649,7 @@ TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected,
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
 
-    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 3);
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 4);
     checkAllPassed(result);
     CHECK_THAT(reportOf(result, "round-trip every §08 parameter item").detail,
               ContainsSubstring("keygroup parameter items of the six groups round-tripped"));
@@ -659,6 +659,46 @@ TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected,
     // its cleanup after closeAndVerify had already closed the session it needs, leaving the test
     // program undeleted: this asserts the program count the check itself verifies is restored.
     CHECK_THAT(log.str(), ContainsSubstring("the number of programs is back to what it was before (2)"));
+}
+
+TEST_CASE("Given a sampler holding programs KEEP1 and KEEP2 with KEEP1 selected and no --sample-name, When the suite runs with the program lifecycle checks, Then the zone check round-trips every section 06 item, the zone-0 and keygroup-0+zone-0 shapes pass, sample assignment is reported as skipped, and only KEEP1 and KEEP2 remain [TASK-AKM-038, RQ-AKM-034, RQ-AKM-036, RQ-AKM-038]",
+          "[akm][suite]")
+{
+    Rig rig;
+    akm::test::seedPrograms(rig.backend, {"KEEP1", "KEEP2"}, 0);
+    RealSuiteOptions options = rig.options();
+    options.programLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 4);
+    checkAllPassed(result);
+    const std::string& zoneCheckDetail = reportOf(result, "round-trip every §06 parameter item").detail;
+    CHECK_THAT(zoneCheckDetail, ContainsSubstring("zone parameter items round-tripped"));
+    CHECK_THAT(zoneCheckDetail, ContainsSubstring("sample assignment: skipped"));
+    // expect()'s "as expected" lines go to the log, not to a check's own detail, as above.
+    CHECK_THAT(log.str(), ContainsSubstring("all 4 zones of keygroup 2 read back Level 77"));
+    CHECK_THAT(log.str(), ContainsSubstring("2 keygroups' 4 zones read back Level 88"));
+    CHECK_THAT(log.str(), ContainsSubstring("the number of programs is back to what it was before (2)"));
+}
+
+TEST_CASE("Given a sample name the simulated sampler holds, When the suite runs with the program lifecycle checks and --sample-name, Then it is assigned to zone 1 and read back [TASK-AKM-038, RQ-AKM-035, RQ-AKM-038]",
+          "[akm][suite]")
+{
+    Rig rig;
+    rig.sampler.setSampleNames({"KICK"});
+    RealSuiteOptions options = rig.options();
+    options.programLifecycle = true;
+    options.sampleName = "KICK";
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 4);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "round-trip every §06 parameter item").detail,
+              ContainsSubstring("\"KICK\" assigned to zone 1"));
 }
 
 TEST_CASE("Given the default options, When the suite runs, Then it never sends a section 0A command, and the program lifecycle checks do not run [TASK-AKM-024, RQ-AKM-027]",
@@ -684,7 +724,7 @@ TEST_CASE("Given no program current when the suite runs with the program lifecyc
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
 
-    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 3);
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 4);
     checkAllPassed(result);
     CHECK_THAT(reportOf(result, "reserved test name").detail,
               ContainsSubstring("wrong-program refusal is not exercised"));

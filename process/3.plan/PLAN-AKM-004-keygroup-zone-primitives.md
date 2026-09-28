@@ -210,7 +210,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-038: Real-sampler test harness — zones of the dedicated test program
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: In Progress — code and mock verification done; the owner's real-sampler run is pending
 - **Description**: Extend `xs56k_akm_probe --suite` (`RealSamplerSuite.cpp`) with the §06 checks this
   lot unlocks, reusing `GuardedTestProgram` and the keygroups TASK-AKM-033 already adds to it: round-
   trip every item of TASK-AKM-035 on a zone of one of those keygroups, exercise the zone-0 ("all four")
@@ -229,8 +229,38 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-AKM-035, TASK-AKM-036, TASK-AKM-037; FTR-AKM-003 (TASK-AKM-033,
   `keygroupsOnTestProgram`)
 - **Assignee**: AI, with the owner running the real-sampler suite
-- **Verification**: Not yet run.
-- **Assumptions**: None yet — recorded when the task starts.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 433/433 (the same pre-existing
+  `akm_item_catalogue_script_tests` Python failure excluded). New `zonesOnTestProgram` check (a fourth
+  under `--program-lifecycle`, alongside TASK-AKM-024's two and TASK-AKM-033's `keygroupsOnTestProgram`):
+  adds 1 keygroup (count reads back 2), selects keygroup 2, round-trips all 13 `ZoneParameterCases.cpp`
+  items on zone 3, sets Zone Level with zone 0 and reads it back for all 4 zones via `getForAllZones`,
+  selects keygroup 0 and sets Zone Level with zone 0 again (writes every zone of every keygroup) and
+  reads it back via `getForAllZonesAllKeygroups`, assigns a sample by name when `--sample-name` is given
+  (skipped, not failed, otherwise) and exercises the wrong-program refusal for a zone-level command. Two
+  new `[suite]` mock tests (`RealSamplerSuiteTests.cpp`, `AUTOMATIC_CHECKS + 3` → `+4` everywhere
+  `--program-lifecycle` is on): one KEEP1/KEEP2 run without `--sample-name` proving the round trip, both
+  "all zones"/"all keygroups × all zones" shapes and the skip message; one with `--sample-name "KICK"`
+  and the simulated sampler's own `setSampleNames({"KICK"})` proving the assignment succeeds and reads
+  back. New `ZoneParameterCases.hpp/.cpp` (independent values from `ZoneParametersTests.cpp`'s own table,
+  on zone 3, matching TASK-AKM-024/033's precedent for programs and keygroups). New `--sample-name NAME`
+  CLI option on `xs56k_akm_probe --suite` (needs `--program-lifecycle`), plumbed through
+  `RealSuiteOptions::sampleName`. Not verified: real sampler — **the owner's turn**, see below; mutation
+  testing (blocked, as in prior tasks, RQ-BLD-015/TASK-BLD-012 not done).
+- **Assumptions**: `zonesOnTestProgram` is its own check function (not folded into `keygroupsOnTestProgram`),
+  reusing the same guard shape and re-adding its own keygroup rather than reusing keygroup 2 from the
+  keygroup check's own run — each check opens its own session (`GuardedSession`) and its own test program
+  instance, so there is nothing to share between them; the cost is one extra `addKeygroupsToProgram` round
+  trip, judged worth it for traceability (RQ-AKM-038 is its own requirement, TASK-AKM-038 its own task).
+  `ZONE_COUNT = 4` is a local constant in `RealSamplerSuite.cpp` (the domain the spec gives §06's zone
+  byte), not shared with `SimulatedSampler.cpp`'s own `EVERY_ZONE` (a different translation unit, no
+  existing shared home for it). Sample assignment always targets zone 1 of keygroup 2 (arbitrary, fixed,
+  documented in the log); RQ-AKM-038's "operator names a sample already in memory" is taken literally: the
+  check never creates one, so a wrong or empty `--sample-name` fails the assignment sub-step with ERROR 04
+  rather than being caught earlier — acceptable, since the log names the sample tried and the failure is
+  self-explanatory. **The owner still needs to run `xs56k_akm_probe --suite --program-lifecycle
+  [--sample-name <a sample already in the sampler's memory>] --in <port> --out <port>` on the real S5000**
+  for this task's own acceptance criterion ("every TASK-AKM-035 to 037 item round-trips on real hardware")
+  and to confirm the design choices above hold outside the mock.
 
 ---
 

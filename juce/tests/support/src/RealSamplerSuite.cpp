@@ -38,10 +38,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
+#include "akm/ZonePrimitives.hpp"
 #include "akm/harness/KeygroupParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/WireFormat.hpp"
 #include "akm/harness/WireLog.hpp"
+#include "akm/harness/ZoneParameterCases.hpp"
 
 namespace akm::harness
 {
@@ -270,6 +272,10 @@ namespace akm::harness
         // codes"), and unlikely to collide with a program already in the sampler's memory.
         constexpr std::string_view TEST_PROGRAM_NAME = "XS56K_SUITE_TEST";
 
+        // A keygroup always has four zones (§06, spec Tables 9-10): the "1-4, or 0 for all four" domain
+        // every zone item's first data byte carries. [RQ-AKM-034]
+        constexpr int ZONE_COUNT = 4;
+
         // Wraps one program created under TEST_PROGRAM_NAME for the life of one check (RQ-AKM-027): on construction,
         // records the sampler's current program name, if any, then creates the test program, which Create makes
         // current. On destruction, even when the check throws half way, it reselects the test program by name and
@@ -426,6 +432,9 @@ namespace akm::harness
                           &Suite::failedProgramCheckLeavesTheKnownState);
                     check("add keygroups to the test program and round-trip every §08 parameter item, including keygroup 0 (all)",
                           &Suite::keygroupsOnTestProgram);
+                    check("add a zone to a keygroup of the test program and round-trip every §06 parameter item, "
+                          "including zone 0 (all four) and keygroup 0 + zone 0",
+                          &Suite::zonesOnTestProgram);
                 }
             }
 
@@ -1205,6 +1214,162 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-034 to RQ-AKM-038: a keygroup added to the test program, every non-sample §06 parameter
+            // item round-tripped on one of its zones, then the zone-0 ("all four") and keygroup-0 + zone-0
+            // shapes (TASK-AKM-037), sample assignment when `_rig.options.sampleName` is given (skipped, not
+            // failed, otherwise), and the wrong-program refusal for a zone-level command — the same guard as
+            // the other test-program checks.
+            void zonesOnTestProgram()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto before = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                if (!before || !before->result.count)
+                    throw CheckFailure("could not read the number of programs before creating the test program");
+                const int countBefore = *before->result.count;
+
+                {
+                GuardedTestProgram program(_rig, guarded.session());
+                finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+
+                program.expectOnTestProgram("add 1 keygroup", [](Session& session, CommandCompletion done) {
+                    addKeygroupsToProgram(session, 1, std::move(done));
+                });
+                const auto keygroupCountResult = awaitCompletion<ProgramKeygroupCountResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
+                        getProgramKeygroupCount(guarded.session(), std::move(done));
+                    });
+                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                    throw CheckFailure("could not read the keygroup count after adding a keygroup");
+                const int keygroupCount = *keygroupCountResult->result.count;
+                expect(keygroupCount == 2, "the keygroup count read back is 2 (1 default + 1 added)");
+
+                program.expectOnTestProgram("select keygroup 2", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 2, std::move(done));
+                });
+
+                for (const ZoneParameterCase& parameterCase : allZoneParameterCases())
+                {
+                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                    const std::string title(descriptor(parameterCase.setId).name);
+
+                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                    });
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                        });
+                    if (!timed)
+                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                    if (!succeeded(timed->result))
+                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                    const auto* replyData = std::get_if<Reply>(&timed->result);
+                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                    if (!decoded || *decoded != expectedValue)
+                        throw CheckFailure("get " + title + ": read back "
+                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                           + valuesText(expectedValue));
+                }
+                finding(std::to_string(allZoneParameterCases().size()) + " zone parameter items round-tripped on zone 3 of keygroup 2");
+
+                // RQ-AKM-036: zone 0 ("all four") on the current keygroup.
+                program.expectOnTestProgram("set Zone Level for all zones (zone 0) of keygroup 2",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::ZoneSetLevel, {0, 0, 77}), std::move(done));
+                                            });
+                const auto allZonesResult = awaitCompletion<AllZonesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](AllZonesCompletion done) {
+                        getForAllZones(guarded.session(), ItemId::ZoneGetLevel, ZONE_COUNT, std::move(done));
+                    });
+                const bool allZonesLevel77 = allZonesResult && allZonesResult->result.values
+                                             && allZonesResult->result.values->size() == static_cast<std::size_t>(ZONE_COUNT)
+                                             && std::all_of(allZonesResult->result.values->begin(), allZonesResult->result.values->end(),
+                                                            [](const std::vector<std::int64_t>& record) {
+                                                                return record == std::vector<std::int64_t>{0, 77};
+                                                            });
+                expect(allZonesLevel77, "all " + std::to_string(ZONE_COUNT) + " zones of keygroup 2 read back Level 77");
+
+                // RQ-AKM-036: keygroup 0 ("all") + zone 0 ("all four") together.
+                program.expectOnTestProgram("select keygroup 0 (all)", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 0, std::move(done));
+                });
+                program.expectOnTestProgram("set Zone Level for all zones of all keygroups (keygroup 0, zone 0)",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::ZoneSetLevel, {0, 0, 88}), std::move(done));
+                                            });
+                const auto nestedResult = awaitCompletion<AllZonesAllKeygroupsResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, keygroupCount](AllZonesAllKeygroupsCompletion done) {
+                        getForAllZonesAllKeygroups(guarded.session(), ItemId::ZoneGetLevel, keygroupCount, ZONE_COUNT, std::move(done));
+                    });
+                const bool nestedLevel88 =
+                    nestedResult && nestedResult->result.values && nestedResult->result.values->size() == static_cast<std::size_t>(keygroupCount)
+                    && std::all_of(nestedResult->result.values->begin(), nestedResult->result.values->end(),
+                                   [](const std::vector<std::vector<std::int64_t>>& perKeygroup) {
+                                       return perKeygroup.size() == static_cast<std::size_t>(ZONE_COUNT)
+                                              && std::all_of(perKeygroup.begin(), perKeygroup.end(), [](const std::vector<std::int64_t>& record) {
+                                                     return record == std::vector<std::int64_t>{0, 88};
+                                                 });
+                                   });
+                expect(nestedLevel88, "all " + std::to_string(keygroupCount) + " keygroups' " + std::to_string(ZONE_COUNT)
+                                          + " zones read back Level 88");
+
+                // RQ-AKM-035, RQ-AKM-038: sample assignment, only when the owner configured a real sample name.
+                if (_rig.options.sampleName)
+                {
+                    program.expectOnTestProgram("select keygroup 2", [](Session& session, CommandCompletion done) {
+                        selectKeygroup(session, 2, std::move(done));
+                    });
+                    const std::string& sampleName = *_rig.options.sampleName;
+                    program.expectOnTestProgram("assign sample \"" + sampleName + "\" to zone 1",
+                                                [&sampleName](Session& session, CommandCompletion done) {
+                                                    setZoneSample(session, 1, sampleName, std::move(done));
+                                                });
+                    const auto sampleResult = awaitCompletion<ZoneSampleResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](ZoneSampleCompletion done) { getZoneSample(guarded.session(), 1, std::move(done)); });
+                    expect(sampleResult && sampleResult->result.name == sampleName,
+                           "zone 1 reads back the sample name \"" + sampleName + "\"");
+                    finding("sample assignment: \"" + sampleName + "\" assigned to zone 1 and read back");
+                }
+                else
+                    finding("sample assignment: skipped (no --sample-name given)");
+
+                if (program.hadOriginalProgram())
+                {
+                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                    bool refused = false;
+                    try
+                    {
+                        program.expectOnTestProgram("set Zone Level (on the wrong program)", [](Session& session, CommandCompletion done) {
+                            session.submit(makeRequest(ItemId::ZoneSetLevel, {1, 0, 1}), std::move(done));
+                        });
+                    }
+                    catch (const CheckFailure&)
+                    {
+                        refused = true;
+                    }
+                    expect(refused, "a zone command on the program that is current but not the test one was refused before sending");
+                    expect(program.selectTestProgramAgain(), "reselected the test program");
+                }
+                else
+                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                }
+                finding("test program deleted and the original selection restored by the guard");
+
+                const auto after = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                expect(after && after->result.count == countBefore,
+                       "the number of programs is back to what it was before (" + std::to_string(countBefore) + ")");
+                closeAndVerify(guarded);
+            }
+
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
@@ -1228,8 +1393,13 @@ namespace akm::harness
             if (options.programLifecycle)
                 log.note(std::string("It also creates, changes, selects and deletes a program under the reserved name \"")
                          + std::string(TEST_PROGRAM_NAME) + "\" (--program-lifecycle, RQ-AKM-027), and adds keygroups to it to "
-                         + "round-trip every section 08 item (RQ-AKM-030, RQ-AKM-033): the only checks that touch a stored "
-                         + "program, and only one the suite created itself, always deleted again.");
+                         + "round-trip every section 08 item (RQ-AKM-030, RQ-AKM-033) and every non-sample section 06 item "
+                         + "(RQ-AKM-034, RQ-AKM-036): the only checks that touch a stored program, and only one the suite "
+                         + "created itself, always deleted again."
+                         + (options.sampleName ? " It also assigns the sample \"" + *options.sampleName
+                                                      + "\" to a zone of that program by name (--sample-name, RQ-AKM-035,"
+                                                        " RQ-AKM-038): the sample itself is never created, changed or deleted."
+                                                : " Sample assignment is skipped: no --sample-name was given."));
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }

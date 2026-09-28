@@ -65,8 +65,8 @@ namespace
         "  xs56k_akm_probe --session --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
-        "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--timeout-ms N] [--log <file>]\n"
-        "                  [--yes]\n"
+        "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-name NAME]\n"
+        "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
         "  --in, --out        the sampler's MIDI input port (what it sends) and output port (what it receives),\n"
@@ -86,11 +86,16 @@ namespace
         "  --slow-operation   with --suite, an extra check: it sends one command outside sections 00 and 02, \"update the\n"
         "                     list of disks\" (section 10, item 01), with Still Alive on, to see whether F0 F7\n"
         "                     messages reach this computer while the sampler works\n"
-        "  --program-lifecycle  with --suite, three extra checks: they create, change, select and delete a\n"
+        "  --program-lifecycle  with --suite, four extra checks: they create, change, select and delete a\n"
         "                     program under the reserved name \"XS56K_SUITE_TEST\", add keygroups to it and\n"
-        "                     round-trip every section 08 item on them, and restore the program that was\n"
-        "                     current before (RQ-AKM-027, RQ-AKM-030, RQ-AKM-033) - the only checks that touch a\n"
-        "                     stored program\n"
+        "                     round-trip every section 08 item on them and every non-sample section 06 item\n"
+        "                     on a zone, including zone 0 (all four) and keygroup 0 + zone 0, and restore the\n"
+        "                     program that was current before (RQ-AKM-027, RQ-AKM-030, RQ-AKM-033, RQ-AKM-034,\n"
+        "                     RQ-AKM-036) - the only checks that touch a stored program\n"
+        "  --sample-name      with --program-lifecycle, a sample already in the sampler's memory: assigns it to\n"
+        "                     a zone of the test program by name and reads it back (RQ-AKM-035, RQ-AKM-038).\n"
+        "                     Never creates, changes or deletes a sample. Without it, sample assignment is\n"
+        "                     skipped, not failed.\n"
         "  --timeout-ms       how long each step waits for an answer (default 3000)\n"
         "  --log              the log file (default akm-probe-<UTC date and time>.log, or akm-session-... with\n"
         "                     --session, or akm-suite-... with --suite, in this directory)\n"
@@ -116,6 +121,7 @@ namespace
         std::string input;
         std::string output;
         std::string logPath;
+        std::string sampleName;
         std::uint32_t deviceId = DEFAULT_DEVICE_ID;
         std::uint32_t otherDeviceId = DEFAULT_OTHER_DEVICE_ID;
         long long timeoutMs = DEFAULT_TIMEOUT_MS;
@@ -172,10 +178,13 @@ namespace
                 parsed.programLifecycle = true;
             else if (option == "--no-lcd")
                 parsed.noLcd = true;
-            else if (option == "--in" || option == "--out" || option == "--log")
+            else if (option == "--in" || option == "--out" || option == "--log" || option == "--sample-name")
             {
                 const std::string value = valueOf(args, index++, parsed);
-                (option == "--in" ? parsed.input : option == "--out" ? parsed.output : parsed.logPath) = value;
+                (option == "--in"    ? parsed.input
+                 : option == "--out" ? parsed.output
+                 : option == "--log" ? parsed.logPath
+                                     : parsed.sampleName) = value;
             }
             else if (option == "--device-id" || option == "--other-device-id" || option == "--timeout-ms")
             {
@@ -202,8 +211,10 @@ namespace
         }
         if (parsed.error.empty() && parsed.session && parsed.suite)
             parsed.error = "--session and --suite cannot be used together";
-        if (parsed.error.empty() && !parsed.suite && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle))
-            parsed.error = "--power-cycle, --slow-operation and --program-lifecycle need --suite";
+        if (parsed.error.empty() && !parsed.suite && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || !parsed.sampleName.empty()))
+            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle and --sample-name need --suite";
+        if (parsed.error.empty() && !parsed.sampleName.empty() && !parsed.programLifecycle)
+            parsed.error = "--sample-name needs --program-lifecycle";
         return parsed;
     }
 
@@ -314,9 +325,18 @@ int main(int argc, char** argv)
             if (arguments.powerCycle)
                 std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
             if (arguments.programLifecycle)
+            {
                 std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", add\n"
-                          << "keygroups to it, round-trip every section 08 item on them, and restore the program that was\n"
-                          << "current before; no other program, multi or sample is touched.\n";
+                          << "keygroups to it, round-trip every section 08 item and every non-sample section 06 item on\n"
+                          << "them, and restore the program that was current before; no other program, multi or sample\n"
+                          << "is touched.\n";
+                if (!arguments.sampleName.empty())
+                    std::cout << "It will also assign the sample \"" << arguments.sampleName
+                              << "\" to a zone of that program by name and read it back; the sample itself is never\n"
+                              << "created, changed or deleted.\n";
+                else
+                    std::cout << "Sample assignment is skipped: no --sample-name was given.\n";
+            }
         }
         else if (arguments.session)
             std::cout << "The session smoke test will send SysEx frames to \"" << arguments.output << "\" and listen on \""
@@ -348,6 +368,8 @@ int main(int argc, char** argv)
         options.slowOperation = arguments.slowOperation;
         options.powerCycle = arguments.powerCycle;
         options.programLifecycle = arguments.programLifecycle;
+        if (!arguments.sampleName.empty())
+            options.sampleName = arguments.sampleName;
         options.startedAt = utcNow(false);
         options.askOwner = [](const std::string& instruction) {
             std::cout << "\n>>> " << instruction << "\n    Press Enter when it is done, or type skip to skip this check: " << std::flush;
