@@ -20,13 +20,13 @@ own flat sample list.
 
 **Prerequisite check (architecture step of this lot, recorded in FTR-AKM-005).** Every value this
 lot needs already has a `ValueFormat` (`ADR-AKM-001`, `ItemDescriptor.hpp`): `Byte`/`SignedByte` for
-pitch and tune, `String` for names (`DEC-AKM-013`, already exercised by Program's `&05`/`&09`/`&11`),
-and `Dword` for the four position/loop items (`&20`/`&21`/`&29`/`&2A` and their Gets) — declared
-since `DEC-AKM-012` but **not yet exercised by any catalogued item**. `TASK-AKM-043` is therefore
-this lot's first real test of `Dword` through `generate_akm_items.py --coverage`'s range parsing and
-through the codec's `appendValue`/`readValue`; if it surfaces a gap the way `SignedWord`'s and the
-`spec_domains` bug did for `§06` (`TASK-AKM-035`'s own assumptions), it is fixed in that task, not
-treated as a new architecture question. The grouped replies `&34`/`&4B` ("all params in a single
+pitch and tune, `String` for names (`DEC-AKM-013`, already exercised by Program's `&05`/`&09`/`&11`).
+`Dword` was tried for the four position/loop items (`&20`/`&21`/`&29`/`&2A` and their Gets) and
+dropped by `TASK-AKM-043`: `generate_akm_items.py --coverage` parses the spec's own columns into one
+domain per wire byte, so a single combined value was flagged "1 value, the spec row describes 4" —
+the exact gap this paragraph predicted, resolved the same way `TASK-AKM-035` resolved it for `§06`,
+by splitting into 4 separate `Byte` args/reply values rather than changing the checker. `Dword`
+remains declared but unused in the catalogue. The grouped replies `&34`/`&4B` ("all params in a single
 message") are a fixed-field-count record, not the variable-count repeated-record shape of
 `DEC-AKM-014`/`DEC-AKM-015` — they decode through the existing generic multi-field `decodeReply`,
 needing no new decode helper. **No new ADR file is opened for this lot.**
@@ -176,14 +176,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-043: Settable sample parameters (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue the 8 settable §0E items and their Get counterparts — Start Position
-  (`&20`/`&40`, `Dword`), End Position (`&21`/`&41`, `Dword`), Original Pitch (`&22`/`&42`, byte,
-  range `21–127`), Semitone Tune (`&23`/`&43`, sign + `0–36`), Fine Tune (`&24`/`&44`, sign +
-  `0–50`), Playback Mode (`&28`/`&48`, `0–5`, no `AS SAMPLE`), Loop Start (`&29`/`&49`, `Dword`),
-  Loop End (`&2A`/`&4A`, `Dword`) — of the current sample, each proven by a Set then a Get on the
-  mock. First catalogued use of `ValueFormat::Dword`; if `generate_akm_items.py`'s range parsing
-  or the codec's `Dword` path need a fix, fix it here (see this plan's Overview).
+  (`&20`/`&40`), End Position (`&21`/`&41`), Original Pitch (`&22`/`&42`, byte, range `21–127`),
+  Semitone Tune (`&23`/`&43`, sign + `0–36`), Fine Tune (`&24`/`&44`, sign + `0–50`), Playback Mode
+  (`&28`/`&48`, `0–5`, no `AS SAMPLE`), Loop Start (`&29`/`&49`), Loop End (`&2A`/`&4A`) — of the
+  current sample, each proven by a Set then a Get on the mock, no per-item wrapper function (matching
+  Program's Output/MIDI-Tune/Pitch-Bend/LFO groups and §06's own 13 numeric items: tested directly
+  against the catalogue through `ProgramParameterRoundTrip.hpp`'s generic `ParameterCase`, ADR-AKM-001
+  DEC-AKM-003).
 - **Requirement refs**: RQ-AKM-048
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-048 — *Given* each of the 8 Set
@@ -192,8 +193,37 @@ This plan implements the tasks in the format specified below.
   set, *Then* it is refused without sending.
 - **Dependencies**: TASK-AKM-040
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: Not yet run.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 451/451. New `SampleParametersTests.cpp`
+  (4 cases, `[akm][sample]`, all passing standalone via `ctest -R "RQ-AKM-048"`): all 8 items
+  round-trip on the current sample via the shared `ParameterCase`/`checkParameterRoundTrips` helper;
+  playback mode `6` and original pitch `20` (below the spec's `21-127` floor) are both refused
+  `ArgumentOutOfRange` without sending; setting a parameter with no sample current fails ERROR 04.
+  `--coverage`: section `0E` now 28/34, still partial as declared, `unaccounted: none`, no "differs
+  from the spec" problem. `generate_akm_items.py`'s own unit tests: `python -m unittest discover -s
+  juce/tests/tools -p "test_*.py"` — 16/16 pass after the `spec_domains` fix (see Assumptions).
+- **Assumptions**: `Dword` was dropped for the four position/loop items after `--coverage` flagged
+  each as "1 value, the spec row describes 4": the spec's own Data1-4 columns are what the checker
+  compares against, so — following `TASK-AKM-035`'s own precedent exactly, for the same reason — each
+  is split into 4 separate `Byte` args/reply values (`positionMsb`/`Sb2`/`Sb1`/`Lsb`) instead. Same
+  accepted consequence as `TASK-AKM-035`'s `Velocity→Start`: each byte is independently range-checked
+  0-127, not the combined value against the spec's `0-268435455` ceiling (`Dword`'s own declared
+  range, now unused). Separately, `--coverage` also flagged Original Pitch (`&22`/`&42`) as "1 value,
+  the spec row describes 2": its second spec column reads `N/A ; {21–127}` (a clarifying note on an
+  otherwise-N/A column, spec pp. 33/35), which `spec_domains` counted as a real second domain because
+  it checked the *whole* column against the literal string `"N/A"` rather than its leading segment.
+  Fixed in `generate_akm_items.py` (compare `second`'s own head before any `;` instead) — a real
+  generator gap, the same class of fix `TASK-AKM-035` made for `&2A`'s REPLY, not a catalogue mistake.
+  Verified narrow: only 3 rows in the whole spec TSV match `N/A ;` in their second column (grep), 2 of
+  them these two Original Pitch rows and the third (`§0C/&20-&2B`, Multi) not catalogued at all, so no
+  previously-covered row's result changed — confirmed by `--coverage` still reporting `00`/`0A`/`08`/
+  `06` unchanged after the fix. `SampleRecord` gained a `parameters` map (mirroring
+  `ProgramRecord::parameters`) and `SimulatedSampler.cpp` a `SAMPLE_PARAMETER_GROUP_RANGES` +
+  `executeSampleParameterGroup`, a close mirror of Program's own `executeParameterGroup` (two
+  contiguous ranges, `&20-&24`→`&40-&44` and `&28-&2A`→`&48-&4A`, both offset `0x20`) rather than one
+  generic cross-section function: every existing section (`0A`, `08`, `06`) already hand-duplicates
+  its own version rather than sharing one, so this follows that precedent instead of being the first
+  exception. Not verified: real sampler (deferred to TASK-AKM-045); mutation testing (blocked, as in
+  prior tasks, RQ-BLD-015/TASK-BLD-012 not done).
 
 ---
 

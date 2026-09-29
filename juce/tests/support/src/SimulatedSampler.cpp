@@ -752,6 +752,68 @@ namespace akm::harness
             }
         }
 
+        // Each Set item of the §0E settable-parameter group (RQ-AKM-048) has its Get at a fixed offset
+        // (spec Tables 18-19), the same shape as Program's own PARAMETER_GROUP_RANGES — none of these
+        // items take a selector (they all act on the current sample), the same "no selector" shape as
+        // Program's Output group, so the generic function below already handles it without change.
+        constexpr std::array<ParameterGroupRange, 2> SAMPLE_PARAMETER_GROUP_RANGES{{
+            {0x20, 0x24, 0x20},  // Start/End Position, Original Pitch, Semitone/Fine Tune
+            {0x28, 0x2A, 0x20},  // Playback Mode, Loop Start/End
+        }};
+
+        // Mirrors executeParameterGroup (Program) exactly, substituted for the current sample instead of
+        // the current program: a Set writes [value bytes] (no selector), a Get reads back the value
+        // stored, or width-many zero bytes when nothing was set yet. [RQ-AKM-048, ADR-AKM-001
+        // (DEC-AKM-003, DEC-AKM-012)]
+        Outcome executeSampleParameterGroup(std::uint8_t item, const Bytes& data, std::vector<SampleRecord>& samples,
+                                            const std::optional<std::size_t>& current)
+        {
+            for (const ParameterGroupRange& range : SAMPLE_PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    SampleRecord& sample = samples[*current];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_SAMPLE, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    sample.parameters[{item, std::move(key)}] = std::move(value);
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const SampleRecord& sample = samples[*current];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_SAMPLE, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    const auto found = sample.parameters.find({setItem, key});
+                    if (found != sample.parameters.end())
+                        return reply(found->second);
+                    return reply(Bytes(valueWidth, 0));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
         // §0E sample lifecycle (RQ-AKM-045): select by name/index, delete/rename the current sample,
         // start/stop auditioning it, plus &13/&14 (RQ-AKM-047, pulled in early — see the constants
         // above). §0E has its own sampler-wide "current sample" selection state, the same pattern as
@@ -856,7 +918,7 @@ namespace akm::harness
                     return reply(writer.bytes());
                 }
                 default:
-                    return failure(error_number::NOT_SUPPORTED);
+                    return executeSampleParameterGroup(item, data, samples, current);
             }
         }
 

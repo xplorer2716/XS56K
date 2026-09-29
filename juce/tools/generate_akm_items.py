@@ -308,7 +308,11 @@ def spec_domains(row):
     if first == "N/A":
         return []
     domains = [first]
-    if second != "N/A":
+    # "second" is compared against "N/A" by its own leading segment, not the whole text: a column like
+    # "N/A ; {21–127}" (§0E &22/&42, Original Pitch) is a clarifying note attached to an otherwise-N/A
+    # second column, not a real second data byte, the same way a bare "N/A" already is not one.
+    second_head = re.split(r"\s*;", second, maxsplit=1)[0].strip()
+    if second_head != "N/A":
         # "second" itself is a domain only when it carries content of its own before any embedded
         # <DataN> reference (e.g. a Set row's "0, 1 ; <Data3>(MSB) ; <Data4>(LSB)", where the leading
         # "0, 1" is the sign field). When it starts with a marker (a REPLY row's own "<Data2>(MSB) ;

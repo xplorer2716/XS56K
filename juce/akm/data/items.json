@@ -41,7 +41,7 @@
       "name": "Sample",
       "complete": false,
       "spec": "Tables 18 and 19, pp. 29-31",
-      "note": "Partial: TASK-AKM-040 catalogues the 6 lifecycle items of RQ-AKM-045 (&05, &06, &08, &09, &0A, &0B) plus &13 and &14 (RQ-AKM-047's own general-information items, pulled in early the same way TASK-AKM-015 pulled in Program's &10/&13, so this lot's own round trips have a Get to verify against). TASK-AKM-041 adds the guarded &07 (RQ-AKM-046), mirroring Program's own TASK-AKM-023. TASK-AKM-042 completes RQ-AKM-047's general information: &10 (count), &11 (name by index) and &12 (names of all samples, a repeated String REPLY decoded like Program's &19, DEC-AKM-014). §0E has its own sampler-wide `current sample` selection state, the same pattern as §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-first-byte pattern of §06. The rest of section 0E (the settable/read-only sample parameters) is PLAN-AKM-005's remaining tasks."
+      "note": "Partial: TASK-AKM-040 catalogues the 6 lifecycle items of RQ-AKM-045 (&05, &06, &08, &09, &0A, &0B) plus &13 and &14 (RQ-AKM-047's own general-information items, pulled in early the same way TASK-AKM-015 pulled in Program's &10/&13, so this lot's own round trips have a Get to verify against). TASK-AKM-041 adds the guarded &07 (RQ-AKM-046), mirroring Program's own TASK-AKM-023. TASK-AKM-042 completes RQ-AKM-047's general information: &10 (count), &11 (name by index) and &12 (names of all samples, a repeated String REPLY decoded like Program's &19, DEC-AKM-014). TASK-AKM-043 adds the 8 settable parameters and their Gets (RQ-AKM-048: &20-&24, &28-&2A / &40-&44, &48-&4A), each of the four position/loop items split into 4 separate Byte args/reply values (positionMsb/Sb2/Sb1/Lsb), matching every other multi-byte item in this catalogue (RQ-AKM-034's own precedent) rather than the codec's unused `ValueFormat::Dword` — `generate_akm_items.py --coverage` parses the spec's own columns into one domain per wire byte, so a single Dword value was flagged as 1 value against the spec's 4 domains. §0E has its own sampler-wide `current sample` selection state, the same pattern as §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-first-byte pattern of §06. The rest of section 0E (the read-only parameters and the two grouped-REPLY items, &30-&34/&4B) is PLAN-AKM-005's remaining tasks."
     }
   ],
   "items": [
@@ -1370,6 +1370,134 @@
       "args": [],
       "reply": [{"name": "name", "format": "string", "min": 0, "max": 255}],
       "requirements": ["RQ-AKM-047"]
+    },
+    {
+      "id": "SampleSetStartPosition", "section": "0E", "item": "20", "name": "Set Start Position", "kind": "set",
+      "args": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleSetEndPosition", "section": "0E", "item": "21", "name": "Set End Position", "kind": "set",
+      "args": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleSetOriginalPitch", "section": "0E", "item": "22", "name": "Set Original Pitch", "kind": "set",
+      "args": [{"name": "note", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleSetSemitoneTune", "section": "0E", "item": "23", "name": "Set Semitone Tune", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleSetFineTune", "section": "0E", "item": "24", "name": "Set Fine Tune", "kind": "set",
+      "args": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleSetPlaybackMode", "section": "0E", "item": "28", "name": "Set Playback Mode", "kind": "set",
+      "args": [{"name": "mode", "format": "byte", "min": 0, "max": 5}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleSetLoopStart", "section": "0E", "item": "29", "name": "Set Loop Start", "kind": "set",
+      "args": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleSetLoopEnd", "section": "0E", "item": "2A", "name": "Set Loop End", "kind": "set",
+      "args": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetStartPosition", "section": "0E", "item": "40", "name": "Get Start Position", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetEndPosition", "section": "0E", "item": "41", "name": "Get End Position", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetOriginalPitch", "section": "0E", "item": "42", "name": "Get Original Pitch", "kind": "get",
+      "args": [],
+      "reply": [{"name": "note", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetSemitoneTune", "section": "0E", "item": "43", "name": "Get Semitone Tune", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 36}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetFineTune", "section": "0E", "item": "44", "name": "Get Fine Tune", "kind": "get",
+      "args": [],
+      "reply": [{"name": "sign", "format": "byte", "min": 0, "max": 1}, {"name": "magnitude", "format": "byte", "min": 0, "max": 50}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetPlaybackMode", "section": "0E", "item": "48", "name": "Get Playback Mode", "kind": "get",
+      "args": [],
+      "reply": [{"name": "mode", "format": "byte", "min": 0, "max": 5}],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetLoopStart", "section": "0E", "item": "49", "name": "Get Loop Start", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetLoopEnd", "section": "0E", "item": "4A", "name": "Get Loop End", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "positionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-048"]
     }
   ]
 }

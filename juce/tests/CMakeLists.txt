@@ -36,6 +36,7 @@ add_executable(xs56k_akm_tests
     akm/RealSamplerSuiteTests.cpp
     akm/SamplerErrorTests.cpp
     akm/SampleDeleteAllGuardTests.cpp
+    akm/SampleParametersTests.cpp
     akm/SamplePrimitivesTests.cpp
     akm/ScenarioTests.cpp
     akm/SchedulerTests.cpp

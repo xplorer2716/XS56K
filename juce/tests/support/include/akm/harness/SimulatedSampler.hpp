@@ -171,6 +171,11 @@ namespace akm::harness
     struct SampleRecord
     {
         std::string name;
+        /// The settable parameters of RQ-AKM-048 (start/end position, original pitch, semitone/fine
+        /// tune, playback mode, loop start/end): keyed by (the group's Set item code, an always-empty
+        /// selector — these items take none), holding the value bytes; read back by the paired Get
+        /// item. Stored the same generic way as `ProgramRecord::parameters`. [TASK-AKM-043]
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
     };
 
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
