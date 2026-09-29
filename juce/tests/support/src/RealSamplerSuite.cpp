@@ -37,10 +37,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/ItemRequest.hpp"
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
+#include "akm/SamplePrimitives.hpp"
 #include "akm/SysExConfig.hpp"
 #include "akm/ZonePrimitives.hpp"
 #include "akm/harness/KeygroupParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
+#include "akm/harness/SampleParameterCases.hpp"
 #include "akm/harness/WireFormat.hpp"
 #include "akm/harness/WireLog.hpp"
 #include "akm/harness/ZoneParameterCases.hpp"
@@ -404,6 +406,187 @@ namespace akm::harness
             std::optional<std::string> _originalName;
         };
 
+        // The 8 settable §0E items (RQ-AKM-048), in the order &4B's grouped REPLY gives them — what
+        // GuardedTestSample snapshots on entry (one &4B round trip) and restores on exit (one Set per
+        // item, sliced from that snapshot by each item's own argument width).
+        constexpr std::array<ItemId, 8> SETTABLE_PARAM_SET_IDS{{
+            ItemId::SampleSetStartPosition, ItemId::SampleSetEndPosition, ItemId::SampleSetOriginalPitch,
+            ItemId::SampleSetSemitoneTune, ItemId::SampleSetFineTune, ItemId::SampleSetPlaybackMode,
+            ItemId::SampleSetLoopStart, ItemId::SampleSetLoopEnd,
+        }};
+
+        // Mirrors GuardedTestProgram, but restores rather than deletes: unlike a program, a real sample
+        // cannot be thrown away and recreated (§0E has no "create" item, RQ-AKM-045's own note), so the
+        // guard snapshots the operator's sample on entry (its settable parameters, one &4B round trip)
+        // and puts them back on exit, however the check ends. `sampleName` is fixed for the whole
+        // guard's lifetime: a check that renames the sample renames it back to `sampleName` itself,
+        // before anything that might throw, the same discipline `programLifecycleOnTestProgram` already
+        // follows for the reserved program name. Never sends `&07`/`&08` — nothing in this class can,
+        // there is no method that does. [RQ-AKM-051]
+        class GuardedTestSample
+        {
+        public:
+            GuardedTestSample(Rig& rig, Session& session, std::string sampleName)
+                : _rig(rig), _session(session), _sampleName(std::move(sampleName))
+            {
+                _originalCurrentName = currentSampleNameOrEmpty();
+                expectSelected();
+                _originalParameters = expectSettableParameters();
+            }
+
+            ~GuardedTestSample()
+            {
+                try
+                {
+                    if (!isCurrent())
+                        trySelectByName(_sampleName, "reselect the test sample before restoring it");
+                    if (isCurrent())
+                        restoreParameters();
+                    else
+                        _rig.log.note("  the test sample could not be reselected to restore it; it may have been renamed");
+                    if (hadOriginalSample())
+                        trySelectByName(*_originalCurrentName, "reselect the sample that was current before");
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the test sample guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedTestSample(const GuardedTestSample&) = delete;
+            GuardedTestSample& operator=(const GuardedTestSample&) = delete;
+
+            [[nodiscard]] bool hadOriginalSample() const
+            {
+                return _originalCurrentName.has_value() && *_originalCurrentName != _sampleName;
+            }
+
+            // Navigates away from the test sample to the one that was current before, to let a check prove
+            // expectOnTestSample refuses; false when there was none, or reselecting it failed.
+            [[nodiscard]] bool selectOriginalSample()
+            {
+                if (!hadOriginalSample())
+                    return false;
+                return trySelectByName(*_originalCurrentName,
+                                       "select the sample that was current before (to prove the wrong-sample refusal)");
+            }
+
+            [[nodiscard]] bool selectTestSampleAgain() { return trySelectByName(_sampleName, "reselect the test sample"); }
+
+            /// The settable parameters read on construction, before the check changes anything — kept so the
+            /// check can verify, after this guard is gone, that they made it back (the guard's own restore
+            /// already used this snapshot internally; this is the same data, exposed for that verification).
+            [[nodiscard]] const std::vector<std::int64_t>& originalParameters() const { return _originalParameters; }
+
+            // Runs `launch` only when the test sample is current; otherwise refuses before sending, and the check
+            // fails. [RQ-AKM-051]
+            void expectOnTestSample(const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                if (!isCurrent())
+                    throw CheckFailure(title + ": refused before sending, the current sample is not the test one");
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [this, &launch](CommandCompletion done) { launch(_session, std::move(done)); });
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience())
+                                       + ": the session lost it");
+                _rig.log.note("  " + title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                if (!succeeded(timed->result))
+                    throw CheckFailure(title + ": " + outcomeText(timed->result));
+            }
+
+        private:
+            [[nodiscard]] bool isCurrent()
+            {
+                const auto name = currentSampleNameOrEmpty();
+                return name && *name == _sampleName;
+            }
+
+            [[nodiscard]] std::optional<std::string> currentSampleNameOrEmpty()
+            {
+                const auto timed = awaitCompletion<SampleNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [this](SampleNameCompletion done) { getCurrentSampleName(_session, std::move(done)); });
+                if (!timed)
+                    return std::nullopt;
+                return timed->result.name;
+            }
+
+            void expectSelected()
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this](CommandCompletion done) {
+                    selectSampleByName(_session, _sampleName, std::move(done));
+                });
+                if (!timed || !succeeded(timed->result))
+                    throw CheckFailure("could not select the test sample \"" + _sampleName
+                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion"))
+                                       + " (is it really in the sampler's memory?)");
+                _rig.log.note("  test sample \"" + _sampleName + "\" selected and current");
+            }
+
+            // One &4B round trip: the 8 settable parameters this guard restores, in the order the spec's
+            // grouped REPLY gives them (RQ-AKM-049).
+            [[nodiscard]] std::vector<std::int64_t> expectSettableParameters()
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this](CommandCompletion done) {
+                    _session.submit(makeRequest(ItemId::SampleGetAllSettableParams, {}), std::move(done));
+                });
+                if (!timed || !succeeded(timed->result))
+                    throw CheckFailure("could not read the test sample's settable parameters before changing them: "
+                                       + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                const auto* replyData = std::get_if<Reply>(&timed->result);
+                const auto decoded = replyData ? decodeReply(ItemId::SampleGetAllSettableParams, replyData->data) : std::nullopt;
+                if (!decoded)
+                    throw CheckFailure("could not decode the test sample's settable parameters before changing them");
+                return *decoded;
+            }
+
+            // Never throws: used both by the destructor and by the public navigation helpers, which report success
+            // through their own return value instead.
+            bool trySelectByName(const std::string& name, const std::string& title)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this, &name](CommandCompletion done) {
+                    selectSampleByName(_session, name, std::move(done));
+                });
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note(std::string("  ") + title + ": "
+                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                return ok;
+            }
+
+            // Sets each of the 8 settable parameters back to `_originalParameters`, one Set per item, logged, best
+            // effort — a failed restore is noted, not thrown (the destructor must not throw).
+            void restoreParameters()
+            {
+                std::size_t offset = 0;
+                for (const ItemId setId : SETTABLE_PARAM_SET_IDS)
+                {
+                    const std::size_t width = descriptor(setId).args.size();
+                    if (offset + width > _originalParameters.size())
+                    {
+                        _rig.log.note("  could not restore the test sample's settable parameters: snapshot too short");
+                        return;
+                    }
+                    const std::vector<std::int64_t> value(_originalParameters.begin() + static_cast<std::ptrdiff_t>(offset),
+                                                          _originalParameters.begin() + static_cast<std::ptrdiff_t>(offset + width));
+                    offset += width;
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [this, setId, &value](CommandCompletion done) {
+                            _session.submit(makeRequest(setId, value), std::move(done));
+                        });
+                    const bool ok = timed && succeeded(timed->result);
+                    _rig.log.note("  restore " + std::string(descriptor(setId).name) + ": " + (ok ? "done" : "failed"));
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            std::string _sampleName;
+            std::optional<std::string> _originalCurrentName;
+            std::vector<std::int64_t> _originalParameters;
+        };
+
         // The checks, one after the other.
         class Suite
         {
@@ -436,6 +619,10 @@ namespace akm::harness
                           "including zone 0 (all four) and keygroup 0 + zone 0",
                           &Suite::zonesOnTestProgram);
                 }
+                if (_rig.options.sampleLifecycle)
+                    check("select the test sample, round-trip every §0E lifecycle and settable-parameter item on it, "
+                          "and restore its name and parameters",
+                          &Suite::samplesOnTestSample);
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -1370,6 +1557,179 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-051: selects the sample named by `--sample-name` (skipped, not failed, when empty —
+            // there is nothing else for this check to test), renames it and back, starts and stops
+            // auditioning it, round-trips every settable item on it (RQ-AKM-048), confirms the grouped
+            // replies agree with the items they group (RQ-AKM-049), then lets the guard restore its
+            // name and parameters and the sampler's original current-sample selection, verified again
+            // once the guard is gone.
+            void samplesOnTestSample()
+            {
+                if (!_rig.options.sampleName)
+                    throw CheckSkipped("no --sample-name given");
+                const std::string& sampleName = *_rig.options.sampleName;
+
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::vector<std::int64_t> originalSnapshot;
+                {
+                    GuardedTestSample sample(_rig, guarded.session(), sampleName);
+                    originalSnapshot = sample.originalParameters();
+                    finding("sample \"" + sampleName + "\" selected as current");
+
+                    // RQ-AKM-045: rename, then rename back immediately, so the guard's fixed anchor
+                    // (sampleName) still finds it if anything below throws.
+                    const std::string renamedTo = sampleName + "_2";
+                    sample.expectOnTestSample("rename the test sample", [&renamedTo](Session& session, CommandCompletion done) {
+                        renameCurrentSample(session, renamedTo, std::move(done));
+                    });
+                    const auto renamedResult = awaitCompletion<SampleNameResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](SampleNameCompletion done) { getCurrentSampleName(guarded.session(), std::move(done)); });
+                    expect(renamedResult && renamedResult->result.name == renamedTo, "the new name read back");
+                    const auto renameBack = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &sampleName](CommandCompletion done) {
+                            renameCurrentSample(guarded.session(), sampleName, std::move(done));
+                        });
+                    if (!renameBack || !succeeded(renameBack->result))
+                        throw CheckFailure("could not rename the test sample back to \"" + sampleName + "\"");
+
+                    // RQ-AKM-045: audition start/stop.
+                    sample.expectOnTestSample("start auditioning", [](Session& session, CommandCompletion done) {
+                        startSampleAudition(session, std::move(done));
+                    });
+                    sample.expectOnTestSample("stop auditioning", [](Session& session, CommandCompletion done) {
+                        stopSampleAudition(session, std::move(done));
+                    });
+
+                    // RQ-AKM-048: every settable parameter item, Set then Get, verified by read-back.
+                    for (const SampleParameterCase& parameterCase : allSampleParameterCases())
+                    {
+                        const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                        const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                        const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                        const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                        const std::string title(descriptor(parameterCase.setId).name);
+
+                        sample.expectOnTestSample("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                            session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                        });
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                            });
+                        if (!timed)
+                            throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                        if (!succeeded(timed->result))
+                            throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                        const auto* replyData = std::get_if<Reply>(&timed->result);
+                        const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                        if (!decoded || *decoded != expectedValue)
+                            throw CheckFailure("get " + title + ": read back "
+                                               + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                               + valuesText(expectedValue));
+                    }
+                    finding(std::to_string(allSampleParameterCases().size()) + " settable sample parameter items round-tripped");
+
+                    // RQ-AKM-049: the grouped replies agree with the items they group.
+                    std::vector<std::int64_t> basicParams;
+                    for (const ItemId id :
+                        {ItemId::SampleGetType, ItemId::SampleGetChannels, ItemId::SampleGetLength, ItemId::SampleGetRate})
+                    {
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, id](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(id, {}), std::move(done));
+                            });
+                        const auto* replyData = timed ? std::get_if<Reply>(&timed->result) : nullptr;
+                        const auto decoded = replyData ? decodeReply(id, replyData->data) : std::nullopt;
+                        if (!decoded)
+                            throw CheckFailure("get " + std::string(descriptor(id).name) + ": nothing decodable");
+                        basicParams.insert(basicParams.end(), decoded->begin(), decoded->end());
+                    }
+                    const auto groupedBasic = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(ItemId::SampleGetAllBasicParams, {}), std::move(done));
+                        });
+                    const auto* groupedBasicReply = groupedBasic ? std::get_if<Reply>(&groupedBasic->result) : nullptr;
+                    const auto decodedGroupedBasic =
+                        groupedBasicReply ? decodeReply(ItemId::SampleGetAllBasicParams, groupedBasicReply->data) : std::nullopt;
+                    expect(decodedGroupedBasic && *decodedGroupedBasic == basicParams,
+                           "&34 decodes to the same values as &30-&33 read individually");
+
+                    std::vector<std::int64_t> settableParams;
+                    for (const ItemId id :
+                        {ItemId::SampleGetStartPosition, ItemId::SampleGetEndPosition, ItemId::SampleGetOriginalPitch,
+                         ItemId::SampleGetSemitoneTune, ItemId::SampleGetFineTune, ItemId::SampleGetPlaybackMode,
+                         ItemId::SampleGetLoopStart, ItemId::SampleGetLoopEnd})
+                    {
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, id](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(id, {}), std::move(done));
+                            });
+                        const auto* replyData = timed ? std::get_if<Reply>(&timed->result) : nullptr;
+                        const auto decoded = replyData ? decodeReply(id, replyData->data) : std::nullopt;
+                        if (!decoded)
+                            throw CheckFailure("get " + std::string(descriptor(id).name) + ": nothing decodable");
+                        settableParams.insert(settableParams.end(), decoded->begin(), decoded->end());
+                    }
+                    const auto groupedSettable = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(ItemId::SampleGetAllSettableParams, {}), std::move(done));
+                        });
+                    const auto* groupedSettableReply = groupedSettable ? std::get_if<Reply>(&groupedSettable->result) : nullptr;
+                    const auto decodedGroupedSettable =
+                        groupedSettableReply ? decodeReply(ItemId::SampleGetAllSettableParams, groupedSettableReply->data) : std::nullopt;
+                    expect(decodedGroupedSettable && *decodedGroupedSettable == settableParams,
+                           "&4B decodes to the same values as &40-&4A read individually");
+
+                    if (sample.hadOriginalSample())
+                    {
+                        expect(sample.selectOriginalSample(), "navigated away to the sample that was current before");
+                        bool refused = false;
+                        try
+                        {
+                            sample.expectOnTestSample("start auditioning (on the wrong sample)",
+                                                      [](Session& session, CommandCompletion done) {
+                                                          startSampleAudition(session, std::move(done));
+                                                      });
+                        }
+                        catch (const CheckFailure&)
+                        {
+                            refused = true;
+                        }
+                        expect(refused, "acting on the sample that is current but not the test one was refused before sending");
+                        expect(sample.selectTestSampleAgain(), "reselected the test sample");
+                    }
+                    else
+                        finding("no sample was current before: the wrong-sample refusal is not exercised this run");
+                }
+                finding("test sample's name and settable parameters restored by the guard");
+
+                const auto reselected = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &sampleName](CommandCompletion done) {
+                        selectSampleByName(guarded.session(), sampleName, std::move(done));
+                    });
+                expect(reselected && succeeded(reselected->result), "the test sample can still be selected by its original name");
+
+                const auto nameAfter = awaitCompletion<SampleNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](SampleNameCompletion done) { getCurrentSampleName(guarded.session(), std::move(done)); });
+                expect(nameAfter && nameAfter->result.name == sampleName, "its name is back to \"" + sampleName + "\"");
+
+                const auto paramsAfter = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(ItemId::SampleGetAllSettableParams, {}), std::move(done));
+                    });
+                const auto* paramsAfterReply = paramsAfter ? std::get_if<Reply>(&paramsAfter->result) : nullptr;
+                const auto decodedParamsAfter =
+                    paramsAfterReply ? decodeReply(ItemId::SampleGetAllSettableParams, paramsAfterReply->data) : std::nullopt;
+                expect(decodedParamsAfter && *decodedParamsAfter == originalSnapshot,
+                       "its settable parameters are back to what they were before");
+
+                closeAndVerify(guarded);
+            }
+
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
@@ -1400,6 +1760,12 @@ namespace akm::harness
                                                       + "\" to a zone of that program by name (--sample-name, RQ-AKM-035,"
                                                         " RQ-AKM-038): the sample itself is never created, changed or deleted."
                                                 : " Sample assignment is skipped: no --sample-name was given."));
+            if (options.sampleLifecycle)
+                log.note(std::string("It also selects the sample named by --sample-name (RQ-AKM-051), skipped if it is empty, and ")
+                         + "renames it and back, starts and stops auditioning it, round-trips every settable §0E item on it "
+                         + "(RQ-AKM-048) and confirms the grouped replies &34/&4B agree with the items they group (RQ-AKM-049): "
+                         + "the sample's name and every settable parameter, and the sampler's original current-sample selection, "
+                         + "are restored before this check returns, even if it fails half way, and it never sends &07 or &08.");
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }

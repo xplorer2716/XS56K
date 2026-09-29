@@ -31,7 +31,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 
 #include "AwkwardSampler.hpp"
+#include "HostProbe.hpp"
 #include "SeededPrograms.hpp"
+#include "TestBytes.hpp"
+#include "akm/Command.hpp"
+#include "akm/ItemRequest.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
 #include "akm/harness/ScenarioDriver.hpp"
 #include "akm/harness/SimulatedMidiBackend.hpp"
@@ -61,6 +65,7 @@ namespace
     constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
     constexpr std::uint8_t SECTION_SYSTEM = 0x02;
     constexpr std::uint8_t SECTION_PROGRAM = 0x0A;
+    constexpr std::uint8_t SECTION_SAMPLE = 0x0E;
     constexpr std::uint8_t SECTION_DISK_TOOLS = 0x10;
     constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
     constexpr std::uint8_t ITEM_SYNC_LCD = 0x03;
@@ -123,6 +128,32 @@ namespace
             CAPTURE(report.title, report.detail);
             CHECK(report.outcome == CheckOutcome::Passed);
         }
+    }
+
+    // Seeds a sample's settable §0E parameters (RQ-AKM-048) via raw frames, so the sampler ends exactly
+    // as a real one holding this sample, with these values already set, would, before any session is
+    // opened against it — mirroring SeededPrograms.hpp's own approach for §0A. Values distinct from
+    // allSampleParameterCases()'s own test values, and Original Pitch inside its 21-127 range: unlike
+    // every other settable item, its range excludes 0, so the mock's own zero-filled "unset" default is
+    // not a value GuardedTestSample's restore step could legitimately resend, a case a real sample
+    // never presents (its pitch is always a real value already, wherever it came from).
+    void seedSampleParameters(akm::harness::SimulatedMidiBackend& backend, const std::string& name)
+    {
+        akm::test::HostProbe host(backend, backend.inputName(), backend.outputName());
+        std::uint8_t userRef = 0x01;
+        const auto send = [&](const akm::CommandRequest& request) {
+            const akm::EncodeResult frame = akm::encodeCommand(0, akm::test::Bytes{userRef++}, request.command, akm::ChecksumMode::Off);
+            host.send(frame.bytes);
+        };
+        send(akm::makeStringRequest(akm::ItemId::SampleSelectByName, name));
+        send(akm::makeRequest(akm::ItemId::SampleSetStartPosition, {1, 1, 1, 1}));
+        send(akm::makeRequest(akm::ItemId::SampleSetEndPosition, {2, 2, 2, 2}));
+        send(akm::makeRequest(akm::ItemId::SampleSetOriginalPitch, {50}));
+        send(akm::makeRequest(akm::ItemId::SampleSetSemitoneTune, {0, 5}));
+        send(akm::makeRequest(akm::ItemId::SampleSetFineTune, {1, 10}));
+        send(akm::makeRequest(akm::ItemId::SampleSetPlaybackMode, {0}));
+        send(akm::makeRequest(akm::ItemId::SampleSetLoopStart, {0, 0, 0, 0}));
+        send(akm::makeRequest(akm::ItemId::SampleSetLoopEnd, {0, 0, 0, 1}));
     }
 
     std::size_t occurrences(const std::string& text, const std::string& part)
@@ -699,6 +730,43 @@ TEST_CASE("Given a sample name the simulated sampler holds, When the suite runs 
     checkAllPassed(result);
     CHECK_THAT(reportOf(result, "round-trip every §06 parameter item").detail,
               ContainsSubstring("\"KICK\" assigned to zone 1"));
+}
+
+TEST_CASE("Given no --sample-name, When the suite runs with the sample lifecycle check, Then it is reported as skipped and no section 0E command is sent [TASK-AKM-045, RQ-AKM-051]",
+          "[akm][suite]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.sampleLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(reportOf(result, "round-trip every §0E lifecycle").outcome == CheckOutcome::Skipped);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_SAMPLE);
+}
+
+TEST_CASE("Given a sample name the simulated sampler holds, When the suite runs with the sample lifecycle check, Then it renames it and back, starts and stops auditioning it, round-trips every settable item, confirms the grouped replies, and restores its name and parameters, without --program-lifecycle [TASK-AKM-045, RQ-AKM-048, RQ-AKM-049, RQ-AKM-051]",
+          "[akm][suite]")
+{
+    Rig rig;
+    rig.sampler.setSampleNames({"KICK"});
+    seedSampleParameters(rig.backend, "KICK");
+    RealSuiteOptions options = rig.options();
+    options.sampleLifecycle = true;
+    options.sampleName = "KICK";
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "round-trip every §0E lifecycle").detail,
+              ContainsSubstring("settable sample parameter items round-tripped"));
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SAMPLE && (command.item == 0x07 || command.item == 0x08)));
 }
 
 TEST_CASE("Given the default options, When the suite runs, Then it never sends a section 0A command, and the program lifecycle checks do not run [TASK-AKM-024, RQ-AKM-027]",

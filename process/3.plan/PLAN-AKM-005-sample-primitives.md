@@ -280,7 +280,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-045: Real-sampler test harness — dedicated test sample
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement the RQ-AKM-051 guard for every real-sampler test of this feature
   (`GuardedTestSample`, mirroring `GuardedTestProgram`): act only on a sample the operator names in
   the test configuration, restore its name and every settable parameter before returning even when a
@@ -299,8 +299,44 @@ This plan implements the tasks in the format specified below.
   sent, and the sampler's current-sample selection is what it was when the suite started.
 - **Dependencies**: TASK-AKM-040, TASK-AKM-041, TASK-AKM-042, TASK-AKM-043, TASK-AKM-044
 - **Assignee**: AI, with the owner running the real-sampler suite
-- **Verification**: Not yet run.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 455/455. New `samplesOnTestSample` check (a
+  fifth, gated by its own `--sample-lifecycle`, independent of `--program-lifecycle` — §0E needs no
+  stored program): renames the test sample and back, starts and stops auditioning it, round-trips all
+  8 items of `allSampleParameterCases()` (new `SampleParameterCases.hpp/.cpp`, values independent of
+  `SampleParametersTests.cpp`'s own), confirms `&34`/`&4B` agree with the items they group, and (when a
+  sample was current before) proves the wrong-sample refusal, then lets `GuardedTestSample` restore
+  the sample's name and its 8 settable parameters (one `&4B` snapshot on entry, one Set per item on
+  exit) and the original current-sample selection — verified again from outside the guard's scope
+  (reselect by the original name, re-read `&4B`, compare to the snapshot). 2 new `[suite]` mock tests
+  (`RealSamplerSuiteTests.cpp`, `AUTOMATIC_CHECKS + 1` for this check alone, independent of the `+ 4` of
+  `--program-lifecycle`'s own tests, unaffected): one without `--sample-name` proving `CheckSkipped`
+  and that no section `0E` command is sent; one with `--sample-name "KICK"` (seeded with valid settable
+  parameters first — new `seedSampleParameters` local helper, raw frames like `SeededPrograms.hpp`'s
+  own approach for §0A) proving every check step and the full restoration, `checkAllPassed` included.
+  `--coverage`: unaffected (no new items catalogued). Real-sampler run: not yet done — needs the
+  owner, on the real S5000, with a sample already loaded that is safe to rename/audition/parametrise
+  temporarily.
+- **Assumptions**: `sampleLifecycle` is a new, independent `RealSuiteOptions` flag rather than folding
+  this check under `programLifecycle`: §0E has no current-program dependency at all (`FTR-AKM-005`'s
+  own "Depends on" line), so gating it behind a flag named for programs would be misleading, and
+  `--sample-name` already needed relaxing from "needs --program-lifecycle" to "needs --program-lifecycle
+  or --sample-lifecycle" in `xs56k_akm_probe`'s own validation. `GuardedTestSample` cannot delete-and-
+  recreate like `GuardedTestProgram` (§0E has no create item, `RQ-AKM-045`'s own note), so it restores
+  by value instead: one `&4B` round trip on construction (the snapshot), one Set per settable item on
+  destruction (best-effort, logged, never throwing) — discovered while writing the mock test that a
+  snapshot value can be outside its own item's valid range (Original Pitch's unset default of `0` sits
+  outside its own `21-127`, unlike every other settable item, whose range already includes `0`) and is
+  then not legitimately resendable; not a production gap (a real sample's pitch is always a real value,
+  never an artificial "unset" one), so fixed in the mock test's own seeding (`seedSampleParameters`)
+  rather than adding defensive range-skipping to the guard — a real sampler that ever did present such
+  a value should have its restoration reported as failed, not silently skipped. The check renames the
+  sample and back to the operator's configured name *before* the parameter round trip, immediately, the
+  same discipline `programLifecycleOnTestProgram` uses for `TEST_PROGRAM_NAME`, so the guard's
+  fixed-name anchor still finds it if anything later throws. No "wrong sample refusal" step is added
+  beyond what mirroring `GuardedTestProgram` already gives for free (`hadOriginalSample`/
+  `selectOriginalSample`/`selectTestSampleAgain`): cheap to include once the mirroring was done, not an
+  addition beyond RQ-AKM-051's own scope. Mutation testing still blocked (RQ-BLD-015/TASK-BLD-012 not
+  done, as in prior tasks).
 
 ---
 

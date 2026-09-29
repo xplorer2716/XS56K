@@ -8,6 +8,7 @@ add_library(xs56k_akm_test_support STATIC
     src/KeygroupParameterCases.cpp
     src/ProgramParameterCases.cpp
     src/RealSamplerSuite.cpp
+    src/SampleParameterCases.cpp
     src/ScenarioDriver.cpp
     src/SessionSmokeTest.cpp
     src/SimulatedMidiBackend.cpp
