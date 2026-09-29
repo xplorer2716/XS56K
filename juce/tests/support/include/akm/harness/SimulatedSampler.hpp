@@ -163,6 +163,16 @@ namespace akm::harness
         return a.name == b.name && a.keygroupCount == b.keygroupCount && a.crossfade == b.crossfade;
     }
 
+    /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
+    /// primitives set or read. Unlike a program, this model has no "create" for a sample: §0E has no
+    /// such item (a sample only exists once `setSampleNames` — or a later item of this lot — puts it
+    /// there), matching the spec, which only lets samples be loaded or recorded, not created blank.
+    /// [RQ-AKM-045]
+    struct SampleRecord
+    {
+        std::string name;
+    };
+
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
     /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. §00, the two version items of §02
@@ -184,9 +194,12 @@ namespace akm::harness
         void setBehaviour(SamplerBehaviour behaviour);
         [[nodiscard]] SamplerBehaviour behaviour() const;
 
-        /// The sample names §06/&01 (Set Zone Sample) accepts; assigning any other name fails with
-        /// ERROR 04, the spec's "requested item not found" (RQ-AKM-035). Empty by default: a test that
-        /// wants a successful assignment must call this first, like `setBehaviour`.
+        /// Seeds the sampler's sample memory (§0E) by name, one `SampleRecord` each, current-sample
+        /// selection reset. The same list §06/&01 (Set Zone Sample) checks a name against — assigning a
+        /// name not here fails with ERROR 04, the spec's "requested item not found" (RQ-AKM-035); §0E's
+        /// own lifecycle primitives (RQ-AKM-045) act on this same list, so a test can seed a sample once
+        /// and use it for both zone assignment and the sample lifecycle. Empty by default: a test that
+        /// wants a successful assignment or selection must call this first, like `setBehaviour`.
         void setSampleNames(std::vector<std::string> names);
 
         [[nodiscard]] SamplerSettings settings() const;
@@ -212,7 +225,6 @@ namespace akm::harness
         mutable std::mutex _mutex;
         SamplerBehaviour _behaviour;
         SamplerSettings _settings;
-        std::vector<std::string> _sampleNames;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
 
@@ -224,5 +236,9 @@ namespace akm::harness
         // one program. A newly current program defaults to keygroup 1 (the spec does not say; observed on
         // the real sampler when TASK-AKM-026's real-sampler test runs).
         std::optional<int> _currentKeygroup;
+        // §0E sample memory (RQ-AKM-045), seeded by `setSampleNames`: not touched by powerCycle(). Unlike
+        // §0A's current program, §0E's current sample has no dependent selection to reset alongside it.
+        std::vector<SampleRecord> _samples;
+        std::optional<std::size_t> _currentSample;
     };
 }

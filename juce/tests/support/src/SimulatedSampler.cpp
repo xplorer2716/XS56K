@@ -105,6 +105,20 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_SET_ZONE_SAMPLE = 0x01;
         constexpr std::uint8_t ITEM_GET_ZONE_SAMPLE = 0x21;
 
+        // Section §0E (Sample), spec Tables 18-19: the lifecycle items of TASK-AKM-040 (RQ-AKM-045),
+        // plus &13/&14 pulled in early (RQ-AKM-047) the same way TASK-AKM-015 pulled in Program's
+        // &10/&13, so this lot's own round trips have a Get to verify against. Other §0E items answer
+        // ERROR 0 until their own task.
+        constexpr std::uint8_t SECTION_SAMPLE = 0x0E;
+        constexpr std::uint8_t ITEM_SELECT_SAMPLE_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_SELECT_SAMPLE_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_DELETE_CURRENT_SAMPLE = 0x08;
+        constexpr std::uint8_t ITEM_RENAME_CURRENT_SAMPLE = 0x09;
+        constexpr std::uint8_t ITEM_START_SAMPLE_AUDITION = 0x0A;
+        constexpr std::uint8_t ITEM_STOP_SAMPLE_AUDITION = 0x0B;
+        constexpr std::uint8_t ITEM_GET_CURRENT_SAMPLE_INDEX = 0x13;
+        constexpr std::uint8_t ITEM_GET_CURRENT_SAMPLE_NAME = 0x14;
+
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
         constexpr std::size_t SECTION_AND_ITEM_SIZE = 2;
@@ -732,22 +746,110 @@ namespace akm::harness
             }
         }
 
-        // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection and §06's
-        // parameters (RQ-AKM-034, RQ-AKM-035) are modelled. A byte after the data an item expects is
-        // ignored, as the spec says of a checksum sent while checksums are off.
+        // §0E sample lifecycle (RQ-AKM-045): select by name/index, delete/rename the current sample,
+        // start/stop auditioning it, plus &13/&14 (RQ-AKM-047, pulled in early — see the constants
+        // above). §0E has its own sampler-wide "current sample" selection state, the same pattern as
+        // §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-
+        // first-byte pattern of §06. Unlike a program, a sample cannot be created here: `samples` is
+        // only ever seeded by `setSampleNames`. Audition is assumed to need a current sample, like every
+        // other "act on the current one" item of this section (spec silent either way). [TASK-AKM-040]
+        Outcome executeSample(std::uint8_t item, const Bytes& data, std::vector<SampleRecord>& samples,
+                              std::optional<std::size_t>& current)
+        {
+            switch (item)
+            {
+                case ITEM_SELECT_SAMPLE_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find_if(samples.begin(), samples.end(),
+                                                    [&](const SampleRecord& s) { return s.name == *name; });
+                    if (found == samples.end())
+                        return failure(error_number::NOT_FOUND);
+                    current = static_cast<std::size_t>(found - samples.begin());
+                    return done();
+                }
+                case ITEM_SELECT_SAMPLE_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= samples.size())
+                        return failure(error_number::NOT_FOUND);
+                    current = *index;
+                    return done();
+                }
+                case ITEM_DELETE_CURRENT_SAMPLE:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    samples.erase(samples.begin() + static_cast<std::ptrdiff_t>(*current));
+                    current.reset();
+                    return done();
+                case ITEM_RENAME_CURRENT_SAMPLE:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    samples[*current].name = *name;
+                    return done();
+                }
+                case ITEM_START_SAMPLE_AUDITION:
+                case ITEM_STOP_SAMPLE_AUDITION:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return done();
+                case ITEM_GET_CURRENT_SAMPLE_INDEX:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_SAMPLE_NAME:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(samples[*current].name);
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
+        // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
+        // parameters (RQ-AKM-034, RQ-AKM-035) and §0E's lifecycle (RQ-AKM-045) are modelled. A byte
+        // after the data an item expects is ignored, as the spec says of a checksum sent while checksums
+        // are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion, std::vector<ProgramRecord>& programs,
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
-                        const std::vector<std::string>& sampleNames)
+                        std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample)
         {
             if (section == SECTION_ZONE)
+            {
+                std::vector<std::string> sampleNames;
+                sampleNames.reserve(samples.size());
+                for (const SampleRecord& sample : samples)
+                    sampleNames.push_back(sample.name);
                 return executeZone(item, data, programs, currentProgram, currentKeygroup, sampleNames);
+            }
             if (section == SECTION_SYSTEM)
                 return executeSystem(item, osVersion);
             if (section == SECTION_PROGRAM)
                 return executeProgram(item, data, programs, currentProgram, currentKeygroup);
             if (section == SECTION_KEYGROUP)
                 return executeKeygroup(item, data, programs, currentProgram, currentKeygroup);
+            if (section == SECTION_SAMPLE)
+                return executeSample(item, data, samples, currentSample);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -812,7 +914,11 @@ namespace akm::harness
     void SimulatedSampler::setSampleNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
-        _sampleNames = std::move(names);
+        _samples.clear();
+        _samples.reserve(names.size());
+        for (std::string& name : names)
+            _samples.push_back(SampleRecord{std::move(name)});
+        _currentSample.reset();
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
@@ -958,7 +1064,7 @@ namespace akm::harness
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
                                     : execute(section, item, data, _settings, _config.osVersion, _programs, _currentProgram,
-                                              _currentKeygroup, _sampleNames);
+                                              _currentKeygroup, _samples, _currentSample);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

@@ -22,6 +22,7 @@ add_library(xs56k_akm STATIC
     src/ProgramPrimitives.cpp
     src/RealScheduler.cpp
     src/SamplerError.cpp
+    src/SamplePrimitives.cpp
     src/Session.cpp
     src/SessionConfig.cpp
     src/SysExConfig.cpp

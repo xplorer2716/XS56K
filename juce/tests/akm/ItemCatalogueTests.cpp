@@ -131,11 +131,13 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // CATALOGUE tracks only sections 00 and 02; TASK-AKM-015 to 023 added 95 records of section 0A (now
     // complete, TASK-AKM-023's guarded &07 included), TASK-AKM-026 to 032 added section 08's selection
     // (2), General Options (12), Pitch/Amp (10), Filter (12), Filter Envelope (18), Amplitude Envelope
-    // (16) and Aux Envelope (10) — complete too (80/80 commands, 40/40 REPLY formats) — and TASK-AKM-035
+    // (16) and Aux Envelope (10) — complete too (80/80 commands, 40/40 REPLY formats) — TASK-AKM-035
     // to 036 added section 06's 28 records: the 13 non-sample zone parameters (Level..Solo, Set and Get)
-    // and sample assignment by name (&01/&21) — 06 now complete too (28/28 commands) — which this count
-    // includes without tracking them here too (see ProgramPrimitivesTests.cpp and the other test files).
-    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28;
+    // and sample assignment by name (&01/&21) — 06 now complete too (28/28 commands) — and TASK-AKM-040
+    // added 8 records of section 0E (still partial, 8/34): the 6 lifecycle items of RQ-AKM-045 plus
+    // &13/&14 pulled in early — which this count includes without tracking them here too (see
+    // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp and the other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
