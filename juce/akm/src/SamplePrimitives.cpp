@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <span>
 #include <utility>
 
+#include "akm/ByteReader.hpp"
 #include "akm/ItemRequest.hpp"
 #include "akm/SamplerError.hpp"
 
@@ -117,5 +118,54 @@ namespace akm
             return;
         }
         submitSampleRequest(session, makeRequest(ItemId::SampleDeleteAll, NO_VALUES), std::move(completion));
+    }
+
+    void getSampleCount(Session& session, SampleCountCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::SampleGetCount, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           SampleCountResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::SampleGetCount, rep->data);
+                               if (values && values->size() == 2)
+                                   result.count = static_cast<int>((*values)[0] * DATA_BYTE_BASE + (*values)[1]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getSampleNameByIndex(Session& session, int index, SampleNameCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::SampleGetNameByIndex, {msb, lsb}, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           SampleNameResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               result.name = decodeStringReply(ItemId::SampleGetNameByIndex, rep->data);
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getAllSampleNames(Session& session, AllSampleNamesCompletion completion)
+    {
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::SampleGetAllNames, NO_VALUES, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           AllSampleNamesResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               ByteReader reader(rep->data);
+                               result.names = reader.readStringList();
+                           }
+                           if (completion)
+                               completion(result);
+                       });
     }
 }

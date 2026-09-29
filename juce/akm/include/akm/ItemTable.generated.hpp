@@ -252,6 +252,9 @@ namespace akm
         SampleGetCurrentIndex,
         SampleGetCurrentName,
         SampleDeleteAll,
+        SampleGetCount,
+        SampleGetNameByIndex,
+        SampleGetAllNames,
     };
 
     namespace item_data
@@ -1205,10 +1208,24 @@ namespace akm
         inline constexpr std::array<ValueSpec, 1> SAMPLE_GET_CURRENT_NAME_REPLY{{
             {"name", ValueFormat::String, 0, 255},
         }};
+        inline constexpr std::array<ValueSpec, 2> SAMPLE_GET_COUNT_REPLY{{
+            {"countMsb", ValueFormat::Byte, 0, 127},
+            {"countLsb", ValueFormat::Byte, 0, 127},
+        }};
+        inline constexpr std::array<ValueSpec, 2> SAMPLE_GET_NAME_BY_INDEX_ARGS{{
+            {"indexMsb", ValueFormat::Byte, 0, 127},
+            {"indexLsb", ValueFormat::Byte, 0, 127},
+        }};
+        inline constexpr std::array<ValueSpec, 1> SAMPLE_GET_NAME_BY_INDEX_REPLY{{
+            {"name", ValueFormat::String, 0, 255},
+        }};
+        inline constexpr std::array<ValueSpec, 1> SAMPLE_GET_ALL_NAMES_REPLY{{
+            {"name", ValueFormat::String, 0, 255},
+        }};
     }
 
     /// Every record of the data file, indexed by ItemId.
-    inline constexpr std::array<ItemDescriptor, 221> ITEM_TABLE{{
+    inline constexpr std::array<ItemDescriptor, 224> ITEM_TABLE{{
         // section 00 item 00 [RQ-AKM-012]
         {"Query", 0x00, 0x00, ItemKind::Set, {}, {}},
         // section 00 item 01 [RQ-AKM-014]
@@ -1651,5 +1668,11 @@ namespace akm
         {"Get Current Sample's Name", 0x0E, 0x14, ItemKind::Get, {}, item_data::SAMPLE_GET_CURRENT_NAME_REPLY},
         // section 0E item 07 [RQ-AKM-046]
         {"Delete ALL samples from memory", 0x0E, 0x07, ItemKind::Set, {}, {}},
+        // section 0E item 10 [RQ-AKM-047]
+        {"Get the Number of Samples loaded into memory", 0x0E, 0x10, ItemKind::Get, {}, item_data::SAMPLE_GET_COUNT_REPLY},
+        // section 0E item 11 [RQ-AKM-047]
+        {"Get the name of sample by index", 0x0E, 0x11, ItemKind::Get, item_data::SAMPLE_GET_NAME_BY_INDEX_ARGS, item_data::SAMPLE_GET_NAME_BY_INDEX_REPLY},
+        // section 0E item 12 [RQ-AKM-047]
+        {"Get the names of all of the samples in memory", 0x0E, 0x12, ItemKind::Get, {}, item_data::SAMPLE_GET_ALL_NAMES_REPLY},
     }};
 }

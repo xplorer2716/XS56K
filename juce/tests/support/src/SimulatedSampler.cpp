@@ -120,6 +120,10 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_CURRENT_SAMPLE_NAME = 0x14;
         // Destructive guard of TASK-AKM-041 (RQ-AKM-046).
         constexpr std::uint8_t ITEM_DELETE_ALL_SAMPLES = 0x07;
+        // General information of TASK-AKM-042 (RQ-AKM-047).
+        constexpr std::uint8_t ITEM_GET_SAMPLE_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_NAME_BY_INDEX = 0x11;
+        constexpr std::uint8_t ITEM_GET_ALL_SAMPLE_NAMES = 0x12;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -826,6 +830,31 @@ namespace akm::harness
                     samples.clear();
                     current.reset();
                     return done();
+                case ITEM_GET_SAMPLE_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(samples.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SAMPLE_NAME_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= samples.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(samples[*index].name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_SAMPLE_NAMES:
+                {
+                    akm::ByteWriter writer;
+                    for (const SampleRecord& sample : samples)
+                        writer.appendString(sample.name);
+                    return reply(writer.bytes());
+                }
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }

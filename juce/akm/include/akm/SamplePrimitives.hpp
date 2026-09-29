@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "akm/CommandResult.hpp"
 #include "akm/Session.hpp"
@@ -94,4 +95,37 @@ namespace akm
     /// [RQ-AKM-046]
     void deleteAllSamples(Session& session, std::optional<ConfirmDeleteAllSamples> confirmation,
                           CommandCompletion completion);
+
+    // General information about the samples in memory (§0E/&10-&12). [RQ-AKM-047]
+
+    /// `count` is empty when the command did not complete on a REPLY of the length the catalogue gives
+    /// it; `outcome` is the result of the command. [RQ-AKM-047]
+    struct SampleCountResult
+    {
+        std::optional<int> count{};
+        CommandResult outcome{};
+    };
+    using SampleCountCompletion = std::function<void(const SampleCountResult&)>;
+
+    /// Gets the number of samples in memory (§0E/&10). [RQ-AKM-047]
+    void getSampleCount(Session& session, SampleCountCompletion completion);
+
+    /// Gets the name of the sample at zero-based `index` (§0E/&11), without making it current; refused
+    /// as `ChecksumModeUnknown` while the port's checksum mode is unknown, since a String REPLY has no
+    /// fixed length to delimit it by (ADR-AKM-001, DEC-AKM-013). [RQ-AKM-047, RQ-AKM-041]
+    void getSampleNameByIndex(Session& session, int index, SampleNameCompletion completion);
+
+    /// One entry per sample in memory, in memory order. Empty when the command did not complete on a
+    /// decodable REPLY. [RQ-AKM-047]
+    struct AllSampleNamesResult
+    {
+        std::optional<std::vector<std::string>> names{};
+        CommandResult outcome{};
+    };
+    using AllSampleNamesCompletion = std::function<void(const AllSampleNamesResult&)>;
+
+    /// Gets the names of every sample in memory (§0E/&12). Refused as `ChecksumModeUnknown` while the
+    /// port's checksum mode is unknown, the REPLY repeating a record (a name) once per sample with no
+    /// fixed length either (ADR-AKM-001, DEC-AKM-014). [RQ-AKM-047, RQ-AKM-041]
+    void getAllSampleNames(Session& session, AllSampleNamesCompletion completion);
 }

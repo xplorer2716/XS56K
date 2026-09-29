@@ -33,11 +33,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SamplerError.hpp"
 
+using akm::AllSampleNamesResult;
 using akm::CommandResult;
 using akm::Done;
 using akm::Error;
 using akm::RefusalReason;
 using akm::Refused;
+using akm::SampleCountResult;
 using akm::SampleIndexResult;
 using akm::SampleNameResult;
 using akm::harness::ManualScenarioDriver;
@@ -60,6 +62,22 @@ namespace
     {
         auto latched = std::make_shared<Latched<SampleIndexResult>>();
         akm::getCurrentSampleIndex(harness.session(), [latched](const SampleIndexResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    SampleCountResult getCount(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<SampleCountResult>>();
+        akm::getSampleCount(harness.session(), [latched](const SampleCountResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    AllSampleNamesResult getAllNames(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<AllSampleNamesResult>>();
+        akm::getAllSampleNames(harness.session(), [latched](const AllSampleNamesResult& r) { latched->set(r); });
         REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
         return *latched->value();
     }
@@ -182,5 +200,74 @@ TEST_CASE("Given the checksum mode unknown, When Get Current Sample's Name is re
     REQUIRE(std::holds_alternative<Refused>(result.outcome));
     CHECK(std::get<Refused>(result.outcome).reason == RefusalReason::ChecksumModeUnknown);
     CHECK_FALSE(result.name.has_value());
+    CHECK(harness.sentCount() == 0);
+}
+
+TEST_CASE("Given a simulated sampler holding samples KICK, SNARE, HAT, When the names of all samples are read, Then the result is the ordered list KICK, SNARE, HAT and its length equals the count from &10 [RQ-AKM-047]",
+          "[akm][sample]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setSampleNames({"KICK", "SNARE", "HAT"});
+
+    CHECK(getCount(harness).count == 3);
+    const AllSampleNamesResult result = getAllNames(harness);
+    REQUIRE(result.names.has_value());
+    CHECK(*result.names == std::vector<std::string>{"KICK", "SNARE", "HAT"});
+}
+
+TEST_CASE("Given no sample in memory, When the names of all samples are read, Then an empty list is returned, not a failure [RQ-AKM-047]",
+          "[akm][sample]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    CHECK(getCount(harness).count == 0);
+    const AllSampleNamesResult result = getAllNames(harness);
+    REQUIRE(result.names.has_value());
+    CHECK(result.names->empty());
+}
+
+TEST_CASE("Given a sample selected by index, When its current index and current name are read, and a sample is read by index without selecting it, Then they equal what was seeded and the current selection is unchanged [RQ-AKM-047]",
+          "[akm][sample]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setSampleNames({"A", "B"});
+
+    akm::selectSampleByIndex(harness.session(), 0, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(getIndex(harness).index == 0);
+    CHECK(getName(harness).name == "A");
+
+    auto latched = std::make_shared<akm::test::Latched<SampleNameResult>>();
+    akm::getSampleNameByIndex(harness.session(), 1, [latched](const SampleNameResult& r) { latched->set(r); });
+    REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+    CHECK(latched->value()->name == "B");
+
+    // Reading a sample by index does not select it: the current sample is still index 0.
+    CHECK(getIndex(harness).index == 0);
+}
+
+TEST_CASE("Given the checksum mode unknown, When Get the names of all samples or Get a sample's name by index is requested, Then both are refused as ChecksumModeUnknown without sending [RQ-AKM-047, RQ-AKM-041, ADR-AKM-001 (DEC-AKM-013, DEC-AKM-014)]",
+          "[akm][sample]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+
+    const AllSampleNamesResult allNames = getAllNames(harness);
+    REQUIRE(std::holds_alternative<Refused>(allNames.outcome));
+    CHECK(std::get<Refused>(allNames.outcome).reason == RefusalReason::ChecksumModeUnknown);
+    CHECK_FALSE(allNames.names.has_value());
+
+    auto latched = std::make_shared<akm::test::Latched<SampleNameResult>>();
+    akm::getSampleNameByIndex(harness.session(), 0, [latched](const SampleNameResult& r) { latched->set(r); });
+    REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+    REQUIRE(std::holds_alternative<Refused>(latched->value()->outcome));
+    CHECK(std::get<Refused>(latched->value()->outcome).reason == RefusalReason::ChecksumModeUnknown);
+
     CHECK(harness.sentCount() == 0);
 }

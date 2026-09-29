@@ -138,7 +138,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-042: General information about samples in memory
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement Get Number of Samples (`&10`), Get name of sample by index (`&11`),
   Get the names of all samples in memory (`&12`, a repeated `String` REPLY — reuse
   `ByteReader::readStringList()`/`DEC-AKM-014`'s precedent, not `decodeRepeatedReply`, since the
@@ -153,8 +153,24 @@ This plan implements the tasks in the format specified below.
   what was selected.
 - **Dependencies**: TASK-AKM-040
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: Not yet run.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 447/447 (`&13`/`&14` already proven by
+  TASK-AKM-040; this task adds `&10`-`&12`). 5 new cases in `SamplePrimitivesTests.cpp`, all under
+  `[akm][sample]`: the `KICK`/`SNARE`/`HAT` AC verbatim (`getCount` and `getAllSampleNames` agree);
+  zero samples in memory answers an empty list from `&12`, not a failure (see Assumptions — no
+  ERROR-4-on-empty quirk assumed for §0E, unlike Program's `&18`/`&19`); a sample selected by index has
+  its index and name confirmed, then a *different* sample read by `&11` without selecting it leaves the
+  current selection unchanged; `&11` and `&12` are both refused `ChecksumModeUnknown` with nothing sent
+  while the mode is unknown. `--coverage`: section `0E` now 12/34, still partial as declared.
+- **Assumptions**: `&12` (Get the names of all samples) is modelled to answer a normal 0-byte REPLY
+  when the sampler holds no sample, decoding to an empty list — the spec-literal behaviour, not
+  Program's own `&18`/`&19` real-sampler quirk (ERROR 4 instead of an empty REPLY,
+  `answersEmptyMemory` in `ProgramPrimitives.cpp`), since that quirk was observed on real hardware for
+  §0A specifically and no equivalent observation exists yet for §0E. If TASK-AKM-045's real-sampler
+  run finds the S5000 answers `&12` the same way it answers `&18`/`&19`, `getAllSampleNames` gets the
+  same normalisation then, not here. `getSampleNameByIndex` reuses `SampleNameResult`/
+  `SampleNameCompletion` from TASK-AKM-040 rather than a dedicated result type: same shape (an
+  optional name plus an outcome), and a second identical struct would only rename fields nothing reads
+  differently.
 
 ---
 
