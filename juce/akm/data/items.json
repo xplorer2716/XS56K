@@ -41,7 +41,7 @@
       "name": "Sample",
       "complete": false,
       "spec": "Tables 18 and 19, pp. 29-31",
-      "note": "Partial: TASK-AKM-040 catalogues the 6 lifecycle items of RQ-AKM-045 (&05, &06, &08, &09, &0A, &0B) plus &13 and &14 (RQ-AKM-047's own general-information items, pulled in early the same way TASK-AKM-015 pulled in Program's &10/&13, so this lot's own round trips have a Get to verify against). §0E has its own sampler-wide `current sample` selection state, the same pattern as §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-first-byte pattern of §06. The rest of section 0E (destructive &07, the remaining general-information items &10-&12, and the settable/read-only sample parameters) is PLAN-AKM-005's remaining tasks."
+      "note": "Partial: TASK-AKM-040 catalogues the 6 lifecycle items of RQ-AKM-045 (&05, &06, &08, &09, &0A, &0B) plus &13 and &14 (RQ-AKM-047's own general-information items, pulled in early the same way TASK-AKM-015 pulled in Program's &10/&13, so this lot's own round trips have a Get to verify against). TASK-AKM-041 adds the guarded &07 (RQ-AKM-046), mirroring Program's own TASK-AKM-023. §0E has its own sampler-wide `current sample` selection state, the same pattern as §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-first-byte pattern of §06. The rest of section 0E (the remaining general-information items &10-&12, and the settable/read-only sample parameters) is PLAN-AKM-005's remaining tasks."
     }
   ],
   "items": [
@@ -1347,6 +1347,11 @@
       "args": [],
       "reply": [{"name": "name", "format": "string", "min": 0, "max": 255}],
       "requirements": ["RQ-AKM-045", "RQ-AKM-047"]
+    },
+    {
+      "id": "SampleDeleteAll", "section": "0E", "item": "07", "name": "Delete ALL samples from memory", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-046"]
     }
   ]
 }

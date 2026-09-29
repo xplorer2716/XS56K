@@ -102,4 +102,20 @@ namespace akm
                                completion(result);
                        });
     }
+
+    void deleteAllSamples(Session& session, std::optional<ConfirmDeleteAllSamples> confirmation,
+                          CommandCompletion completion)
+    {
+        if (!confirmation)
+        {
+            const ItemDescriptor& item = descriptor(ItemId::SampleDeleteAll);
+            CommandRequest request;
+            request.command.section = item.section;
+            request.command.item = item.item;
+            request.refusal = RefusalReason::NotConfirmed;
+            submitSampleRequest(session, std::move(request), std::move(completion));
+            return;
+        }
+        submitSampleRequest(session, makeRequest(ItemId::SampleDeleteAll, NO_VALUES), std::move(completion));
+    }
 }

@@ -80,4 +80,18 @@ namespace akm
     /// checksum mode is unknown, since a String REPLY has no fixed length to delimit it by
     /// (ADR-AKM-001, DEC-AKM-013). [RQ-AKM-045, RQ-AKM-047, RQ-AKM-041]
     void getCurrentSampleName(Session& session, SampleNameCompletion completion);
+
+    /// Passed to `deleteAllSamples` to prove the caller means it. A default `bool` could be satisfied by
+    /// accident (`true`, `1`, a stray flag); this enumerator cannot — it must be named. [RQ-AKM-046]
+    enum class ConfirmDeleteAllSamples
+    {
+        IUnderstandThisDeletesEverySampleInMemory,
+    };
+
+    /// Deletes every sample in memory (§0E/&07) — irreversible without a saved backup. `confirmation`
+    /// has no default: sent only when it is the enumerator; `std::nullopt` refuses the command as
+    /// `NotConfirmed` without sending anything. No real-sampler test of any feature calls this.
+    /// [RQ-AKM-046]
+    void deleteAllSamples(Session& session, std::optional<ConfirmDeleteAllSamples> confirmation,
+                          CommandCompletion completion);
 }

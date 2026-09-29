@@ -118,6 +118,8 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_STOP_SAMPLE_AUDITION = 0x0B;
         constexpr std::uint8_t ITEM_GET_CURRENT_SAMPLE_INDEX = 0x13;
         constexpr std::uint8_t ITEM_GET_CURRENT_SAMPLE_NAME = 0x14;
+        // Destructive guard of TASK-AKM-041 (RQ-AKM-046).
+        constexpr std::uint8_t ITEM_DELETE_ALL_SAMPLES = 0x07;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -820,6 +822,10 @@ namespace akm::harness
                     writer.appendString(samples[*current].name);
                     return reply(writer.bytes());
                 }
+                case ITEM_DELETE_ALL_SAMPLES:
+                    samples.clear();
+                    current.reset();
+                    return done();
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }

@@ -113,7 +113,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-041: Destructive command guard for "Delete ALL samples"
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&07` (Delete ALL samples from memory) so that it is sent only when the
   caller passes an explicit confirmation argument that no default supplies, mirroring
   `TASK-AKM-023`'s `ConfirmDeleteAllPrograms` shape (a dedicated type, not a bare `bool`), and audit
@@ -126,8 +126,13 @@ This plan implements the tasks in the format specified below.
   is no call.
 - **Dependencies**: TASK-AKM-040
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: Not yet run.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 443/443 (2 new in
+  `SampleDeleteAllGuardTests.cpp`, mirroring `ProgramDeleteAllGuardTests.cpp`: `std::nullopt` refuses as
+  `NotConfirmed` with nothing sent; the enumerator sends `&07`, completes on DONE, and a following
+  select-by-index confirms the sampler's samples are gone). `--coverage`: section `0E` now 9/34, still
+  partial as declared. Audit: `grep -rn "deleteAllSamples\|SampleDeleteAll" juce/tests/support
+  juce/tests/probe` — no match (exit 1), confirming no real-sampler test calls it.
+- **Assumptions**: None.
 
 ---
 

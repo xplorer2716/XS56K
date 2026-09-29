@@ -164,14 +164,14 @@ TASK-AKM-037|165-210|Done|Replies covering several zones
 TASK-AKM-038|211-275|Done|Real-sampler test harness — zones of the dedicated test program
 TASK-AKM-039|276-301|Done|Coverage of section §06 and remaining errata resolution
 @process/3.plan/PLAN-AKM-005-sample-primitives.md
-PLAN-AKM-005|1-244||Sample Primitives (Phase A, new lot)
+PLAN-AKM-005|1-249||Sample Primitives (Phase A, new lot)
 TASK-AKM-040|65-113|Done|Sample lifecycle primitives
-TASK-AKM-041|114-133|Not Started|Destructive command guard for "Delete ALL samples"
-TASK-AKM-042|134-155|Not Started|General information about samples in memory
-TASK-AKM-043|156-178|Not Started|Settable sample parameters (Set and Get)
-TASK-AKM-044|179-199|Not Started|Read-only sample parameters and grouped replies
-TASK-AKM-045|200-225|Not Started|Real-sampler test harness — dedicated test sample
-TASK-AKM-046|226-244|Not Started|Coverage of section §0E and errata resolution
+TASK-AKM-041|114-138|Done|Destructive command guard for "Delete ALL samples"
+TASK-AKM-042|139-160|Not Started|General information about samples in memory
+TASK-AKM-043|161-183|Not Started|Settable sample parameters (Set and Get)
+TASK-AKM-044|184-204|Not Started|Read-only sample parameters and grouped replies
+TASK-AKM-045|205-230|Not Started|Real-sampler test harness — dedicated test sample
+TASK-AKM-046|231-249|Not Started|Coverage of section §0E and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
