@@ -229,12 +229,13 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-044: Read-only sample parameters and grouped replies
 - **Tier**: M
-- **Status**: Not Started
-- **Description**: Catalogue Get Sample Type (`&30`, RAM/VIRTUAL enum), Get Number of Channels
-  (`&31`, mono/stereo enum), Get Sample Length (`&32`, `Dword`), Get Sample Rate (`&33`, `Dword`),
-  Get all of `&30`–`&33` in one message (`&34`, a fixed 4-field REPLY through the existing generic
-  multi-field decode, no new helper), and Get all of `&40`–`&4A` in one message (`&4B`, the 8
-  settable-parameter Gets of TASK-AKM-043, same fixed-field decode).
+- **Status**: Done
+- **Description**: Catalogue Get Sample Type (`&30`, RAM/VIRTUAL byte), Get Number of Channels (`&31`,
+  mono/stereo byte), Get Sample Length (`&32`, split into 4 `Byte` values like TASK-AKM-043's
+  positions, not `Dword`), Get Sample Rate (`&33`, same split), Get all of `&30`–`&33` in one message
+  (`&34`, a fixed 10-field REPLY through the existing generic multi-field decode, no new helper), and
+  Get all of `&40`–`&4A` in one message (`&4B`, the 8 settable-parameter Gets of TASK-AKM-043
+  concatenated, a fixed 22-field REPLY, same decode).
 - **Requirement refs**: RQ-AKM-049
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-049 — *Given* a simulated sample
@@ -243,8 +244,37 @@ This plan implements the tasks in the format specified below.
   `&4B` is read, *Then* it decodes to the same eight values as reading `&40`–`&4A` individually.
 - **Dependencies**: TASK-AKM-043
 - **Assignee**: AI, with the owner running the real-sampler tests
-- **Verification**: Not yet run.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: 0 warnings, `ctest` 453/453. New
+  `SampleReadOnlyParametersTests.cpp` (2 cases, `[akm][sample]`, both passing standalone via `ctest -R
+  "RQ-AKM-049"`): a sample seeded with `setSampleAttributes` (a mono-or-stereo/RAM-or-VIRTUAL byte,
+  length and rate) has `&34` decode to the exact concatenation of `&30`-`&33` read individually; the
+  same sample, after the 8 Sets of TASK-AKM-043's own round trip, has `&4B` decode to the exact
+  concatenation of `&40`-`&4A` read individually. `--coverage`: section `0E` now **34/34, complete**
+  (`generate_akm_items.py`'s `items.json` section entry flipped to `"complete": true`) — `unaccounted:
+  none`, no "differs from the spec" problem, confirming both grouped rows' own spec columns (`0–127…`
+  / `…0–127…`, containing `…`) fall under the existing "variable-length, not compared" exemption rather
+  than needing a fixed-count check, as this task's own Verification predicted.
+- **Assumptions**: `Length`/`Rate` (`&32`/`&33`) are split into 4 separate `Byte` values each
+  (`lengthMsb`/`Sb2`/`Sb1`/`Lsb`, likewise for rate), the same choice TASK-AKM-043 made for positions
+  and for the same reason (`--coverage`'s domain-per-wire-byte comparison) — not verified against
+  those two items' own spec rows specifically since both contain `…` and are exempted from the count
+  check either way, but kept consistent with position/loop rather than introducing the only `Dword`
+  in the catalogue for two items whose own check would not have caught it. `Type`/`Channels` are
+  stored as raw bytes (0/1, 1/2) on `SampleRecord`, not as named C++ enums: no existing record in this
+  catalogue represents an enumerated wire value as anything but its own byte (Playback Mode, Filter
+  Mode, etc.), so introducing one here for two fields would be the first exception. No Set item exists
+  for `&30`-`&33` (a real sample's audio data determines them, not a SysEx command), so `SampleRecord`
+  gained plain `type`/`channels`/`length`/`rate` fields (defaults: mono RAM sample, zero length and
+  rate — arbitrary, the spec gives none) seeded directly by a new `setSampleAttributes(index, ...)`
+  knob, the only way to give them a value in this model, mirroring `setSampleNames`. `&4B`'s handler
+  reads the 8 settable parameters from the same `parameters` map `executeSampleParameterGroup`
+  (TASK-AKM-043) already writes, keyed by their own Set item codes with an empty selector, rather than
+  composing 8 separate REPLYs — one round trip, matching what the real spec message actually is (a
+  single REPLY), and avoiding a second storage location for the same 8 values. No per-item wrapper
+  functions were added to `SamplePrimitives.hpp/.cpp` for any of the 6 items, following TASK-AKM-043's
+  own precedent (tested directly against the catalogue, `SampleReadOnlyParametersTests.cpp` calling
+  `makeRequest`/`decodeReply` itself). Not verified: real sampler (deferred to TASK-AKM-045); mutation
+  testing (blocked, as in prior tasks, RQ-BLD-015/TASK-BLD-012 not done).
 
 ---
 

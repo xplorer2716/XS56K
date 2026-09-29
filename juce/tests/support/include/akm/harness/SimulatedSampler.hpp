@@ -176,6 +176,14 @@ namespace akm::harness
         /// selector — these items take none), holding the value bytes; read back by the paired Get
         /// item. Stored the same generic way as `ProgramRecord::parameters`. [TASK-AKM-043]
         std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
+        /// The read-only parameters of RQ-AKM-049 (§0E/&30-&33): no Set item exists for them, a real
+        /// sample's audio data determines them, so `setSampleAttributes` is the only way to give them a
+        /// value in this model. Defaults (a mono RAM sample, zero length and rate) are arbitrary, the
+        /// spec giving none. [TASK-AKM-044]
+        std::uint8_t type = 0;      ///< 0 = RAM, 1 = VIRTUAL
+        std::uint8_t channels = 1;  ///< 1 = mono, 2 = stereo
+        std::uint32_t length = 0;
+        std::uint32_t rate = 0;
     };
 
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
@@ -206,6 +214,12 @@ namespace akm::harness
         /// and use it for both zone assignment and the sample lifecycle. Empty by default: a test that
         /// wants a successful assignment or selection must call this first, like `setBehaviour`.
         void setSampleNames(std::vector<std::string> names);
+
+        /// Seeds the read-only attributes of the sample at `index` (§0E/&30-&33, RQ-AKM-049) — no Set
+        /// item exists for them, so a test sets them directly, like `setSampleNames` itself. A no-op
+        /// when `index` names no sample.
+        void setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
+                                 std::uint32_t length, std::uint32_t rate);
 
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.

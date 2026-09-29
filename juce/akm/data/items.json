@@ -39,9 +39,9 @@
     {
       "section": "0E",
       "name": "Sample",
-      "complete": false,
+      "complete": true,
       "spec": "Tables 18 and 19, pp. 29-31",
-      "note": "Partial: TASK-AKM-040 catalogues the 6 lifecycle items of RQ-AKM-045 (&05, &06, &08, &09, &0A, &0B) plus &13 and &14 (RQ-AKM-047's own general-information items, pulled in early the same way TASK-AKM-015 pulled in Program's &10/&13, so this lot's own round trips have a Get to verify against). TASK-AKM-041 adds the guarded &07 (RQ-AKM-046), mirroring Program's own TASK-AKM-023. TASK-AKM-042 completes RQ-AKM-047's general information: &10 (count), &11 (name by index) and &12 (names of all samples, a repeated String REPLY decoded like Program's &19, DEC-AKM-014). TASK-AKM-043 adds the 8 settable parameters and their Gets (RQ-AKM-048: &20-&24, &28-&2A / &40-&44, &48-&4A), each of the four position/loop items split into 4 separate Byte args/reply values (positionMsb/Sb2/Sb1/Lsb), matching every other multi-byte item in this catalogue (RQ-AKM-034's own precedent) rather than the codec's unused `ValueFormat::Dword` — `generate_akm_items.py --coverage` parses the spec's own columns into one domain per wire byte, so a single Dword value was flagged as 1 value against the spec's 4 domains. §0E has its own sampler-wide `current sample` selection state, the same pattern as §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-first-byte pattern of §06. The rest of section 0E (the read-only parameters and the two grouped-REPLY items, &30-&34/&4B) is PLAN-AKM-005's remaining tasks."
+      "note": "Section 0E is fully catalogued as of TASK-AKM-044: the 6 lifecycle items of RQ-AKM-045 (TASK-AKM-040: &05, &06, &08, &09, &0A, &0B, plus &13/&14 pulled in early, mirroring TASK-AKM-015's own precedent for Program's &10/&13); the guarded &07 (RQ-AKM-046, TASK-AKM-041, mirroring Program's TASK-AKM-023); the remaining general information &10-&12 (RQ-AKM-047, TASK-AKM-042, &12 a repeated String REPLY decoded like Program's &19, DEC-AKM-014); the 8 settable parameters and their Gets (RQ-AKM-048, TASK-AKM-043: &20-&24, &28-&2A / &40-&44, &48-&4A), each multi-byte position/loop item split into separate Byte values (positionMsb/Sb2/Sb1/Lsb) rather than the codec's unused `ValueFormat::Dword`, matching every other multi-byte item in this catalogue; and the 4 read-only parameters plus the two grouped-REPLY items (RQ-AKM-049, TASK-AKM-044: &30-&33, &34, &4B) — 34/34 command rows. §0E has its own sampler-wide `current sample` selection state, the same pattern as §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-first-byte pattern of §06."
     }
   ],
   "items": [
@@ -1498,6 +1498,86 @@
         {"name": "positionLsb", "format": "byte", "min": 0, "max": 127}
       ],
       "requirements": ["RQ-AKM-048"]
+    },
+    {
+      "id": "SampleGetType", "section": "0E", "item": "30", "name": "Get Sample Type (VIRTUAL/RAM)", "kind": "get",
+      "args": [],
+      "reply": [{"name": "type", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-049"]
+    },
+    {
+      "id": "SampleGetChannels", "section": "0E", "item": "31", "name": "Get Number of Channels", "kind": "get",
+      "args": [],
+      "reply": [{"name": "channels", "format": "byte", "min": 1, "max": 2}],
+      "requirements": ["RQ-AKM-049"]
+    },
+    {
+      "id": "SampleGetLength", "section": "0E", "item": "32", "name": "Get Sample Length", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "lengthMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "lengthSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "lengthSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "lengthLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-049"]
+    },
+    {
+      "id": "SampleGetRate", "section": "0E", "item": "33", "name": "Get Sample Rate", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "rateMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "rateSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "rateSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "rateLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-049"]
+    },
+    {
+      "id": "SampleGetAllBasicParams", "section": "0E", "item": "34", "name": "Get all of the params (of Items &30-&33) in a single message", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "type", "format": "byte", "min": 0, "max": 1},
+        {"name": "channels", "format": "byte", "min": 1, "max": 2},
+        {"name": "lengthMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "lengthSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "lengthSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "lengthLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "rateMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "rateSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "rateSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "rateLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-049"]
+    },
+    {
+      "id": "SampleGetAllSettableParams", "section": "0E", "item": "4B", "name": "Get all of the params (of Items &40-&4A) in a single message", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "startPositionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "startPositionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "startPositionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "startPositionLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "endPositionMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "endPositionSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "endPositionSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "endPositionLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "originalPitch", "format": "byte", "min": 21, "max": 127},
+        {"name": "semitoneSign", "format": "byte", "min": 0, "max": 1},
+        {"name": "semitoneMagnitude", "format": "byte", "min": 0, "max": 36},
+        {"name": "fineSign", "format": "byte", "min": 0, "max": 1},
+        {"name": "fineMagnitude", "format": "byte", "min": 0, "max": 50},
+        {"name": "playbackMode", "format": "byte", "min": 0, "max": 5},
+        {"name": "loopStartMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "loopStartSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "loopStartSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "loopStartLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "loopEndMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "loopEndSb2", "format": "byte", "min": 0, "max": 127},
+        {"name": "loopEndSb1", "format": "byte", "min": 0, "max": 127},
+        {"name": "loopEndLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-049"]
     }
   ]
 }

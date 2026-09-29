@@ -124,6 +124,16 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_SAMPLE_COUNT = 0x10;
         constexpr std::uint8_t ITEM_GET_SAMPLE_NAME_BY_INDEX = 0x11;
         constexpr std::uint8_t ITEM_GET_ALL_SAMPLE_NAMES = 0x12;
+        // Read-only parameters and grouped replies of TASK-AKM-044 (RQ-AKM-049).
+        constexpr std::uint8_t ITEM_GET_SAMPLE_TYPE = 0x30;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_CHANNELS = 0x31;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_LENGTH = 0x32;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_RATE = 0x33;
+        constexpr std::uint8_t ITEM_GET_ALL_BASIC_PARAMS = 0x34;
+        constexpr std::uint8_t ITEM_GET_ALL_SETTABLE_PARAMS = 0x4B;
+        // Compound double word items of TASK-AKM-043/044 (RQ-AKM-048/049): the settable-parameter Set
+        // item codes this lot's &4B concatenates, in the order the spec's own grouped REPLY gives them.
+        constexpr std::array<std::uint8_t, 8> SETTABLE_PARAM_SET_ITEMS{{0x20, 0x21, 0x22, 0x23, 0x24, 0x28, 0x29, 0x2A}};
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -814,6 +824,18 @@ namespace akm::harness
             return failure(error_number::NOT_SUPPORTED);
         }
 
+        // A compound double word (spec pp. 8-9): four 7-bit data bytes, most significant first — the
+        // same shape the position/loop items of TASK-AKM-043 already split into separate catalogue
+        // values, used here to answer Length (&32), Rate (&33) and their place inside &34's grouped
+        // REPLY without a fifth copy of the four-argument split in the catalogue itself.
+        void appendCompoundWord(akm::ByteWriter& writer, std::uint32_t value)
+        {
+            writer.appendByte((value >> 21) & 0x7F);
+            writer.appendByte((value >> 14) & 0x7F);
+            writer.appendByte((value >> 7) & 0x7F);
+            writer.appendByte(value & 0x7F);
+        }
+
         // §0E sample lifecycle (RQ-AKM-045): select by name/index, delete/rename the current sample,
         // start/stop auditioning it, plus &13/&14 (RQ-AKM-047, pulled in early — see the constants
         // above). §0E has its own sampler-wide "current sample" selection state, the same pattern as
@@ -917,6 +939,59 @@ namespace akm::harness
                         writer.appendString(sample.name);
                     return reply(writer.bytes());
                 }
+                case ITEM_GET_SAMPLE_TYPE:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{samples[*current].type});
+                case ITEM_GET_SAMPLE_CHANNELS:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{samples[*current].channels});
+                case ITEM_GET_SAMPLE_LENGTH:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    appendCompoundWord(writer, samples[*current].length);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SAMPLE_RATE:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    appendCompoundWord(writer, samples[*current].rate);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_BASIC_PARAMS:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const SampleRecord& sample = samples[*current];
+                    akm::ByteWriter writer;
+                    writer.appendByte(sample.type);
+                    writer.appendByte(sample.channels);
+                    appendCompoundWord(writer, sample.length);
+                    appendCompoundWord(writer, sample.rate);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_SETTABLE_PARAMS:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const SampleRecord& sample = samples[*current];
+                    Bytes concatenated;
+                    for (const std::uint8_t setItem : SETTABLE_PARAM_SET_ITEMS)
+                    {
+                        const akm::ItemDescriptor* getDescriptor =
+                            akm::findItem(SECTION_SAMPLE, static_cast<std::uint8_t>(setItem + 0x20));
+                        const std::size_t valueWidth = getDescriptor == nullptr ? 0 : totalWidth(getDescriptor->reply);
+                        const auto found = sample.parameters.find({setItem, Bytes{}});
+                        const Bytes value = found != sample.parameters.end() ? found->second : Bytes(valueWidth, 0);
+                        concatenated.insert(concatenated.end(), value.begin(), value.end());
+                    }
+                    return reply(std::move(concatenated));
+                }
                 default:
                     return executeSampleParameterGroup(item, data, samples, current);
             }
@@ -1016,6 +1091,18 @@ namespace akm::harness
         for (std::string& name : names)
             _samples.push_back(SampleRecord{std::move(name)});
         _currentSample.reset();
+    }
+
+    void SimulatedSampler::setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
+                                               std::uint32_t length, std::uint32_t rate)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _samples.size())
+            return;
+        _samples[index].type = type;
+        _samples[index].channels = channels;
+        _samples[index].length = length;
+        _samples[index].rate = rate;
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
