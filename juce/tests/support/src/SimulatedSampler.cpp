@@ -21,7 +21,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstddef>
 #include <utility>
 
+#include <array>
+
+#include "akm/ByteReader.hpp"
+#include "akm/ByteWriter.hpp"
 #include "akm/Checksum.hpp"
+#include "akm/ItemCatalogue.hpp"
+#include "akm/ItemDescriptor.hpp"
 #include "akm/Protocol.hpp"
 #include "akm/SamplerError.hpp"
 #include "common/midi/MidiMessage.hpp"
@@ -31,6 +37,18 @@ namespace akm::harness
     namespace
     {
         using Bytes = std::vector<std::uint8_t>;
+
+        // Appends `src` to `dest` with a plain loop rather than `dest.insert(dest.end(), src.begin(),
+        // src.end())`: GCC 11's Release build (-O2, -Werror) false-positives -Wstringop-overread on
+        // that range-insert (linux-x64-release-canary on PR #4; not reproduced in Debug or on
+        // MSVC/Clang, and unaffected by an emptiness guard around the call) — a known GCC inlining
+        // bug, not a real out-of-bounds read.
+        template <typename Container, typename Range>
+        void appendBytes(Container& dest, const Range& src)
+        {
+            for (const auto& byte : src)
+                dest.push_back(byte);
+        }
 
         // Reply IDs of spec Table 2.
         constexpr std::uint8_t REPLY_OK = 0x4F;
@@ -58,6 +76,76 @@ namespace akm::harness
         // OS versions that introduced an item (spec, modification history).
         constexpr OsVersion SYNC_LCD_SINCE{2, 0};
         constexpr OsVersion STILL_ALIVE_SINCE{2, 10};
+
+        // Section §0A (Program), spec Tables 13-14: the lifecycle and general-information items of
+        // TASK-AKM-015 (RQ-AKM-021, RQ-AKM-023). Other §0A items answer ERROR 0 until their own lot.
+        constexpr std::uint8_t SECTION_PROGRAM = 0x0A;
+        constexpr std::uint8_t ITEM_CREATE_PROGRAM = 0x02;
+        constexpr std::uint8_t ITEM_CREATE_PROGRAM_WITH_KEYGROUPS = 0x03;
+        constexpr std::uint8_t ITEM_SELECT_PROGRAM_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_SELECT_PROGRAM_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_DELETE_CURRENT_PROGRAM = 0x08;
+        constexpr std::uint8_t ITEM_RENAME_CURRENT_PROGRAM = 0x09;
+        constexpr std::uint8_t ITEM_GET_NUMBER_OF_PROGRAMS = 0x10;
+        constexpr std::uint8_t ITEM_GET_CURRENT_PROGRAM_NAME = 0x13;
+        // Structure/identity items of TASK-AKM-016 (RQ-AKM-022, RQ-AKM-023).
+        constexpr std::uint8_t ITEM_SET_PROGRAM_NUMBER = 0x0A;
+        constexpr std::uint8_t ITEM_ADD_KEYGROUPS = 0x0B;
+        constexpr std::uint8_t ITEM_DELETE_KEYGROUP = 0x0C;
+        constexpr std::uint8_t ITEM_SET_CROSSFADE = 0x0D;
+        constexpr std::uint8_t ITEM_GET_PROGRAM_NUMBER = 0x11;
+        constexpr std::uint8_t ITEM_GET_KEYGROUP_COUNT = 0x14;
+        constexpr std::uint8_t ITEM_GET_CROSSFADE = 0x15;
+        // General program information of TASK-AKM-017 (RQ-AKM-023).
+        constexpr std::uint8_t ITEM_GET_INDEX = 0x12;
+        constexpr std::uint8_t ITEM_GET_ALL_NUMBERS = 0x18;
+        constexpr std::uint8_t ITEM_GET_ALL_NAMES = 0x19;
+        // Destructive guard of TASK-AKM-023 (RQ-AKM-025).
+        constexpr std::uint8_t ITEM_DELETE_ALL = 0x07;
+
+        // Section §08 (Keygroup), spec Tables 11-12: keygroup selection of TASK-AKM-026 (RQ-AKM-028).
+        // Other §08 items answer ERROR 0 until their own lot.
+        constexpr std::uint8_t SECTION_KEYGROUP = 0x08;
+        constexpr std::uint8_t ITEM_SELECT_KEYGROUP = 0x01;
+        constexpr std::uint8_t ITEM_GET_CURRENT_KEYGROUP = 0x02;
+        // A newly current program defaults to this keygroup (spec silent; TASK-AKM-026's assumption).
+        constexpr int DEFAULT_CURRENT_KEYGROUP = 1;
+
+        // Section §06 (keygroup zone), spec Tables 9 and 10: the non-sample Set/Get parameter items of
+        // TASK-AKM-035 (RQ-AKM-034) and sample assignment by name (TASK-AKM-036, RQ-AKM-035).
+        constexpr std::uint8_t SECTION_ZONE = 0x06;
+        constexpr std::uint8_t ITEM_SET_ZONE_SAMPLE = 0x01;
+        constexpr std::uint8_t ITEM_GET_ZONE_SAMPLE = 0x21;
+
+        // Section §0E (Sample), spec Tables 18-19: the lifecycle items of TASK-AKM-040 (RQ-AKM-045),
+        // plus &13/&14 pulled in early (RQ-AKM-047) the same way TASK-AKM-015 pulled in Program's
+        // &10/&13, so this lot's own round trips have a Get to verify against. Other §0E items answer
+        // ERROR 0 until their own task.
+        constexpr std::uint8_t SECTION_SAMPLE = 0x0E;
+        constexpr std::uint8_t ITEM_SELECT_SAMPLE_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_SELECT_SAMPLE_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_DELETE_CURRENT_SAMPLE = 0x08;
+        constexpr std::uint8_t ITEM_RENAME_CURRENT_SAMPLE = 0x09;
+        constexpr std::uint8_t ITEM_START_SAMPLE_AUDITION = 0x0A;
+        constexpr std::uint8_t ITEM_STOP_SAMPLE_AUDITION = 0x0B;
+        constexpr std::uint8_t ITEM_GET_CURRENT_SAMPLE_INDEX = 0x13;
+        constexpr std::uint8_t ITEM_GET_CURRENT_SAMPLE_NAME = 0x14;
+        // Destructive guard of TASK-AKM-041 (RQ-AKM-046).
+        constexpr std::uint8_t ITEM_DELETE_ALL_SAMPLES = 0x07;
+        // General information of TASK-AKM-042 (RQ-AKM-047).
+        constexpr std::uint8_t ITEM_GET_SAMPLE_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_NAME_BY_INDEX = 0x11;
+        constexpr std::uint8_t ITEM_GET_ALL_SAMPLE_NAMES = 0x12;
+        // Read-only parameters and grouped replies of TASK-AKM-044 (RQ-AKM-049).
+        constexpr std::uint8_t ITEM_GET_SAMPLE_TYPE = 0x30;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_CHANNELS = 0x31;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_LENGTH = 0x32;
+        constexpr std::uint8_t ITEM_GET_SAMPLE_RATE = 0x33;
+        constexpr std::uint8_t ITEM_GET_ALL_BASIC_PARAMS = 0x34;
+        constexpr std::uint8_t ITEM_GET_ALL_SETTABLE_PARAMS = 0x4B;
+        // Compound double word items of TASK-AKM-043/044 (RQ-AKM-048/049): the settable-parameter Set
+        // item codes this lot's &4B concatenates, in the order the spec's own grouped REPLY gives them.
+        constexpr std::array<std::uint8_t, 8> SETTABLE_PARAM_SET_ITEMS{{0x20, 0x21, 0x22, 0x23, 0x24, 0x28, 0x29, 0x2A}};
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -120,13 +208,832 @@ namespace akm::harness
             }
         }
 
-        // Only §00 and the two version items of §02 are modelled. A byte after the data an item expects is
-        // ignored, as the spec says of a checksum sent while checksums are off.
-        Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
-                        const OsVersion& osVersion)
+        // A name with no terminator is an invalid format; a byte after it (a checksum sent while checksums
+        // are off) is ignored, as elsewhere in this model. One already held by another program cannot be
+        // created again (the spec's own COULD_NOT_CREATE, undated by it).
+        Outcome createProgram(const Bytes& data, int keygroupCount, std::vector<ProgramRecord>& programs,
+                              std::optional<std::size_t>& current, std::optional<int>& currentKeygroup)
         {
+            akm::ByteReader reader(data);
+            const auto name = reader.readString();
+            if (!name)
+                return failure(error_number::INVALID_FORMAT);
+            if (std::any_of(programs.begin(), programs.end(),
+                            [&](const ProgramRecord& existing) { return existing.name == *name; }))
+                return failure(error_number::COULD_NOT_CREATE);
+
+            ProgramRecord record;
+            record.name = *name;
+            record.keygroupCount = keygroupCount;
+            record.keygroups.assign(static_cast<std::size_t>(keygroupCount), KeygroupRecord{});
+            programs.push_back(std::move(record));
+            current = programs.size() - 1;
+            currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
+            return done();
+        }
+
+        // Each Set item of the Output, MIDI/Tune, Pitch Bend, LFO and Keygroup Modulation Sources groups
+        // (RQ-AKM-024) has its Get at a fixed offset within its group (spec Tables 13-14): a byte range,
+        // not a per-item table, since the pattern is uniform within each group.
+        struct ParameterGroupRange
+        {
+            std::uint8_t setFirst;
+            std::uint8_t setLast;
+            std::uint8_t offsetToGet;
+        };
+        constexpr std::array<ParameterGroupRange, 5> PARAMETER_GROUP_RANGES{{
+            {0x20, 0x25, 0x08},  // Output
+            {0x30, 0x34, 0x08},  // MIDI/Tune
+            {0x40, 0x47, 0x08},  // Pitch Bend
+            {0x50, 0x5F, 0x10},  // LFOs
+            {0x70, 0x72, 0x04},  // Keygroup Modulation Sources
+        }};
+
+        std::size_t totalWidth(std::span<const akm::ValueSpec> values)
+        {
+            std::size_t total = 0;
+            for (const akm::ValueSpec& value : values)
+                total += akm::valueWidth(value.format);
+            return total;
+        }
+
+        // A Set writes [selector bytes][value bytes] (the paired Get's own args and reply give their
+        // widths); a Get reads back the value stored for its selector, or width-many zero bytes when
+        // nothing was set yet. Generic over every item of the five groups: a new item is a new catalogue
+        // record, not new code here either. An item outside all five ranges is not supported, whether or
+        // not a program is current; one inside them needs a current program, checked only once it is
+        // known to be recognised. [RQ-AKM-024, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+        Outcome executeParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                      std::optional<std::size_t>& current)
+        {
+            for (const ParameterGroupRange& range : PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    ProgramRecord& program = programs[*current];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_PROGRAM, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    program.parameters[{item, std::move(key)}] = std::move(value);
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const ProgramRecord& program = programs[*current];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_PROGRAM, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    const auto found = program.parameters.find({setItem, key});
+                    if (found != program.parameters.end())
+                        return reply(found->second);
+                    return reply(Bytes(valueWidth, 0));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
+        Outcome executeProgram(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                               std::optional<std::size_t>& current, std::optional<int>& currentKeygroup)
+        {
+            constexpr int PLAIN_CREATE_KEYGROUP_COUNT = 1;
+            switch (item)
+            {
+                case ITEM_CREATE_PROGRAM:
+                    return createProgram(data, PLAIN_CREATE_KEYGROUP_COUNT, programs, current, currentKeygroup);
+                case ITEM_CREATE_PROGRAM_WITH_KEYGROUPS:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    return createProgram(Bytes(data.begin() + 1, data.end()), data.front(), programs, current, currentKeygroup);
+                }
+                case ITEM_SELECT_PROGRAM_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find_if(programs.begin(), programs.end(),
+                                                    [&](const ProgramRecord& p) { return p.name == *name; });
+                    if (found == programs.end())
+                        return failure(error_number::NOT_FOUND);
+                    current = static_cast<std::size_t>(found - programs.begin());
+                    currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
+                    return done();
+                }
+                case ITEM_SELECT_PROGRAM_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= programs.size())
+                        return failure(error_number::NOT_FOUND);
+                    current = *index;
+                    currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
+                    return done();
+                }
+                case ITEM_DELETE_CURRENT_PROGRAM:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
+                    current.reset();
+                    currentKeygroup.reset();
+                    return done();
+                case ITEM_DELETE_ALL:
+                    programs.clear();
+                    current.reset();
+                    currentKeygroup.reset();
+                    return done();
+                case ITEM_RENAME_CURRENT_PROGRAM:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    programs[*current].name = *name;
+                    return done();
+                }
+                case ITEM_SET_PROGRAM_NUMBER:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() == 0)
+                    {
+                        programs[*current].frontPanelNumber.reset();
+                        return done();
+                    }
+                    if (data.size() < 2)
+                        return failure(error_number::INVALID_FORMAT);
+                    // The wire number is the front-panel one minus one (spec Table 13, footnote a).
+                    programs[*current].frontPanelNumber = data[1] + 1;
+                    return done();
+                }
+                case ITEM_ADD_KEYGROUPS:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    ProgramRecord& program = programs[*current];
+                    program.keygroupCount += data.front();
+                    program.keygroups.resize(program.keygroups.size() + data.front());
+                    return done();
+                }
+                case ITEM_DELETE_KEYGROUP:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    ProgramRecord& program = programs[*current];
+                    if (data.front() >= program.keygroupCount)
+                        return failure(error_number::KEYGROUP_NOT_IN_PROGRAM);
+                    --program.keygroupCount;
+                    program.keygroups.erase(program.keygroups.begin() + data.front());
+                    return done();
+                }
+                case ITEM_SET_CROSSFADE:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return setToggle(data, programs[*current].crossfade);
+                case ITEM_GET_PROGRAM_NUMBER:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const std::optional<int>& number = programs[*current].frontPanelNumber;
+                    akm::ByteWriter writer;
+                    writer.appendByte(number ? 1 : 0);
+                    writer.appendByte(number ? static_cast<std::uint32_t>(*number - 1) : 0);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_KEYGROUP_COUNT:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendByte(static_cast<std::uint32_t>(programs[*current].keygroupCount));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CROSSFADE:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendByte(programs[*current].crossfade ? 1 : 0);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_NUMBER_OF_PROGRAMS:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(programs.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_INDEX:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_NUMBERS:
+                {
+                    // Observed on a real S5000: ERROR 4 with 0 programs, not an empty REPLY, unlike &10
+                    // (documents/_index/sysex_spec.kb.md, "Common value codes").
+                    if (programs.empty())
+                        return failure(error_number::NOT_FOUND);
+                    // One (enabled, wire number) pair per program, memory order (Table 14, footnote b).
+                    akm::ByteWriter writer;
+                    for (const ProgramRecord& program : programs)
+                    {
+                        writer.appendByte(program.frontPanelNumber ? 1 : 0);
+                        writer.appendByte(program.frontPanelNumber
+                                              ? static_cast<std::uint32_t>(*program.frontPanelNumber - 1)
+                                              : 0);
+                    }
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_NAMES:
+                {
+                    if (programs.empty())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    for (const ProgramRecord& program : programs)
+                        writer.appendString(program.name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_PROGRAM_NAME:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(programs[*current].name);
+                    return reply(writer.bytes());
+                }
+                default:
+                    return executeParameterGroup(item, data, programs, current);
+            }
+        }
+
+        // §08 keygroup selection of TASK-AKM-026 (RQ-AKM-028): `&01` selects 1-99, or 0 for "all
+        // keygroups"; `&02` gets which is current. Every other §08 item answers ERROR 0 until its own lot.
+        // Each Set item of §08's parameter groups (RQ-AKM-030) has its Get at a fixed offset within its
+        // group (spec Tables 11-12), the same contiguous-range shape as §0A's five (PARAMETER_GROUP_RANGES
+        // above). One row per group, grown one at a time as TASK-AKM-027 to 032 catalogue each.
+        constexpr std::array<ParameterGroupRange, 6> KEYGROUP_PARAMETER_GROUP_RANGES{{
+            {0x04, 0x09, 0x06},  // General Options
+            {0x10, 0x14, 0x08},  // Pitch/Amp
+            {0x20, 0x25, 0x08},  // Filter
+            {0x30, 0x38, 0x10},  // Filter Envelope
+            {0x50, 0x57, 0x08},  // Amplitude Envelope
+            {0x60, 0x64, 0x08},  // Aux Envelope
+        }};
+
+        // A Set while keygroup 0 ("all") is current writes every keygroup of the current program with the
+        // same value (RQ-AKM-028's AC); a Get while keygroup 0 is current answers one value set per
+        // keygroup, in keygroup order (RQ-AKM-031) — the client decodes that shape with
+        // `decodeRepeatedReply` (DEC-AKM-015). Otherwise both act on the one selected keygroup, reading
+        // back width-many zero bytes when nothing was set yet, exactly as `executeParameterGroup` does for
+        // a program. [RQ-AKM-028, RQ-AKM-030, RQ-AKM-031]
+        Outcome executeKeygroupParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                              const std::optional<std::size_t>& currentProgram,
+                                              const std::optional<int>& currentKeygroup)
+        {
+            for (const ParameterGroupRange& range : KEYGROUP_PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    ProgramRecord& program = programs[*currentProgram];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_KEYGROUP, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    if (*currentKeygroup == 0)
+                    {
+                        for (KeygroupRecord& keygroup : program.keygroups)
+                            keygroup.parameters[{item, key}] = value;
+                    }
+                    else
+                    {
+                        program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)].parameters[{item, std::move(key)}] =
+                            std::move(value);
+                    }
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    const ProgramRecord& program = programs[*currentProgram];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_KEYGROUP, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    const auto valueOf = [&](const KeygroupRecord& keygroup) {
+                        const auto found = keygroup.parameters.find({setItem, key});
+                        return found != keygroup.parameters.end() ? found->second : Bytes(valueWidth, 0);
+                    };
+                    if (*currentKeygroup == 0)
+                    {
+                        Bytes concatenated;
+                        for (const KeygroupRecord& keygroup : program.keygroups)
+                        {
+                            const Bytes value = valueOf(keygroup);
+                            appendBytes(concatenated, value);
+                        }
+                        return reply(std::move(concatenated));
+                    }
+                    return reply(valueOf(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
+        Outcome executeKeygroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup)
+        {
+            switch (item)
+            {
+                case ITEM_SELECT_KEYGROUP:
+                {
+                    if (!currentProgram)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    const int keygroup = data.front();
+                    if (keygroup != 0 && keygroup > programs[*currentProgram].keygroupCount)
+                        return failure(error_number::KEYGROUP_NOT_IN_PROGRAM);
+                    currentKeygroup = keygroup;
+                    return done();
+                }
+                case ITEM_GET_CURRENT_KEYGROUP:
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendByte(static_cast<std::uint32_t>(*currentKeygroup));
+                    return reply(writer.bytes());
+                }
+                default:
+                    return executeKeygroupParameterGroup(item, data, programs, currentProgram, currentKeygroup);
+            }
+        }
+
+        // §06 zone parameters (RQ-AKM-034): the 13 non-sample Set/Get items (Level..Solo; &01 Sample is
+        // TASK-AKM-036's own String path), the same contiguous-range shape as §0A/§08 above, but stored in
+        // `KeygroupRecord::zoneParameters` rather than `parameters` (§06 and §08 item codes overlap) and
+        // keyed by the zone number the item's own args/reply already carry as their first byte. Zone 0
+        // ("all four") fans out over zones 1-4 exactly as keygroup 0 already fans out over
+        // `program.keygroups` — the two dimensions combine, so keygroup 0 + zone 0 writes or reads every
+        // zone of every keygroup, keygroup-major (RQ-AKM-036, TASK-AKM-037): the shape
+        // `getForAllZonesAllKeygroups` expects from `decodeRepeatedReply` on the client side.
+        // [TASK-AKM-035, TASK-AKM-037]
+        constexpr std::array<ParameterGroupRange, 1> ZONE_PARAMETER_GROUP_RANGES{{
+            {0x02, 0x0E, 0x20},  // Level .. Solo
+        }};
+        constexpr std::array<std::uint8_t, 4> EVERY_ZONE{{1, 2, 3, 4}};
+
+        Outcome executeZoneParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                                          const std::optional<std::size_t>& currentProgram,
+                                          const std::optional<int>& currentKeygroup)
+        {
+            for (const ParameterGroupRange& range : ZONE_PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    ProgramRecord& program = programs[*currentProgram];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_ZONE, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const std::uint8_t zone = data[0];
+                    const Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                                      data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    const auto writeToKeygroup = [&](KeygroupRecord& keygroup) {
+                        if (zone == 0)
+                        {
+                            for (const std::uint8_t z : EVERY_ZONE)
+                                keygroup.zoneParameters[{item, Bytes{z}}] = value;
+                        }
+                        else
+                        {
+                            keygroup.zoneParameters[{item, Bytes{zone}}] = value;
+                        }
+                    };
+                    if (*currentKeygroup == 0)
+                    {
+                        for (KeygroupRecord& keygroup : program.keygroups)
+                            writeToKeygroup(keygroup);
+                    }
+                    else
+                    {
+                        writeToKeygroup(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]);
+                    }
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!currentProgram || !currentKeygroup)
+                        return failure(error_number::NOT_FOUND);
+                    const ProgramRecord& program = programs[*currentProgram];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_ZONE, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const std::uint8_t zone = data[0];
+                    const auto valueOf = [&](const KeygroupRecord& keygroup, std::uint8_t z) {
+                        const auto found = keygroup.zoneParameters.find({setItem, Bytes{z}});
+                        return found != keygroup.zoneParameters.end() ? found->second : Bytes(valueWidth, 0);
+                    };
+                    const auto readFromKeygroup = [&](const KeygroupRecord& keygroup) {
+                        if (zone != 0)
+                            return valueOf(keygroup, zone);
+                        Bytes concatenated;
+                        for (const std::uint8_t z : EVERY_ZONE)
+                        {
+                            const Bytes value = valueOf(keygroup, z);
+                            appendBytes(concatenated, value);
+                        }
+                        return concatenated;
+                    };
+                    if (*currentKeygroup == 0)
+                    {
+                        Bytes concatenated;
+                        for (const KeygroupRecord& keygroup : program.keygroups)
+                        {
+                            const Bytes value = readFromKeygroup(keygroup);
+                            appendBytes(concatenated, value);
+                        }
+                        return reply(std::move(concatenated));
+                    }
+                    return reply(readFromKeygroup(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
+        // §06/&01 (Set Zone Sample) and &21 (Get Zone Sample), RQ-AKM-035: a String value, so it is
+        // decoded/encoded by hand here rather than through the generic byte-width mechanism
+        // `executeZoneParameterGroup` uses for the other 13 items — the same reason `setZoneSample`
+        // itself does not go through `makeStringRequest` (ADR-AKM-001, DEC-AKM-013). `sampleNames` models
+        // the sampler's own sample memory: assigning a name not in it fails as ERROR 04 ("requested item
+        // not found"), the spec's own wording for the case. Stored in `zoneParameters` too, keyed by the
+        // Set item so a Get finds it the same way, value bytes being the encoded name plus its `00`
+        // terminator — so an unset zone's default (`Bytes{0}`, a lone terminator) already decodes as the
+        // spec's "no sample assigned" REPLY without a separate code path. Keygroup 0 ("all") is not
+        // modelled for this item: not exercised by RQ-AKM-035's own acceptance criteria, unlike the
+        // numeric zone items, which get it "for free" from `executeZoneParameterGroup`'s shared code.
+        Outcome executeZone(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
+                            const std::optional<std::size_t>& currentProgram, const std::optional<int>& currentKeygroup,
+                            const std::vector<std::string>& sampleNames)
+        {
+            switch (item)
+            {
+                case ITEM_SET_ZONE_SAMPLE:
+                {
+                    if (!currentProgram || !currentKeygroup || *currentKeygroup == 0)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto zone = reader.readByte();
+                    const auto name = reader.readString();
+                    if (!zone || !name)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (std::find(sampleNames.begin(), sampleNames.end(), *name) == sampleNames.end())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(*name);
+                    programs[*currentProgram].keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]
+                        .zoneParameters[{ITEM_SET_ZONE_SAMPLE, Bytes{*zone}}] = writer.bytes();
+                    return done();
+                }
+                case ITEM_GET_ZONE_SAMPLE:
+                {
+                    if (!currentProgram || !currentKeygroup || *currentKeygroup == 0)
+                        return failure(error_number::NOT_FOUND);
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    const KeygroupRecord& keygroup =
+                        programs[*currentProgram].keygroups[static_cast<std::size_t>(*currentKeygroup - 1)];
+                    const auto found = keygroup.zoneParameters.find({ITEM_SET_ZONE_SAMPLE, Bytes{data.front()}});
+                    return reply(found != keygroup.zoneParameters.end() ? found->second : Bytes{0});
+                }
+                default:
+                    return executeZoneParameterGroup(item, data, programs, currentProgram, currentKeygroup);
+            }
+        }
+
+        // Each Set item of the §0E settable-parameter group (RQ-AKM-048) has its Get at a fixed offset
+        // (spec Tables 18-19), the same shape as Program's own PARAMETER_GROUP_RANGES — none of these
+        // items take a selector (they all act on the current sample), the same "no selector" shape as
+        // Program's Output group, so the generic function below already handles it without change.
+        constexpr std::array<ParameterGroupRange, 2> SAMPLE_PARAMETER_GROUP_RANGES{{
+            {0x20, 0x24, 0x20},  // Start/End Position, Original Pitch, Semitone/Fine Tune
+            {0x28, 0x2A, 0x20},  // Playback Mode, Loop Start/End
+        }};
+
+        // Mirrors executeParameterGroup (Program) exactly, substituted for the current sample instead of
+        // the current program: a Set writes [value bytes] (no selector), a Get reads back the value
+        // stored, or width-many zero bytes when nothing was set yet. [RQ-AKM-048, ADR-AKM-001
+        // (DEC-AKM-003, DEC-AKM-012)]
+        Outcome executeSampleParameterGroup(std::uint8_t item, const Bytes& data, std::vector<SampleRecord>& samples,
+                                            const std::optional<std::size_t>& current)
+        {
+            for (const ParameterGroupRange& range : SAMPLE_PARAMETER_GROUP_RANGES)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    SampleRecord& sample = samples[*current];
+                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_SAMPLE, getItem);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth + valueWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
+                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
+                    sample.parameters[{item, std::move(key)}] = std::move(value);
+                    return done();
+                }
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const SampleRecord& sample = samples[*current];
+                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
+                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_SAMPLE, item);
+                    if (getDescriptor == nullptr)
+                        return failure(error_number::NOT_SUPPORTED);
+                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
+                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
+                    if (data.size() < selectorWidth)
+                        return failure(error_number::INVALID_FORMAT);
+                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
+                    const auto found = sample.parameters.find({setItem, key});
+                    if (found != sample.parameters.end())
+                        return reply(found->second);
+                    return reply(Bytes(valueWidth, 0));
+                }
+            }
+            return failure(error_number::NOT_SUPPORTED);
+        }
+
+        // A compound double word (spec pp. 8-9): four 7-bit data bytes, most significant first — the
+        // same shape the position/loop items of TASK-AKM-043 already split into separate catalogue
+        // values, used here to answer Length (&32), Rate (&33) and their place inside &34's grouped
+        // REPLY without a fifth copy of the four-argument split in the catalogue itself.
+        void appendCompoundWord(akm::ByteWriter& writer, std::uint32_t value)
+        {
+            writer.appendByte((value >> 21) & 0x7F);
+            writer.appendByte((value >> 14) & 0x7F);
+            writer.appendByte((value >> 7) & 0x7F);
+            writer.appendByte(value & 0x7F);
+        }
+
+        // §0E sample lifecycle (RQ-AKM-045): select by name/index, delete/rename the current sample,
+        // start/stop auditioning it, plus &13/&14 (RQ-AKM-047, pulled in early — see the constants
+        // above). §0E has its own sampler-wide "current sample" selection state, the same pattern as
+        // §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-
+        // first-byte pattern of §06. Unlike a program, a sample cannot be created here: `samples` is
+        // only ever seeded by `setSampleNames`. Audition is assumed to need a current sample, like every
+        // other "act on the current one" item of this section (spec silent either way). [TASK-AKM-040]
+        Outcome executeSample(std::uint8_t item, const Bytes& data, std::vector<SampleRecord>& samples,
+                              std::optional<std::size_t>& current)
+        {
+            switch (item)
+            {
+                case ITEM_SELECT_SAMPLE_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find_if(samples.begin(), samples.end(),
+                                                    [&](const SampleRecord& s) { return s.name == *name; });
+                    if (found == samples.end())
+                        return failure(error_number::NOT_FOUND);
+                    current = static_cast<std::size_t>(found - samples.begin());
+                    return done();
+                }
+                case ITEM_SELECT_SAMPLE_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= samples.size())
+                        return failure(error_number::NOT_FOUND);
+                    current = *index;
+                    return done();
+                }
+                case ITEM_DELETE_CURRENT_SAMPLE:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    samples.erase(samples.begin() + static_cast<std::ptrdiff_t>(*current));
+                    current.reset();
+                    return done();
+                case ITEM_RENAME_CURRENT_SAMPLE:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    samples[*current].name = *name;
+                    return done();
+                }
+                case ITEM_START_SAMPLE_AUDITION:
+                case ITEM_STOP_SAMPLE_AUDITION:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return done();
+                case ITEM_GET_CURRENT_SAMPLE_INDEX:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_SAMPLE_NAME:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(samples[*current].name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_DELETE_ALL_SAMPLES:
+                    samples.clear();
+                    current.reset();
+                    return done();
+                case ITEM_GET_SAMPLE_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(samples.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SAMPLE_NAME_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= samples.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(samples[*index].name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_SAMPLE_NAMES:
+                {
+                    akm::ByteWriter writer;
+                    for (const SampleRecord& sample : samples)
+                        writer.appendString(sample.name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SAMPLE_TYPE:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{samples[*current].type});
+                case ITEM_GET_SAMPLE_CHANNELS:
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{samples[*current].channels});
+                case ITEM_GET_SAMPLE_LENGTH:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    appendCompoundWord(writer, samples[*current].length);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SAMPLE_RATE:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    appendCompoundWord(writer, samples[*current].rate);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_BASIC_PARAMS:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const SampleRecord& sample = samples[*current];
+                    akm::ByteWriter writer;
+                    writer.appendByte(sample.type);
+                    writer.appendByte(sample.channels);
+                    appendCompoundWord(writer, sample.length);
+                    appendCompoundWord(writer, sample.rate);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_SETTABLE_PARAMS:
+                {
+                    if (!current)
+                        return failure(error_number::NOT_FOUND);
+                    const SampleRecord& sample = samples[*current];
+                    Bytes concatenated;
+                    for (const std::uint8_t setItem : SETTABLE_PARAM_SET_ITEMS)
+                    {
+                        const akm::ItemDescriptor* getDescriptor =
+                            akm::findItem(SECTION_SAMPLE, static_cast<std::uint8_t>(setItem + 0x20));
+                        const std::size_t valueWidth = getDescriptor == nullptr ? 0 : totalWidth(getDescriptor->reply);
+                        const auto found = sample.parameters.find({setItem, Bytes{}});
+                        const Bytes value = found != sample.parameters.end() ? found->second : Bytes(valueWidth, 0);
+                        appendBytes(concatenated, value);
+                    }
+                    return reply(std::move(concatenated));
+                }
+                default:
+                    return executeSampleParameterGroup(item, data, samples, current);
+            }
+        }
+
+        // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
+        // parameters (RQ-AKM-034, RQ-AKM-035) and §0E's lifecycle (RQ-AKM-045) are modelled. A byte
+        // after the data an item expects is ignored, as the spec says of a checksum sent while checksums
+        // are off.
+        Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
+                        const OsVersion& osVersion, std::vector<ProgramRecord>& programs,
+                        std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
+                        std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample)
+        {
+            if (section == SECTION_ZONE)
+            {
+                std::vector<std::string> sampleNames;
+                sampleNames.reserve(samples.size());
+                for (const SampleRecord& sample : samples)
+                    sampleNames.push_back(sample.name);
+                return executeZone(item, data, programs, currentProgram, currentKeygroup, sampleNames);
+            }
             if (section == SECTION_SYSTEM)
                 return executeSystem(item, osVersion);
+            if (section == SECTION_PROGRAM)
+                return executeProgram(item, data, programs, currentProgram, currentKeygroup);
+            if (section == SECTION_KEYGROUP)
+                return executeKeygroup(item, data, programs, currentProgram, currentKeygroup);
+            if (section == SECTION_SAMPLE)
+                return executeSample(item, data, samples, currentSample);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -160,11 +1067,11 @@ namespace akm::harness
                                 std::uint8_t item, const Bytes& data, bool withChecksum)
         {
             Bytes frame{common::midi::SYSEX_START, AKAI_MANUFACTURER_ID, SAMPLER_MODEL_ID, deviceByte};
-            frame.insert(frame.end(), userRefs.begin(), userRefs.end());
+            appendBytes(frame, userRefs);
             frame.push_back(replyId);
             frame.push_back(section);
             frame.push_back(item);
-            frame.insert(frame.end(), data.begin(), data.end());
+            appendBytes(frame, data);
             if (withChecksum)
                 frame.push_back(checksum(std::span<const std::uint8_t>(frame).subspan(FIRST_USER_REF_INDEX)));
             frame.push_back(common::midi::SYSEX_END);
@@ -181,6 +1088,32 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         _behaviour = std::move(behaviour);
+    }
+
+    void SimulatedSampler::setSampleNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _samples.clear();
+        _samples.reserve(names.size());
+        for (std::string& name : names)
+        {
+            SampleRecord record;
+            record.name = std::move(name);
+            _samples.push_back(std::move(record));
+        }
+        _currentSample.reset();
+    }
+
+    void SimulatedSampler::setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
+                                               std::uint32_t length, std::uint32_t rate)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _samples.size())
+            return;
+        _samples[index].type = type;
+        _samples[index].channels = channels;
+        _samples[index].length = length;
+        _samples[index].rate = rate;
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
@@ -325,7 +1258,8 @@ namespace akm::harness
                                           });
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
-                                    : execute(section, item, data, _settings, _config.osVersion);
+                                    : execute(section, item, data, _settings, _config.osVersion, _programs, _currentProgram,
+                                              _currentKeygroup, _samples, _currentSample);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

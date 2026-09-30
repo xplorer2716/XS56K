@@ -17,7 +17,13 @@ The session opening (TASK-AKM-009) and closing (TASK-AKM-011) are recorded "as b
 the real-sampler suite (TASK-AKM-010) in DEC-AKM-008. The owner's run of that suite on the S5000
 (2026-09-27, `OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`) confirms the provisional values of DEC-AKM-006 at their
 provisional values and found the risk to `--slow-operation` recorded there and in the Risks paragraph; DEC-AKM-007
-needed no change. The Diagram section holds the global architecture, the class diagrams,
+needed no change. The item catalogue's first String item (TASK-AKM-014, for FTR-AKM-002) added DEC-AKM-013,
+which completes DEC-AKM-003's deferral of strings and DEC-AKM-012's schema; it changed no other decision.
+The all-programs Gets (TASK-AKM-017) added DEC-AKM-014, completing DEC-AKM-013's own deferral of
+repeated-record REPLYs; it changed no other decision either. Keygroup selection (TASK-AKM-026, FTR-AKM-003)
+added DEC-AKM-015, generalising DEC-AKM-014's decode into `decodeRepeatedReply` for §08's per-keygroup
+Gets; it changed no other decision.
+The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
 ## Context
@@ -362,6 +368,75 @@ Decided in TASK-AKM-008, completing DEC-AKM-003.
   cancelling the rest of a sequence (DEC-AKM-004, DEC-AKM-010). The typed helpers take a `bool` for the
   toggles, so a value other than 0 or 1 cannot be written through them; the refusal of `2` that RQ-AKM-014
   asks for is proved on the generic path.
+
+### DEC-AKM-013: A `String` value format, encoded and decoded outside the generic `int64_t` path
+Decided in TASK-AKM-014, completing DEC-AKM-003's deferral of strings and DEC-AKM-012's schema, for
+FTR-AKM-002 (RQ-AKM-002): the first items to be catalogued that carry an ASCII name (Create, Select by
+name, Rename and Get Name of a Program).
+- **A new `ValueFormat::String`.** Its width is not fixed (`valueWidth` returns `UNDEFINED_VALUE_WIDTH`);
+  `ItemDescriptor::fixedReplyLength()` returns nothing for a REPLY that carries one, exactly as it already
+  did for a REPLY the catalogue does not list — so a String REPLY is refused as `ChecksumModeUnknown` while
+  the port's mode is unknown, with no change to `Confirmation.cpp`. For `ValueSpec`, `min`/`max` become the
+  allowed character count instead of a numeric range; the spec itself gives none, but real hardware can: the
+  Program name is capped at 20 characters, observed by the owner on an S5000, 2026-09-27
+  (`documents/_index/sysex_spec.kb.md`, "Common value codes") — not yet confirmed for the other name fields
+  (Sample, Multi, Disk file/folder), which keep their own bound when their lot catalogues them.
+- **Encoded and decoded through dedicated functions, not `makeRequest`/`decodeReply`.** Those two stay
+  `std::span<const std::int64_t>`-only: widening their signature to a value that can also be text would touch
+  every existing call site and every future numeric item for a need only the String items have. Instead
+  `makeStringRequest` and `decodeStringReply` serve exactly the items whose args or reply is one `String`
+  value, built on `ByteWriter::appendString` / `ByteReader::readString`, which already existed (added ahead
+  of need, DEC-AKM-002) — this task is the catalogue and generic-request layer catching up to them, not a
+  new codec capability. `appendValue`/`readValue`'s switches gained a `String` case returning failure, so an
+  item is never silently misread if it is ever passed to the numeric path by mistake.
+- **Left for a later item.** A REPLY that repeats a record or a string an a priori unknown number of times
+  (Program `&18`/`&19`) is a second, separate gap in the one-value-per-`ValueSpec` decode contract; it is
+  deferred to the task that first needs it (FTR-AKM-002's general program information), not resolved here.
+
+### DEC-AKM-014: A repeated-record REPLY is decoded outside the catalogue too, gated the same way as `String`
+Decided in TASK-AKM-017, completing DEC-AKM-013's deferral, for RQ-AKM-023: Get the "Program Numbers" of
+all Programs (`&18`) and Get the names of all Programs (`&19`) each answer with a REPLY that repeats one
+record — a `(enabled, number)` pair for `&18`, a name for `&19` — once per program in memory, a count the
+REPLY carries by its own length, not as a prefix (spec Table 14, footnote b: read the count with `&10`
+first if the caller wants to size a buffer, but nothing in the wire format requires it).
+- **Catalogued for one record, decoded for as many as the data holds.** `items.json` declares each
+  item's `reply` as the shape of a single record (matching DEC-AKM-013's precedent for `&03`'s
+  conditional shape: the catalogue documents and coverage-checks a record, not the whole wire answer).
+  `getAllProgramNumbers` and `getAllProgramNames` read the REPLY's raw bytes directly — `&19` with the
+  codec's own `ByteReader::readStringList()` (added ahead of need, DEC-AKM-002, and unused until now),
+  `&18` with a small loop reading one `(enabled, number)` pair at a time until no bytes remain, failing
+  the whole decode on a short final record rather than returning a partial list.
+- **Gated like a `String` REPLY.** Neither item's true length is fixed, so both set
+  `ExpectedReply::NeedsKnownChecksumMode` (DEC-AKM-011): the session refuses them outright while the
+  port's checksum mode is unknown, the same guard `getCurrentProgramName` uses for the same reason
+  (DEC-AKM-013) — `ItemDescriptor::fixedReplyLength()` is left computing the one-record width, which is
+  simply never consulted for these two items once the gate is in place.
+- **Program numbers are converted to front-panel, like `&0A`/`&11`.** Table 14's own footnote a repeats
+  Table 13's: the wire number is the front-panel one minus one. `getAllProgramNumbers` returns one
+  `std::optional<int>` per program (empty when that program's display is off), already converted.
+
+### DEC-AKM-015: The repeated-record REPLY decode is generalised into `ItemRequest`, for any item
+Decided in TASK-AKM-026, generalising DEC-AKM-014 for RQ-AKM-031: §08 (Keygroup) answers a Get with one
+value set per keygroup, in keygroup order, whenever keygroup 0 ("all") is current — the same repeated-
+record shape as `&18`/`&19`, but potentially every one of §08's ~34 Get items rather than two named ones.
+Writing 34 bespoke decode loops, one per item, would not scale the way `getAllProgramNumbers`/
+`getAllProgramNames`'s hand-written loops did for exactly two items.
+- **`decodeRepeatedReply(id, data)` joins `decodeReply`/`decodeStringReply` in `ItemRequest.hpp`.** It
+  reads `id`'s own REPLY shape (from the catalogue, unchanged since DEC-AKM-014: one record) as many
+  times as `data` holds, generic over any item — the same "a new item is a new record, not new code"
+  rule DEC-AKM-003 states for `makeRequest`/`decodeReply`, now extended to the repeated case too.
+  `getAllProgramNumbers`/`getAllProgramNames` keep their own hand-written loops (String's own
+  `readStringList` for `&19`; `&18`'s `(enabled, number)` pair does not fit `decodeRepeatedReply`'s
+  plain `int64_t` records without re-deriving the front-panel conversion) rather than being rewritten
+  onto the new function — not broken, so left alone.
+- **The count is checked by the caller, not the codec.** `decodeRepeatedReply` reports how many records
+  it decoded; whether that matches the current program's keygroup count (RQ-AKM-031's "mismatch" AC) is
+  `getForAllKeygroups`'s job (`KeygroupPrimitives.cpp`), which takes the expected count as an argument
+  rather than issuing a second command (`&14`) to read it itself — avoiding a nested round trip the
+  caller can usually avoid by already knowing the count.
+- **Gated like `&18`/`&19`.** `getForAllKeygroups` always sets `ExpectedReply::NeedsKnownChecksumMode`
+  (DEC-AKM-011, DEC-AKM-014): every item it is used for is variable-length by construction, not decided
+  per call.
 
 ## Consequences
 

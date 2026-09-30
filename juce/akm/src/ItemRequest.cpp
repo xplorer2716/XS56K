@@ -44,6 +44,10 @@ namespace akm
                     return writer.appendSignedWord(static_cast<std::int32_t>(value));
                 case ValueFormat::SignedDword:
                     return writer.appendSignedDword(static_cast<std::int32_t>(value));
+                case ValueFormat::String:
+                    // Not reachable through the int64_t path: a String argument goes through
+                    // makeStringRequest instead (ADR-AKM-001, DEC-AKM-013).
+                    return false;
             }
             return false;
         }
@@ -72,6 +76,10 @@ namespace akm
                     return widened(reader.readSignedWord());
                 case ValueFormat::SignedDword:
                     return widened(reader.readSignedDword());
+                case ValueFormat::String:
+                    // Not reachable through the int64_t path: a String reply is read through
+                    // decodeStringReply instead (ADR-AKM-001, DEC-AKM-013).
+                    return std::nullopt;
             }
             return std::nullopt;
         }
@@ -136,5 +144,99 @@ namespace akm
     std::optional<std::vector<std::int64_t>> decodeReply(ItemId id, std::span<const std::uint8_t> data)
     {
         return decodeReply(descriptor(id), data);
+    }
+
+    std::optional<std::vector<std::vector<std::int64_t>>> decodeRepeatedReply(const ItemDescriptor& item,
+                                                                               std::span<const std::uint8_t> data)
+    {
+        if (item.reply.empty())
+            return std::nullopt;
+
+        ByteReader reader(data);
+        std::vector<std::vector<std::int64_t>> records;
+        while (reader.remaining() > 0)
+        {
+            std::vector<std::int64_t> record;
+            record.reserve(item.reply.size());
+            for (const ValueSpec& spec : item.reply)
+            {
+                const std::optional<std::int64_t> value = readValue(reader, spec.format);
+                if (!value)
+                    return std::nullopt;
+                record.push_back(*value);
+            }
+            records.push_back(std::move(record));
+        }
+        return records;
+    }
+
+    std::optional<std::vector<std::vector<std::int64_t>>> decodeRepeatedReply(ItemId id, std::span<const std::uint8_t> data)
+    {
+        return decodeRepeatedReply(descriptor(id), data);
+    }
+
+    namespace
+    {
+        // The one and only ValueSpec of a String item's single argument or reply, or null when the item
+        // is not shaped that way.
+        const ValueSpec* singleStringSpec(std::span<const ValueSpec> values)
+        {
+            if (values.size() != 1 || values.front().format != ValueFormat::String)
+                return nullptr;
+            return &values.front();
+        }
+    }
+
+    CommandRequest makeStringRequest(const ItemDescriptor& item, std::string_view text, CommandOptions options)
+    {
+        CommandRequest request;
+        request.command.section = item.section;
+        request.command.item = item.item;
+        request.options = std::move(options);
+
+        const ValueSpec* spec = singleStringSpec(item.args);
+        if (spec == nullptr)
+        {
+            request.refusal = RefusalReason::WrongArgumentCount;
+            return request;
+        }
+
+        const auto length = static_cast<std::int64_t>(text.size());
+        if (length < spec->min || length > spec->max)
+        {
+            request.refusal = RefusalReason::ArgumentOutOfRange;
+            return request;
+        }
+
+        ByteWriter writer;
+        if (!writer.appendString(text))
+        {
+            request.refusal = RefusalReason::NotEncodable;
+            return request;
+        }
+        request.command.data = writer.bytes();
+        return request;
+    }
+
+    CommandRequest makeStringRequest(ItemId id, std::string_view text, CommandOptions options)
+    {
+        return makeStringRequest(descriptor(id), text, std::move(options));
+    }
+
+    std::optional<std::string> decodeStringReply(const ItemDescriptor& item, std::span<const std::uint8_t> data)
+    {
+        if (singleStringSpec(item.reply) == nullptr)
+            return std::nullopt;
+
+        ByteReader reader(data);
+        std::optional<std::string> text = reader.readString();
+        if (!text || reader.remaining() != 0)
+            return std::nullopt;
+        return text;
+    }
+
+    std::optional<std::string> decodeStringReply(ItemId id, std::span<const std::uint8_t> data)
+    {
+        return decodeStringReply(descriptor(id), data);
     }
 }

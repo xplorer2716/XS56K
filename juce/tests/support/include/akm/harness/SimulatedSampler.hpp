@@ -17,13 +17,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <compare>
 #include <cstdint>
 #include <functional>
+#include <map>
 #include <mutex>
 #include <optional>
 #include <span>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "akm/Scheduler.hpp"
@@ -116,11 +120,97 @@ namespace akm::harness
         std::vector<std::uint8_t> data;  ///< without its checksum
     };
 
+    /// Orders the (Set item code, selector bytes) keys of `ProgramRecord::parameters`,
+    /// `KeygroupRecord::parameters`/`zoneParameters` and `SampleRecord::parameters`, in place of the
+    /// default `std::less<std::pair<std::uint8_t, std::vector<std::uint8_t>>>`: GCC 11's Release build
+    /// (`-O2`/`-O3`) synthesizes that pair's `<=>` through `std::lexicographical_compare_three_way` on
+    /// the vector member and false-positives `-Wstringop-overread` on it (`-Werror`; never seen on
+    /// Debug or on MSVC/Clang) — observed on the real CI, not reproduced locally. A plain boolean `<`
+    /// comparator sidesteps that code path entirely while sorting identically.
+    struct ParameterKeyLess
+    {
+        [[nodiscard]] bool operator()(const std::pair<std::uint8_t, std::vector<std::uint8_t>>& a,
+                                      const std::pair<std::uint8_t, std::vector<std::uint8_t>>& b) const
+        {
+            if (a.first != b.first)
+                return a.first < b.first;
+            return std::lexicographical_compare(a.second.begin(), a.second.end(), b.second.begin(), b.second.end());
+        }
+    };
+
+    /// One keygroup of a program (§08, spec Tables 11-12): its General Options, Pitch/Amp, Filter, and
+    /// three envelope groups (RQ-AKM-030), stored the same generic way as `ProgramRecord::parameters` —
+    /// keyed by (the group's Set item code, the selector bytes a multi-instance item carries, e.g. which
+    /// Aux Rate), holding the value bytes; read back by the paired Get item. A newly added keygroup
+    /// starts with none set (a Get reads back width-many zero bytes, as `ProgramRecord::parameters`
+    /// already does for a program's own groups). [RQ-AKM-030]
+    struct KeygroupRecord
+    {
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
+        /// The §06 zone parameters (RQ-AKM-034), stored the same generic way but kept in a map of its
+        /// own: §06 and §08 item codes overlap (both have a &04, for instance), so a shared map would
+        /// collide. Keyed by (the group's Set item code, the zone number byte 0-4), holding the value
+        /// bytes; read back by the paired Get item. [TASK-AKM-035]
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> zoneParameters;
+    };
+
+    /// One program in the sampler's memory (§0A, spec Tables 13-14): only what TASK-AKM-015's lifecycle
+    /// primitives set or read. Where the spec is silent, the model chooses: a plain Create (`&02`) gives one
+    /// keygroup; creating a name that already exists among the sampler's programs fails as `COULD_NOT_CREATE`
+    /// (`&05`), the spec's own text for that error not saying when it applies. [RQ-AKM-021, RQ-AKM-022]
+    struct ProgramRecord
+    {
+        std::string name;
+        int keygroupCount = 1;
+        bool crossfade = false;
+        /// The front-panel "Program Number" (§0A/&0A, 1-128; the wire carries it minus one, Table 13
+        /// footnote a), or empty when it is off. [RQ-AKM-022]
+        std::optional<int> frontPanelNumber{};
+        /// The Output, MIDI/Tune, Pitch Bend, LFO and Keygroup Modulation Sources parameters
+        /// (RQ-AKM-024): keyed by (the group's Set item code, the selector bytes a multi-instance item
+        /// carries, e.g. which LFO), holding the value bytes; read back by the paired Get item. Not
+        /// compared by `ProgramRecord`'s own `==` (only the fields the earlier lifecycle tests need are).
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
+        /// One entry per keygroup, `keygroupCount` long, in keygroup order starting at 1 (§08, RQ-AKM-030).
+        /// Kept in sync with `keygroupCount` by `&0B`/`&0C` (add/delete keygroups); not compared by
+        /// `ProgramRecord`'s own `==`.
+        std::vector<KeygroupRecord> keygroups{KeygroupRecord{}};
+    };
+
+    inline bool operator==(const ProgramRecord& a, const ProgramRecord& b)
+    {
+        return a.name == b.name && a.keygroupCount == b.keygroupCount && a.crossfade == b.crossfade;
+    }
+
+    /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
+    /// primitives set or read. Unlike a program, this model has no "create" for a sample: §0E has no
+    /// such item (a sample only exists once `setSampleNames` — or a later item of this lot — puts it
+    /// there), matching the spec, which only lets samples be loaded or recorded, not created blank.
+    /// [RQ-AKM-045]
+    struct SampleRecord
+    {
+        std::string name;
+        /// The settable parameters of RQ-AKM-048 (start/end position, original pitch, semitone/fine
+        /// tune, playback mode, loop start/end): keyed by (the group's Set item code, an always-empty
+        /// selector — these items take none), holding the value bytes; read back by the paired Get
+        /// item. Stored the same generic way as `ProgramRecord::parameters`. [TASK-AKM-043]
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
+        /// The read-only parameters of RQ-AKM-049 (§0E/&30-&33): no Set item exists for them, a real
+        /// sample's audio data determines them, so `setSampleAttributes` is the only way to give them a
+        /// value in this model. Defaults (a mono RAM sample, zero length and rate) are arbitrary, the
+        /// spec giving none. [TASK-AKM-044]
+        std::uint8_t type = 0;      ///< 0 = RAM, 1 = VIRTUAL
+        std::uint8_t channels = 1;  ///< 1 = mono, 2 = stereo
+        std::uint32_t length = 0;
+        std::uint32_t rate = 0;
+    };
+
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
-    /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. Only §00 and the two version items
-    /// of §02 (RQ-AKM-044) are modelled; any other section or item answers ERROR 0 (not supported) until the
-    /// lots that need it (FTR-AKM-002 to 004) add theirs.
+    /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. §00, the two version items of §02
+    /// (RQ-AKM-044) and the program lifecycle and general-information items of §0A (RQ-AKM-021, RQ-AKM-023)
+    /// are modelled; any other section or item answers ERROR 0 (not supported) until the lots that need it
+    /// (the rest of FTR-AKM-002, FTR-AKM-003, FTR-AKM-004) add theirs.
     /// The frames it builds are written out from the spec, not with the codec under test.
     /// [RQ-AKM-016, ADR-AKM-001 (DEC-AKM-008)]
     ///
@@ -135,6 +225,20 @@ namespace akm::harness
 
         void setBehaviour(SamplerBehaviour behaviour);
         [[nodiscard]] SamplerBehaviour behaviour() const;
+
+        /// Seeds the sampler's sample memory (§0E) by name, one `SampleRecord` each, current-sample
+        /// selection reset. The same list §06/&01 (Set Zone Sample) checks a name against — assigning a
+        /// name not here fails with ERROR 04, the spec's "requested item not found" (RQ-AKM-035); §0E's
+        /// own lifecycle primitives (RQ-AKM-045) act on this same list, so a test can seed a sample once
+        /// and use it for both zone assignment and the sample lifecycle. Empty by default: a test that
+        /// wants a successful assignment or selection must call this first, like `setBehaviour`.
+        void setSampleNames(std::vector<std::string> names);
+
+        /// Seeds the read-only attributes of the sample at `index` (§0E/&30-&33, RQ-AKM-049) — no Set
+        /// item exists for them, so a test sets them directly, like `setSampleNames` itself. A no-op
+        /// when `index` names no sample.
+        void setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
+                                 std::uint32_t length, std::uint32_t rate);
 
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.
@@ -161,5 +265,18 @@ namespace akm::harness
         SamplerSettings _settings;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
+
+        // §0A program memory: not touched by powerCycle() (real sampler memory, unlike the §00 settings).
+        std::vector<ProgramRecord> _programs;
+        std::optional<std::size_t> _currentProgram;
+        // §08 current keygroup of the current program (RQ-AKM-028): the wire value, 1-99 or 0 for "all";
+        // reset whenever the current program changes, since a keygroup number is only meaningful within
+        // one program. A newly current program defaults to keygroup 1 (the spec does not say; observed on
+        // the real sampler when TASK-AKM-026's real-sampler test runs).
+        std::optional<int> _currentKeygroup;
+        // §0E sample memory (RQ-AKM-045), seeded by `setSampleNames`: not touched by powerCycle(). Unlike
+        // §0A's current program, §0E's current sample has no dependent selection to reset alongside it.
+        std::vector<SampleRecord> _samples;
+        std::optional<std::size_t> _currentSample;
     };
 }

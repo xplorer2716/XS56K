@@ -47,6 +47,8 @@ namespace akm
                 return "session not open: it is opening, or its open failed";
             case RefusalReason::SessionClosed:
                 return "session closed";
+            case RefusalReason::NotConfirmed:
+                return "not confirmed: this destructive command needs its explicit confirmation argument";
         }
         return UNKNOWN_REFUSAL_TEXT;
     }

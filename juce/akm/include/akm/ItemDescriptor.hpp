@@ -27,9 +27,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
-    /// The value formats of the spec (pp. 8-9) that an item's arguments and reply can use. Strings and
-    /// qwords are added when the first item that needs one is catalogued (ADR-AKM-001, DEC-AKM-003).
-    /// [RQ-AKM-002]
+    /// The value formats of the spec (pp. 8-9) that an item's arguments and reply can use. Qwords are
+    /// added when the first item that needs one is catalogued (ADR-AKM-001, DEC-AKM-003). `String` was
+    /// added by DEC-AKM-013 for the first items that carry an ASCII name (FTR-AKM-002): it has no fixed
+    /// width and is encoded and decoded through `ByteWriter::appendString` / `ByteReader::readString`
+    /// directly (`makeStringRequest`, `decodeStringReply`), not through the generic per-value
+    /// `makeRequest` / `decodeReply`, which stay `std::int64_t`-only. [RQ-AKM-002]
     enum class ValueFormat
     {
         Byte,         ///< one data byte, 0 to 127
@@ -38,9 +41,11 @@ namespace akm
         SignedByte,   ///< a sign byte, then the magnitude in a byte
         SignedWord,   ///< a sign byte, then the magnitude in a word
         SignedDword,  ///< a sign byte, then the magnitude in a dword
+        String,       ///< ASCII text terminated by 00; variable width, no numeric range
     };
 
-    /// Returned for a format this build does not know: an enumerator added without its width.
+    /// Returned for a format with no fixed width: either an enumerator added without implementing it,
+    /// or (`String`) a value whose width is inherently variable.
     inline constexpr std::size_t UNDEFINED_VALUE_WIDTH = 0;
 
     /// The number of data bytes a value of `format` occupies. [RQ-AKM-002]
@@ -60,12 +65,18 @@ namespace akm
                 return SIGN_BYTE_WIDTH + WORD_WIDTH;
             case ValueFormat::SignedDword:
                 return SIGN_BYTE_WIDTH + DWORD_WIDTH;
+            case ValueFormat::String:
+                return UNDEFINED_VALUE_WIDTH;
         }
         return UNDEFINED_VALUE_WIDTH;
     }
 
     /// One argument or reply value of an item: its name, its format and the range the spec gives it.
-    /// Ranges are enforced on what is sent, not on what is received. [RQ-AKM-001, RQ-AKM-014]
+    /// Ranges are enforced on what is sent, not on what is received. For `String`, `min` and `max` are
+    /// the allowed character count instead of a numeric range: the spec itself gives no bound, but real
+    /// hardware may (Program names: 0-20, observed by the owner on an S5000, 2026-09-27 — see
+    /// `documents/_index/sysex_spec.kb.md`, "Common value codes"). [RQ-AKM-001, RQ-AKM-014, ADR-AKM-001
+    /// (DEC-AKM-013)]
     struct ValueSpec
     {
         std::string_view name;
@@ -93,15 +104,20 @@ namespace akm
         std::span<const ValueSpec> reply;
 
         /// The number of data bytes of the item's REPLY: the total width of its values, or nothing for an
-        /// item that has no REPLY. A codec that does not know the checksum mode reads it to tell a checksum
-        /// from data. [RQ-AKM-041]
+        /// item that has no REPLY, or whose REPLY carries a `String` (its width is not fixed: a codec that
+        /// does not know the checksum mode cannot tell where it ends, RQ-AKM-041, ADR-AKM-001 DEC-AKM-013).
+        /// A codec that does not know the checksum mode reads this to tell a checksum from data. [RQ-AKM-041]
         [[nodiscard]] constexpr std::optional<std::size_t> fixedReplyLength() const
         {
             if (kind != ItemKind::Get)
                 return std::nullopt;
             std::size_t total = 0;
             for (const ValueSpec& value : reply)
+            {
+                if (value.format == ValueFormat::String)
+                    return std::nullopt;
                 total += valueWidth(value.format);
+            }
             return total;
         }
     };

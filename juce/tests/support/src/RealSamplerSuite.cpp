@@ -33,9 +33,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/Command.hpp"
 #include "akm/CommandOptions.hpp"
 #include "akm/CommandResult.hpp"
+#include "akm/ItemCatalogue.hpp"
+#include "akm/ItemRequest.hpp"
+#include "akm/KeygroupPrimitives.hpp"
+#include "akm/ProgramPrimitives.hpp"
+#include "akm/SamplePrimitives.hpp"
 #include "akm/SysExConfig.hpp"
+#include "akm/ZonePrimitives.hpp"
+#include "akm/harness/KeygroupParameterCases.hpp"
+#include "akm/harness/ProgramParameterCases.hpp"
+#include "akm/harness/SampleParameterCases.hpp"
 #include "akm/harness/WireFormat.hpp"
 #include "akm/harness/WireLog.hpp"
+#include "akm/harness/ZoneParameterCases.hpp"
 
 namespace akm::harness
 {
@@ -48,6 +58,17 @@ namespace akm::harness
     namespace
     {
         using namespace detail;
+
+        // Appends `src` to `dest` with a plain loop rather than `dest.insert(dest.end(), src.begin(),
+        // src.end())`: GCC 11's Release build (-O2, -Werror) false-positives -Wstringop-overread on
+        // that range-insert (linux-x64-release-canary on PR #4; not reproduced in Debug or on
+        // MSVC/Clang) — a known GCC inlining bug, not a real out-of-bounds read.
+        template <typename Container, typename Range>
+        void appendAll(Container& dest, const Range& src)
+        {
+            for (const auto& element : src)
+                dest.push_back(element);
+        }
 
         // The scenario waits for what the session enforces the timeouts of itself, this many command timeouts: a wait
         // that runs out means a completion was lost, and is reported as such. An open is the discovery's window and
@@ -143,6 +164,14 @@ namespace akm::harness
         bool contains(const std::vector<SamplerSetting>& settings, SamplerSetting wanted)
         {
             return std::find(settings.begin(), settings.end(), wanted) != settings.end();
+        }
+
+        std::string valuesText(const std::vector<std::int64_t>& values)
+        {
+            std::string text;
+            for (const std::int64_t value : values)
+                text += (text.empty() ? "" : ", ") + std::to_string(value);
+            return "[" + text + "]";
         }
 
         // A session opened through `Session::open` and closed through `Session::close`, whatever becomes of the check
@@ -251,6 +280,341 @@ namespace akm::harness
             Session _session;
         };
 
+        // The reserved name every real-sampler test of this feature creates its program under (RQ-AKM-027); well
+        // inside the 20-character limit observed on a real S5000 (documents/_index/sysex_spec.kb.md, "Common value
+        // codes"), and unlikely to collide with a program already in the sampler's memory.
+        constexpr std::string_view TEST_PROGRAM_NAME = "XS56K_SUITE_TEST";
+
+        // A keygroup always has four zones (§06, spec Tables 9-10): the "1-4, or 0 for all four" domain
+        // every zone item's first data byte carries. [RQ-AKM-034]
+        constexpr int ZONE_COUNT = 4;
+
+        // Wraps one program created under TEST_PROGRAM_NAME for the life of one check (RQ-AKM-027): on construction,
+        // records the sampler's current program name, if any, then creates the test program, which Create makes
+        // current. On destruction, even when the check throws half way, it reselects the test program by name and
+        // deletes it, then reselects the program that was current before — logged, nothing let out of the
+        // destructor, mirroring how GuardedSession always closes. `expectOnTestProgram` refuses a launch, without
+        // sending it, when the current program is not the test one, so a check cannot act on a program the suite
+        // did not create by mistake.
+        class GuardedTestProgram
+        {
+        public:
+            GuardedTestProgram(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                _originalName = currentProgramNameOrEmpty();
+                expectCreated();
+            }
+
+            ~GuardedTestProgram()
+            {
+                try
+                {
+                    if (!isCurrent())
+                        trySelectByName(std::string(TEST_PROGRAM_NAME), "reselect the test program before deleting it");
+                    if (isCurrent())
+                    {
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(),
+                            [this](CommandCompletion done) { deleteCurrentProgram(_session, std::move(done)); });
+                        _rig.log.note(std::string("  test program deleted: ")
+                                      + (timed && succeeded(timed->result) ? "done"
+                                                                            : "failed ("
+                                                                                  + (timed ? outcomeText(timed->result)
+                                                                                          : std::string("no completion"))
+                                                                                  + ")"));
+                    }
+                    else
+                        _rig.log.note("  the test program could not be reselected to delete it; it may already be gone");
+                    if (_originalName)
+                        trySelectByName(*_originalName, "reselect the program that was current before");
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the test program guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedTestProgram(const GuardedTestProgram&) = delete;
+            GuardedTestProgram& operator=(const GuardedTestProgram&) = delete;
+
+            [[nodiscard]] bool hadOriginalProgram() const { return _originalName.has_value(); }
+
+            [[nodiscard]] bool isCurrent()
+            {
+                const auto name = currentProgramNameOrEmpty();
+                return name && *name == std::string(TEST_PROGRAM_NAME);
+            }
+
+            // Navigates away from the test program to the one that was current before, to let a check prove
+            // expectOnTestProgram refuses; false when there was none, or reselecting it failed.
+            [[nodiscard]] bool selectOriginalProgram()
+            {
+                if (!_originalName)
+                    return false;
+                return trySelectByName(*_originalName, "select the original program (to prove the wrong-program refusal)");
+            }
+
+            [[nodiscard]] bool selectTestProgramAgain()
+            {
+                return trySelectByName(std::string(TEST_PROGRAM_NAME), "reselect the test program");
+            }
+
+            // Runs `launch` only when the test program is current; otherwise refuses before sending, and the check
+            // fails. [RQ-AKM-027]
+            void expectOnTestProgram(const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                if (!isCurrent())
+                    throw CheckFailure(title + ": refused before sending, the current program is not the test one");
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [this, &launch](CommandCompletion done) { launch(_session, std::move(done)); });
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience())
+                                       + ": the session lost it");
+                _rig.log.note("  " + title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                if (!succeeded(timed->result))
+                    throw CheckFailure(title + ": " + outcomeText(timed->result));
+            }
+
+        private:
+            [[nodiscard]] std::optional<std::string> currentProgramNameOrEmpty()
+            {
+                const auto timed = awaitCompletion<ProgramNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [this](ProgramNameCompletion done) { getCurrentProgramName(_session, std::move(done)); });
+                if (!timed)
+                    return std::nullopt;
+                return timed->result.name;
+            }
+
+            void expectCreated()
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this](CommandCompletion done) {
+                    createProgram(_session, std::string(TEST_PROGRAM_NAME), std::move(done));
+                });
+                if (!timed || !succeeded(timed->result))
+                    throw CheckFailure("could not create the test program \"" + std::string(TEST_PROGRAM_NAME)
+                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                _rig.log.note("  test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+            }
+
+            // Never throws: used both by the destructor and by the public navigation helpers, which report success
+            // through their own return value instead.
+            bool trySelectByName(const std::string& name, const std::string& title)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this, &name](CommandCompletion done) {
+                    selectProgramByName(_session, name, std::move(done));
+                });
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note(std::string("  ") + title + ": "
+                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                return ok;
+            }
+
+            Rig& _rig;
+            Session& _session;
+            std::optional<std::string> _originalName;
+        };
+
+        // The 8 settable §0E items (RQ-AKM-048), in the order &4B's grouped REPLY gives them — what
+        // GuardedTestSample snapshots on entry (one &4B round trip) and restores on exit (one Set per
+        // item, sliced from that snapshot by each item's own argument width).
+        constexpr std::array<ItemId, 8> SETTABLE_PARAM_SET_IDS{{
+            ItemId::SampleSetStartPosition, ItemId::SampleSetEndPosition, ItemId::SampleSetOriginalPitch,
+            ItemId::SampleSetSemitoneTune, ItemId::SampleSetFineTune, ItemId::SampleSetPlaybackMode,
+            ItemId::SampleSetLoopStart, ItemId::SampleSetLoopEnd,
+        }};
+
+        // Mirrors GuardedTestProgram, but restores rather than deletes: unlike a program, a real sample
+        // cannot be thrown away and recreated (§0E has no "create" item, RQ-AKM-045's own note), so the
+        // guard snapshots the operator's sample on entry (its settable parameters, one &4B round trip)
+        // and puts them back on exit, however the check ends. `sampleName` is fixed for the whole
+        // guard's lifetime: a check that renames the sample renames it back to `sampleName` itself,
+        // before anything that might throw, the same discipline `programLifecycleOnTestProgram` already
+        // follows for the reserved program name. Never sends `&07`/`&08` — nothing in this class can,
+        // there is no method that does. [RQ-AKM-051]
+        class GuardedTestSample
+        {
+        public:
+            GuardedTestSample(Rig& rig, Session& session, std::string sampleName)
+                : _rig(rig), _session(session), _sampleName(std::move(sampleName))
+            {
+                _originalCurrentName = currentSampleNameOrEmpty();
+                expectSelected();
+                _originalParameters = expectSettableParameters();
+            }
+
+            ~GuardedTestSample()
+            {
+                try
+                {
+                    if (!isCurrent())
+                        trySelectByName(_sampleName, "reselect the test sample before restoring it");
+                    if (isCurrent())
+                        restoreParameters();
+                    else
+                        _rig.log.note("  the test sample could not be reselected to restore it; it may have been renamed");
+                    if (hadOriginalSample())
+                        trySelectByName(*_originalCurrentName, "reselect the sample that was current before");
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the test sample guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedTestSample(const GuardedTestSample&) = delete;
+            GuardedTestSample& operator=(const GuardedTestSample&) = delete;
+
+            [[nodiscard]] bool hadOriginalSample() const
+            {
+                return _originalCurrentName.has_value() && *_originalCurrentName != _sampleName;
+            }
+
+            // Navigates away from the test sample to the one that was current before, to let a check prove
+            // expectOnTestSample refuses; false when there was none, or reselecting it failed.
+            [[nodiscard]] bool selectOriginalSample()
+            {
+                if (!hadOriginalSample())
+                    return false;
+                return trySelectByName(*_originalCurrentName,
+                                       "select the sample that was current before (to prove the wrong-sample refusal)");
+            }
+
+            [[nodiscard]] bool selectTestSampleAgain() { return trySelectByName(_sampleName, "reselect the test sample"); }
+
+            /// The settable parameters read on construction, before the check changes anything — kept so the
+            /// check can verify, after this guard is gone, that they made it back (the guard's own restore
+            /// already used this snapshot internally; this is the same data, exposed for that verification).
+            [[nodiscard]] const std::vector<std::int64_t>& originalParameters() const { return _originalParameters; }
+
+            // Runs `launch` only when the test sample is current; otherwise refuses before sending, and the check
+            // fails. [RQ-AKM-051]
+            void expectOnTestSample(const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                if (!isCurrent())
+                    throw CheckFailure(title + ": refused before sending, the current sample is not the test one");
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [this, &launch](CommandCompletion done) { launch(_session, std::move(done)); });
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience())
+                                       + ": the session lost it");
+                _rig.log.note("  " + title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                if (!succeeded(timed->result))
+                    throw CheckFailure(title + ": " + outcomeText(timed->result));
+            }
+
+        private:
+            [[nodiscard]] bool isCurrent()
+            {
+                const auto name = currentSampleNameOrEmpty();
+                return name && *name == _sampleName;
+            }
+
+            [[nodiscard]] std::optional<std::string> currentSampleNameOrEmpty()
+            {
+                const auto timed = awaitCompletion<SampleNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [this](SampleNameCompletion done) { getCurrentSampleName(_session, std::move(done)); });
+                if (!timed)
+                    return std::nullopt;
+                return timed->result.name;
+            }
+
+            void expectSelected()
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this](CommandCompletion done) {
+                    selectSampleByName(_session, _sampleName, std::move(done));
+                });
+                if (!timed || !succeeded(timed->result))
+                    throw CheckFailure("could not select the test sample \"" + _sampleName
+                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion"))
+                                       + " (is it really in the sampler's memory?)");
+                _rig.log.note("  test sample \"" + _sampleName + "\" selected and current");
+            }
+
+            // One &4B round trip: the 8 settable parameters this guard restores, in the order the spec's
+            // grouped REPLY gives them (RQ-AKM-049).
+            [[nodiscard]] std::vector<std::int64_t> expectSettableParameters()
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this](CommandCompletion done) {
+                    _session.submit(makeRequest(ItemId::SampleGetAllSettableParams, {}), std::move(done));
+                });
+                if (!timed || !succeeded(timed->result))
+                    throw CheckFailure("could not read the test sample's settable parameters before changing them: "
+                                       + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                const auto* replyData = std::get_if<Reply>(&timed->result);
+                const auto decoded = replyData ? decodeReply(ItemId::SampleGetAllSettableParams, replyData->data) : std::nullopt;
+                if (!decoded)
+                    throw CheckFailure("could not decode the test sample's settable parameters before changing them");
+                return *decoded;
+            }
+
+            // Never throws: used both by the destructor and by the public navigation helpers, which report success
+            // through their own return value instead.
+            bool trySelectByName(const std::string& name, const std::string& title)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this, &name](CommandCompletion done) {
+                    selectSampleByName(_session, name, std::move(done));
+                });
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note(std::string("  ") + title + ": "
+                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                return ok;
+            }
+
+            // Sets each of the 8 settable parameters back to `_originalParameters`, one Set per item, logged, best
+            // effort — a failed restore is noted, not thrown (the destructor must not throw). Offsets into
+            // `_originalParameters` follow `SETTABLE_PARAM_SET_IDS` (the wire/&4B order, fixed by the protocol),
+            // but the Sets are *sent* with Loop End before Loop Start: on the real S5000 (2026-09-30, samples
+            // "AMEN" and "Honesty"), Loop Start reproducibly read back wrong whenever Loop End was set after it
+            // — see SampleParameterCases.cpp for the detail — so nothing is sent after Loop Start's own restore
+            // that could disturb it again.
+            void restoreParameters()
+            {
+                struct PendingRestore
+                {
+                    ItemId setId;
+                    std::vector<std::int64_t> value;
+                };
+                std::vector<PendingRestore> pending;
+                std::size_t offset = 0;
+                for (const ItemId setId : SETTABLE_PARAM_SET_IDS)
+                {
+                    const std::size_t width = descriptor(setId).args.size();
+                    if (offset + width > _originalParameters.size())
+                    {
+                        _rig.log.note("  could not restore the test sample's settable parameters: snapshot too short");
+                        return;
+                    }
+                    pending.push_back({setId, std::vector<std::int64_t>(_originalParameters.begin() + static_cast<std::ptrdiff_t>(offset),
+                                                                        _originalParameters.begin() + static_cast<std::ptrdiff_t>(offset + width))});
+                    offset += width;
+                }
+                static_assert(SETTABLE_PARAM_SET_IDS[6] == ItemId::SampleSetLoopStart);
+                static_assert(SETTABLE_PARAM_SET_IDS[7] == ItemId::SampleSetLoopEnd);
+                std::swap(pending[6], pending[7]);
+                for (const PendingRestore& item : pending)
+                {
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [this, &item](CommandCompletion done) {
+                            _session.submit(makeRequest(item.setId, item.value), std::move(done));
+                        });
+                    const bool ok = timed && succeeded(timed->result);
+                    _rig.log.note("  restore " + std::string(descriptor(item.setId).name) + ": " + (ok ? "done" : "failed"));
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            std::string _sampleName;
+            std::optional<std::string> _originalCurrentName;
+            std::vector<std::int64_t> _originalParameters;
+        };
+
         // The checks, one after the other.
         class Suite
         {
@@ -271,6 +635,22 @@ namespace akm::harness
                     check("a slow operation with Still Alive on", &Suite::slowOperation);
                 if (_rig.options.powerCycle)
                     check("a power cycle while a session is open", &Suite::powerCycle);
+                if (_rig.options.programLifecycle)
+                {
+                    check("create, change and select a program under a reserved test name, then delete it",
+                          &Suite::programLifecycleOnTestProgram);
+                    check("a program check that fails half way still deletes the test program and restores the selection",
+                          &Suite::failedProgramCheckLeavesTheKnownState);
+                    check("add keygroups to the test program and round-trip every §08 parameter item, including keygroup 0 (all)",
+                          &Suite::keygroupsOnTestProgram);
+                    check("add a zone to a keygroup of the test program and round-trip every §06 parameter item, "
+                          "including zone 0 (all four) and keygroup 0 + zone 0",
+                          &Suite::zonesOnTestProgram);
+                }
+                if (_rig.options.sampleLifecycle)
+                    check("select the test sample, round-trip every §0E lifecycle and settable-parameter item on it, "
+                          "and restore its name and parameters",
+                          &Suite::samplesOnTestSample);
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -727,6 +1107,674 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-027: creates a program under the reserved test name (GuardedTestProgram's constructor),
+            // changes it (add keygroups, crossfade, rename and back, every item of RQ-AKM-024's five parameter
+            // groups), proves expectOnTestProgram refuses once the current program is no longer the test one, then
+            // lets the guard delete it and restore the original selection — verified by the program count being
+            // back to what it was.
+            void programLifecycleOnTestProgram()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto before = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                if (!before || !before->result.count)
+                    throw CheckFailure("could not read the number of programs before creating the test program");
+                const int countBefore = *before->result.count;
+
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+
+                    program.expectOnTestProgram("add 3 keygroups", [](Session& session, CommandCompletion done) {
+                        addKeygroupsToProgram(session, 3, std::move(done));
+                    });
+                    const auto keygroups = awaitCompletion<ProgramKeygroupCountResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
+                            getProgramKeygroupCount(guarded.session(), std::move(done));
+                        });
+                    expect(keygroups && keygroups->result.count == 4, "the keygroup count read back is 4 (1 default + 3 added)");
+
+                    program.expectOnTestProgram("set crossfade on", [](Session& session, CommandCompletion done) {
+                        setKeygroupCrossfade(session, true, std::move(done));
+                    });
+                    const auto crossfade = awaitCompletion<ProgramCrossfadeResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](ProgramCrossfadeCompletion done) { getKeygroupCrossfade(guarded.session(), std::move(done)); });
+                    expect(crossfade && crossfade->result.enabled == true, "crossfade read back on");
+
+                    // RQ-AKM-021: rename, then rename back to the reserved name before anything else runs, so the
+                    // guard (which tracks its program by that name) can still find it if this or a later step throws.
+                    // Within the 20-character name limit observed on a real S5000 (kb.md, "Common value codes"):
+                    // TEST_PROGRAM_NAME is 16 characters, leaving room for "_2" but not a longer suffix.
+                    const std::string renamedTo = std::string(TEST_PROGRAM_NAME) + "_2";
+                    program.expectOnTestProgram("rename the test program", [&renamedTo](Session& session, CommandCompletion done) {
+                        renameCurrentProgram(session, renamedTo, std::move(done));
+                    });
+                    const auto renamedName = awaitCompletion<ProgramNameResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](ProgramNameCompletion done) { getCurrentProgramName(guarded.session(), std::move(done)); });
+                    expect(renamedName && renamedName->result.name == renamedTo, "the new name read back");
+                    const auto renameBack = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                            renameCurrentProgram(guarded.session(), std::string(TEST_PROGRAM_NAME), std::move(done));
+                        });
+                    if (!renameBack || !succeeded(renameBack->result))
+                        throw CheckFailure("could not rename the test program back to \"" + std::string(TEST_PROGRAM_NAME) + "\"");
+
+                    // RQ-AKM-024: every item of the five parameter groups, Set then Get, verified by read-back.
+                    for (const ProgramParameterCase& parameterCase : allProgramParameterCases())
+                    {
+                        const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                        const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                        const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                        const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                        const std::string title(descriptor(parameterCase.setId).name);
+
+                        program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                            session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                        });
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                            });
+                        if (!timed)
+                            throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                        if (!succeeded(timed->result))
+                            throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                        const auto* replyData = std::get_if<Reply>(&timed->result);
+                        const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                        if (!decoded || *decoded != expectedValue)
+                            throw CheckFailure("get " + title + ": read back "
+                                               + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                               + valuesText(expectedValue));
+                    }
+                    finding(std::to_string(allProgramParameterCases().size()) + " parameter items of the five groups round-tripped");
+
+                    if (program.hadOriginalProgram())
+                    {
+                        expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                        bool refused = false;
+                        try
+                        {
+                            program.expectOnTestProgram("set crossfade off (on the wrong program)",
+                                                        [](Session& session, CommandCompletion done) {
+                                                            setKeygroupCrossfade(session, false, std::move(done));
+                                                        });
+                        }
+                        catch (const CheckFailure&)
+                        {
+                            refused = true;
+                        }
+                        expect(refused, "acting on the program that is current but not the test one was refused before sending");
+                        expect(program.selectTestProgramAgain(), "reselected the test program");
+                    }
+                    else
+                        finding("no program was current before: the wrong-program refusal is not exercised this run");
+                }
+                finding("test program deleted and the original selection restored by the guard");
+
+                const auto after = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                expect(after && after->result.count == countBefore,
+                       "the number of programs is back to what it was before (" + std::to_string(countBefore) + ")");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-027: a program check that fails half way, with the test program current, still leaves the
+            // sampler exactly as it held it before — the failure is thrown through the guard's scope, as a failed
+            // assertion would be.
+            void failedProgramCheckLeavesTheKnownState()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto namesBeforeResult = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                if (!namesBeforeResult || !namesBeforeResult->result.names)
+                    throw CheckFailure("could not read the names of all programs before the test program is created");
+                const std::vector<std::string> namesBefore = *namesBeforeResult->result.names;
+                const auto originalResult = awaitCompletion<ProgramNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramNameCompletion done) { getCurrentProgramName(guarded.session(), std::move(done)); });
+                if (!originalResult)
+                    throw CheckFailure("could not read the current program's name before the test program is created");
+                const std::optional<std::string> originalName = originalResult->result.name;
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    finding("test program created for a check that fails on purpose");
+                    throw CheckFailure("this check fails on purpose, with the test program current");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The GuardedTestProgram above has already been destroyed, its cleanup already run, by the time
+                    // the exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+
+                const auto namesAfterResult = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                expect(namesAfterResult && namesAfterResult->result.names == namesBefore,
+                       "the sampler holds exactly the programs it held before (" + std::to_string(namesBefore.size()) + ")");
+                const auto currentAfterResult = awaitCompletion<ProgramNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramNameCompletion done) { getCurrentProgramName(guarded.session(), std::move(done)); });
+                expect(currentAfterResult && currentAfterResult->result.name == originalName,
+                       "the program that was current before is current again");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-028, RQ-AKM-030, RQ-AKM-031, RQ-AKM-033: keygroups added to the test program, every
+            // §08 parameter item round-tripped on one of them, then the keygroup-0 ("all") shape, and the
+            // wrong-program refusal for a keygroup-level command — the same guard as the program lifecycle
+            // check, so acting on a program the suite did not create is refused before sending.
+            void keygroupsOnTestProgram()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto before = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                if (!before || !before->result.count)
+                    throw CheckFailure("could not read the number of programs before creating the test program");
+                const int countBefore = *before->result.count;
+
+                // The guard's own destructor (reselect, delete, restore the original selection) must run before
+                // closeAndVerify below closes the session it needs for that — hence this nested scope, the same
+                // shape programLifecycleOnTestProgram uses. Missing it here first (found on the real S5000, not the
+                // mock: TASK-AKM-033) left the test program undeleted, the guard's cleanup silently failing against
+                // an already-closed session.
+                {
+                GuardedTestProgram program(_rig, guarded.session());
+                finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+
+                program.expectOnTestProgram("add 2 keygroups", [](Session& session, CommandCompletion done) {
+                    addKeygroupsToProgram(session, 2, std::move(done));
+                });
+                const auto keygroupCountResult = awaitCompletion<ProgramKeygroupCountResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
+                        getProgramKeygroupCount(guarded.session(), std::move(done));
+                    });
+                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                    throw CheckFailure("could not read the keygroup count after adding keygroups");
+                const int keygroupCount = *keygroupCountResult->result.count;
+                expect(keygroupCount == 3, "the keygroup count read back is 3 (1 default + 2 added)");
+
+                program.expectOnTestProgram("select keygroup 2", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 2, std::move(done));
+                });
+                const auto currentResult = awaitCompletion<CurrentKeygroupResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](CurrentKeygroupCompletion done) { getCurrentKeygroup(guarded.session(), std::move(done)); });
+                expect(currentResult && currentResult->result.keygroup == 2, "keygroup 2 read back as current");
+
+                for (const KeygroupParameterCase& parameterCase : allKeygroupParameterCases())
+                {
+                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                    const std::string title(descriptor(parameterCase.setId).name);
+
+                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                    });
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                        });
+                    if (!timed)
+                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                    if (!succeeded(timed->result))
+                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                    const auto* replyData = std::get_if<Reply>(&timed->result);
+                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                    if (!decoded || *decoded != expectedValue)
+                        throw CheckFailure("get " + title + ": read back "
+                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                           + valuesText(expectedValue));
+                }
+                finding(std::to_string(allKeygroupParameterCases().size())
+                        + " keygroup parameter items of the six groups round-tripped on keygroup 2");
+
+                // RQ-AKM-032: whether &61 (Velocity->Rate, Aux Rate 4) and &64 (Off Velocity->Rate, Aux Rate 4
+                // only) share one stored value or are independent — still open after TASK-AKM-033's first run,
+                // which never set both at Aux Rate 4. Observational only: it does not fail the check either way.
+                program.expectOnTestProgram("set Aux Env. Velocity->Rate (Aux Rate 4) to a marker value",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::KeygroupSetAuxEnvVelocityToRate, {4, 1, 99}),
+                                                               std::move(done));
+                                            });
+                program.expectOnTestProgram("set Aux Env. Off Velocity->Rate (Aux Rate 4) to a different marker value",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::KeygroupSetAuxEnvOffVelocityToRate, {4, 0, 5}),
+                                                               std::move(done));
+                                            });
+                const auto velocityToRateAgain = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(ItemId::KeygroupGetAuxEnvVelocityToRate, {4}), std::move(done));
+                    });
+                const auto offVelocityToRateAgain = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(ItemId::KeygroupGetAuxEnvOffVelocityToRate, {4}), std::move(done));
+                    });
+                const auto* velocityReply = velocityToRateAgain ? std::get_if<Reply>(&velocityToRateAgain->result) : nullptr;
+                const auto* offVelocityReply = offVelocityToRateAgain ? std::get_if<Reply>(&offVelocityToRateAgain->result) : nullptr;
+                const auto velocityDecoded = velocityReply ? decodeReply(ItemId::KeygroupGetAuxEnvVelocityToRate, velocityReply->data) : std::nullopt;
+                const auto offVelocityDecoded =
+                    offVelocityReply ? decodeReply(ItemId::KeygroupGetAuxEnvOffVelocityToRate, offVelocityReply->data) : std::nullopt;
+                finding("Aux Rate 4 cross-check: &69 (Velocity->Rate) reads "
+                        + (velocityDecoded ? valuesText(*velocityDecoded) : std::string("nothing decodable")) + ", &6C (Off Velocity->Rate) reads "
+                        + (offVelocityDecoded ? valuesText(*offVelocityDecoded) : std::string("nothing decodable"))
+                        + " -- distinct if 1 99 and 0 5 respectively, aliased if both read the same value");
+
+                // RQ-AKM-031: keygroup 0 ("all") — Set Low Note once, Get it back for every keygroup.
+                program.expectOnTestProgram("select keygroup 0 (all)", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 0, std::move(done));
+                });
+                program.expectOnTestProgram("set Low Note for all keygroups", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::KeygroupSetLowNote, {50}), std::move(done));
+                });
+                const auto allResult = awaitCompletion<AllKeygroupsResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, keygroupCount](AllKeygroupsCompletion done) {
+                        getForAllKeygroups(guarded.session(), ItemId::KeygroupGetLowNote, keygroupCount, std::move(done));
+                    });
+                const bool allLowNote50 = allResult && allResult->result.values
+                                           && allResult->result.values->size() == static_cast<std::size_t>(keygroupCount)
+                                           && std::all_of(allResult->result.values->begin(), allResult->result.values->end(),
+                                                          [](const std::vector<std::int64_t>& record) {
+                                                              return record == std::vector<std::int64_t>{50};
+                                                          });
+                expect(allLowNote50, "all " + std::to_string(keygroupCount) + " keygroups read back Low Note 50");
+
+                if (program.hadOriginalProgram())
+                {
+                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                    bool refused = false;
+                    try
+                    {
+                        program.expectOnTestProgram("select keygroup 0 (on the wrong program)",
+                                                    [](Session& session, CommandCompletion done) {
+                                                        selectKeygroup(session, 0, std::move(done));
+                                                    });
+                    }
+                    catch (const CheckFailure&)
+                    {
+                        refused = true;
+                    }
+                    expect(refused, "selecting keygroup 0 on the program that is current but not the test one was refused before sending");
+                    expect(program.selectTestProgramAgain(), "reselected the test program");
+                }
+                else
+                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                }
+                finding("test program deleted and the original selection restored by the guard");
+
+                const auto after = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                expect(after && after->result.count == countBefore,
+                       "the number of programs is back to what it was before (" + std::to_string(countBefore) + ")");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-034 to RQ-AKM-038: a keygroup added to the test program, every non-sample §06 parameter
+            // item round-tripped on one of its zones, then the zone-0 ("all four") and keygroup-0 + zone-0
+            // shapes (TASK-AKM-037), sample assignment when `_rig.options.sampleName` is given (skipped, not
+            // failed, otherwise), and the wrong-program refusal for a zone-level command — the same guard as
+            // the other test-program checks.
+            void zonesOnTestProgram()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto before = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                if (!before || !before->result.count)
+                    throw CheckFailure("could not read the number of programs before creating the test program");
+                const int countBefore = *before->result.count;
+
+                {
+                GuardedTestProgram program(_rig, guarded.session());
+                finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
+
+                program.expectOnTestProgram("add 1 keygroup", [](Session& session, CommandCompletion done) {
+                    addKeygroupsToProgram(session, 1, std::move(done));
+                });
+                const auto keygroupCountResult = awaitCompletion<ProgramKeygroupCountResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
+                        getProgramKeygroupCount(guarded.session(), std::move(done));
+                    });
+                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                    throw CheckFailure("could not read the keygroup count after adding a keygroup");
+                const int keygroupCount = *keygroupCountResult->result.count;
+                expect(keygroupCount == 2, "the keygroup count read back is 2 (1 default + 1 added)");
+
+                program.expectOnTestProgram("select keygroup 2", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 2, std::move(done));
+                });
+
+                for (const ZoneParameterCase& parameterCase : allZoneParameterCases())
+                {
+                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                    const std::string title(descriptor(parameterCase.setId).name);
+
+                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                    });
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                        });
+                    if (!timed)
+                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                    if (!succeeded(timed->result))
+                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                    const auto* replyData = std::get_if<Reply>(&timed->result);
+                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                    if (!decoded || *decoded != expectedValue)
+                        throw CheckFailure("get " + title + ": read back "
+                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                           + valuesText(expectedValue));
+                }
+                finding(std::to_string(allZoneParameterCases().size()) + " zone parameter items round-tripped on zone 3 of keygroup 2");
+
+                // RQ-AKM-036: zone 0 ("all four") on the current keygroup.
+                program.expectOnTestProgram("set Zone Level for all zones (zone 0) of keygroup 2",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::ZoneSetLevel, {0, 0, 77}), std::move(done));
+                                            });
+                const auto allZonesResult = awaitCompletion<AllZonesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](AllZonesCompletion done) {
+                        getForAllZones(guarded.session(), ItemId::ZoneGetLevel, ZONE_COUNT, std::move(done));
+                    });
+                const bool allZonesLevel77 = allZonesResult && allZonesResult->result.values
+                                             && allZonesResult->result.values->size() == static_cast<std::size_t>(ZONE_COUNT)
+                                             && std::all_of(allZonesResult->result.values->begin(), allZonesResult->result.values->end(),
+                                                            [](const std::vector<std::int64_t>& record) {
+                                                                return record == std::vector<std::int64_t>{0, 77};
+                                                            });
+                expect(allZonesLevel77, "all " + std::to_string(ZONE_COUNT) + " zones of keygroup 2 read back Level 77");
+
+                // RQ-AKM-036: keygroup 0 ("all") + zone 0 ("all four") together.
+                program.expectOnTestProgram("select keygroup 0 (all)", [](Session& session, CommandCompletion done) {
+                    selectKeygroup(session, 0, std::move(done));
+                });
+                program.expectOnTestProgram("set Zone Level for all zones of all keygroups (keygroup 0, zone 0)",
+                                            [](Session& session, CommandCompletion done) {
+                                                session.submit(makeRequest(ItemId::ZoneSetLevel, {0, 0, 88}), std::move(done));
+                                            });
+                const auto nestedResult = awaitCompletion<AllZonesAllKeygroupsResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, keygroupCount](AllZonesAllKeygroupsCompletion done) {
+                        getForAllZonesAllKeygroups(guarded.session(), ItemId::ZoneGetLevel, keygroupCount, ZONE_COUNT, std::move(done));
+                    });
+                const bool nestedLevel88 =
+                    nestedResult && nestedResult->result.values && nestedResult->result.values->size() == static_cast<std::size_t>(keygroupCount)
+                    && std::all_of(nestedResult->result.values->begin(), nestedResult->result.values->end(),
+                                   [](const std::vector<std::vector<std::int64_t>>& perKeygroup) {
+                                       return perKeygroup.size() == static_cast<std::size_t>(ZONE_COUNT)
+                                              && std::all_of(perKeygroup.begin(), perKeygroup.end(), [](const std::vector<std::int64_t>& record) {
+                                                     return record == std::vector<std::int64_t>{0, 88};
+                                                 });
+                                   });
+                expect(nestedLevel88, "all " + std::to_string(keygroupCount) + " keygroups' " + std::to_string(ZONE_COUNT)
+                                          + " zones read back Level 88");
+
+                // RQ-AKM-035, RQ-AKM-038: sample assignment, only when the owner configured a real sample name.
+                if (_rig.options.sampleName)
+                {
+                    program.expectOnTestProgram("select keygroup 2", [](Session& session, CommandCompletion done) {
+                        selectKeygroup(session, 2, std::move(done));
+                    });
+                    const std::string& sampleName = *_rig.options.sampleName;
+                    program.expectOnTestProgram("assign sample \"" + sampleName + "\" to zone 1",
+                                                [&sampleName](Session& session, CommandCompletion done) {
+                                                    setZoneSample(session, 1, sampleName, std::move(done));
+                                                });
+                    const auto sampleResult = awaitCompletion<ZoneSampleResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](ZoneSampleCompletion done) { getZoneSample(guarded.session(), 1, std::move(done)); });
+                    expect(sampleResult && sampleResult->result.name == sampleName,
+                           "zone 1 reads back the sample name \"" + sampleName + "\"");
+                    finding("sample assignment: \"" + sampleName + "\" assigned to zone 1 and read back");
+                }
+                else
+                    finding("sample assignment: skipped (no --sample-name given)");
+
+                if (program.hadOriginalProgram())
+                {
+                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                    bool refused = false;
+                    try
+                    {
+                        program.expectOnTestProgram("set Zone Level (on the wrong program)", [](Session& session, CommandCompletion done) {
+                            session.submit(makeRequest(ItemId::ZoneSetLevel, {1, 0, 1}), std::move(done));
+                        });
+                    }
+                    catch (const CheckFailure&)
+                    {
+                        refused = true;
+                    }
+                    expect(refused, "a zone command on the program that is current but not the test one was refused before sending");
+                    expect(program.selectTestProgramAgain(), "reselected the test program");
+                }
+                else
+                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                }
+                finding("test program deleted and the original selection restored by the guard");
+
+                const auto after = awaitCompletion<ProgramCountResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
+                expect(after && after->result.count == countBefore,
+                       "the number of programs is back to what it was before (" + std::to_string(countBefore) + ")");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-051: selects the sample named by `--sample-name` (skipped, not failed, when empty —
+            // there is nothing else for this check to test), renames it and back, starts and stops
+            // auditioning it, round-trips every settable item on it (RQ-AKM-048), confirms the grouped
+            // replies agree with the items they group (RQ-AKM-049), then lets the guard restore its
+            // name and parameters and the sampler's original current-sample selection, verified again
+            // once the guard is gone.
+            void samplesOnTestSample()
+            {
+                if (!_rig.options.sampleName)
+                    throw CheckSkipped("no --sample-name given");
+                const std::string& sampleName = *_rig.options.sampleName;
+
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::vector<std::int64_t> originalSnapshot;
+                {
+                    GuardedTestSample sample(_rig, guarded.session(), sampleName);
+                    originalSnapshot = sample.originalParameters();
+                    finding("sample \"" + sampleName + "\" selected as current");
+
+                    // RQ-AKM-045: select by index too, not just by name — read the current index
+                    // (&13), select by it (&06), and confirm by name (&14) that it is still the test
+                    // sample.
+                    const auto indexBefore = awaitCompletion<SampleIndexResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](SampleIndexCompletion done) { getCurrentSampleIndex(guarded.session(), std::move(done)); });
+                    if (!indexBefore || !indexBefore->result.index)
+                        throw CheckFailure("could not read the test sample's current index (&13)");
+                    sample.expectOnTestSample("select by index", [&indexBefore](Session& session, CommandCompletion done) {
+                        selectSampleByIndex(session, *indexBefore->result.index, std::move(done));
+                    });
+                    const auto nameAfterIndex = awaitCompletion<SampleNameResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](SampleNameCompletion done) { getCurrentSampleName(guarded.session(), std::move(done)); });
+                    expect(nameAfterIndex && nameAfterIndex->result.name == sampleName,
+                           "select by index (&06) landed back on the test sample, confirmed by &14");
+
+                    // RQ-AKM-045: rename, then rename back immediately, so the guard's fixed anchor
+                    // (sampleName) still finds it if anything below throws.
+                    const std::string renamedTo = sampleName + "_2";
+                    sample.expectOnTestSample("rename the test sample", [&renamedTo](Session& session, CommandCompletion done) {
+                        renameCurrentSample(session, renamedTo, std::move(done));
+                    });
+                    const auto renamedResult = awaitCompletion<SampleNameResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](SampleNameCompletion done) { getCurrentSampleName(guarded.session(), std::move(done)); });
+                    expect(renamedResult && renamedResult->result.name == renamedTo, "the new name read back");
+                    const auto renameBack = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &sampleName](CommandCompletion done) {
+                            renameCurrentSample(guarded.session(), sampleName, std::move(done));
+                        });
+                    if (!renameBack || !succeeded(renameBack->result))
+                        throw CheckFailure("could not rename the test sample back to \"" + sampleName + "\"");
+
+                    // RQ-AKM-045: audition start/stop.
+                    sample.expectOnTestSample("start auditioning", [](Session& session, CommandCompletion done) {
+                        startSampleAudition(session, std::move(done));
+                    });
+                    sample.expectOnTestSample("stop auditioning", [](Session& session, CommandCompletion done) {
+                        stopSampleAudition(session, std::move(done));
+                    });
+
+                    // RQ-AKM-048: every settable parameter item, Set then Get, verified by read-back.
+                    for (const SampleParameterCase& parameterCase : allSampleParameterCases())
+                    {
+                        const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                        const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                        const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                        const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                        const std::string title(descriptor(parameterCase.setId).name);
+
+                        sample.expectOnTestSample("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                            session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                        });
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                            });
+                        if (!timed)
+                            throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                        if (!succeeded(timed->result))
+                            throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                        const auto* replyData = std::get_if<Reply>(&timed->result);
+                        const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                        if (!decoded || *decoded != expectedValue)
+                            throw CheckFailure("get " + title + ": read back "
+                                               + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                               + valuesText(expectedValue));
+                    }
+                    finding(std::to_string(allSampleParameterCases().size()) + " settable sample parameter items round-tripped");
+
+                    // RQ-AKM-049: the grouped replies agree with the items they group.
+                    std::vector<std::int64_t> basicParams;
+                    for (const ItemId id :
+                        {ItemId::SampleGetType, ItemId::SampleGetChannels, ItemId::SampleGetLength, ItemId::SampleGetRate})
+                    {
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, id](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(id, {}), std::move(done));
+                            });
+                        const auto* replyData = timed ? std::get_if<Reply>(&timed->result) : nullptr;
+                        const auto decoded = replyData ? decodeReply(id, replyData->data) : std::nullopt;
+                        if (!decoded)
+                            throw CheckFailure("get " + std::string(descriptor(id).name) + ": nothing decodable");
+                        appendAll(basicParams, *decoded);
+                    }
+                    const auto groupedBasic = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(ItemId::SampleGetAllBasicParams, {}), std::move(done));
+                        });
+                    const auto* groupedBasicReply = groupedBasic ? std::get_if<Reply>(&groupedBasic->result) : nullptr;
+                    const auto decodedGroupedBasic =
+                        groupedBasicReply ? decodeReply(ItemId::SampleGetAllBasicParams, groupedBasicReply->data) : std::nullopt;
+                    expect(decodedGroupedBasic && *decodedGroupedBasic == basicParams,
+                           "&34 decodes to the same values as &30-&33 read individually");
+
+                    std::vector<std::int64_t> settableParams;
+                    for (const ItemId id :
+                        {ItemId::SampleGetStartPosition, ItemId::SampleGetEndPosition, ItemId::SampleGetOriginalPitch,
+                         ItemId::SampleGetSemitoneTune, ItemId::SampleGetFineTune, ItemId::SampleGetPlaybackMode,
+                         ItemId::SampleGetLoopStart, ItemId::SampleGetLoopEnd})
+                    {
+                        const auto timed = awaitCompletion<CommandResult>(
+                            _rig.driver, _rig.commandPatience(), [&guarded, id](CommandCompletion done) {
+                                guarded.session().submit(makeRequest(id, {}), std::move(done));
+                            });
+                        const auto* replyData = timed ? std::get_if<Reply>(&timed->result) : nullptr;
+                        const auto decoded = replyData ? decodeReply(id, replyData->data) : std::nullopt;
+                        if (!decoded)
+                            throw CheckFailure("get " + std::string(descriptor(id).name) + ": nothing decodable");
+                        appendAll(settableParams, *decoded);
+                    }
+                    const auto groupedSettable = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(ItemId::SampleGetAllSettableParams, {}), std::move(done));
+                        });
+                    const auto* groupedSettableReply = groupedSettable ? std::get_if<Reply>(&groupedSettable->result) : nullptr;
+                    const auto decodedGroupedSettable =
+                        groupedSettableReply ? decodeReply(ItemId::SampleGetAllSettableParams, groupedSettableReply->data) : std::nullopt;
+                    expect(decodedGroupedSettable && *decodedGroupedSettable == settableParams,
+                           "&4B decodes to the same values as &40-&4A read individually");
+
+                    if (sample.hadOriginalSample())
+                    {
+                        expect(sample.selectOriginalSample(), "navigated away to the sample that was current before");
+                        bool refused = false;
+                        try
+                        {
+                            sample.expectOnTestSample("start auditioning (on the wrong sample)",
+                                                      [](Session& session, CommandCompletion done) {
+                                                          startSampleAudition(session, std::move(done));
+                                                      });
+                        }
+                        catch (const CheckFailure&)
+                        {
+                            refused = true;
+                        }
+                        expect(refused, "acting on the sample that is current but not the test one was refused before sending");
+                        expect(sample.selectTestSampleAgain(), "reselected the test sample");
+                    }
+                    else
+                        finding("no sample was current before: the wrong-sample refusal is not exercised this run");
+                }
+                finding("test sample's name and settable parameters restored by the guard");
+
+                const auto reselected = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &sampleName](CommandCompletion done) {
+                        selectSampleByName(guarded.session(), sampleName, std::move(done));
+                    });
+                expect(reselected && succeeded(reselected->result), "the test sample can still be selected by its original name");
+
+                const auto nameAfter = awaitCompletion<SampleNameResult>(
+                    _rig.driver, _rig.commandPatience(),
+                    [&guarded](SampleNameCompletion done) { getCurrentSampleName(guarded.session(), std::move(done)); });
+                expect(nameAfter && nameAfter->result.name == sampleName, "its name is back to \"" + sampleName + "\"");
+
+                const auto paramsAfter = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(ItemId::SampleGetAllSettableParams, {}), std::move(done));
+                    });
+                const auto* paramsAfterReply = paramsAfter ? std::get_if<Reply>(&paramsAfter->result) : nullptr;
+                const auto decodedParamsAfter =
+                    paramsAfterReply ? decodeReply(ItemId::SampleGetAllSettableParams, paramsAfterReply->data) : std::nullopt;
+                expect(decodedParamsAfter && *decodedParamsAfter == originalSnapshot,
+                       "its settable parameters are back to what they were before");
+
+                closeAndVerify(guarded);
+            }
+
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
@@ -747,6 +1795,22 @@ namespace akm::harness
                 log.note("It also sends one command outside sections 00 and 02, asked for with --slow-operation: update the list of disks (section 10, item 01).");
             if (options.powerCycle)
                 log.note("It also asks you to power-cycle the sampler while a session is open (--power-cycle).");
+            if (options.programLifecycle)
+                log.note(std::string("It also creates, changes, selects and deletes a program under the reserved name \"")
+                         + std::string(TEST_PROGRAM_NAME) + "\" (--program-lifecycle, RQ-AKM-027), and adds keygroups to it to "
+                         + "round-trip every section 08 item (RQ-AKM-030, RQ-AKM-033) and every non-sample section 06 item "
+                         + "(RQ-AKM-034, RQ-AKM-036): the only checks that touch a stored program, and only one the suite "
+                         + "created itself, always deleted again."
+                         + (options.sampleName ? " It also assigns the sample \"" + *options.sampleName
+                                                      + "\" to a zone of that program by name (--sample-name, RQ-AKM-035,"
+                                                        " RQ-AKM-038): the sample itself is never created, changed or deleted."
+                                                : " Sample assignment is skipped: no --sample-name was given."));
+            if (options.sampleLifecycle)
+                log.note(std::string("It also selects the sample named by --sample-name (RQ-AKM-051), skipped if it is empty, and ")
+                         + "renames it and back, starts and stops auditioning it, round-trips every settable §0E item on it "
+                         + "(RQ-AKM-048) and confirms the grouped replies &34/&4B agree with the items they group (RQ-AKM-049): "
+                         + "the sample's name and every settable parameter, and the sampler's original current-sample selection, "
+                         + "are restored before this check returns, even if it fails half way, and it never sends &07 or &08.");
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }

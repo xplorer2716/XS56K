@@ -52,6 +52,21 @@ namespace akm::harness
         /// The optional check that asks the owner to power-cycle the sampler while a session is open, to see what
         /// survives it. It needs `askOwner`.
         bool powerCycle = false;
+        /// The optional checks that create, select, change and delete a program under a reserved test name
+        /// (RQ-AKM-027): off by default, like `slowOperation` and `powerCycle`, since they are the only checks that
+        /// touch a stored program at all (every other check changes section 00 settings only).
+        bool programLifecycle = false;
+        /// The optional check that selects a sample under its own name (RQ-AKM-051), round-trips every
+        /// §0E lifecycle and settable-parameter item on it, and restores its name and parameters before
+        /// returning: off by default, like `programLifecycle`, since it is the only other check that
+        /// touches a stored sample. Independent of `programLifecycle` — §0E needs no current program.
+        bool sampleLifecycle = false;
+        /// A real sample the operator confirms is already in the sampler's memory, named by the caller.
+        /// Shared by two independent checks: `programLifecycle`'s zone check assigns it to a zone by
+        /// name (§06/&01, RQ-AKM-038) and, when empty, only that part is skipped, the rest of the check
+        /// still running; `sampleLifecycle`'s own check (RQ-AKM-051) acts on it directly and, when
+        /// empty, is skipped entirely (there is nothing else for it to test).
+        std::optional<std::string> sampleName;
         /// Tells the owner what to do and returns once they have done it, or false when they decline. It runs on the
         /// scenario's thread, with nothing in flight and the log written up to that point.
         std::function<bool(const std::string& instruction)> askOwner;
@@ -109,13 +124,27 @@ namespace akm::harness
     /// (RQ-AKM-018). In order: open and close; Echo returns the bytes sent; the round trips of the latency
     /// measurement; the OS version; checksums on and off; the close puts back every setting, all of them switched
     /// first; a check that fails half way leaves the sampler in the known state; then, if asked for, the slow
-    /// operation and the power cycle. A check that finds no sampler at the target ends the suite: nothing else is
-    /// sent. Everything is logged as by the session smoke test (the wire in the format of the first-contact probe,
-    /// buffered so that the log cannot slow what it records), and the log ends with the observations of RQ-AKM-017.
+    /// operation, the power cycle, and the program lifecycle checks — the only ones that touch a stored program, and
+    /// only one of their own, created under a reserved name and always deleted again, even when a check fails half
+    /// way (RQ-AKM-027) — the third of which also adds keygroups to it and round-trips every section 08 item on
+    /// them, including the "all keygroups" shape of keygroup 0 (RQ-AKM-030, RQ-AKM-031, RQ-AKM-033), and a fourth
+    /// that round-trips every non-sample section 06 item on a zone, then zone 0 ("all four") and keygroup 0 + zone
+    /// 0 (RQ-AKM-034, RQ-AKM-036, TASK-AKM-037), assigning a sample by name too when `sampleName` is given
+    /// (RQ-AKM-035, RQ-AKM-038); then, if asked for independently (`sampleLifecycle`), a fifth check that selects
+    /// the sample named by `sampleName` (skipped, not failed, when it is empty — RQ-AKM-051), renames it and back,
+    /// starts and stops auditioning it, round-trips every settable §0E item on it (RQ-AKM-048) and confirms the
+    /// grouped replies `&34`/`&4B` agree with the items they group (RQ-AKM-049), restoring its name and every
+    /// parameter and the sampler's original current-sample selection before returning, even when the check fails
+    /// half way, and never sending `&07` or `&08` against it or any other sample. A check that finds no sampler at
+    /// the target ends the suite: nothing else is sent. Everything is logged as by the session smoke test (the wire
+    /// in the format of the first-contact probe, buffered so that the log cannot slow what it records), and the log
+    /// ends with the observations of RQ-AKM-017.
     ///
     /// It is written against `MidiBackend&` and a ScenarioDriver only, so it runs on the simulated sampler in CI and on
-    /// JuceMidiBackend against the real S5000. [TASK-AKM-010, RQ-AKM-010, RQ-AKM-011, RQ-AKM-012, RQ-AKM-013,
-    /// RQ-AKM-015, RQ-AKM-017, RQ-AKM-018, RQ-AKM-019, RQ-AKM-039, RQ-AKM-040, RQ-AKM-041, RQ-AKM-042, RQ-AKM-044,
+    /// JuceMidiBackend against the real S5000. [TASK-AKM-010, TASK-AKM-024, TASK-AKM-033, TASK-AKM-038, TASK-AKM-045,
+    /// RQ-AKM-010, RQ-AKM-011, RQ-AKM-012, RQ-AKM-013, RQ-AKM-015, RQ-AKM-017, RQ-AKM-018, RQ-AKM-019, RQ-AKM-025,
+    /// RQ-AKM-027, RQ-AKM-030, RQ-AKM-031, RQ-AKM-033, RQ-AKM-034, RQ-AKM-035, RQ-AKM-036, RQ-AKM-038, RQ-AKM-039,
+    /// RQ-AKM-040, RQ-AKM-041, RQ-AKM-042, RQ-AKM-044, RQ-AKM-045, RQ-AKM-046, RQ-AKM-048, RQ-AKM-049, RQ-AKM-051,
     /// ADR-AKM-001 (DEC-AKM-006, DEC-AKM-007, DEC-AKM-008)]
     RealSuiteResult runRealSamplerSuite(common::midi::MidiBackend& backend, ScenarioDriver& driver,
                                         const RealSuiteOptions& options, std::ostream& log);

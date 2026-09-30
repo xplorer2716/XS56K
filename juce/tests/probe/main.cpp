@@ -65,7 +65,8 @@ namespace
         "  xs56k_akm_probe --session --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
-        "                  [--power-cycle] [--slow-operation] [--timeout-ms N] [--log <file>] [--yes]\n"
+        "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
+        "                  [--sample-name NAME] [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
         "  --in, --out        the sampler's MIDI input port (what it sends) and output port (what it receives),\n"
@@ -85,6 +86,24 @@ namespace
         "  --slow-operation   with --suite, an extra check: it sends one command outside sections 00 and 02, \"update the\n"
         "                     list of disks\" (section 10, item 01), with Still Alive on, to see whether F0 F7\n"
         "                     messages reach this computer while the sampler works\n"
+        "  --program-lifecycle  with --suite, four extra checks: they create, change, select and delete a\n"
+        "                     program under the reserved name \"XS56K_SUITE_TEST\", add keygroups to it and\n"
+        "                     round-trip every section 08 item on them and every non-sample section 06 item\n"
+        "                     on a zone, including zone 0 (all four) and keygroup 0 + zone 0, and restore the\n"
+        "                     program that was current before (RQ-AKM-027, RQ-AKM-030, RQ-AKM-033, RQ-AKM-034,\n"
+        "                     RQ-AKM-036) - the only checks that touch a stored program\n"
+        "  --sample-lifecycle   with --suite, a fifth extra check, independent of --program-lifecycle (it needs\n"
+        "                     no stored program): it selects the sample --sample-name names, renames it and\n"
+        "                     back, starts and stops auditioning it, round-trips every settable section 0E\n"
+        "                     item on it and confirms the grouped replies &34/&4B agree with the items they\n"
+        "                     group (RQ-AKM-045, RQ-AKM-048, RQ-AKM-049, RQ-AKM-051), then restores its name,\n"
+        "                     every parameter and the sampler's original current-sample selection. Never\n"
+        "                     sends &07 or &08. Skipped, not failed, without --sample-name.\n"
+        "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
+        "                     it to a zone of the test program by name and reads it back, RQ-AKM-035,\n"
+        "                     RQ-AKM-038) and/or --sample-lifecycle (see above). Never creates, changes or\n"
+        "                     deletes a sample itself. Needs at least one of --program-lifecycle or\n"
+        "                     --sample-lifecycle.\n"
         "  --timeout-ms       how long each step waits for an answer (default 3000)\n"
         "  --log              the log file (default akm-probe-<UTC date and time>.log, or akm-session-... with\n"
         "                     --session, or akm-suite-... with --suite, in this directory)\n"
@@ -93,7 +112,10 @@ namespace
         "The probe switches the sampler's checksum and Still Alive settings on and off and ends with both off.\n"
         "The session smoke test and the suite also switch Notification, Sync LCD and Auto screen update, and end with\n"
         "checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off.\n"
-        "None of them changes a stored program, multi or sample.\n";
+        "None of them changes a stored program unless --program-lifecycle is given, and then only the one it\n"
+        "creates itself and always deletes again. None of them changes a stored sample's name or parameters\n"
+        "beyond a check that puts them back before returning (--program-lifecycle's zone-assignment step never\n"
+        "does; --sample-lifecycle's own check does, and restores them), and neither ever deletes a sample.\n";
 
     struct Arguments
     {
@@ -104,10 +126,13 @@ namespace
         bool suite = false;
         bool powerCycle = false;
         bool slowOperation = false;
+        bool programLifecycle = false;
+        bool sampleLifecycle = false;
         bool noLcd = false;
         std::string input;
         std::string output;
         std::string logPath;
+        std::string sampleName;
         std::uint32_t deviceId = DEFAULT_DEVICE_ID;
         std::uint32_t otherDeviceId = DEFAULT_OTHER_DEVICE_ID;
         long long timeoutMs = DEFAULT_TIMEOUT_MS;
@@ -160,12 +185,19 @@ namespace
                 parsed.powerCycle = true;
             else if (option == "--slow-operation")
                 parsed.slowOperation = true;
+            else if (option == "--program-lifecycle")
+                parsed.programLifecycle = true;
+            else if (option == "--sample-lifecycle")
+                parsed.sampleLifecycle = true;
             else if (option == "--no-lcd")
                 parsed.noLcd = true;
-            else if (option == "--in" || option == "--out" || option == "--log")
+            else if (option == "--in" || option == "--out" || option == "--log" || option == "--sample-name")
             {
                 const std::string value = valueOf(args, index++, parsed);
-                (option == "--in" ? parsed.input : option == "--out" ? parsed.output : parsed.logPath) = value;
+                (option == "--in"    ? parsed.input
+                 : option == "--out" ? parsed.output
+                 : option == "--log" ? parsed.logPath
+                                     : parsed.sampleName) = value;
             }
             else if (option == "--device-id" || option == "--other-device-id" || option == "--timeout-ms")
             {
@@ -192,8 +224,12 @@ namespace
         }
         if (parsed.error.empty() && parsed.session && parsed.suite)
             parsed.error = "--session and --suite cannot be used together";
-        if (parsed.error.empty() && !parsed.suite && (parsed.powerCycle || parsed.slowOperation))
-            parsed.error = "--power-cycle and --slow-operation need --suite";
+        if (parsed.error.empty()
+            && !parsed.suite
+            && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || !parsed.sampleName.empty()))
+            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle and --sample-name need --suite";
+        if (parsed.error.empty() && !parsed.sampleName.empty() && !parsed.programLifecycle && !parsed.sampleLifecycle)
+            parsed.error = "--sample-name needs --program-lifecycle or --sample-lifecycle";
         return parsed;
     }
 
@@ -297,11 +333,36 @@ int main(int argc, char** argv)
                       << "Each check opens a session and closes it. It switches the sampler's checksum, Notification, Still Alive"
                       << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
                       << "checksums off, Still Alive off, Notification on"
-                      << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off") << ". It changes no stored program, multi or sample.\n";
+                      << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off")
+                      << (arguments.programLifecycle || arguments.sampleLifecycle ? ".\n" : ". It changes no stored program or sample.\n");
             if (arguments.slowOperation)
                 std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
             if (arguments.powerCycle)
                 std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
+            if (arguments.programLifecycle)
+            {
+                std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", add\n"
+                          << "keygroups to it, round-trip every section 08 item and every non-sample section 06 item on\n"
+                          << "them, and restore the program that was current before; no other program, multi or sample\n"
+                          << "is touched.\n";
+                if (!arguments.sampleName.empty())
+                    std::cout << "It will also assign the sample \"" << arguments.sampleName
+                              << "\" to a zone of that program by name and read it back; the sample itself is never\n"
+                              << "created, changed or deleted.\n";
+                else
+                    std::cout << "Sample assignment is skipped: no --sample-name was given.\n";
+            }
+            if (arguments.sampleLifecycle)
+            {
+                if (!arguments.sampleName.empty())
+                    std::cout << "It will also select the sample \"" << arguments.sampleName
+                              << "\", rename it and back, start and stop auditioning it, round-trip every settable\n"
+                              << "section 0E item on it, and restore its name, its parameters and the sampler's\n"
+                              << "original current-sample selection; it never sends section 0E's Delete ALL or\n"
+                              << "Delete current sample item.\n";
+                else
+                    std::cout << "The sample lifecycle check is skipped: no --sample-name was given.\n";
+            }
         }
         else if (arguments.session)
             std::cout << "The session smoke test will send SysEx frames to \"" << arguments.output << "\" and listen on \""
@@ -332,6 +393,10 @@ int main(int argc, char** argv)
         options.touchLcdSettings = !arguments.noLcd;
         options.slowOperation = arguments.slowOperation;
         options.powerCycle = arguments.powerCycle;
+        options.programLifecycle = arguments.programLifecycle;
+        options.sampleLifecycle = arguments.sampleLifecycle;
+        if (!arguments.sampleName.empty())
+            options.sampleName = arguments.sampleName;
         options.startedAt = utcNow(false);
         options.askOwner = [](const std::string& instruction) {
             std::cout << "\n>>> " << instruction << "\n    Press Enter when it is done, or type skip to skip this check: " << std::flush;

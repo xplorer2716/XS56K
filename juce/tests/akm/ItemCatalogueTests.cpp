@@ -27,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -88,6 +89,16 @@ namespace
     constexpr std::array<ValueSpec, 1> NARROW{{{"narrow", ValueFormat::Word, 10, 20}}};
     constexpr ItemDescriptor NARROW_ITEM{"Narrow", 0x10, 0x23, ItemKind::Set, NARROW, {}};
 
+    // A single String value, 0-20 characters — the range TASK-AKM-015 gives the Program name items
+    // (documents/_index/sysex_spec.kb.md, "Common value codes"); no record of this lot uses String yet
+    // (ADR-AKM-001, DEC-AKM-013), so this descriptor, like EVERY_FORMAT_ITEM and NARROW_ITEM, is synthetic.
+    constexpr std::array<ValueSpec, 1> STRING_VALUE{{{"text", ValueFormat::String, 0, 20}}};
+    constexpr ItemDescriptor STRING_ITEM{"String", 0x10, 0x24, ItemKind::Get, STRING_VALUE, STRING_VALUE};
+    // Exactly one reply value, but not a String: proves the check also looks at the format, not just
+    // the count (EVERY_FORMAT_ITEM's six values already prove the count is checked).
+    constexpr std::array<ValueSpec, 1> SINGLE_BYTE{{{"value", ValueFormat::Byte, 0, 127}}};
+    constexpr ItemDescriptor NOT_A_STRING_ITEM{"Not a string", 0x10, 0x25, ItemKind::Get, {}, SINGLE_BYTE};
+
     using Values = std::vector<std::int64_t>;
 }
 
@@ -117,7 +128,22 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     }
 
     CHECK(sysexConfig == SYSEX_CONFIG_ITEM_COUNT);
-    CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size());
+    // CATALOGUE tracks only sections 00 and 02; TASK-AKM-015 to 023 added 95 records of section 0A (now
+    // complete, TASK-AKM-023's guarded &07 included), TASK-AKM-026 to 032 added section 08's selection
+    // (2), General Options (12), Pitch/Amp (10), Filter (12), Filter Envelope (18), Amplitude Envelope
+    // (16) and Aux Envelope (10) — complete too (80/80 commands, 40/40 REPLY formats) — TASK-AKM-035
+    // to 036 added section 06's 28 records: the 13 non-sample zone parameters (Level..Solo, Set and Get)
+    // and sample assignment by name (&01/&21) — 06 now complete too (28/28 commands) — TASK-AKM-040
+    // added 8 records of section 0E (the 6 lifecycle items of RQ-AKM-045 plus &13/&14 pulled in early),
+    // TASK-AKM-041 added its guarded &07 (RQ-AKM-046), TASK-AKM-042 added &10-&12 (RQ-AKM-047's
+    // remaining general-information items), TASK-AKM-043 added the 8 settable parameters and their
+    // Gets (RQ-AKM-048: &20-&24, &28-&2A / &40-&44, &48-&4A) and TASK-AKM-044 added the 4 read-only
+    // parameters and the two grouped-REPLY items (RQ-AKM-049: &30-&33, &34, &4B), 0E now 34/34,
+    // complete — which this count includes without tracking them here too (see
+    // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
+    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp and the other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6;
+    CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
 TEST_CASE("Given a section and an item, When looked up, Then a record is found and an item of the spec that is not catalogued is not [RQ-AKM-041]",
@@ -126,9 +152,11 @@ TEST_CASE("Given a section and an item, When looked up, Then a record is found a
     for (const Expected& expected : CATALOGUE)
         CHECK(akm::findItem(expected.section, expected.item) == &akm::descriptor(expected.id));
 
-    // Section 00 has no item 02 (the spec skips it); section 0A is not catalogued yet.
+    // Section 00 has no item 02 (the spec skips it); sections 0A (TASK-AKM-023), 08 (TASK-AKM-032) and
+    // 06 (TASK-AKM-036) are now all complete, so this uses section 02 (System), still partial: only its
+    // two version items (RQ-AKM-044) are catalogued, not &02.
     CHECK(akm::findItem(0x00, 0x02) == nullptr);
-    CHECK(akm::findItem(0x0A, 0x05) == nullptr);
+    CHECK(akm::findItem(0x02, 0x02) == nullptr);
     // The same item code in another section is another item.
     CHECK(akm::findItem(0x02, 0x06) == nullptr);
 }
@@ -151,6 +179,18 @@ TEST_CASE("Given each value format, When its width is asked, Then it is the numb
     CHECK(akm::valueWidth(ValueFormat::SignedWord) == 3);
     CHECK(akm::valueWidth(ValueFormat::SignedDword) == 5);
     CHECK(EVERY_FORMAT_ITEM.fixedReplyLength() == 1 + 2 + 4 + 2 + 3 + 5);
+}
+
+TEST_CASE("Given the String value format, When its width is asked, Then it is undefined: a String has no fixed width [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    CHECK(akm::valueWidth(ValueFormat::String) == akm::UNDEFINED_VALUE_WIDTH);
+}
+
+TEST_CASE("Given a record whose REPLY carries a String, When the length of its REPLY is asked, Then it is not fixed [RQ-AKM-041]",
+          "[akm][catalogue]")
+{
+    CHECK(STRING_ITEM.fixedReplyLength() == std::nullopt);
 }
 
 TEST_CASE("Given the values 01 23 45 67, When the Echo is encoded, Then the command carries section 00, item 06 and the four bytes [RQ-AKM-015]",
@@ -285,6 +325,49 @@ TEST_CASE("Given a value outside the range of the record but inside its format, 
     }
 }
 
+TEST_CASE("Given an ASCII name inside its range, When makeStringRequest encodes it, Then the command carries the name followed by 00 [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, "TESTPRG");
+
+    CHECK_FALSE(request.refusal.has_value());
+    CHECK(request.command.section == 0x10);
+    CHECK(request.command.item == 0x24);
+    // "TESTPRG" in ASCII.
+    CHECK(request.command.data == bytes({0x54, 0x45, 0x53, 0x54, 0x50, 0x52, 0x47, 0x00}));
+}
+
+TEST_CASE("Given a name longer than the item's character-count range, When makeStringRequest encodes it, Then it is refused as out of range and no data is produced [RQ-AKM-001]",
+          "[akm][catalogue]")
+{
+    const std::string tooLong(21, 'A');
+
+    const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, tooLong);
+
+    REQUIRE(request.refusal.has_value());
+    CHECK(*request.refusal == RefusalReason::ArgumentOutOfRange);
+    CHECK(request.command.data.empty());
+}
+
+TEST_CASE("Given a name that is not 7-bit ASCII or contains a 00 byte, When makeStringRequest encodes it, Then it is refused as not encodable [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    for (const std::string& text : {std::string("A\x80"), std::string("A\0B", 3)})
+    {
+        const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, text);
+
+        REQUIRE(request.refusal.has_value());
+        CHECK(*request.refusal == RefusalReason::NotEncodable);
+    }
+}
+
+TEST_CASE("Given an item without exactly one String argument, When makeStringRequest is called, Then it is refused for its number of arguments [RQ-AKM-001]",
+          "[akm][catalogue]")
+{
+    CHECK(*akm::makeStringRequest(NARROW_ITEM, "text").refusal == RefusalReason::WrongArgumentCount);
+    CHECK(*akm::makeStringRequest(EVERY_FORMAT_ITEM, "text").refusal == RefusalReason::WrongArgumentCount);
+}
+
 TEST_CASE("Given the data of an OS version REPLY, When decoded, Then the major and minor numbers come back [RQ-AKM-044]",
           "[akm][catalogue]")
 {
@@ -324,4 +407,30 @@ TEST_CASE("Given the data of a REPLY of every numeric format, When decoded, Then
 
     REQUIRE(values.has_value());
     CHECK(*values == Values{5, 385, 268435455, -5, -37, 1});
+}
+
+TEST_CASE("Given the data of a String REPLY, When decodeStringReply reads it, Then the name comes back [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    // "TESTPRG" in ASCII.
+    const auto text = akm::decodeStringReply(STRING_ITEM, bytes({0x54, 0x45, 0x53, 0x54, 0x50, 0x52, 0x47, 0x00}));
+
+    REQUIRE(text.has_value());
+    CHECK(*text == "TESTPRG");
+}
+
+TEST_CASE("Given reply data that is not exactly one null-terminated string, When decodeStringReply reads it, Then nothing is returned [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    // No terminator; a terminator followed by trailing bytes; empty data.
+    CHECK_FALSE(akm::decodeStringReply(STRING_ITEM, bytes({0x41, 0x42})).has_value());
+    CHECK_FALSE(akm::decodeStringReply(STRING_ITEM, bytes({0x41, 0x42, 0x00, 0x43})).has_value());
+    CHECK_FALSE(akm::decodeStringReply(STRING_ITEM, Bytes{}).has_value());
+}
+
+TEST_CASE("Given an item without exactly one String reply, When decodeStringReply is called, Then nothing is returned [RQ-AKM-002]",
+          "[akm][catalogue]")
+{
+    CHECK_FALSE(akm::decodeStringReply(EVERY_FORMAT_ITEM, bytes({0x41, 0x00})).has_value());
+    CHECK_FALSE(akm::decodeStringReply(NOT_A_STRING_ITEM, bytes({0x41, 0x00})).has_value());
 }

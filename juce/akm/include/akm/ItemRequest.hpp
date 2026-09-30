@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <initializer_list>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "akm/CommandOptions.hpp"
@@ -48,4 +50,29 @@ namespace akm
     [[nodiscard]] std::optional<std::vector<std::int64_t>> decodeReply(const ItemDescriptor& item,
                                                                         std::span<const std::uint8_t> data);
     [[nodiscard]] std::optional<std::vector<std::int64_t>> decodeReply(ItemId id, std::span<const std::uint8_t> data);
+
+    /// Decodes a REPLY that repeats `id`'s own REPLY shape zero or more times back to back (one record
+    /// per element, in the order the sampler sent them), or returns nothing when `data`'s length is not
+    /// a whole multiple of that shape's width, the shape has zero width, or a record does not decode.
+    /// Extends the repeated-record REPLY design of `&18`/`&19` (ADR-AKM-001, DEC-AKM-014) to any item
+    /// whose REPLY may be answered once per keygroup (RQ-AKM-031) or per some other per-instance count
+    /// the caller checks on its own. [ADR-AKM-001 (DEC-AKM-014)]
+    [[nodiscard]] std::optional<std::vector<std::vector<std::int64_t>>> decodeRepeatedReply(
+        const ItemDescriptor& item, std::span<const std::uint8_t> data);
+    [[nodiscard]] std::optional<std::vector<std::vector<std::int64_t>>> decodeRepeatedReply(
+        ItemId id, std::span<const std::uint8_t> data);
+
+    /// Encodes the one `String` argument of an item: refused as `WrongArgumentCount` when the item does
+    /// not take exactly one `String` argument, or as `NotEncodable` when `text` is not 7-bit ASCII or
+    /// contains a `00` byte. `options` are kept as given. [RQ-AKM-002, ADR-AKM-001 (DEC-AKM-013)]
+    [[nodiscard]] CommandRequest makeStringRequest(const ItemDescriptor& item, std::string_view text,
+                                                   CommandOptions options = {});
+    [[nodiscard]] CommandRequest makeStringRequest(ItemId id, std::string_view text, CommandOptions options = {});
+
+    /// Decodes the one `String` REPLY value of an item, or returns nothing when the item's REPLY is not
+    /// exactly one `String`, or `data` does not hold exactly one null-terminated ASCII string.
+    /// [RQ-AKM-002, ADR-AKM-001 (DEC-AKM-013)]
+    [[nodiscard]] std::optional<std::string> decodeStringReply(const ItemDescriptor& item,
+                                                                std::span<const std::uint8_t> data);
+    [[nodiscard]] std::optional<std::string> decodeStringReply(ItemId id, std::span<const std::uint8_t> data);
 }

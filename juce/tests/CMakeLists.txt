@@ -16,9 +16,29 @@ add_executable(xs56k_akm_tests
     akm/ExecutorTests.cpp
     akm/FirstContactProbeTests.cpp
     akm/ItemCatalogueTests.cpp
+    akm/KeygroupAmplitudeEnvelopeTests.cpp
+    akm/KeygroupAuxEnvelopeTests.cpp
+    akm/KeygroupFilterEnvelopeTests.cpp
+    akm/KeygroupFilterTests.cpp
+    akm/KeygroupGeneralOptionsTests.cpp
+    akm/KeygroupModSourcesParametersTests.cpp
+    akm/KeygroupPitchAmpTests.cpp
+    akm/KeygroupPrimitivesTests.cpp
+    akm/LfoParametersTests.cpp
     akm/LibraryInfoTests.cpp
+    akm/MidiTuneParametersTests.cpp
+    akm/OutputParametersTests.cpp
+    akm/PitchBendParametersTests.cpp
+    akm/ProgramDeleteAllGuardTests.cpp
+    akm/ProgramGeneralInfoTests.cpp
+    akm/ProgramPrimitivesTests.cpp
+    akm/ProgramStructureTests.cpp
     akm/RealSamplerSuiteTests.cpp
     akm/SamplerErrorTests.cpp
+    akm/SampleDeleteAllGuardTests.cpp
+    akm/SampleParametersTests.cpp
+    akm/SamplePrimitivesTests.cpp
+    akm/SampleReadOnlyParametersTests.cpp
     akm/ScenarioTests.cpp
     akm/SchedulerTests.cpp
     akm/SessionCloseTests.cpp
@@ -30,7 +50,10 @@ add_executable(xs56k_akm_tests
     akm/SysExConfigTests.cpp
     akm/SystemVersionTests.cpp
     akm/ValueFormatTests.cpp
-    akm/WireLogTests.cpp)
+    akm/WireLogTests.cpp
+    akm/ZoneAllZonesTests.cpp
+    akm/ZoneParametersTests.cpp
+    akm/ZoneSampleTests.cpp)
 target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k_akm
     xs56k_akm_test_support

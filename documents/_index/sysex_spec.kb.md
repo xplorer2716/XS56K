@@ -105,8 +105,25 @@ Blocked (multi-request): 38 KG zone · 3A keygroup · 3C program · 3E multi.
   param values always signed word `sign MSB LSB`. Discover layout first (&01, &10, &11).
 - Disk (§10): refresh list (&01) → pick handle (14-bit, from &05 list) → select (&02); SysEx disk selection ≠ front panel.
   File/folder indices shift when disk changes.
+- §0E: `&2A` (Set Loop End) moves `&29`'s value (Loop Start) on the real S5000 — confirmed 2026-09-30 on
+  two samples, one with memory cleared and the sample freshly reloaded (`akm-suite-20260930-202853.log`,
+  TASK-AKM-045, `process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`): Set Loop End
+  after Set Loop Start answers DONE but leaves Loop Start reading back a value that is neither what was
+  last sent nor the value before. Not documented in the spec; the exact rule is not established (checked
+  against "preserve the loop length in effect", which fits one measurement but not another). Always set
+  (and restore) Loop End before Loop Start.
 
 ## Common value codes
+- Name fields (string, p8-9): the spec states no maximum length. Program name (§0A): observed capped
+  at 20 characters on a real S5000 [owner, 2026-09-27] — not yet confirmed for other name fields
+  (Sample, Multi, Disk file/folder).
+- §0A "all Programs in memory" replies (`&18`, `&19`): the spec is silent on what an empty memory (0
+  programs) answers. Observed on a real S5000 [owner, 2026-09-27]: `&19` (names) answers ERROR 4 (not
+  found), not an empty REPLY, when there are 0 programs; `&10` (Get Number of Programs) answers a normal
+  REPLY of 0 for the same state. `&18` (numbers) is not directly observed but is assumed to match `&19`
+  (same table, same "several Data fields... one set for every Program" wording) — TASK-AKM-024's
+  `getAllProgramNames`/`getAllProgramNumbers` normalize this ERROR to an empty list rather than
+  surfacing it as a failure, and the simulated sampler was updated to reproduce it.
 - MIDI channel 0–31 = 1A…16B · note 21–127 = A-1…G8 · pan 14–114 = L50…R50, centre 64.
 - Output (zone §06/&04): 0 MULTI, 1–8 op1/2…op15/16, 9–24 op1…op16. Output (multi part §0C/&14): 0–7 stereo pairs, 8–23 op1…op16.
 - FX send/override: 0 OFF, 1 FX1, 2 FX2, 3 RV3, 4 RV4.
@@ -155,13 +172,25 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
 &03 data wheel: d1 0 fwd/1 back, d2 clicks 1–8 · &04 ASCII key. DONE = queued, not executed (T30 fn a).
 
 ## Spec errata / inconsistencies (checked against the PDF)
-- T11/T12 `&6C{107}` → &6C is 108 (T11 p18, T12 p19).
+- T11/T12 `&6C{107}` → &6C is 108 (T11 p18, T12 p19). Resolved (TASK-AKM-032): confirmable from the TSV
+  alone, no hardware needed — `juce/tools/generate_akm_items.py`'s `KNOWN_DEC_ERRATA` excepts `08 &6C`
+  from the item-vs-decimal sanity check that would otherwise flag it as a catalogue mistake.
 - T20 `&0E{13}` "Get the name of the specified disk" → &0E is 14 (p32).
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
 - §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11).
-- T10 `&27{39}` labelled "Set Zone Semitone Tune" in a REPLY table (= Get) (p14).
-- T14 `&2C/&2D` "Amp Pan Source/Value" [?] = Pan Mod Source/Value (commands &24/&25/&2C/&2D are Pan Mod) (p24).
-- T11 `&64{100}` "Set Aux Env. Velocity→Rate (4 only)" [?] = Off Velocity→Rate (its Get &6C is "Off Velocity→Rate") (p17).
+- T10 `&27{39}` labelled "Set Zone Semitone Tune" in a REPLY table (= Get) (p14). Resolved
+  (TASK-AKM-039): confirmed on a real S5000, 2026-09-28 (`akm-suite-20260928-182549.log`) — `&07`
+  (Set Zone Semitone Tune, zone 3) set to `01 0C`, `&27` read back `01 0C`: it is the Get, as the row's
+  own data columns already implied.
+- T14 `&2C/&2D` "Amp Pan Source/Value" = Pan Mod Source/Value (commands &24/&25/&2C/&2D are Pan Mod) (p24).
+  Confirmed on a real S5000, 2026-09-27 (`akm-suite-20260927-185917.log`, TASK-AKM-025): `&24`
+  (Set Pan Mod Source, panMod 3) set to `02`, `&2C` (panMod 3) read back `02`; `&25` (Set Pan Mod
+  Value, panMod 1) set to `01 0A`, `&2D` (panMod 1) read back `01 0A` — both round trips exact.
+- T11 `&64{100}` "Set Aux Env. Velocity→Rate (4 only)" = Off Velocity→Rate (its Get &6C is "Off
+  Velocity→Rate") (p17). Resolved (TASK-AKM-034): confirmed distinct from `&61`/`&69` on a real S5000,
+  2026-09-27 (`akm-suite-20260927-225906.log`) — `&61` (Aux Rate 4) set to sign 1/mag 99, `&64` (Aux Rate
+  4) set to sign 0/mag 5, then `&69` read back `1 99` and `&6C` read back `0 5`: independent storage,
+  not an alias.
 - T12 `&48`, `&5F` reply say "Off Velocity→Rate" while commands say "Off Velocity→Release" (p19).
 - §00 has no item &02 (not listed).

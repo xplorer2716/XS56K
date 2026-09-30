@@ -5,6 +5,7 @@ DEC-AKM-012)]
 """
 import copy
 import json
+import os
 import pathlib
 import subprocess
 import sys
@@ -20,8 +21,13 @@ SECTION_00_ITEM_COUNT = 7
 
 
 def run_script(*arguments):
+    # PYTHONUTF8 forces the child's own stdout/stderr to UTF-8: without it, on Windows, the child
+    # writes its console codepage (e.g. cp1252), and a byte outside that mapping (the "–" ranges
+    # copied from the PDF, decoded here as UTF-8) crashes subprocess.run's background reader thread
+    # silently, leaving .stdout/.stderr as None instead of raising where the test could see it.
+    env = dict(os.environ, PYTHONUTF8="1")
     return subprocess.run([sys.executable, str(SCRIPT), *arguments], capture_output=True, text=True,
-                          encoding="utf-8")
+                          encoding="utf-8", env=env)
 
 
 class ScriptTest(unittest.TestCase):
@@ -94,8 +100,10 @@ class DataFileIsValidated(ScriptTest):
         self.assertIn(expected_text, result.stderr)
 
     def test_given_a_format_the_schema_does_not_support_when_read_then_it_is_refused_naming_the_record(self):
+        # "qword" is deferred like "string" was (DEC-AKM-003); unlike "string" (added by DEC-AKM-013,
+        # TASK-AKM-014), it is still unsupported, so it stays a valid example of a rejected format.
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExEcho")["args"][0]
-                                     .update(format="string"))
+                                     .update(format="qword"))
 
         self.assert_refused(variant, "SysExEcho")
 

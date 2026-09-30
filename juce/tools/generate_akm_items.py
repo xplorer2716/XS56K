@@ -42,11 +42,15 @@ EXIT_MISMATCH = 1
 EXIT_INVALID = 2
 
 # Value formats of the spec (pp. 8-9) the schema supports: name -> (C++ enumerator, minimum, maximum).
-# Strings, qwords and the conditional layouts of later sections are added when the first item that
-# needs one is catalogued (DEC-AKM-003).
+# Qwords and the conditional layouts of later sections are added when the first item that needs one is
+# catalogued (DEC-AKM-003). "string" was added by DEC-AKM-013 for the first items that carry an ASCII
+# name (FTR-AKM-002): min/max are a character count, not a numeric range: STRING_MAX_LENGTH is a generous
+# structural ceiling, not a spec or hardware limit — each item declares its own real bound (e.g. Program
+# names: 0-20, observed on a real S5000, documents/_index/sysex_spec.kb.md "Common value codes").
 BYTE_MAX = 127
 WORD_MAX = 128 ** 2 - 1
 DWORD_MAX = 128 ** 4 - 1
+STRING_MAX_LENGTH = 255
 FORMATS = {
     "byte": ("Byte", 0, BYTE_MAX),
     "word": ("Word", 0, WORD_MAX),
@@ -54,6 +58,7 @@ FORMATS = {
     "signed_byte": ("SignedByte", -BYTE_MAX, BYTE_MAX),
     "signed_word": ("SignedWord", -WORD_MAX, WORD_MAX),
     "signed_dword": ("SignedDword", -DWORD_MAX, DWORD_MAX),
+    "string": ("String", 0, STRING_MAX_LENGTH),
 }
 KINDS = {"set": "Set", "get": "Get"}
 
@@ -250,7 +255,8 @@ def render(catalogue):
         arguments = f"item_data::{constant}_ARGS" if entry["args"] else "{}"
         reply = f"item_data::{constant}_REPLY" if entry.get("reply") else "{}"
         lines.append(f"        // section {entry['section']} item {entry['item']} [{', '.join(entry['requirements'])}]")
-        lines.append(f"        {{\"{entry['name']}\", 0x{entry['section']}, 0x{entry['item']}, "
+        # json.dumps escapes quotes and backslashes the same way a C++ string literal needs them.
+        lines.append(f"        {{{json.dumps(entry['name'])}, 0x{entry['section']}, 0x{entry['item']}, "
                      f"ItemKind::{KINDS[entry['kind']]}, {arguments}, {reply}}},")
     lines += ["    }};", "}", ""]
     return "\n".join(lines)
@@ -302,9 +308,20 @@ def spec_domains(row):
     if first == "N/A":
         return []
     domains = [first]
-    if second != "N/A":
-        domains.append(second)
-        for marker in re.finditer(r"<Data(\d+)>=([^;]*)", second):
+    # "second" is compared against "N/A" by its own leading segment, not the whole text: a column like
+    # "N/A ; {21–127}" (§0E &22/&42, Original Pitch) is a clarifying note attached to an otherwise-N/A
+    # second column, not a real second data byte, the same way a bare "N/A" already is not one.
+    second_head = re.split(r"\s*;", second, maxsplit=1)[0].strip()
+    if second_head != "N/A":
+        # "second" itself is a domain only when it carries content of its own before any embedded
+        # <DataN> reference (e.g. a Set row's "0, 1 ; <Data3>(MSB) ; <Data4>(LSB)", where the leading
+        # "0, 1" is the sign field). When it starts with a marker (a REPLY row's own "<Data2>(MSB) ;
+        # <Data3>(LSB)", the sign already given its own column in "first"), that leading content does
+        # not exist and "second" would otherwise be counted as a spurious extra domain.
+        if not second.startswith("<Data"):
+            domains.append(second)
+        # "=" is not always there before the range (e.g. "<Data3>0-100", &23's own column, no "=").
+        for marker in re.finditer(r"<Data(\d+)>=?\s*([^;]*)", second):
             domains.append(marker.group(2))
     return domains
 
@@ -326,6 +343,12 @@ def compare_values(owner, label, values, row):
             problems.append(f"{owner}: {label}[{index}] range {value['min']}..{value['max']} differs from the "
                             f"spec's {parsed[0]}..{parsed[1]}")
     return problems, notes
+
+
+# (section, item) pairs where the spec's own decimal column disagrees with its hex one — a documented
+# transcription slip in the PDF itself (documents/_index/sysex_spec.kb.md, "Spec errata /
+# inconsistencies"), not a mistake in this catalogue: noted, not flagged as a problem.
+KNOWN_DEC_ERRATA = {("08", "6C")}  # &6C listed as decimal 107 (= &6B's own), should be 108 (T11/T12)
 
 
 def coverage(catalogue, spec):
@@ -353,10 +376,15 @@ def coverage(catalogue, spec):
         if command is None:
             problems.append(f"{owner}: no row for {section} &{item} in the spec table")
             continue
-        record_problems = []
+        record_problems, notes = [], []
         if int(command["dec"]) != int(item, 16):
-            record_problems.append(f"{owner}: the spec gives item {command['dec']} decimal, not {int(item, 16)}")
-        found, notes = compare_values(owner, "args", entry["args"], command)
+            message = f"{owner}: the spec gives item {command['dec']} decimal, not {int(item, 16)}"
+            if (section, item) in KNOWN_DEC_ERRATA:
+                notes.append(f"{message} (known spec erratum, not a catalogue problem)")
+            else:
+                record_problems.append(message)
+        found, more_notes = compare_values(owner, "args", entry["args"], command)
+        notes += more_notes
         record_problems += found
         if entry["kind"] == "get":
             reply = spec.get(("R", section, item))

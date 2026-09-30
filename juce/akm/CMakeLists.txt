@@ -15,16 +15,20 @@ add_library(xs56k_akm STATIC
     src/DiagnosticSink.cpp
     src/ItemCatalogue.cpp
     src/ItemRequest.cpp
+    src/KeygroupPrimitives.cpp
     src/LibraryInfo.cpp
     src/ManualExecutor.cpp
     src/ManualScheduler.cpp
+    src/ProgramPrimitives.cpp
     src/RealScheduler.cpp
     src/SamplerError.cpp
+    src/SamplePrimitives.cpp
     src/Session.cpp
     src/SessionConfig.cpp
     src/SysExConfig.cpp
     src/SystemVersion.cpp
     src/ThreadExecutor.cpp
-    src/TimerQueue.cpp)
+    src/TimerQueue.cpp
+    src/ZonePrimitives.cpp)
 target_include_directories(xs56k_akm PUBLIC include)
 target_link_libraries(xs56k_akm PUBLIC xs56k_midi Threads::Threads PRIVATE xs56k::warnings)

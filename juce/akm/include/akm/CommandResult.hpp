@@ -26,8 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
-    /// Why the session did not send a command at all. [RQ-AKM-001, RQ-AKM-014, RQ-AKM-015, RQ-AKM-041,
-    /// RQ-AKM-042, RQ-AKM-043, ADR-AKM-001 (DEC-AKM-004, DEC-AKM-012)]
+    /// Why the session did not send a command at all. [RQ-AKM-001, RQ-AKM-014, RQ-AKM-015, RQ-AKM-025,
+    /// RQ-AKM-041, RQ-AKM-042, RQ-AKM-043, ADR-AKM-001 (DEC-AKM-004, DEC-AKM-012)]
     enum class RefusalReason
     {
         NotEncodable,         ///< the codec could not build a legal frame from it (RQ-AKM-001)
@@ -37,6 +37,7 @@ namespace akm
         NoTargetBound,        ///< it is addressed to the bound target and none is bound yet (RQ-AKM-039)
         SessionNotOpen,       ///< the session is opening, or its open failed: no command but the opening's (RQ-AKM-039)
         SessionClosed,        ///< it was submitted after close() (RQ-AKM-042)
+        NotConfirmed,         ///< a destructive primitive was called without its explicit confirmation (RQ-AKM-025)
     };
 
     /// The sampler carried the command out and returned no data: it answered DONE. [RQ-AKM-009]
