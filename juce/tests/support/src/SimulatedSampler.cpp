@@ -1089,7 +1089,11 @@ namespace akm::harness
         _samples.clear();
         _samples.reserve(names.size());
         for (std::string& name : names)
-            _samples.push_back(SampleRecord{std::move(name)});
+        {
+            SampleRecord record;
+            record.name = std::move(name);
+            _samples.push_back(std::move(record));
+        }
         _currentSample.reset();
     }
 
