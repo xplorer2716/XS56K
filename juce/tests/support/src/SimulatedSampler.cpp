@@ -38,6 +38,18 @@ namespace akm::harness
     {
         using Bytes = std::vector<std::uint8_t>;
 
+        // Appends `src` to `dest` with a plain loop rather than `dest.insert(dest.end(), src.begin(),
+        // src.end())`: GCC 11's Release build (-O2, -Werror) false-positives -Wstringop-overread on
+        // that range-insert (linux-x64-release-canary on PR #4; not reproduced in Debug or on
+        // MSVC/Clang, and unaffected by an emptiness guard around the call) — a known GCC inlining
+        // bug, not a real out-of-bounds read.
+        template <typename Container, typename Range>
+        void appendBytes(Container& dest, const Range& src)
+        {
+            for (const auto& byte : src)
+                dest.push_back(byte);
+        }
+
         // Reply IDs of spec Table 2.
         constexpr std::uint8_t REPLY_OK = 0x4F;
         constexpr std::uint8_t REPLY_DONE = 0x44;
@@ -567,7 +579,7 @@ namespace akm::harness
                         for (const KeygroupRecord& keygroup : program.keygroups)
                         {
                             const Bytes value = valueOf(keygroup);
-                            concatenated.insert(concatenated.end(), value.begin(), value.end());
+                            appendBytes(concatenated, value);
                         }
                         return reply(std::move(concatenated));
                     }
@@ -692,7 +704,7 @@ namespace akm::harness
                         for (const std::uint8_t z : EVERY_ZONE)
                         {
                             const Bytes value = valueOf(keygroup, z);
-                            concatenated.insert(concatenated.end(), value.begin(), value.end());
+                            appendBytes(concatenated, value);
                         }
                         return concatenated;
                     };
@@ -702,7 +714,7 @@ namespace akm::harness
                         for (const KeygroupRecord& keygroup : program.keygroups)
                         {
                             const Bytes value = readFromKeygroup(keygroup);
-                            concatenated.insert(concatenated.end(), value.begin(), value.end());
+                            appendBytes(concatenated, value);
                         }
                         return reply(std::move(concatenated));
                     }
@@ -988,7 +1000,7 @@ namespace akm::harness
                         const std::size_t valueWidth = getDescriptor == nullptr ? 0 : totalWidth(getDescriptor->reply);
                         const auto found = sample.parameters.find({setItem, Bytes{}});
                         const Bytes value = found != sample.parameters.end() ? found->second : Bytes(valueWidth, 0);
-                        concatenated.insert(concatenated.end(), value.begin(), value.end());
+                        appendBytes(concatenated, value);
                     }
                     return reply(std::move(concatenated));
                 }
@@ -1054,21 +1066,16 @@ namespace akm::harness
         Bytes buildConfirmation(std::uint8_t deviceByte, const Bytes& userRefs, std::uint8_t replyId, std::uint8_t section,
                                 std::uint8_t item, const Bytes& data, bool withChecksum)
         {
-    Bytes frame{common::midi::SYSEX_START, AKAI_MANUFACTURER_ID, SAMPLER_MODEL_ID, deviceByte};
-    if (!userRefs.empty())  {// Add this guard
-        frame.insert(frame.end(), userRefs.begin(), userRefs.end());
-    }
-    frame.push_back(replyId);
-    frame.push_back(section);
-    frame.push_back(item);
-    if (!data.empty())  { // Also add this guard for consistency
-        frame.insert(frame.end(), data.begin(), data.end());
-    }
-    if (withChecksum) {
-        frame.push_back(checksum(std::span<const std::uint8_t>(frame).subspan(FIRST_USER_REF_INDEX)));
-    }
-    frame.push_back(common::midi::SYSEX_END);
-    return frame;
+            Bytes frame{common::midi::SYSEX_START, AKAI_MANUFACTURER_ID, SAMPLER_MODEL_ID, deviceByte};
+            appendBytes(frame, userRefs);
+            frame.push_back(replyId);
+            frame.push_back(section);
+            frame.push_back(item);
+            appendBytes(frame, data);
+            if (withChecksum)
+                frame.push_back(checksum(std::span<const std::uint8_t>(frame).subspan(FIRST_USER_REF_INDEX)));
+            frame.push_back(common::midi::SYSEX_END);
+            return frame;
         }
     }
 

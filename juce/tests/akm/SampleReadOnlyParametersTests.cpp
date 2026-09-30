@@ -51,6 +51,16 @@ namespace
         REQUIRE(harness.waitForCompletions(1));
     }
 
+    // Appends `src` to `dest` with a plain loop rather than `dest.insert(dest.end(), src.begin(),
+    // src.end())`: GCC 11's Release build (-O2, -Werror) false-positives -Wstringop-overread on that
+    // range-insert (linux-x64-release-canary on PR #4; not reproduced in Debug or on MSVC/Clang) — a
+    // known GCC inlining bug, not a real out-of-bounds read.
+    void appendAll(std::vector<std::int64_t>& dest, const std::vector<std::int64_t>& src)
+    {
+        for (const std::int64_t value : src)
+            dest.push_back(value);
+    }
+
     std::vector<std::int64_t> getValues(SessionHarness& harness, akm::ItemId id)
     {
         auto latched = std::make_shared<akm::test::Latched<CommandResult>>();
@@ -76,7 +86,7 @@ TEST_CASE("Given a simulated sample with a known length and rate, When &34 is re
                                  akm::ItemId::SampleGetLength, akm::ItemId::SampleGetRate})
     {
         const std::vector<std::int64_t> values = getValues(harness, id);
-        expected.insert(expected.end(), values.begin(), values.end());
+        appendAll(expected, values);
     }
 
     CHECK(getValues(harness, akm::ItemId::SampleGetAllBasicParams) == expected);
@@ -114,7 +124,7 @@ TEST_CASE("Given a sample with its settable parameters set, When &4B is read, Th
                                  akm::ItemId::SampleGetLoopStart, akm::ItemId::SampleGetLoopEnd})
     {
         const std::vector<std::int64_t> values = getValues(harness, id);
-        expected.insert(expected.end(), values.begin(), values.end());
+        appendAll(expected, values);
     }
 
     CHECK(getValues(harness, akm::ItemId::SampleGetAllSettableParams) == expected);

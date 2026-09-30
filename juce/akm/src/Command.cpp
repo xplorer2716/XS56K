@@ -30,6 +30,17 @@ namespace akm
         {
             return EncodeResult{{}, error};
         }
+
+        // Appends `src` to `dest` with a plain loop rather than `dest.insert(dest.end(), src.begin(),
+        // src.end())`: GCC 11's Release build (-O2, -Werror) false-positives -Wstringop-overread on
+        // that range-insert (linux-x64-release-canary on PR #4; not reproduced in Debug or on
+        // MSVC/Clang) — a known GCC inlining bug, not a real out-of-bounds read.
+        template <typename Container, typename Range>
+        void appendBytes(Container& dest, const Range& src)
+        {
+            for (const auto& byte : src)
+                dest.push_back(byte);
+        }
     }
 
     EncodeResult encodeCommand(std::uint32_t deviceId, std::span<const std::uint8_t> userRefs,
@@ -50,10 +61,10 @@ namespace akm
         frame.push_back(AKAI_MANUFACTURER_ID);
         frame.push_back(SAMPLER_MODEL_ID);
         frame.push_back(static_cast<std::uint8_t>(deviceId | (userRefCountBits << USER_REF_COUNT_SHIFT)));
-        frame.insert(frame.end(), userRefs.begin(), userRefs.end());
+        appendBytes(frame, userRefs);
         frame.push_back(command.section);
         frame.push_back(command.item);
-        frame.insert(frame.end(), command.data.begin(), command.data.end());
+        appendBytes(frame, command.data);
         if (mode != ChecksumMode::Off)
             frame.push_back(checksum(std::span<const std::uint8_t>(frame).subspan(FIRST_USER_REF_INDEX)));
         frame.push_back(common::midi::SYSEX_END);

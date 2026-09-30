@@ -59,6 +59,17 @@ namespace akm::harness
     {
         using namespace detail;
 
+        // Appends `src` to `dest` with a plain loop rather than `dest.insert(dest.end(), src.begin(),
+        // src.end())`: GCC 11's Release build (-O2, -Werror) false-positives -Wstringop-overread on
+        // that range-insert (linux-x64-release-canary on PR #4; not reproduced in Debug or on
+        // MSVC/Clang) — a known GCC inlining bug, not a real out-of-bounds read.
+        template <typename Container, typename Range>
+        void appendAll(Container& dest, const Range& src)
+        {
+            for (const auto& element : src)
+                dest.push_back(element);
+        }
+
         // The scenario waits for what the session enforces the timeouts of itself, this many command timeouts: a wait
         // that runs out means a completion was lost, and is reported as such. An open is the discovery's window and
         // up to five commands, a close up to five (the first that times out ends it).
@@ -1679,7 +1690,7 @@ namespace akm::harness
                         const auto decoded = replyData ? decodeReply(id, replyData->data) : std::nullopt;
                         if (!decoded)
                             throw CheckFailure("get " + std::string(descriptor(id).name) + ": nothing decodable");
-                        basicParams.insert(basicParams.end(), decoded->begin(), decoded->end());
+                        appendAll(basicParams, *decoded);
                     }
                     const auto groupedBasic = awaitCompletion<CommandResult>(
                         _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
@@ -1705,7 +1716,7 @@ namespace akm::harness
                         const auto decoded = replyData ? decodeReply(id, replyData->data) : std::nullopt;
                         if (!decoded)
                             throw CheckFailure("get " + std::string(descriptor(id).name) + ": nothing decodable");
-                        settableParams.insert(settableParams.end(), decoded->begin(), decoded->end());
+                        appendAll(settableParams, *decoded);
                     }
                     const auto groupedSettable = awaitCompletion<CommandResult>(
                         _rig.driver, _rig.commandPatience(), [&guarded](CommandCompletion done) {
