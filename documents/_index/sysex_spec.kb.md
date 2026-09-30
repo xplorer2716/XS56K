@@ -105,6 +105,13 @@ Blocked (multi-request): 38 KG zone · 3A keygroup · 3C program · 3E multi.
   param values always signed word `sign MSB LSB`. Discover layout first (&01, &10, &11).
 - Disk (§10): refresh list (&01) → pick handle (14-bit, from &05 list) → select (&02); SysEx disk selection ≠ front panel.
   File/folder indices shift when disk changes.
+- §0E: `&2A` (Set Loop End) moves `&29`'s value (Loop Start) on the real S5000 — confirmed 2026-09-30 on
+  two samples, one with memory cleared and the sample freshly reloaded (`akm-suite-20260930-202853.log`,
+  TASK-AKM-045, `process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`): Set Loop End
+  after Set Loop Start answers DONE but leaves Loop Start reading back a value that is neither what was
+  last sent nor the value before. Not documented in the spec; the exact rule is not established (checked
+  against "preserve the loop length in effect", which fits one measurement but not another). Always set
+  (and restore) Loop End before Loop Start.
 
 ## Common value codes
 - Name fields (string, p8-9): the spec states no maximum length. Program name (§0A): observed capped

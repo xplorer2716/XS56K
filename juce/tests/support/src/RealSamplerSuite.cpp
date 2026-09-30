@@ -556,9 +556,20 @@ namespace akm::harness
             }
 
             // Sets each of the 8 settable parameters back to `_originalParameters`, one Set per item, logged, best
-            // effort — a failed restore is noted, not thrown (the destructor must not throw).
+            // effort — a failed restore is noted, not thrown (the destructor must not throw). Offsets into
+            // `_originalParameters` follow `SETTABLE_PARAM_SET_IDS` (the wire/&4B order, fixed by the protocol),
+            // but the Sets are *sent* with Loop End before Loop Start: on the real S5000 (2026-09-30, samples
+            // "AMEN" and "Honesty"), Loop Start reproducibly read back wrong whenever Loop End was set after it
+            // — see SampleParameterCases.cpp for the detail — so nothing is sent after Loop Start's own restore
+            // that could disturb it again.
             void restoreParameters()
             {
+                struct PendingRestore
+                {
+                    ItemId setId;
+                    std::vector<std::int64_t> value;
+                };
+                std::vector<PendingRestore> pending;
                 std::size_t offset = 0;
                 for (const ItemId setId : SETTABLE_PARAM_SET_IDS)
                 {
@@ -568,15 +579,21 @@ namespace akm::harness
                         _rig.log.note("  could not restore the test sample's settable parameters: snapshot too short");
                         return;
                     }
-                    const std::vector<std::int64_t> value(_originalParameters.begin() + static_cast<std::ptrdiff_t>(offset),
-                                                          _originalParameters.begin() + static_cast<std::ptrdiff_t>(offset + width));
+                    pending.push_back({setId, std::vector<std::int64_t>(_originalParameters.begin() + static_cast<std::ptrdiff_t>(offset),
+                                                                        _originalParameters.begin() + static_cast<std::ptrdiff_t>(offset + width))});
                     offset += width;
+                }
+                static_assert(SETTABLE_PARAM_SET_IDS[6] == ItemId::SampleSetLoopStart);
+                static_assert(SETTABLE_PARAM_SET_IDS[7] == ItemId::SampleSetLoopEnd);
+                std::swap(pending[6], pending[7]);
+                for (const PendingRestore& item : pending)
+                {
                     const auto timed = awaitCompletion<CommandResult>(
-                        _rig.driver, _rig.commandPatience(), [this, setId, &value](CommandCompletion done) {
-                            _session.submit(makeRequest(setId, value), std::move(done));
+                        _rig.driver, _rig.commandPatience(), [this, &item](CommandCompletion done) {
+                            _session.submit(makeRequest(item.setId, item.value), std::move(done));
                         });
                     const bool ok = timed && succeeded(timed->result);
-                    _rig.log.note("  restore " + std::string(descriptor(setId).name) + ": " + (ok ? "done" : "failed"));
+                    _rig.log.note("  restore " + std::string(descriptor(item.setId).name) + ": " + (ok ? "done" : "failed"));
                 }
             }
 

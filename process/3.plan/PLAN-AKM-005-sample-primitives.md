@@ -313,9 +313,17 @@ This plan implements the tasks in the format specified below.
   and that no section `0E` command is sent; one with `--sample-name "KICK"` (seeded with valid settable
   parameters first — new `seedSampleParameters` local helper, raw frames like `SeededPrograms.hpp`'s
   own approach for §0A) proving every check step and the full restoration, `checkAllPassed` included.
-  `--coverage`: unaffected (no new items catalogued). Real-sampler run: not yet done — needs the
-  owner, on the real S5000, with a sample already loaded that is safe to rename/audition/parametrise
-  temporarily.
+  `--coverage`: unaffected (no new items catalogued). Real-sampler run: done, 2026-09-30, S5000 OS 2.14
+  (`akm-suite-20260930-202853.log`, sample "Honesty", memory cleared and the sample freshly reloaded for
+  this run; also passed on "AMEN" the same day) — 8/8 checks passed, Loop Start and Loop End confirmed
+  unchanged by the owner reading the sampler's own screen before and after. Two earlier same-day runs on
+  "AMEN" and "Honesty" had failed check 8: first on unrealistic test values decoding to positions far
+  beyond the sample (a test-data bug, not a sampler fault — `SampleParameterCases.cpp`'s own comment);
+  then, with realistic values, on Loop Start not surviving the restore — traced to Set Loop End (`&2A`)
+  moving Loop Start's value on the real S5000 whenever it runs after Set Loop Start, confirmed on two
+  samples (`process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`,
+  `documents/_index/sysex_spec.kb.md`'s State model section). Fixed by always setting Loop End before
+  Loop Start, in both `allSampleParameterCases()` and `GuardedTestSample::restoreParameters`.
 - **Assumptions**: `sampleLifecycle` is a new, independent `RealSuiteOptions` flag rather than folding
   this check under `programLifecycle`: §0E has no current-program dependency at all (`FTR-AKM-005`'s
   own "Depends on" line), so gating it behind a flag named for programs would be misleading, and
@@ -342,7 +350,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-046: Coverage of section §0E and errata resolution
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the 34 command rows and 19 REPLY rows of section `0E` to `items.json`
   coverage (or list an explicit exclusion reason for any row this lot does not implement) and run
   `generate_akm_items.py --coverage` to confirm none is unaccounted for. The errata list carries no
@@ -357,5 +365,19 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-AKM-040, TASK-AKM-041, TASK-AKM-042, TASK-AKM-043, TASK-AKM-044,
   TASK-AKM-045
 - **Assignee**: AI, with the owner running any real-sampler observation an erratum needs
-- **Verification**: Not yet run.
-- **Assumptions**: None yet.
+- **Verification**: `generate_akm_items.py --coverage`: exactly 34 §0E catalogue entries, every one
+  `covered` (12 lifecycle/select/rename/audition items + 8 Set + 8 Get position/pitch/tune/mode/loop
+  items + 4 basic-info Gets + 2 grouped-reply Gets), 19 of which (every Select/Get) carry the section's
+  REPLY rows; `unaccounted: none` for the whole catalogue. Errata: not a spec-table typo this time —
+  a real, undocumented S5000 behaviour found while proving TASK-AKM-045 on real hardware (`Set Loop
+  End` moving `Loop Start`'s value when it runs after `Set Loop Start`), recorded in
+  `documents/_index/sysex_spec.kb.md`'s State model section and in full in
+  `process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md` (three real-sampler runs,
+  2026-09-30, two samples, confirmed against the owner's own front-panel readings). A second, earlier
+  failure in the same investigation (unrealistic test values decoding to positions far beyond the
+  sample) turned out to be this lot's own test-data bug, not a sampler fault — also recorded there,
+  fixed in `SampleParameterCases.cpp`.
+- **Assumptions**: The Loop End/Loop Start coupling's exact rule is not established (fits one
+  measurement, not another — see the observation file's F4); the fix (always set/restore Loop End
+  before Loop Start) is justified empirically, not by a confirmed formula, and does not extend to
+  Start/End Position (the playback bounds), which were not tested for the same coupling.
