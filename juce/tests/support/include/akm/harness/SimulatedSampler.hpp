@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 
+#include <algorithm>
 #include <chrono>
 #include <compare>
 #include <cstdint>
@@ -119,6 +120,24 @@ namespace akm::harness
         std::vector<std::uint8_t> data;  ///< without its checksum
     };
 
+    /// Orders the (Set item code, selector bytes) keys of `ProgramRecord::parameters`,
+    /// `KeygroupRecord::parameters`/`zoneParameters` and `SampleRecord::parameters`, in place of the
+    /// default `std::less<std::pair<std::uint8_t, std::vector<std::uint8_t>>>`: GCC 11's Release build
+    /// (`-O2`/`-O3`) synthesizes that pair's `<=>` through `std::lexicographical_compare_three_way` on
+    /// the vector member and false-positives `-Wstringop-overread` on it (`-Werror`; never seen on
+    /// Debug or on MSVC/Clang) — observed on the real CI, not reproduced locally. A plain boolean `<`
+    /// comparator sidesteps that code path entirely while sorting identically.
+    struct ParameterKeyLess
+    {
+        [[nodiscard]] bool operator()(const std::pair<std::uint8_t, std::vector<std::uint8_t>>& a,
+                                      const std::pair<std::uint8_t, std::vector<std::uint8_t>>& b) const
+        {
+            if (a.first != b.first)
+                return a.first < b.first;
+            return std::lexicographical_compare(a.second.begin(), a.second.end(), b.second.begin(), b.second.end());
+        }
+    };
+
     /// One keygroup of a program (§08, spec Tables 11-12): its General Options, Pitch/Amp, Filter, and
     /// three envelope groups (RQ-AKM-030), stored the same generic way as `ProgramRecord::parameters` —
     /// keyed by (the group's Set item code, the selector bytes a multi-instance item carries, e.g. which
@@ -127,12 +146,12 @@ namespace akm::harness
     /// already does for a program's own groups). [RQ-AKM-030]
     struct KeygroupRecord
     {
-        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
         /// The §06 zone parameters (RQ-AKM-034), stored the same generic way but kept in a map of its
         /// own: §06 and §08 item codes overlap (both have a &04, for instance), so a shared map would
         /// collide. Keyed by (the group's Set item code, the zone number byte 0-4), holding the value
         /// bytes; read back by the paired Get item. [TASK-AKM-035]
-        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> zoneParameters;
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> zoneParameters;
     };
 
     /// One program in the sampler's memory (§0A, spec Tables 13-14): only what TASK-AKM-015's lifecycle
@@ -151,7 +170,7 @@ namespace akm::harness
         /// (RQ-AKM-024): keyed by (the group's Set item code, the selector bytes a multi-instance item
         /// carries, e.g. which LFO), holding the value bytes; read back by the paired Get item. Not
         /// compared by `ProgramRecord`'s own `==` (only the fields the earlier lifecycle tests need are).
-        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
         /// One entry per keygroup, `keygroupCount` long, in keygroup order starting at 1 (§08, RQ-AKM-030).
         /// Kept in sync with `keygroupCount` by `&0B`/`&0C` (add/delete keygroups); not compared by
         /// `ProgramRecord`'s own `==`.
@@ -175,7 +194,7 @@ namespace akm::harness
         /// tune, playback mode, loop start/end): keyed by (the group's Set item code, an always-empty
         /// selector — these items take none), holding the value bytes; read back by the paired Get
         /// item. Stored the same generic way as `ProgramRecord::parameters`. [TASK-AKM-043]
-        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>> parameters;
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
         /// The read-only parameters of RQ-AKM-049 (§0E/&30-&33): no Set item exists for them, a real
         /// sample's audio data determines them, so `setSampleAttributes` is the only way to give them a
         /// value in this model. Defaults (a mono RAM sample, zero length and rate) are arbitrary, the
