@@ -324,6 +324,20 @@ This plan implements the tasks in the format specified below.
   samples (`process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`,
   `documents/_index/sysex_spec.kb.md`'s State model section). Fixed by always setting Loop End before
   Loop Start, in both `allSampleParameterCases()` and `GuardedTestSample::restoreParameters`.
+
+  **Gap found and closed the same day, re-reading `FTR-AKM-005` against what actually ran**:
+  `RQ-AKM-045`'s own Gherkin names "select by index" among what the real-sampler suite proves, but
+  `samplesOnTestSample` only ever sent `&05`/`&14` (select/get by name) — `&06` (select by index) and
+  `&13` (get current index) never appeared on the wire in any of the three runs above, confirmed by
+  grepping both the logs and `RealSamplerSuite.cpp`. Added: right after the guard selects the test
+  sample by name, read its index (`&13`), select it by that index (`&06`), and confirm by name (`&14`)
+  that it is still the test sample. `ctest` 455/455 with the addition (the two `[suite]` mock tests
+  above, unaffected, still pass — the new step runs inside both). Real-sampler run: done, 2026-09-30,
+  S5000 OS 2.14 (`akm-suite-20260930-204716.log`), 3 samples in memory this time (the dedicated test
+  sample, "barry - diamond2", at front-panel position 3) — `&13` read back index `2` (zero-based,
+  matching position 3), `&06` selected by that index (`DONE`), `&14` confirmed the name unchanged;
+  8/8 checks passed. `RQ-AKM-045`'s own Gherkin ("select by index... `&13`/`&14` confirm the
+  selection") is now proven on real hardware, not just the simulated sampler.
 - **Assumptions**: `sampleLifecycle` is a new, independent `RealSuiteOptions` flag rather than folding
   this check under `programLifecycle`: §0E has no current-program dependency at all (`FTR-AKM-005`'s
   own "Depends on" line), so gating it behind a flag named for programs would be misleading, and

@@ -1595,6 +1595,23 @@ namespace akm::harness
                     originalSnapshot = sample.originalParameters();
                     finding("sample \"" + sampleName + "\" selected as current");
 
+                    // RQ-AKM-045: select by index too, not just by name — read the current index
+                    // (&13), select by it (&06), and confirm by name (&14) that it is still the test
+                    // sample.
+                    const auto indexBefore = awaitCompletion<SampleIndexResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](SampleIndexCompletion done) { getCurrentSampleIndex(guarded.session(), std::move(done)); });
+                    if (!indexBefore || !indexBefore->result.index)
+                        throw CheckFailure("could not read the test sample's current index (&13)");
+                    sample.expectOnTestSample("select by index", [&indexBefore](Session& session, CommandCompletion done) {
+                        selectSampleByIndex(session, *indexBefore->result.index, std::move(done));
+                    });
+                    const auto nameAfterIndex = awaitCompletion<SampleNameResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded](SampleNameCompletion done) { getCurrentSampleName(guarded.session(), std::move(done)); });
+                    expect(nameAfterIndex && nameAfterIndex->result.name == sampleName,
+                           "select by index (&06) landed back on the test sample, confirmed by &14");
+
                     // RQ-AKM-045: rename, then rename back immediately, so the guard's fixed anchor
                     // (sampleName) still finds it if anything below throws.
                     const std::string renamedTo = sampleName + "_2";
