@@ -193,3 +193,4 @@ TASK-BLD-011|19-29|Done|Pass `run-tests: true` from the generator to every workf
 @process/3.plan/PLAN-BLD-004-mutation-checks-outside-the-working-tree.md
 PLAN-BLD-004|1-92||Mutation checks that leave the working tree alone
 TASK-BLD-012|20-92|Done|Mutation check tool on isolated copies
+@process/3.plan/SUMMARY-akm-sections-coverage.md
