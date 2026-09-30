@@ -70,6 +70,8 @@ add_test(NAME akm_public_headers_have_no_juce_include
 # The item catalogue: the checked-in table matches its data file, the data file matches the spec's item list,
 # and the script that says so is itself tested. Python only runs here, in the test suite, never during the
 # build; without it the checks are skipped and said to be. [TASK-AKM-008, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+# Each Python script under tools/ gets its own discover call, scoped to its own test_*.py file: a single
+# combined discovery would fold the mutation tool's own (much slower) tests into this one's name.
 find_package(Python3 QUIET COMPONENTS Interpreter)
 if(Python3_FOUND)
     add_test(NAME akm_item_table_is_up_to_date
@@ -77,7 +79,12 @@ if(Python3_FOUND)
     add_test(NAME akm_item_catalogue_matches_the_spec
         COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_akm_items.py --coverage)
     add_test(NAME akm_item_catalogue_script_tests
-        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_*.py")
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_generate_akm_items.py")
+    # The mutation check tool (RQ-BLD-015): configures and builds the small fixture project of
+    # tools/mutate_fixture/ several times over, so it is markedly slower than the catalogue's own
+    # tests above. [TASK-BLD-012]
+    add_test(NAME bld_mutate_tool_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_mutate.py")
 else()
-    message(STATUS "Python 3 not found: the item catalogue checks of juce/tests/tools are not registered")
+    message(STATUS "Python 3 not found: the item catalogue and mutation-tool checks of juce/tests/tools are not registered")
 endif()
