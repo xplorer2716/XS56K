@@ -104,4 +104,58 @@ namespace akm
 
     /// Gets the number of bytes of free Wave memory (§02/&34), a compound double word. [RQ-AKM-053]
     void getFreeWaveMemoryBytes(Session& session, MemoryBytesCompletion completion);
+
+    /// The sampler's clock and date (spec Table 6, &05 and &06). `dayOfWeek` is 1-7 with 1 = Sunday, and is
+    /// the caller's to give: the sampler takes it as a field of its own. The year is the whole year, 1980-2079.
+    /// [RQ-AKM-054]
+    struct ClockDate
+    {
+        int year = 0;
+        int month = 0;
+        int day = 0;
+        int dayOfWeek = 0;
+        int hours = 0;
+        int minutes = 0;
+        int seconds = 0;
+
+        friend bool operator==(const ClockDate&, const ClockDate&) = default;
+    };
+
+    /// The fields of a `ClockDate`, in the order of the item's arguments. [RQ-AKM-054]
+    enum class ClockField
+    {
+        Year,
+        Month,
+        DayOfMonth,
+        DayOfWeek,
+        Hours,
+        Minutes,
+        Seconds,
+    };
+
+    /// The first field of `clock` outside the range the catalogue gives it, or nothing when all are inside:
+    /// what `setClockDate` refuses a clock for, so that a caller can name the field. [RQ-AKM-054]
+    [[nodiscard]] std::optional<ClockField> invalidClockField(const ClockDate& clock);
+
+    /// The catalogue's name of a field ("year", "month", "dayOfMonth", "dayOfWeek", "hours", "minutes",
+    /// "seconds"). [RQ-AKM-054]
+    [[nodiscard]] std::string_view clockFieldName(ClockField field);
+
+    /// Sets the sampler's clock and date (§02/&06); a field outside its range is refused without sending
+    /// (`ArgumentOutOfRange`, the field being named by `invalidClockField`). [RQ-AKM-054]
+    void setClockDate(Session& session, const ClockDate& clock, CommandCompletion completion);
+
+    /// `clock` is empty when the command did not complete on a REPLY of the length the catalogue gives it;
+    /// the sampler's values are reported as they are, ranges not enforced on a REPLY. `outcome` is the
+    /// result of the command. [RQ-AKM-054]
+    struct ClockDateResult
+    {
+        std::optional<ClockDate> clock{};
+        CommandResult outcome{};
+    };
+    using ClockDateCompletion = std::function<void(const ClockDateResult&)>;
+
+    /// Gets the sampler's clock and date (§02/&05). Answered whatever the checksum mode: the catalogue gives
+    /// its REPLY a fixed length. [RQ-AKM-054]
+    void getClockDate(Session& session, ClockDateCompletion completion);
 }

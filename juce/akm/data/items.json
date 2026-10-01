@@ -13,7 +13,7 @@
       "name": "System",
       "complete": false,
       "spec": "Tables 6 and 7, pp. 10-11",
-      "note": "The two version items of RQ-AKM-044 (FTR-AKM-001) the sampler name (RQ-AKM-052: &02, &03, TASK-AKM-048), and the model and available memory (RQ-AKM-053: &04, &30, &31, &33, &34, TASK-AKM-049, the two byte counts as one `Dword` each: the spec writes their REPLY rows with two columns, \"MSB\" and \"LSB\", but calls them compound double words, four data bytes; the coverage check does not compare them, the row carrying an ellipsis; to be confirmed on the real sampler by TASK-AKM-053); the rest of the section is FTR-AKM-006's (PLAN-AKM-006). A name is catalogued with the 20-character maximum of the other name fields: the spec states none, and the real sampler's limit is observed by TASK-AKM-053."
+      "note": "The two version items of RQ-AKM-044 (FTR-AKM-001) the sampler name (RQ-AKM-052: &02, &03, TASK-AKM-048), and the clock and date (RQ-AKM-054: &05, &06, TASK-AKM-050, the year one `Word` holding the whole year, 1980-2079, which fits the spec's own \"0-16 (MSB year)\" column — 2079 is MSB 16 — where an offset from 1980 would not), the model and available memory (RQ-AKM-053: &04, &30, &31, &33, &34, TASK-AKM-049, the two byte counts as one `Dword` each: the spec writes their REPLY rows with two columns, \"MSB\" and \"LSB\", but calls them compound double words, four data bytes; the coverage check does not compare them, the row carrying an ellipsis; to be confirmed on the real sampler by TASK-AKM-053); the rest of the section is FTR-AKM-006's (PLAN-AKM-006). A name is catalogued with the 20-character maximum of the other name fields: the spec states none, and the real sampler's limit is observed by TASK-AKM-053."
     },
     {
       "section": "0A",
@@ -170,6 +170,41 @@
       "args": [],
       "reply": [{"name": "model", "format": "byte", "min": 0, "max": 1}],
       "requirements": ["RQ-AKM-053"]
+    },
+    {
+      "id": "SystemGetClock",
+      "section": "02",
+      "item": "05",
+      "name": "Get clock time and date",
+      "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "year", "format": "word", "min": 1980, "max": 2079},
+        {"name": "month", "format": "byte", "min": 1, "max": 12},
+        {"name": "dayOfMonth", "format": "byte", "min": 1, "max": 31},
+        {"name": "dayOfWeek", "format": "byte", "min": 1, "max": 7},
+        {"name": "hours", "format": "byte", "min": 0, "max": 23},
+        {"name": "minutes", "format": "byte", "min": 0, "max": 59},
+        {"name": "seconds", "format": "byte", "min": 0, "max": 59}
+      ],
+      "requirements": ["RQ-AKM-054"]
+    },
+    {
+      "id": "SystemSetClock",
+      "section": "02",
+      "item": "06",
+      "name": "Set clock time and date",
+      "kind": "set",
+      "args": [
+        {"name": "year", "format": "word", "min": 1980, "max": 2079},
+        {"name": "month", "format": "byte", "min": 1, "max": 12},
+        {"name": "dayOfMonth", "format": "byte", "min": 1, "max": 31},
+        {"name": "dayOfWeek", "format": "byte", "min": 1, "max": 7},
+        {"name": "hours", "format": "byte", "min": 0, "max": 23},
+        {"name": "minutes", "format": "byte", "min": 0, "max": 59},
+        {"name": "seconds", "format": "byte", "min": 0, "max": 59}
+      ],
+      "requirements": ["RQ-AKM-054"]
     },
     {
       "id": "SystemGetWaveMemoryPercent",

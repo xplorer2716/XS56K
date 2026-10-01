@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <compare>
 #include <cstdint>
@@ -197,6 +198,10 @@ namespace akm::harness
         std::uint32_t waveTotalBytes = 64u * 1024 * 1024;
         std::uint32_t waveFreeBytes = 64u * 1024 * 1024;
         std::uint8_t mpksFreePercent = 100;
+        /// The clock (&05/&06, RQ-AKM-054) as the eight data bytes of the wire — year MSB and LSB, month, day of
+        /// month, day of week, hours, minutes, seconds — set to Saturday 1 January 2000, 00:00:00 (the spec
+        /// gives no default; 2000 is MSB 15, LSB 80).
+        std::array<std::uint8_t, 8> clock{15, 80, 1, 1, 7, 0, 0, 0};
     };
 
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle

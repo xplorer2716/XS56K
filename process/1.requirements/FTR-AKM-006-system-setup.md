@@ -59,10 +59,10 @@ data formats lines 85–87), `documents/_index/sysex_spec.items.tsv` (section `0
 ### RQ-AKM-054: Clock and date (Set and Get)
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN a caller reads the clock and date (`&05`) or sets them (`&06`: year 1980–2079, month, day of month, day of week 1–7 with 1 = Sunday, hours, minutes, seconds), the AKM layer SHALL encode and decode all eight data bytes per the spec, and SHALL refuse any out-of-range field without sending.
+- **Statement**: WHEN a caller reads the clock and date (`&05`) or sets them (`&06`: year 1980–2079, month, day of month, day of week 1–7 with 1 = Sunday, hours, minutes, seconds), the AKM layer SHALL encode and decode all eight data bytes per the spec, and SHALL refuse any out-of-range field without sending, the first offending field being identifiable by a function of the AKM layer that applies the same ranges.
 - **Rationale**: the sampler stamps what it saves with this clock; wrong or unreadable dates are otherwise only fixable from the front panel.
 - **Priority**: Could
-- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler, *When* the clock is set to 2026-10-01 (Thursday) 14:30:15 then read, *Then* the value read equals the value set. *Given* month `13`, *When* set, *Then* nothing is sent and an error names the field.
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler, *When* the clock is set to 2026-10-01 (Thursday) 14:30:15 then read, *Then* the value read equals the value set. *Given* month `13`, *When* set, *Then* nothing is sent, the refusal is `ArgumentOutOfRange`, and the function that finds the first out-of-range field names the month.
 - **Dependencies**: RQ-AKM-002
 
 ### RQ-AKM-055: Play Mode and front-panel lock (Set and Get)

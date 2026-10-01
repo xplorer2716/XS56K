@@ -699,12 +699,13 @@ TEST_CASE("Given an older OS version, When the OS version is requested, Then the
     CHECK(confirmationAt(messages, 1).data == bytes({0x01, 0x1E}));
 }
 
-TEST_CASE("Given an item of section 02 other than the version ones, When it is sent, Then the sampler answers ERROR 0 [RQ-AKM-016]",
+TEST_CASE("Given an item of section 02 the spec does not have, When it is sent, Then the sampler answers ERROR 0 [RQ-AKM-016]",
           "[akm][simulated]")
 {
     Rig rig;
 
-    rig.host.send(bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x02, 0x05, 0xF7}));
+    // Section 02 has no &07 (Table 6 goes from &06 to &10), whatever PLAN-AKM-006 models of the rest of it.
+    rig.host.send(bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x02, 0x07, 0xF7}));
 
     const auto messages = rig.host.decoded(ChecksumMode::Off);
     REQUIRE(messages.size() == 2);

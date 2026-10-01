@@ -73,6 +73,21 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_WAVE_MEMORY_TOTAL = 0x33;
         constexpr std::uint8_t ITEM_GET_WAVE_MEMORY_FREE = 0x34;
         constexpr std::uint32_t PERCENT_BASE = 100;
+        // The clock items of TASK-AKM-050 (RQ-AKM-054): the eight data bytes of Table 6 and the range of each
+        // (year from the MSB and LSB of a compound word, then month, day of month, day of week, hours,
+        // minutes, seconds).
+        constexpr std::uint8_t ITEM_GET_CLOCK = 0x05;
+        constexpr std::uint8_t ITEM_SET_CLOCK = 0x06;
+        constexpr std::size_t CLOCK_DATA_SIZE = 8;
+        constexpr int CLOCK_YEAR_MIN = 1980;
+        constexpr int CLOCK_YEAR_MAX = 2079;
+        struct ClockByteRange
+        {
+            std::uint8_t min;
+            std::uint8_t max;
+        };
+        constexpr std::array<ClockByteRange, 6> CLOCK_BYTE_RANGES{{{1, 12}, {1, 31}, {1, 7}, {0, 23}, {0, 59}, {0, 59}}};
+        constexpr std::size_t CLOCK_FIRST_BYTE_AFTER_YEAR = 2;
 
         // Section §00 and its items, spec Table 5 (there is no item 02).
         constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
@@ -254,6 +269,24 @@ namespace akm::harness
                     writer.appendString(system.name);
                     return reply(writer.bytes());
                 }
+                case ITEM_SET_CLOCK:
+                {
+                    if (data.size() < CLOCK_DATA_SIZE)
+                        return failure(error_number::INVALID_FORMAT);
+                    const int year = (static_cast<int>(data[0]) << BITS_PER_DATA_BYTE) | data[1];
+                    if (year < CLOCK_YEAR_MIN || year > CLOCK_YEAR_MAX)
+                        return failure(error_number::OUT_OF_RANGE);
+                    for (std::size_t index = 0; index < CLOCK_BYTE_RANGES.size(); ++index)
+                    {
+                        const std::uint8_t value = data[CLOCK_FIRST_BYTE_AFTER_YEAR + index];
+                        if (value < CLOCK_BYTE_RANGES[index].min || value > CLOCK_BYTE_RANGES[index].max)
+                            return failure(error_number::OUT_OF_RANGE);
+                    }
+                    std::copy_n(data.begin(), CLOCK_DATA_SIZE, system.clock.begin());
+                    return done();
+                }
+                case ITEM_GET_CLOCK:
+                    return reply(Bytes(system.clock.begin(), system.clock.end()));
                 case ITEM_GET_SAMPLER_MODEL:
                     return reply(Bytes{system.model});
                 case ITEM_GET_WAVE_MEMORY_PERCENT:

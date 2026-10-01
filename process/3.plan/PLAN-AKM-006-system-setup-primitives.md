@@ -124,7 +124,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-050: Clock and date (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&05` and `&06` and expose a typed `ClockDate` with field-range refusal
   before sending (year 1980–2079, month 1–12, day 1–31, weekday 1–7, hours 0–23, minutes and seconds
   0–59).
@@ -133,8 +133,33 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-054 on the simulated sampler.
 - **Dependencies**: TASK-AKM-047
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 468/468 after
+  a re-run in this session. 4 new cases in `SystemSetupTests.cpp` (`[akm][system]`, `ctest -R RQ-AKM-054`):
+  Thursday 2026-10-01 14:30:15 set with frame data bytes `0F 6A 0A 01 05 0E 1E 0F` and read back equal;
+  1980-01-01 and 2079-12-31 23:59:59 round-trip; 13 clocks, each with one field just outside its range
+  (year 1979/2080, month 0/13, day 0/32, day of week 0/8, hours -1/24, minutes 60, seconds -1/60), are
+  refused `ArgumentOutOfRange` with nothing sent and `invalidClockField`/`clockFieldName` naming the field,
+  while the three valid clocks name none; with the checksum mode unknown the Get is answered (fixed
+  8-byte REPLY). `ItemCatalogueTests.cpp`: the two records added to its `CATALOGUE` table (REPLY length 8
+  for the Get). `generate_akm_items.py --check`: up to date (255 items); `--coverage`: section `02` 11 of 16
+  command rows covered, `unaccounted: none`. Collateral: `SimulatedSamplerTests.cpp`'s "ERROR 0 for an
+  item of section 02 other than the version ones" sent `&05`, now modelled; it sends `&07`, which the spec
+  does not have, and says so in its title — a change reflecting the new expected state. One bug of my own
+  found by the new test on its first run (a reference taken on the by-value `results().back()` dangled),
+  fixed in the test. Not verified: real sampler (TASK-AKM-053); mutation testing.
+- **Assumptions**: The year is read as the whole year, 1980-2079, in a compound word (MSB, LSB): 2079 is
+  MSB 16, exactly the largest the spec's "0–16 (MSB year)" column allows, where an offset from 1980 would
+  never exceed MSB 0 — a strong argument, not an observation; TASK-AKM-053 confirms it on the real
+  sampler. It is catalogued as one `Word` (1980-2079) rather than two `Byte` values: the spec row carries
+  an ellipsis, so the coverage check does not compare it, and the generic encoder then gives the year
+  range check for free. The day of week is the caller's to give (the spec makes it a field of its own) and
+  is not checked against the date. RQ-AKM-054 first said "an error names the field"; `Refused` carries a
+  reason only, and widening it for one item would be a cross-cutting change, so the field is named by
+  `invalidClockField`/`clockFieldName` instead and the refusal reason stays `ArgumentOutOfRange`. The
+  owner agreed (session AKM, 2026-10-01) and RQ-AKM-054's statement and Gherkin were reworded to say so. The simulated sampler refuses a Set whose fields are outside the same ranges with
+  ERROR `OUT_OF_RANGE`, keeps the clock across `powerCycle()`, and does not tick: its clock only changes
+  by a Set — so the restoration "advanced by the elapsed time" of RQ-AKM-058 is for TASK-AKM-053 to
+  model and test.
 
 ---
 

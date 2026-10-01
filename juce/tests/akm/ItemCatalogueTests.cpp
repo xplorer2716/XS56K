@@ -59,7 +59,7 @@ namespace
         std::optional<std::size_t> replyLength;
     };
 
-    const std::array<Expected, 16> CATALOGUE{{
+    const std::array<Expected, 18> CATALOGUE{{
         {ItemId::SysExQuery, 0x00, 0x00, ItemKind::Set, 0, std::nullopt},
         {ItemId::SysExNotification, 0x00, 0x01, ItemKind::Set, 1, std::nullopt},
         {ItemId::SysExSyncLcd, 0x00, 0x03, ItemKind::Set, 1, std::nullopt},
@@ -72,6 +72,10 @@ namespace
         // The sampler name (TASK-AKM-048, RQ-AKM-052): a String has no fixed REPLY length.
         {ItemId::SystemSetName, 0x02, 0x02, ItemKind::Set, 1, std::nullopt},
         {ItemId::SystemGetName, 0x02, 0x03, ItemKind::Get, 0, std::nullopt},
+        // The clock and date (TASK-AKM-050, RQ-AKM-054): seven values, the year a compound word, so eight
+        // data bytes in a REPLY.
+        {ItemId::SystemGetClock, 0x02, 0x05, ItemKind::Get, 0, 8},
+        {ItemId::SystemSetClock, 0x02, 0x06, ItemKind::Set, 7, std::nullopt},
         // The model and the available memory (TASK-AKM-049, RQ-AKM-053): one byte each, the byte counts
         // a compound double word of four data bytes.
         {ItemId::SystemGetModel, 0x02, 0x04, ItemKind::Get, 0, 1},

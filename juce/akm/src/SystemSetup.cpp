@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "akm/SystemSetup.hpp"
 
+#include <array>
 #include <cstdint>
 #include <span>
 #include <utility>
@@ -59,6 +60,14 @@ namespace akm
                                if (completion)
                                    completion(result);
                            });
+        }
+
+        // The clock items' arguments, in the order of `ClockDate`'s fields and of `ClockField`.
+        constexpr std::size_t CLOCK_FIELD_COUNT = 7;
+
+        std::array<std::int64_t, CLOCK_FIELD_COUNT> clockValues(const ClockDate& clock)
+        {
+            return {clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds};
         }
 
         void decodePercent(MemoryPercentResult& result, std::int64_t value)
@@ -125,5 +134,47 @@ namespace akm
     {
         getSingleValue<MemoryBytesResult>(session, ItemId::SystemGetWaveMemoryFree, std::move(completion),
                                           decodeBytes);
+    }
+
+    std::optional<ClockField> invalidClockField(const ClockDate& clock)
+    {
+        const auto& args = descriptor(ItemId::SystemSetClock).args;
+        const auto values = clockValues(clock);
+        for (std::size_t index = 0; index < CLOCK_FIELD_COUNT; ++index)
+        {
+            if (values[index] < args[index].min || values[index] > args[index].max)
+                return static_cast<ClockField>(index);
+        }
+        return std::nullopt;
+    }
+
+    std::string_view clockFieldName(ClockField field)
+    {
+        return descriptor(ItemId::SystemSetClock).args[static_cast<std::size_t>(field)].name;
+    }
+
+    void setClockDate(Session& session, const ClockDate& clock, CommandCompletion completion)
+    {
+        const auto values = clockValues(clock);
+        session.submit(makeRequest(ItemId::SystemSetClock, values), std::move(completion));
+    }
+
+    void getClockDate(Session& session, ClockDateCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::SystemGetClock, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           ClockDateResult result{std::nullopt, outcome};
+                           if (const auto values = replyValues(ItemId::SystemGetClock, outcome);
+                               values && values->size() == CLOCK_FIELD_COUNT)
+                           {
+                               const auto& v = *values;
+                               result.clock = ClockDate{static_cast<int>(v[0]), static_cast<int>(v[1]),
+                                                        static_cast<int>(v[2]), static_cast<int>(v[3]),
+                                                        static_cast<int>(v[4]), static_cast<int>(v[5]),
+                                                        static_cast<int>(v[6])};
+                           }
+                           if (completion)
+                               completion(result);
+                       });
     }
 }

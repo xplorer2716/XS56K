@@ -18,19 +18,25 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // The system setup primitives of section §02 other than the version (that is SystemVersionTests.cpp's): on a
 // session and the simulated sampler. This file grows with each task of PLAN-AKM-006 — for now the sampler's
-// name (§02/&02 and &03), its model and its available memory (&04, &30, &31, &33, &34). Real-sampler
-// verification is TASK-AKM-053's.
-// [TASK-AKM-048, TASK-AKM-049, RQ-AKM-052, RQ-AKM-053, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012, DEC-AKM-013)]
+// name (§02/&02 and &03), its model and its available memory (&04, &30, &31, &33, &34), its clock and date
+// (&05, &06). Real-sampler verification is TASK-AKM-053's.
+// [TASK-AKM-048, TASK-AKM-049, TASK-AKM-050, RQ-AKM-052, RQ-AKM-053, RQ-AKM-054,
+// ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012, DEC-AKM-013)]
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <variant>
 
 #include "SessionHarness.hpp"
 #include "akm/SamplerError.hpp"
 #include "akm/SystemSetup.hpp"
 
+using akm::ClockDate;
+using akm::ClockDateResult;
+using akm::ClockField;
 using akm::CommandResult;
 using akm::Done;
 using akm::MemoryBytesResult;
@@ -68,6 +74,45 @@ namespace
     // More than the 0-100 % the spec gives.
     constexpr std::uint8_t MPKS_PERCENT_BEYOND_RANGE = 101;
 
+    // Thursday 1 October 2026, 14:30:15 (day of week 1 = Sunday, spec Table 6). The year 2026 is MSB 15, LSB 106
+    // of a compound word (128 x 15 + 106).
+    constexpr ClockDate THURSDAY{2026, 10, 1, 5, 14, 30, 15};
+    // The ends of the year range the spec gives, 1980-2079; 2079 is MSB 16, the largest the spec's own "0-16
+    // (MSB year)" column allows.
+    constexpr ClockDate FIRST_DAY{1980, 1, 1, 3, 0, 0, 0};
+    constexpr ClockDate LAST_DAY{2079, 12, 31, 1, 23, 59, 59};
+
+    // A copy of `THURSDAY` with one field changed to a value outside its range, and the field that is.
+    struct BadClock
+    {
+        ClockDate clock;
+        ClockField field;
+        std::string_view fieldName;
+    };
+    std::array<BadClock, 13> badClocks()
+    {
+        const auto with = [](auto change) {
+            ClockDate clock = THURSDAY;
+            change(clock);
+            return clock;
+        };
+        return {{
+            {with([](ClockDate& c) { c.year = 1979; }), ClockField::Year, "year"},
+            {with([](ClockDate& c) { c.year = 2080; }), ClockField::Year, "year"},
+            {with([](ClockDate& c) { c.month = 0; }), ClockField::Month, "month"},
+            {with([](ClockDate& c) { c.month = 13; }), ClockField::Month, "month"},
+            {with([](ClockDate& c) { c.day = 0; }), ClockField::DayOfMonth, "dayOfMonth"},
+            {with([](ClockDate& c) { c.day = 32; }), ClockField::DayOfMonth, "dayOfMonth"},
+            {with([](ClockDate& c) { c.dayOfWeek = 0; }), ClockField::DayOfWeek, "dayOfWeek"},
+            {with([](ClockDate& c) { c.dayOfWeek = 8; }), ClockField::DayOfWeek, "dayOfWeek"},
+            {with([](ClockDate& c) { c.hours = -1; }), ClockField::Hours, "hours"},
+            {with([](ClockDate& c) { c.hours = 24; }), ClockField::Hours, "hours"},
+            {with([](ClockDate& c) { c.minutes = 60; }), ClockField::Minutes, "minutes"},
+            {with([](ClockDate& c) { c.seconds = 60; }), ClockField::Seconds, "seconds"},
+            {with([](ClockDate& c) { c.seconds = -1; }), ClockField::Seconds, "seconds"},
+        }};
+    }
+
     // Runs `ask`, which starts a primitive with its completion, and returns the result it reports.
     template <typename Result, typename Ask>
     Result await(SessionHarness& harness, Ask ask)
@@ -86,6 +131,11 @@ namespace
     SamplerModelResult getModel(SessionHarness& harness)
     {
         return await<SamplerModelResult>(harness, [&](auto done) { akm::getSamplerModel(harness.session(), done); });
+    }
+
+    ClockDateResult getClock(SessionHarness& harness)
+    {
+        return await<ClockDateResult>(harness, [&](auto done) { akm::getClockDate(harness.session(), done); });
     }
 
     MemoryPercentResult getWavePercent(SessionHarness& harness)
@@ -234,4 +284,83 @@ TEST_CASE("Given the checksum mode unknown, When the model and the memory values
 
     CHECK(getModel(harness).model == SamplerModel::S5000);
     CHECK(getTotalWaveBytes(harness).bytes == TOTAL_WAVE_BYTES);
+}
+
+TEST_CASE("Given a simulated sampler, When the clock is set to Thursday 2026-10-01 14:30:15 then read, Then the frame carries 0F 6A 0A 01 05 0E 1E 0F and the value read equals the value set [RQ-AKM-054]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    akm::setClockDate(harness.session(), THURSDAY, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+    const Bytes setFrame = harness.sentFrames().back();
+    constexpr std::size_t dataStart = akm::test::SENT_ITEM_INDEX + 1;
+    constexpr std::size_t dataSize = 8;
+    CHECK(Bytes(setFrame.begin() + dataStart, setFrame.begin() + dataStart + dataSize)
+          == bytes({0x0F, 0x6A, 0x0A, 0x01, 0x05, 0x0E, 0x1E, 0x0F}));
+
+    const ClockDateResult result = getClock(harness);
+    CHECK(result.clock == THURSDAY);
+    CHECK(std::holds_alternative<akm::Reply>(result.outcome));
+}
+
+TEST_CASE("Given the first and the last day the spec allows, When each is set then read, Then the value read equals the value set [RQ-AKM-054]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    akm::setClockDate(harness.session(), FIRST_DAY, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(getClock(harness).clock == FIRST_DAY);
+
+    akm::setClockDate(harness.session(), LAST_DAY, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(getClock(harness).clock == LAST_DAY);
+}
+
+TEST_CASE("Given a field outside its range, When the clock is set, Then it is refused without sending and the field is named [RQ-AKM-054]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+    const auto cases = badClocks();
+
+    std::size_t completed = 0;
+    for (const BadClock& bad : cases)
+    {
+        const auto invalid = akm::invalidClockField(bad.clock);
+        REQUIRE(invalid.has_value());
+        CHECK(*invalid == bad.field);
+        CHECK(akm::clockFieldName(*invalid) == bad.fieldName);
+
+        akm::setClockDate(harness.session(), bad.clock, harness.recorder().completion());
+        REQUIRE(harness.waitForCompletions(++completed));
+        const CommandResult result = harness.recorder().results().back();
+        INFO("field " << bad.fieldName);
+        REQUIRE(std::holds_alternative<Refused>(result));
+        CHECK(std::get<Refused>(result).reason == RefusalReason::ArgumentOutOfRange);
+    }
+    CHECK(harness.sentCount() == sentBefore);
+
+    CHECK_FALSE(akm::invalidClockField(THURSDAY).has_value());
+    CHECK_FALSE(akm::invalidClockField(FIRST_DAY).has_value());
+    CHECK_FALSE(akm::invalidClockField(LAST_DAY).has_value());
+}
+
+TEST_CASE("Given the checksum mode unknown, When the clock is requested, Then it is answered, since its REPLY has a fixed length the catalogue gives [RQ-AKM-054, RQ-AKM-041]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+
+    const ClockDateResult result = getClock(harness);
+    CHECK(result.clock.has_value());
+    CHECK(std::holds_alternative<akm::Reply>(result.outcome));
 }
