@@ -102,6 +102,11 @@ namespace akm
         ItemKind kind;
         std::span<const ValueSpec> args;
         std::span<const ValueSpec> reply;
+        /// The section byte the item's REPLY carries when it is not the command's own: observed on the S5000
+        /// (OS 2.14) for Get Clock Time & Date, whose REPLY says 0B where its OK says 02. Empty for every other item.
+        /// A REPLY is accepted under either section, so a sampler that follows the spec is still understood.
+        /// [RQ-AKM-059, ADR-AKM-001 (DEC-AKM-016)]
+        std::optional<std::uint8_t> replySection{};
 
         /// The number of data bytes of the item's REPLY: the total width of its values, or nothing for an
         /// item that has no REPLY, or whose REPLY carries a `String` (its width is not fixed: a codec that

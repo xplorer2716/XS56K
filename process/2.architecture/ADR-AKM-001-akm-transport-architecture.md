@@ -22,7 +22,10 @@ which completes DEC-AKM-003's deferral of strings and DEC-AKM-012's schema; it c
 The all-programs Gets (TASK-AKM-017) added DEC-AKM-014, completing DEC-AKM-013's own deferral of
 repeated-record REPLYs; it changed no other decision either. Keygroup selection (TASK-AKM-026, FTR-AKM-003)
 added DEC-AKM-015, generalising DEC-AKM-014's decode into `decodeRepeatedReply` for §08's per-keygroup
-Gets; it changed no other decision.
+Gets; it changed no other decision. The real-sampler run of the system setup checks (TASK-AKM-053,
+FTR-AKM-006) found the S5000 answering one item's REPLY under a section its command does not use;
+TASK-AKM-055 added DEC-AKM-016 to fix it, touching `Session`'s confirmation matcher and the codec's
+REPLY-length lookup — no other decision changed.
 The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
@@ -437,6 +440,29 @@ Writing 34 bespoke decode loops, one per item, would not scale the way `getAllPr
 - **Gated like `&18`/`&19`.** `getForAllKeygroups` always sets `ExpectedReply::NeedsKnownChecksumMode`
   (DEC-AKM-011, DEC-AKM-014): every item it is used for is variable-length by construction, not decided
   per call.
+
+### DEC-AKM-016: A REPLY may carry a section other than its command's, for one item that needs it
+Decided in TASK-AKM-055, for RQ-AKM-059: real-sampler observation (`OBSERVATIONS-RQ-AKM-059-clock-reply-section.md`,
+twice independently — the real-sampler suite and a raw frame typed by hand in MIDI-OX) showed the S5000 (OS 2.14)
+answering Get Clock Time & Date (§02/&05) with a REPLY whose section byte is `0B`, not `02` — its own OK still
+says `02`. No section `0B` exists in the spec; no other item observed so far does this.
+- **`ItemDescriptor` gains `replySection`, empty for every item but this one.** `items.json`'s schema adds an
+  optional `replySection` field, refused by the validator unless the item is a `get` and the value differs from
+  the item's own section (DEC-AKM-012's data-is-reviewed discipline extended, not relaxed: a typo that names the
+  item's own section is caught, not silently accepted). `SystemGetClock` is the one record that sets it, to `0B`.
+- **Two lookups, not one relaxed.** `findItem(section, item)` is unchanged — a REPLY under `0B` is still not a
+  *command* at section `0B`, and nothing else should start treating it as one. A new `findReplyItem(section, item)`
+  matches a record either by its own section or by its `replySection`; `Confirmation.cpp`'s REPLY-length lookup
+  (used only while the checksum mode is unknown, DEC-AKM-012) calls this one instead, so a REPLY of the right
+  length under either section is read while the port does not yet know how to delimit a REPLY by checksum.
+- **`Session`'s confirmation matcher accepts the declared section for a REPLY only.** `InFlight` carries the
+  command's `replySection` (read off the catalogue once, when the command is sent); `matches()` accepts a
+  confirmation whose section is the command's own, or — only when the confirmation is itself a REPLY — the
+  declared `replySection`. An OK, a DONE or an ERROR under `0B` would still be rejected as unsolicited: the
+  anomaly is only ever observed on the REPLY, and RQ-AKM-059 says so explicitly, so nothing wider is relaxed.
+- **The simulated sampler reproduces it by default.** `SamplerBehaviour::replySectionOverrides` defaults to one
+  entry, `S5000_CLOCK_REPLY_SECTION` (`{0x02, 0x05, 0x0B}`): every mock test exercises the session's real,
+  observed behaviour, not an idealised one; a test wanting a spec-conformant sampler clears the list.
 
 ## Consequences
 

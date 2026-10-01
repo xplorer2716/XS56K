@@ -36,6 +36,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "TestBytes.hpp"
 #include "akm/Command.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/SystemSetup.hpp"
+#include "akm/harness/ClockArithmetic.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
 #include "akm/harness/ScenarioDriver.hpp"
 #include "akm/harness/SimulatedMidiBackend.hpp"
@@ -154,6 +156,45 @@ namespace
         send(akm::makeRequest(akm::ItemId::SampleSetPlaybackMode, {0}));
         send(akm::makeRequest(akm::ItemId::SampleSetLoopStart, {0, 0, 0, 0}));
         send(akm::makeRequest(akm::ItemId::SampleSetLoopEnd, {0, 0, 0, 1}));
+    }
+
+    // What the owner's sampler holds of its system setup before any session is opened (RQ-AKM-058): a name, a clock
+    // — Saturday 14 March 2026, 09:26:53 — a Play Mode (2, Sample) and a lock; seeded through raw frames and the
+    // simulated sampler's own setters, the way `seedSampleParameters` does for a sample.
+    constexpr akm::ClockDate OWNER_CLOCK{2026, 3, 14, 7, 9, 26, 53};
+    constexpr std::uint8_t OWNER_PLAY_MODE_SAMPLE = 2;
+    constexpr std::uint8_t LOCK_NORMAL = 0;
+    constexpr std::uint8_t LOCK_LOCKED = 1;
+    constexpr std::uint8_t HIGHEST_PLAY_MODE_OF_THE_SPEC_COLUMN = 2;
+    // The suite puts the clock back advanced by the time it measured, and reads it back to a few seconds.
+    constexpr std::int64_t CLOCK_RESTORE_TOLERANCE_SECONDS = 3;
+    constexpr std::uint8_t ITEM_CLEAR_MEMORY = 0x32;
+    constexpr std::uint8_t ITEM_OS_VERSION = 0x00;
+    constexpr std::uint8_t ITEM_OS_SUB_VERSION = 0x01;
+
+    void seedSystemSetup(SimulatedMidiBackend& backend, SimulatedSampler& sampler, const std::string& name,
+                         std::uint8_t playMode, std::uint8_t lock)
+    {
+        akm::test::HostProbe host(backend, backend.inputName(), backend.outputName());
+        std::uint8_t userRef = 0x01;
+        const auto send = [&](const akm::CommandRequest& request) {
+            const akm::EncodeResult frame = akm::encodeCommand(0, akm::test::Bytes{userRef++}, request.command, akm::ChecksumMode::Off);
+            host.send(frame.bytes);
+        };
+        send(akm::makeStringRequest(akm::ItemId::SystemSetName, name));
+        send(akm::makeRequest(akm::ItemId::SystemSetClock,
+                              {OWNER_CLOCK.year, OWNER_CLOCK.month, OWNER_CLOCK.day, OWNER_CLOCK.dayOfWeek,
+                               OWNER_CLOCK.hours, OWNER_CLOCK.minutes, OWNER_CLOCK.seconds}));
+        sampler.setPlayMode(playMode);
+        sampler.setFrontPanelLock(lock);
+    }
+
+    // The clock the simulated sampler holds, as a date.
+    akm::ClockDate clockOf(const SimulatedSampler& sampler)
+    {
+        const auto& bytes = sampler.systemSetup().clock;
+        constexpr int BITS_PER_DATA_BYTE = 7;
+        return akm::ClockDate{(bytes[0] << BITS_PER_DATA_BYTE) | bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]};
     }
 
     std::size_t occurrences(const std::string& text, const std::string& part)
@@ -796,4 +837,131 @@ TEST_CASE("Given no program current when the suite runs with the program lifecyc
     checkAllPassed(result);
     CHECK_THAT(reportOf(result, "reserved test name").detail,
               ContainsSubstring("wrong-program refusal is not exercised"));
+}
+
+
+TEST_CASE("Given a sampler with a name, a clock, a Play Mode and a lock of its own, When the suite runs with the system setup checks, Then it round-trips all four Play Modes, the lock, the name and the clock, puts every one back, and never sends Clear Sampler Memory [TASK-AKM-053, RQ-AKM-052, RQ-AKM-054, RQ-AKM-055, RQ-AKM-056, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    const std::string& detail = reportOf(result, "front-panel lock and clock").detail;
+    CHECK_THAT(detail, ContainsSubstring("play mode 3 (Muted) accepted"));
+    CHECK_THAT(detail, ContainsSubstring("clock restored"));
+    CHECK_THAT(log.str(), ContainsSubstring("the sampler's name is back to \"OWNER S5000\""));
+
+    const akm::harness::SystemSetupState after = rig.sampler.systemSetup();
+    CHECK(after.name == "OWNER S5000");
+    CHECK(after.playMode == OWNER_PLAY_MODE_SAMPLE);
+    CHECK(after.frontPanelLock == LOCK_NORMAL);
+    const std::int64_t drift = akm::harness::secondsBetween(OWNER_CLOCK, clockOf(rig.sampler));
+    CHECK(drift >= 0);
+    CHECK(drift <= CLOCK_RESTORE_TOLERANCE_SECONDS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SYSTEM && command.item == ITEM_CLEAR_MEMORY));
+}
+
+TEST_CASE("Given a sampler that follows the spec's column and refuses Play Mode 3, When the suite runs with the system setup checks, Then the check still passes, the refusal is an observation, and the Play Mode is back [TASK-AKM-053, RQ-AKM-055, RQ-AKM-057]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    rig.sampler.setHighestPlayMode(HIGHEST_PLAY_MODE_OF_THE_SPEC_COLUMN);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "front-panel lock and clock").detail, ContainsSubstring("play mode 3 (Muted) refused"));
+    CHECK(rig.sampler.systemSetup().playMode == OWNER_PLAY_MODE_SAMPLE);
+}
+
+TEST_CASE("Given a check made to fail after the front panel was locked, When the suite runs with the system setup checks, Then the panel reads normal again, and so do the name and the Play Mode [TASK-AKM-053, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    const CheckReport& failedHalfWay = reportOf(result, "fails half way and still puts back");
+    CHECK(failedHalfWay.outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with the front panel locked"));
+    CHECK_THAT(log.str(), ContainsSubstring("the front panel is back to normal"));
+    CHECK(rig.sampler.systemSetup().frontPanelLock == LOCK_NORMAL);
+}
+
+TEST_CASE("Given a front panel that was locked before the suite ran, When it runs with the system setup checks, Then the panel is left as it was found, locked [TASK-AKM-053, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_LOCKED);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(rig.sampler.systemSetup().frontPanelLock == LOCK_LOCKED);
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then the system setup checks do not run and only the two version items of section 02 are sent [TASK-AKM-053, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, rig.options(), log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SYSTEM && command.item != ITEM_OS_VERSION && command.item != ITEM_OS_SUB_VERSION));
+}
+
+TEST_CASE("Given a sampler whose clock cannot be read, When the suite runs with the system setup checks, Then the clock is reported as not tested and is never set, and everything else is round-tripped and put back [TASK-AKM-053, RQ-AKM-054, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    constexpr std::uint8_t ITEM_GET_CLOCK = 0x05;
+    constexpr std::uint8_t ITEM_SET_CLOCK = 0x06;
+    constexpr std::uint16_t OUT_OF_RANGE = 0x02;
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    rig.sampler.setBehaviour(SamplerBehaviour{.itemErrors = {{SECTION_SYSTEM, ITEM_GET_CLOCK, OUT_OF_RANGE}}});
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+    const auto isSetClock = [](const auto& command) { return command.section == SECTION_SYSTEM && command.item == ITEM_SET_CLOCK; };
+    const auto acceptedBefore = rig.sampler.acceptedCommands();
+    const auto clockSetsBefore = std::count_if(acceptedBefore.begin(), acceptedBefore.end(), isSetClock);
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "front-panel lock and clock").detail, ContainsSubstring("clock NOT TESTED"));
+    CHECK_THAT(reportOf(result, "front-panel lock and clock").detail, ContainsSubstring("play mode 3 (Muted) accepted"));
+    CHECK_THAT(log.str(), ContainsSubstring("the clock was not read, so it was never changed and is not restored"));
+    const auto acceptedAfter = rig.sampler.acceptedCommands();
+    const auto clockSetsAfter = std::count_if(acceptedAfter.begin(), acceptedAfter.end(), isSetClock);
+    // The seeding sent the one Set Clock there was; the suite sent none.
+    CHECK(clockSetsAfter == clockSetsBefore);
+    CHECK(rig.sampler.systemSetup().name == "OWNER S5000");
+    CHECK(rig.sampler.systemSetup().playMode == OWNER_PLAY_MODE_SAMPLE);
 }

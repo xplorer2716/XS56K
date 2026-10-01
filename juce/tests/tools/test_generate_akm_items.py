@@ -80,6 +80,16 @@ class TableIsUpToDate(ScriptTest):
         self.assertEqual(first.read_bytes(), second.read_bytes())
         self.assertNotIn(b"\r", first.read_bytes())
 
+    def test_given_a_record_that_names_a_reply_section_when_generated_then_the_table_carries_it(self):
+        output = self.directory / "table.hpp"
+        self.assertEqual(run_script("--output", str(output)).returncode, 0)
+        text = output.read_text(encoding="utf-8")
+
+        clock_line = next(line for line in text.splitlines() if '"Get clock time and date"' in line)
+        self.assertIn("std::uint8_t{0x0B}", clock_line)
+        name_line = next(line for line in text.splitlines() if '"Get sampler name"' in line)
+        self.assertNotIn("0x0B", name_line)
+
     def test_given_the_data_file_when_generated_then_every_record_has_an_enumerator_and_a_table_entry(self):
         output = self.directory / "table.hpp"
         self.assertEqual(run_script("--output", str(output)).returncode, 0)
@@ -125,6 +135,22 @@ class DataFileIsValidated(ScriptTest):
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SystemOsVersion").pop("reply"))
 
         self.assert_refused(variant, "SystemOsVersion")
+
+    def test_given_a_set_that_names_a_reply_section_when_read_then_it_is_refused(self):
+        # Only a get has a REPLY, so only a get can say which section its REPLY carries (TASK-AKM-055).
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(replySection="0B"))
+
+        self.assert_refused(variant, "SysExQuery")
+
+    def test_given_a_reply_section_that_is_the_items_own_when_read_then_it_is_refused(self):
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SystemGetClock").update(replySection="02"))
+
+        self.assert_refused(variant, "SystemGetClock")
+
+    def test_given_a_reply_section_that_is_not_two_hexadecimal_digits_when_read_then_it_is_refused(self):
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SystemGetClock").update(replySection="B"))
+
+        self.assert_refused(variant, "SystemGetClock")
 
     def test_given_a_record_in_an_undeclared_section_when_read_then_it_is_refused(self):
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(section="04"))

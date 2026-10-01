@@ -39,7 +39,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SysExConfig.hpp"
+#include "akm/SystemSetup.hpp"
 #include "akm/ZonePrimitives.hpp"
+#include "akm/harness/ClockArithmetic.hpp"
 #include "akm/harness/KeygroupParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/SampleParameterCases.hpp"
@@ -615,6 +617,196 @@ namespace akm::harness
             std::vector<std::int64_t> _originalParameters;
         };
 
+        // The values the system setup check changes (RQ-AKM-058) and the instant the clock was read.
+        struct SystemSetupSnapshot
+        {
+            std::string name;
+            PlayMode playMode{};
+            FrontPanelLock lock{};
+            /// Empty when the clock could not be read — then it is neither set nor restored, and `clockProblem` says why.
+            /// (The S5000 of the first real run, OS 2.14, answered &05 with a section byte of 0B in place of 02,
+            /// which the session does not take for the answer to its command: RQ-AKM-007.)
+            std::optional<ClockDate> clock{};
+            std::string clockProblem;
+            Clock::time_point clockReadAt{};
+        };
+
+        // The name the check gives the sampler for the length of a round trip: inside the 20 characters the
+        // catalogue allows, and nothing an owner would keep. [RQ-AKM-052, RQ-AKM-058]
+        constexpr std::string_view TEST_SAMPLER_NAME = "XS56K TEST";
+
+        // A clock nothing real shows — Saturday 15 June 2030, 08:05:09 — whose year needs both data bytes of the
+        // compound word, and whose weekday (7, 1 = Sunday) is the one of its date. [RQ-AKM-054, RQ-AKM-058]
+        constexpr ClockDate TEST_CLOCK{2030, 6, 15, 7, 8, 5, 9};
+
+        // The clock is read to the second and every command takes some milliseconds, so a clock that reads within
+        // this many seconds of "what it was, advanced by the time elapsed" is a clock that was put back.
+        // [RQ-AKM-058]
+        constexpr std::int64_t CLOCK_RESTORE_TOLERANCE_SECONDS = 3;
+        constexpr std::int64_t MILLISECONDS_PER_SECOND = 1000;
+
+        std::string twoDigits(int value)
+        {
+            return (value < 10 ? "0" : "") + std::to_string(value);
+        }
+
+        std::string clockText(const ClockDate& clock)
+        {
+            return std::to_string(clock.year) + "-" + twoDigits(clock.month) + "-" + twoDigits(clock.day) + " "
+                   + twoDigits(clock.hours) + ":" + twoDigits(clock.minutes) + ":" + twoDigits(clock.seconds)
+                   + " (day of week " + std::to_string(clock.dayOfWeek) + ")";
+        }
+
+        std::string playModeName(PlayMode mode)
+        {
+            switch (mode)
+            {
+                case PlayMode::Multi:
+                    return "Multi";
+                case PlayMode::Program:
+                    return "Program";
+                case PlayMode::Sample:
+                    return "Sample";
+                case PlayMode::Muted:
+                    return "Muted";
+            }
+            return "unknown";
+        }
+
+        std::string lockName(FrontPanelLock lock)
+        {
+            return lock == FrontPanelLock::Locked ? "locked" : "normal";
+        }
+
+        // The whole seconds that passed since `since`, on the scenario's clock.
+        std::int64_t elapsedSeconds(Rig& rig, Clock::time_point since)
+        {
+            const std::int64_t milliseconds = millisecondsOf(rig.driver.scheduler().now() - since);
+            return (milliseconds + MILLISECONDS_PER_SECOND / 2) / MILLISECONDS_PER_SECOND;
+        }
+
+        // Reads the four values the system setup check changes: the name, the Play Mode, the front-panel lock and the
+        // clock. It changes nothing; `problem` says which of the first three failed to be read. The clock is allowed to
+        // fail: it is then left out of the check, and the snapshot says why. [RQ-AKM-052, RQ-AKM-054, RQ-AKM-055]
+        std::optional<SystemSetupSnapshot> readSystemSetup(Rig& rig, Session& session, std::string& problem)
+        {
+            SystemSetupSnapshot snapshot;
+            const auto name = awaitCompletion<SamplerNameResult>(
+                rig.driver, rig.commandPatience(), [&session](SamplerNameCompletion done) { getSamplerName(session, std::move(done)); });
+            if (!name || !name->result.name)
+            {
+                problem = "could not read the sampler's name: " + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.name = *name->result.name;
+
+            const auto mode = awaitCompletion<PlayModeResult>(
+                rig.driver, rig.commandPatience(), [&session](PlayModeCompletion done) { getPlayMode(session, std::move(done)); });
+            if (!mode || !mode->result.mode)
+            {
+                problem = "could not read the Play Mode: " + (mode ? outcomeText(mode->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.playMode = *mode->result.mode;
+
+            const auto lock = awaitCompletion<FrontPanelLockResult>(
+                rig.driver, rig.commandPatience(), [&session](FrontPanelLockCompletion done) { getFrontPanelLock(session, std::move(done)); });
+            if (!lock || !lock->result.lock)
+            {
+                problem = "could not read the front-panel lock: " + (lock ? outcomeText(lock->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.lock = *lock->result.lock;
+
+            const auto clock = awaitCompletion<ClockDateResult>(
+                rig.driver, rig.commandPatience(), [&session](ClockDateCompletion done) { getClockDate(session, std::move(done)); });
+            if (!clock || !clock->result.clock)
+            {
+                snapshot.clockProblem = "could not read the clock: "
+                                        + (clock ? outcomeText(clock->result.outcome) : std::string("no completion"));
+                return snapshot;
+            }
+            snapshot.clock = *clock->result.clock;
+            snapshot.clockReadAt = rig.driver.scheduler().now();
+            return snapshot;
+        }
+
+        // Wraps the sampler's system setup for the life of one check (RQ-AKM-058): on construction it reads the
+        // name, the Play Mode, the front-panel lock and the clock, before anything is changed; on destruction, even
+        // when the check throws half way, it puts each back — the lock first, so that the front panel is never left
+        // locked by a check that fails, then the Play Mode, the name and the clock, advanced by the time elapsed
+        // since it was read. Logged, best effort, nothing let out of the destructor, mirroring GuardedTestSample.
+        // Never sends §02/&32 (Clear Sampler Memory): nothing in this class can, there is no method that does.
+        class GuardedSystemSetup
+        {
+        public:
+            GuardedSystemSetup(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                std::string problem;
+                const auto snapshot = readSystemSetup(rig, session, problem);
+                if (!snapshot)
+                    throw CheckFailure(problem + " (nothing was changed)");
+                _original = *snapshot;
+                _rig.log.note("  system setup read before any change: name \"" + _original.name + "\", Play Mode "
+                              + playModeName(_original.playMode) + ", front panel " + lockName(_original.lock) + ", clock "
+                              + (_original.clock ? clockText(*_original.clock) : "unreadable (" + _original.clockProblem + ")"));
+            }
+
+            ~GuardedSystemSetup()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the system setup guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedSystemSetup(const GuardedSystemSetup&) = delete;
+            GuardedSystemSetup& operator=(const GuardedSystemSetup&) = delete;
+
+            /// What was read on construction, before the check changed anything.
+            [[nodiscard]] const SystemSetupSnapshot& original() const { return _original; }
+
+        private:
+            template <typename Launch>
+            void restoreStep(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  restore " + title + ": "
+                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+            }
+
+            void restore()
+            {
+                restoreStep("the front panel (" + lockName(_original.lock) + ")", [this](CommandCompletion done) {
+                    setFrontPanelLock(_session, _original.lock, std::move(done));
+                });
+                restoreStep("the Play Mode (" + playModeName(_original.playMode) + ")", [this](CommandCompletion done) {
+                    setPlayMode(_session, _original.playMode, std::move(done));
+                });
+                restoreStep("the sampler's name (\"" + _original.name + "\")", [this](CommandCompletion done) {
+                    setSamplerName(_session, _original.name, std::move(done));
+                });
+                if (!_original.clock)
+                {
+                    _rig.log.note("  the clock was not read, so it was never changed and is not restored");
+                    return;
+                }
+                const std::int64_t elapsed = elapsedSeconds(_rig, _original.clockReadAt);
+                const ClockDate target = addSeconds(*_original.clock, elapsed);
+                restoreStep("the clock (" + clockText(target) + ", advanced by " + std::to_string(elapsed) + " s)",
+                            [this, &target](CommandCompletion done) { setClockDate(_session, target, std::move(done)); });
+            }
+
+            Rig& _rig;
+            Session& _session;
+            SystemSetupSnapshot _original;
+        };
+
         // The checks, one after the other.
         class Suite
         {
@@ -651,6 +843,13 @@ namespace akm::harness
                     check("select the test sample, round-trip every §0E lifecycle and settable-parameter item on it, "
                           "and restore its name and parameters",
                           &Suite::samplesOnTestSample);
+                if (_rig.options.systemSetup)
+                {
+                    check("round-trip the sampler's name, Play Mode, front-panel lock and clock, and put them back",
+                          &Suite::systemSetupRoundTrips);
+                    check("a system setup check that fails half way and still puts back what it changed",
+                          &Suite::failedSystemSetupCheckPutsBack);
+                }
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -1775,6 +1974,212 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory
+            // (so that the four data bytes of &33/&34 are decoded on the hardware), then round-trips the name, every Play
+            // Mode, the front-panel lock and the clock, each under the guard that puts them back — the Play Mode 3 (Muted)
+            // the spec's data column leaves out is sent too, its refusal being an observation, not a failure — and
+            // verifies, once the guard is gone, that every value is what it was before.
+            void systemSetupRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                SystemSetupSnapshot original;
+                {
+                    GuardedSystemSetup setup(_rig, guarded.session());
+                    original = setup.original();
+                    finding("system setup before: name \"" + original.name + "\", Play Mode " + playModeName(original.playMode)
+                            + ", front panel " + lockName(original.lock) + ", clock "
+                            + (original.clock ? clockText(*original.clock) : std::string("unreadable")));
+
+                    observeModelAndMemory(guarded);
+                    roundTripName(guarded);
+                    roundTripPlayModes(guarded);
+                    roundTripLock(guarded);
+                    roundTripClock(guarded, original);
+                }
+                expectSystemSetupRestored(guarded, original);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-058: a check that fails with the front panel locked and the sampler renamed still puts both back
+            // — the lock first — and leaves nothing changed.
+            void failedSystemSetupCheckPutsBack()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto original = readSystemSetup(_rig, guarded.session(), problem);
+                if (!original)
+                    throw CheckFailure(problem);
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedSystemSetup setup(_rig, guarded.session());
+                    expectCommand(guarded, "lock the front panel", [](Session& session, CommandCompletion done) {
+                        setFrontPanelLock(session, FrontPanelLock::Locked, std::move(done));
+                    });
+                    expectCommand(guarded, "rename the sampler", [](Session& session, CommandCompletion done) {
+                        setSamplerName(session, TEST_SAMPLER_NAME, std::move(done));
+                    });
+                    throw CheckFailure("this check fails on purpose, with the front panel locked");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectSystemSetupRestored(guarded, *original);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-053: the model and the memory, read and said in the log. The byte counts are compound double
+            // words of four data bytes (the spec writes their rows with two columns): a REPLY of another length is
+            // refused by the decoder, so reading them is what shows the length on the hardware.
+            void observeModelAndMemory(GuardedSession& guarded)
+            {
+                const auto model = awaitCompletion<SamplerModelResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SamplerModelCompletion done) { getSamplerModel(guarded.session(), std::move(done)); });
+                if (!model || !model->result.model)
+                    throw CheckFailure("could not read the sampler's model (&04): "
+                                       + (model ? outcomeText(model->result.outcome) : std::string("no completion")));
+                finding(std::string("model: ") + (*model->result.model == SamplerModel::S6000 ? "S6000" : "S5000"));
+
+                const auto wavePercent = awaitCompletion<MemoryPercentResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryPercentCompletion done) { getFreeWaveMemoryPercent(guarded.session(), std::move(done)); });
+                const auto mpksPercent = awaitCompletion<MemoryPercentResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryPercentCompletion done) { getFreeMpksMemoryPercent(guarded.session(), std::move(done)); });
+                const auto totalBytes = awaitCompletion<MemoryBytesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryBytesCompletion done) { getTotalWaveMemoryBytes(guarded.session(), std::move(done)); });
+                const auto freeBytes = awaitCompletion<MemoryBytesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryBytesCompletion done) { getFreeWaveMemoryBytes(guarded.session(), std::move(done)); });
+                if (!wavePercent || !wavePercent->result.percent)
+                    throw CheckFailure("could not read the free Wave memory percentage (&30)");
+                if (!mpksPercent || !mpksPercent->result.percent)
+                    throw CheckFailure("could not read the free MPKS memory percentage (&31)");
+                if (!totalBytes || !totalBytes->result.bytes)
+                    throw CheckFailure("could not read the total bytes of Wave memory (&33): "
+                                       + (totalBytes ? outcomeText(totalBytes->result.outcome) : std::string("no completion")));
+                if (!freeBytes || !freeBytes->result.bytes)
+                    throw CheckFailure("could not read the free bytes of Wave memory (&34): "
+                                       + (freeBytes ? outcomeText(freeBytes->result.outcome) : std::string("no completion")));
+
+                const std::uint32_t total = *totalBytes->result.bytes;
+                const std::uint32_t free = *freeBytes->result.bytes;
+                finding("Wave memory: " + std::to_string(free) + " of " + std::to_string(total) + " bytes free ("
+                        + std::to_string(*wavePercent->result.percent) + " %, four data bytes decoded), MPKS memory "
+                        + std::to_string(*mpksPercent->result.percent) + " % free");
+                expect(total > 0 && free <= total, "the free Wave memory is a part of the total");
+            }
+
+            // RQ-AKM-052: Set then Get.
+            void roundTripName(GuardedSession& guarded)
+            {
+                expectCommand(guarded, "set the sampler's name to \"" + std::string(TEST_SAMPLER_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { setSamplerName(session, TEST_SAMPLER_NAME, std::move(done)); });
+                const auto name = awaitCompletion<SamplerNameResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SamplerNameCompletion done) { getSamplerName(guarded.session(), std::move(done)); });
+                expect(name && name->result.name == std::string(TEST_SAMPLER_NAME), "the sampler's name read back is the one set");
+            }
+
+            // RQ-AKM-055, RQ-AKM-057: each Play Mode, Set then Get. Muted is the one the spec's data column leaves out:
+            // if the sampler refuses it, that is what the erratum needed to know.
+            void roundTripPlayModes(GuardedSession& guarded)
+            {
+                for (const PlayMode mode : {PlayMode::Multi, PlayMode::Program, PlayMode::Sample, PlayMode::Muted})
+                {
+                    const std::string title = "play mode " + std::to_string(static_cast<int>(mode)) + " (" + playModeName(mode) + ")";
+                    _rig.log.flush();
+                    const auto set = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [&guarded, mode](CommandCompletion done) {
+                        setPlayMode(guarded.session(), mode, std::move(done));
+                    });
+                    if (!set)
+                        throw CheckFailure("set " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                    if (!succeeded(set->result))
+                    {
+                        if (mode == PlayMode::Muted && std::holds_alternative<Error>(set->result))
+                        {
+                            finding(title + " refused: " + outcomeText(set->result)
+                                    + " - the spec's data column \"0, 1, 2\" is the sampler's range (erratum of RQ-AKM-057)");
+                            continue;
+                        }
+                        throw CheckFailure("set " + title + ": " + outcomeText(set->result));
+                    }
+                    const auto read = awaitCompletion<PlayModeResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](PlayModeCompletion done) { getPlayMode(guarded.session(), std::move(done)); });
+                    expect(read && read->result.mode == mode, title + " read back as set");
+                    finding(title + " accepted and read back");
+                }
+            }
+
+            // RQ-AKM-055, RQ-AKM-058: locked, read, then normal again at once, before anything else is sent.
+            void roundTripLock(GuardedSession& guarded)
+            {
+                for (const FrontPanelLock lock : {FrontPanelLock::Locked, FrontPanelLock::Normal})
+                {
+                    expectCommand(guarded, "set the front panel " + lockName(lock),
+                                  [lock](Session& session, CommandCompletion done) { setFrontPanelLock(session, lock, std::move(done)); });
+                    const auto read = awaitCompletion<FrontPanelLockResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](FrontPanelLockCompletion done) { getFrontPanelLock(guarded.session(), std::move(done)); });
+                    expect(read && read->result.lock == lock, "the front panel reads " + lockName(lock));
+                }
+            }
+
+            // RQ-AKM-054: a clock of 2030 is set and read back to within a few seconds: the year read is the whole
+            // year, so the two data bytes are the compound word the catalogue assumes.
+            void roundTripClock(GuardedSession& guarded, const SystemSetupSnapshot& original)
+            {
+                if (!original.clock)
+                {
+                    finding("clock NOT TESTED: " + original.clockProblem + "; it was neither set nor restored");
+                    return;
+                }
+                expectCommand(guarded, "set the clock to " + clockText(TEST_CLOCK),
+                              [](Session& session, CommandCompletion done) { setClockDate(session, TEST_CLOCK, std::move(done)); });
+                const auto read = awaitCompletion<ClockDateResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](ClockDateCompletion done) { getClockDate(guarded.session(), std::move(done)); });
+                if (!read || !read->result.clock)
+                    throw CheckFailure("could not read the clock back: " + (read ? outcomeText(read->result.outcome) : std::string("no completion")));
+                const std::int64_t drift = secondsBetween(TEST_CLOCK, *read->result.clock);
+                finding("clock read back as " + clockText(*read->result.clock) + " after setting " + clockText(TEST_CLOCK)
+                        + " (the year read is the whole year: the compound word of RQ-AKM-054)");
+                expect(drift >= 0 && drift <= CLOCK_RESTORE_TOLERANCE_SECONDS,
+                       "the clock read back is the one set, advanced by no more than " + std::to_string(CLOCK_RESTORE_TOLERANCE_SECONDS)
+                           + " s (drift " + std::to_string(drift) + " s)");
+            }
+
+            // RQ-AKM-058: once the guard is gone, every value is what it was before; the clock is what it was
+            // advanced by the time elapsed, to a few seconds. A value that is not back fails the check and says which.
+            void expectSystemSetupRestored(GuardedSession& guarded, const SystemSetupSnapshot& original)
+            {
+                std::string problem;
+                const auto after = readSystemSetup(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the system setup back to verify it was restored: " + problem);
+                expect(after->name == original.name,
+                       "the sampler's name is back to \"" + original.name + "\" (reads \"" + after->name + "\")");
+                expect(after->playMode == original.playMode,
+                       "the Play Mode is back to " + playModeName(original.playMode) + " (reads " + playModeName(after->playMode) + ")");
+                expect(after->lock == original.lock,
+                       "the front panel is back to " + lockName(original.lock) + " (reads " + lockName(after->lock) + ")");
+                if (!original.clock)
+                    return;
+                if (!after->clock)
+                    throw CheckFailure("the clock could not be read back to verify it was restored: " + after->clockProblem);
+                const ClockDate expected = addSeconds(*original.clock, elapsedSeconds(_rig, original.clockReadAt));
+                const std::int64_t drift = secondsBetween(expected, *after->clock);
+                finding("clock restored: reads " + clockText(*after->clock) + ", expected " + clockText(expected) + " (drift "
+                        + std::to_string(drift) + " s)");
+                expect(drift >= -CLOCK_RESTORE_TOLERANCE_SECONDS && drift <= CLOCK_RESTORE_TOLERANCE_SECONDS,
+                       "the clock is back to what it was, advanced by the time elapsed, to " + std::to_string(CLOCK_RESTORE_TOLERANCE_SECONDS)
+                           + " s (drift " + std::to_string(drift) + " s)");
+            }
+
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
@@ -1811,6 +2216,11 @@ namespace akm::harness
                          + "(RQ-AKM-048) and confirms the grouped replies &34/&4B agree with the items they group (RQ-AKM-049): "
                          + "the sample's name and every settable parameter, and the sampler's original current-sample selection, "
                          + "are restored before this check returns, even if it fails half way, and it never sends &07 or &08.");
+            if (options.systemSetup)
+                log.note(std::string("It also changes the sampler's own system setup (--system-setup, RQ-AKM-052 to RQ-AKM-055, RQ-AKM-058): ")
+                         + "its name, its Play Mode (all four, Muted included), its front-panel lock for an instant, and its clock, "
+                         + "each put back before the check returns, even if it fails half way — the lock first, the clock "
+                         + "advanced by the time elapsed — and it never sends section 02's Clear Sampler Memory (&32).");
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }

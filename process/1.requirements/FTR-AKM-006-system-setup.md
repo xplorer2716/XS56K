@@ -95,11 +95,20 @@ data formats lines 85–87), `documents/_index/sysex_spec.items.tsv` (section `0
 ### RQ-AKM-058: Real-sampler tests restore the system setup they change
 - **Category**: Functional
 - **EARS Type**: Unwanted-behavior
-- **Statement**: The real-sampler tests of this feature SHALL read the sampler's name, clock, Play Mode and front-panel lock before changing any of them and SHALL put each back — the clock advanced by the time elapsed — even when a test fails or is interrupted, SHALL never leave the front panel locked, and SHALL NOT call `&32`; IF the restoration of any value fails, THEN the suite SHALL report it as failed and say which value was left changed.
+- **Statement**: The real-sampler tests of this feature SHALL read the sampler's name, clock, Play Mode and front-panel lock before changing any of them and SHALL put each back — the clock advanced by the time elapsed — even when a test fails or is interrupted, SHALL never leave the front panel locked by a test (it is left as it was found, so locked only if it was locked when the suite began), and SHALL NOT call `&32`; IF the restoration of any value fails, THEN the suite SHALL report it as failed and say which value was left changed.
 - **Rationale**: mirrors `RQ-AKM-018` (known state) and `RQ-AKM-027`; these four values are the owner's own settings and are not reproducible from the software.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* a real-sampler run, *When* the suite ends, *Then* the name, Play Mode and lock equal what they were, the clock is within a few seconds of the true time, and no `&32` was sent. *Given* a check made to throw after the lock was set to locked, *When* the suite ends, *Then* the lock reads `0`.
+- **Acceptance Criteria** (Gherkin): *Given* a real-sampler run, *When* the suite ends, *Then* the name, Play Mode and lock equal what they were, the clock is within a few seconds of what it was advanced by the time elapsed, and no `&32` was sent. *Given* a check made to throw after the lock was set to locked, *When* the suite ends, *Then* the lock reads `0`.
 - **Dependencies**: RQ-AKM-018; RQ-AKM-052; RQ-AKM-054; RQ-AKM-055; RQ-AKM-056
+
+### RQ-AKM-059: The REPLY of Get Clock Time and Date carries another section than its command
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF the sampler answers Get Clock Time & Date (`&05`) with a REPLY whose section byte is not `02` (the command's own) but `0B`, THEN the AKM layer SHALL still read it as that command's REPLY, and SHALL NOT accept any other item's REPLY, nor any confirmation other than a REPLY, under a section other than its command's.
+- **Rationale**: observed on a real S5000 (OS 2.14) twice, independently — once through the real-sampler suite (TASK-AKM-053, `akm-suite-20261001-215601.log`) and once by hand with a raw SysEx frame sent and read in MIDI-OX (session AKM, 2026-10-02, owner) — the sampler's own text for item `05` names no such behaviour; every other item observed so far answers under its own section.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the REPLY the S5000 sent for `&05` (section `0B`, item `05`, 8 data bytes), *When* decoded, *Then* its data is read and the command it answers completes. *Given* a REPLY under section `0B` for an item that does not declare it, *When* received, *Then* it completes nothing and is reported as unsolicited (or the command times out). *Given* a sampler that answers `&05` under section `02` as the spec's own text says, *When* received, *Then* it is read all the same.
+- **Dependencies**: RQ-AKM-007; RQ-AKM-041; RQ-AKM-054
 
 ---
 

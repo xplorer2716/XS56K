@@ -72,7 +72,14 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   (OS 2.14, no disk drive attached): `--slow-operation` got no reply at all, `F0 F7` included, and left the sampler
   answering no SysEx — a fresh discovery included — until it was power-cycled by hand; run `--power-cycle` on its
   own, not together with `--slow-operation`, if the point is to test persistence across a graceful restart
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). Exit status 0 when every check
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). More opt-in checks — `--program-lifecycle`,
+  `--sample-lifecycle` with `--sample-name`, listed by `--help` — each put back what they change, and
+  `--system-setup` adds two checks on the sampler's own settings: it reads the model and the memory, then round-trips
+  the sampler's name, its four Play Modes (the Muted mode the spec's data column leaves out included, whether the
+  sampler accepts it being what is observed), its front-panel lock (locked for an instant) and its clock, and puts each
+  back — the lock first, the clock advanced by the time elapsed, to about three seconds — even when a check fails half
+  way. It never sends section 02's Clear Sampler Memory (`&32`), which no real-sampler test may call.
+  Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`

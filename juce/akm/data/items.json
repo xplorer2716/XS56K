@@ -13,7 +13,7 @@
       "name": "System",
       "complete": false,
       "spec": "Tables 6 and 7, pp. 10-11",
-      "note": "The two version items of RQ-AKM-044 (FTR-AKM-001) the sampler name (RQ-AKM-052: &02, &03, TASK-AKM-048), and Play Mode and the front-panel lock (RQ-AKM-055: &10, &11, &20, &21, TASK-AKM-051, the Play Mode range 0-3 as the item text defines it, the spec's data column saying \"0, 1, 2\": a known erratum, see KNOWN_RANGE_ERRATA in generate_akm_items.py), the guarded Clear Sampler Memory (RQ-AKM-056: &32, TASK-AKM-052; every command row of the section is then catalogued, 16/16, and `complete` is set by TASK-AKM-054, the coverage task), the clock and date (RQ-AKM-054: &05, &06, TASK-AKM-050, the year one `Word` holding the whole year, 1980-2079, which fits the spec's own \"0-16 (MSB year)\" column — 2079 is MSB 16 — where an offset from 1980 would not), the model and available memory (RQ-AKM-053: &04, &30, &31, &33, &34, TASK-AKM-049, the two byte counts as one `Dword` each: the spec writes their REPLY rows with two columns, \"MSB\" and \"LSB\", but calls them compound double words, four data bytes; the coverage check does not compare them, the row carrying an ellipsis; to be confirmed on the real sampler by TASK-AKM-053); the rest of the section is FTR-AKM-006's (PLAN-AKM-006). A name is catalogued with the 20-character maximum of the other name fields: the spec states none, and the real sampler's limit is observed by TASK-AKM-053."
+      "note": "The two version items of RQ-AKM-044 (FTR-AKM-001) the sampler name (RQ-AKM-052: &02, &03, TASK-AKM-048), and Play Mode and the front-panel lock (RQ-AKM-055: &10, &11, &20, &21, TASK-AKM-051, the Play Mode range 0-3 as the item text defines it, the spec's data column saying \"0, 1, 2\": a known erratum, see KNOWN_RANGE_ERRATA in generate_akm_items.py), the guarded Clear Sampler Memory (RQ-AKM-056: &32, TASK-AKM-052; every command row of the section is then catalogued, 16/16, and `complete` is set by TASK-AKM-054, the coverage task), the clock and date (RQ-AKM-054: &05, &06, TASK-AKM-050, the REPLY of &05 carrying section 0B, not 02, on the S5000 OS 2.14 — observed by TASK-AKM-053, recorded by TASK-AKM-055 as `replySection`, the year one `Word` holding the whole year, 1980-2079, which fits the spec's own \"0-16 (MSB year)\" column — 2079 is MSB 16 — where an offset from 1980 would not), the model and available memory (RQ-AKM-053: &04, &30, &31, &33, &34, TASK-AKM-049, the two byte counts as one `Dword` each: the spec writes their REPLY rows with two columns, \"MSB\" and \"LSB\", but calls them compound double words, four data bytes; the coverage check does not compare them, the row carrying an ellipsis; to be confirmed on the real sampler by TASK-AKM-053); the rest of the section is FTR-AKM-006's (PLAN-AKM-006). A name is catalogued with the 20-character maximum of the other name fields: the spec states none, and the real sampler's limit is observed by TASK-AKM-053."
     },
     {
       "section": "0A",
@@ -177,6 +177,7 @@
       "item": "05",
       "name": "Get clock time and date",
       "kind": "get",
+      "replySection": "0B",
       "args": [],
       "reply": [
         {"name": "year", "format": "word", "min": 1980, "max": 2079},

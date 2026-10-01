@@ -95,7 +95,6 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_SET_FRONT_PANEL_LOCK = 0x11;
         constexpr std::uint8_t ITEM_GET_PLAY_MODE = 0x20;
         constexpr std::uint8_t ITEM_GET_FRONT_PANEL_LOCK = 0x21;
-        constexpr std::uint8_t PLAY_MODE_MAX = 3;
         // The guarded Clear Sampler Memory of TASK-AKM-052 (RQ-AKM-056): it needs every kind of memory, so it
         // is executed by `execute` itself rather than by `executeSystem`.
         constexpr std::uint8_t ITEM_CLEAR_SAMPLER_MEMORY = 0x32;
@@ -300,7 +299,7 @@ namespace akm::harness
                 case ITEM_SET_PLAY_MODE:
                     if (data.empty())
                         return failure(error_number::INVALID_FORMAT);
-                    if (data.front() > PLAY_MODE_MAX)
+                    if (data.front() > system.highestPlayMode)
                         return failure(error_number::OUT_OF_RANGE);
                     system.playMode = data.front();
                     return done();
@@ -1279,6 +1278,18 @@ namespace akm::harness
         _system.frontPanelLock = lock;
     }
 
+    void SimulatedSampler::setHighestPlayMode(std::uint8_t highest)
+    {
+        const std::lock_guard lock(_mutex);
+        _system.highestPlayMode = highest;
+    }
+
+    SystemSetupState SimulatedSampler::systemSetup() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _system;
+    }
+
     void SimulatedSampler::setModel(std::uint8_t model)
     {
         const std::lock_guard lock(_mutex);
@@ -1398,8 +1409,20 @@ namespace akm::harness
         const std::uint8_t replyDeviceId =
             _behaviour.confirmationDeviceId == ConfirmationDeviceId::Own ? _config.deviceId : messageDeviceId;
         const auto replyDeviceByte = static_cast<std::uint8_t>((deviceByte & ~DEVICE_ID_MASK) | replyDeviceId);
+        // A REPLY of an item the sampler tags differently carries that section; every other confirmation, the command's.
+        const auto sectionOf = [&](std::uint8_t replyId) {
+            if (replyId == REPLY_REPLY)
+            {
+                for (const ReplySectionOverride& override : _behaviour.replySectionOverrides)
+                {
+                    if (override.section == section && override.item == item)
+                        return override.replySection;
+                }
+            }
+            return section;
+        };
         const auto confirmation = [&](std::uint8_t replyId, const Bytes& replyData, bool withChecksum) {
-            return buildConfirmation(replyDeviceByte, userRefs, replyId, section, item, replyData, withChecksum);
+            return buildConfirmation(replyDeviceByte, userRefs, replyId, sectionOf(replyId), item, replyData, withChecksum);
         };
 
         const SamplerSettings before = _settings;

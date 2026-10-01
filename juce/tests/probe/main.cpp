@@ -66,7 +66,7 @@ namespace
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
-        "                  [--sample-name NAME] [--timeout-ms N] [--log <file>] [--yes]\n"
+        "                  [--system-setup] [--sample-name NAME] [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
         "  --in, --out        the sampler's MIDI input port (what it sends) and output port (what it receives),\n"
@@ -99,6 +99,12 @@ namespace
         "                     group (RQ-AKM-045, RQ-AKM-048, RQ-AKM-049, RQ-AKM-051), then restores its name,\n"
         "                     every parameter and the sampler's original current-sample selection. Never\n"
         "                     sends &07 or &08. Skipped, not failed, without --sample-name.\n"
+        "  --system-setup     with --suite, two extra checks on the sampler's own settings (RQ-AKM-052 to\n"
+        "                     RQ-AKM-055, RQ-AKM-058): they read the model and the memory, then round-trip the\n"
+        "                     sampler's name, its four Play Modes (Muted included: it silences the sampler for an\n"
+        "                     instant), its front-panel lock (locked for an instant) and its clock, and put each\n"
+        "                     back - the lock first, the clock advanced by the time elapsed. Never sends Clear\n"
+        "                     Sampler Memory (section 02, item 32). Needs no sample, program or --sample-name.\n"
         "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
         "                     it to a zone of the test program by name and reads it back, RQ-AKM-035,\n"
         "                     RQ-AKM-038) and/or --sample-lifecycle (see above). Never creates, changes or\n"
@@ -128,6 +134,7 @@ namespace
         bool slowOperation = false;
         bool programLifecycle = false;
         bool sampleLifecycle = false;
+        bool systemSetup = false;
         bool noLcd = false;
         std::string input;
         std::string output;
@@ -189,6 +196,8 @@ namespace
                 parsed.programLifecycle = true;
             else if (option == "--sample-lifecycle")
                 parsed.sampleLifecycle = true;
+            else if (option == "--system-setup")
+                parsed.systemSetup = true;
             else if (option == "--no-lcd")
                 parsed.noLcd = true;
             else if (option == "--in" || option == "--out" || option == "--log" || option == "--sample-name")
@@ -226,8 +235,9 @@ namespace
             parsed.error = "--session and --suite cannot be used together";
         if (parsed.error.empty()
             && !parsed.suite
-            && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || !parsed.sampleName.empty()))
-            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle and --sample-name need --suite";
+            && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
+                || !parsed.sampleName.empty()))
+            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup and --sample-name need --suite";
         if (parsed.error.empty() && !parsed.sampleName.empty() && !parsed.programLifecycle && !parsed.sampleLifecycle)
             parsed.error = "--sample-name needs --program-lifecycle or --sample-lifecycle";
         return parsed;
@@ -334,7 +344,9 @@ int main(int argc, char** argv)
                       << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
                       << "checksums off, Still Alive off, Notification on"
                       << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off")
-                      << (arguments.programLifecycle || arguments.sampleLifecycle ? ".\n" : ". It changes no stored program or sample.\n");
+                      << (arguments.programLifecycle || arguments.sampleLifecycle || arguments.systemSetup
+                              ? ".\n"
+                              : ". It changes no stored program or sample.\n");
             if (arguments.slowOperation)
                 std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
             if (arguments.powerCycle)
@@ -352,6 +364,11 @@ int main(int argc, char** argv)
                 else
                     std::cout << "Sample assignment is skipped: no --sample-name was given.\n";
             }
+            if (arguments.systemSetup)
+                std::cout << "It will also change the sampler's own settings and put them back: its name, its Play Mode (all four,\n"
+                          << "Muted included, which silences it for an instant), its front-panel lock (locked for an instant) and\n"
+                          << "its clock (advanced by the time elapsed when put back, to about three seconds). It never sends Clear\n"
+                          << "Sampler Memory. Note the sampler's name and time before you start.\n";
             if (arguments.sampleLifecycle)
             {
                 if (!arguments.sampleName.empty())
@@ -395,6 +412,7 @@ int main(int argc, char** argv)
         options.powerCycle = arguments.powerCycle;
         options.programLifecycle = arguments.programLifecycle;
         options.sampleLifecycle = arguments.sampleLifecycle;
+        options.systemSetup = arguments.systemSetup;
         if (!arguments.sampleName.empty())
             options.sampleName = arguments.sampleName;
         options.startedAt = utcNow(false);

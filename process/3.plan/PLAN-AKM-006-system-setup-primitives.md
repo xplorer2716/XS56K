@@ -15,7 +15,9 @@ Play Mode, lock and memory percentages; the clock needs an eight-byte request an
 the existing generic multi-field path (`PLAN-AKM-005` did the same for `&34`/`&4B`); `&33`/`&34` return a
 compound double word (`ValueFormat::Dword`, declared but unused so far — `TASK-AKM-049` decides whether
 it fits or whether the §0E split into `Byte` values is repeated). **No new ADR file is opened for this
-lot**; revisited only if the clock or the double word do not fit the catalogue.
+lot**: revisited once, by `TASK-AKM-055` (`DEC-AKM-016`, added to the existing `ADR-AKM-001` file like
+`DEC-AKM-012` to `015` before it), when the real sampler turned out to answer one item's REPLY under a
+section its command does not use.
 
 **Safety note.** `&32` empties the sampler (`RQ-AKM-056`): it gets the `RQ-AKM-025`/`RQ-AKM-046` guard
 and is audited out of every real-sampler test. `&02`, `&06`, `&10` and `&11` change settings the owner
@@ -23,13 +25,16 @@ sees (name, time, sound routing, panel) — every real-sampler check restores th
 panel is never left behind (`RQ-AKM-058`).
 
 ## References
-- **Requirements**: FTR-AKM-006 (RQ-AKM-052 to RQ-AKM-058); RQ-AKM-044 (already delivered)
-- **ADRs**: ADR-AKM-001 (Accepted) — extended by catalogue growth only (`DEC-AKM-003`, `DEC-AKM-011`,
-  `DEC-AKM-012`, `DEC-AKM-013`); no new ADR file, no new `DEC-AKM-*` expected.
+- **Requirements**: FTR-AKM-006 (RQ-AKM-052 to RQ-AKM-059); RQ-AKM-044 (already delivered)
+- **ADRs**: ADR-AKM-001 (Accepted) — extended by catalogue growth (`DEC-AKM-003`, `DEC-AKM-011`,
+  `DEC-AKM-012`, `DEC-AKM-013`) and, as of `TASK-AKM-055`, by one new decision, `DEC-AKM-016` (a REPLY
+  may carry a section other than its command's, for the one item observed to need it).
 
-The plan has 8 tasks (TASK-AKM-047 to TASK-AKM-054): 047 authors the artifacts; 048 to 052 deliver the
+The plan has 9 tasks (TASK-AKM-047 to TASK-AKM-055): 047 authors the artifacts; 048 to 052 deliver the
 primitives, one per requirement (each independent of the others, all after 047); 053 is the
-real-sampler harness (depends on 048, 050, 051, 052); 054 closes the coverage (depends on 048 to 053).
+real-sampler harness (depends on 048, 050, 051, 052); 055, found while running 053 on the real sampler,
+fixes the session's confirmation matching for the one item that needs it (depends on 053); 054 closes
+the coverage (depends on 048 to 053 and 055).
 
 This plan implements the tasks in the format specified below.
 
@@ -241,19 +246,101 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-053: Real-sampler harness — system setup restored
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add a check to `xs56k_akm_probe --suite` that round-trips the name, Play Mode, front-panel
   lock and clock on the real sampler under a guard that restores each value (clock advanced by the elapsed
   time) even when a check throws, never leaves the panel locked, never calls `&32`, and is opt-in through its
   own flag like `--sample-lifecycle`.
 - **Requirement refs**: RQ-AKM-058
-- **ADR refs**: ADR-AKM-001 (DEC-AKM-008)
+- **ADR refs**: ADR-AKM-001 (DEC-AKM-008, DEC-AKM-016)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-058, on the simulated sampler in
   `ctest` and on the real sampler run by the owner.
 - **Dependencies**: TASK-AKM-048, TASK-AKM-050, TASK-AKM-051, TASK-AKM-052
 - **Assignee**: AI, with the owner running the real-sampler suite
-- **Verification**: to be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: no warning or error (`/W4 /WX`), `ctest` 494/494 re-run in this
+  session, `--system-setup`'s own 8 mock cases (`ctest -R TASK-AKM-053`) among them: the two automatic
+  checks it adds (`AUTOMATIC_CHECKS + 2`) round-trip the name, all four Play Modes (Muted included, its
+  refusal on a sampler that follows the spec's narrower column being an observation, not a failure), the
+  front-panel lock and the clock, and put every one back; a check made to fail with the panel locked still
+  restores it (lock first); a panel found already locked is left locked; the default options run neither
+  check and send only the two version items of section `02`; a sampler whose clock cannot be read reports
+  the clock as "NOT TESTED" and never sends a Set Clock, every other value still round-tripped. New
+  `ClockArithmeticTests.cpp` (5 cases, `[akm][clock]`, `ctest -R RQ-AKM-058`) proves the date arithmetic the
+  restoration needs (leap day, year rollover, round trip through epoch seconds for the first day, a leap
+  day and the last day the spec allows, whole-week addition keeping the weekday, signed seconds between two
+  dates) against a hand-written Howard Hinnant civil-calendar conversion, in new
+  `ClockArithmetic.hpp`/`.cpp` (test support, not a library feature — the AKM layer itself only reads and
+  sets the clock). 8 mutations of the guard's own restore steps, the Muted-refusal-as-pass branch and the
+  clock arithmetic's weekday epoch constant: all 8 `caught` (`mutate.py`, isolated copies, working tree
+  unchanged; re-run after `TASK-AKM-055`'s fix, two more mutations of that fix's own logic included, still
+  8 of 8 `caught`). `xs56k_akm_probe --help` and `AGENTS.md` updated with `--system-setup`.
+  **Real sampler**: the owner ran `xs56k_akm_probe --suite --system-setup` against the S5000 (OS 2.14) on
+  2026-10-01 (`akm-suite-20261001-215601.log`): the seven automatic checks all passed exactly as the
+  2026-09-27 run's did; the two system setup checks **failed**, both at the first step of reading the
+  clock (`&05`), with `TIMEOUT` — the wire shows a REPLY arriving 6 ms later, under section `0B`, which the
+  session (not yet carrying `DEC-AKM-016`) rejected as unsolicited
+  (`OBSERVATIONS-RQ-AKM-059-clock-reply-section.md`, G1). The owner then independently reproduced the same
+  anomaly by hand, typing a raw frame in MIDI-OX with no AKM code in the path at all (G3), which is what
+  led to `TASK-AKM-055`. With `DEC-AKM-016` built, the owner re-ran `xs56k_akm_probe --suite --system-setup`
+  against the same S5000 (`akm-suite-20261001-223720.log`, G5): **all 9 checks passed**, 0 unsolicited
+  confirmations (down from 2 in the pre-fix run) — the clock round-trips correctly under section `0B`
+  throughout, including inside the deliberate-failure check (check 9), confirmed restored with 0 s drift.
+  The same run settled the Play Mode erratum (G6): `3` (Muted) was set and read back on the real sampler
+  without error, confirming the item's own text over the spec's narrower data column — recorded in
+  `sysex_spec.kb.md` for `TASK-AKM-054`. Wave memory decoded as `158548694` of `158548694` bytes free from
+  the four-byte compound double word, confirming `TASK-AKM-049`'s choice of `Dword` on real hardware too.
+- **Assumptions**: The clock is allowed to fail to read (`SystemSetupSnapshot::clock` is `std::optional`):
+  found necessary only after the real run above, and generalised rather than special-cased to section `0B`
+  alone, so a sampler that cannot answer the clock for any reason still gets every other value round-tripped
+  instead of failing the whole check. The restore order (lock, then Play Mode, then name, then clock) is
+  the one `RQ-AKM-058`'s own Gherkin names first ("the lock reads 0"); the others are not order-dependent on
+  each other. `elapsedSeconds` rounds to the nearest second rather than truncating, matching the few-seconds
+  tolerance the requirement itself allows.
+
+---
+
+### TASK-AKM-055: The REPLY of Get Clock Time and Date carries section 0B, not 02
+- **Tier**: M
+- **Status**: Done
+- **Description**: Found while running `TASK-AKM-053` on the real sampler: the S5000's REPLY to `&05`
+  carries section `0B` instead of `02`. Catalogue the exception (`ItemDescriptor::replySection`), accept it
+  in the session's confirmation matcher for a REPLY only, and in the codec's REPLY-length lookup while the
+  checksum mode is unknown; reproduce it in the simulated sampler by default so every mock test exercises
+  the sampler's real, observed behaviour.
+- **Requirement refs**: RQ-AKM-059
+- **ADR refs**: ADR-AKM-001 (DEC-AKM-016)
+- **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-059.
+- **Dependencies**: TASK-AKM-053
+- **Assignee**: AI, with the owner's two real-sampler observations (the suite run and the raw-frame
+  capture) as evidence
+- **Verification**: Windows/MSVC Debug: no warning or error, `ctest` 494/494 re-run in this session. New
+  `ReplySectionTests.cpp` (7 cases, `[akm][reply-section]`, `ctest -R RQ-AKM-059`): exactly one catalogue
+  record declares a `replySection` (`SystemGetClock`, `0x0B`); `findReplyItem` finds it by either section,
+  `findItem` does not find it by `0x0B`; the REPLY the S5000 actually sent (captured verbatim from
+  `akm-suite-20261001-215601.log`) decodes its 8 data bytes in every checksum mode, checksum mode unknown
+  included; the same section for an item that does not declare it is refused as of unknown length while the
+  mode is unknown; a session reads the clock whether the simulated sampler answers it under `0B` (the
+  default) or under `02` (the spec's own text); a sampler that answers under a third, undeclared section
+  times the command out, and so does the sampler name when forced to answer under `0B` (not its own
+  declared section). `generate_akm_items.py --check`: up to date (260 items); 2 new script tests
+  (`akm_item_catalogue_script_tests`): a `replySection` on a `set` item, or equal to the item's own section,
+  is refused; the generated table carries the clock's `replySection` and not the name's.
+  8 mutations re-run together with `TASK-AKM-053`'s own 6 (see there): the matcher ignoring `replySection`
+  entirely, and the REPLY-length lookup never consulting it, both `caught`. Confirmed twice independently on
+  the real S5000 (OS 2.14): through `TASK-AKM-053`'s own suite run (`akm-suite-20261001-215601.log`) and by
+  the owner typing `F0 47 5E 00 7F 02 05 F7` by hand in MIDI-OX on 2026-10-02 and reading back
+  `F0 47 5E 00 7F 4F 02 05 F7` then `F0 47 5E 00 7F 52 0B 05 0F 6A 0A 02 06 00 2A 2D F7` — OK under `02`,
+  REPLY under `0B`, decoding to 2026-10-02 00:42:45 (Friday), consistent with the wall clock. A third,
+  broader confirmation came from `TASK-AKM-053`'s own full suite re-run (`akm-suite-20261001-223720.log`,
+  `OBSERVATIONS-RQ-AKM-059-clock-reply-section.md`, G5): 0 unsolicited confirmations, down from 2 before
+  this fix — exactly the two REPLYs G1 flagged are now matched.
+- **Assumptions**: No section `0B` exists anywhere in the spec (checked against
+  `documents/_index/sysex_spec.items.tsv`'s own list of sections); the anomaly is read as a firmware
+  oddity specific to this one item, not a pattern to generalise — `findItem` (an actual command lookup) is
+  deliberately left unable to find a record by its `replySection`, so nothing elsewhere in the codebase
+  starts treating `0B` as a real section by mistake. Only a REPLY is exempted, never an OK, DONE or ERROR:
+  the real sampler's own OK for this item still says `02` (both captures agree), so widening the exemption
+  to every confirmation kind would hide a real mismatch instead of the one actually observed.
 
 ---
 
@@ -266,7 +353,8 @@ This plan implements the tasks in the format specified below.
 - **Requirement refs**: RQ-AKM-057
 - **ADR refs**: None
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-057.
-- **Dependencies**: TASK-AKM-048, TASK-AKM-049, TASK-AKM-050, TASK-AKM-051, TASK-AKM-052, TASK-AKM-053
+- **Dependencies**: TASK-AKM-048, TASK-AKM-049, TASK-AKM-050, TASK-AKM-051, TASK-AKM-052, TASK-AKM-053,
+  TASK-AKM-055
 - **Assignee**: AI, with the owner running the real-sampler observation
 - **Verification**: to be filled at closure.
 - **Assumptions**: None yet.

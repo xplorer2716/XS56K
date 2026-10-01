@@ -10,6 +10,7 @@ add_subdirectory(probe)
 add_executable(xs56k_akm_tests
     akm/CapturedFramesTests.cpp
     akm/ChecksumTests.cpp
+    akm/ClockArithmeticTests.cpp
     akm/CommandEncodingTests.cpp
     akm/CommandResultTests.cpp
     akm/ConfirmationDecodingTests.cpp
@@ -34,6 +35,7 @@ add_executable(xs56k_akm_tests
     akm/ProgramPrimitivesTests.cpp
     akm/ProgramStructureTests.cpp
     akm/RealSamplerSuiteTests.cpp
+    akm/ReplySectionTests.cpp
     akm/SamplerErrorTests.cpp
     akm/SampleDeleteAllGuardTests.cpp
     akm/SampleParametersTests.cpp

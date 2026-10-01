@@ -3,6 +3,7 @@
 # BUILD_TESTS. [RQ-AKM-016, RQ-AKM-019, ADR-AKM-001 (DEC-AKM-008)]
 
 add_library(xs56k_akm_test_support STATIC
+    src/ClockArithmetic.cpp
     src/EchoScenario.cpp
     src/FirstContactProbe.cpp
     src/KeygroupParameterCases.cpp

@@ -1468,7 +1468,7 @@ namespace akm
         // section 02 item 04 [RQ-AKM-053]
         {"Get sampler model", 0x02, 0x04, ItemKind::Get, {}, item_data::SYSTEM_GET_MODEL_REPLY},
         // section 02 item 05 [RQ-AKM-054]
-        {"Get clock time and date", 0x02, 0x05, ItemKind::Get, {}, item_data::SYSTEM_GET_CLOCK_REPLY},
+        {"Get clock time and date", 0x02, 0x05, ItemKind::Get, {}, item_data::SYSTEM_GET_CLOCK_REPLY, std::uint8_t{0x0B}},
         // section 02 item 06 [RQ-AKM-054]
         {"Set clock time and date", 0x02, 0x06, ItemKind::Set, item_data::SYSTEM_SET_CLOCK_ARGS, {}},
         // section 02 item 10 [RQ-AKM-055]

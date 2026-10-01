@@ -84,6 +84,19 @@ namespace akm::harness
         std::uint16_t number = 0;
     };
 
+    /// An item whose REPLY the sampler tags with another section than the command's: what the S5000 (OS 2.14) does
+    /// for Get Clock Time & Date (§02/&05), whose REPLY carries section 0B — observed on the hardware by TASK-AKM-053.
+    /// Its OK, DONE and ERROR keep the command's section. [RQ-AKM-059]
+    struct ReplySectionOverride
+    {
+        std::uint8_t section = 0;
+        std::uint8_t item = 0;
+        std::uint8_t replySection = 0;
+    };
+
+    /// The anomaly observed on the S5000, which the simulated sampler reproduces by default.
+    inline constexpr ReplySectionOverride S5000_CLOCK_REPLY_SECTION{0x02, 0x05, 0x0B};
+
     /// What a real bus does badly, switchable per sampler.
     struct SamplerBehaviour
     {
@@ -108,6 +121,9 @@ namespace akm::harness
         /// follows the previous mode (first-contact probe, TASK-AKM-012). Set to false to model a sampler that
         /// confirms in the previous mode.
         bool checksumChangeAppliesToOwnConfirmation = true;
+        /// Items whose REPLY carries another section than the command's. The real S5000 does it for the clock, and
+        /// so does the model by default; `clear()` it for a sampler that follows the spec to the letter.
+        std::vector<ReplySectionOverride> replySectionOverrides{S5000_CLOCK_REPLY_SECTION};
     };
 
     /// A command the sampler accepted: addressed to it, well framed, with a valid checksum when checksums
@@ -207,6 +223,9 @@ namespace akm::harness
         std::uint8_t playMode = 1;
         /// The front-panel lock (&11/&21): 0 = normal, 1 = locked.
         std::uint8_t frontPanelLock = 0;
+        /// The highest Play Mode a Set accepts: 3 (Muted), the item's text; 2 models a sampler that follows
+        /// the spec's data column "0, 1, 2" instead (the erratum of §02/&10, RQ-AKM-057).
+        std::uint8_t highestPlayMode = 3;
     };
 
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
@@ -288,6 +307,13 @@ namespace akm::harness
 
         /// Sets what &21 reports (RQ-AKM-055): 0 = normal, 1 = locked, any other byte a REPLY no state has.
         void setFrontPanelLock(std::uint8_t lock);
+
+        /// Sets the highest Play Mode &10 accepts (RQ-AKM-057): above it a Set fails with ERROR OUT_OF_RANGE.
+        void setHighestPlayMode(std::uint8_t highest);
+
+        /// The §02 state beyond the OS version, as it is now: what a test compares with what it started with
+        /// (RQ-AKM-058).
+        [[nodiscard]] SystemSetupState systemSetup() const;
 
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.

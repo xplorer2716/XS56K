@@ -182,6 +182,14 @@ def validate(catalogue):
         if kind not in KINDS:
             problems.append(f"{owner}: kind must be one of {', '.join(KINDS)}")
         validate_values(owner, "args", entry.get("args"), problems)
+        reply_section = entry.get("replySection")
+        if reply_section is not None:
+            if kind != "get":
+                problems.append(f"{owner}: only a get has a REPLY, so only a get can name the section its REPLY carries")
+            elif not isinstance(reply_section, str) or not SECTION_PATTERN.match(reply_section):
+                problems.append(f"{owner}: replySection {reply_section!r} must be two hexadecimal digits, at most 7F")
+            elif reply_section == section:
+                problems.append(f"{owner}: replySection is the item's own section {section}: leave it out")
         if kind == "get":
             if not entry.get("reply"):
                 problems.append(f"{owner}: a get needs a reply format")
@@ -256,8 +264,10 @@ def render(catalogue):
         reply = f"item_data::{constant}_REPLY" if entry.get("reply") else "{}"
         lines.append(f"        // section {entry['section']} item {entry['item']} [{', '.join(entry['requirements'])}]")
         # json.dumps escapes quotes and backslashes the same way a C++ string literal needs them.
+        # The section its REPLY carries, when the sampler does not use the command's own (DEC-AKM-016).
+        reply_section = f", std::uint8_t{{0x{entry['replySection']}}}" if entry.get("replySection") else ""
         lines.append(f"        {{{json.dumps(entry['name'])}, 0x{entry['section']}, 0x{entry['item']}, "
-                     f"ItemKind::{KINDS[entry['kind']]}, {arguments}, {reply}}},")
+                     f"ItemKind::{KINDS[entry['kind']]}, {arguments}, {reply}{reply_section}}},")
     lines += ["    }};", "}", ""]
     return "\n".join(lines)
 

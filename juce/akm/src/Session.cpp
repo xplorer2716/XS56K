@@ -125,6 +125,8 @@ namespace akm
             std::uint64_t generation = 0;
             std::uint8_t section = 0;
             std::uint8_t item = 0;
+            /// The section a REPLY to this command may carry besides `section` (ItemDescriptor::replySection).
+            std::optional<std::uint8_t> replySection;
             bool broadcast = false;
             bool collecting = false;
             ChecksumMode decodeMode = ChecksumMode::Unknown;
@@ -316,6 +318,8 @@ namespace akm
             flight.generation = ++nextGeneration;
             flight.section = request.command.section;
             flight.item = request.command.item;
+            if (const ItemDescriptor* record = findItem(flight.section, flight.item))
+                flight.replySection = record->replySection;
             flight.broadcast = broadcast;
             flight.collecting = request.options.collectionWindow.has_value();
             flight.decodeMode = changesChecksumMode ? ChecksumMode::Unknown : sendMode;
@@ -446,13 +450,17 @@ namespace akm
 
         /// A confirmation belongs to the command in flight when its echoed user-refs, section and item are
         /// its own and it comes from the bound target — the sampler answers with its own DeviceID, so a
-        /// broadcast command accepts any. [RQ-AKM-007, RQ-AKM-012]
+        /// broadcast command accepts any. A REPLY may also carry the section its item declares for it, and no
+        /// other: the S5000 answers Get Clock Time & Date under 0B. [RQ-AKM-007, RQ-AKM-012, RQ-AKM-059,
+        /// ADR-AKM-001 (DEC-AKM-016)]
         [[nodiscard]] bool matches(const InFlight& flight, const Confirmation& confirmation) const
         {
             if (confirmation.userRefs.size() != SESSION_USER_REF_COUNT
                 || confirmation.userRefs.front() != flight.userRef)
                 return false;
-            if (confirmation.section != flight.section || confirmation.item != flight.item)
+            const bool declaredReplySection = confirmation.replyId == ReplyId::Reply && flight.replySection
+                                              && confirmation.section == *flight.replySection;
+            if ((confirmation.section != flight.section && !declaredReplySection) || confirmation.item != flight.item)
                 return false;
             if (flight.broadcast)
                 return true;
