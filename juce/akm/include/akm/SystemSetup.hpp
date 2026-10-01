@@ -158,4 +158,57 @@ namespace akm
     /// Gets the sampler's clock and date (§02/&05). Answered whatever the checksum mode: the catalogue gives
     /// its REPLY a fixed length. [RQ-AKM-054]
     void getClockDate(Session& session, ClockDateCompletion completion);
+
+    /// The sampler's Play Mode (spec Table 6, &10 and &20), with the byte each travels as. The spec's data
+    /// column lists "0, 1, 2" but its text defines 3 = Muted, and all four are accepted (the erratum is in
+    /// `documents/_index/sysex_spec.kb.md`, to be settled on the real sampler, PLAN-AKM-006). [RQ-AKM-055]
+    enum class PlayMode
+    {
+        Multi = 0,
+        Program = 1,
+        Sample = 2,
+        Muted = 3,
+    };
+
+    /// Sets the Play Mode (§02/&10); a value that is none of the four is refused without sending
+    /// (`ArgumentOutOfRange`). [RQ-AKM-055]
+    void setPlayMode(Session& session, PlayMode mode, CommandCompletion completion);
+
+    /// `mode` is empty when the command did not complete on a REPLY or its byte is none of the four: what the
+    /// sampler said is not guessed at, and `outcome` still holds the REPLY. [RQ-AKM-055]
+    struct PlayModeResult
+    {
+        std::optional<PlayMode> mode{};
+        CommandResult outcome{};
+    };
+    using PlayModeCompletion = std::function<void(const PlayModeResult&)>;
+
+    /// Gets the Play Mode currently set (§02/&20). Answered whatever the checksum mode: the catalogue gives
+    /// its REPLY a fixed length. [RQ-AKM-055]
+    void getPlayMode(Session& session, PlayModeCompletion completion);
+
+    /// The front-panel lock-out state (spec Table 6, &11 and &21), with the byte each travels as.
+    /// [RQ-AKM-055]
+    enum class FrontPanelLock
+    {
+        Normal = 0,
+        Locked = 1,
+    };
+
+    /// Sets the front-panel lock-out state (§02/&11); a value that is neither is refused without sending
+    /// (`ArgumentOutOfRange`). A locked panel is not unlocked by anything but another Set: a caller that locks
+    /// it must put it back. [RQ-AKM-055, RQ-AKM-058]
+    void setFrontPanelLock(Session& session, FrontPanelLock lock, CommandCompletion completion);
+
+    /// `lock` is empty when the command did not complete on a REPLY or its byte is neither `0` nor `1`;
+    /// `outcome` still holds the REPLY. [RQ-AKM-055]
+    struct FrontPanelLockResult
+    {
+        std::optional<FrontPanelLock> lock{};
+        CommandResult outcome{};
+    };
+    using FrontPanelLockCompletion = std::function<void(const FrontPanelLockResult&)>;
+
+    /// Gets the front-panel lock-out state (§02/&21). Answered whatever the checksum mode. [RQ-AKM-055]
+    void getFrontPanelLock(Session& session, FrontPanelLockCompletion completion);
 }

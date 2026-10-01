@@ -326,8 +326,16 @@ def spec_domains(row):
     return domains
 
 
-def compare_values(owner, label, values, row):
-    """Problems and notes of a record's values against the spec row that describes them."""
+# (section, item) -> the range the first value of that item really spans, where the spec's own data column
+# disagrees with its own text (documents/_index/sysex_spec.kb.md, "Spec errata / inconsistencies"): §02/&10 and
+# &20 list "0, 1, 2" but define 3 = Muted. The catalogue is compared with this range instead of the column's, so
+# that a catalogue range that drifts from the item's text is still reported; a note says the column was not used.
+KNOWN_RANGE_ERRATA = {("02", "10"): (0, 3), ("02", "20"): (0, 3)}
+
+
+def compare_values(owner, label, values, row, known_range=None):
+    """Problems and notes of a record's values against the spec row that describes them. `known_range`, when
+    given, replaces the range the row's first data column gives (a documented erratum of the row)."""
     domains = spec_domains(row)
     if domains is None:
         return [], [f"{owner}: {label} not compared (the spec row is variable-length)"]
@@ -337,6 +345,10 @@ def compare_values(owner, label, values, row):
         return problems, notes
     for index, (value, domain) in enumerate(zip(values, domains)):
         parsed = parse_domain(domain)
+        if index == 0 and known_range is not None:
+            notes.append(f"{owner}: {label}[0] compared with the range {known_range[0]}..{known_range[1]} of the "
+                         f"item's text, not the spec column {domain.strip()!r} (known spec erratum)")
+            parsed = known_range
         if parsed is None:
             notes.append(f"{owner}: {label}[{index}] range not compared (free text: {domain.strip()!r})")
         elif parsed != (value["min"], value["max"]):
@@ -383,7 +395,8 @@ def coverage(catalogue, spec):
                 notes.append(f"{message} (known spec erratum, not a catalogue problem)")
             else:
                 record_problems.append(message)
-        found, more_notes = compare_values(owner, "args", entry["args"], command)
+        known_range = KNOWN_RANGE_ERRATA.get((section, item))
+        found, more_notes = compare_values(owner, "args", entry["args"], command, known_range)
         notes += more_notes
         record_problems += found
         if entry["kind"] == "get":
@@ -391,7 +404,7 @@ def coverage(catalogue, spec):
             if reply is None:
                 notes.append(f"{owner}: reply format not compared (the spec lists no separate reply row)")
             else:
-                found, more = compare_values(owner, "reply", entry["reply"], reply)
+                found, more = compare_values(owner, "reply", entry["reply"], reply, known_range)
                 record_problems += found
                 notes += more
         problems += record_problems

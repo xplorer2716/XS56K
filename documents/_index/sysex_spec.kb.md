@@ -178,7 +178,7 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
 - T20 `&0E{13}` "Get the name of the specified disk" → &0E is 14 (p32).
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
-- §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11).
+- §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11); the same column in the &20 REPLY row. The catalogue accepts 0-3 (owner decision, TASK-AKM-051; `generate_akm_items.py`'s `KNOWN_RANGE_ERRATA`); whether the real sampler accepts 3 is to be observed (TASK-AKM-054).
 - §02/&33 and &34 (Table 7) REPLY rows are written with two columns, "0–127(MSB)" and "…0–127(LSB)" (compound
   *word* notation), but their text calls the value a Compound *Double* Word (4 data bytes, p. 9), and a byte
   count of Wave memory does not fit 14 bits (p11). Catalogued as one `Dword` (TASK-AKM-049); to be confirmed on

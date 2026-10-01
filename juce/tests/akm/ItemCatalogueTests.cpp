@@ -59,7 +59,7 @@ namespace
         std::optional<std::size_t> replyLength;
     };
 
-    const std::array<Expected, 18> CATALOGUE{{
+    const std::array<Expected, 22> CATALOGUE{{
         {ItemId::SysExQuery, 0x00, 0x00, ItemKind::Set, 0, std::nullopt},
         {ItemId::SysExNotification, 0x00, 0x01, ItemKind::Set, 1, std::nullopt},
         {ItemId::SysExSyncLcd, 0x00, 0x03, ItemKind::Set, 1, std::nullopt},
@@ -76,6 +76,11 @@ namespace
         // data bytes in a REPLY.
         {ItemId::SystemGetClock, 0x02, 0x05, ItemKind::Get, 0, 8},
         {ItemId::SystemSetClock, 0x02, 0x06, ItemKind::Set, 7, std::nullopt},
+        // The Play Mode and the front-panel lock (TASK-AKM-051, RQ-AKM-055): one byte each.
+        {ItemId::SystemSetPlayMode, 0x02, 0x10, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SystemSetFrontPanelLock, 0x02, 0x11, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SystemGetPlayMode, 0x02, 0x20, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetFrontPanelLock, 0x02, 0x21, ItemKind::Get, 0, 1},
         // The model and the available memory (TASK-AKM-049, RQ-AKM-053): one byte each, the byte counts
         // a compound double word of four data bytes.
         {ItemId::SystemGetModel, 0x02, 0x04, ItemKind::Get, 0, 1},

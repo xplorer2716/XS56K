@@ -165,7 +165,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-051: Play Mode and front-panel lock (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&10`/`&20` and `&11`/`&21`, expose typed Set/Get, refuse out-of-range
   values before sending; Play Mode accepts `0`–`3` as the item text defines (`3 = Muted`), the data range
   column's "0, 1, 2" being the known erratum, pending the real sampler (TASK-AKM-054).
@@ -174,8 +174,30 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-055 on the simulated sampler.
 - **Dependencies**: TASK-AKM-047
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug, after a clean rebuild (`--clean-first`): no warning or error
+  (`/W4 /WX`), `ctest` 473/473 re-run in this session. 5 new cases in `SystemSetupTests.cpp`
+  (`[akm][system]`, `ctest -R RQ-AKM-055`): each of the four Play Modes is set (frame data byte 0, 1, 2, 3)
+  and read back; the lock set to locked then normal (frame bytes 1 then 0) reads back each time and is
+  normal at the start; a Play Mode cast from 4 and a lock cast from 2 are refused `ArgumentOutOfRange` with
+  nothing sent; a REPLY of Play Mode 4 or lock 2 yields no value while the outcome stays the REPLY; with the
+  checksum mode unknown both Gets are answered. `ItemCatalogueTests.cpp`: the four records added to its
+  `CATALOGUE` table. `generate_akm_items.py --check`: up to date (259 items); `--coverage`: section `02`
+  15 of 16 command rows covered (only `&32`, TASK-AKM-052's), `unaccounted: none`. Two new cases in
+  `test_generate_akm_items.py` (run inside `akm_item_catalogue_script_tests`): the Play Mode catalogued 0-3
+  passes with a note on the erratum; widened to 0-4 it is reported against 0..3. Not verified: real
+  sampler (the Play Mode 3 and the whole of the two Set/Get pairs, TASK-AKM-053/054); mutation testing.
+  Process note: a first build after a half-applied edit left three zone tests (`RQ-AKM-036`) failing against
+  a catalogue table that two translation units saw differently; they passed again after a rebuild, and a
+  clean rebuild gave 473/473 — recorded here, no source change involved.
+- **Assumptions**: The Play Mode is accepted over 0-3, the range the item's text defines, as the owner
+  decided (session AKM, 2026-10-01); the spec's data column "0, 1, 2" is an erratum, resolved on the real
+  sampler by TASK-AKM-054. The coverage checker compares the catalogue with that 0..3 range instead of the
+  column (`KNOWN_RANGE_ERRATA`, a new exception of the same family as `KNOWN_DEC_ERRATA`), so a catalogue
+  range that drifts from the text is still reported; it covers `&10` and `&20` of section `02` only. The
+  Play Mode and the lock are typed enumerations; the refusal of an out-of-range value is testable by casting
+  an integer into one. The simulated sampler starts in Program mode with the panel normal (the spec gives no
+  default), refuses a Set outside 0-3 / 0-1 with `OUT_OF_RANGE`, and keeps both across `powerCycle()` — a
+  modelling choice.
 
 ---
 

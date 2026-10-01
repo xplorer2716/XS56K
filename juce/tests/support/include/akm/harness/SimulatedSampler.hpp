@@ -202,6 +202,11 @@ namespace akm::harness
         /// month, day of week, hours, minutes, seconds — set to Saturday 1 January 2000, 00:00:00 (the spec
         /// gives no default; 2000 is MSB 15, LSB 80).
         std::array<std::uint8_t, 8> clock{15, 80, 1, 1, 7, 0, 0, 0};
+        /// The Play Mode (&10/&20, RQ-AKM-055): 0 = Multi, 1 = Program, 2 = Sample, 3 = Muted; Program until a
+        /// Set (the spec gives no default). Any other byte is for a test that wants a malformed REPLY.
+        std::uint8_t playMode = 1;
+        /// The front-panel lock (&11/&21): 0 = normal, 1 = locked.
+        std::uint8_t frontPanelLock = 0;
     };
 
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
@@ -269,6 +274,12 @@ namespace akm::harness
         /// bytes — its free percentage follows from them — and the free percentage of the MPKS memory, which
         /// is given as is, whatever its value.
         void setMemory(std::uint32_t waveTotalBytes, std::uint32_t waveFreeBytes, std::uint8_t mpksFreePercent);
+
+        /// Sets what &20 reports (RQ-AKM-055): 0-3 are the four Play Modes, any other byte a REPLY no mode has.
+        void setPlayMode(std::uint8_t playMode);
+
+        /// Sets what &21 reports (RQ-AKM-055): 0 = normal, 1 = locked, any other byte a REPLY no state has.
+        void setFrontPanelLock(std::uint8_t lock);
 
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.

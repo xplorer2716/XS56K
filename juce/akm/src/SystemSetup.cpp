@@ -70,6 +70,22 @@ namespace akm
             return {clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds};
         }
 
+        // The Play Mode and lock bytes of Table 6 (&10, &11, &20, &21): the range of each is the catalogue's.
+        std::optional<PlayMode> playModeOf(std::int64_t value)
+        {
+            if (value < static_cast<std::int64_t>(PlayMode::Multi) || value > static_cast<std::int64_t>(PlayMode::Muted))
+                return std::nullopt;
+            return static_cast<PlayMode>(value);
+        }
+
+        std::optional<FrontPanelLock> lockOf(std::int64_t value)
+        {
+            if (value != static_cast<std::int64_t>(FrontPanelLock::Normal)
+                && value != static_cast<std::int64_t>(FrontPanelLock::Locked))
+                return std::nullopt;
+            return static_cast<FrontPanelLock>(value);
+        }
+
         void decodePercent(MemoryPercentResult& result, std::int64_t value)
         {
             if (value <= PERCENT_MAX)
@@ -176,5 +192,30 @@ namespace akm
                            if (completion)
                                completion(result);
                        });
+    }
+
+    void setPlayMode(Session& session, PlayMode mode, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::SystemSetPlayMode, {static_cast<std::int64_t>(mode)}), std::move(completion));
+    }
+
+    void getPlayMode(Session& session, PlayModeCompletion completion)
+    {
+        getSingleValue<PlayModeResult>(session, ItemId::SystemGetPlayMode, std::move(completion),
+                                       [](PlayModeResult& result, std::int64_t value) { result.mode = playModeOf(value); });
+    }
+
+    void setFrontPanelLock(Session& session, FrontPanelLock lock, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::SystemSetFrontPanelLock, {static_cast<std::int64_t>(lock)}),
+                       std::move(completion));
+    }
+
+    void getFrontPanelLock(Session& session, FrontPanelLockCompletion completion)
+    {
+        getSingleValue<FrontPanelLockResult>(session, ItemId::SystemGetFrontPanelLock, std::move(completion),
+                                             [](FrontPanelLockResult& result, std::int64_t value) {
+                                                 result.lock = lockOf(value);
+                                             });
     }
 }

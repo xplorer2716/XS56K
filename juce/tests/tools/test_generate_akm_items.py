@@ -184,6 +184,24 @@ class CoverageAgainstTheSpec(ScriptTest):
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn("SysExEcho", result.stdout + result.stderr)
 
+    def test_given_the_play_mode_catalogued_0_to_3_when_coverage_runs_then_it_passes_with_a_note_on_the_erratum(self):
+        result = run_script("--coverage")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("SystemSetPlayMode: args[0] compared with the range 0..3", result.stdout)
+        self.assertIn("SystemGetPlayMode: reply[0] compared with the range 0..3", result.stdout)
+
+    def test_given_a_play_mode_range_that_drifts_from_the_item_text_when_coverage_runs_then_it_is_reported(self):
+        # The erratum excuses the spec's column ("0, 1, 2"), not any range: 0-4 is wrong against the text too.
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SystemSetPlayMode")["args"][0]
+                                     .update(max=4))
+
+        result = run_script("--coverage", "--data", str(variant))
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("SystemSetPlayMode", result.stdout + result.stderr)
+        self.assertIn("0..3", result.stdout + result.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

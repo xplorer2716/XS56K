@@ -19,8 +19,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // The system setup primitives of section §02 other than the version (that is SystemVersionTests.cpp's): on a
 // session and the simulated sampler. This file grows with each task of PLAN-AKM-006 — for now the sampler's
 // name (§02/&02 and &03), its model and its available memory (&04, &30, &31, &33, &34), its clock and date
-// (&05, &06). Real-sampler verification is TASK-AKM-053's.
-// [TASK-AKM-048, TASK-AKM-049, TASK-AKM-050, RQ-AKM-052, RQ-AKM-053, RQ-AKM-054,
+// (&05, &06), its Play Mode and its front-panel lock (&10, &11, &20, &21). Real-sampler verification is
+// TASK-AKM-053's.
+// [TASK-AKM-048, TASK-AKM-049, TASK-AKM-050, TASK-AKM-051, RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055,
 // ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012, DEC-AKM-013)]
 #include <catch2/catch_test_macros.hpp>
 
@@ -39,8 +40,12 @@ using akm::ClockDateResult;
 using akm::ClockField;
 using akm::CommandResult;
 using akm::Done;
+using akm::FrontPanelLock;
+using akm::FrontPanelLockResult;
 using akm::MemoryBytesResult;
 using akm::MemoryPercentResult;
+using akm::PlayMode;
+using akm::PlayModeResult;
 using akm::RefusalReason;
 using akm::Refused;
 using akm::SamplerModel;
@@ -113,6 +118,19 @@ namespace
         }};
     }
 
+    // The Play Modes of spec Table 6 (&10), with the byte each travels as; the spec's data column stops at 2
+    // but its text defines 3 = Muted (sysex_spec.kb.md, errata), and the owner chose to accept 0-3.
+    struct ModeByte
+    {
+        PlayMode mode;
+        std::uint8_t byte;
+    };
+    constexpr std::array<ModeByte, 4> PLAY_MODES{{{PlayMode::Multi, 0}, {PlayMode::Program, 1},
+                                                  {PlayMode::Sample, 2}, {PlayMode::Muted, 3}}};
+    // A Play Mode and a lock byte no item has.
+    constexpr std::uint8_t PLAY_MODE_BEYOND_RANGE = 4;
+    constexpr std::uint8_t LOCK_BEYOND_RANGE = 2;
+
     // Runs `ask`, which starts a primitive with its completion, and returns the result it reports.
     template <typename Result, typename Ask>
     Result await(SessionHarness& harness, Ask ask)
@@ -131,6 +149,22 @@ namespace
     SamplerModelResult getModel(SessionHarness& harness)
     {
         return await<SamplerModelResult>(harness, [&](auto done) { akm::getSamplerModel(harness.session(), done); });
+    }
+
+    PlayModeResult getPlayMode(SessionHarness& harness)
+    {
+        return await<PlayModeResult>(harness, [&](auto done) { akm::getPlayMode(harness.session(), done); });
+    }
+
+    FrontPanelLockResult getLock(SessionHarness& harness)
+    {
+        return await<FrontPanelLockResult>(harness, [&](auto done) { akm::getFrontPanelLock(harness.session(), done); });
+    }
+
+    // The first data byte of the last frame the host sent.
+    std::uint8_t lastDataByte(const SessionHarness& harness)
+    {
+        return harness.sentFrames().back().at(akm::test::SENT_ITEM_INDEX + 1);
     }
 
     ClockDateResult getClock(SessionHarness& harness)
@@ -363,4 +397,94 @@ TEST_CASE("Given the checksum mode unknown, When the clock is requested, Then it
     const ClockDateResult result = getClock(harness);
     CHECK(result.clock.has_value());
     CHECK(std::holds_alternative<akm::Reply>(result.outcome));
+}
+
+TEST_CASE("Given a simulated sampler, When each Play Mode is set then read, Then the frame carries its byte 0 to 3 and the value read equals the value set [RQ-AKM-055]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    std::size_t completed = 0;
+    for (const ModeByte& entry : PLAY_MODES)
+    {
+        akm::setPlayMode(harness.session(), entry.mode, harness.recorder().completion());
+        REQUIRE(harness.waitForCompletions(++completed));
+        CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+        CHECK(lastDataByte(harness) == entry.byte);
+
+        const PlayModeResult result = getPlayMode(harness);
+        CHECK(result.mode == entry.mode);
+        CHECK(std::holds_alternative<akm::Reply>(result.outcome));
+    }
+}
+
+TEST_CASE("Given the lock set to locked then to normal, When it is read after each, Then it reads locked then normal and the frames carry 1 then 0 [RQ-AKM-055]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    CHECK(getLock(harness).lock == FrontPanelLock::Normal);
+
+    akm::setFrontPanelLock(harness.session(), FrontPanelLock::Locked, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+    CHECK(lastDataByte(harness) == 1);
+    CHECK(getLock(harness).lock == FrontPanelLock::Locked);
+
+    akm::setFrontPanelLock(harness.session(), FrontPanelLock::Normal, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(lastDataByte(harness) == 0);
+    CHECK(getLock(harness).lock == FrontPanelLock::Normal);
+}
+
+TEST_CASE("Given a Play Mode of 4 or a lock of 2, When it is set, Then it is refused as ArgumentOutOfRange without sending [RQ-AKM-055]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+
+    akm::setPlayMode(harness.session(), static_cast<PlayMode>(PLAY_MODE_BEYOND_RANGE), harness.recorder().completion());
+    akm::setFrontPanelLock(harness.session(), static_cast<FrontPanelLock>(LOCK_BEYOND_RANGE),
+                           harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+
+    const auto results = harness.recorder().results();
+    for (const CommandResult& result : results)
+    {
+        REQUIRE(std::holds_alternative<Refused>(result));
+        CHECK(std::get<Refused>(result).reason == RefusalReason::ArgumentOutOfRange);
+    }
+    CHECK(harness.sentCount() == sentBefore);
+}
+
+TEST_CASE("Given a REPLY whose Play Mode is 4 or whose lock is 2, When it is decoded, Then no value is reported and the outcome is still the REPLY [RQ-AKM-055]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setPlayMode(PLAY_MODE_BEYOND_RANGE);
+    harness.sampler().setFrontPanelLock(LOCK_BEYOND_RANGE);
+
+    const PlayModeResult mode = getPlayMode(harness);
+    CHECK_FALSE(mode.mode.has_value());
+    CHECK(std::holds_alternative<akm::Reply>(mode.outcome));
+    const FrontPanelLockResult lock = getLock(harness);
+    CHECK_FALSE(lock.lock.has_value());
+    CHECK(std::holds_alternative<akm::Reply>(lock.outcome));
+}
+
+TEST_CASE("Given the checksum mode unknown, When the Play Mode and the lock are requested, Then they are answered, since each REPLY has a fixed length the catalogue gives [RQ-AKM-055, RQ-AKM-041]",
+          "[akm][system]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+
+    CHECK(getPlayMode(harness).mode.has_value());
+    CHECK(getLock(harness).lock == FrontPanelLock::Normal);
 }

@@ -88,6 +88,14 @@ namespace akm::harness
         };
         constexpr std::array<ClockByteRange, 6> CLOCK_BYTE_RANGES{{{1, 12}, {1, 31}, {1, 7}, {0, 23}, {0, 59}, {0, 59}}};
         constexpr std::size_t CLOCK_FIRST_BYTE_AFTER_YEAR = 2;
+        // The Play Mode and front-panel lock items of TASK-AKM-051 (RQ-AKM-055). The Play Mode takes the four
+        // bytes the item's text defines, 0-3 (the spec's column lists 0-2: sysex_spec.kb.md, errata); the lock
+        // is a toggle.
+        constexpr std::uint8_t ITEM_SET_PLAY_MODE = 0x10;
+        constexpr std::uint8_t ITEM_SET_FRONT_PANEL_LOCK = 0x11;
+        constexpr std::uint8_t ITEM_GET_PLAY_MODE = 0x20;
+        constexpr std::uint8_t ITEM_GET_FRONT_PANEL_LOCK = 0x21;
+        constexpr std::uint8_t PLAY_MODE_MAX = 3;
 
         // Section §00 and its items, spec Table 5 (there is no item 02).
         constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
@@ -285,6 +293,24 @@ namespace akm::harness
                     std::copy_n(data.begin(), CLOCK_DATA_SIZE, system.clock.begin());
                     return done();
                 }
+                case ITEM_SET_PLAY_MODE:
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() > PLAY_MODE_MAX)
+                        return failure(error_number::OUT_OF_RANGE);
+                    system.playMode = data.front();
+                    return done();
+                case ITEM_GET_PLAY_MODE:
+                    return reply(Bytes{system.playMode});
+                case ITEM_SET_FRONT_PANEL_LOCK:
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() > TOGGLE_MAX)
+                        return failure(error_number::OUT_OF_RANGE);
+                    system.frontPanelLock = data.front();
+                    return done();
+                case ITEM_GET_FRONT_PANEL_LOCK:
+                    return reply(Bytes{system.frontPanelLock});
                 case ITEM_GET_CLOCK:
                     return reply(Bytes(system.clock.begin(), system.clock.end()));
                 case ITEM_GET_SAMPLER_MODEL:
@@ -1200,6 +1226,18 @@ namespace akm::harness
         _samples[index].channels = channels;
         _samples[index].length = length;
         _samples[index].rate = rate;
+    }
+
+    void SimulatedSampler::setPlayMode(std::uint8_t playMode)
+    {
+        const std::lock_guard lock(_mutex);
+        _system.playMode = playMode;
+    }
+
+    void SimulatedSampler::setFrontPanelLock(std::uint8_t lock)
+    {
+        const std::lock_guard guard(_mutex);
+        _system.frontPanelLock = lock;
     }
 
     void SimulatedSampler::setModel(std::uint8_t model)
