@@ -179,6 +179,10 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
 - §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11).
+- §02/&33 and &34 (Table 7) REPLY rows are written with two columns, "0–127(MSB)" and "…0–127(LSB)" (compound
+  *word* notation), but their text calls the value a Compound *Double* Word (4 data bytes, p. 9), and a byte
+  count of Wave memory does not fit 14 bits (p11). Catalogued as one `Dword` (TASK-AKM-049); to be confirmed on
+  a real sampler (TASK-AKM-053): a REPLY of another length than 4 bytes is refused by the decoder.
 - T10 `&27{39}` labelled "Set Zone Semitone Tune" in a REPLY table (= Get) (p14). Resolved
   (TASK-AKM-039): confirmed on a real S5000, 2026-09-28 (`akm-suite-20260928-182549.log`) — `&07`
   (Set Zone Semitone Tune, zone 3) set to `01 0C`, `&27` read back `01 0C`: it is the Get, as the row's

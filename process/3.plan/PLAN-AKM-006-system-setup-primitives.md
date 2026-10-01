@@ -87,7 +87,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-049: Sampler model and available memory (Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&04`, `&30`, `&31`, `&33`, `&34` and expose typed Gets: the model as an
   enumeration (a byte other than `0`/`1` is malformed), the two percentages, and the two byte counts decoded
   from the compound double word. Settle `Dword` against the four-`Byte` split of §0E.
@@ -96,8 +96,29 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-053 on the simulated sampler.
 - **Dependencies**: TASK-AKM-047
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 464/464 after
+  a re-run in this session. 5 new cases in `SystemSetupTests.cpp` (`[akm][system]`, `ctest -R RQ-AKM-053`):
+  an S6000 with 64 MiB of Wave memory, 16 MiB free and 40 % MPKS free reads back S6000, 25 %, 40 %, 67108864
+  and 16777216 (the byte counts need all four data bytes); the factory sampler is an S5000; a model byte `2`
+  or an MPKS percentage `101` yields no value while the outcome stays the REPLY; a sampler with no Wave
+  memory reads 0 and 0; with the checksum mode unknown all of them are answered, their REPLYs having a
+  fixed length. `ItemCatalogueTests.cpp`: the five records added to its `CATALOGUE` table (REPLY length 1,
+  1, 1, 4, 4). `generate_akm_items.py --check`: up to date (253 items); `--coverage`: section `02` 9 of 16
+  command rows covered, `unaccounted: none`. Not verified: real sampler (TASK-AKM-053); mutation testing.
+- **Assumptions**: `ValueFormat::Dword` fits and is used (one value, four data bytes, up to 268435455 —
+  256 MiB less one byte, ample for the 32 to 256 MiB of sample memory these samplers take, and what the
+  spec's own encoding can express); the §0E split into four `Byte` values was not repeated. The spec
+  writes the REPLY rows of `&33`/`&34` with two columns, "MSB" and "LSB" (the compound *word* notation),
+  while its text calls them compound *double* words — an inconsistency of the same family as the
+  Play Mode range (`sysex_spec.kb.md`, errata): four bytes are assumed, the total of a memory in bytes not
+  fitting 14 bits, and `decodeReply` refuses a REPLY of another length, so the real sampler will show it
+  at TASK-AKM-053. The coverage check does not compare these two rows (the ellipsis makes them
+  free text), so no exception was needed in `generate_akm_items.py`. The Wave percentage of the simulated
+  sampler is derived from its byte counts, rounded down, and 0 for a sampler with no memory; the MPKS
+  percentage is stored as given — modelling choices. A percentage above 100 or a model byte outside
+  0/1 is reported as no value rather than clamped (RQ-AKM-053's own Gherkin: "reported as malformed,
+  not guessed"); `SamplerModelResult`/`MemoryPercentResult` keep the outcome so the caller still sees
+  the REPLY.
 
 ---
 

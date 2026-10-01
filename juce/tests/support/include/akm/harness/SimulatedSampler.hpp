@@ -189,6 +189,14 @@ namespace akm::harness
     {
         /// What a sampler carries until its user changes it (Table 6, footnote b).
         std::string name = "AKAI S5000";
+        /// &04's byte: 0 = S5000, 1 = S6000 (any other value is for a test that wants a malformed REPLY).
+        std::uint8_t model = 0;
+        /// The Wave memory (&30, &33, &34) and the MPKS memory (&31). The Wave percentage is derived from
+        /// the two byte counts, as it is on the real sampler; the defaults (64 MiB all free) are arbitrary,
+        /// the spec giving none. [RQ-AKM-053]
+        std::uint32_t waveTotalBytes = 64u * 1024 * 1024;
+        std::uint32_t waveFreeBytes = 64u * 1024 * 1024;
+        std::uint8_t mpksFreePercent = 100;
     };
 
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
@@ -248,6 +256,14 @@ namespace akm::harness
         /// when `index` names no sample.
         void setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
                                  std::uint32_t length, std::uint32_t rate);
+
+        /// Sets what &04 reports (RQ-AKM-053): 0 = S5000, 1 = S6000, any other byte a REPLY no model has.
+        void setModel(std::uint8_t model);
+
+        /// Sets the memory &30, &31, &33 and &34 report (RQ-AKM-053): the Wave memory's total and free
+        /// bytes — its free percentage follows from them — and the free percentage of the MPKS memory, which
+        /// is given as is, whatever its value.
+        void setMemory(std::uint32_t waveTotalBytes, std::uint32_t waveFreeBytes, std::uint8_t mpksFreePercent);
 
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.

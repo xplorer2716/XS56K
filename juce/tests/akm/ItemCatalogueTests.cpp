@@ -59,7 +59,7 @@ namespace
         std::optional<std::size_t> replyLength;
     };
 
-    const std::array<Expected, 11> CATALOGUE{{
+    const std::array<Expected, 16> CATALOGUE{{
         {ItemId::SysExQuery, 0x00, 0x00, ItemKind::Set, 0, std::nullopt},
         {ItemId::SysExNotification, 0x00, 0x01, ItemKind::Set, 1, std::nullopt},
         {ItemId::SysExSyncLcd, 0x00, 0x03, ItemKind::Set, 1, std::nullopt},
@@ -72,6 +72,13 @@ namespace
         // The sampler name (TASK-AKM-048, RQ-AKM-052): a String has no fixed REPLY length.
         {ItemId::SystemSetName, 0x02, 0x02, ItemKind::Set, 1, std::nullopt},
         {ItemId::SystemGetName, 0x02, 0x03, ItemKind::Get, 0, std::nullopt},
+        // The model and the available memory (TASK-AKM-049, RQ-AKM-053): one byte each, the byte counts
+        // a compound double word of four data bytes.
+        {ItemId::SystemGetModel, 0x02, 0x04, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetWaveMemoryPercent, 0x02, 0x30, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetMpksMemoryPercent, 0x02, 0x31, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetWaveMemoryTotal, 0x02, 0x33, ItemKind::Get, 0, 4},
+        {ItemId::SystemGetWaveMemoryFree, 0x02, 0x34, ItemKind::Get, 0, 4},
     }};
 
     constexpr std::size_t SYSEX_CONFIG_ITEM_COUNT = 7;

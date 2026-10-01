@@ -66,6 +66,13 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_SET_SAMPLER_NAME = 0x02;
         constexpr std::uint8_t ITEM_GET_SAMPLER_NAME = 0x03;
         constexpr std::size_t MAX_NAME_LENGTH = 20;
+        // The model and memory items of TASK-AKM-049 (RQ-AKM-053).
+        constexpr std::uint8_t ITEM_GET_SAMPLER_MODEL = 0x04;
+        constexpr std::uint8_t ITEM_GET_WAVE_MEMORY_PERCENT = 0x30;
+        constexpr std::uint8_t ITEM_GET_MPKS_MEMORY_PERCENT = 0x31;
+        constexpr std::uint8_t ITEM_GET_WAVE_MEMORY_TOTAL = 0x33;
+        constexpr std::uint8_t ITEM_GET_WAVE_MEMORY_FREE = 0x34;
+        constexpr std::uint32_t PERCENT_BASE = 100;
 
         // Section §00 and its items, spec Table 5 (there is no item 02).
         constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
@@ -199,7 +206,30 @@ namespace akm::harness
             return done();
         }
 
-        // §02: the version items (RQ-AKM-044) and the sampler name (RQ-AKM-052). A name with no terminator
+        // A compound double word (spec pp. 8-9): four 7-bit data bytes, most significant first — the
+        // same shape the position/loop items of TASK-AKM-043 already split into separate catalogue
+        // values, used to answer Length (&32), Rate (&33) and their place inside &34's grouped
+        // REPLY (RQ-AKM-049) and the Wave memory byte counts of §02 (&33, &34, RQ-AKM-053) without a copy of
+        // the four-argument split in the catalogue itself.
+        void appendCompoundWord(akm::ByteWriter& writer, std::uint32_t value)
+        {
+            writer.appendByte((value >> 21) & 0x7F);
+            writer.appendByte((value >> 14) & 0x7F);
+            writer.appendByte((value >> 7) & 0x7F);
+            writer.appendByte(value & 0x7F);
+        }
+
+        // The free percentage of the Wave memory, rounded down; 0 when the sampler holds none.
+        std::uint8_t freeWavePercent(const SystemSetupState& system)
+        {
+            if (system.waveTotalBytes == 0)
+                return 0;
+            return static_cast<std::uint8_t>(static_cast<std::uint64_t>(system.waveFreeBytes) * PERCENT_BASE
+                                             / system.waveTotalBytes);
+        }
+
+        // §02: the version items (RQ-AKM-044), the sampler name (RQ-AKM-052), the model and the memory
+        // (RQ-AKM-053). A name with no terminator
         // is an invalid format; one past the 20 characters the S5000 keeps of a name is not stored longer.
         Outcome executeSystem(std::uint8_t item, const Bytes& data, const OsVersion& osVersion, SystemSetupState& system)
         {
@@ -222,6 +252,20 @@ namespace akm::harness
                 {
                     akm::ByteWriter writer;
                     writer.appendString(system.name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SAMPLER_MODEL:
+                    return reply(Bytes{system.model});
+                case ITEM_GET_WAVE_MEMORY_PERCENT:
+                    return reply(Bytes{freeWavePercent(system)});
+                case ITEM_GET_MPKS_MEMORY_PERCENT:
+                    return reply(Bytes{system.mpksFreePercent});
+                case ITEM_GET_WAVE_MEMORY_TOTAL:
+                case ITEM_GET_WAVE_MEMORY_FREE:
+                {
+                    akm::ByteWriter writer;
+                    appendCompoundWord(writer, item == ITEM_GET_WAVE_MEMORY_TOTAL ? system.waveTotalBytes
+                                                                                : system.waveFreeBytes);
                     return reply(writer.bytes());
                 }
                 default:
@@ -857,18 +901,6 @@ namespace akm::harness
             return failure(error_number::NOT_SUPPORTED);
         }
 
-        // A compound double word (spec pp. 8-9): four 7-bit data bytes, most significant first — the
-        // same shape the position/loop items of TASK-AKM-043 already split into separate catalogue
-        // values, used here to answer Length (&32), Rate (&33) and their place inside &34's grouped
-        // REPLY without a fifth copy of the four-argument split in the catalogue itself.
-        void appendCompoundWord(akm::ByteWriter& writer, std::uint32_t value)
-        {
-            writer.appendByte((value >> 21) & 0x7F);
-            writer.appendByte((value >> 14) & 0x7F);
-            writer.appendByte((value >> 7) & 0x7F);
-            writer.appendByte(value & 0x7F);
-        }
-
         // §0E sample lifecycle (RQ-AKM-045): select by name/index, delete/rename the current sample,
         // start/stop auditioning it, plus &13/&14 (RQ-AKM-047, pulled in early — see the constants
         // above). §0E has its own sampler-wide "current sample" selection state, the same pattern as
@@ -1135,6 +1167,21 @@ namespace akm::harness
         _samples[index].channels = channels;
         _samples[index].length = length;
         _samples[index].rate = rate;
+    }
+
+    void SimulatedSampler::setModel(std::uint8_t model)
+    {
+        const std::lock_guard lock(_mutex);
+        _system.model = model;
+    }
+
+    void SimulatedSampler::setMemory(std::uint32_t waveTotalBytes, std::uint32_t waveFreeBytes,
+                                     std::uint8_t mpksFreePercent)
+    {
+        const std::lock_guard lock(_mutex);
+        _system.waveTotalBytes = waveTotalBytes;
+        _system.waveFreeBytes = waveFreeBytes;
+        _system.mpksFreePercent = mpksFreePercent;
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const

@@ -13,7 +13,7 @@
       "name": "System",
       "complete": false,
       "spec": "Tables 6 and 7, pp. 10-11",
-      "note": "The two version items of RQ-AKM-044 (FTR-AKM-001) and, as of TASK-AKM-048, the sampler name (RQ-AKM-052: &02, &03); the rest of the section is FTR-AKM-006's (PLAN-AKM-006). A name is catalogued with the 20-character maximum of the other name fields: the spec states none, and the real sampler's limit is observed by TASK-AKM-053."
+      "note": "The two version items of RQ-AKM-044 (FTR-AKM-001) the sampler name (RQ-AKM-052: &02, &03, TASK-AKM-048), and the model and available memory (RQ-AKM-053: &04, &30, &31, &33, &34, TASK-AKM-049, the two byte counts as one `Dword` each: the spec writes their REPLY rows with two columns, \"MSB\" and \"LSB\", but calls them compound double words, four data bytes; the coverage check does not compare them, the row carrying an ellipsis; to be confirmed on the real sampler by TASK-AKM-053); the rest of the section is FTR-AKM-006's (PLAN-AKM-006). A name is catalogued with the 20-character maximum of the other name fields: the spec states none, and the real sampler's limit is observed by TASK-AKM-053."
     },
     {
       "section": "0A",
@@ -160,6 +160,56 @@
       "args": [],
       "reply": [{"name": "name", "format": "string", "min": 0, "max": 20}],
       "requirements": ["RQ-AKM-052"]
+    },
+    {
+      "id": "SystemGetModel",
+      "section": "02",
+      "item": "04",
+      "name": "Get sampler model",
+      "kind": "get",
+      "args": [],
+      "reply": [{"name": "model", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-053"]
+    },
+    {
+      "id": "SystemGetWaveMemoryPercent",
+      "section": "02",
+      "item": "30",
+      "name": "Get percentage of free Wave memory",
+      "kind": "get",
+      "args": [],
+      "reply": [{"name": "percent", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-053"]
+    },
+    {
+      "id": "SystemGetMpksMemoryPercent",
+      "section": "02",
+      "item": "31",
+      "name": "Get percentage of free MPKS memory",
+      "kind": "get",
+      "args": [],
+      "reply": [{"name": "percent", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-053"]
+    },
+    {
+      "id": "SystemGetWaveMemoryTotal",
+      "section": "02",
+      "item": "33",
+      "name": "Get total bytes of Wave memory",
+      "kind": "get",
+      "args": [],
+      "reply": [{"name": "bytes", "format": "dword", "min": 0, "max": 268435455}],
+      "requirements": ["RQ-AKM-053"]
+    },
+    {
+      "id": "SystemGetWaveMemoryFree",
+      "section": "02",
+      "item": "34",
+      "name": "Get free bytes of Wave memory",
+      "kind": "get",
+      "args": [],
+      "reply": [{"name": "bytes", "format": "dword", "min": 0, "max": 268435455}],
+      "requirements": ["RQ-AKM-053"]
     },
     {
       "id": "ProgramCreate",

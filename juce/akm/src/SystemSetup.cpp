@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <span>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "akm/ItemRequest.hpp"
 
@@ -29,6 +30,47 @@ namespace akm
     namespace
     {
         constexpr std::span<const std::int64_t> NO_VALUES{};
+        // Table 7's values: &04's model byte and the 0-100 % range of &30 and &31.
+        constexpr std::int64_t MODEL_S5000 = 0;
+        constexpr std::int64_t MODEL_S6000 = 1;
+        constexpr std::int64_t PERCENT_MAX = 100;
+
+        // The decoded values of an item's REPLY, or nothing when the command did not complete on a REPLY
+        // of the shape the catalogue gives it.
+        std::optional<std::vector<std::int64_t>> replyValues(ItemId id, const CommandResult& outcome)
+        {
+            const auto* reply = std::get_if<Reply>(&outcome);
+            if (reply == nullptr)
+                return std::nullopt;
+            return decodeReply(id, reply->data);
+        }
+
+        // Every Get of this file has no argument and a REPLY of one value: asks and hands `decode` that value.
+        template <typename Result, typename Decode>
+        void getSingleValue(Session& session, ItemId id, std::function<void(const Result&)> completion,
+                            Decode decode)
+        {
+            session.submit(makeRequest(id, NO_VALUES),
+                           [id, completion = std::move(completion), decode](const CommandResult& outcome) {
+                               Result result{};
+                               result.outcome = outcome;
+                               if (const auto values = replyValues(id, outcome); values && values->size() == 1)
+                                   decode(result, values->front());
+                               if (completion)
+                                   completion(result);
+                           });
+        }
+
+        void decodePercent(MemoryPercentResult& result, std::int64_t value)
+        {
+            if (value <= PERCENT_MAX)
+                result.percent = static_cast<int>(value);
+        }
+
+        void decodeBytes(MemoryBytesResult& result, std::int64_t value)
+        {
+            result.bytes = static_cast<std::uint32_t>(value);
+        }
     }
 
     void setSamplerName(Session& session, std::string_view name, CommandCompletion completion)
@@ -48,5 +90,40 @@ namespace akm
                            if (completion)
                                completion(result);
                        });
+    }
+
+    void getSamplerModel(Session& session, SamplerModelCompletion completion)
+    {
+        getSingleValue<SamplerModelResult>(session, ItemId::SystemGetModel, std::move(completion),
+                                           [](SamplerModelResult& result, std::int64_t value) {
+                                               if (value == MODEL_S5000)
+                                                   result.model = SamplerModel::S5000;
+                                               else if (value == MODEL_S6000)
+                                                   result.model = SamplerModel::S6000;
+                                           });
+    }
+
+    void getFreeWaveMemoryPercent(Session& session, MemoryPercentCompletion completion)
+    {
+        getSingleValue<MemoryPercentResult>(session, ItemId::SystemGetWaveMemoryPercent, std::move(completion),
+                                            decodePercent);
+    }
+
+    void getFreeMpksMemoryPercent(Session& session, MemoryPercentCompletion completion)
+    {
+        getSingleValue<MemoryPercentResult>(session, ItemId::SystemGetMpksMemoryPercent, std::move(completion),
+                                            decodePercent);
+    }
+
+    void getTotalWaveMemoryBytes(Session& session, MemoryBytesCompletion completion)
+    {
+        getSingleValue<MemoryBytesResult>(session, ItemId::SystemGetWaveMemoryTotal, std::move(completion),
+                                          decodeBytes);
+    }
+
+    void getFreeWaveMemoryBytes(Session& session, MemoryBytesCompletion completion)
+    {
+        getSingleValue<MemoryBytesResult>(session, ItemId::SystemGetWaveMemoryFree, std::move(completion),
+                                          decodeBytes);
     }
 }
