@@ -56,7 +56,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-048: Sampler name (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&02` (Set, `String`, completes on DONE) and `&03` (Get, REPLY `String`) and
   expose a typed primitive reusing `makeStringRequest`; extend the simulated sampler with a name.
 - **Requirement refs**: RQ-AKM-052
@@ -65,8 +65,23 @@ This plan implements the tasks in the format specified below.
   frame bytes `53 54 55 44 49 4F 00` for `STUDIO`, Get returns what was set.
 - **Dependencies**: TASK-AKM-047
 - **Assignee**: AI
-- **Verification**: to be filled at closure from a re-run of `ctest`.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 459/459 after
+  a re-run in this session. New `SystemSetupTests.cpp` (3 cases, `[akm][system]`, run standalone with
+  `ctest -R RQ-AKM-052`): the factory name `AKAI S5000` is read, `STUDIO` is set with frame data bytes
+  `53 54 55 44 49 4F 00` and read back; a 21-character name is refused `ArgumentOutOfRange` and a non-ASCII
+  one `NotEncodable`, nothing sent; with the checksum mode unknown the Get is refused `ChecksumModeUnknown`,
+  nothing sent. Collateral: `ItemCatalogueTests.cpp`'s `CATALOGUE` table gained the two new items, and its
+  lookup test, which used `&02` of §02 as its example of an uncatalogued item, now uses `&07` (no such item
+  in the spec) and `&0A` — an edit reflecting the new expected state, no failing assertion weakened.
+  `generate_akm_items.py --check`: up to date (248 items); `--coverage`: section `02` 4 of 16 command rows
+  covered, `unaccounted: none`. Not verified: real sampler (TASK-AKM-053); mutation testing (RQ-BLD-015 /
+  TASK-BLD-012 tooling exists but was not run on this change).
+- **Assumptions**: A name is catalogued with the 20-character maximum of the other name fields — the spec
+  states none (`sysex_spec.kb.md`, "Common value codes") and the real limit of this field is observed by
+  TASK-AKM-053. The simulated sampler truncates to 20 on store, as it models the S5000's program-name
+  limit, and keeps the name across `powerCycle()` (a stored setting, unlike the §00 flags) — modelling
+  choices, not proven on hardware. The primitives live in a new `SystemSetup.hpp`/`.cpp` that the later
+  tasks of this plan extend, rather than in `SystemVersion.hpp`, which is the OS version's alone.
 
 ---
 

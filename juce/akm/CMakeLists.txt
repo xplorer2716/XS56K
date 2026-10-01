@@ -26,6 +26,7 @@ add_library(xs56k_akm STATIC
     src/Session.cpp
     src/SessionConfig.cpp
     src/SysExConfig.cpp
+    src/SystemSetup.cpp
     src/SystemVersion.cpp
     src/ThreadExecutor.cpp
     src/TimerQueue.cpp

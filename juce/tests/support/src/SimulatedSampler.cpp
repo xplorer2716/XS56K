@@ -62,6 +62,10 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_OS_SUB_VERSION = 0x01;
         // The spec says the sub-version is always zero for now (Table 6, footnote a).
         constexpr std::uint8_t OS_SUB_VERSION = 0;
+        // The sampler name items of TASK-AKM-048 (RQ-AKM-052).
+        constexpr std::uint8_t ITEM_SET_SAMPLER_NAME = 0x02;
+        constexpr std::uint8_t ITEM_GET_SAMPLER_NAME = 0x03;
+        constexpr std::size_t MAX_NAME_LENGTH = 20;
 
         // Section §00 and its items, spec Table 5 (there is no item 02).
         constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
@@ -195,7 +199,9 @@ namespace akm::harness
             return done();
         }
 
-        Outcome executeSystem(std::uint8_t item, const OsVersion& osVersion)
+        // §02: the version items (RQ-AKM-044) and the sampler name (RQ-AKM-052). A name with no terminator
+        // is an invalid format; one past the 20 characters the S5000 keeps of a name is not stored longer.
+        Outcome executeSystem(std::uint8_t item, const Bytes& data, const OsVersion& osVersion, SystemSetupState& system)
         {
             switch (item)
             {
@@ -203,6 +209,21 @@ namespace akm::harness
                     return reply(Bytes{static_cast<std::uint8_t>(osVersion.major), static_cast<std::uint8_t>(osVersion.minor)});
                 case ITEM_OS_SUB_VERSION:
                     return reply(Bytes{OS_SUB_VERSION});
+                case ITEM_SET_SAMPLER_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    system.name = name->substr(0, MAX_NAME_LENGTH);
+                    return done();
+                }
+                case ITEM_GET_SAMPLER_NAME:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendString(system.name);
+                    return reply(writer.bytes());
+                }
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }
@@ -1014,7 +1035,7 @@ namespace akm::harness
         // after the data an item expects is ignored, as the spec says of a checksum sent while checksums
         // are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
-                        const OsVersion& osVersion, std::vector<ProgramRecord>& programs,
+                        const OsVersion& osVersion, SystemSetupState& system, std::vector<ProgramRecord>& programs,
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                         std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample)
         {
@@ -1027,7 +1048,7 @@ namespace akm::harness
                 return executeZone(item, data, programs, currentProgram, currentKeygroup, sampleNames);
             }
             if (section == SECTION_SYSTEM)
-                return executeSystem(item, osVersion);
+                return executeSystem(item, data, osVersion, system);
             if (section == SECTION_PROGRAM)
                 return executeProgram(item, data, programs, currentProgram, currentKeygroup);
             if (section == SECTION_KEYGROUP)
@@ -1258,7 +1279,7 @@ namespace akm::harness
                                           });
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
-                                    : execute(section, item, data, _settings, _config.osVersion, _programs, _currentProgram,
+                                    : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
                                               _currentKeygroup, _samples, _currentSample);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));

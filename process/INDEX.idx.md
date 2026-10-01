@@ -183,15 +183,15 @@ TASK-AKM-044|230-280|Done|Read-only sample parameters and grouped replies
 TASK-AKM-045|281-364|Done|Real-sampler test harness — dedicated test sample
 TASK-AKM-046|365-397|Done|Coverage of section §0E and errata resolution
 @process/3.plan/PLAN-AKM-006-system-setup-primitives.md
-PLAN-AKM-006|1-168||System Setup Primitives (Phase A, residual §02)
+PLAN-AKM-006|1-183||System Setup Primitives (Phase A, residual §02)
 TASK-AKM-047|40-56|Done|Author FTR-AKM-006 and PLAN-AKM-006
-TASK-AKM-048|57-72|Not Started|Sampler name (Set and Get)
-TASK-AKM-049|73-88|Not Started|Sampler model and available memory (Get)
-TASK-AKM-050|89-104|Not Started|Clock and date (Set and Get)
-TASK-AKM-051|105-120|Not Started|Play Mode and front-panel lock (Set and Get)
-TASK-AKM-052|121-137|Not Started|Destructive command guard for "Clear Sampler Memory"
-TASK-AKM-053|138-155|Not Started|Real-sampler harness — system setup restored
-TASK-AKM-054|156-168|Not Started|Coverage of section §02 and errata resolution
+TASK-AKM-048|57-87|Done|Sampler name (Set and Get)
+TASK-AKM-049|88-103|Not Started|Sampler model and available memory (Get)
+TASK-AKM-050|104-119|Not Started|Clock and date (Set and Get)
+TASK-AKM-051|120-135|Not Started|Play Mode and front-panel lock (Set and Get)
+TASK-AKM-052|136-152|Not Started|Destructive command guard for "Clear Sampler Memory"
+TASK-AKM-053|153-170|Not Started|Real-sampler harness — system setup restored
+TASK-AKM-054|171-183|Not Started|Coverage of section §02 and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

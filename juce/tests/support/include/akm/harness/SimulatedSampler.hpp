@@ -182,6 +182,15 @@ namespace akm::harness
         return a.name == b.name && a.keygroupCount == b.keygroupCount && a.crossfade == b.crossfade;
     }
 
+    /// The §02 system setup this model holds beyond the OS version (spec Tables 6-7), one field per item
+    /// pair as PLAN-AKM-006's tasks add them. Unlike the §00 settings it survives `powerCycle()`: the
+    /// real sampler keeps its name across a power cycle. [RQ-AKM-052]
+    struct SystemSetupState
+    {
+        /// What a sampler carries until its user changes it (Table 6, footnote b).
+        std::string name = "AKAI S5000";
+    };
+
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
     /// primitives set or read. Unlike a program, this model has no "create" for a sample: §0E has no
     /// such item (a sample only exists once `setSampleNames` — or a later item of this lot — puts it
@@ -263,6 +272,8 @@ namespace akm::harness
         mutable std::mutex _mutex;
         SamplerBehaviour _behaviour;
         SamplerSettings _settings;
+        // §02 system setup beyond the OS version (RQ-AKM-052): not touched by powerCycle().
+        SystemSetupState _system;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
 

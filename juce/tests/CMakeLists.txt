@@ -48,6 +48,7 @@ add_executable(xs56k_akm_tests
     akm/SessionThreadingTests.cpp
     akm/SimulatedSamplerTests.cpp
     akm/SysExConfigTests.cpp
+    akm/SystemSetupTests.cpp
     akm/SystemVersionTests.cpp
     akm/ValueFormatTests.cpp
     akm/WireLogTests.cpp

@@ -13,7 +13,7 @@
       "name": "System",
       "complete": false,
       "spec": "Tables 6 and 7, pp. 10-11",
-      "note": "Only the two version items of RQ-AKM-044; the rest of the section is not part of FTR-AKM-001."
+      "note": "The two version items of RQ-AKM-044 (FTR-AKM-001) and, as of TASK-AKM-048, the sampler name (RQ-AKM-052: &02, &03); the rest of the section is FTR-AKM-006's (PLAN-AKM-006). A name is catalogued with the 20-character maximum of the other name fields: the spec states none, and the real sampler's limit is observed by TASK-AKM-053."
     },
     {
       "section": "0A",
@@ -141,6 +141,25 @@
       "args": [],
       "reply": [{"name": "subVersion", "format": "byte", "min": 0, "max": 127}],
       "requirements": ["RQ-AKM-044"]
+    },
+    {
+      "id": "SystemSetName",
+      "section": "02",
+      "item": "02",
+      "name": "Set sampler name",
+      "kind": "set",
+      "args": [{"name": "name", "format": "string", "min": 0, "max": 20}],
+      "requirements": ["RQ-AKM-052"]
+    },
+    {
+      "id": "SystemGetName",
+      "section": "02",
+      "item": "03",
+      "name": "Get sampler name",
+      "kind": "get",
+      "args": [],
+      "reply": [{"name": "name", "format": "string", "min": 0, "max": 20}],
+      "requirements": ["RQ-AKM-052"]
     },
     {
       "id": "ProgramCreate",
