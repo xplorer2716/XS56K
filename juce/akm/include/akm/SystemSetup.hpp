@@ -211,4 +211,19 @@ namespace akm
 
     /// Gets the front-panel lock-out state (§02/&21). Answered whatever the checksum mode. [RQ-AKM-055]
     void getFrontPanelLock(Session& session, FrontPanelLockCompletion completion);
+
+    /// Passed to `clearSamplerMemory` to prove the caller means it. A default `bool` could be satisfied by
+    /// accident (`true`, `1`, a stray flag); this enumerator cannot — it must be named. [RQ-AKM-056]
+    enum class ConfirmClearSamplerMemory
+    {
+        IUnderstandThisDeletesEveryProgramMultiAndSampleInMemory,
+    };
+
+    /// Clears the sampler's memory (§02/&32): every program, multi and sample is deleted — irreversible
+    /// without a saved backup. `confirmation` has no default: sent only when it is the enumerator;
+    /// `std::nullopt` refuses the command as `NotConfirmed` without sending anything. No real-sampler test of
+    /// any feature calls this. How long the sampler takes to answer has never been observed, no test being
+    /// allowed to send it (RQ-AKM-056), so the session's default timeout applies. [RQ-AKM-056]
+    void clearSamplerMemory(Session& session, std::optional<ConfirmClearSamplerMemory> confirmation,
+                            CommandCompletion completion);
 }

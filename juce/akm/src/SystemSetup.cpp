@@ -218,4 +218,20 @@ namespace akm
                                                  result.lock = lockOf(value);
                                              });
     }
+
+    void clearSamplerMemory(Session& session, std::optional<ConfirmClearSamplerMemory> confirmation,
+                            CommandCompletion completion)
+    {
+        if (!confirmation)
+        {
+            const ItemDescriptor& item = descriptor(ItemId::SystemClearMemory);
+            CommandRequest request;
+            request.command.section = item.section;
+            request.command.item = item.item;
+            request.refusal = RefusalReason::NotConfirmed;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        session.submit(makeRequest(ItemId::SystemClearMemory, NO_VALUES), std::move(completion));
+    }
 }

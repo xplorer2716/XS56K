@@ -261,6 +261,14 @@ namespace akm::harness
         /// wants a successful assignment or selection must call this first, like `setBehaviour`.
         void setSampleNames(std::vector<std::string> names);
 
+        /// Seeds the sampler's multis (§0C) by name. No §0C item is modelled — the section is not implemented —
+        /// so a multi can neither be read nor changed but through here; it exists so that Clear Sampler Memory
+        /// (§02/&32, RQ-AKM-056), which deletes "all programs/multis/samples", has all three to delete.
+        void setMultiNames(std::vector<std::string> names);
+
+        /// How many multis the sampler holds (RQ-AKM-056).
+        [[nodiscard]] std::size_t multiCount() const;
+
         /// Seeds the read-only attributes of the sample at `index` (§0E/&30-&33, RQ-AKM-049) — no Set
         /// item exists for them, so a test sets them directly, like `setSampleNames` itself. A no-op
         /// when `index` names no sample.
@@ -321,5 +329,8 @@ namespace akm::harness
         // §0A's current program, §0E's current sample has no dependent selection to reset alongside it.
         std::vector<SampleRecord> _samples;
         std::optional<std::size_t> _currentSample;
+        // §0C multis (RQ-AKM-056): names only, seeded by `setMultiNames` and emptied by §02/&32; not touched by
+        // powerCycle().
+        std::vector<std::string> _multis;
     };
 }

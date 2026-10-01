@@ -59,7 +59,7 @@ namespace
         std::optional<std::size_t> replyLength;
     };
 
-    const std::array<Expected, 22> CATALOGUE{{
+    const std::array<Expected, 23> CATALOGUE{{
         {ItemId::SysExQuery, 0x00, 0x00, ItemKind::Set, 0, std::nullopt},
         {ItemId::SysExNotification, 0x00, 0x01, ItemKind::Set, 1, std::nullopt},
         {ItemId::SysExSyncLcd, 0x00, 0x03, ItemKind::Set, 1, std::nullopt},
@@ -81,6 +81,8 @@ namespace
         {ItemId::SystemSetFrontPanelLock, 0x02, 0x11, ItemKind::Set, 1, std::nullopt},
         {ItemId::SystemGetPlayMode, 0x02, 0x20, ItemKind::Get, 0, 1},
         {ItemId::SystemGetFrontPanelLock, 0x02, 0x21, ItemKind::Get, 0, 1},
+        // The guarded Clear Sampler Memory (TASK-AKM-052, RQ-AKM-056): no argument, no REPLY.
+        {ItemId::SystemClearMemory, 0x02, 0x32, ItemKind::Set, 0, std::nullopt},
         // The model and the available memory (TASK-AKM-049, RQ-AKM-053): one byte each, the byte counts
         // a compound double word of four data bytes.
         {ItemId::SystemGetModel, 0x02, 0x04, ItemKind::Get, 0, 1},

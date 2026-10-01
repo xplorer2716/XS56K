@@ -203,7 +203,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-052: Destructive command guard for "Clear Sampler Memory"
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&32` so that it is sent only with an explicit confirmation argument no
   default supplies (a dedicated type, mirroring `TASK-AKM-023`/`TASK-AKM-041`) and audit the real-sampler
   test sources for any call.
@@ -212,9 +212,30 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-056.
 - **Dependencies**: TASK-AKM-047
 - **Assignee**: AI, with the owner's approval (DoR)
-- **Verification**: to be filled at closure.
+- **Verification**: Windows/MSVC Debug: no warning or error (`/W4 /WX`), `ctest` 476/476 re-run in this
+  session. New `SystemClearMemoryGuardTests.cpp` (3 cases, `[akm][system][delete-all-guard]`,
+  `ctest -R RQ-AKM-056`): without the confirmation nothing is sent, `NotConfirmed` is reported and the
+  simulated sampler accepted no command; with it, item 32 of section 02 is sent with no data (checked on
+  the sampler's accepted command) and, after two programs, two samples and one multi were seeded, the program
+  count is 0, selecting sample 0 fails ERROR 04 and no multi remains; and a sampler with 16 of 64 MiB of Wave
+  memory free and 40 % of its MPKS memory free reads 100 % free of both afterwards. `ItemCatalogueTests.cpp`:
+  the record added to its `CATALOGUE` table. `generate_akm_items.py --check`: up to date (260 items);
+  `--coverage`: section `02` 16 of 16 command rows covered, `unaccounted: none`. Audit:
+  `grep -rn "clearSamplerMemory\|ConfirmClearSamplerMemory\|SystemClearMemory" juce/tests/support
+  juce/tests/probe` — no match (exit 1), so no real-sampler test, first-contact probe or session test calls
+  the primitive (the simulator's own executor is named `executeClearMemory` so the audit stays clean). Not
+  verified: real sampler — by design and by RQ-AKM-056 it never will be; mutation testing.
 - **Assumptions**: Tier M rather than S: a new public type and file (`TASK-AKM-041` was S because it only
-  specialised an existing shape).
+  specialised an existing shape). Per the owner (session AKM, 2026-10-01) the multis stay among what the
+  command deletes: the confirmation enumerator is named for programs, multis and samples, and the simulated
+  sampler holds multis by name (`setMultiNames`, `multiCount`) though no §0C item exists, so that §02/&32
+  deletes all three kinds there as the spec says. After a clear the simulated sampler's Wave memory and MPKS
+  memory read entirely free — the spec says nothing of it, a modelling choice. How long the real sampler takes
+  to answer `&32` is unknown (`F0 F7`/Still Alive handling for slow operations is itself unsettled,
+  RQ-AKM-011), so the default timeout applies and is documented as such in `SystemSetup.hpp`. The
+  catalogue's section `02` stays `complete: false` until TASK-AKM-054. A test name must not contain a
+  non-ASCII character such as "§": ctest passes it to the binary in another encoding and the test is then
+  never found (the first run of the new test failed for that reason alone).
 
 ---
 

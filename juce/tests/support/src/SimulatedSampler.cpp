@@ -96,6 +96,10 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_PLAY_MODE = 0x20;
         constexpr std::uint8_t ITEM_GET_FRONT_PANEL_LOCK = 0x21;
         constexpr std::uint8_t PLAY_MODE_MAX = 3;
+        // The guarded Clear Sampler Memory of TASK-AKM-052 (RQ-AKM-056): it needs every kind of memory, so it
+        // is executed by `execute` itself rather than by `executeSystem`.
+        constexpr std::uint8_t ITEM_CLEAR_SAMPLER_MEMORY = 0x32;
+        constexpr std::uint8_t ALL_MPKS_FREE_PERCENT = 100;
 
         // Section §00 and its items, spec Table 5 (there is no item 02).
         constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
@@ -1121,6 +1125,25 @@ namespace akm::harness
             }
         }
 
+        // §02/&32: every program, multi and sample is deleted, and the memory they held is free again — what
+        // the Wave memory and MPKS memory Gets then report (the spec says nothing of it; a modelling choice).
+        // [RQ-AKM-056]
+        Outcome executeClearMemory(SystemSetupState& system, std::vector<ProgramRecord>& programs,
+                                 std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
+                                 std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
+                                 std::vector<std::string>& multis)
+        {
+            programs.clear();
+            currentProgram.reset();
+            currentKeygroup.reset();
+            samples.clear();
+            currentSample.reset();
+            multis.clear();
+            system.waveFreeBytes = system.waveTotalBytes;
+            system.mpksFreePercent = ALL_MPKS_FREE_PERCENT;
+            return done();
+        }
+
         // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
         // parameters (RQ-AKM-034, RQ-AKM-035) and §0E's lifecycle (RQ-AKM-045) are modelled. A byte
         // after the data an item expects is ignored, as the spec says of a checksum sent while checksums
@@ -1128,8 +1151,12 @@ namespace akm::harness
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion, SystemSetupState& system, std::vector<ProgramRecord>& programs,
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
-                        std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample)
+                        std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
+                        std::vector<std::string>& multis)
         {
+            if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
+                return executeClearMemory(system, programs, currentProgram, currentKeygroup, samples, currentSample,
+                                      multis);
             if (section == SECTION_ZONE)
             {
                 std::vector<std::string> sampleNames;
@@ -1214,6 +1241,18 @@ namespace akm::harness
             _samples.push_back(std::move(record));
         }
         _currentSample.reset();
+    }
+
+    void SimulatedSampler::setMultiNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _multis = std::move(names);
+    }
+
+    std::size_t SimulatedSampler::multiCount() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _multis.size();
     }
 
     void SimulatedSampler::setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
@@ -1398,7 +1437,7 @@ namespace akm::harness
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
                                     : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
-                                              _currentKeygroup, _samples, _currentSample);
+                                              _currentKeygroup, _samples, _currentSample, _multis);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)
