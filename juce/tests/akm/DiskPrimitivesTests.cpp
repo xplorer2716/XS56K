@@ -28,9 +28,13 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using akm::CommandResult;
 using akm::DiskCountResult;
+using akm::DiskHandleResult;
 using akm::DiskInfo;
 using akm::DiskListResult;
+using akm::DiskPathResult;
+using akm::DiskTypeResult;
 using akm::Done;
+using akm::Error;
 using akm::RefusalReason;
 using akm::Refused;
 using akm::harness::DiskRecord;
@@ -52,6 +56,43 @@ namespace
     {
         auto latched = std::make_shared<Latched<DiskListResult>>();
         akm::getConnectedDisks(harness.session(), [latched](const DiskListResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    void selectDisk(SessionHarness& harness, int handle)
+    {
+        akm::selectDisk(harness.session(), handle, harness.recorder().completion());
+    }
+
+    DiskTypeResult getCurrentDiskType(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskTypeResult>>();
+        akm::getCurrentDiskType(harness.session(), [latched](const DiskTypeResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskTypeResult getDiskType(SessionHarness& harness, int handle)
+    {
+        auto latched = std::make_shared<Latched<DiskTypeResult>>();
+        akm::getDiskType(harness.session(), handle, [latched](const DiskTypeResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskHandleResult getCurrentDiskHandle(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskHandleResult>>();
+        akm::getCurrentDiskHandle(harness.session(), [latched](const DiskHandleResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskPathResult getCurrentDiskPath(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskPathResult>>();
+        akm::getCurrentDiskPath(harness.session(), [latched](const DiskPathResult& r) { latched->set(r); });
         REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
         return *latched->value();
     }
@@ -145,4 +186,77 @@ TEST_CASE("Given the checksum mode unknown, When the list of connected disks is 
     REQUIRE(std::holds_alternative<Refused>(disks.outcome));
     CHECK(std::get<Refused>(disks.outcome).reason == RefusalReason::ChecksumModeUnknown);
     CHECK(harness.sentCount() == 0);
+}
+
+TEST_CASE("Given a disk, When it is selected then tested, Then selection succeeds and the test completes DONE [RQ-AKM-061]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 3, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+
+    selectDisk(harness, 3);
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    akm::testDiskValid(harness.session(), 3, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given a handle that names no disk, When it is selected or tested, Then each completes ERROR, not a REPLY [RQ-AKM-061]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    selectDisk(harness, 9);
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+
+    akm::testDiskValid(harness.session(), 9, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given the current disk's type, the specified disk's type, its handle and its path, When each is read, Then they decode to the simulated sampler's own values, the path being empty at the root folder [RQ-AKM-061]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 5, .type = 2, .format = 3, .scsiId = 1, .writable = false, .name = "CDROM"}});
+    selectDisk(harness, 5);
+    REQUIRE(harness.waitForCompletions(1));
+
+    const DiskTypeResult currentType = getCurrentDiskType(harness);
+    REQUIRE(currentType.type.has_value());
+    CHECK(*currentType.type == 2);
+
+    const DiskTypeResult specifiedType = getDiskType(harness, 5);
+    REQUIRE(specifiedType.type.has_value());
+    CHECK(*specifiedType.type == 2);
+
+    const DiskHandleResult handle = getCurrentDiskHandle(harness);
+    REQUIRE(handle.handle.has_value());
+    CHECK(*handle.handle == 5);
+
+    const DiskPathResult path = getCurrentDiskPath(harness);
+    REQUIRE(path.path.has_value());
+    CHECK(path.path->empty());
+}
+
+TEST_CASE("Given no disk selected, When the current type, handle or path is read, Then each completes ERROR [RQ-AKM-061]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 0, .format = 0, .scsiId = 0, .writable = true, .name = "A"}});
+
+    CHECK_FALSE(getCurrentDiskType(harness).type.has_value());
+    CHECK_FALSE(getCurrentDiskHandle(harness).handle.has_value());
+    CHECK_FALSE(getCurrentDiskPath(harness).path.has_value());
 }

@@ -82,7 +82,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-058: Disk selection and status
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&02` (Select Disk), `&03` (Test Disk Valid), `&06`/`&07` (current/
   specified disk type), `&08` (index of current disk) and `&09` (current path).
 - **Requirement refs**: RQ-AKM-061
@@ -90,8 +90,24 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-061, on the simulated sampler.
 - **Dependencies**: TASK-AKM-057
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 504/504 passed. 4 new cases added to `DiskPrimitivesTests.cpp`
+  (`ctest -R RQ-AKM-061`): a disk selected then tested completes Done both times; a handle naming no
+  disk completes Error (not a Reply) for both Select and Test; the current type, the same disk's type
+  by handle, its current handle and its current path all decode correctly once selected, the path
+  empty at the root folder (no folder modelled yet, TASK-AKM-060); with nothing selected, the current
+  type, handle and path each complete Error. `generate_akm_items.py --coverage`: the 6 new items
+  covered (9 of 35 §10 rows now), `unaccounted: none`; `--check` up to date (269 items).
+  `ItemCatalogueTests.cpp`'s total-item-count check updated (`PROGRAM_ITEM_COUNT`, `+6`).
+- **Assumptions**: `&03` (Test Disk Valid) is modelled against the handle its own two data bytes name,
+  not "the currently selected disk" as Table 20's footnote a reads in isolation — the item's own
+  Data1/Data2 columns carry a handle exactly like `&02`'s, and the catalogue is built from an item's
+  data columns over a footnote's looser wording (same precedence already used for every other erratum
+  in this project). `&08` is named `getCurrentDiskHandle`, not `getCurrentDiskIndex`: its command title
+  (Table 20) says "index" but its own REPLY description (Table 21) says "the handle... used with &02",
+  a mismatch the spec's two tables show on their own, nothing to confirm on real hardware. `&06`/`&08`/
+  `&09` answer ERROR 4 (not found) with no disk selected, mirroring how no current program/sample
+  already behaves elsewhere; the spec does not say.
 
 ### TASK-AKM-059: Disk format, free space and name
 - **Tier**: L

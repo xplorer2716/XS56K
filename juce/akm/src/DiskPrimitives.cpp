@@ -103,4 +103,82 @@ namespace akm
                                completion(result);
                        });
     }
+
+    void selectDisk(Session& session, int handle, CommandCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(handle) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskSelect, {msb, lsb}), std::move(completion));
+    }
+
+    void testDiskValid(Session& session, int handle, CommandCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(handle) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskTestValid, {msb, lsb}), std::move(completion));
+    }
+
+    void getCurrentDiskType(Session& session, DiskTypeCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskGetCurrentType, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskTypeResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetCurrentType, rep->data);
+                               if (values && values->size() == 1)
+                                   result.type = static_cast<int>((*values)[0]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getDiskType(Session& session, int handle, DiskTypeCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(handle) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskGetType, {msb, lsb}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskTypeResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetType, rep->data);
+                               if (values && values->size() == 1)
+                                   result.type = static_cast<int>((*values)[0]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getCurrentDiskHandle(Session& session, DiskHandleCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskGetCurrentHandle, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskHandleResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetCurrentHandle, rep->data);
+                               if (values && values->size() == 2)
+                                   result.handle = static_cast<int>((*values)[0] * DATA_BYTE_BASE + (*values)[1]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getCurrentDiskPath(Session& session, DiskPathCompletion completion)
+    {
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::DiskGetCurrentPath, NO_VALUES, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskPathResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               result.path = decodeStringReply(ItemId::DiskGetCurrentPath, rep->data);
+                           if (completion)
+                               completion(result);
+                       });
+    }
 }

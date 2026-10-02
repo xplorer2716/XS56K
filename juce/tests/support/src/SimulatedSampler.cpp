@@ -188,8 +188,15 @@ namespace akm::harness
         // items answer ERROR 0 until their own lot.
         constexpr std::uint8_t SECTION_DISK = 0x10;
         constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
+        constexpr std::uint8_t ITEM_SELECT_DISK = 0x02;
+        constexpr std::uint8_t ITEM_TEST_DISK_VALID = 0x03;
         constexpr std::uint8_t ITEM_GET_DISK_COUNT = 0x04;
         constexpr std::uint8_t ITEM_GET_DISK_LIST = 0x05;
+        // Selection and status items of TASK-AKM-058 (RQ-AKM-061).
+        constexpr std::uint8_t ITEM_GET_CURRENT_DISK_TYPE = 0x06;
+        constexpr std::uint8_t ITEM_GET_DISK_TYPE = 0x07;
+        constexpr std::uint8_t ITEM_GET_CURRENT_DISK_HANDLE = 0x08;
+        constexpr std::uint8_t ITEM_GET_CURRENT_DISK_PATH = 0x09;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1150,10 +1157,27 @@ namespace akm::harness
             return done();
         }
 
-        // §10 disk discovery of TASK-AKM-057 (RQ-AKM-060): &01 is a no-op (this model always answers
-        // &04/&05 from `disks`, refresh or not); &04 answers the count; &05 answers one record per disk
-        // (handle as two Bytes, type, format, SCSI ID, writable, name), concatenated in order.
-        Outcome executeDisk(std::uint8_t item, const std::vector<DiskRecord>& disks)
+        // The index of the disk named by `handle`, or nothing when none matches (RQ-AKM-061).
+        std::optional<std::size_t> findDiskByHandle(const std::vector<DiskRecord>& disks, int handle)
+        {
+            for (std::size_t index = 0; index < disks.size(); ++index)
+                if (disks[index].handle == handle)
+                    return index;
+            return std::nullopt;
+        }
+
+        // §10 disk discovery of TASK-AKM-057 (RQ-AKM-060) and selection/status of TASK-AKM-058
+        // (RQ-AKM-061): &01 is a no-op (this model always answers &04/&05 from `disks`, refresh or
+        // not); &04 answers the count; &05 answers one record per disk (handle as two Bytes, type,
+        // format, SCSI ID, writable, name), concatenated in order; &02/&03 act on the handle named by
+        // the command's own data bytes, not necessarily the current selection (spec Table 20, footnote
+        // a reads "the currently selected disk", but &03's own data columns carry a handle like &02's,
+        // which is what this model follows); &06/&08/&09 act on the current selection, answering
+        // ERROR 4 (not found) when there is none, like a current program or sample with nothing
+        // selected; &09 always answers the root folder's empty path, since no folder is modelled yet
+        // (TASK-AKM-060 changes that).
+        Outcome executeDisk(std::uint8_t item, const Bytes& data, const std::vector<DiskRecord>& disks,
+                            std::optional<std::size_t>& currentDisk)
         {
             switch (item)
             {
@@ -1175,6 +1199,57 @@ namespace akm::harness
                     }
                     return reply(writer.bytes());
                 }
+                case ITEM_SELECT_DISK:
+                {
+                    akm::ByteReader reader(data);
+                    const auto handle = reader.readWord();
+                    if (!handle)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = findDiskByHandle(disks, static_cast<int>(*handle));
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    currentDisk = found;
+                    return done();
+                }
+                case ITEM_TEST_DISK_VALID:
+                {
+                    akm::ByteReader reader(data);
+                    const auto handle = reader.readWord();
+                    if (!handle)
+                        return failure(error_number::INVALID_FORMAT);
+                    return findDiskByHandle(disks, static_cast<int>(*handle)) ? done() : failure(error_number::NOT_FOUND);
+                }
+                case ITEM_GET_CURRENT_DISK_TYPE:
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{disks[*currentDisk].type});
+                case ITEM_GET_DISK_TYPE:
+                {
+                    akm::ByteReader reader(data);
+                    const auto handle = reader.readWord();
+                    if (!handle)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = findDiskByHandle(disks, static_cast<int>(*handle));
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{disks[*found].type});
+                }
+                case ITEM_GET_CURRENT_DISK_HANDLE:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(disks[*currentDisk].handle));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_DISK_PATH:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString("");
+                    return reply(writer.bytes());
+                }
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }
@@ -1182,13 +1257,14 @@ namespace akm::harness
 
         // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
         // parameters (RQ-AKM-034, RQ-AKM-035), §0E's lifecycle (RQ-AKM-045) and §10's disk discovery
-        // (RQ-AKM-060) are modelled. A byte after the data an item expects is ignored, as the spec says
-        // of a checksum sent while checksums are off.
+        // and selection (RQ-AKM-060, RQ-AKM-061) are modelled. A byte after the data an item expects is
+        // ignored, as the spec says of a checksum sent while checksums are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion, SystemSetupState& system, std::vector<ProgramRecord>& programs,
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                         std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
-                        std::vector<std::string>& multis, const std::vector<DiskRecord>& disks)
+                        std::vector<std::string>& multis, const std::vector<DiskRecord>& disks,
+                        std::optional<std::size_t>& currentDisk)
         {
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(system, programs, currentProgram, currentKeygroup, samples, currentSample,
@@ -1210,7 +1286,7 @@ namespace akm::harness
             if (section == SECTION_SAMPLE)
                 return executeSample(item, data, samples, currentSample);
             if (section == SECTION_DISK)
-                return executeDisk(item, disks);
+                return executeDisk(item, data, disks, currentDisk);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -1348,6 +1424,7 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         _disks = std::move(disks);
+        _currentDisk.reset();
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
@@ -1505,7 +1582,7 @@ namespace akm::harness
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
                                     : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
-                                              _currentKeygroup, _samples, _currentSample, _multis, _disks);
+                                              _currentKeygroup, _samples, _currentSample, _multis, _disks, _currentDisk);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

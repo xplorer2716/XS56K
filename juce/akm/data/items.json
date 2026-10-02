@@ -1762,6 +1762,52 @@
         {"name": "name", "format": "string", "min": 0, "max": 255}
       ],
       "requirements": ["RQ-AKM-060"]
+    },
+    {
+      "id": "DiskSelect", "section": "10", "item": "02", "name": "Select Disk", "kind": "set",
+      "args": [
+        {"name": "handleMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "handleLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-061"]
+    },
+    {
+      "id": "DiskTestValid", "section": "10", "item": "03", "name": "Test if the disk is valid", "kind": "set",
+      "args": [
+        {"name": "handleMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "handleLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-061"]
+    },
+    {
+      "id": "DiskGetCurrentType", "section": "10", "item": "06", "name": "Get current disk type", "kind": "get",
+      "args": [],
+      "reply": [{"name": "type", "format": "byte", "min": 0, "max": 3}],
+      "requirements": ["RQ-AKM-061"]
+    },
+    {
+      "id": "DiskGetType", "section": "10", "item": "07", "name": "Get type of specified drive", "kind": "get",
+      "args": [
+        {"name": "handleMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "handleLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [{"name": "type", "format": "byte", "min": 0, "max": 3}],
+      "requirements": ["RQ-AKM-061"]
+    },
+    {
+      "id": "DiskGetCurrentHandle", "section": "10", "item": "08", "name": "Get index of current disk", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "handleMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "handleLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-061"]
+    },
+    {
+      "id": "DiskGetCurrentPath", "section": "10", "item": "09", "name": "Get current path of current disk", "kind": "get",
+      "args": [],
+      "reply": [{"name": "path", "format": "string", "min": 0, "max": 255}],
+      "requirements": ["RQ-AKM-061"]
     }
   ]
 }

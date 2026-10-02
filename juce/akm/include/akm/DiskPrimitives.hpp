@@ -78,4 +78,63 @@ namespace akm
     /// the REPLY repeats a record of unknown count ending in a variable-length name, so it has no fixed
     /// length either (mirrors `getAllProgramNames`, ADR-AKM-001 DEC-AKM-014). [RQ-AKM-060, RQ-AKM-041]
     void getConnectedDisks(Session& session, DiskListCompletion completion);
+
+    // Disk selection and status (§10/&02, &03, &06-&09): the disk a caller names by `handle`, the same
+    // one `getConnectedDisks` reports for each entry. [RQ-AKM-061]
+
+    /// Selects the disk named by `handle` (§10/&02). [RQ-AKM-061]
+    void selectDisk(Session& session, int handle, CommandCompletion completion);
+
+    /// Tests whether the disk named by `handle` is usable (§10/&03): completes `Done` when it is, an
+    /// `Error` otherwise — never a `Reply` (spec Table 20, footnote a). [RQ-AKM-061]
+    void testDiskValid(Session& session, int handle, CommandCompletion completion);
+
+    /// `type` is empty when the command did not complete on a REPLY of the length the catalogue gives
+    /// it; `outcome` is the result of the command. A decoded value outside 0 (floppy), 1 (hard disk),
+    /// 2 (CD-ROM) or 3 (removable) is reported as is, not as malformed: the spec's own text for `&07`
+    /// calls it "an unknown disk type", not an error. [RQ-AKM-061]
+    struct DiskTypeResult
+    {
+        std::optional<int> type{};
+        CommandResult outcome{};
+    };
+    using DiskTypeCompletion = std::function<void(const DiskTypeResult&)>;
+
+    /// Gets the type of the currently selected disk (§10/&06). [RQ-AKM-061]
+    void getCurrentDiskType(Session& session, DiskTypeCompletion completion);
+
+    /// Gets the type of the disk named by `handle` (§10/&07), the same shape as `getCurrentDiskType`.
+    /// [RQ-AKM-061]
+    void getDiskType(Session& session, int handle, DiskTypeCompletion completion);
+
+    /// `handle` is empty when the command did not complete on a REPLY of the length the catalogue gives
+    /// it; `outcome` is the result of the command. [RQ-AKM-061]
+    struct DiskHandleResult
+    {
+        std::optional<int> handle{};
+        CommandResult outcome{};
+    };
+    using DiskHandleCompletion = std::function<void(const DiskHandleResult&)>;
+
+    /// Gets the handle of the currently selected disk (§10/&08) — the one last given to `selectDisk`.
+    /// Named "Get index of current disk" by the spec's own command table (Table 20), but its REPLY
+    /// (Table 21) names the same two bytes the handle, which is what this returns: a wording mismatch
+    /// confirmed by the spec's own tables alone, nothing left to settle on real hardware. [RQ-AKM-061]
+    void getCurrentDiskHandle(Session& session, DiskHandleCompletion completion);
+
+    /// `path` is empty when the command did not complete on a REPLY holding exactly one null-terminated
+    /// path; `outcome` is the result of the command. An empty (not absent) path means the root folder
+    /// is selected (spec: "a single byte = 0"), which `decodeStringReply` already returns as an empty
+    /// string with no extra handling needed. [RQ-AKM-061]
+    struct DiskPathResult
+    {
+        std::optional<std::string> path{};
+        CommandResult outcome{};
+    };
+    using DiskPathCompletion = std::function<void(const DiskPathResult&)>;
+
+    /// Gets the current path on the currently selected disk (§10/&09). Refused as `ChecksumModeUnknown`
+    /// while the port's checksum mode is unknown, for the same reason as `getCurrentProgramName`.
+    /// [RQ-AKM-061, RQ-AKM-041]
+    void getCurrentDiskPath(Session& session, DiskPathCompletion completion);
 }

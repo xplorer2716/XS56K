@@ -379,5 +379,8 @@ namespace akm::harness
         std::vector<std::string> _multis;
         // §10 disks (RQ-AKM-060), seeded by `setDisks`: not touched by powerCycle() or by &01.
         std::vector<DiskRecord> _disks;
+        // §10 current disk selection (RQ-AKM-061, &02): an index into `_disks`, reset whenever `setDisks`
+        // reseeds the list, since a handle from the old list would otherwise dangle.
+        std::optional<std::size_t> _currentDisk;
     };
 }
