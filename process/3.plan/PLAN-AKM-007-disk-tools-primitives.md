@@ -111,7 +111,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-059: Disk format, free space and name
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&0A` (Get Format), `&0B` (Get Free Space) and `&0E` (Get Disk Name).
   `&0B` is the catalogue's first `qword`-formatted item: extend `generate_akm_items.py`'s schema to
   accept `format: "qword"` (mirroring `DEC-AKM-013`'s addition of `string`), record the new decision
@@ -122,8 +122,34 @@ This plan implements the tasks in the format specified below.
   `generate_akm_items.py --check` up to date after the schema change.
 - **Dependencies**: TASK-AKM-057
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 507/507 passed. `DEC-AKM-017` (ADR-AKM-001): `ValueFormat::Qword`
+  added next to `Dword` (`ItemDescriptor.hpp`), `valueWidth` returns `QWORD_WIDTH` (8) for it, and the
+  generic `appendValue`/`readValue` of `ItemRequest.cpp` grew one case each calling the codec's own
+  `ByteWriter::appendQword`/`ByteReader::readQword` (already existed, `RQ-AKM-002`, unused until now):
+  no dedicated pair of functions was needed the way `String` required, its 56-bit range fitting
+  `std::int64_t` directly. `generate_akm_items.py`'s `FORMATS` dict accepts `"qword"`
+  (`QWORD_MAX = 128**8 - 1`); its own test for a format the schema refuses now uses a fabricated
+  `"nibble"` instead of `"qword"` (which would no longer be refused). `ItemCatalogueTests.cpp`'s
+  `EVERY_FORMAT`/`EVERY_FORMAT_ITEM` grew from 6 to 7 values to cover `Qword` in the generic round
+  trip (encode and decode, value 128, `fixedReplyLength` sum `+8`), alongside its own direct
+  `valueWidth(ValueFormat::Qword) == 8` check. 3 new cases in `DiskPrimitivesTests.cpp`
+  (`ctest -R RQ-AKM-062`): a disk formatted FAT32 with 4 GiB free decodes both fields correctly, freeing
+  the free-space value through `std::uint64_t` end to end; a specified disk's name decodes like a
+  sampler or program name; with nothing selected, format and free space each complete Error.
+  `generate_akm_items.py --coverage`: the 3 new items covered (12 of 35 §10 rows now),
+  `unaccounted: none`, exit 0 — the `&0D`/`&0E` decimal erratum this task's `&0E` triggers is noted,
+  not flagged, now that `KNOWN_DEC_ERRATA` excepts it; `--check` up to date (272 items); the 22 Python
+  script tests re-run (`python juce/tests/tools/test_generate_akm_items.py`), still 22/22.
+- **Assumptions**: The `&0D`/`&0E` decimal-column erratum (`FTR-AKM-007`'s "Known spec inconsistency",
+  also `sysex_spec.kb.md` line 178) is resolved now, by this task, rather than deferred to
+  `TASK-AKM-068`'s coverage closure: leaving it unresolved would fail `--coverage`'s exit code (and the
+  `akm_item_catalogue_matches_the_spec` ctest entry) the moment `&0E` is catalogued, the same way
+  `TASK-AKM-032` resolved `08 &6C` immediately rather than waiting for `TASK-AKM-034`'s own coverage
+  task — `TASK-AKM-068` only needs to confirm it, not fix it. `&0A`/`&0B` act on the currently selected
+  disk (the spec's own "of current disk" wording), answering `ERROR 4` with none selected, consistent
+  with `TASK-AKM-058`'s choice for `&06`/`&08`/`&09`. A disk's free space has no spec-given default; the
+  model's own default (`0`) is as arbitrary as `SystemSetupState::waveTotalBytes`'s.
 
 ### TASK-AKM-060: Folder navigation, listing and management
 - **Tier**: L

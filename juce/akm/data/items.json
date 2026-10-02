@@ -48,7 +48,7 @@
       "name": "Disk",
       "complete": false,
       "spec": "Tables 20 and 21, pp. 32-34",
-      "note": "FTR-AKM-007 (PLAN-AKM-007), 51 rows (35 commands, 16 REPLY formats), the largest single-section lot so far. Disk discovery (RQ-AKM-060, TASK-AKM-057: &01, &04, &05) is catalogued first: &05's REPLY repeats a 6-field-plus-name record once per disk (handle as two Bytes, type, format, SCSI ID, writable, name), decoded like Program's &19 (DEC-AKM-014) rather than through the generic per-value decoder, since no record shape in the catalogue schema mixes fixed fields with a trailing String. `complete` is set by the section's own coverage task once every row is accounted for."
+      "note": "FTR-AKM-007 (PLAN-AKM-007), 51 rows (35 commands, 16 REPLY formats), the largest single-section lot so far. Disk discovery (RQ-AKM-060, TASK-AKM-057: &01, &04, &05) is catalogued first: &05's REPLY repeats a 6-field-plus-name record once per disk (handle as two Bytes, type, format, SCSI ID, writable, name), decoded like Program's &19 (DEC-AKM-014) rather than through the generic per-value decoder, since no record shape in the catalogue schema mixes fixed fields with a trailing String. Disk selection and status (RQ-AKM-061, TASK-AKM-058: &02, &03, &06-&09) followed, including the &08 naming mismatch between its command title (\"index\") and its REPLY text (\"handle\") — confirmed by the spec's own two tables, nothing to settle on hardware. Format, free space and name (RQ-AKM-062, TASK-AKM-059: &0A, &0B, &0E) added the catalogue's first `qword` item (&0B, DEC-AKM-017) and resolved the &0D/&0E decimal-column erratum (`KNOWN_DEC_ERRATA`, documents/_index/sysex_spec.kb.md line 178) the same way §08's &6C was. `complete` is set by the section's own coverage task once every row is accounted for."
     }
   ],
   "items": [
@@ -1808,6 +1808,27 @@
       "args": [],
       "reply": [{"name": "path", "format": "string", "min": 0, "max": 255}],
       "requirements": ["RQ-AKM-061"]
+    },
+    {
+      "id": "DiskGetCurrentFormat", "section": "10", "item": "0A", "name": "Get Format of current disk", "kind": "get",
+      "args": [],
+      "reply": [{"name": "format", "format": "byte", "min": 0, "max": 7}],
+      "requirements": ["RQ-AKM-062"]
+    },
+    {
+      "id": "DiskGetFreeSpace", "section": "10", "item": "0B", "name": "Get Free Space on current disk", "kind": "get",
+      "args": [],
+      "reply": [{"name": "freeBytes", "format": "qword", "min": 0, "max": 72057594037927935}],
+      "requirements": ["RQ-AKM-062"]
+    },
+    {
+      "id": "DiskGetName", "section": "10", "item": "0E", "name": "Get the name of the specified disk", "kind": "get",
+      "args": [
+        {"name": "handleMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "handleLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [{"name": "name", "format": "string", "min": 0, "max": 255}],
+      "requirements": ["RQ-AKM-062"]
     }
   ]
 }

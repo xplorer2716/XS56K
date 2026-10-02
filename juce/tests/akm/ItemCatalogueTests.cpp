@@ -96,10 +96,11 @@ namespace
     constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
 
     // One argument of every numeric format, with the ranges the formats allow.
-    constexpr std::array<ValueSpec, 6> EVERY_FORMAT{{
+    constexpr std::array<ValueSpec, 7> EVERY_FORMAT{{
         {"byte", ValueFormat::Byte, 0, 127},
         {"word", ValueFormat::Word, 0, 16383},
         {"dword", ValueFormat::Dword, 0, 268435455},
+        {"qword", ValueFormat::Qword, 0, 72057594037927935},
         {"signedByte", ValueFormat::SignedByte, -127, 127},
         {"signedWord", ValueFormat::SignedWord, -16383, 16383},
         {"signedDword", ValueFormat::SignedDword, -268435455, 268435455},
@@ -162,11 +163,14 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // Gets (RQ-AKM-048: &20-&24, &28-&2A / &40-&44, &48-&4A) and TASK-AKM-044 added the 4 read-only
     // parameters and the two grouped-REPLY items (RQ-AKM-049: &30-&33, &34, &4B), 0E now 34/34,
     // complete; TASK-AKM-057 added section 10's first 3 records, disk discovery (RQ-AKM-060: &01, &04,
-    // &05), and TASK-AKM-058 added 6 more, selection and status (RQ-AKM-061: &02, &03, &06-&09) —
-    // which this count includes without tracking them here too (see ProgramPrimitivesTests.cpp,
-    // SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp, SampleParametersTests.cpp,
-    // SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp and the other test files).
-    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6;
+    // &05), TASK-AKM-058 added 6 more, selection and status (RQ-AKM-061: &02, &03, &06-&09), and
+    // TASK-AKM-059 added 3 more, format/free space/name (RQ-AKM-062: &0A, &0B, &0E — the catalogue's
+    // first `Qword`, ADR-AKM-001 DEC-AKM-017) — which this count includes without tracking them here
+    // too (see ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
+    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp and the
+    // other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT =
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
@@ -198,11 +202,12 @@ TEST_CASE("Given each value format, When its width is asked, Then it is the numb
     CHECK(akm::valueWidth(ValueFormat::Byte) == 1);
     CHECK(akm::valueWidth(ValueFormat::Word) == 2);
     CHECK(akm::valueWidth(ValueFormat::Dword) == 4);
+    CHECK(akm::valueWidth(ValueFormat::Qword) == 8);
     // A sign byte, then the magnitude in a byte, a word or a dword.
     CHECK(akm::valueWidth(ValueFormat::SignedByte) == 2);
     CHECK(akm::valueWidth(ValueFormat::SignedWord) == 3);
     CHECK(akm::valueWidth(ValueFormat::SignedDword) == 5);
-    CHECK(EVERY_FORMAT_ITEM.fixedReplyLength() == 1 + 2 + 4 + 2 + 3 + 5);
+    CHECK(EVERY_FORMAT_ITEM.fixedReplyLength() == 1 + 2 + 4 + 8 + 2 + 3 + 5);
 }
 
 TEST_CASE("Given the String value format, When its width is asked, Then it is undefined: a String has no fixed width [RQ-AKM-002]",
@@ -321,14 +326,15 @@ TEST_CASE("Given options for the command, When it is encoded, Then they are kept
 TEST_CASE("Given a value of each numeric format, When encoded, Then the bytes are those the spec gives [RQ-AKM-002]",
           "[akm][catalogue]")
 {
-    const std::array<std::int64_t, 6> values{{5, 385, 268435455, -5, -37, 1}};
+    const std::array<std::int64_t, 7> values{{5, 385, 268435455, 128, -5, -37, 1}};
 
     const akm::CommandRequest request = akm::makeRequest(EVERY_FORMAT_ITEM, values);
 
     CHECK_FALSE(request.refusal.has_value());
-    // byte 5 | word 385 = 03 01 | dword 128^4-1 | signed byte -5 = 01 05 | signed word -37 = 01 00 25 | signed dword +1.
-    CHECK(request.command.data == bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00,
-                                         0x00, 0x00, 0x00, 0x01}));
+    // byte 5 | word 385 = 03 01 | dword 128^4-1 | qword 128 = 00*6 01 00 | signed byte -5 = 01 05 |
+    // signed word -37 = 01 00 25 | signed dword +1.
+    CHECK(request.command.data == bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                         0x01, 0x00, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00, 0x00, 0x00, 0x00, 0x01}));
 }
 
 TEST_CASE("Given a value outside the range of the record but inside its format, When encoded, Then it is refused, and the bounds themselves are accepted [RQ-AKM-001]",
@@ -424,13 +430,13 @@ TEST_CASE("Given reply data that is too short, too long or not made of data byte
 TEST_CASE("Given the data of a REPLY of every numeric format, When decoded, Then the values of the spec's examples come back [RQ-AKM-002]",
           "[akm][catalogue]")
 {
-    const Bytes data = bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00, 0x00, 0x00,
-                              0x00, 0x01});
+    const Bytes data = bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                              0x01, 0x05, 0x01, 0x00, 0x25, 0x00, 0x00, 0x00, 0x00, 0x01});
 
     const auto values = akm::decodeReply(EVERY_FORMAT_ITEM, data);
 
     REQUIRE(values.has_value());
-    CHECK(*values == Values{5, 385, 268435455, -5, -37, 1});
+    CHECK(*values == Values{5, 385, 268435455, 128, -5, -37, 1});
 }
 
 TEST_CASE("Given the data of a String REPLY, When decodeStringReply reads it, Then the name comes back [RQ-AKM-002]",

@@ -137,4 +137,48 @@ namespace akm
     /// while the port's checksum mode is unknown, for the same reason as `getCurrentProgramName`.
     /// [RQ-AKM-061, RQ-AKM-041]
     void getCurrentDiskPath(Session& session, DiskPathCompletion completion);
+
+    // Disk format, free space and name (§10/&0A, &0B, &0E). [RQ-AKM-062]
+
+    /// `format` is empty when the command did not complete on a REPLY of the length the catalogue gives
+    /// it; `outcome` is the result of the command. 0 = other, 1 = MSDOS, 2 = FAT32, 3 = ISO9660, 4 =
+    /// S1000, 5 = S3000, 6 = EMU, 7 = ROLAND. [RQ-AKM-062]
+    struct DiskFormatResult
+    {
+        std::optional<int> format{};
+        CommandResult outcome{};
+    };
+    using DiskFormatCompletion = std::function<void(const DiskFormatResult&)>;
+
+    /// Gets the format of the currently selected disk (§10/&0A). [RQ-AKM-062]
+    void getCurrentDiskFormat(Session& session, DiskFormatCompletion completion);
+
+    /// `freeBytes` is empty when the command did not complete on a REPLY of the length the catalogue
+    /// gives it; `outcome` is the result of the command. The REPLY is the catalogue's first `Qword`
+    /// (ADR-AKM-001, DEC-AKM-017): the generic `std::int64_t` decode path already fits its 56-bit range,
+    /// so `freeBytes` only widens it to `std::uint64_t` for a byte count that cannot be negative.
+    /// [RQ-AKM-062]
+    struct DiskFreeSpaceResult
+    {
+        std::optional<std::uint64_t> freeBytes{};
+        CommandResult outcome{};
+    };
+    using DiskFreeSpaceCompletion = std::function<void(const DiskFreeSpaceResult&)>;
+
+    /// Gets the free space, in bytes, of the currently selected disk (§10/&0B). [RQ-AKM-062]
+    void getCurrentDiskFreeSpace(Session& session, DiskFreeSpaceCompletion completion);
+
+    /// `name` is empty when the command did not complete on a REPLY holding exactly one null-terminated
+    /// name; `outcome` is the result of the command. [RQ-AKM-062]
+    struct DiskNameResult
+    {
+        std::optional<std::string> name{};
+        CommandResult outcome{};
+    };
+    using DiskNameCompletion = std::function<void(const DiskNameResult&)>;
+
+    /// Gets the name of the disk named by `handle` (§10/&0E). Refused as `ChecksumModeUnknown` while the
+    /// port's checksum mode is unknown, for the same reason as `getCurrentProgramName`. [RQ-AKM-062,
+    /// RQ-AKM-041]
+    void getDiskName(Session& session, int handle, DiskNameCompletion completion);
 }

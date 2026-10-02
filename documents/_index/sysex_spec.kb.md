@@ -175,7 +175,9 @@ F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 ·
 - T11/T12 `&6C{107}` → &6C is 108 (T11 p18, T12 p19). Resolved (TASK-AKM-032): confirmable from the TSV
   alone, no hardware needed — `juce/tools/generate_akm_items.py`'s `KNOWN_DEC_ERRATA` excepts `08 &6C`
   from the item-vs-decimal sanity check that would otherwise flag it as a catalogue mistake.
-- T20 `&0E{13}` "Get the name of the specified disk" → &0E is 14 (p32).
+- T20 `&0E{13}` "Get the name of the specified disk" → &0E is 14 (p32). Resolved (TASK-AKM-059):
+  confirmable from the TSV alone, no hardware needed, the same way `08 &6C` was — `KNOWN_DEC_ERRATA`
+  excepts `10 &0E` from the item-vs-decimal sanity check too.
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
 - §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11); the same column in the &20 REPLY row. Resolved (TASK-AKM-053): confirmed on a real S5000, 2026-10-01 (`akm-suite-20261001-223720.log`) — Play Mode 3 (Muted) was set and read back without error. The item's own text is what the sampler follows; the catalogue accepts 0-3 (`generate_akm_items.py`'s `KNOWN_RANGE_ERRATA`).

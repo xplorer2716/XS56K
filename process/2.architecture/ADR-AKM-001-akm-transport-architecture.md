@@ -25,7 +25,9 @@ added DEC-AKM-015, generalising DEC-AKM-014's decode into `decodeRepeatedReply` 
 Gets; it changed no other decision. The real-sampler run of the system setup checks (TASK-AKM-053,
 FTR-AKM-006) found the S5000 answering one item's REPLY under a section its command does not use;
 TASK-AKM-055 added DEC-AKM-016 to fix it, touching `Session`'s confirmation matcher and the codec's
-REPLY-length lookup — no other decision changed.
+REPLY-length lookup — no other decision changed. Disk Free Space (TASK-AKM-059, FTR-AKM-007) added
+DEC-AKM-017, the catalogue's first `Qword` value format, fitting the generic `int64_t` path unlike
+`String`; it changed no other decision.
 The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
@@ -463,6 +465,29 @@ says `02`. No section `0B` exists in the spec; no other item observed so far doe
 - **The simulated sampler reproduces it by default.** `SamplerBehaviour::replySectionOverrides` defaults to one
   entry, `S5000_CLOCK_REPLY_SECTION` (`{0x02, 0x05, 0x0B}`): every mock test exercises the session's real,
   observed behaviour, not an idealised one; a test wanting a spec-conformant sampler clears the list.
+
+### DEC-AKM-017: A `Qword` value format, fitting the generic `int64_t` path unlike `String`
+Decided in TASK-AKM-059, for RQ-AKM-062: Get Free Space on the current disk (§10/&0B) is the first item
+whose REPLY the spec itself calls a Compound Quad Word — 8 data bytes, the same shape as a Dword but
+twice as wide (spec pp. 8-9). The codec already had `ByteWriter::appendQword`/`ByteReader::readQword`
+(DEC-AKM-002, added ahead of need, like `readStringList` was for DEC-AKM-014), unused by any item until
+now.
+- **A new `ValueFormat::Qword`, next to `Dword`.** `valueWidth` returns `QWORD_WIDTH` (8) for it, the
+  same shape as the other fixed-width numeric formats — unlike `String`, nothing about a `Qword` REPLY
+  is variable-length, so `ItemDescriptor::fixedReplyLength()` needs no change for it.
+- **Through `makeRequest`/`decodeReply`, not a dedicated pair of functions.** DEC-AKM-013's reason for
+  giving `String` its own `makeStringRequest`/`decodeStringReply` was that `std::int64_t` cannot hold
+  text; it does not apply here. A Qword's range (0 to 2^56-1) fits `std::int64_t` with room to spare
+  (`std::int64_t`'s own range reaches 2^63-1), so `appendValue`/`readValue` (`ItemRequest.cpp`) gained
+  one `Qword` case each, calling `appendQword`/`readQword` directly — the same one-case-per-format
+  pattern every other numeric format already uses, not a new mechanism.
+- **The generator script accepts `"qword"` like any other numeric format.** `generate_akm_items.py`'s
+  `FORMATS` dict gained an entry (`QWORD_MAX = 128**8 - 1`); no change to the validator or the table
+  generator was needed beyond that one entry, confirming the format list was the only thing deferred.
+- **The public primitive widens to `std::uint64_t`.** `getCurrentDiskFreeSpace` reads the one `Qword`
+  value through the generic `decodeReply` (as `std::int64_t`, always non-negative for this item) and
+  widens it to `std::uint64_t` in `DiskFreeSpaceResult`, since a byte count cannot be negative — the
+  only place this decision is visible outside the catalogue layer.
 
 ## Consequences
 

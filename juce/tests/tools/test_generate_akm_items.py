@@ -110,10 +110,11 @@ class DataFileIsValidated(ScriptTest):
         self.assertIn(expected_text, result.stderr)
 
     def test_given_a_format_the_schema_does_not_support_when_read_then_it_is_refused_naming_the_record(self):
-        # "qword" is deferred like "string" was (DEC-AKM-003); unlike "string" (added by DEC-AKM-013,
-        # TASK-AKM-014), it is still unsupported, so it stays a valid example of a rejected format.
+        # "qword" was deferred like "string" was (DEC-AKM-003) until TASK-AKM-059 (DEC-AKM-017) added it,
+        # the same way TASK-AKM-014 (DEC-AKM-013) added "string"; "nibble" is not a spec format at all, so
+        # it stays a valid example of a rejected format regardless of what gets added later.
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExEcho")["args"][0]
-                                     .update(format="qword"))
+                                     .update(format="nibble"))
 
         self.assert_refused(variant, "SysExEcho")
 

@@ -28,9 +28,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using akm::CommandResult;
 using akm::DiskCountResult;
+using akm::DiskFormatResult;
+using akm::DiskFreeSpaceResult;
 using akm::DiskHandleResult;
 using akm::DiskInfo;
 using akm::DiskListResult;
+using akm::DiskNameResult;
 using akm::DiskPathResult;
 using akm::DiskTypeResult;
 using akm::Done;
@@ -93,6 +96,30 @@ namespace
     {
         auto latched = std::make_shared<Latched<DiskPathResult>>();
         akm::getCurrentDiskPath(harness.session(), [latched](const DiskPathResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFormatResult getCurrentDiskFormat(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskFormatResult>>();
+        akm::getCurrentDiskFormat(harness.session(), [latched](const DiskFormatResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFreeSpaceResult getCurrentDiskFreeSpace(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskFreeSpaceResult>>();
+        akm::getCurrentDiskFreeSpace(harness.session(), [latched](const DiskFreeSpaceResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskNameResult getDiskName(SessionHarness& harness, int handle)
+    {
+        auto latched = std::make_shared<Latched<DiskNameResult>>();
+        akm::getDiskName(harness.session(), handle, [latched](const DiskNameResult& r) { latched->set(r); });
         REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
         return *latched->value();
     }
@@ -259,4 +286,50 @@ TEST_CASE("Given no disk selected, When the current type, handle or path is read
     CHECK_FALSE(getCurrentDiskType(harness).type.has_value());
     CHECK_FALSE(getCurrentDiskHandle(harness).handle.has_value());
     CHECK_FALSE(getCurrentDiskPath(harness).path.has_value());
+}
+
+TEST_CASE("Given a disk formatted FAT32 with free space, When its format and free space are read, Then they decode to FAT32 and the byte count [RQ-AKM-062]",
+          "[akm][disk]")
+{
+    constexpr std::uint64_t FOUR_GIB = 4ull * 1024 * 1024 * 1024;
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks(
+        {DiskRecord{.handle = 1, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA", .freeBytes = FOUR_GIB}});
+    selectDisk(harness, 1);
+    REQUIRE(harness.waitForCompletions(1));
+
+    const DiskFormatResult format = getCurrentDiskFormat(harness);
+    REQUIRE(format.format.has_value());
+    CHECK(*format.format == 2);
+
+    const DiskFreeSpaceResult freeSpace = getCurrentDiskFreeSpace(harness);
+    REQUIRE(freeSpace.freeBytes.has_value());
+    CHECK(*freeSpace.freeBytes == FOUR_GIB);
+}
+
+TEST_CASE("Given a specified disk's name, When read, Then it decodes the same way a sampler or program name does [RQ-AKM-062]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 2, .type = 1, .format = 1, .scsiId = 0, .writable = true, .name = "VOLUME ONE"}});
+
+    const DiskNameResult name = getDiskName(harness, 2);
+    REQUIRE(name.name.has_value());
+    CHECK(*name.name == "VOLUME ONE");
+}
+
+TEST_CASE("Given no disk selected, When the current format or free space is read, Then each completes ERROR [RQ-AKM-062]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 0, .format = 0, .scsiId = 0, .writable = true, .name = "A"}});
+
+    CHECK_FALSE(getCurrentDiskFormat(harness).format.has_value());
+    CHECK_FALSE(getCurrentDiskFreeSpace(harness).freeBytes.has_value());
 }

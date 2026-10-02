@@ -27,17 +27,22 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
-    /// The value formats of the spec (pp. 8-9) that an item's arguments and reply can use. Qwords are
-    /// added when the first item that needs one is catalogued (ADR-AKM-001, DEC-AKM-003). `String` was
-    /// added by DEC-AKM-013 for the first items that carry an ASCII name (FTR-AKM-002): it has no fixed
-    /// width and is encoded and decoded through `ByteWriter::appendString` / `ByteReader::readString`
-    /// directly (`makeStringRequest`, `decodeStringReply`), not through the generic per-value
-    /// `makeRequest` / `decodeReply`, which stay `std::int64_t`-only. [RQ-AKM-002]
+    /// The value formats of the spec (pp. 8-9) that an item's arguments and reply can use. `Qword` was
+    /// added by DEC-AKM-017 for the first item whose REPLY is a Compound Quad Word (§10/&0B, Get Free
+    /// Space, TASK-AKM-059): the codec already encoded and decoded it (`ByteWriter::appendQword`,
+    /// `ByteReader::readQword`) before any item declared one, and it fits the generic `std::int64_t`
+    /// path (`makeRequest`/`decodeReply`) without a dedicated pair of functions the way `String` needed,
+    /// its 56-bit range being well inside `std::int64_t`. `String` was added by DEC-AKM-013 for the
+    /// first items that carry an ASCII name (FTR-AKM-002): it has no fixed width and is encoded and
+    /// decoded through `ByteWriter::appendString` / `ByteReader::readString` directly
+    /// (`makeStringRequest`, `decodeStringReply`), not through the generic per-value `makeRequest` /
+    /// `decodeReply`. [RQ-AKM-002]
     enum class ValueFormat
     {
         Byte,         ///< one data byte, 0 to 127
         Word,         ///< two bytes, most significant first, 0 to 16383
         Dword,        ///< four bytes, most significant first, 0 to 268435455
+        Qword,        ///< eight bytes, most significant first, 0 to 72057594037927935
         SignedByte,   ///< a sign byte, then the magnitude in a byte
         SignedWord,   ///< a sign byte, then the magnitude in a word
         SignedDword,  ///< a sign byte, then the magnitude in a dword
@@ -59,6 +64,8 @@ namespace akm
                 return WORD_WIDTH;
             case ValueFormat::Dword:
                 return DWORD_WIDTH;
+            case ValueFormat::Qword:
+                return QWORD_WIDTH;
             case ValueFormat::SignedByte:
                 return SIGN_BYTE_WIDTH + BYTE_WIDTH;
             case ValueFormat::SignedWord:

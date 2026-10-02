@@ -38,6 +38,8 @@ namespace akm
                     return writer.appendWord(static_cast<std::uint32_t>(value));
                 case ValueFormat::Dword:
                     return writer.appendDword(static_cast<std::uint32_t>(value));
+                case ValueFormat::Qword:
+                    return writer.appendQword(static_cast<std::uint64_t>(value));
                 case ValueFormat::SignedByte:
                     return writer.appendSignedByte(static_cast<std::int32_t>(value));
                 case ValueFormat::SignedWord:
@@ -70,6 +72,8 @@ namespace akm
                     return widened(reader.readWord());
                 case ValueFormat::Dword:
                     return widened(reader.readDword());
+                case ValueFormat::Qword:
+                    return widened(reader.readQword());
                 case ValueFormat::SignedByte:
                     return widened(reader.readSignedByte());
                 case ValueFormat::SignedWord:

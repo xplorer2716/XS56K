@@ -197,6 +197,10 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_DISK_TYPE = 0x07;
         constexpr std::uint8_t ITEM_GET_CURRENT_DISK_HANDLE = 0x08;
         constexpr std::uint8_t ITEM_GET_CURRENT_DISK_PATH = 0x09;
+        // Format, free space and name items of TASK-AKM-059 (RQ-AKM-062).
+        constexpr std::uint8_t ITEM_GET_CURRENT_DISK_FORMAT = 0x0A;
+        constexpr std::uint8_t ITEM_GET_DISK_FREE_SPACE = 0x0B;
+        constexpr std::uint8_t ITEM_GET_DISK_NAME = 0x0E;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1248,6 +1252,31 @@ namespace akm::harness
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendString("");
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_DISK_FORMAT:
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{disks[*currentDisk].format});
+                case ITEM_GET_DISK_FREE_SPACE:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendQword(disks[*currentDisk].freeBytes);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_DISK_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto handle = reader.readWord();
+                    if (!handle)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = findDiskByHandle(disks, static_cast<int>(*handle));
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(disks[*found].name);
                     return reply(writer.bytes());
                 }
                 default:

@@ -240,6 +240,9 @@ namespace akm::harness
         std::uint8_t scsiId = 0;
         bool writable = true;
         std::string name;
+        /// §10/&0B (RQ-AKM-062): the Compound Quad Word the spec gives no default for; arbitrary like
+        /// every other memory default in this model (`SystemSetupState::waveTotalBytes`).
+        std::uint64_t freeBytes = 0;
     };
 
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle

@@ -181,4 +181,52 @@ namespace akm
                                completion(result);
                        });
     }
+
+    void getCurrentDiskFormat(Session& session, DiskFormatCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskGetCurrentFormat, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFormatResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetCurrentFormat, rep->data);
+                               if (values && values->size() == 1)
+                                   result.format = static_cast<int>((*values)[0]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getCurrentDiskFreeSpace(Session& session, DiskFreeSpaceCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskGetFreeSpace, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFreeSpaceResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetFreeSpace, rep->data);
+                               if (values && values->size() == 1)
+                                   result.freeBytes = static_cast<std::uint64_t>((*values)[0]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getDiskName(Session& session, int handle, DiskNameCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(handle) % DATA_BYTE_BASE;
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::DiskGetName, {msb, lsb}, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskNameResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               result.name = decodeStringReply(ItemId::DiskGetName, rep->data);
+                           if (completion)
+                               completion(result);
+                       });
+    }
 }

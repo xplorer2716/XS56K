@@ -42,19 +42,24 @@ EXIT_MISMATCH = 1
 EXIT_INVALID = 2
 
 # Value formats of the spec (pp. 8-9) the schema supports: name -> (C++ enumerator, minimum, maximum).
-# Qwords and the conditional layouts of later sections are added when the first item that needs one is
-# catalogued (DEC-AKM-003). "string" was added by DEC-AKM-013 for the first items that carry an ASCII
-# name (FTR-AKM-002): min/max are a character count, not a numeric range: STRING_MAX_LENGTH is a generous
+# The conditional layouts of later sections are added when the first item that needs one is catalogued
+# (DEC-AKM-003). "string" was added by DEC-AKM-013 for the first items that carry an ASCII name
+# (FTR-AKM-002): min/max are a character count, not a numeric range: STRING_MAX_LENGTH is a generous
 # structural ceiling, not a spec or hardware limit — each item declares its own real bound (e.g. Program
 # names: 0-20, observed on a real S5000, documents/_index/sysex_spec.kb.md "Common value codes").
+# "qword" was added by DEC-AKM-017 for the first item whose REPLY is a Compound Quad Word (§10/&0B, Get
+# Free Space, TASK-AKM-059): the codec already encoded and decoded it (ByteReader/ByteWriter, RQ-AKM-002)
+# before any item declared one.
 BYTE_MAX = 127
 WORD_MAX = 128 ** 2 - 1
 DWORD_MAX = 128 ** 4 - 1
+QWORD_MAX = 128 ** 8 - 1
 STRING_MAX_LENGTH = 255
 FORMATS = {
     "byte": ("Byte", 0, BYTE_MAX),
     "word": ("Word", 0, WORD_MAX),
     "dword": ("Dword", 0, DWORD_MAX),
+    "qword": ("Qword", 0, QWORD_MAX),
     "signed_byte": ("SignedByte", -BYTE_MAX, BYTE_MAX),
     "signed_word": ("SignedWord", -WORD_MAX, WORD_MAX),
     "signed_dword": ("SignedDword", -DWORD_MAX, DWORD_MAX),
@@ -370,7 +375,10 @@ def compare_values(owner, label, values, row, known_range=None):
 # (section, item) pairs where the spec's own decimal column disagrees with its hex one — a documented
 # transcription slip in the PDF itself (documents/_index/sysex_spec.kb.md, "Spec errata /
 # inconsistencies"), not a mistake in this catalogue: noted, not flagged as a problem.
-KNOWN_DEC_ERRATA = {("08", "6C")}  # &6C listed as decimal 107 (= &6B's own), should be 108 (T11/T12)
+KNOWN_DEC_ERRATA = {
+    ("08", "6C"),  # &6C listed as decimal 107 (= &6B's own), should be 108 (T11/T12)
+    ("10", "0E"),  # &0E listed as decimal 13 (= &0D's own), should be 14 (T20)
+}
 
 
 def coverage(catalogue, spec):
