@@ -234,6 +234,10 @@ namespace akm::harness
         // Sample audition from disk items of TASK-AKM-065 (RQ-AKM-068).
         constexpr std::uint8_t ITEM_START_FILE_AUDITION = 0x30;
         constexpr std::uint8_t ITEM_STOP_FILE_AUDITION = 0x31;
+        // Destructive command guard items of TASK-AKM-066 (RQ-AKM-069).
+        constexpr std::uint8_t ITEM_EJECT_DISK = 0x0D;
+        constexpr std::uint8_t ITEM_DELETE_SUB_FOLDER = 0x17;
+        constexpr std::uint8_t ITEM_DELETE_FILE = 0x29;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1746,6 +1750,64 @@ namespace akm::harness
                     // Stopping when nothing plays is left to the sampler's own behaviour (RQ-AKM-068);
                     // this model always succeeds, not tracking audition state at all.
                     return done();
+                case ITEM_EJECT_DISK:
+                {
+                    akm::ByteReader reader(data);
+                    const auto handle = reader.readWord();
+                    const auto discard = handle ? reader.readByte() : std::nullopt;
+                    if (!handle || !discard)
+                        return failure(error_number::INVALID_FORMAT);
+                    // No virtual sample is tracked in this model, so there is nothing to discard or to
+                    // fail over because the drive is "in use" (RQ-AKM-069's guard is what this task
+                    // actually proves; the discard byte itself has no further effect here).
+                    const auto found = findDiskByHandle(disks, static_cast<int>(*handle));
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    disks.erase(disks.begin() + static_cast<std::ptrdiff_t>(*found));
+                    if (currentDisk)
+                    {
+                        if (*currentDisk == *found)
+                        {
+                            currentDisk.reset();
+                            currentFolderPath.clear();
+                        }
+                        else if (*currentDisk > *found)
+                        {
+                            --*currentDisk;
+                        }
+                    }
+                    return done();
+                }
+                case ITEM_DELETE_SUB_FOLDER:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findSubFolderByName(*folder, *name);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    folder->subFolders.erase(folder->subFolders.begin() + static_cast<std::ptrdiff_t>(*found));
+                    return done();
+                }
+                case ITEM_DELETE_FILE:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    folder->files.erase(folder->files.begin() + static_cast<std::ptrdiff_t>(*found));
+                    return done();
+                }
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }

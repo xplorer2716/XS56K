@@ -454,4 +454,62 @@ namespace akm
     {
         session.submit(makeRequest(ItemId::DiskStopFileAudition, NO_VALUES), std::move(completion));
     }
+
+    void ejectDisk(Session& session, int handle, CommandCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(handle) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskEjectDisk, {msb, lsb, 0}), std::move(completion));
+    }
+
+    void ejectDiskDiscardingVirtualSamples(Session& session, int handle,
+                                           std::optional<ConfirmEjectDiscardingVirtualSamples> confirmation,
+                                           CommandCompletion completion)
+    {
+        const ItemDescriptor& item = descriptor(ItemId::DiskEjectDisk);
+        if (!confirmation)
+        {
+            CommandRequest request;
+            request.command.section = item.section;
+            request.command.item = item.item;
+            request.refusal = RefusalReason::NotConfirmed;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(handle) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskEjectDisk, {msb, lsb, 1}), std::move(completion));
+    }
+
+    void deleteSubFolder(Session& session, std::string_view name, std::optional<ConfirmDeleteSubFolder> confirmation,
+                        CommandCompletion completion)
+    {
+        if (!confirmation)
+        {
+            const ItemDescriptor& item = descriptor(ItemId::DiskDeleteSubFolder);
+            CommandRequest request;
+            request.command.section = item.section;
+            request.command.item = item.item;
+            request.refusal = RefusalReason::NotConfirmed;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        session.submit(makeStringRequest(ItemId::DiskDeleteSubFolder, name), std::move(completion));
+    }
+
+    void deleteFile(Session& session, std::string_view name, std::optional<ConfirmDeleteFile> confirmation,
+                   CommandCompletion completion)
+    {
+        if (!confirmation)
+        {
+            const ItemDescriptor& item = descriptor(ItemId::DiskDeleteFile);
+            CommandRequest request;
+            request.command.section = item.section;
+            request.command.item = item.item;
+            request.refusal = RefusalReason::NotConfirmed;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        session.submit(makeStringRequest(ItemId::DiskDeleteFile, name), std::move(completion));
+    }
 }

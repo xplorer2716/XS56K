@@ -337,7 +337,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-066: Destructive command guards for Eject, Delete Sub-Folder and Delete File
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Guard `&0D` (Eject Disk, discard option), `&17` (Delete Sub-Folder) and `&29`
   (Delete File) behind an explicit confirmation argument, mirroring `RQ-AKM-025`/`RQ-AKM-046`/
   `RQ-AKM-056`.
@@ -346,8 +346,27 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-069, on the simulated sampler.
 - **Dependencies**: TASK-AKM-060, TASK-AKM-062
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 530/530 passed. `&0D` is split into two primitives rather than one
+  with an ignorable parameter: `ejectDisk` (always sends `<Data3> = 0`, no guard, cannot discard
+  anything) and `ejectDiskDiscardingVirtualSamples` (sends `<Data3> = 1`, gated the same way as
+  `deleteAllPrograms`); `deleteSubFolder`/`deleteFile` follow the same gated-request pattern, each with
+  its own confirmation enumerator. These three items complete §10's 35 command rows — the section is
+  now fully catalogued. 4 new cases in `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-069`): all three
+  guarded calls refuse as `NotConfirmed` with nothing sent when given no confirmation; `ejectDisk`
+  (no discard) sends and removes the disk without any confirmation; with confirmation, eject-with-
+  discard, delete sub-folder and delete file each remove their target and complete Done.
+  `grep -rn "ejectDiskDiscardingVirtualSamples\|deleteSubFolder\|deleteFile\b" juce/tests/support/src/RealSamplerSuite.cpp juce/tests/probe/main.cpp`:
+  no match — satisfies "no real-sampler test calls this" trivially, since §10's real-sampler harness
+  does not exist yet (`TASK-AKM-067`). `generate_akm_items.py --coverage`: `section 10: 35 of 35 spec
+  rows covered`, `unaccounted: none`; `--check` up to date (295 items). `ItemCatalogueTests.cpp`'s
+  total-item-count check updated (`PROGRAM_ITEM_COUNT`, `+3`).
+- **Assumptions**: Ejecting the current disk resets the current disk and folder selection; ejecting any
+  other disk shifts the current-disk index down by one if it came after the ejected one in the list —
+  neither case is asked for by an acceptance criterion, but leaving the index dangling or pointing at
+  the wrong disk seemed the worse default. The discard flag itself has no modelled effect beyond
+  removing the disk: no virtual sample is tracked in this model, so there is nothing to discard or to
+  refuse over "drive in use".
 
 ### TASK-AKM-067: Real-sampler harness — disposable test folder and slow-operation guard
 - **Tier**: L

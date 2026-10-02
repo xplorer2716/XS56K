@@ -387,4 +387,51 @@ namespace akm
 
     /// Stops the current audition (§10/&31). [RQ-AKM-068]
     void stopFileAudition(Session& session, CommandCompletion completion);
+
+    // Destructive command guards for Eject, Delete Sub-Folder and Delete File (§10/&0D, &17, &29).
+    // [RQ-AKM-069]
+
+    /// Ejects the disk named by `handle` (§10/&0D), failing rather than discarding anything if the
+    /// drive is in use (`<Data3> = 0`) — needs no confirmation, since it cannot lose data on its own.
+    /// Use `ejectDiskDiscardingVirtualSamples` to allow it to discard instead. [RQ-AKM-069]
+    void ejectDisk(Session& session, int handle, CommandCompletion completion);
+
+    /// Passed to `ejectDiskDiscardingVirtualSamples` to prove the caller means it. No default: sent
+    /// only when it is the enumerator; `std::nullopt` refuses the command as `NotConfirmed` without
+    /// sending. [RQ-AKM-069]
+    enum class ConfirmEjectDiscardingVirtualSamples
+    {
+        IUnderstandThisDiscardsEveryVirtualSampleOnThisDisk,
+    };
+
+    /// Ejects the disk named by `handle` (§10/&0D, `<Data3> = 1`), discarding any virtual sample open
+    /// from it rather than failing because the drive is in use. No real-sampler test of any feature
+    /// calls this. [RQ-AKM-069]
+    void ejectDiskDiscardingVirtualSamples(Session& session, int handle,
+                                           std::optional<ConfirmEjectDiscardingVirtualSamples> confirmation,
+                                           CommandCompletion completion);
+
+    /// Passed to `deleteSubFolder` to prove the caller means it. No default: sent only when it is the
+    /// enumerator; `std::nullopt` refuses the command as `NotConfirmed` without sending. [RQ-AKM-069]
+    enum class ConfirmDeleteSubFolder
+    {
+        IUnderstandThisDeletesTheFolderAndEverythingInIt,
+    };
+
+    /// Deletes the sub-folder named `name` of the current folder (§10/&17) — irreversible, and takes
+    /// everything inside it with it. No real-sampler test of any feature calls this. [RQ-AKM-069]
+    void deleteSubFolder(Session& session, std::string_view name, std::optional<ConfirmDeleteSubFolder> confirmation,
+                        CommandCompletion completion);
+
+    /// Passed to `deleteFile` to prove the caller means it. No default: sent only when it is the
+    /// enumerator; `std::nullopt` refuses the command as `NotConfirmed` without sending. [RQ-AKM-069]
+    enum class ConfirmDeleteFile
+    {
+        IUnderstandThisDeletesTheFile,
+    };
+
+    /// Deletes the file named `name` in the current folder (§10/&29) — irreversible. No real-sampler
+    /// test of any feature calls this. [RQ-AKM-069]
+    void deleteFile(Session& session, std::string_view name, std::optional<ConfirmDeleteFile> confirmation,
+                   CommandCompletion completion);
 }

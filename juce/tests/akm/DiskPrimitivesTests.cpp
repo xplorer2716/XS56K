@@ -894,3 +894,75 @@ TEST_CASE("Given an index that names no file, When audition is started, Then it 
     REQUIRE(harness.waitForCompletions(2));
     CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
 }
+
+TEST_CASE("Given a request for eject-with-discard, delete sub-folder or delete file without the confirmation argument, When made, Then nothing is sent and an error explains why [RQ-AKM-069]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+
+    akm::ejectDiskDiscardingVirtualSamples(harness.session(), 0, std::nullopt, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    REQUIRE(std::holds_alternative<Refused>(harness.recorder().results().back()));
+    CHECK(std::get<Refused>(harness.recorder().results().back()).reason == RefusalReason::NotConfirmed);
+
+    akm::deleteSubFolder(harness.session(), "ANY", std::nullopt, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    REQUIRE(std::holds_alternative<Refused>(harness.recorder().results().back()));
+    CHECK(std::get<Refused>(harness.recorder().results().back()).reason == RefusalReason::NotConfirmed);
+
+    akm::deleteFile(harness.session(), "ANY", std::nullopt, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+    REQUIRE(std::holds_alternative<Refused>(harness.recorder().results().back()));
+    CHECK(std::get<Refused>(harness.recorder().results().back()).reason == RefusalReason::NotConfirmed);
+
+    CHECK(harness.sentCount() == 0);
+}
+
+TEST_CASE("Given eject without discard, When requested, Then it is sent without needing confirmation [RQ-AKM-069]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 3, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+
+    akm::ejectDisk(harness.session(), 3, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    const DiskListResult disks = getConnectedDisks(harness);
+    REQUIRE(disks.disks.has_value());
+    CHECK(disks.disks->empty());
+}
+
+TEST_CASE("Given confirmation, When eject-with-discard, delete sub-folder and delete file are requested, Then each removes its target and completes DONE [RQ-AKM-069]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {FolderRecord{"OLD", {}}}, {}, {}, {FileRecord{"JUNK.AKP", 1}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::deleteSubFolder(harness.session(), "OLD", akm::ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt,
+                         harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+    CHECK(getFolderCount(harness).count == 0);
+
+    akm::deleteFile(harness.session(), "JUNK.AKP", akm::ConfirmDeleteFile::IUnderstandThisDeletesTheFile,
+                    harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+    CHECK(getFileCount(harness).count == 0);
+
+    akm::ejectDiskDiscardingVirtualSamples(harness.session(), 0,
+                                           akm::ConfirmEjectDiscardingVirtualSamples::IUnderstandThisDiscardsEveryVirtualSampleOnThisDisk,
+                                           harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(4));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+}
