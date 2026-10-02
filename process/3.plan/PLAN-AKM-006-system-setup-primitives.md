@@ -346,7 +346,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-054: Coverage of section §02 and errata resolution
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `02`, list any exclusion with its
   reason, resolve the `&10` Play Mode range erratum on the real sampler, and update
   `SUMMARY-akm-sections-coverage.md` and `AGENTS.md` if the suite's options changed.
@@ -356,5 +356,25 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-AKM-048, TASK-AKM-049, TASK-AKM-050, TASK-AKM-051, TASK-AKM-052, TASK-AKM-053,
   TASK-AKM-055
 - **Assignee**: AI, with the owner running the real-sampler observation
-- **Verification**: to be filled at closure.
+- **Verification**: The Play Mode range erratum was already resolved on the real S5000 by `TASK-AKM-053`
+  (2026-10-01, `akm-suite-20261001-223720.log`: Play Mode 3/Muted set and read back without error) and
+  recorded in `sysex_spec.kb.md` line 181 before this task started. `generate_akm_items.py --coverage`
+  re-run this session: `section 02: 16 of 16 spec rows covered (System, partial); 0 not covered, as
+  declared` (pre-flip) and `unaccounted: none` overall; the two range-erratum notes for `&10`/`&20` are
+  the only ones printed for §02. `items.json`'s section-02 `complete` flag flipped `false` → `true` (its
+  note updated to point at the resolution and at this task); `generate_akm_items.py` (no args) regenerated
+  `ItemTable.generated.hpp` with no diff (the flag is section metadata, not read by the generator), then
+  `--check` reported up to date. Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`);
+  `ctest --test-dir juce/build -C Debug` 494/494 passed, re-run twice in this session. The flag flip broke
+  `akm_item_catalogue_script_tests`'s
+  `test_given_the_two_version_items_when_coverage_runs_then_the_partial_section_reports_what_it_leaves_out`,
+  which asserted §02 printed "partial" against the live data file — true only while §02 was the one open
+  section. Replaced with
+  `test_given_a_section_declared_incomplete_when_coverage_runs_then_it_reports_partial_and_the_gap`, which
+  forces a section incomplete in a written variant instead of relying on the live catalogue having one;
+  re-run standalone (`python juce/tests/tools/test_generate_akm_items.py`, 22/22) and through `ctest`
+  (`akm_item_catalogue_script_tests`, both before and after the fix). `SUMMARY-akm-sections-coverage.md`
+  updated from future to past tense now that the flip is done. `AGENTS.md`: no change — `--system-setup`'s
+  options are unchanged by this task.
+- **Assumptions**: None.
 - **Assumptions**: None yet.

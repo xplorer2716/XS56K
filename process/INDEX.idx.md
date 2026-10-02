@@ -186,7 +186,7 @@ TASK-AKM-044|230-280|Done|Read-only sample parameters and grouped replies
 TASK-AKM-045|281-364|Done|Real-sampler test harness — dedicated test sample
 TASK-AKM-046|365-397|Done|Coverage of section §0E and errata resolution
 @process/3.plan/PLAN-AKM-006-system-setup-primitives.md
-PLAN-AKM-006|1-360||System Setup Primitives (Phase A, residual §02)
+PLAN-AKM-006|1-380||System Setup Primitives (Phase A, residual §02)
 TASK-AKM-047|45-61|Done|Author FTR-AKM-006 and PLAN-AKM-006
 TASK-AKM-048|62-92|Done|Sampler name (Set and Get)
 TASK-AKM-049|93-129|Done|Sampler model and available memory (Get)
@@ -195,7 +195,7 @@ TASK-AKM-051|171-208|Done|Play Mode and front-panel lock (Set and Get)
 TASK-AKM-052|209-246|Done|Destructive command guard for "Clear Sampler Memory"
 TASK-AKM-053|247-301|Done|Real-sampler harness — system setup restored
 TASK-AKM-055|302-346|Done|The REPLY of Get Clock Time and Date carries section 0B, not 02
-TASK-AKM-054|347-360|Not Started|Coverage of section §02 and errata resolution
+TASK-AKM-054|347-380|Done|Coverage of section §02 and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

@@ -28,9 +28,9 @@
 390 of 560 spec lines covered overall (70 %); every implemented section is complete (no section is
 partially done right now — §02 was the last partial one, closed by `TASK-AKM-053`/`TASK-AKM-055`).
 Coverage confirmed by `generate_akm_items.py --coverage` (`unaccounted: none`) for §00/§02/§06/§08/§0A/§0E.
-§02's own `complete: true` flag in `items.json` is flipped by `TASK-AKM-054` (`PLAN-AKM-006`), which also
-records the section's errata resolution; the table above reflects the catalogue's actual content, not
-that flag. §02 was confirmed on a real S5000, 2026-10-01 (`akm-suite-20261001-223720.log`).
+§02's own `complete` flag in `items.json` was flipped to `true` by `TASK-AKM-054` (`PLAN-AKM-006`,
+2026-10-02), which re-ran `--coverage` (16/16, no unaccounted item) and recorded the Play Mode range
+erratum as resolved. §02 was confirmed on a real S5000, 2026-10-01 (`akm-suite-20261001-223720.log`).
 
 Not in the table above — 0 of their own spec lines, so no bar applies:
 

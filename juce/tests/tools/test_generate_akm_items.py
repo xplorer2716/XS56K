@@ -166,11 +166,20 @@ class CoverageAgainstTheSpec(ScriptTest):
         self.assertIn(f"section 00: {SECTION_00_ITEM_COUNT} of {SECTION_00_ITEM_COUNT} spec rows covered", result.stdout)
         self.assertIn("unaccounted: none", result.stdout)
 
-    def test_given_the_two_version_items_when_coverage_runs_then_the_partial_section_reports_what_it_leaves_out(self):
-        result = run_script("--coverage")
+    def test_given_a_section_declared_incomplete_when_coverage_runs_then_it_reports_partial_and_the_gap(self):
+        # Every section currently in the catalogue is complete (TASK-AKM-054 closed the last one, §02),
+        # so a partial section is forced here rather than borrowed from the live data file.
+        def declare_incomplete(catalogue):
+            next(s for s in catalogue["sections"] if s["section"] == "02")["complete"] = False
+            catalogue["items"] = [entry for entry in catalogue["items"]
+                                  if not (entry["section"] == "02" and entry["item"] == "00")]
 
+        result = run_script("--coverage", "--data", str(self.write_variant(declare_incomplete)))
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("section 02", result.stdout)
         self.assertIn("partial", result.stdout)
+        self.assertIn("1 not covered, as declared", result.stdout)
 
     def test_given_a_spec_row_without_a_record_in_a_complete_section_when_coverage_runs_then_it_is_listed(self):
         def remove_echo(catalogue):
