@@ -184,6 +184,13 @@ namespace akm::harness
         // item codes this lot's &4B concatenates, in the order the spec's own grouped REPLY gives them.
         constexpr std::array<std::uint8_t, 8> SETTABLE_PARAM_SET_ITEMS{{0x20, 0x21, 0x22, 0x23, 0x24, 0x28, 0x29, 0x2A}};
 
+        // Section §10 (Disk), spec Tables 20-21: disk discovery of TASK-AKM-057 (RQ-AKM-060). Other §10
+        // items answer ERROR 0 until their own lot.
+        constexpr std::uint8_t SECTION_DISK = 0x10;
+        constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
+        constexpr std::uint8_t ITEM_GET_DISK_COUNT = 0x04;
+        constexpr std::uint8_t ITEM_GET_DISK_LIST = 0x05;
+
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
         constexpr std::size_t SECTION_AND_ITEM_SIZE = 2;
@@ -1143,15 +1150,45 @@ namespace akm::harness
             return done();
         }
 
+        // §10 disk discovery of TASK-AKM-057 (RQ-AKM-060): &01 is a no-op (this model always answers
+        // &04/&05 from `disks`, refresh or not); &04 answers the count; &05 answers one record per disk
+        // (handle as two Bytes, type, format, SCSI ID, writable, name), concatenated in order.
+        Outcome executeDisk(std::uint8_t item, const std::vector<DiskRecord>& disks)
+        {
+            switch (item)
+            {
+                case ITEM_UPDATE_DISK_LIST:
+                    return done();
+                case ITEM_GET_DISK_COUNT:
+                    return reply(Bytes{static_cast<std::uint8_t>(disks.size())});
+                case ITEM_GET_DISK_LIST:
+                {
+                    akm::ByteWriter writer;
+                    for (const DiskRecord& disk : disks)
+                    {
+                        writer.appendWord(static_cast<std::uint32_t>(disk.handle));
+                        writer.appendByte(disk.type);
+                        writer.appendByte(disk.format);
+                        writer.appendByte(disk.scsiId);
+                        writer.appendByte(disk.writable ? 1 : 0);
+                        writer.appendString(disk.name);
+                    }
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
         // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
-        // parameters (RQ-AKM-034, RQ-AKM-035) and §0E's lifecycle (RQ-AKM-045) are modelled. A byte
-        // after the data an item expects is ignored, as the spec says of a checksum sent while checksums
-        // are off.
+        // parameters (RQ-AKM-034, RQ-AKM-035), §0E's lifecycle (RQ-AKM-045) and §10's disk discovery
+        // (RQ-AKM-060) are modelled. A byte after the data an item expects is ignored, as the spec says
+        // of a checksum sent while checksums are off.
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
                         const OsVersion& osVersion, SystemSetupState& system, std::vector<ProgramRecord>& programs,
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                         std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
-                        std::vector<std::string>& multis)
+                        std::vector<std::string>& multis, const std::vector<DiskRecord>& disks)
         {
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(system, programs, currentProgram, currentKeygroup, samples, currentSample,
@@ -1172,6 +1209,8 @@ namespace akm::harness
                 return executeKeygroup(item, data, programs, currentProgram, currentKeygroup);
             if (section == SECTION_SAMPLE)
                 return executeSample(item, data, samples, currentSample);
+            if (section == SECTION_DISK)
+                return executeDisk(item, disks);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -1303,6 +1342,12 @@ namespace akm::harness
         _system.waveTotalBytes = waveTotalBytes;
         _system.waveFreeBytes = waveFreeBytes;
         _system.mpksFreePercent = mpksFreePercent;
+    }
+
+    void SimulatedSampler::setDisks(std::vector<DiskRecord> disks)
+    {
+        const std::lock_guard lock(_mutex);
+        _disks = std::move(disks);
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
@@ -1460,7 +1505,7 @@ namespace akm::harness
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
                                     : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
-                                              _currentKeygroup, _samples, _currentSample, _multis);
+                                              _currentKeygroup, _samples, _currentSample, _multis, _disks);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

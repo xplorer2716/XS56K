@@ -42,6 +42,13 @@
       "complete": true,
       "spec": "Tables 18 and 19, pp. 29-31",
       "note": "Section 0E is fully catalogued as of TASK-AKM-044: the 6 lifecycle items of RQ-AKM-045 (TASK-AKM-040: &05, &06, &08, &09, &0A, &0B, plus &13/&14 pulled in early, mirroring TASK-AKM-015's own precedent for Program's &10/&13); the guarded &07 (RQ-AKM-046, TASK-AKM-041, mirroring Program's TASK-AKM-023); the remaining general information &10-&12 (RQ-AKM-047, TASK-AKM-042, &12 a repeated String REPLY decoded like Program's &19, DEC-AKM-014); the 8 settable parameters and their Gets (RQ-AKM-048, TASK-AKM-043: &20-&24, &28-&2A / &40-&44, &48-&4A), each multi-byte position/loop item split into separate Byte values (positionMsb/Sb2/Sb1/Lsb) rather than the codec's unused `ValueFormat::Dword`, matching every other multi-byte item in this catalogue; and the 4 read-only parameters plus the two grouped-REPLY items (RQ-AKM-049, TASK-AKM-044: &30-&33, &34, &4B) — 34/34 command rows. §0E has its own sampler-wide `current sample` selection state, the same pattern as §0A's current program (documents/_index/sysex_spec.kb.md line 91), not the zone-number-as-first-byte pattern of §06."
+    },
+    {
+      "section": "10",
+      "name": "Disk",
+      "complete": false,
+      "spec": "Tables 20 and 21, pp. 32-34",
+      "note": "FTR-AKM-007 (PLAN-AKM-007), 51 rows (35 commands, 16 REPLY formats), the largest single-section lot so far. Disk discovery (RQ-AKM-060, TASK-AKM-057: &01, &04, &05) is catalogued first: &05's REPLY repeats a 6-field-plus-name record once per disk (handle as two Bytes, type, format, SCSI ID, writable, name), decoded like Program's &19 (DEC-AKM-014) rather than through the generic per-value decoder, since no record shape in the catalogue schema mixes fixed fields with a trailing String. `complete` is set by the section's own coverage task once every row is accounted for."
     }
   ],
   "items": [
@@ -1730,6 +1737,31 @@
         {"name": "loopEndLsb", "format": "byte", "min": 0, "max": 127}
       ],
       "requirements": ["RQ-AKM-049"]
+    },
+    {
+      "id": "DiskUpdateList", "section": "10", "item": "01", "name": "Update the list of disks connected", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-060"]
+    },
+    {
+      "id": "DiskGetCount", "section": "10", "item": "04", "name": "Get the number of disks connected", "kind": "get",
+      "args": [],
+      "reply": [{"name": "count", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-060"]
+    },
+    {
+      "id": "DiskGetList", "section": "10", "item": "05", "name": "Get list of all connected disks", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "handleMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "handleLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "type", "format": "byte", "min": 0, "max": 3},
+        {"name": "format", "format": "byte", "min": 0, "max": 7},
+        {"name": "scsiId", "format": "byte", "min": 0, "max": 7},
+        {"name": "writable", "format": "byte", "min": 0, "max": 1},
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-060"]
     }
   ]
 }

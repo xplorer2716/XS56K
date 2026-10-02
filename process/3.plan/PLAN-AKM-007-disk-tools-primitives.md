@@ -45,7 +45,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-057: Disk discovery
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&01` (Update List of Disks), `&04` (Get Number of Disks) and `&05` (Get
   List of All Connected Disks, decoding each entry's handle/type/format/SCSI ID/writable flag/name).
 - **Requirement refs**: RQ-AKM-060
@@ -53,8 +53,32 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-060, on the simulated sampler.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 500/500 passed (re-run twice in this session). New
+  `DiskPrimitivesTests.cpp` (6 cases, `[akm][disk]`, `ctest -R RQ-AKM-060`): no disks connected → count
+  0, empty list (not refused); two simulated disks → count 2, both entries decode (handle, type,
+  format, SCSI ID, writable, name) in order; a handle above 127 decodes correctly from its two data
+  bytes; `&04`/`&05` still send and decode without `&01` having been sent first (the ordering the spec
+  states is not enforced by this layer); `&01` completes DONE; `&05` is refused as
+  `ChecksumModeUnknown` while the mode is unknown, nothing sent (mirrors `getAllProgramNames`,
+  DEC-AKM-014). `generate_akm_items.py --coverage`: `DiskUpdateList`/`DiskGetCount`/`DiskGetList`
+  covered (3 of 35 §10 command rows), `unaccounted: none` overall; `--check` up to date (263 items).
+  Two pre-existing tests updated to reflect the catalogue's new, correct content rather than loosened:
+  `ItemCatalogueTests.cpp`'s total-item-count check (`PROGRAM_ITEM_COUNT`, `+3`) and
+  `RealSamplerSuiteTests.cpp`'s `--slow-operation` ERROR-path test, which relied on the simulated
+  sampler having no §10 support at all — now forces `&01` to refuse via the existing `itemErrors`
+  override (the same mechanism several other tests already use), so it still exercises the ERROR path
+  it is named for, the DONE path being covered by `DiskPrimitivesTests.cpp` instead; re-run standalone
+  (`ctest -R "sampler without a disk section"`) and through the full suite.
+- **Assumptions**: `&05`'s REPLY is decoded with a custom `ByteReader` loop in `DiskPrimitives.cpp`,
+  the same way `getAllProgramNumbers`/`getAllProgramNames` already are, rather than extending the
+  generic `decodeRepeatedReply` to mixed fixed-field-plus-string records: no second item needs that
+  shape yet, and the project avoids generalising for a single use (`AGENTS.md` anti-patterns). The
+  simulated sampler does not model the spec's own precondition that `&04`/`&05` are unreliable before
+  `&01` runs (Table 20, footnote b): `setDisks` always reflects what a test seeds, `&01` a no-op,
+  since no acceptance criterion of `RQ-AKM-060` asks the model to simulate that staleness. A disk's
+  name has no observed real-hardware bound, so its catalogue range is `0-255` (`STRING_MAX_LENGTH`),
+  the same choice already made for Zone/Sample names with no observed bound.
 
 ### TASK-AKM-058: Disk selection and status
 - **Tier**: M

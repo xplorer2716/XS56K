@@ -161,10 +161,12 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // remaining general-information items), TASK-AKM-043 added the 8 settable parameters and their
     // Gets (RQ-AKM-048: &20-&24, &28-&2A / &40-&44, &48-&4A) and TASK-AKM-044 added the 4 read-only
     // parameters and the two grouped-REPLY items (RQ-AKM-049: &30-&33, &34, &4B), 0E now 34/34,
-    // complete — which this count includes without tracking them here too (see
+    // complete; TASK-AKM-057 added section 10's first 3 records, disk discovery (RQ-AKM-060: &01, &04,
+    // &05) — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
-    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp and the other test files).
-    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6;
+    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp and the
+    // other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

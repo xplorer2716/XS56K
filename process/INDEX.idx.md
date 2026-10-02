@@ -212,20 +212,20 @@ TASK-AKM-053|247-301|Done|Real-sampler harness — system setup restored
 TASK-AKM-055|302-346|Done|The REPLY of Get Clock Time and Date carries section 0B, not 02
 TASK-AKM-054|347-380|Done|Coverage of section §02 and errata resolution
 @process/3.plan/PLAN-AKM-007-disk-tools-primitives.md
-PLAN-AKM-007|1-213||Disk Tools Primitives (Phase A, new lot, §10)
+PLAN-AKM-007|1-237||Disk Tools Primitives (Phase A, new lot, §10)
 TASK-AKM-056|22-45|Done|Author FTR-AKM-007 and PLAN-AKM-007
-TASK-AKM-057|46-58|Not Started|Disk discovery
-TASK-AKM-058|59-71|Not Started|Disk selection and status
-TASK-AKM-059|72-87|Not Started|Disk format, free space and name
-TASK-AKM-060|88-103|Not Started|Folder navigation, listing and management
-TASK-AKM-061|104-116|Not Started|Load Folder
-TASK-AKM-062|117-129|Not Started|File listing, info and rename
-TASK-AKM-063|130-142|Not Started|Load File, with and without dependent children
-TASK-AKM-064|143-155|Not Started|Save Memory Item(s) to disk
-TASK-AKM-065|156-167|Not Started|Sample audition from disk
-TASK-AKM-066|168-181|Not Started|Destructive command guards for Eject, Delete Sub-Folder and Delete File
-TASK-AKM-067|182-199|Not Started|Real-sampler harness — disposable test folder and slow-operation guard
-TASK-AKM-068|200-213|Not Started|Coverage of section §10 and errata resolution
+TASK-AKM-057|46-82|Done|Disk discovery
+TASK-AKM-058|83-95|Not Started|Disk selection and status
+TASK-AKM-059|96-111|Not Started|Disk format, free space and name
+TASK-AKM-060|112-127|Not Started|Folder navigation, listing and management
+TASK-AKM-061|128-140|Not Started|Load Folder
+TASK-AKM-062|141-153|Not Started|File listing, info and rename
+TASK-AKM-063|154-166|Not Started|Load File, with and without dependent children
+TASK-AKM-064|167-179|Not Started|Save Memory Item(s) to disk
+TASK-AKM-065|180-191|Not Started|Sample audition from disk
+TASK-AKM-066|192-205|Not Started|Destructive command guards for Eject, Delete Sub-Folder and Delete File
+TASK-AKM-067|206-223|Not Started|Real-sampler harness — disposable test folder and slow-operation guard
+TASK-AKM-068|224-237|Not Started|Coverage of section §10 and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

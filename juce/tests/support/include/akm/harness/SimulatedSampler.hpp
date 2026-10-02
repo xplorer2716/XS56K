@@ -228,6 +228,20 @@ namespace akm::harness
         std::uint8_t highestPlayMode = 3;
     };
 
+    /// One disk connected to the sampler (§10, spec Tables 20-21): only what TASK-AKM-057's discovery
+    /// primitives set or read. `handle` is the model's own index into `SimulatedSampler`'s disk list,
+    /// not a value the spec assigns meaning to beyond "the disk `&02` was last asked to select".
+    /// [RQ-AKM-060]
+    struct DiskRecord
+    {
+        int handle = 0;
+        std::uint8_t type = 0;     ///< 0 = floppy, 1 = hard disk, 2 = CD-ROM, 3 = removable
+        std::uint8_t format = 0;   ///< 0 = other, 1 = MSDOS, 2 = FAT32, 3 = ISO9660, 4 = S1000, 5 = S3000, 6 = EMU, 7 = ROLAND
+        std::uint8_t scsiId = 0;
+        bool writable = true;
+        std::string name;
+    };
+
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
     /// primitives set or read. Unlike a program, this model has no "create" for a sample: §0E has no
     /// such item (a sample only exists once `setSampleNames` — or a later item of this lot — puts it
@@ -302,6 +316,11 @@ namespace akm::harness
         /// is given as is, whatever its value.
         void setMemory(std::uint32_t waveTotalBytes, std::uint32_t waveFreeBytes, std::uint8_t mpksFreePercent);
 
+        /// Seeds the disks §10/&04 and &05 report (RQ-AKM-060), in the order given; each is otherwise
+        /// unchanged by this call (§10/&01, Update List of Disks, is a no-op in this model: the list a
+        /// test seeds here is always what &04/&05 answer, whether or not &01 was sent first).
+        void setDisks(std::vector<DiskRecord> disks);
+
         /// Sets what &20 reports (RQ-AKM-055): 0-3 are the four Play Modes, any other byte a REPLY no mode has.
         void setPlayMode(std::uint8_t playMode);
 
@@ -358,5 +377,7 @@ namespace akm::harness
         // §0C multis (RQ-AKM-056): names only, seeded by `setMultiNames` and emptied by §02/&32; not touched by
         // powerCycle().
         std::vector<std::string> _multis;
+        // §10 disks (RQ-AKM-060), seeded by `setDisks`: not touched by powerCycle() or by &01.
+        std::vector<DiskRecord> _disks;
     };
 }

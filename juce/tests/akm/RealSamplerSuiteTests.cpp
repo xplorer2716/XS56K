@@ -75,6 +75,7 @@ namespace
     constexpr std::uint8_t ITEM_ECHO = 0x06;
     constexpr std::uint8_t ITEM_CHECKSUM_MODE = 0x04;
     constexpr std::uint16_t ERROR_UNKNOWN = 3;
+    constexpr std::uint16_t ERROR_NOT_SUPPORTED = 0;
 
     // The settings the suite leaves the sampler with: the ones found at the first contact (checksum off,
     // notification on, Still Alive off) and the spec's or assumed defaults for the other two.
@@ -503,6 +504,10 @@ TEST_CASE("Given the option for the slow operation, When the suite runs on a sam
           "[akm][suite]")
 {
     Rig rig;
+    // TASK-AKM-057 gave the simulated sampler real support for &01: forced to refuse it here, like a
+    // sampler whose §10 is not implemented, so this check still exercises the ERROR path it is named
+    // for rather than the DONE path TASK-AKM-057's own tests already cover (DiskPrimitivesTests.cpp).
+    rig.sampler.setBehaviour(SamplerBehaviour{.itemErrors = {{SECTION_DISK_TOOLS, ITEM_UPDATE_DISK_LIST, ERROR_NOT_SUPPORTED}}});
     RealSuiteOptions options = rig.options();
     options.slowOperation = true;
     std::ostringstream log;

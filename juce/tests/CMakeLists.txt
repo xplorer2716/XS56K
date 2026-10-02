@@ -14,6 +14,7 @@ add_executable(xs56k_akm_tests
     akm/CommandEncodingTests.cpp
     akm/CommandResultTests.cpp
     akm/ConfirmationDecodingTests.cpp
+    akm/DiskPrimitivesTests.cpp
     akm/ExecutorTests.cpp
     akm/FirstContactProbeTests.cpp
     akm/ItemCatalogueTests.cpp
