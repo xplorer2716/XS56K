@@ -240,6 +240,16 @@ namespace akm::harness
     {
         std::string name;
         std::uint32_t sizeBytes = 0;
+        /// What loading this file (§10/&2A/&2B, RQ-AKM-066) materializes: a program or a sample, named
+        /// independently of the file's own name since the real format does not require them to match.
+        /// Empty when this file represents neither — listed, but loading it adds nothing, which the
+        /// spec does not forbid.
+        std::optional<std::string> loadsProgramNamed{};
+        std::optional<std::string> loadsSampleNamed{};
+        /// Names of other files in the same folder this one depends on (§10/&2B only; §10/&2A never
+        /// follows these, spec footnotes d/e): one level, not modelled recursively beyond it, since
+        /// nothing in RQ-AKM-066 needs more.
+        std::vector<std::string> dependsOnFiles{};
     };
 
     struct FolderRecord

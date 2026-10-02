@@ -325,4 +325,27 @@ namespace akm
     /// one automatically, so repeating it is a caller mistake, not something this layer corrects.
     /// [RQ-AKM-065]
     void renameFile(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion);
+
+    // Load File, with and without dependent children (§10/&2A, &2B). [RQ-AKM-066]
+
+    /// The sample-loading option of `loadFile` (§10/&2A), with the byte it travels as: only relevant
+    /// when the loaded file is a sample. [RQ-AKM-066]
+    enum class SampleLoadOption
+    {
+        Normal = 0,
+        Ram = 1,
+        Virtual = 2,
+    };
+
+    /// Loads the file named `name` (§10/&2A) — its extension decides whether it is a multi, program,
+    /// sample or scenelist; `sampleLoadOption` matters only when it is a sample. No file it depends on
+    /// is loaded automatically (spec footnote d); use `loadFileWithDependents` for that. SHALL NOT be
+    /// sent to the real sampler except through the guard of `RQ-AKM-070`. [RQ-AKM-066, RQ-AKM-070]
+    void loadFile(Session& session, std::string_view name, SampleLoadOption sampleLoadOption,
+                 CommandCompletion completion);
+
+    /// Loads the file named `name` together with every file it depends on (§10/&2B, spec footnote e —
+    /// e.g. a program's own samples). SHALL NOT be sent to the real sampler except through the guard of
+    /// `RQ-AKM-070`. [RQ-AKM-066, RQ-AKM-070]
+    void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion);
 }

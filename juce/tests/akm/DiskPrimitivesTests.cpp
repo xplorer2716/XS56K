@@ -678,3 +678,112 @@ TEST_CASE("Given no disk selected, When the file count or a file index by name i
     CHECK_FALSE(getFileCount(harness).count.has_value());
     CHECK_FALSE(getFileIndexByName(harness, "ANY.AKP").index.has_value());
 }
+
+TEST_CASE("Given a simulated program file whose sample is a separate file, When loaded with &2A, Then only the program appears in memory [RQ-AKM-066]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    FileRecord programFile{"LEAD.AKP", 100, std::string{"LEAD"}, std::nullopt, {"LEAD.AKS"}};
+    FileRecord sampleFile{"LEAD.AKS", 200, std::nullopt, std::string{"LEAD"}, {}};
+    harness.sampler().setDisks({DiskRecord{.handle = 0,
+                                           .type = 1,
+                                           .format = 2,
+                                           .scsiId = 0,
+                                           .writable = true,
+                                           .name = "DATA",
+                                           .rootFolder = FolderRecord{"", {}, {}, {}, {programFile, sampleFile}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::loadFile(harness.session(), "LEAD.AKP", akm::SampleLoadOption::Normal, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    auto latchedPrograms = std::make_shared<Latched<akm::AllProgramNamesResult>>();
+    akm::getAllProgramNames(harness.session(), [latchedPrograms](const akm::AllProgramNamesResult& r) { latchedPrograms->set(r); });
+    REQUIRE(harness.waitUntil([latchedPrograms] { return latchedPrograms->isSet(); }));
+    REQUIRE(latchedPrograms->value()->names.has_value());
+    CHECK(*latchedPrograms->value()->names == std::vector<std::string>{"LEAD"});
+
+    auto latchedSamples = std::make_shared<Latched<akm::AllSampleNamesResult>>();
+    akm::getAllSampleNames(harness.session(), [latchedSamples](const akm::AllSampleNamesResult& r) { latchedSamples->set(r); });
+    REQUIRE(harness.waitUntil([latchedSamples] { return latchedSamples->isSet(); }));
+    REQUIRE(latchedSamples->value()->names.has_value());
+    CHECK(latchedSamples->value()->names->empty());
+}
+
+TEST_CASE("Given the same file loaded with &2B, Then both the program and its sample appear [RQ-AKM-066]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    FileRecord programFile{"LEAD.AKP", 100, std::string{"LEAD"}, std::nullopt, {"LEAD.AKS"}};
+    FileRecord sampleFile{"LEAD.AKS", 200, std::nullopt, std::string{"LEAD"}, {}};
+    harness.sampler().setDisks({DiskRecord{.handle = 0,
+                                           .type = 1,
+                                           .format = 2,
+                                           .scsiId = 0,
+                                           .writable = true,
+                                           .name = "DATA",
+                                           .rootFolder = FolderRecord{"", {}, {}, {}, {programFile, sampleFile}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::loadFileWithDependents(harness.session(), "LEAD.AKP", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    auto latchedPrograms = std::make_shared<Latched<akm::AllProgramNamesResult>>();
+    akm::getAllProgramNames(harness.session(), [latchedPrograms](const akm::AllProgramNamesResult& r) { latchedPrograms->set(r); });
+    REQUIRE(harness.waitUntil([latchedPrograms] { return latchedPrograms->isSet(); }));
+    REQUIRE(latchedPrograms->value()->names.has_value());
+    CHECK(*latchedPrograms->value()->names == std::vector<std::string>{"LEAD"});
+
+    auto latchedSamples = std::make_shared<Latched<akm::AllSampleNamesResult>>();
+    akm::getAllSampleNames(harness.session(), [latchedSamples](const akm::AllSampleNamesResult& r) { latchedSamples->set(r); });
+    REQUIRE(harness.waitUntil([latchedSamples] { return latchedSamples->isSet(); }));
+    REQUIRE(latchedSamples->value()->names.has_value());
+    CHECK(*latchedSamples->value()->names == std::vector<std::string>{"LEAD"});
+}
+
+TEST_CASE("Given a sample load option of VIRTUAL, When sent, Then the option byte is 2 [RQ-AKM-066]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"KICK.AKS", 10, std::nullopt, std::string{"KICK"}, {}}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::loadFile(harness.session(), "KICK.AKS", akm::SampleLoadOption::Virtual, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    const auto commands = harness.sampler().acceptedCommands();
+    REQUIRE_FALSE(commands.empty());
+    REQUIRE_FALSE(commands.back().data.empty());
+    CHECK(commands.back().data.back() == 2);
+}
+
+TEST_CASE("Given a file name that does not exist, When loaded with or without dependents, Then each completes ERROR [RQ-AKM-066]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::loadFile(harness.session(), "GHOST.AKP", akm::SampleLoadOption::Normal, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+
+    akm::loadFileWithDependents(harness.session(), "GHOST.AKP", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}

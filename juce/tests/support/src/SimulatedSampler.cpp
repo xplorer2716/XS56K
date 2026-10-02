@@ -218,6 +218,13 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_FILE_SIZE = 0x23;
         constexpr std::uint8_t ITEM_GET_FILE_INDEX_BY_NAME = 0x24;
         constexpr std::uint8_t ITEM_RENAME_FILE = 0x28;
+        // Load File items of TASK-AKM-063 (RQ-AKM-066).
+        constexpr std::uint8_t ITEM_LOAD_FILE = 0x2A;
+        constexpr std::uint8_t ITEM_LOAD_FILE_WITH_DEPENDENTS = 0x2B;
+        constexpr std::uint8_t SAMPLE_LOAD_OPTION_NORMAL = 0;
+        constexpr std::uint8_t SAMPLE_LOAD_OPTION_VIRTUAL = 2;
+        constexpr std::uint8_t SAMPLE_TYPE_RAM = 0;
+        constexpr std::uint8_t SAMPLE_TYPE_VIRTUAL = 1;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1221,6 +1228,26 @@ namespace akm::harness
             return std::nullopt;
         }
 
+        // Appends what `file` materializes to `programs`/`samples` (RQ-AKM-066): a program, and/or a
+        // sample typed RAM or VIRTUAL per `sampleLoadOption` (only meaningful for a sample).
+        void materializeFile(const FileRecord& file, std::uint8_t sampleLoadOption, std::vector<ProgramRecord>& programs,
+                            std::vector<SampleRecord>& samples)
+        {
+            if (file.loadsProgramNamed)
+            {
+                ProgramRecord program;
+                program.name = *file.loadsProgramNamed;
+                programs.push_back(std::move(program));
+            }
+            if (file.loadsSampleNamed)
+            {
+                SampleRecord sample;
+                sample.name = *file.loadsSampleNamed;
+                sample.type = sampleLoadOption == SAMPLE_LOAD_OPTION_VIRTUAL ? SAMPLE_TYPE_VIRTUAL : SAMPLE_TYPE_RAM;
+                samples.push_back(std::move(sample));
+            }
+        }
+
         // Every program and sample name `folder` or one of its sub-folders, recursively, lists as a
         // file to load (RQ-AKM-064).
         void collectLoadable(const FolderRecord& folder, std::vector<std::string>& programNames,
@@ -1547,6 +1574,43 @@ namespace akm::harness
                     if (!found)
                         return failure(error_number::NOT_FOUND);
                     folder->files[*found].name = *newName;
+                    return done();
+                }
+                case ITEM_LOAD_FILE:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    const auto sampleLoadOption = name ? reader.readByte() : std::nullopt;
+                    if (!name || !sampleLoadOption)
+                        return failure(error_number::INVALID_FORMAT);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    materializeFile(folder->files[*found], *sampleLoadOption, programs, samples);
+                    return done();
+                }
+                case ITEM_LOAD_FILE_WITH_DEPENDENTS:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    materializeFile(folder->files[*found], SAMPLE_LOAD_OPTION_NORMAL, programs, samples);
+                    for (const std::string& dependency : folder->files[*found].dependsOnFiles)
+                    {
+                        const auto dependencyIndex = findFileByName(*folder, dependency);
+                        if (dependencyIndex)
+                            materializeFile(folder->files[*dependencyIndex], SAMPLE_LOAD_OPTION_NORMAL, programs, samples);
+                    }
                     return done();
                 }
                 default:

@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 
 #include "akm/ByteReader.hpp"
+#include "akm/ByteWriter.hpp"
 #include "akm/ItemRequest.hpp"
 
 namespace akm
@@ -387,5 +388,40 @@ namespace akm
     void renameFile(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion)
     {
         session.submit(makeTwoStringRequest(ItemId::DiskRenameFile, oldName, newName), std::move(completion));
+    }
+
+    void loadFile(Session& session, std::string_view name, SampleLoadOption sampleLoadOption, CommandCompletion completion)
+    {
+        // &2A's shape (a String then a Byte) fits neither makeStringRequest (exactly one String) nor the
+        // generic int64_t path (no String support), so it is written by hand, the same way
+        // ProgramPrimitives::setProgramNumber builds its own conditional shape.
+        const ItemDescriptor& item = descriptor(ItemId::DiskLoadFile);
+        CommandRequest request;
+        request.command.section = item.section;
+        request.command.item = item.item;
+
+        const auto length = static_cast<std::int64_t>(name.size());
+        if (length < item.args[0].min || length > item.args[0].max)
+        {
+            request.refusal = RefusalReason::ArgumentOutOfRange;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+
+        ByteWriter writer;
+        if (!writer.appendString(name))
+        {
+            request.refusal = RefusalReason::NotEncodable;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        writer.appendByte(static_cast<std::uint32_t>(sampleLoadOption));
+        request.command.data = writer.bytes();
+        session.submit(std::move(request), std::move(completion));
+    }
+
+    void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion)
+    {
+        session.submit(makeStringRequest(ItemId::DiskLoadFileWithDependents, name), std::move(completion));
     }
 }

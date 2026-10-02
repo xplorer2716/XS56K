@@ -248,7 +248,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-063: Load File, with and without dependent children
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&2A` (Load File) and `&2B` (Load File including dependents); no
   real-sampler call without the guard of TASK-AKM-067.
 - **Requirement refs**: RQ-AKM-066
@@ -256,8 +256,27 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-066, on the simulated sampler.
 - **Dependencies**: TASK-AKM-062
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 522/522 passed. `&2A`'s shape (a String, then a sample-load-option
+  Byte) fits neither `makeStringRequest` (exactly one String) nor the generic `int64_t` path (no
+  String), so `loadFile` builds its `CommandRequest` by hand, the same way
+  `ProgramPrimitives::setProgramNumber` already does for its own conditional shape; `&2B` has no such
+  byte and uses `makeStringRequest` directly. `FileRecord` gained `loadsProgramNamed`/
+  `loadsSampleNamed`/`dependsOnFiles` so a file can say what loading it materializes, independent of
+  `FolderRecord::programFiles`/`sampleFiles` (which stay Load Folder's own, recursive, concern). 4 new
+  cases in `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-066`): a program file whose sample is a separate,
+  dependent file loads only the program with `&2A`; the same file loads both with `&2B`; a `Virtual`
+  sample-load option is confirmed on the wire as the last accepted byte, `2`; a file name that does not
+  exist completes Error for both items. `generate_akm_items.py --coverage`: the 2 new items covered (28
+  of 35 §10 rows now), `unaccounted: none`; `--check` up to date (288 items).
+  `ItemCatalogueTests.cpp`'s total-item-count check updated (`PROGRAM_ITEM_COUNT`, `+2`).
+- **Assumptions**: `&2A`'s `sampleLoadOption` only affects `SampleRecord::type` (`Virtual` → 1, anything
+  else → 0, `RAM` included) when the loaded file materializes a sample; it is ignored for a program.
+  `&2B`'s dependents are resolved one level only (a dependency's own `dependsOnFiles`, if any, is not
+  followed) and use the `Normal` load option, since the spec gives `&2B` no load-option byte of its own
+  and no acceptance criterion needs more than one level. A dependency name `&2B` cannot find in the
+  current folder is skipped rather than failing the whole command — the spec does not say what should
+  happen, and failing the file that does exist for one that does not seemed the worse default.
 
 ### TASK-AKM-064: Save Memory Item(s) to disk
 - **Tier**: M
