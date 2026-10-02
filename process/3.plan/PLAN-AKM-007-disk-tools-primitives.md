@@ -388,7 +388,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-068: Coverage of section §10 and errata resolution
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `10`, list any exclusion with
   its reason, record the `&0D`/`&0E` decimal-column erratum in `KNOWN_DEC_ERRATA` and in
   `sysex_spec.kb.md`, and update `SUMMARY-akm-sections-coverage.md` and `AGENTS.md` if the suite's
@@ -398,5 +398,17 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-072.
 - **Dependencies**: TASK-AKM-057 to TASK-AKM-067
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
+- **Verification**: The `&0D`/`&0E` decimal-column erratum was already resolved by `TASK-AKM-059`
+  (`KNOWN_DEC_ERRATA`, `sysex_spec.kb.md` line 178) before this task started, the same pattern
+  `TASK-AKM-054` found for §02's own erratum. `generate_akm_items.py --coverage` re-run this session:
+  `section 10: 35 of 35 spec rows covered (Disk, complete)`, `unaccounted: none`, exit 0 — no row
+  excluded, nothing left to list a reason for. `items.json`'s section-10 `complete` flag flipped
+  `false` → `true` (its note closed out, citing this task); `generate_akm_items.py` (no args)
+  regenerated `ItemTable.generated.hpp` with no diff (section metadata, not read by the generator), then
+  `--check` reported up to date (295 items, unchanged). Windows/MSVC Debug: clean rebuild, no warning or
+  error (`/W4 /WX`); `ctest --test-dir juce/build -C Debug` 530/530 passed, re-run after the flag flip.
+  `AGENTS.md`: no change — no probe option changed in this task (the real-sampler harness extension is
+  `TASK-AKM-067`, not yet done). `SUMMARY-akm-sections-coverage.md` updated: §10's bar to 100%, the
+  overall total to 441/560 (79%), and the closing note from anticipatory to confirmed.
+- **Assumptions**: None.
 - **Assumptions**: None.

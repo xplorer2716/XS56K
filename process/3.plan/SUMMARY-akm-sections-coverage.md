@@ -35,8 +35,10 @@ decisions — `qword`, DEC-AKM-017, and a second `String` argument, DEC-AKM-018)
 §02's own `complete` flag in `items.json` was flipped to `true` by `TASK-AKM-054` (`PLAN-AKM-006`,
 2026-10-02), which re-ran `--coverage` (16/16, no unaccounted item) and recorded the Play Mode range
 erratum as resolved. §02 was confirmed on a real S5000, 2026-10-01 (`akm-suite-20261001-223720.log`).
-§10's own `complete` flag is set by `TASK-AKM-068` (`PLAN-AKM-007`), the section's own coverage and
-errata-resolution task, the same way §02's was — not yet flipped as of this update.
+§10's own `complete` flag was flipped to `true` by `TASK-AKM-068` (`PLAN-AKM-007`, 2026-10-03), which
+re-ran `--coverage` (35/35, no unaccounted item) — the &0D/&0E decimal erratum was already resolved by
+`TASK-AKM-059`, so this closure needed no further erratum work, the same way §02's `TASK-AKM-054`
+needed none beyond confirming `TASK-AKM-053`'s own resolution.
 
 Not in the table above — 0 of their own spec lines, so no bar applies:
 
