@@ -209,6 +209,8 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_CLOSE_FOLDER = 0x14;
         constexpr std::uint8_t ITEM_CREATE_FOLDER = 0x16;
         constexpr std::uint8_t ITEM_RENAME_FOLDER = 0x18;
+        // Load Folder of TASK-AKM-061 (RQ-AKM-064).
+        constexpr std::uint8_t ITEM_LOAD_FOLDER = 0x15;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1203,6 +1205,19 @@ namespace akm::harness
             return std::nullopt;
         }
 
+        // Every program and sample name `folder` or one of its sub-folders, recursively, lists as a
+        // file to load (RQ-AKM-064).
+        void collectLoadable(const FolderRecord& folder, std::vector<std::string>& programNames,
+                             std::vector<std::string>& sampleNames)
+        {
+            for (const std::string& name : folder.programFiles)
+                programNames.push_back(name);
+            for (const std::string& name : folder.sampleFiles)
+                sampleNames.push_back(name);
+            for (const FolderRecord& subFolder : folder.subFolders)
+                collectLoadable(subFolder, programNames, sampleNames);
+        }
+
         // §10 disk discovery of TASK-AKM-057 (RQ-AKM-060) and selection/status of TASK-AKM-058
         // (RQ-AKM-061): &01 is a no-op (this model always answers &04/&05 from `disks`, refresh or
         // not); &04 answers the count; &05 answers one record per disk (handle as two Bytes, type,
@@ -1216,7 +1231,8 @@ namespace akm::harness
         // folder's empty path rather than reading `currentFolderPath` — no item of this lot reports a
         // full path, only names and counts, so building one is left for whichever later lot needs it.
         Outcome executeDisk(std::uint8_t item, const Bytes& data, std::vector<DiskRecord>& disks,
-                            std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath)
+                            std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
+                            std::vector<ProgramRecord>& programs, std::vector<SampleRecord>& samples)
         {
             switch (item)
             {
@@ -1407,6 +1423,34 @@ namespace akm::harness
                     folder->subFolders[*found].name = *newName;
                     return done();
                 }
+                case ITEM_LOAD_FOLDER:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findSubFolderByName(*folder, *name);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    std::vector<std::string> programNames, sampleNames;
+                    collectLoadable(folder->subFolders[*found], programNames, sampleNames);
+                    for (std::string& programName : programNames)
+                    {
+                        ProgramRecord program;
+                        program.name = std::move(programName);
+                        programs.push_back(std::move(program));
+                    }
+                    for (std::string& sampleName : sampleNames)
+                    {
+                        SampleRecord sample;
+                        sample.name = std::move(sampleName);
+                        samples.push_back(std::move(sample));
+                    }
+                    return done();
+                }
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }
@@ -1443,7 +1487,7 @@ namespace akm::harness
             if (section == SECTION_SAMPLE)
                 return executeSample(item, data, samples, currentSample);
             if (section == SECTION_DISK)
-                return executeDisk(item, data, disks, currentDisk, currentFolderPath);
+                return executeDisk(item, data, disks, currentDisk, currentFolderPath, programs, samples);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)

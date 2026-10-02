@@ -236,6 +236,12 @@ namespace akm::harness
     {
         std::string name;
         std::vector<FolderRecord> subFolders;
+        /// Programs and samples this folder directly contains, loaded by name into memory when this
+        /// folder or an ancestor is loaded (§10/&15, RQ-AKM-064), alongside whatever `subFolders`
+        /// recursively contains too. A real disk's files are not modelled (there is no AKAI file format
+        /// here, only the SysEx protocol), so a "file" is just the name it would load, nothing else.
+        std::vector<std::string> programFiles;
+        std::vector<std::string> sampleFiles;
     };
 
     /// One disk connected to the sampler (§10, spec Tables 20-21): only what TASK-AKM-057's discovery

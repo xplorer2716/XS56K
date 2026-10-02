@@ -296,4 +296,9 @@ namespace akm
     {
         session.submit(makeTwoStringRequest(ItemId::DiskRenameFolder, oldName, newName), std::move(completion));
     }
+
+    void loadFolder(Session& session, std::string_view name, CommandCompletion completion)
+    {
+        session.submit(makeStringRequest(ItemId::DiskLoadFolder, name), std::move(completion));
+    }
 }

@@ -241,4 +241,12 @@ namespace akm
     /// catalogue's first item carrying two consecutive `String` arguments (ADR-AKM-001, DEC-AKM-018).
     /// [RQ-AKM-063]
     void renameFolder(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion);
+
+    /// Loads the sub-folder named `name` of the current folder, and everything it contains including
+    /// its own sub-folders, into memory (§10/&15). SHALL NOT be sent to the real sampler except through
+    /// the guard of `RQ-AKM-070` — the spec itself calls this operation potentially long-running, and
+    /// one real-hardware run of `&01` (the same section's other such item) left the sampler answering no
+    /// SysEx at all (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`).
+    /// [RQ-AKM-064, RQ-AKM-070]
+    void loadFolder(Session& session, std::string_view name, CommandCompletion completion);
 }

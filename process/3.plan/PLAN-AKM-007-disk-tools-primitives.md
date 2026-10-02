@@ -190,7 +190,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-061: Load Folder
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&15` (Load Folder), completing on DONE or ERROR; no real-sampler call
   without the guard of TASK-AKM-067.
 - **Requirement refs**: RQ-AKM-064
@@ -198,8 +198,20 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-064, on the simulated sampler.
 - **Dependencies**: TASK-AKM-060
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 514/514 passed. `FolderRecord` gained `programFiles`/`sampleFiles`
+  (names only — no AKAI file format is modelled, only the SysEx protocol, so a "file" is just the name
+  loading it would materialize); `SimulatedSampler::executeDisk` gained `programs`/`samples` parameters
+  so `&15` can append to them. 2 new cases in `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-064`): a
+  folder containing a program directly and a sample in its own sub-folder, when loaded, adds both to
+  memory (read back via `getAllProgramNames`/`getAllSampleNames`) and completes Done; a name that does
+  not exist completes Error. `generate_akm_items.py --coverage`: the 1 new item covered (20 of 35 §10
+  rows now), `unaccounted: none`; `--check` up to date (280 items).
+  `ItemCatalogueTests.cpp`'s total-item-count check updated (`PROGRAM_ITEM_COUNT`, `+1`).
+- **Assumptions**: Loading recurses into every sub-folder of the named folder, collecting every
+  program and sample name found anywhere in that sub-tree — the spec's own wording ("the selected
+  folder, and all its contents including sub-folders, are loaded") supports this directly. No
+  real-sampler test exercises `&15` in this task: that is `TASK-AKM-067`'s guard, per `RQ-AKM-070`.
 
 ### TASK-AKM-062: File listing, info and rename
 - **Tier**: M

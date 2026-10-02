@@ -214,20 +214,20 @@ TASK-AKM-053|247-301|Done|Real-sampler harness — system setup restored
 TASK-AKM-055|302-346|Done|The REPLY of Get Clock Time and Date carries section 0B, not 02
 TASK-AKM-054|347-380|Done|Coverage of section §02 and errata resolution
 @process/3.plan/PLAN-AKM-007-disk-tools-primitives.md
-PLAN-AKM-007|1-300||Disk Tools Primitives (Phase A, new lot, §10)
+PLAN-AKM-007|1-312||Disk Tools Primitives (Phase A, new lot, §10)
 TASK-AKM-056|22-45|Done|Author FTR-AKM-007 and PLAN-AKM-007
 TASK-AKM-057|46-82|Done|Disk discovery
 TASK-AKM-058|83-111|Done|Disk selection and status
 TASK-AKM-059|112-153|Done|Disk format, free space and name
 TASK-AKM-060|154-190|Done|Folder navigation, listing and management
-TASK-AKM-061|191-203|Not Started|Load Folder
-TASK-AKM-062|204-216|Not Started|File listing, info and rename
-TASK-AKM-063|217-229|Not Started|Load File, with and without dependent children
-TASK-AKM-064|230-242|Not Started|Save Memory Item(s) to disk
-TASK-AKM-065|243-254|Not Started|Sample audition from disk
-TASK-AKM-066|255-268|Not Started|Destructive command guards for Eject, Delete Sub-Folder and Delete File
-TASK-AKM-067|269-286|Not Started|Real-sampler harness — disposable test folder and slow-operation guard
-TASK-AKM-068|287-300|Not Started|Coverage of section §10 and errata resolution
+TASK-AKM-061|191-215|Done|Load Folder
+TASK-AKM-062|216-228|Not Started|File listing, info and rename
+TASK-AKM-063|229-241|Not Started|Load File, with and without dependent children
+TASK-AKM-064|242-254|Not Started|Save Memory Item(s) to disk
+TASK-AKM-065|255-266|Not Started|Sample audition from disk
+TASK-AKM-066|267-280|Not Started|Destructive command guards for Eject, Delete Sub-Folder and Delete File
+TASK-AKM-067|281-298|Not Started|Real-sampler harness — disposable test folder and slow-operation guard
+TASK-AKM-068|299-312|Not Started|Coverage of section §10 and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

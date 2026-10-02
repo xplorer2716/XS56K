@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "SessionHarness.hpp"
 #include "akm/DiskPrimitives.hpp"
+#include "akm/ProgramPrimitives.hpp"
+#include "akm/SamplePrimitives.hpp"
 
 using akm::CommandResult;
 using akm::DiskCountResult;
@@ -479,5 +481,59 @@ TEST_CASE("Given no disk selected, When a folder is opened, closed, listed or cr
     CHECK_FALSE(getFolderCount(harness).count.has_value());
     openFolder(harness, "ANY");
     REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given a simulated folder containing a program and a sample in a sub-folder, When loaded, Then the simulated sampler's memory gains both and the command completes DONE [RQ-AKM-064]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    FolderRecord child;
+    child.name = "CHILD";
+    child.sampleFiles = {"KICK"};
+    FolderRecord songs;
+    songs.name = "SONGS";
+    songs.programFiles = {"LEAD"};
+    songs.subFolders = {child};
+    harness.sampler().setDisks({DiskRecord{.handle = 0,
+                                           .type = 1,
+                                           .format = 2,
+                                           .scsiId = 0,
+                                           .writable = true,
+                                           .name = "DATA",
+                                           .rootFolder = FolderRecord{"", {songs}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::loadFolder(harness.session(), "SONGS", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    auto latchedPrograms = std::make_shared<Latched<akm::AllProgramNamesResult>>();
+    akm::getAllProgramNames(harness.session(), [latchedPrograms](const akm::AllProgramNamesResult& r) { latchedPrograms->set(r); });
+    REQUIRE(harness.waitUntil([latchedPrograms] { return latchedPrograms->isSet(); }));
+    REQUIRE(latchedPrograms->value()->names.has_value());
+    CHECK(*latchedPrograms->value()->names == std::vector<std::string>{"LEAD"});
+
+    auto latchedSamples = std::make_shared<Latched<akm::AllSampleNamesResult>>();
+    akm::getAllSampleNames(harness.session(), [latchedSamples](const akm::AllSampleNamesResult& r) { latchedSamples->set(r); });
+    REQUIRE(harness.waitUntil([latchedSamples] { return latchedSamples->isSet(); }));
+    REQUIRE(latchedSamples->value()->names.has_value());
+    CHECK(*latchedSamples->value()->names == std::vector<std::string>{"KICK"});
+}
+
+TEST_CASE("Given a folder name that does not exist, When loaded, Then it completes ERROR [RQ-AKM-064]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::loadFolder(harness.session(), "GHOST", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
     CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
 }
