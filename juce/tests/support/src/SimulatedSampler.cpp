@@ -231,6 +231,9 @@ namespace akm::harness
         constexpr std::uint8_t SAVE_TYPE_MULTI = 1;
         constexpr std::uint8_t SAVE_TYPE_PROGRAM = 2;
         constexpr std::uint8_t SAVE_TYPE_SAMPLE = 3;
+        // Sample audition from disk items of TASK-AKM-065 (RQ-AKM-068).
+        constexpr std::uint8_t ITEM_START_FILE_AUDITION = 0x30;
+        constexpr std::uint8_t ITEM_STOP_FILE_AUDITION = 0x31;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1726,6 +1729,23 @@ namespace akm::harness
                     }
                     return done();  // other memory types are not modelled; nothing to save or fail
                 }
+                case ITEM_START_FILE_AUDITION:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    if (folder == nullptr || *index >= folder->files.size())
+                        return failure(error_number::NOT_FOUND);
+                    return done();
+                }
+                case ITEM_STOP_FILE_AUDITION:
+                    // Stopping when nothing plays is left to the sampler's own behaviour (RQ-AKM-068);
+                    // this model always succeeds, not tracking audition state at all.
+                    return done();
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }

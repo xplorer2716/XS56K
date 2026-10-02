@@ -442,4 +442,16 @@ namespace akm
                                    {static_cast<std::int64_t>(type), overwriteExisting ? 1 : 0, saveChildren ? 1 : 0}),
                        std::move(completion));
     }
+
+    void startFileAudition(Session& session, int index, CommandCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskStartFileAudition, {msb, lsb}), std::move(completion));
+    }
+
+    void stopFileAudition(Session& session, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskStopFileAudition, NO_VALUES), std::move(completion));
+    }
 }

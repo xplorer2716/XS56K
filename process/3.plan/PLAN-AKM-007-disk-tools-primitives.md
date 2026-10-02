@@ -316,14 +316,23 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-065: Sample audition from disk
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&30` (Start Audition) and `&31` (Stop Audition).
 - **Requirement refs**: RQ-AKM-068
 - **ADR refs**: None
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-068, on the simulated sampler.
 - **Dependencies**: TASK-AKM-057
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 527/527 passed. Named `startFileAudition`/`stopFileAudition`, not
+  `startSampleAudition`/`stopSampleAudition`: those names are already `SamplePrimitives.hpp`'s own
+  §0E items, which audition a sample already in memory, a different operation from auditioning a file
+  straight off disk. 2 new cases in `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-068`): a file at index 0
+  starts then stops audition, both Done; an index naming no file completes Error on start. The model
+  does not track audition state at all — `&31` always completes Done, the "stop when nothing plays"
+  case RQ-AKM-068 itself leaves unconstrained. `generate_akm_items.py --coverage`: the 2 new items
+  covered (32 of 35 §10 rows now), `unaccounted: none`; `--check` up to date (292 items).
+  `ItemCatalogueTests.cpp`'s total-item-count check updated (`PROGRAM_ITEM_COUNT`, `+2`).
 - **Assumptions**: None.
 
 ### TASK-AKM-066: Destructive command guards for Eject, Delete Sub-Folder and Delete File

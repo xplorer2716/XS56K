@@ -376,4 +376,15 @@ namespace akm
     /// the guard of `RQ-AKM-070`. [RQ-AKM-067, RQ-AKM-070]
     void saveAllMemoryItems(Session& session, SaveableMemoryType type, bool overwriteExisting, bool saveChildren,
                            CommandCompletion completion);
+
+    // Sample audition from disk (§10/&30, &31) — a sample file played without being loaded into
+    // memory, distinct from `startSampleAudition`/`stopSampleAudition` (SamplePrimitives.hpp, §0E),
+    // which audition the current sample already in memory. [RQ-AKM-068]
+
+    /// Starts auditioning the file at zero-based `index` in the current folder (§10/&30), without
+    /// loading it into memory. [RQ-AKM-068]
+    void startFileAudition(Session& session, int index, CommandCompletion completion);
+
+    /// Stops the current audition (§10/&31). [RQ-AKM-068]
+    void stopFileAudition(Session& session, CommandCompletion completion);
 }

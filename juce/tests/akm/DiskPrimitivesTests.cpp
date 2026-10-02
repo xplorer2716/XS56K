@@ -859,3 +859,38 @@ TEST_CASE("Given two programs in memory, When all are saved, Then two files appe
     REQUIRE(names.names.has_value());
     CHECK(*names.names == std::vector<std::string>{"A.AKP", "B.AKP"});
 }
+
+TEST_CASE("Given a simulated file at index 0, When audition is started then stopped, Then both complete DONE [RQ-AKM-068]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"KICK.WAV", 100}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::startFileAudition(harness.session(), 0, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    akm::stopFileAudition(harness.session(), harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given an index that names no file, When audition is started, Then it completes ERROR [RQ-AKM-068]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::startFileAudition(harness.session(), 0, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}
