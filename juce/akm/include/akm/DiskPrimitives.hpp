@@ -348,4 +348,32 @@ namespace akm
     /// e.g. a program's own samples). SHALL NOT be sent to the real sampler except through the guard of
     /// `RQ-AKM-070`. [RQ-AKM-066, RQ-AKM-070]
     void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion);
+
+    // Save Memory Item(s) to disk (§10/&2C, &2D). [RQ-AKM-067]
+
+    /// The kind of memory item `saveMemoryItem`/`saveAllMemoryItems` saves, with the byte it travels as.
+    /// [RQ-AKM-067]
+    enum class SaveableMemoryType
+    {
+        Multi = 1,
+        Program = 2,
+        Sample = 3,
+        Smf = 4,
+        Setlist = 5,
+        Scenelist = 6,
+    };
+
+    /// Saves the memory item at zero-based `index` of kind `type` to the current folder (§10/&2C).
+    /// `overwriteExisting` has no default (the caller SHALL pass it explicitly — the safer failure mode
+    /// is to skip a file that already exists, not to silently replace it); `saveChildren` asks for
+    /// dependent files (e.g. a program's samples) to be saved alongside it. SHALL NOT be sent to the
+    /// real sampler except through the guard of `RQ-AKM-070`. [RQ-AKM-067, RQ-AKM-070]
+    void saveMemoryItem(Session& session, int index, SaveableMemoryType type, bool overwriteExisting,
+                        bool saveChildren, CommandCompletion completion);
+
+    /// Saves every memory item of kind `type` to the current folder (§10/&2D), the same guarantees as
+    /// `saveMemoryItem` about `overwriteExisting`. SHALL NOT be sent to the real sampler except through
+    /// the guard of `RQ-AKM-070`. [RQ-AKM-067, RQ-AKM-070]
+    void saveAllMemoryItems(Session& session, SaveableMemoryType type, bool overwriteExisting, bool saveChildren,
+                           CommandCompletion completion);
 }

@@ -280,7 +280,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-064: Save Memory Item(s) to disk
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&2C` (Save Memory Item) and `&2D` (Save All Memory Items), with no
   default for the overwrite flag; no real-sampler call without the guard of TASK-AKM-067.
 - **Requirement refs**: RQ-AKM-067
@@ -288,8 +288,31 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-067, on the simulated sampler.
 - **Dependencies**: TASK-AKM-062
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 525/525 passed. Both items fit the generic `makeRequest` path
+  directly (all-Byte args, no String) — no hand-built request needed, unlike `&2A`. `overwriteExisting`
+  and `saveChildren` are plain `bool` parameters with no default value in either primitive's signature,
+  satisfying RQ-AKM-067's "no silent default" acceptance criterion by construction (a caller must always
+  write something at that argument position; there is nothing to verify at runtime beyond this). The
+  simulated sampler saves a Program or a Sample (by index for `&2C`, every one in memory for `&2D`) as a
+  new or replaced `FileRecord` named `<itemName>.AKP`/`.AKS` in the current folder, loadable the same
+  way `&2A` already materializes one; the other four memory types are not modelled (no Multi/SMF/
+  Setlist/Scenelist section exists yet) and are accepted as a no-op `Done`, same choice as Load
+  Folder's own scope. 3 new cases in `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-067`): an existing file
+  at the target name, saved with overwrite `false`, is left unchanged (its original size still reads
+  back) and the command completes Error; saved with overwrite `true`, the file is replaced (new size 0,
+  still one file) and it completes Done; two programs saved with `saveAllMemoryItems` produce
+  `A.AKP`/`B.AKP` in order. `generate_akm_items.py --coverage`: the 2 new items covered (30 of 35 §10
+  rows now), `unaccounted: none`; `--check` up to date (290 items). `ItemCatalogueTests.cpp`'s
+  total-item-count check updated (`PROGRAM_ITEM_COUNT`, `+2`).
+- **Assumptions**: `saveChildren` is read (for wire-format validation) but has no modelled effect — no
+  dependent file is created or saved alongside the target, since no acceptance criterion exercises it
+  and the model has no "child of a save" concept beyond `&2B`'s own, unrelated, `dependsOnFiles`. The
+  file extension a save gives its target (`.AKP`/`.AKS`) is an internal modelling choice with no wire
+  significance; a disk whose free space or format the save might plausibly affect is left untouched,
+  since the spec gives no rule for how a save changes them and no criterion asks for it. `&2D`'s save
+  stops at the first item that fails to save (mirrors `DEC-AKM-010`'s command-sequence-abort-on-failure
+  precedent) rather than attempting every item and reporting a partial result.
 
 ### TASK-AKM-065: Sample audition from disk
 - **Tier**: M

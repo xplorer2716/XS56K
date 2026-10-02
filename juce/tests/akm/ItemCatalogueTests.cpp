@@ -172,12 +172,13 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // Compound Double Word split into four Bytes like §0E's position/loop items, not a single `Dword`
     // like §02's Wave memory, since its own spec row decomposes into four comparable columns), and
     // TASK-AKM-063 added 2 more, Load File with and without dependents (RQ-AKM-066: &2A, &2B — &2A's
-    // String-then-Byte shape built by hand, like `ProgramSetNumber`'s own conditional shape) — which
-    // this count includes without tracking them here too (see ProgramPrimitivesTests.cpp,
+    // String-then-Byte shape built by hand, like `ProgramSetNumber`'s own conditional shape), and
+    // TASK-AKM-064 added 2 more, Save Memory Item(s) to disk (RQ-AKM-067: &2C, &2D) — which this count
+    // includes without tracking them here too (see ProgramPrimitivesTests.cpp,
     // SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp, SampleParametersTests.cpp,
     // SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

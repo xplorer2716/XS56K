@@ -424,4 +424,22 @@ namespace akm
     {
         session.submit(makeStringRequest(ItemId::DiskLoadFileWithDependents, name), std::move(completion));
     }
+
+    void saveMemoryItem(Session& session, int index, SaveableMemoryType type, bool overwriteExisting,
+                        bool saveChildren, CommandCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskSaveMemoryItem, {msb, lsb, static_cast<std::int64_t>(type),
+                                                                overwriteExisting ? 1 : 0, saveChildren ? 1 : 0}),
+                       std::move(completion));
+    }
+
+    void saveAllMemoryItems(Session& session, SaveableMemoryType type, bool overwriteExisting, bool saveChildren,
+                           CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskSaveAllMemoryItems,
+                                   {static_cast<std::int64_t>(type), overwriteExisting ? 1 : 0, saveChildren ? 1 : 0}),
+                       std::move(completion));
+    }
 }

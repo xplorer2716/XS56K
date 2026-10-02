@@ -225,6 +225,12 @@ namespace akm::harness
         constexpr std::uint8_t SAMPLE_LOAD_OPTION_VIRTUAL = 2;
         constexpr std::uint8_t SAMPLE_TYPE_RAM = 0;
         constexpr std::uint8_t SAMPLE_TYPE_VIRTUAL = 1;
+        // Save Memory Item(s) items of TASK-AKM-064 (RQ-AKM-067).
+        constexpr std::uint8_t ITEM_SAVE_MEMORY_ITEM = 0x2C;
+        constexpr std::uint8_t ITEM_SAVE_ALL_MEMORY_ITEMS = 0x2D;
+        constexpr std::uint8_t SAVE_TYPE_MULTI = 1;
+        constexpr std::uint8_t SAVE_TYPE_PROGRAM = 2;
+        constexpr std::uint8_t SAVE_TYPE_SAMPLE = 3;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1248,6 +1254,49 @@ namespace akm::harness
             }
         }
 
+        // The file extension a save gives its target name, matching the type byte (RQ-AKM-067):
+        // arbitrary, since no SysEx item reports or needs the spelling, only that each type keeps one of
+        // its own so an overwrite check compares like-for-like names; empty for a type this model does
+        // not save content for.
+        std::string extensionForSaveType(std::uint8_t type)
+        {
+            switch (type)
+            {
+                case SAVE_TYPE_MULTI:
+                    return ".AKM";
+                case SAVE_TYPE_PROGRAM:
+                    return ".AKP";
+                case SAVE_TYPE_SAMPLE:
+                    return ".AKS";
+                default:
+                    return "";
+            }
+        }
+
+        // Saves `itemName` of `type` into `folder`'s file list (RQ-AKM-067): creates a new `FileRecord`
+        // named `itemName` plus its type's extension, marked loadable as the same kind of memory item it
+        // was saved from; refuses as `COULD_NOT_CREATE` when a file of that name exists and
+        // `overwriteExisting` is false, replacing it otherwise.
+        Outcome saveToFile(FolderRecord* folder, bool overwriteExisting, std::uint8_t type, const std::string& itemName)
+        {
+            if (folder == nullptr)
+                return failure(error_number::NOT_FOUND);
+            FileRecord file;
+            file.name = itemName + extensionForSaveType(type);
+            if (type == SAVE_TYPE_PROGRAM)
+                file.loadsProgramNamed = itemName;
+            else if (type == SAVE_TYPE_SAMPLE)
+                file.loadsSampleNamed = itemName;
+            const auto found = findFileByName(*folder, file.name);
+            if (found && !overwriteExisting)
+                return failure(error_number::COULD_NOT_CREATE);
+            if (found)
+                folder->files[*found] = std::move(file);
+            else
+                folder->files.push_back(std::move(file));
+            return done();
+        }
+
         // Every program and sample name `folder` or one of its sub-folders, recursively, lists as a
         // file to load (RQ-AKM-064).
         void collectLoadable(const FolderRecord& folder, std::vector<std::string>& programNames,
@@ -1612,6 +1661,70 @@ namespace akm::harness
                             materializeFile(folder->files[*dependencyIndex], SAMPLE_LOAD_OPTION_NORMAL, programs, samples);
                     }
                     return done();
+                }
+                case ITEM_SAVE_MEMORY_ITEM:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    const auto type = index ? reader.readByte() : std::nullopt;
+                    const auto overwriteExisting = type ? reader.readByte() : std::nullopt;
+                    const auto saveChildren = overwriteExisting ? reader.readByte() : std::nullopt;
+                    if (!index || !type || !overwriteExisting || !saveChildren)
+                        return failure(error_number::INVALID_FORMAT);
+                    std::string itemName;
+                    if (*type == SAVE_TYPE_PROGRAM)
+                    {
+                        if (*index >= programs.size())
+                            return failure(error_number::NOT_FOUND);
+                        itemName = programs[*index].name;
+                    }
+                    else if (*type == SAVE_TYPE_SAMPLE)
+                    {
+                        if (*index >= samples.size())
+                            return failure(error_number::NOT_FOUND);
+                        itemName = samples[*index].name;
+                    }
+                    else
+                    {
+                        return done();  // other memory types are not modelled; nothing to save or fail
+                    }
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    return saveToFile(folder, *overwriteExisting != 0, *type, itemName);
+                }
+                case ITEM_SAVE_ALL_MEMORY_ITEMS:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto type = reader.readByte();
+                    const auto overwriteExisting = type ? reader.readByte() : std::nullopt;
+                    const auto saveChildren = overwriteExisting ? reader.readByte() : std::nullopt;
+                    if (!type || !overwriteExisting || !saveChildren)
+                        return failure(error_number::INVALID_FORMAT);
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    if (folder == nullptr)
+                        return failure(error_number::NOT_FOUND);
+                    if (*type == SAVE_TYPE_PROGRAM)
+                    {
+                        for (const ProgramRecord& program : programs)
+                        {
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, program.name);
+                            if (outcome.replyId == REPLY_ERROR)
+                                return outcome;
+                        }
+                    }
+                    else if (*type == SAVE_TYPE_SAMPLE)
+                    {
+                        for (const SampleRecord& sample : samples)
+                        {
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, sample.name);
+                            if (outcome.replyId == REPLY_ERROR)
+                                return outcome;
+                        }
+                    }
+                    return done();  // other memory types are not modelled; nothing to save or fail
                 }
                 default:
                     return failure(error_number::NOT_SUPPORTED);

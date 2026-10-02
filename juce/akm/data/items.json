@@ -48,7 +48,7 @@
       "name": "Disk",
       "complete": false,
       "spec": "Tables 20 and 21, pp. 32-34",
-      "note": "FTR-AKM-007 (PLAN-AKM-007), 51 rows (35 commands, 16 REPLY formats), the largest single-section lot so far. Disk discovery (RQ-AKM-060, TASK-AKM-057: &01, &04, &05) is catalogued first: &05's REPLY repeats a 6-field-plus-name record once per disk (handle as two Bytes, type, format, SCSI ID, writable, name), decoded like Program's &19 (DEC-AKM-014) rather than through the generic per-value decoder, since no record shape in the catalogue schema mixes fixed fields with a trailing String. Disk selection and status (RQ-AKM-061, TASK-AKM-058: &02, &03, &06-&09) followed, including the &08 naming mismatch between its command title (\"index\") and its REPLY text (\"handle\") — confirmed by the spec's own two tables, nothing to settle on hardware. Format, free space and name (RQ-AKM-062, TASK-AKM-059: &0A, &0B, &0E) added the catalogue's first `qword` item (&0B, DEC-AKM-017) and resolved the &0D/&0E decimal-column erratum (`KNOWN_DEC_ERRATA`, documents/_index/sysex_spec.kb.md line 178) the same way §08's &6C was. Folder navigation, listing and management (RQ-AKM-063, TASK-AKM-060: &10-&14, &16, &18) added the catalogue's first item with two `String` arguments (&18 Rename Folder, DEC-AKM-018). Load Folder (RQ-AKM-064, TASK-AKM-061: &15) is one of the items Table 20's own footnote calls potentially long-running, observed to hang the real S5000 for &01 (OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md); guarded for real-sampler use by TASK-AKM-070/TASK-AKM-067, not this task. File listing, info and rename (RQ-AKM-065, TASK-AKM-062: &20-&24, &28) catalogues &23's Compound Double Word as four Bytes, not one `Dword`: its own TSV row decomposes into four comparable columns, unlike §02's Wave memory, whose row is shortened by an ellipsis the coverage check cannot compare at all. Load File with and without dependents (RQ-AKM-066, TASK-AKM-063: &2A, &2B) is the other pair of items Table 20's footnote calls potentially long-running, guarded the same way as &15; &2A's String-then-Byte shape is built by hand (`ProgramSetNumber`'s own precedent), &2B's single String through `makeStringRequest`. `complete` is set by the section's own coverage task once every row is accounted for."
+      "note": "FTR-AKM-007 (PLAN-AKM-007), 51 rows (35 commands, 16 REPLY formats), the largest single-section lot so far. Disk discovery (RQ-AKM-060, TASK-AKM-057: &01, &04, &05) is catalogued first: &05's REPLY repeats a 6-field-plus-name record once per disk (handle as two Bytes, type, format, SCSI ID, writable, name), decoded like Program's &19 (DEC-AKM-014) rather than through the generic per-value decoder, since no record shape in the catalogue schema mixes fixed fields with a trailing String. Disk selection and status (RQ-AKM-061, TASK-AKM-058: &02, &03, &06-&09) followed, including the &08 naming mismatch between its command title (\"index\") and its REPLY text (\"handle\") — confirmed by the spec's own two tables, nothing to settle on hardware. Format, free space and name (RQ-AKM-062, TASK-AKM-059: &0A, &0B, &0E) added the catalogue's first `qword` item (&0B, DEC-AKM-017) and resolved the &0D/&0E decimal-column erratum (`KNOWN_DEC_ERRATA`, documents/_index/sysex_spec.kb.md line 178) the same way §08's &6C was. Folder navigation, listing and management (RQ-AKM-063, TASK-AKM-060: &10-&14, &16, &18) added the catalogue's first item with two `String` arguments (&18 Rename Folder, DEC-AKM-018). Load Folder (RQ-AKM-064, TASK-AKM-061: &15) is one of the items Table 20's own footnote calls potentially long-running, observed to hang the real S5000 for &01 (OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md); guarded for real-sampler use by TASK-AKM-070/TASK-AKM-067, not this task. File listing, info and rename (RQ-AKM-065, TASK-AKM-062: &20-&24, &28) catalogues &23's Compound Double Word as four Bytes, not one `Dword`: its own TSV row decomposes into four comparable columns, unlike §02's Wave memory, whose row is shortened by an ellipsis the coverage check cannot compare at all. Load File with and without dependents (RQ-AKM-066, TASK-AKM-063: &2A, &2B) is the other pair of items Table 20's footnote calls potentially long-running, guarded the same way as &15; &2A's String-then-Byte shape is built by hand (`ProgramSetNumber`'s own precedent), &2B's single String through `makeStringRequest`. Save Memory Item(s) to disk (RQ-AKM-067, TASK-AKM-064: &2C, &2D) fits the generic int64_t path directly (no String), unlike every other write item in this section. `complete` is set by the section's own coverage task once every row is accounted for."
     }
   ],
   "items": [
@@ -1949,6 +1949,26 @@
       "id": "DiskLoadFileWithDependents", "section": "10", "item": "2B", "name": "Load File including all dependent child files", "kind": "set",
       "args": [{"name": "name", "format": "string", "min": 0, "max": 255}],
       "requirements": ["RQ-AKM-066"]
+    },
+    {
+      "id": "DiskSaveMemoryItem", "section": "10", "item": "2C", "name": "Save Memory Item to Disk", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "type", "format": "byte", "min": 1, "max": 6},
+        {"name": "overwriteExisting", "format": "byte", "min": 0, "max": 1},
+        {"name": "saveChildren", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-067"]
+    },
+    {
+      "id": "DiskSaveAllMemoryItems", "section": "10", "item": "2D", "name": "Save All Memory Items to Disk", "kind": "set",
+      "args": [
+        {"name": "type", "format": "byte", "min": 1, "max": 6},
+        {"name": "overwriteExisting", "format": "byte", "min": 0, "max": 1},
+        {"name": "saveChildren", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-067"]
     }
   ]
 }

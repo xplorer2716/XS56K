@@ -214,7 +214,7 @@ TASK-AKM-053|247-301|Done|Real-sampler harness — system setup restored
 TASK-AKM-055|302-346|Done|The REPLY of Get Clock Time and Date carries section 0B, not 02
 TASK-AKM-054|347-380|Done|Coverage of section §02 and errata resolution
 @process/3.plan/PLAN-AKM-007-disk-tools-primitives.md
-PLAN-AKM-007|1-351||Disk Tools Primitives (Phase A, new lot, §10)
+PLAN-AKM-007|1-374||Disk Tools Primitives (Phase A, new lot, §10)
 TASK-AKM-056|22-45|Done|Author FTR-AKM-007 and PLAN-AKM-007
 TASK-AKM-057|46-82|Done|Disk discovery
 TASK-AKM-058|83-111|Done|Disk selection and status
@@ -223,11 +223,11 @@ TASK-AKM-060|154-190|Done|Folder navigation, listing and management
 TASK-AKM-061|191-215|Done|Load Folder
 TASK-AKM-062|216-248|Done|File listing, info and rename
 TASK-AKM-063|249-280|Done|Load File, with and without dependent children
-TASK-AKM-064|281-293|Not Started|Save Memory Item(s) to disk
-TASK-AKM-065|294-305|Not Started|Sample audition from disk
-TASK-AKM-066|306-319|Not Started|Destructive command guards for Eject, Delete Sub-Folder and Delete File
-TASK-AKM-067|320-337|Not Started|Real-sampler harness — disposable test folder and slow-operation guard
-TASK-AKM-068|338-351|Not Started|Coverage of section §10 and errata resolution
+TASK-AKM-064|281-316|Done|Save Memory Item(s) to disk
+TASK-AKM-065|317-328|Not Started|Sample audition from disk
+TASK-AKM-066|329-342|Not Started|Destructive command guards for Eject, Delete Sub-Folder and Delete File
+TASK-AKM-067|343-360|Not Started|Real-sampler harness — disposable test folder and slow-operation guard
+TASK-AKM-068|361-374|Not Started|Coverage of section §10 and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

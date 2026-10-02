@@ -787,3 +787,75 @@ TEST_CASE("Given a file name that does not exist, When loaded with or without de
     REQUIRE(harness.waitForCompletions(3));
     CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
 }
+
+TEST_CASE("Given a simulated disk with an existing file at the target name, When saved with overwrite 0, Then the file is unchanged and the command completes ERROR [RQ-AKM-067]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"LEAD.AKP", 10}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+    akm::createProgram(harness.session(), "LEAD", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+
+    akm::saveMemoryItem(harness.session(), 0, akm::SaveableMemoryType::Program, false, false, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+
+    const DiskFileSizeResult size = getFileSize(harness, 0);
+    REQUIRE(size.sizeBytes.has_value());
+    CHECK(*size.sizeBytes == 10u);
+}
+
+TEST_CASE("Given a simulated disk with an existing file at the target name, When saved with overwrite 1, Then the file is replaced and it completes DONE [RQ-AKM-067]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"LEAD.AKP", 10}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+    akm::createProgram(harness.session(), "LEAD", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+
+    akm::saveMemoryItem(harness.session(), 0, akm::SaveableMemoryType::Program, true, false, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    const DiskFileCountResult count = getFileCount(harness);
+    REQUIRE(count.count.has_value());
+    CHECK(*count.count == 1);
+    const DiskFileSizeResult size = getFileSize(harness, 0);
+    REQUIRE(size.sizeBytes.has_value());
+    CHECK(*size.sizeBytes == 0u);
+}
+
+TEST_CASE("Given two programs in memory, When all are saved, Then two files appear in the current folder [RQ-AKM-067]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+    akm::createProgram(harness.session(), "A", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    akm::createProgram(harness.session(), "B", harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+
+    akm::saveAllMemoryItems(harness.session(), akm::SaveableMemoryType::Program, false, false, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(4));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    const DiskFileNamesResult names = getAllFileNames(harness);
+    REQUIRE(names.names.has_value());
+    CHECK(*names.names == std::vector<std::string>{"A.AKP", "B.AKP"});
+}
