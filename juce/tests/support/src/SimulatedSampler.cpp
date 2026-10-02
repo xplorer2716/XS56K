@@ -201,6 +201,14 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_CURRENT_DISK_FORMAT = 0x0A;
         constexpr std::uint8_t ITEM_GET_DISK_FREE_SPACE = 0x0B;
         constexpr std::uint8_t ITEM_GET_DISK_NAME = 0x0E;
+        // Folder navigation, listing and management items of TASK-AKM-060 (RQ-AKM-063).
+        constexpr std::uint8_t ITEM_GET_FOLDER_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_GET_FOLDER_NAME = 0x11;
+        constexpr std::uint8_t ITEM_GET_ALL_FOLDER_NAMES = 0x12;
+        constexpr std::uint8_t ITEM_OPEN_FOLDER = 0x13;
+        constexpr std::uint8_t ITEM_CLOSE_FOLDER = 0x14;
+        constexpr std::uint8_t ITEM_CREATE_FOLDER = 0x16;
+        constexpr std::uint8_t ITEM_RENAME_FOLDER = 0x18;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1170,6 +1178,31 @@ namespace akm::harness
             return std::nullopt;
         }
 
+        // The folder `path` (a chain of sub-folder indices from the root) names, within `disk`'s tree;
+        // never null for a path this file built itself, but a defensive nullptr instead of undefined
+        // behaviour if one ever pointed outside the tree it was taken from (RQ-AKM-063).
+        FolderRecord* navigateToFolder(DiskRecord& disk, const std::vector<std::size_t>& path)
+        {
+            FolderRecord* folder = &disk.rootFolder;
+            for (const std::size_t index : path)
+            {
+                if (index >= folder->subFolders.size())
+                    return nullptr;
+                folder = &folder->subFolders[index];
+            }
+            return folder;
+        }
+
+        // The index of the sub-folder named `name` within `folder`, or nothing when none matches
+        // (RQ-AKM-063).
+        std::optional<std::size_t> findSubFolderByName(const FolderRecord& folder, std::string_view name)
+        {
+            for (std::size_t index = 0; index < folder.subFolders.size(); ++index)
+                if (folder.subFolders[index].name == name)
+                    return index;
+            return std::nullopt;
+        }
+
         // §10 disk discovery of TASK-AKM-057 (RQ-AKM-060) and selection/status of TASK-AKM-058
         // (RQ-AKM-061): &01 is a no-op (this model always answers &04/&05 from `disks`, refresh or
         // not); &04 answers the count; &05 answers one record per disk (handle as two Bytes, type,
@@ -1178,10 +1211,12 @@ namespace akm::harness
         // a reads "the currently selected disk", but &03's own data columns carry a handle like &02's,
         // which is what this model follows); &06/&08/&09 act on the current selection, answering
         // ERROR 4 (not found) when there is none, like a current program or sample with nothing
-        // selected; &09 always answers the root folder's empty path, since no folder is modelled yet
-        // (TASK-AKM-060 changes that).
-        Outcome executeDisk(std::uint8_t item, const Bytes& data, const std::vector<DiskRecord>& disks,
-                            std::optional<std::size_t>& currentDisk)
+        // selected; &10-&14/&16/&18 (TASK-AKM-060, RQ-AKM-063) act on the current disk's current folder,
+        // answering ERROR 4 with no disk selected like &06/&08 do; &09 still always answers the root
+        // folder's empty path rather than reading `currentFolderPath` — no item of this lot reports a
+        // full path, only names and counts, so building one is left for whichever later lot needs it.
+        Outcome executeDisk(std::uint8_t item, const Bytes& data, std::vector<DiskRecord>& disks,
+                            std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath)
         {
             switch (item)
             {
@@ -1213,6 +1248,7 @@ namespace akm::harness
                     if (!found)
                         return failure(error_number::NOT_FOUND);
                     currentDisk = found;
+                    currentFolderPath.clear();
                     return done();
                 }
                 case ITEM_TEST_DISK_VALID:
@@ -1279,6 +1315,98 @@ namespace akm::harness
                     writer.appendString(disks[*found].name);
                     return reply(writer.bytes());
                 }
+                case ITEM_GET_FOLDER_COUNT:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(folder == nullptr ? 0 : folder->subFolders.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_FOLDER_NAME:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    if (folder == nullptr || *index >= folder->subFolders.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(folder->subFolders[*index].name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_FOLDER_NAMES:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    akm::ByteWriter writer;
+                    if (folder != nullptr)
+                        for (const FolderRecord& subFolder : folder->subFolders)
+                            writer.appendString(subFolder.name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_OPEN_FOLDER:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (name->empty())
+                    {
+                        currentFolderPath.clear();
+                        return done();
+                    }
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findSubFolderByName(*folder, *name);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    currentFolderPath.push_back(*found);
+                    return done();
+                }
+                case ITEM_CLOSE_FOLDER:
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    if (currentFolderPath.empty())
+                        return failure(error_number::NOT_FOUND);
+                    currentFolderPath.pop_back();
+                    return done();
+                case ITEM_CREATE_FOLDER:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    if (folder == nullptr)
+                        return failure(error_number::NOT_FOUND);
+                    folder->subFolders.push_back(FolderRecord{*name, {}});
+                    return done();
+                }
+                case ITEM_RENAME_FOLDER:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto oldName = reader.readString();
+                    const auto newName = oldName ? reader.readString() : std::nullopt;
+                    if (!oldName || !newName)
+                        return failure(error_number::INVALID_FORMAT);
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findSubFolderByName(*folder, *oldName);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    folder->subFolders[*found].name = *newName;
+                    return done();
+                }
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }
@@ -1292,8 +1420,8 @@ namespace akm::harness
                         const OsVersion& osVersion, SystemSetupState& system, std::vector<ProgramRecord>& programs,
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                         std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
-                        std::vector<std::string>& multis, const std::vector<DiskRecord>& disks,
-                        std::optional<std::size_t>& currentDisk)
+                        std::vector<std::string>& multis, std::vector<DiskRecord>& disks,
+                        std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath)
         {
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(system, programs, currentProgram, currentKeygroup, samples, currentSample,
@@ -1315,7 +1443,7 @@ namespace akm::harness
             if (section == SECTION_SAMPLE)
                 return executeSample(item, data, samples, currentSample);
             if (section == SECTION_DISK)
-                return executeDisk(item, data, disks, currentDisk);
+                return executeDisk(item, data, disks, currentDisk, currentFolderPath);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -1454,6 +1582,7 @@ namespace akm::harness
         const std::lock_guard lock(_mutex);
         _disks = std::move(disks);
         _currentDisk.reset();
+        _currentFolderPath.clear();
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
@@ -1611,7 +1740,8 @@ namespace akm::harness
         const Outcome outcome = refused != _behaviour.itemErrors.end()
                                     ? failure(refused->number)
                                     : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
-                                              _currentKeygroup, _samples, _currentSample, _multis, _disks, _currentDisk);
+                                              _currentKeygroup, _samples, _currentSample, _multis, _disks, _currentDisk,
+                                              _currentFolderPath);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

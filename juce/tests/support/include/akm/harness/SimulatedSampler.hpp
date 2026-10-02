@@ -228,6 +228,16 @@ namespace akm::harness
         std::uint8_t highestPlayMode = 3;
     };
 
+    /// One folder of a disk's hierarchy (§10/&10-&14, &16, &18, RQ-AKM-063): a name (ignored for the
+    /// root, which is reached with an empty path from `DiskRecord::rootFolder`, not a `FolderRecord` of
+    /// its own) and its sub-folders, in creation order (the spec's own order for &12, since nothing
+    /// deletes a folder yet — TASK-AKM-063's own lot).
+    struct FolderRecord
+    {
+        std::string name;
+        std::vector<FolderRecord> subFolders;
+    };
+
     /// One disk connected to the sampler (§10, spec Tables 20-21): only what TASK-AKM-057's discovery
     /// primitives set or read. `handle` is the model's own index into `SimulatedSampler`'s disk list,
     /// not a value the spec assigns meaning to beyond "the disk `&02` was last asked to select".
@@ -243,6 +253,9 @@ namespace akm::harness
         /// §10/&0B (RQ-AKM-062): the Compound Quad Word the spec gives no default for; arbitrary like
         /// every other memory default in this model (`SystemSetupState::waveTotalBytes`).
         std::uint64_t freeBytes = 0;
+        /// §10/&10-&14, &16, &18 (RQ-AKM-063): the disk's folder tree, root unnamed. A test seeds it
+        /// through this field directly, the same way `setDisks` seeds everything else about a disk.
+        FolderRecord rootFolder;
     };
 
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
@@ -385,5 +398,10 @@ namespace akm::harness
         // §10 current disk selection (RQ-AKM-061, &02): an index into `_disks`, reset whenever `setDisks`
         // reseeds the list, since a handle from the old list would otherwise dangle.
         std::optional<std::size_t> _currentDisk;
+        // §10 current folder (RQ-AKM-063): a path of sub-folder indices from the current disk's
+        // `rootFolder`, empty at the root. Reset whenever `setDisks` reseeds the list or `&02` changes
+        // the current disk — the spec says nothing of what survives a disk change, and a stale path
+        // from a different disk's tree would be meaningless.
+        std::vector<std::size_t> _currentFolderPath;
     };
 }

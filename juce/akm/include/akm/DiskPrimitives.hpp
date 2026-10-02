@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <functional>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "akm/CommandResult.hpp"
@@ -181,4 +182,63 @@ namespace akm
     /// port's checksum mode is unknown, for the same reason as `getCurrentProgramName`. [RQ-AKM-062,
     /// RQ-AKM-041]
     void getDiskName(Session& session, int handle, DiskNameCompletion completion);
+
+    // Folder navigation, listing and management (§10/&10-&14, &16, &18) on the currently selected disk's
+    // currently selected folder. [RQ-AKM-063]
+
+    /// `count` is empty when the command did not complete on a REPLY of the length the catalogue gives
+    /// it; `outcome` is the result of the command. [RQ-AKM-063]
+    struct DiskFolderCountResult
+    {
+        std::optional<int> count{};
+        CommandResult outcome{};
+    };
+    using DiskFolderCountCompletion = std::function<void(const DiskFolderCountResult&)>;
+
+    /// Gets the number of sub-folders in the current folder (§10/&10). [RQ-AKM-063]
+    void getFolderCount(Session& session, DiskFolderCountCompletion completion);
+
+    /// `name` is empty when the command did not complete on a REPLY holding exactly one null-terminated
+    /// name; `outcome` is the result of the command. [RQ-AKM-063]
+    struct DiskFolderNameResult
+    {
+        std::optional<std::string> name{};
+        CommandResult outcome{};
+    };
+    using DiskFolderNameCompletion = std::function<void(const DiskFolderNameResult&)>;
+
+    /// Gets the name of the sub-folder at zero-based `index` in the current folder (§10/&11). [RQ-AKM-063]
+    void getFolderName(Session& session, int index, DiskFolderNameCompletion completion);
+
+    /// One entry per sub-folder of the current folder, in the order the sampler sent them. Empty when the
+    /// command did not complete on a decodable REPLY. [RQ-AKM-063]
+    struct DiskFolderNamesResult
+    {
+        std::optional<std::vector<std::string>> names{};
+        CommandResult outcome{};
+    };
+    using DiskFolderNamesCompletion = std::function<void(const DiskFolderNamesResult&)>;
+
+    /// Gets the names of every sub-folder of the current folder (§10/&12). Refused as
+    /// `ChecksumModeUnknown` while the port's checksum mode is unknown, for the same reason as
+    /// `getAllProgramNames`. [RQ-AKM-063, RQ-AKM-041]
+    void getAllFolderNames(Session& session, DiskFolderNamesCompletion completion);
+
+    /// Opens the sub-folder named `name` of the current folder, making it current (§10/&13); an empty
+    /// `name` selects the root folder, the spec's own `<Data1> = 0` convention — which a null-terminated
+    /// empty string already encodes with no special case needed. [RQ-AKM-063]
+    void openFolder(Session& session, std::string_view name, CommandCompletion completion);
+
+    /// Closes the current folder, making its parent current (§10/&14); completes `Error` when the
+    /// current folder is already the root (the spec's own behaviour, not this layer's choice).
+    /// [RQ-AKM-063]
+    void closeFolder(Session& session, CommandCompletion completion);
+
+    /// Creates a sub-folder named `name` in the current folder (§10/&16). [RQ-AKM-063]
+    void createFolder(Session& session, std::string_view name, CommandCompletion completion);
+
+    /// Renames the sub-folder named `oldName` of the current folder to `newName` (§10/&18): the
+    /// catalogue's first item carrying two consecutive `String` arguments (ADR-AKM-001, DEC-AKM-018).
+    /// [RQ-AKM-063]
+    void renameFolder(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion);
 }

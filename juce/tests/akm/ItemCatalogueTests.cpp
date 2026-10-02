@@ -165,12 +165,14 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // complete; TASK-AKM-057 added section 10's first 3 records, disk discovery (RQ-AKM-060: &01, &04,
     // &05), TASK-AKM-058 added 6 more, selection and status (RQ-AKM-061: &02, &03, &06-&09), and
     // TASK-AKM-059 added 3 more, format/free space/name (RQ-AKM-062: &0A, &0B, &0E — the catalogue's
-    // first `Qword`, ADR-AKM-001 DEC-AKM-017) — which this count includes without tracking them here
-    // too (see ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
-    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp and the
-    // other test files).
+    // first `Qword`, ADR-AKM-001 DEC-AKM-017), and TASK-AKM-060 added 7 more, folder navigation,
+    // listing and management (RQ-AKM-063: &10-&14, &16, &18 — &18 the catalogue's first item with two
+    // `String` arguments, ADR-AKM-001 DEC-AKM-018) — which this count includes without tracking them
+    // here too (see ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp,
+    // SampleDeleteAllGuardTests.cpp, SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp,
+    // DiskPrimitivesTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

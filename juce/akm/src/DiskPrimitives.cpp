@@ -229,4 +229,71 @@ namespace akm
                                completion(result);
                        });
     }
+
+    void getFolderCount(Session& session, DiskFolderCountCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskGetFolderCount, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFolderCountResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetFolderCount, rep->data);
+                               if (values && values->size() == 2)
+                                   result.count = static_cast<int>((*values)[0] * DATA_BYTE_BASE + (*values)[1]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getFolderName(Session& session, int index, DiskFolderNameCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskGetFolderName, {msb, lsb}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFolderNameResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               result.name = decodeStringReply(ItemId::DiskGetFolderName, rep->data);
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getAllFolderNames(Session& session, DiskFolderNamesCompletion completion)
+    {
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::DiskGetAllFolderNames, NO_VALUES, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFolderNamesResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               ByteReader reader(rep->data);
+                               result.names = reader.readStringList();
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void openFolder(Session& session, std::string_view name, CommandCompletion completion)
+    {
+        session.submit(makeStringRequest(ItemId::DiskOpenFolder, name), std::move(completion));
+    }
+
+    void closeFolder(Session& session, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskCloseFolder, NO_VALUES), std::move(completion));
+    }
+
+    void createFolder(Session& session, std::string_view name, CommandCompletion completion)
+    {
+        session.submit(makeStringRequest(ItemId::DiskCreateFolder, name), std::move(completion));
+    }
+
+    void renameFolder(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion)
+    {
+        session.submit(makeTwoStringRequest(ItemId::DiskRenameFolder, oldName, newName), std::move(completion));
+    }
 }

@@ -27,7 +27,8 @@ FTR-AKM-006) found the S5000 answering one item's REPLY under a section its comm
 TASK-AKM-055 added DEC-AKM-016 to fix it, touching `Session`'s confirmation matcher and the codec's
 REPLY-length lookup — no other decision changed. Disk Free Space (TASK-AKM-059, FTR-AKM-007) added
 DEC-AKM-017, the catalogue's first `Qword` value format, fitting the generic `int64_t` path unlike
-`String`; it changed no other decision.
+`String`; it changed no other decision. Disk folder navigation (TASK-AKM-060, FTR-AKM-007) added
+DEC-AKM-018, a second `String` argument for Rename Folder; it changed no other decision.
 The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
@@ -488,6 +489,25 @@ now.
   value through the generic `decodeReply` (as `std::int64_t`, always non-negative for this item) and
   widens it to `std::uint64_t` in `DiskFreeSpaceResult`, since a byte count cannot be negative — the
   only place this decision is visible outside the catalogue layer.
+
+### DEC-AKM-018: A second `String` argument, for Rename Folder and Rename File
+Decided in TASK-AKM-060, for RQ-AKM-063: Rename Folder (§10/&18) carries two consecutive
+null-terminated strings — the existing name, then the new one — the first item catalogued with more
+than one `String` value. `generate_akm_items.py`'s schema already allowed it (`validate_values`
+checks each value independently; nothing in it counted how many were `String`), so the gap was only in
+the C++ encode path: `makeStringRequest` refuses anything but exactly one `String` argument
+(DEC-AKM-013).
+- **`makeTwoStringRequest(item, first, second)` joins `makeStringRequest` in `ItemRequest.hpp`.** It
+  refuses as `WrongArgumentCount` unless `item.args` is exactly two `String` values in order, checks
+  each string's length against its own `ValueSpec` range, and appends both with
+  `ByteWriter::appendString` back to back — the second string's own terminator is what ends the frame,
+  the same way a single String argument's does.
+- **No decode counterpart.** Every two-String item catalogued so far (`&18` here; File's `&28` is the
+  same shape, `TASK-AKM-062`) is a `Set`, completing on `Done` or `Error`, never a `Reply` — so
+  `decodeStringReply` needs no equivalent change until an item answers a REPLY of two strings, which
+  none does yet.
+- **Not generalised to N strings.** Two is every width any item needs right now; a third would be
+  added the same way `Qword` was, not pre-built for a shape nothing in the spec uses.
 
 ## Consequences
 

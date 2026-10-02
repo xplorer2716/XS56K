@@ -153,19 +153,40 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-060: Folder navigation, listing and management
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&10`-`&14` (sub-folder count/name/all-names, open, close) and `&16`/
   `&18` (create, rename). `&18` is the catalogue's first item carrying two consecutive
   null-terminated strings: extend the item-catalogue schema to express a second string argument,
   recording the new decision under `ADR-AKM-001`.
 - **Requirement refs**: RQ-AKM-063
-- **ADR refs**: ADR-AKM-001 (new DEC)
+- **ADR refs**: ADR-AKM-001 (new DEC-AKM-018)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-063, on the simulated sampler;
   `generate_akm_items.py --check` up to date after the schema change.
 - **Dependencies**: TASK-AKM-058
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 512/512 passed. `DEC-AKM-018` (ADR-AKM-001): `makeTwoStringRequest`
+  added next to `makeStringRequest` in `ItemRequest.hpp`/`.cpp` — the catalogue schema already allowed
+  two `String` values (`validate_values` checks each independently), so only the C++ encode path needed
+  the new function; no decode counterpart exists yet since every two-String item so far is a `Set`.
+  `SimulatedSampler` gained a minimal folder model (`FolderRecord`: name plus sub-folders,
+  `DiskRecord::rootFolder`, `_currentFolderPath` as a chain of indices from the root, reset on
+  `setDisks` and on `&02`). 5 new cases in `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-063`): a folder
+  with two sub-folders reports count 2, the second one's name, and both names in order; closing the
+  root completes Error; opening a sub-folder, creating a folder inside it, renaming it and reading its
+  name back all round-trip correctly; opening a name that does not exist completes Error; with no disk
+  selected, folder count and open both complete Error. `generate_akm_items.py --coverage`: the 7 new
+  items covered (19 of 35 §10 rows now), `unaccounted: none`, exit 0 (no new decimal erratum: `&16`/
+  `&18`'s own decimal columns already match their hex); `--check` up to date (279 items); the 22 Python
+  script tests re-run, still 22/22.
+- **Assumptions**: `&13` (Open Folder) treats an empty name as the spec's own `<Data1> = 0` root
+  convention; `decodeStringReply`'s existing empty-string handling (a lone terminator byte) already
+  covers it with no special case. `&03` ("Test Disk Valid")-style ambiguity does not recur here: every
+  item's own data columns and text agree on this group. The current folder resets when the current disk
+  changes (`&02`) or `setDisks` reseeds the list — the spec says nothing of what survives a disk
+  change, and a stale path into a different disk's tree would be meaningless. Folder creation does not
+  check for an existing sub-folder of the same name (the spec does not say what should happen); no
+  acceptance criterion exercises that case, so nothing was added for it (no scope creep).
 
 ### TASK-AKM-061: Load Folder
 - **Tier**: M

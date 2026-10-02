@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // and the list of all connected disks (&05). [TASK-AKM-057, RQ-AKM-060]
 #include <catch2/catch_test_macros.hpp>
 
+#include <string_view>
 #include <variant>
 #include <vector>
 
@@ -28,6 +29,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using akm::CommandResult;
 using akm::DiskCountResult;
+using akm::DiskFolderCountResult;
+using akm::DiskFolderNameResult;
+using akm::DiskFolderNamesResult;
 using akm::DiskFormatResult;
 using akm::DiskFreeSpaceResult;
 using akm::DiskHandleResult;
@@ -41,6 +45,7 @@ using akm::Error;
 using akm::RefusalReason;
 using akm::Refused;
 using akm::harness::DiskRecord;
+using akm::harness::FolderRecord;
 using akm::harness::ManualScenarioDriver;
 using akm::test::Latched;
 using akm::test::SessionHarness;
@@ -122,6 +127,50 @@ namespace
         akm::getDiskName(harness.session(), handle, [latched](const DiskNameResult& r) { latched->set(r); });
         REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
         return *latched->value();
+    }
+
+    DiskFolderCountResult getFolderCount(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskFolderCountResult>>();
+        akm::getFolderCount(harness.session(), [latched](const DiskFolderCountResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFolderNameResult getFolderName(SessionHarness& harness, int index)
+    {
+        auto latched = std::make_shared<Latched<DiskFolderNameResult>>();
+        akm::getFolderName(harness.session(), index, [latched](const DiskFolderNameResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFolderNamesResult getAllFolderNames(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskFolderNamesResult>>();
+        akm::getAllFolderNames(harness.session(), [latched](const DiskFolderNamesResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    void openFolder(SessionHarness& harness, std::string_view name)
+    {
+        akm::openFolder(harness.session(), name, harness.recorder().completion());
+    }
+
+    void closeFolder(SessionHarness& harness)
+    {
+        akm::closeFolder(harness.session(), harness.recorder().completion());
+    }
+
+    void createFolder(SessionHarness& harness, std::string_view name)
+    {
+        akm::createFolder(harness.session(), name, harness.recorder().completion());
+    }
+
+    void renameFolder(SessionHarness& harness, std::string_view oldName, std::string_view newName)
+    {
+        akm::renameFolder(harness.session(), oldName, newName, harness.recorder().completion());
     }
 }
 
@@ -332,4 +381,103 @@ TEST_CASE("Given no disk selected, When the current format or free space is read
 
     CHECK_FALSE(getCurrentDiskFormat(harness).format.has_value());
     CHECK_FALSE(getCurrentDiskFreeSpace(harness).freeBytes.has_value());
+}
+
+TEST_CASE("Given a simulated folder with two sub-folders, When their count, one name and all names are read, Then they decode to 2, the requested name and both names in order [RQ-AKM-063]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {FolderRecord{"ALPHA", {}}, FolderRecord{"BETA", {}}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    const DiskFolderCountResult count = getFolderCount(harness);
+    REQUIRE(count.count.has_value());
+    CHECK(*count.count == 2);
+
+    const DiskFolderNameResult name = getFolderName(harness, 1);
+    REQUIRE(name.name.has_value());
+    CHECK(*name.name == "BETA");
+
+    const DiskFolderNamesResult names = getAllFolderNames(harness);
+    REQUIRE(names.names.has_value());
+    CHECK(*names.names == std::vector<std::string>{"ALPHA", "BETA"});
+}
+
+TEST_CASE("Given the root folder, When closed, Then it completes ERROR [RQ-AKM-063]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    closeFolder(harness);
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given a sub-folder opened then a new one created and renamed, When its name is read back, Then it is the new name [RQ-AKM-063]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {FolderRecord{"SONGS", {}}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    openFolder(harness, "SONGS");
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    createFolder(harness, "DRAFT");
+    REQUIRE(harness.waitForCompletions(3));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    renameFolder(harness, "DRAFT", "FINAL");
+    REQUIRE(harness.waitForCompletions(4));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    const DiskFolderNameResult name = getFolderName(harness, 0);
+    REQUIRE(name.name.has_value());
+    CHECK(*name.name == "FINAL");
+
+    closeFolder(harness);
+    REQUIRE(harness.waitForCompletions(5));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given a folder name that does not exist, When opened, Then it completes ERROR [RQ-AKM-063]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    openFolder(harness, "GHOST");
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given no disk selected, When a folder is opened, closed, listed or created, Then each completes ERROR [RQ-AKM-063]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    CHECK_FALSE(getFolderCount(harness).count.has_value());
+    openFolder(harness, "ANY");
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
 }
