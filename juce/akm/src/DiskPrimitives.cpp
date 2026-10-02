@@ -301,4 +301,91 @@ namespace akm
     {
         session.submit(makeStringRequest(ItemId::DiskLoadFolder, name), std::move(completion));
     }
+
+    void getFileCount(Session& session, DiskFileCountCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::DiskGetFileCount, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFileCountResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetFileCount, rep->data);
+                               if (values && values->size() == 2)
+                                   result.count = static_cast<int>((*values)[0] * DATA_BYTE_BASE + (*values)[1]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getFileName(Session& session, int index, DiskFileNameCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskGetFileName, {msb, lsb}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFileNameResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               result.name = decodeStringReply(ItemId::DiskGetFileName, rep->data);
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getAllFileNames(Session& session, DiskFileNamesCompletion completion)
+    {
+        CommandOptions options;
+        options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+        session.submit(makeRequest(ItemId::DiskGetAllFileNames, NO_VALUES, std::move(options)),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFileNamesResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               ByteReader reader(rep->data);
+                               result.names = reader.readStringList();
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getFileSize(Session& session, int index, DiskFileSizeCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::DiskGetFileSize, {msb, lsb}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFileSizeResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetFileSize, rep->data);
+                               if (values && values->size() == 4)
+                                   result.sizeBytes = static_cast<std::uint32_t>(
+                                       ((*values)[0] << 21) | ((*values)[1] << 14) | ((*values)[2] << 7) | (*values)[3]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getFileIndexByName(Session& session, std::string_view name, DiskFileIndexCompletion completion)
+    {
+        session.submit(makeStringRequest(ItemId::DiskGetFileIndexByName, name),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           DiskFileIndexResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::DiskGetFileIndexByName, rep->data);
+                               if (values && values->size() == 2)
+                                   result.index = static_cast<int>((*values)[0] * DATA_BYTE_BASE + (*values)[1]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void renameFile(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion)
+    {
+        session.submit(makeTwoStringRequest(ItemId::DiskRenameFile, oldName, newName), std::move(completion));
+    }
 }

@@ -211,6 +211,13 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_RENAME_FOLDER = 0x18;
         // Load Folder of TASK-AKM-061 (RQ-AKM-064).
         constexpr std::uint8_t ITEM_LOAD_FOLDER = 0x15;
+        // File listing, info and rename items of TASK-AKM-062 (RQ-AKM-065).
+        constexpr std::uint8_t ITEM_GET_FILE_COUNT = 0x20;
+        constexpr std::uint8_t ITEM_GET_FILE_NAME = 0x21;
+        constexpr std::uint8_t ITEM_GET_ALL_FILE_NAMES = 0x22;
+        constexpr std::uint8_t ITEM_GET_FILE_SIZE = 0x23;
+        constexpr std::uint8_t ITEM_GET_FILE_INDEX_BY_NAME = 0x24;
+        constexpr std::uint8_t ITEM_RENAME_FILE = 0x28;
 
         constexpr std::size_t ECHO_DATA_SIZE = 4;
         constexpr std::uint8_t TOGGLE_MAX = 1;
@@ -1205,6 +1212,15 @@ namespace akm::harness
             return std::nullopt;
         }
 
+        // The index of the file named `name` within `folder`, or nothing when none matches (RQ-AKM-065).
+        std::optional<std::size_t> findFileByName(const FolderRecord& folder, std::string_view name)
+        {
+            for (std::size_t index = 0; index < folder.files.size(); ++index)
+                if (folder.files[index].name == name)
+                    return index;
+            return std::nullopt;
+        }
+
         // Every program and sample name `folder` or one of its sub-folders, recursively, lists as a
         // file to load (RQ-AKM-064).
         void collectLoadable(const FolderRecord& folder, std::vector<std::string>& programNames,
@@ -1449,6 +1465,88 @@ namespace akm::harness
                         sample.name = std::move(sampleName);
                         samples.push_back(std::move(sample));
                     }
+                    return done();
+                }
+                case ITEM_GET_FILE_COUNT:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(folder == nullptr ? 0 : folder->files.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_FILE_NAME:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    if (folder == nullptr || *index >= folder->files.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(folder->files[*index].name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_FILE_NAMES:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    akm::ByteWriter writer;
+                    if (folder != nullptr)
+                        for (const FileRecord& file : folder->files)
+                            writer.appendString(file.name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_FILE_SIZE:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index)
+                        return failure(error_number::INVALID_FORMAT);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    if (folder == nullptr || *index >= folder->files.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    appendCompoundWord(writer, folder->files[*index].sizeBytes);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_FILE_INDEX_BY_NAME:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*found));
+                    return reply(writer.bytes());
+                }
+                case ITEM_RENAME_FILE:
+                {
+                    if (!currentDisk)
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto oldName = reader.readString();
+                    const auto newName = oldName ? reader.readString() : std::nullopt;
+                    if (!oldName || !newName)
+                        return failure(error_number::INVALID_FORMAT);
+                    FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
+                    const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *oldName);
+                    if (!found)
+                        return failure(error_number::NOT_FOUND);
+                    folder->files[*found].name = *newName;
                     return done();
                 }
                 default:

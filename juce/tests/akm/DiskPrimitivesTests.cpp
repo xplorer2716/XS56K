@@ -31,6 +31,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 using akm::CommandResult;
 using akm::DiskCountResult;
+using akm::DiskFileCountResult;
+using akm::DiskFileIndexResult;
+using akm::DiskFileNameResult;
+using akm::DiskFileNamesResult;
+using akm::DiskFileSizeResult;
 using akm::DiskFolderCountResult;
 using akm::DiskFolderNameResult;
 using akm::DiskFolderNamesResult;
@@ -47,6 +52,7 @@ using akm::Error;
 using akm::RefusalReason;
 using akm::Refused;
 using akm::harness::DiskRecord;
+using akm::harness::FileRecord;
 using akm::harness::FolderRecord;
 using akm::harness::ManualScenarioDriver;
 using akm::test::Latched;
@@ -173,6 +179,51 @@ namespace
     void renameFolder(SessionHarness& harness, std::string_view oldName, std::string_view newName)
     {
         akm::renameFolder(harness.session(), oldName, newName, harness.recorder().completion());
+    }
+
+    DiskFileCountResult getFileCount(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskFileCountResult>>();
+        akm::getFileCount(harness.session(), [latched](const DiskFileCountResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFileNameResult getFileName(SessionHarness& harness, int index)
+    {
+        auto latched = std::make_shared<Latched<DiskFileNameResult>>();
+        akm::getFileName(harness.session(), index, [latched](const DiskFileNameResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFileNamesResult getAllFileNames(SessionHarness& harness)
+    {
+        auto latched = std::make_shared<Latched<DiskFileNamesResult>>();
+        akm::getAllFileNames(harness.session(), [latched](const DiskFileNamesResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFileSizeResult getFileSize(SessionHarness& harness, int index)
+    {
+        auto latched = std::make_shared<Latched<DiskFileSizeResult>>();
+        akm::getFileSize(harness.session(), index, [latched](const DiskFileSizeResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    DiskFileIndexResult getFileIndexByName(SessionHarness& harness, std::string_view name)
+    {
+        auto latched = std::make_shared<Latched<DiskFileIndexResult>>();
+        akm::getFileIndexByName(harness.session(), name, [latched](const DiskFileIndexResult& r) { latched->set(r); });
+        REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
+        return *latched->value();
+    }
+
+    void renameFile(SessionHarness& harness, std::string_view oldName, std::string_view newName)
+    {
+        akm::renameFile(harness.session(), oldName, newName, harness.recorder().completion());
     }
 }
 
@@ -536,4 +587,94 @@ TEST_CASE("Given a folder name that does not exist, When loaded, Then it complet
     akm::loadFolder(harness.session(), "GHOST", harness.recorder().completion());
     REQUIRE(harness.waitForCompletions(2));
     CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given a simulated folder with two files, When their count, one name, all names, one size and one index-by-name are read, Then they decode correctly, including a size of 0 for an empty file [RQ-AKM-065]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"KICK.AKP", 2048}, FileRecord{"EMPTY.AKP", 0}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    const DiskFileCountResult count = getFileCount(harness);
+    REQUIRE(count.count.has_value());
+    CHECK(*count.count == 2);
+
+    const DiskFileNameResult name = getFileName(harness, 0);
+    REQUIRE(name.name.has_value());
+    CHECK(*name.name == "KICK.AKP");
+
+    const DiskFileNamesResult names = getAllFileNames(harness);
+    REQUIRE(names.names.has_value());
+    CHECK(*names.names == std::vector<std::string>{"KICK.AKP", "EMPTY.AKP"});
+
+    const DiskFileSizeResult size = getFileSize(harness, 0);
+    REQUIRE(size.sizeBytes.has_value());
+    CHECK(*size.sizeBytes == 2048u);
+
+    const DiskFileSizeResult emptySize = getFileSize(harness, 1);
+    REQUIRE(emptySize.sizeBytes.has_value());
+    CHECK(*emptySize.sizeBytes == 0u);
+
+    const DiskFileIndexResult index = getFileIndexByName(harness, "EMPTY.AKP");
+    REQUIRE(index.index.has_value());
+    CHECK(*index.index == 1);
+}
+
+TEST_CASE("Given a file renamed with an extension accidentally included in the new name, When sent, Then the primitive still sends exactly what it was given [RQ-AKM-065]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0,
+                                           .type = 1,
+                                           .format = 2,
+                                           .scsiId = 0,
+                                           .writable = true,
+                                           .name = "DATA",
+                                           .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"OLD.AKP", 10}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    renameFile(harness, "OLD.AKP", "NEW.AKP.AKP");
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    const DiskFileNameResult name = getFileName(harness, 0);
+    REQUIRE(name.name.has_value());
+    CHECK(*name.name == "NEW.AKP.AKP");
+}
+
+TEST_CASE("Given a file name that does not exist, When its index is requested or it is renamed, Then each completes ERROR [RQ-AKM-065]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    CHECK_FALSE(getFileIndexByName(harness, "GHOST.AKP").index.has_value());
+
+    renameFile(harness, "GHOST.AKP", "ANY.AKP");
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Error>(harness.recorder().results().back()));
+}
+
+TEST_CASE("Given no disk selected, When the file count or a file index by name is requested, Then each completes ERROR [RQ-AKM-065]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    CHECK_FALSE(getFileCount(harness).count.has_value());
+    CHECK_FALSE(getFileIndexByName(harness, "ANY.AKP").index.has_value());
 }

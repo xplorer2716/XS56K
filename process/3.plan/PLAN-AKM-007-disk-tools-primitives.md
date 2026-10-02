@@ -215,7 +215,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-062: File listing, info and rename
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&20`-`&24` (file count/name/all-names/size/index-by-name) and `&28`
   (rename), reusing the two-string item shape added by TASK-AKM-060.
 - **Requirement refs**: RQ-AKM-065
@@ -223,8 +223,28 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-065, on the simulated sampler.
 - **Dependencies**: TASK-AKM-060
 - **Assignee**: AI
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 518/518 passed. `&23`'s Compound Double Word is catalogued as four
+  separate `Byte` values (`sizeMsb`/`Sb2`/`Sb1`/`Lsb`), not a single `Dword`: the first attempt (one
+  `Dword`) failed `--coverage` outright (`DiskGetFileSize: reply has 1 values, the spec row describes
+  4`) because this item's own TSV row, unlike §02's Wave memory, decomposes cleanly into four
+  comparable byte columns rather than being shortened by an ellipsis — so it is catalogued the way
+  §0E's position/loop items are, verified byte-for-byte instead of skipped. `FileRecord` (name, a size
+  in bytes) added to `FolderRecord` as `files`, separate from `programFiles`/`sampleFiles`: listing and
+  loading are different items, and nothing ties a listed file to a loadable one. 5 new cases in
+  `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-065`): a folder with two files (one of them empty) reports
+  count 2, the first name, both names in order, one size (2048) and the empty one's size (0), and the
+  empty file's index by name (1); renaming to a name with an extension already in it sends exactly that
+  name, read back unchanged; a file name that does not exist completes Error for both the index lookup
+  and a rename; with no disk selected, file count and index-by-name both complete Error.
+  `generate_akm_items.py --coverage`: the 6 new items covered (26 of 35 §10 rows now),
+  `unaccounted: none`; `--check` up to date (286 items). `ItemCatalogueTests.cpp`'s total-item-count
+  check updated (`PROGRAM_ITEM_COUNT`, `+6`).
+- **Assumptions**: `&24`'s REPLY is read through the generic `decodeReply` (two Bytes, like every other
+  index REPLY): the spec's "returned if found" wording is read as "else an ERROR", the same assumption
+  already made for `&03`/other find-by-something items, not a new one. `&28`'s rename does not strip or
+  validate an extension the caller repeats in the new name (spec footnote c): per `RQ-AKM-065`'s own
+  statement, that is a caller concern.
 
 ### TASK-AKM-063: Load File, with and without dependent children
 - **Tier**: M

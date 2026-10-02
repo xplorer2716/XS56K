@@ -249,4 +249,80 @@ namespace akm
     /// SysEx at all (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`).
     /// [RQ-AKM-064, RQ-AKM-070]
     void loadFolder(Session& session, std::string_view name, CommandCompletion completion);
+
+    // File listing, info and rename (§10/&20-&24, &28) in the current folder. [RQ-AKM-065]
+
+    /// `count` is empty when the command did not complete on a REPLY of the length the catalogue gives
+    /// it; `outcome` is the result of the command. [RQ-AKM-065]
+    struct DiskFileCountResult
+    {
+        std::optional<int> count{};
+        CommandResult outcome{};
+    };
+    using DiskFileCountCompletion = std::function<void(const DiskFileCountResult&)>;
+
+    /// Gets the number of files in the current folder (§10/&20). [RQ-AKM-065]
+    void getFileCount(Session& session, DiskFileCountCompletion completion);
+
+    /// `name` is empty when the command did not complete on a REPLY holding exactly one null-terminated
+    /// name; `outcome` is the result of the command. [RQ-AKM-065]
+    struct DiskFileNameResult
+    {
+        std::optional<std::string> name{};
+        CommandResult outcome{};
+    };
+    using DiskFileNameCompletion = std::function<void(const DiskFileNameResult&)>;
+
+    /// Gets the name of the file at zero-based `index` in the current folder (§10/&21). [RQ-AKM-065]
+    void getFileName(Session& session, int index, DiskFileNameCompletion completion);
+
+    /// One entry per file in the current folder, in the order the sampler sent them. Empty when the
+    /// command did not complete on a decodable REPLY. [RQ-AKM-065]
+    struct DiskFileNamesResult
+    {
+        std::optional<std::vector<std::string>> names{};
+        CommandResult outcome{};
+    };
+    using DiskFileNamesCompletion = std::function<void(const DiskFileNamesResult&)>;
+
+    /// Gets the names of every file in the current folder (§10/&22). Refused as `ChecksumModeUnknown`
+    /// while the port's checksum mode is unknown, for the same reason as `getAllProgramNames`.
+    /// [RQ-AKM-065, RQ-AKM-041]
+    void getAllFileNames(Session& session, DiskFileNamesCompletion completion);
+
+    /// `sizeBytes` is empty when the command did not complete on a REPLY of the length the catalogue
+    /// gives it; `outcome` is the result of the command. The REPLY is a Compound Double Word, the same
+    /// shape §0E's position and loop items use (four separate `Byte` values in the catalogue, combined
+    /// here), not the single `Dword` §02's Wave memory uses — this item's own spec row decomposes
+    /// cleanly into four byte-sized columns, so it is catalogued and verified that way rather than
+    /// skipping the coverage check the way an ellipsis-shortened row does. [RQ-AKM-065]
+    struct DiskFileSizeResult
+    {
+        std::optional<std::uint32_t> sizeBytes{};
+        CommandResult outcome{};
+    };
+    using DiskFileSizeCompletion = std::function<void(const DiskFileSizeResult&)>;
+
+    /// Gets the size, in bytes, of the file at zero-based `index` in the current folder (§10/&23).
+    /// [RQ-AKM-065]
+    void getFileSize(Session& session, int index, DiskFileSizeCompletion completion);
+
+    /// `index` is empty when the command did not complete on a REPLY of the length the catalogue gives
+    /// it (which includes the file not being found: the spec answers ERROR, not an empty REPLY, per its
+    /// own text for `&24`); `outcome` is the result of the command. [RQ-AKM-065]
+    struct DiskFileIndexResult
+    {
+        std::optional<int> index{};
+        CommandResult outcome{};
+    };
+    using DiskFileIndexCompletion = std::function<void(const DiskFileIndexResult&)>;
+
+    /// Gets the index of the file named `name` in the current folder (§10/&24). [RQ-AKM-065]
+    void getFileIndexByName(Session& session, std::string_view name, DiskFileIndexCompletion completion);
+
+    /// Renames the file named `oldName` in the current folder to `newName` (§10/&28); `newName`'s
+    /// extension, if any, is sent exactly as given — the spec's own footnote says the sampler appends
+    /// one automatically, so repeating it is a caller mistake, not something this layer corrects.
+    /// [RQ-AKM-065]
+    void renameFile(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion);
 }

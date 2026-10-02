@@ -232,6 +232,16 @@ namespace akm::harness
     /// root, which is reached with an empty path from `DiskRecord::rootFolder`, not a `FolderRecord` of
     /// its own) and its sub-folders, in creation order (the spec's own order for &12, since nothing
     /// deletes a folder yet — TASK-AKM-063's own lot).
+    /// One file listed in a folder (§10/&20-&24, &28, RQ-AKM-065): a name and a size in bytes, both
+    /// arbitrary (no real file content is modelled). Independent of `FolderRecord::programFiles`/
+    /// `sampleFiles`: a test that wants a listed file to also be loadable adds it to both, the way a
+    /// real folder's own file would be both listed and loadable.
+    struct FileRecord
+    {
+        std::string name;
+        std::uint32_t sizeBytes = 0;
+    };
+
     struct FolderRecord
     {
         std::string name;
@@ -242,6 +252,10 @@ namespace akm::harness
         /// here, only the SysEx protocol), so a "file" is just the name it would load, nothing else.
         std::vector<std::string> programFiles;
         std::vector<std::string> sampleFiles;
+        /// The files this folder lists (RQ-AKM-065), separate from the above: listing and loading are
+        /// different items of the spec, and nothing requires every listed file to be loadable or every
+        /// loadable name to be listed.
+        std::vector<FileRecord> files;
     };
 
     /// One disk connected to the sampler (§10, spec Tables 20-21): only what TASK-AKM-057's discovery
