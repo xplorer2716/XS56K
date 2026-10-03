@@ -29,6 +29,8 @@ REPLY-length lookup — no other decision changed. Disk Free Space (TASK-AKM-059
 DEC-AKM-017, the catalogue's first `Qword` value format, fitting the generic `int64_t` path unlike
 `String`; it changed no other decision. Disk folder navigation (TASK-AKM-060, FTR-AKM-007) added
 DEC-AKM-018, a second `String` argument for Rename Folder; it changed no other decision.
+The front panel keys (TASK-AKM-072, FTR-AKM-008) added DEC-AKM-019, extending DEC-AKM-004's closing
+sequence with a release of every key the session held; no other decision changed.
 The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
@@ -508,6 +510,56 @@ the C++ encode path: `makeStringRequest` refuses anything but exactly one `Strin
   none does yet.
 - **Not generalised to N strings.** Two is every width any item needs right now; a third would be
   added the same way `Qword` was, not pre-built for a shape nothing in the spec uses.
+
+### DEC-AKM-019: A session releases the front-panel keys it held when it closes
+Decided by the owner (session AKM, 2026-10-03) for RQ-AKM-075. Key Hold (§20/&01) is the one command of the
+protocol whose effect lasts until a second command: the sampler keeps the key down until it receives the
+matching Key Release, "although there can be a delay" (spec p. 41), however long. A session that closes
+with a key held would leave it down on the machine. DEC-AKM-004's closing already puts back every §00
+setting the session tried to change; a held key is the same kind of thing, and is handled the same way.
+- **The session remembers the keys it tried to hold, and on which device.** `CommandOptions` gains `holdsKey`
+  and `releasesKey` (each an optional keycode, a plain `std::uint8_t` so that `CommandOptions.hpp` does not
+  include the §20 header), set by `holdKey` and `releaseKey` the way the §00 primitives set `changesSetting`;
+  a raw `submit` of the Hold item without the option is not remembered, as for a setting. A key is
+  remembered, with the DeviceID the command is addressed to, where `changed.insert` already sits in
+  `startCommand` — after the refusal, target and encoding checks, before the frame is sent — whether or not
+  the sampler then confirms it: a Hold that timed out may have been carried out, as for a setting
+  (DEC-AKM-004, "As built"). It is forgotten in `complete()` only, never in `recordResult`, so that a Release
+  cancelled by a close forgets nothing: when a Release of that key *succeeds* (DONE), or when the Hold itself
+  is answered ERROR 0 (not supported), a sampler without §20 having nothing to release, as `changed` is
+  emptied of a setting the sampler does not have. A Release that is refused, errors or times out leaves the key
+  remembered, so the closing tries again; a Hold answered by any other ERROR leaves it too, the cost being
+  at most one spare Release, which the spec does not forbid.
+- **The closing releases them first.** `beginClose` queues one Release per remembered key addressed to the
+  current target, in ascending keycode order, before the §00 settings: a key down is the state most worth
+  clearing. A key remembered for another device (the target was rebound or reset by an `open()` since) is not
+  sent — it would release nothing on the target and leave the key down on its own device — and is reported
+  as not released. Framing: a Release has no REPLY and goes out in the checksum mode the session tracks
+  (`ExpectedReply::Delimited`), so the tracker must be right. It is not always right after a cancel:
+  `cancelEverything` completes the command in flight without `complete()`, which is where a failed
+  checksum-mode command turns the mode to Unknown. `cancelEverything` therefore now sets the mode to Unknown
+  when the command it cancels was a checksum-mode command; a Release sent in Unknown carries a checksum, which
+  a sampler not expecting one ignores, and its DONE decodes in either mode. (This corrects the order of the
+  closing for every command, not only keys: before it, the checksum restore alone, always sent with a
+  checksum, hid the gap.) The Releases run one at a time on the same `Purpose::Closing` path as the settings,
+  so DEC-AKM-004's rules hold unchanged: a refused or failed Release is reported and the next is tried, and
+  **the first one that times out ends the restoring**, the rest — keys and settings alike — being reported as
+  not restored.
+- **`CloseResult` reports them.** `keysReleased` and `keysNotReleased` list the keycodes (plain `std::uint8_t`)
+  beside `restored` and `notRestored`; `restoredAll()` is false if any key is not released. "Released" means
+  the Release was *queued*: a §20 DONE confirms nothing more (spec Table 30, note a). A caller who needs to
+  tell "timed out, the key may still be down" from "refused, it probably never was" reads the session's
+  diagnostics, which report each failed closing command; the result does not carry the outcome per key.
+- **Limits.** RQ-AKM-075's "no key held by a session that is gone" is best effort, bounded exactly as
+  DEC-AKM-004 bounds the settings: the destructor of a session never closed runs the closing only where the
+  executor runs on its own thread, waits two command timeouts and a second, and then tears down; with Still
+  Alive on, each Release may be stretched up to the maximum total wait, and every key held adds one to the
+  closing before the settings. A caller's own `releaseKey` in flight when `close()` runs is cancelled like any
+  queued command; its key is released by the closing because its Hold was sent. Keys held by another session
+  or by the front panel itself are not known to this one and are not touched. The same key held twice is
+  remembered once and released once; whether the sampler counts Holds is unknown (the spec is silent) and is
+  a risk to check on the real sampler, as is the ascending keycode order, which is arbitrary — a human chord
+  is released in no fixed order. Reviewed independently (`REVIEW-DEC-AKM-019-opus.md`).
 
 ## Consequences
 

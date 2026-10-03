@@ -128,7 +128,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-072: Release held keys when the session closes
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Make the session remember the keys held through `holdKey` and not yet released, and send a
   Release for each before `Session::close` completes, including when the close follows a failed command.
   Record the choice as `DEC-AKM-019` in `ADR-AKM-001` (a cross-cutting change to the session's closing
@@ -138,8 +138,30 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-075 on the simulated sampler.
 - **Dependencies**: TASK-AKM-070
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: clean build with no warning or error (`/W4 /WX`), `ctest` 576/576 after
+  a re-run in this session. New `FrontPanelCloseTests.cpp` (15 cases, `[akm][close][front-panel]`, written
+  before the code, `ctest -R RQ-AKM-075`): a held EXIT is released before the close completes (frames Hold
+  then Release `20 02 6A`, simulated sampler with no key down, `keysReleased == {6A}`); no key held, or held
+  then released by the caller → no §20 frame at the close; two keys → released in ascending keycode order;
+  the same key held twice → one Release; a Hold that timed out, or answered ERROR 3 → released all the same;
+  a Hold answered ERROR 0 → forgotten, no frame, `restoredAll()`; a Release the sampler refuses at the close
+  → `keysNotReleased`, the close finishes; a silent sampler → the close returns after one timeout (50 ms
+  command timeout, elapsed within 10 ms of it) with the key reported not released; a press whose Hold is in
+  flight at the close → both commands `Cancelled` and the key still released; a Hold still queued, never sent
+  → no Release; the target rebound to another device since the Hold → nothing sent, key reported not released;
+  a checksum-mode command in flight at the close → the Release carries a checksum and is accepted; a session
+  destroyed without a close on a real thread (5 repeats) → the key is released. Mutation check done by hand:
+  with the `cancelEverything` fix disabled, the checksum-mode case fails (3 assertions); restored, it passes.
+  Independent review: `REVIEW-DEC-AKM-019-opus.md` (no blocking finding; S1 to S4 adopted, N1 to N5 followed
+  or stated, see its disposition table); `DEC-AKM-019` amended accordingly in `ADR-AKM-001`. `CloseResult` gained
+  `keysReleased`/`keysNotReleased` and `restoredAll()` now counts the keys; `CommandOptions` gained `holdsKey`/
+  `releasesKey`; no existing close test changed. Not verified: real sampler (TASK-AKM-073); the real-sampler
+  behaviour of a Release for a key that is not down, and whether the sampler counts Holds (spec silent).
+- **Assumptions**: Keys are released before the §00 settings, in ascending keycode order (arbitrary; the
+  review noted a human chord has no fixed order). A key is remembered per (DeviceID, keycode). The count went
+  from 561 to 576: the 15 new cases, every earlier one re-run unchanged.
+  `CloseResult` carries keycodes only, not each key's outcome (reviewer's (e), not adopted: nothing consumes
+  it yet). The destructor's guarantee is bounded as DEC-AKM-004 bounds the settings (stated in the ADR).
 
 ---
 

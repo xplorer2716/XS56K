@@ -32,11 +32,12 @@ namespace akm
         constexpr int KEYCODE_UNLISTED = 0x66;
 
         // The request for `id` with `key` as its keycode, or a request that carries the refusal when `key` is not a
-        // key of Table 31 — the catalogue's own range check cannot see that `&66` is not one.
-        CommandRequest keyRequest(ItemId id, FrontPanelKey key)
+        // key of Table 31 — the catalogue's own range check cannot see that `&66` is not one. The session is told
+        // which key a Hold or a Release is about (`options`), so that a close can release a key still held.
+        CommandRequest keyRequest(ItemId id, FrontPanelKey key, CommandOptions options)
         {
             if (frontPanelKeyFromCode(static_cast<int>(key)))
-                return makeRequest(id, {static_cast<std::int64_t>(key)});
+                return makeRequest(id, {static_cast<std::int64_t>(key)}, std::move(options));
             const ItemDescriptor& item = descriptor(id);
             CommandRequest request;
             request.command.section = item.section;
@@ -55,12 +56,16 @@ namespace akm
 
     void holdKey(Session& session, FrontPanelKey key, CommandCompletion completion)
     {
-        session.submit(keyRequest(ItemId::FrontPanelKeyHold, key), std::move(completion));
+        CommandOptions options;
+        options.holdsKey = static_cast<std::uint8_t>(key);
+        session.submit(keyRequest(ItemId::FrontPanelKeyHold, key, std::move(options)), std::move(completion));
     }
 
     void releaseKey(Session& session, FrontPanelKey key, CommandCompletion completion)
     {
-        session.submit(keyRequest(ItemId::FrontPanelKeyRelease, key), std::move(completion));
+        CommandOptions options;
+        options.releasesKey = static_cast<std::uint8_t>(key);
+        session.submit(keyRequest(ItemId::FrontPanelKeyRelease, key, std::move(options)), std::move(completion));
     }
 
     void moveDataWheel(Session& session, DataWheelDirection direction, int clicks, CommandCompletion completion)

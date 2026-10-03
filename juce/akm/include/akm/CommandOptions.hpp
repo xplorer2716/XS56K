@@ -79,6 +79,13 @@ namespace akm
         /// this setting, so that a close puts it back to its documented default. A command that changes a setting
         /// without saying so is not remembered. [RQ-AKM-042]
         std::optional<SamplerSetting> changesSetting{};
+        /// Set by the front-panel Key Hold (§20/&01) and Key Release (§20/&02) primitives, with the keycode: the
+        /// session remembers that it tried to hold this key, on the DeviceID the command is sent to, until a
+        /// Release of it succeeds, so that a close releases it. A plain keycode, not the §20 enumeration, which
+        /// would make the headers include each other. A Hold sent without it is not remembered.
+        /// [RQ-AKM-075, ADR-AKM-001 (DEC-AKM-019)]
+        std::optional<std::uint8_t> holdsKey{};
+        std::optional<std::uint8_t> releasesKey{};
         /// Discovery: instead of completing on the first DONE, the command collects every matching
         /// confirmation for this long, reports each to `onConfirmation`, and then completes as `Done`
         /// — empty window included, which is not an error. [RQ-AKM-012]

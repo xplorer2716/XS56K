@@ -127,6 +127,8 @@ namespace akm
             std::uint8_t item = 0;
             /// The section a REPLY to this command may carry besides `section` (ItemDescriptor::replySection).
             std::optional<std::uint8_t> replySection;
+            /// The DeviceID the command was addressed to, for the keys a Hold or a Release is about. [RQ-AKM-075]
+            std::uint8_t deviceId = 0;
             bool broadcast = false;
             bool collecting = false;
             ChecksumMode decodeMode = ChecksumMode::Unknown;
@@ -197,12 +199,18 @@ namespace akm
         struct Closing
         {
             CloseCompletion completion;
+            /// The keycodes still to release, then the settings still to put back: the keys go first.
+            std::deque<std::uint8_t> pendingKeys;
             std::deque<SamplerSetting> pending;
             CloseResult result;
         };
         std::optional<Closing> closingContext;
         /// The settings the session has tried to change on the sampler, for the closing to put back. [RQ-AKM-042]
         std::set<SamplerSetting> changed;
+        /// The front-panel keys the session has tried to hold, as (DeviceID the Hold was addressed to, keycode), for the
+        /// closing to release. Ordered, so that the closing releases a device's keys in ascending keycode order.
+        /// [RQ-AKM-075, ADR-AKM-001 (DEC-AKM-019)]
+        std::set<std::pair<std::uint8_t, std::uint8_t>> keysHeld;
 
         /// Runs `work` on the session thread, or not at all if the session is gone by then.
         void postToSession(Task work)
@@ -311,9 +319,13 @@ namespace akm
             // out, and the closing puts back what may have changed (RQ-AKM-042).
             if (request.options.changesSetting)
                 changed.insert(*request.options.changesSetting);
+            // The same for a key held: a Hold that timed out may have been carried out (DEC-AKM-019).
+            if (request.options.holdsKey)
+                keysHeld.emplace(deviceId, *request.options.holdsKey);
 
             InFlight flight;
             flight.unit = unit;
+            flight.deviceId = deviceId;
             flight.userRef = userRef;
             flight.generation = ++nextGeneration;
             flight.section = request.command.section;
@@ -527,6 +539,13 @@ namespace akm
             // A setting the sampler does not have has not been changed: there is nothing for a close to put back.
             if (options.changesSetting && notSupported(result))
                 changed.erase(*options.changesSetting);
+            // A key is forgotten when its Release succeeded, or when the sampler has no front panel section to hold it
+            // on. Only here, never when a command is cancelled: a Release that never ran releases nothing
+            // (ADR-AKM-001, DEC-AKM-019).
+            if (options.releasesKey && succeeded(result))
+                keysHeld.erase({flight.deviceId, *options.releasesKey});
+            if (options.holdsKey && notSupported(result))
+                keysHeld.erase({flight.deviceId, *options.holdsKey});
 
             remember(CompletedCommand{flight.userRef, flight.section, flight.item,
                                       std::holds_alternative<Reply>(result)});
@@ -777,6 +796,17 @@ namespace akm
             cancelEverything();
             Closing context;
             context.completion = std::move(completion);
+            // The keys first (DEC-AKM-019): the keys held on the current target are released, in ascending keycode
+            // order; one held on another device would be released on this one and left down on its own, so it is only
+            // reported.
+            const int currentTarget = target.load();
+            for (const auto& [deviceId, keycode] : keysHeld)
+            {
+                if (currentTarget != NO_TARGET && deviceId == static_cast<std::uint8_t>(currentTarget))
+                    context.pendingKeys.push_back(keycode);
+                else
+                    context.result.keysNotReleased.push_back(keycode);
+            }
             for (const SamplerSetting setting : RESTORE_ORDER)
             {
                 if (changed.count(setting) != 0)
@@ -788,6 +818,16 @@ namespace akm
 
         void restoreNext()
         {
+            if (!closingContext->pendingKeys.empty())
+            {
+                const std::uint8_t keycode = closingContext->pendingKeys.front();
+                CommandOptions options;
+                options.releasesKey = keycode;
+                submitInternal(Purpose::Closing,
+                               makeRequest(ItemId::FrontPanelKeyRelease, {static_cast<std::int64_t>(keycode)}, std::move(options)),
+                               [this, keycode](const CommandResult& result) { onKeyReleased(keycode, result); });
+                return;
+            }
             if (closingContext->pending.empty())
             {
                 finishClose();
@@ -803,6 +843,33 @@ namespace akm
                 options.stillAliveAfterDone = on;
             submitInternal(Purpose::Closing, makeRequest(itemOf(setting), {on ? 1 : 0}, std::move(options)),
                            [this, setting](const CommandResult& result) { onRestored(setting, result); });
+        }
+
+        void onKeyReleased(std::uint8_t keycode, const CommandResult& result)
+        {
+            CloseResult& outcome = closingContext->result;
+            closingContext->pendingKeys.pop_front();
+            if (succeeded(result))
+                outcome.keysReleased.push_back(keycode);
+            else
+            {
+                outcome.keysNotReleased.push_back(keycode);
+                if (std::holds_alternative<Timeout>(result))
+                {
+                    // The sampler is not answering: what is left, keys and settings, is reported and not tried.
+                    for (const std::uint8_t left : closingContext->pendingKeys)
+                        outcome.keysNotReleased.push_back(left);
+                    closingContext->pendingKeys.clear();
+                    for (const SamplerSetting left : closingContext->pending)
+                        outcome.notRestored.push_back(left);
+                    closingContext->pending.clear();
+                }
+            }
+            // On a turn of its own, so that a refusal on the spot cannot make the closing recurse.
+            postToSession([this] {
+                if (closingContext)
+                    restoreNext();
+            });
         }
 
         void onRestored(SamplerSetting setting, const CommandResult& result)
@@ -851,6 +918,11 @@ namespace akm
                 flight.commandTimer.cancel();
                 flight.totalTimer.cancel();
                 inFlight.reset();
+                // A checksum-mode command cut short may have been carried out: what the session follows about the port
+                // is no longer known, whatever it was. Without this the closing's first commands would be framed in a
+                // mode the sampler may have left (ADR-AKM-001, DEC-AKM-019).
+                if (flight.unit->requests[flight.unit->next].options.checksumModeAfterDone)
+                    setChecksumMode(ChecksumMode::Unknown);
                 recordResult(flight.unit, Cancelled{});
             }
             while (!queue.empty())

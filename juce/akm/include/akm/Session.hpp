@@ -136,7 +136,9 @@ namespace akm
 
         /// Closes the session and returns at once, from any thread but the session's own. On the session thread:
         /// the command in flight and every queued command complete as `Cancelled` (an open that is still going
-        /// ends as cancelled); then each §00 setting the session tried to change is put back to its documented
+        /// ends as cancelled); then each front-panel key the session held with `holdKey` and did not see released
+        /// is released, on the target it was held on (RQ-AKM-075, DEC-AKM-019); then each §00 setting the session
+        /// tried to change is put back to its documented
         /// default (`samplerDefault`), the checksum mode first and with a checksum appended, one command at a time;
         /// then the input port is stopped; then `onClosed` runs with what was and was not put back. A refused or
         /// failed restoring command is reported and the next is tried; the first one that times out ends the

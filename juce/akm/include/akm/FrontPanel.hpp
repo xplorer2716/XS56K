@@ -92,7 +92,8 @@ namespace akm
 
     /// Holds a key down (§20/&01). A value that is not a key of Table 31 — an enumerator cast from an unlisted code —
     /// is refused without sending (`ArgumentOutOfRange`). The key stays down on the sampler until `releaseKey`:
-    /// the caller owes it a release (spec p. 41). [RQ-AKM-073]
+    /// the caller owes it a release (spec p. 41), and a session that is closed first releases it itself
+    /// (`Session::close`). [RQ-AKM-073, RQ-AKM-075, ADR-AKM-001 (DEC-AKM-019)]
     void holdKey(Session& session, FrontPanelKey key, CommandCompletion completion);
 
     /// Releases a key (§20/&02); refused like `holdKey` for a value that is not a key of Table 31. The sampler is

@@ -129,13 +129,18 @@ namespace akm
 
     /// How a close went: which settings the session put back, and which it could not, for the application to
     /// report. A setting that was refused, or that timed out, or that was not tried because the sampler had stopped
-    /// answering, is in `notRestored`; a close always finishes. [RQ-AKM-042]
+    /// answering, is in `notRestored`; a close always finishes. The front-panel keys the session held follow the same
+    /// rule, as keycodes: `keysReleased` means the Release was queued by the sampler (a §20 DONE confirms nothing
+    /// more), `keysNotReleased` that it was refused, timed out, was not tried, or that the key was held on another
+    /// device than the current target. [RQ-AKM-042, RQ-AKM-075, ADR-AKM-001 (DEC-AKM-019)]
     struct CloseResult
     {
         std::vector<SamplerSetting> restored;
         std::vector<SamplerSetting> notRestored;
+        std::vector<std::uint8_t> keysReleased;
+        std::vector<std::uint8_t> keysNotReleased;
 
-        [[nodiscard]] bool restoredAll() const { return notRestored.empty(); }
+        [[nodiscard]] bool restoredAll() const { return notRestored.empty() && keysNotReleased.empty(); }
     };
 
     /// Short names, for the diagnostics and the logs. [RQ-AKM-039, RQ-AKM-040]
