@@ -38,6 +38,8 @@ namespace akm
                     return writer.appendWord(static_cast<std::uint32_t>(value));
                 case ValueFormat::Dword:
                     return writer.appendDword(static_cast<std::uint32_t>(value));
+                case ValueFormat::Qword:
+                    return writer.appendQword(static_cast<std::uint64_t>(value));
                 case ValueFormat::SignedByte:
                     return writer.appendSignedByte(static_cast<std::int32_t>(value));
                 case ValueFormat::SignedWord:
@@ -55,7 +57,7 @@ namespace akm
         template <typename Integer>
         std::optional<std::int64_t> widened(const std::optional<Integer>& value)
         {
-            if (!value)
+            if (!value.has_value())
                 return std::nullopt;
             return static_cast<std::int64_t>(*value);
         }
@@ -70,6 +72,8 @@ namespace akm
                     return widened(reader.readWord());
                 case ValueFormat::Dword:
                     return widened(reader.readDword());
+                case ValueFormat::Qword:
+                    return widened(reader.readQword());
                 case ValueFormat::SignedByte:
                     return widened(reader.readSignedByte());
                 case ValueFormat::SignedWord:
@@ -132,7 +136,7 @@ namespace akm
         for (const ValueSpec& spec : item.reply)
         {
             const std::optional<std::int64_t> value = readValue(reader, spec.format);
-            if (!value)
+            if (!value.has_value())
                 return std::nullopt;
             values.push_back(*value);
         }
@@ -161,7 +165,7 @@ namespace akm
             for (const ValueSpec& spec : item.reply)
             {
                 const std::optional<std::int64_t> value = readValue(reader, spec.format);
-                if (!value)
+                if (!value.has_value())
                     return std::nullopt;
                 record.push_back(*value);
             }
@@ -184,6 +188,13 @@ namespace akm
             if (values.size() != 1 || values.front().format != ValueFormat::String)
                 return nullptr;
             return &values.front();
+        }
+
+        // Whether `values` is exactly two String values, in order (ADR-AKM-001, DEC-AKM-018).
+        bool isTwoStringSpec(std::span<const ValueSpec> values)
+        {
+            return values.size() == 2 && values[0].format == ValueFormat::String
+                   && values[1].format == ValueFormat::String;
         }
     }
 
@@ -238,5 +249,44 @@ namespace akm
     std::optional<std::string> decodeStringReply(ItemId id, std::span<const std::uint8_t> data)
     {
         return decodeStringReply(descriptor(id), data);
+    }
+
+    CommandRequest makeTwoStringRequest(const ItemDescriptor& item, std::string_view first, std::string_view second,
+                                        CommandOptions options)
+    {
+        CommandRequest request;
+        request.command.section = item.section;
+        request.command.item = item.item;
+        request.options = std::move(options);
+
+        if (!isTwoStringSpec(item.args))
+        {
+            request.refusal = RefusalReason::WrongArgumentCount;
+            return request;
+        }
+
+        const auto firstLength = static_cast<std::int64_t>(first.size());
+        const auto secondLength = static_cast<std::int64_t>(second.size());
+        if (firstLength < item.args[0].min || firstLength > item.args[0].max || secondLength < item.args[1].min
+            || secondLength > item.args[1].max)
+        {
+            request.refusal = RefusalReason::ArgumentOutOfRange;
+            return request;
+        }
+
+        ByteWriter writer;
+        if (!writer.appendString(first) || !writer.appendString(second))
+        {
+            request.refusal = RefusalReason::NotEncodable;
+            return request;
+        }
+        request.command.data = writer.bytes();
+        return request;
+    }
+
+    CommandRequest makeTwoStringRequest(ItemId id, std::string_view first, std::string_view second,
+                                        CommandOptions options)
+    {
+        return makeTwoStringRequest(descriptor(id), first, second, std::move(options));
     }
 }

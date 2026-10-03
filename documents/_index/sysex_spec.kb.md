@@ -170,15 +170,24 @@ Params (T25, index: name range):
 Mode: FX 40 · RECORD 41 · EDIT SAMPLE 42 · EDIT PROGRAM 43 · MULTI 44 · UTILITIES 45 · SAVE 46 · LOAD 47 ·
 F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 · CURSOR< 64 · CURSOR> 65 · WINDOW 67 · MARK 68 · JUMP 69 · EXIT 6A · ENT/PLAY 6B.
 &03 data wheel: d1 0 fwd/1 back, d2 clicks 1–8 · &04 ASCII key. DONE = queued, not executed (T30 fn a).
+T31 lists 43 of the 44 values of `&40`–`&6B` (64–107): `&66` (102) is listed by no row and T30 fn b forbids unlisted
+codes; the AKM layer refuses it (TASK-AKM-070). Not an erratum — nothing contradicts the spec.
 
 ## Spec errata / inconsistencies (checked against the PDF)
 - T11/T12 `&6C{107}` → &6C is 108 (T11 p18, T12 p19). Resolved (TASK-AKM-032): confirmable from the TSV
   alone, no hardware needed — `juce/tools/generate_akm_items.py`'s `KNOWN_DEC_ERRATA` excepts `08 &6C`
   from the item-vs-decimal sanity check that would otherwise flag it as a catalogue mistake.
-- T20 `&0E{13}` "Get the name of the specified disk" → &0E is 14 (p32).
+- T20 `&0E{13}` "Get the name of the specified disk" → &0E is 14 (p32). Resolved (TASK-AKM-059):
+  confirmable from the TSV alone, no hardware needed, the same way `08 &6C` was — `KNOWN_DEC_ERRATA`
+  excepts `10 &0E` from the item-vs-decimal sanity check too.
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
-- §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11).
+- §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11); the same column in the &20 REPLY row. Resolved (TASK-AKM-053): confirmed on a real S5000, 2026-10-01 (`akm-suite-20261001-223720.log`) — Play Mode 3 (Muted) was set and read back without error. The item's own text is what the sampler follows; the catalogue accepts 0-3 (`generate_akm_items.py`'s `KNOWN_RANGE_ERRATA`).
+- §02/&05 Get Clock Time & Date: its REPLY carries section 0B, not 02 — its own OK still says 02, and no section 0B exists anywhere in the spec. Confirmed twice independently on a real S5000 (OS 2.14), 2026-10-01/2026-10-02 (`akm-suite-20261001-223720.log`; a raw frame typed by hand in MIDI-OX). Resolved (TASK-AKM-055, DEC-AKM-016, `ItemDescriptor::replySection`): the session accepts a REPLY under either section for this one item only (`process/2.architecture/OBSERVATIONS-RQ-AKM-059-clock-reply-section.md`).
+- §02/&33 and &34 (Table 7) REPLY rows are written with two columns, "0–127(MSB)" and "…0–127(LSB)" (compound
+  *word* notation), but their text calls the value a Compound *Double* Word (4 data bytes, p. 9), and a byte
+  count of Wave memory does not fit 14 bits (p11). Catalogued as one `Dword` (TASK-AKM-049); to be confirmed on
+  a real sampler (TASK-AKM-053): a REPLY of another length than 4 bytes is refused by the decoder.
 - T10 `&27{39}` labelled "Set Zone Semitone Tune" in a REPLY table (= Get) (p14). Resolved
   (TASK-AKM-039): confirmed on a real S5000, 2026-09-28 (`akm-suite-20260928-182549.log`) — `&07`
   (Set Zone Semitone Tune, zone 3) set to `01 0C`, `&27` read back `01 0C`: it is the Get, as the row's

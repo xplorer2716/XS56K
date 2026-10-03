@@ -97,6 +97,29 @@ namespace akm
                        });
     }
 
+    namespace
+    {
+        // The zone records of every keygroup arrive keygroup-major in one list; regroup them one list per
+        // keygroup. Nothing at all unless there are exactly keygroups x zones records.
+        std::optional<std::vector<std::vector<std::vector<std::int64_t>>>>
+        decodeAllZonesAllKeygroups(ItemId getId, std::span<const std::uint8_t> data, int keygroupCount, int zoneCount)
+        {
+            const auto records = decodeRepeatedReply(getId, data);
+            const auto expectedTotal = static_cast<std::size_t>(keygroupCount) * static_cast<std::size_t>(zoneCount);
+            if (!records || records->size() != expectedTotal)
+                return std::nullopt;
+            std::vector<std::vector<std::vector<std::int64_t>>> reshaped;
+            reshaped.reserve(static_cast<std::size_t>(keygroupCount));
+            auto position = records->begin();
+            for (int keygroup = 0; keygroup < keygroupCount; ++keygroup)
+            {
+                reshaped.emplace_back(position, position + zoneCount);
+                position += zoneCount;
+            }
+            return reshaped;
+        }
+    }
+
     void getForAllZonesAllKeygroups(Session& session, ItemId getId, int expectedKeygroupCount, int expectedZoneCount,
                                     AllZonesAllKeygroupsCompletion completion)
     {
@@ -107,23 +130,7 @@ namespace akm
             [getId, expectedKeygroupCount, expectedZoneCount, completion = std::move(completion)](const CommandResult& outcome) {
                 AllZonesAllKeygroupsResult result{std::nullopt, outcome};
                 if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
-                {
-                    const auto records = decodeRepeatedReply(getId, rep->data);
-                    const auto expectedTotal =
-                        static_cast<std::size_t>(expectedKeygroupCount) * static_cast<std::size_t>(expectedZoneCount);
-                    if (records && records->size() == expectedTotal)
-                    {
-                        std::vector<std::vector<std::vector<std::int64_t>>> reshaped;
-                        reshaped.reserve(static_cast<std::size_t>(expectedKeygroupCount));
-                        auto position = records->begin();
-                        for (int keygroup = 0; keygroup < expectedKeygroupCount; ++keygroup)
-                        {
-                            reshaped.emplace_back(position, position + expectedZoneCount);
-                            position += expectedZoneCount;
-                        }
-                        result.values = std::move(reshaped);
-                    }
-                }
+                    result.values = decodeAllZonesAllKeygroups(getId, rep->data, expectedKeygroupCount, expectedZoneCount);
                 if (completion)
                     completion(result);
             });

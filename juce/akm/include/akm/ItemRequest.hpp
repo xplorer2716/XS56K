@@ -75,4 +75,13 @@ namespace akm
     [[nodiscard]] std::optional<std::string> decodeStringReply(const ItemDescriptor& item,
                                                                 std::span<const std::uint8_t> data);
     [[nodiscard]] std::optional<std::string> decodeStringReply(ItemId id, std::span<const std::uint8_t> data);
+
+    /// Encodes the two `String` arguments of an item (e.g. Rename's old name then new name): refused as
+    /// `WrongArgumentCount` when the item does not take exactly two `String` arguments, in order, or as
+    /// `NotEncodable` when either is not 7-bit ASCII or contains a `00` byte. `options` are kept as
+    /// given. [RQ-AKM-002, ADR-AKM-001 (DEC-AKM-018)]
+    [[nodiscard]] CommandRequest makeTwoStringRequest(const ItemDescriptor& item, std::string_view first,
+                                                      std::string_view second, CommandOptions options = {});
+    [[nodiscard]] CommandRequest makeTwoStringRequest(ItemId id, std::string_view first, std::string_view second,
+                                                      CommandOptions options = {});
 }

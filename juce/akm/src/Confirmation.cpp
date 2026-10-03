@@ -73,7 +73,7 @@ namespace akm
                 {
                     // The catalogue gives the length of every REPLY it lists (ADR-AKM-001, DEC-AKM-012); the
                     // REPLY of an item it does not list, or of a Set, has no length that can be read.
-                    const ItemDescriptor* record = findItem(section, item);
+                    const ItemDescriptor* record = findReplyItem(section, item);
                     if (record == nullptr)
                         return std::nullopt;
                     return record->fixedReplyLength();

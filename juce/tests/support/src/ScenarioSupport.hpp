@@ -108,6 +108,13 @@ namespace akm::harness::detail
         return "CANCELLED";
     }
 
+    /// `outcomeText` of a completion that may not have arrived within its patience.
+    template <typename Timed>
+    std::string timedOutcomeText(const Timed& timed)
+    {
+        return timed ? outcomeText(timed->result) : std::string("no completion");
+    }
+
     /// A value a completion produces on the session's thread and the scenario reads on its own.
     template <typename T>
     class Slot

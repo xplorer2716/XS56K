@@ -42,19 +42,24 @@ EXIT_MISMATCH = 1
 EXIT_INVALID = 2
 
 # Value formats of the spec (pp. 8-9) the schema supports: name -> (C++ enumerator, minimum, maximum).
-# Qwords and the conditional layouts of later sections are added when the first item that needs one is
-# catalogued (DEC-AKM-003). "string" was added by DEC-AKM-013 for the first items that carry an ASCII
-# name (FTR-AKM-002): min/max are a character count, not a numeric range: STRING_MAX_LENGTH is a generous
+# The conditional layouts of later sections are added when the first item that needs one is catalogued
+# (DEC-AKM-003). "string" was added by DEC-AKM-013 for the first items that carry an ASCII name
+# (FTR-AKM-002): min/max are a character count, not a numeric range: STRING_MAX_LENGTH is a generous
 # structural ceiling, not a spec or hardware limit — each item declares its own real bound (e.g. Program
 # names: 0-20, observed on a real S5000, documents/_index/sysex_spec.kb.md "Common value codes").
+# "qword" was added by DEC-AKM-017 for the first item whose REPLY is a Compound Quad Word (§10/&0B, Get
+# Free Space, TASK-AKM-059): the codec already encoded and decoded it (ByteReader/ByteWriter, RQ-AKM-002)
+# before any item declared one.
 BYTE_MAX = 127
 WORD_MAX = 128 ** 2 - 1
 DWORD_MAX = 128 ** 4 - 1
+QWORD_MAX = 128 ** 8 - 1
 STRING_MAX_LENGTH = 255
 FORMATS = {
     "byte": ("Byte", 0, BYTE_MAX),
     "word": ("Word", 0, WORD_MAX),
     "dword": ("Dword", 0, DWORD_MAX),
+    "qword": ("Qword", 0, QWORD_MAX),
     "signed_byte": ("SignedByte", -BYTE_MAX, BYTE_MAX),
     "signed_word": ("SignedWord", -WORD_MAX, WORD_MAX),
     "signed_dword": ("SignedDword", -DWORD_MAX, DWORD_MAX),
@@ -182,6 +187,14 @@ def validate(catalogue):
         if kind not in KINDS:
             problems.append(f"{owner}: kind must be one of {', '.join(KINDS)}")
         validate_values(owner, "args", entry.get("args"), problems)
+        reply_section = entry.get("replySection")
+        if reply_section is not None:
+            if kind != "get":
+                problems.append(f"{owner}: only a get has a REPLY, so only a get can name the section its REPLY carries")
+            elif not isinstance(reply_section, str) or not SECTION_PATTERN.match(reply_section):
+                problems.append(f"{owner}: replySection {reply_section!r} must be two hexadecimal digits, at most 7F")
+            elif reply_section == section:
+                problems.append(f"{owner}: replySection is the item's own section {section}: leave it out")
         if kind == "get":
             if not entry.get("reply"):
                 problems.append(f"{owner}: a get needs a reply format")
@@ -256,8 +269,10 @@ def render(catalogue):
         reply = f"item_data::{constant}_REPLY" if entry.get("reply") else "{}"
         lines.append(f"        // section {entry['section']} item {entry['item']} [{', '.join(entry['requirements'])}]")
         # json.dumps escapes quotes and backslashes the same way a C++ string literal needs them.
+        # The section its REPLY carries, when the sampler does not use the command's own (DEC-AKM-016).
+        reply_section = f", std::uint8_t{{0x{entry['replySection']}}}" if entry.get("replySection") else ""
         lines.append(f"        {{{json.dumps(entry['name'])}, 0x{entry['section']}, 0x{entry['item']}, "
-                     f"ItemKind::{KINDS[entry['kind']]}, {arguments}, {reply}}},")
+                     f"ItemKind::{KINDS[entry['kind']]}, {arguments}, {reply}{reply_section}}},")
     lines += ["    }};", "}", ""]
     return "\n".join(lines)
 
@@ -326,8 +341,16 @@ def spec_domains(row):
     return domains
 
 
-def compare_values(owner, label, values, row):
-    """Problems and notes of a record's values against the spec row that describes them."""
+# (section, item) -> the range the first value of that item really spans, where the spec's own data column
+# disagrees with its own text (documents/_index/sysex_spec.kb.md, "Spec errata / inconsistencies"): §02/&10 and
+# &20 list "0, 1, 2" but define 3 = Muted. The catalogue is compared with this range instead of the column's, so
+# that a catalogue range that drifts from the item's text is still reported; a note says the column was not used.
+KNOWN_RANGE_ERRATA = {("02", "10"): (0, 3), ("02", "20"): (0, 3)}
+
+
+def compare_values(owner, label, values, row, known_range=None):
+    """Problems and notes of a record's values against the spec row that describes them. `known_range`, when
+    given, replaces the range the row's first data column gives (a documented erratum of the row)."""
     domains = spec_domains(row)
     if domains is None:
         return [], [f"{owner}: {label} not compared (the spec row is variable-length)"]
@@ -337,6 +360,10 @@ def compare_values(owner, label, values, row):
         return problems, notes
     for index, (value, domain) in enumerate(zip(values, domains)):
         parsed = parse_domain(domain)
+        if index == 0 and known_range is not None:
+            notes.append(f"{owner}: {label}[0] compared with the range {known_range[0]}..{known_range[1]} of the "
+                         f"item's text, not the spec column {domain.strip()!r} (known spec erratum)")
+            parsed = known_range
         if parsed is None:
             notes.append(f"{owner}: {label}[{index}] range not compared (free text: {domain.strip()!r})")
         elif parsed != (value["min"], value["max"]):
@@ -348,7 +375,10 @@ def compare_values(owner, label, values, row):
 # (section, item) pairs where the spec's own decimal column disagrees with its hex one — a documented
 # transcription slip in the PDF itself (documents/_index/sysex_spec.kb.md, "Spec errata /
 # inconsistencies"), not a mistake in this catalogue: noted, not flagged as a problem.
-KNOWN_DEC_ERRATA = {("08", "6C")}  # &6C listed as decimal 107 (= &6B's own), should be 108 (T11/T12)
+KNOWN_DEC_ERRATA = {
+    ("08", "6C"),  # &6C listed as decimal 107 (= &6B's own), should be 108 (T11/T12)
+    ("10", "0E"),  # &0E listed as decimal 13 (= &0D's own), should be 14 (T20)
+}
 
 
 def coverage(catalogue, spec):
@@ -383,7 +413,8 @@ def coverage(catalogue, spec):
                 notes.append(f"{message} (known spec erratum, not a catalogue problem)")
             else:
                 record_problems.append(message)
-        found, more_notes = compare_values(owner, "args", entry["args"], command)
+        known_range = KNOWN_RANGE_ERRATA.get((section, item))
+        found, more_notes = compare_values(owner, "args", entry["args"], command, known_range)
         notes += more_notes
         record_problems += found
         if entry["kind"] == "get":
@@ -391,7 +422,7 @@ def coverage(catalogue, spec):
             if reply is None:
                 notes.append(f"{owner}: reply format not compared (the spec lists no separate reply row)")
             else:
-                found, more = compare_values(owner, "reply", entry["reply"], reply)
+                found, more = compare_values(owner, "reply", entry["reply"], reply, known_range)
                 record_problems += found
                 notes += more
         problems += record_problems

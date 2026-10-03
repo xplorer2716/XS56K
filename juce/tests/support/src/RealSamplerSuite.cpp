@@ -19,12 +19,15 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
+#include <exception>
 #include <functional>
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -35,11 +38,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/CommandResult.hpp"
 #include "akm/ItemCatalogue.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/DiskPrimitives.hpp"
+#include "akm/FrontPanel.hpp"
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SysExConfig.hpp"
+#include "akm/SystemSetup.hpp"
 #include "akm/ZonePrimitives.hpp"
+#include "akm/harness/ClockArithmetic.hpp"
+#include "akm/harness/FrontPanelRemote.hpp"
 #include "akm/harness/KeygroupParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/SampleParameterCases.hpp"
@@ -76,6 +84,8 @@ namespace akm::harness
         constexpr int COMMAND_PATIENCE_IN_TIMEOUTS = 2;
         constexpr int OPEN_PATIENCE_IN_TIMEOUTS = 8;
         constexpr int CLOSE_PATIENCE_IN_TIMEOUTS = 4;
+        // A key press is two commands, a Hold then a Release, each of which may take a whole timeout.
+        constexpr int KEY_PRESS_PATIENCE_FACTOR = 2;
 
         // After a power cycle the sampler gets this many Echos to answer again. A sampler that came back with its own
         // settings makes a session that assumes checksums on fail three verifications, then read the next confirmation
@@ -151,6 +161,17 @@ namespace akm::harness
             std::string text;
             for (const SamplerSetting setting : settings)
                 text += (text.empty() ? "" : ", ") + std::string(describe(setting));
+            return text;
+        }
+
+        // The keycodes of the keys a close did not release, as hex bytes, or "none".
+        std::string keysText(const std::vector<std::uint8_t>& keycodes)
+        {
+            if (keycodes.empty())
+                return "none";
+            std::string text;
+            for (const std::uint8_t keycode : keycodes)
+                text += (text.empty() ? "" : ", ") + hex(std::array<std::uint8_t, 1>{keycode});
             return text;
         }
 
@@ -267,6 +288,10 @@ namespace akm::harness
                     _rig.log.note("  put back: " + std::string(describe(setting)));
                 for (const SamplerSetting setting : timed->result.notRestored)
                     _rig.log.note("  NOT put back: " + std::string(describe(setting)));
+                for (const std::uint8_t keycode : timed->result.keysReleased)
+                    _rig.log.note("  released: front-panel key " + hex(std::array<std::uint8_t, 1>{keycode}));
+                for (const std::uint8_t keycode : timed->result.keysNotReleased)
+                    _rig.log.note("  NOT released: front-panel key " + hex(std::array<std::uint8_t, 1>{keycode}));
                 if (!timed->result.restoredAll())
                     _rig.result.knownStateRestored = false;
                 if (_closedInto != nullptr)
@@ -319,8 +344,7 @@ namespace akm::harness
                         _rig.log.note(std::string("  test program deleted: ")
                                       + (timed && succeeded(timed->result) ? "done"
                                                                             : "failed ("
-                                                                                  + (timed ? outcomeText(timed->result)
-                                                                                          : std::string("no completion"))
+                                                                                  + timedOutcomeText(timed)
                                                                                   + ")"));
                     }
                     else
@@ -395,7 +419,7 @@ namespace akm::harness
                 });
                 if (!timed || !succeeded(timed->result))
                     throw CheckFailure("could not create the test program \"" + std::string(TEST_PROGRAM_NAME)
-                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                                       + "\": " + timedOutcomeText(timed));
                 _rig.log.note("  test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
             }
 
@@ -408,7 +432,7 @@ namespace akm::harness
                 });
                 const bool ok = timed && succeeded(timed->result);
                 _rig.log.note(std::string("  ") + title + ": "
-                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                              + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
                 return ok;
             }
 
@@ -531,7 +555,7 @@ namespace akm::harness
                 });
                 if (!timed || !succeeded(timed->result))
                     throw CheckFailure("could not select the test sample \"" + _sampleName
-                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion"))
+                                       + "\": " + timedOutcomeText(timed)
                                        + " (is it really in the sampler's memory?)");
                 _rig.log.note("  test sample \"" + _sampleName + "\" selected and current");
             }
@@ -545,7 +569,7 @@ namespace akm::harness
                 });
                 if (!timed || !succeeded(timed->result))
                     throw CheckFailure("could not read the test sample's settable parameters before changing them: "
-                                       + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                                       + timedOutcomeText(timed));
                 const auto* replyData = std::get_if<Reply>(&timed->result);
                 const auto decoded = replyData ? decodeReply(ItemId::SampleGetAllSettableParams, replyData->data) : std::nullopt;
                 if (!decoded)
@@ -562,7 +586,7 @@ namespace akm::harness
                 });
                 const bool ok = timed && succeeded(timed->result);
                 _rig.log.note(std::string("  ") + title + ": "
-                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                              + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
                 return ok;
             }
 
@@ -615,6 +639,340 @@ namespace akm::harness
             std::vector<std::int64_t> _originalParameters;
         };
 
+        // The values the system setup check changes (RQ-AKM-058) and the instant the clock was read.
+        struct SystemSetupSnapshot
+        {
+            std::string name;
+            PlayMode playMode{};
+            FrontPanelLock lock{};
+            /// Empty when the clock could not be read — then it is neither set nor restored, and `clockProblem` says why.
+            /// (The S5000 of the first real run, OS 2.14, answered &05 with a section byte of 0B in place of 02,
+            /// which the session does not take for the answer to its command: RQ-AKM-007.)
+            std::optional<ClockDate> clock{};
+            std::string clockProblem;
+            Clock::time_point clockReadAt{};
+        };
+
+        // The name the check gives the sampler for the length of a round trip: inside the 20 characters the
+        // catalogue allows, and nothing an owner would keep. [RQ-AKM-052, RQ-AKM-058]
+        constexpr std::string_view TEST_SAMPLER_NAME = "XS56K TEST";
+
+        // A clock nothing real shows — Saturday 15 June 2030, 08:05:09 — whose year needs both data bytes of the
+        // compound word, and whose weekday (7, 1 = Sunday) is the one of its date. [RQ-AKM-054, RQ-AKM-058]
+        constexpr ClockDate TEST_CLOCK{2030, 6, 15, 7, 8, 5, 9};
+
+        // The clock is read to the second and every command takes some milliseconds, so a clock that reads within
+        // this many seconds of "what it was, advanced by the time elapsed" is a clock that was put back.
+        // [RQ-AKM-058]
+        constexpr std::int64_t CLOCK_RESTORE_TOLERANCE_SECONDS = 3;
+        constexpr std::int64_t MILLISECONDS_PER_SECOND = 1000;
+
+        std::string twoDigits(int value)
+        {
+            return (value < 10 ? "0" : "") + std::to_string(value);
+        }
+
+        std::string clockText(const ClockDate& clock)
+        {
+            return std::to_string(clock.year) + "-" + twoDigits(clock.month) + "-" + twoDigits(clock.day) + " "
+                   + twoDigits(clock.hours) + ":" + twoDigits(clock.minutes) + ":" + twoDigits(clock.seconds)
+                   + " (day of week " + std::to_string(clock.dayOfWeek) + ")";
+        }
+
+        std::string playModeName(PlayMode mode)
+        {
+            switch (mode)
+            {
+                case PlayMode::Multi:
+                    return "Multi";
+                case PlayMode::Program:
+                    return "Program";
+                case PlayMode::Sample:
+                    return "Sample";
+                case PlayMode::Muted:
+                    return "Muted";
+            }
+            return "unknown";
+        }
+
+        std::string lockName(FrontPanelLock lock)
+        {
+            return lock == FrontPanelLock::Locked ? "locked" : "normal";
+        }
+
+        // The whole seconds that passed since `since`, on the scenario's clock.
+        std::int64_t elapsedSeconds(Rig& rig, Clock::time_point since)
+        {
+            const std::int64_t milliseconds = millisecondsOf(rig.driver.scheduler().now() - since);
+            return (milliseconds + MILLISECONDS_PER_SECOND / 2) / MILLISECONDS_PER_SECOND;
+        }
+
+        // Reads the four values the system setup check changes: the name, the Play Mode, the front-panel lock and the
+        // clock. It changes nothing; `problem` says which of the first three failed to be read. The clock is allowed to
+        // fail: it is then left out of the check, and the snapshot says why. [RQ-AKM-052, RQ-AKM-054, RQ-AKM-055]
+        std::optional<SystemSetupSnapshot> readSystemSetup(Rig& rig, Session& session, std::string& problem)
+        {
+            SystemSetupSnapshot snapshot;
+            const auto name = awaitCompletion<SamplerNameResult>(
+                rig.driver, rig.commandPatience(), [&session](SamplerNameCompletion done) { getSamplerName(session, std::move(done)); });
+            if (!name || !name->result.name)
+            {
+                problem = "could not read the sampler's name: " + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.name = *name->result.name;
+
+            const auto mode = awaitCompletion<PlayModeResult>(
+                rig.driver, rig.commandPatience(), [&session](PlayModeCompletion done) { getPlayMode(session, std::move(done)); });
+            if (!mode || !mode->result.mode)
+            {
+                problem = "could not read the Play Mode: " + (mode ? outcomeText(mode->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.playMode = *mode->result.mode;
+
+            const auto lock = awaitCompletion<FrontPanelLockResult>(
+                rig.driver, rig.commandPatience(), [&session](FrontPanelLockCompletion done) { getFrontPanelLock(session, std::move(done)); });
+            if (!lock || !lock->result.lock)
+            {
+                problem = "could not read the front-panel lock: " + (lock ? outcomeText(lock->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.lock = *lock->result.lock;
+
+            const auto clock = awaitCompletion<ClockDateResult>(
+                rig.driver, rig.commandPatience(), [&session](ClockDateCompletion done) { getClockDate(session, std::move(done)); });
+            if (!clock || !clock->result.clock)
+            {
+                snapshot.clockProblem = "could not read the clock: "
+                                        + (clock ? outcomeText(clock->result.outcome) : std::string("no completion"));
+                return snapshot;
+            }
+            snapshot.clock = *clock->result.clock;
+            snapshot.clockReadAt = rig.driver.scheduler().now();
+            return snapshot;
+        }
+
+        // Wraps the sampler's system setup for the life of one check (RQ-AKM-058): on construction it reads the
+        // name, the Play Mode, the front-panel lock and the clock, before anything is changed; on destruction, even
+        // when the check throws half way, it puts each back — the lock first, so that the front panel is never left
+        // locked by a check that fails, then the Play Mode, the name and the clock, advanced by the time elapsed
+        // since it was read. Logged, best effort, nothing let out of the destructor, mirroring GuardedTestSample.
+        // Never sends §02/&32 (Clear Sampler Memory): nothing in this class can, there is no method that does.
+        class GuardedSystemSetup
+        {
+        public:
+            GuardedSystemSetup(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                std::string problem;
+                const auto snapshot = readSystemSetup(rig, session, problem);
+                if (!snapshot)
+                    throw CheckFailure(problem + " (nothing was changed)");
+                _original = *snapshot;
+                _rig.log.note("  system setup read before any change: name \"" + _original.name + "\", Play Mode "
+                              + playModeName(_original.playMode) + ", front panel " + lockName(_original.lock) + ", clock "
+                              + (_original.clock ? clockText(*_original.clock) : "unreadable (" + _original.clockProblem + ")"));
+            }
+
+            ~GuardedSystemSetup()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the system setup guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedSystemSetup(const GuardedSystemSetup&) = delete;
+            GuardedSystemSetup& operator=(const GuardedSystemSetup&) = delete;
+
+            /// What was read on construction, before the check changed anything.
+            [[nodiscard]] const SystemSetupSnapshot& original() const { return _original; }
+
+        private:
+            template <typename Launch>
+            void restoreStep(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  restore " + title + ": "
+                              + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+            }
+
+            void restore()
+            {
+                restoreStep("the front panel (" + lockName(_original.lock) + ")", [this](CommandCompletion done) {
+                    setFrontPanelLock(_session, _original.lock, std::move(done));
+                });
+                restoreStep("the Play Mode (" + playModeName(_original.playMode) + ")", [this](CommandCompletion done) {
+                    setPlayMode(_session, _original.playMode, std::move(done));
+                });
+                restoreStep("the sampler's name (\"" + _original.name + "\")", [this](CommandCompletion done) {
+                    setSamplerName(_session, _original.name, std::move(done));
+                });
+                if (!_original.clock)
+                {
+                    _rig.log.note("  the clock was not read, so it was never changed and is not restored");
+                    return;
+                }
+                const std::int64_t elapsed = elapsedSeconds(_rig, _original.clockReadAt);
+                const ClockDate target = addSeconds(*_original.clock, elapsed);
+                restoreStep("the clock (" + clockText(target) + ", advanced by " + std::to_string(elapsed) + " s)",
+                            [this, &target](CommandCompletion done) { setClockDate(_session, target, std::move(done)); });
+            }
+
+            Rig& _rig;
+            Session& _session;
+            SystemSetupSnapshot _original;
+        };
+
+        // The disposable sub-folder the Disk Tools checks work in (RQ-AKM-071): created under the folder that is
+        // current when the check starts, entered, and removed on destruction however the check ends. Only what this
+        // guard created is removed: a folder already carrying the reserved name makes the create fail, and nothing is
+        // deleted. If it cannot climb back out to where it started, it leaves the folder in place and clears
+        // `knownStateRestored`, rather than claim a state it could not confirm.
+        constexpr std::string_view TEST_FOLDER_NAME = "XS56K_SUITE_TEST";
+
+        class GuardedTestFolder
+        {
+        public:
+            GuardedTestFolder(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                createAndEnter();
+            }
+
+            ~GuardedTestFolder()
+            {
+                try
+                {
+                    // A check that ends early (failed or skipped) leaves the folder for the owner to look at on the sampler,
+                    // when there is a way to ask: Enter lets the guard delete it as usual, skip keeps it for a delete by hand.
+                    if (std::uncaught_exceptions() > 0 && _created && _rig.options.askOwner)
+                    {
+                        _rig.log.flush();
+                        if (!_rig.options.askOwner("The check did not finish. Look at the sub-folder " + std::string(TEST_FOLDER_NAME)
+                                                   + " on the sampler now. Press Enter to delete it, or type skip to keep it for you "
+                                                     "to delete by hand."))
+                            _keep = true;
+                    }
+                    removeIfCreated();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.result.knownStateRestored = false;
+                    _rig.log.note("  the test folder guard could not fully clean up; see the log above");
+                }
+            }
+
+            GuardedTestFolder(const GuardedTestFolder&) = delete;
+            GuardedTestFolder& operator=(const GuardedTestFolder&) = delete;
+
+            // Navigation below the test folder, counted so the guard can climb back out of whatever a check left open.
+            [[nodiscard]] bool enterSubFolder(const std::string& name)
+            {
+                const bool ok = runCommand("open the sub-folder \"" + name + "\"", [name](Session& session, CommandCompletion done) {
+                    openFolder(session, name, std::move(done));
+                });
+                if (ok)
+                    ++_depth;
+                return ok;
+            }
+
+            [[nodiscard]] bool leaveSubFolder()
+            {
+                if (_depth == 0)
+                    return false;
+                const bool ok = runCommand("close the sub-folder", [](Session& session, CommandCompletion done) {
+                    closeFolder(session, std::move(done));
+                });
+                if (ok)
+                    --_depth;
+                return ok;
+            }
+
+        private:
+            bool runCommand(const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this, &launch](CommandCompletion done) {
+                    launch(_session, std::move(done));
+                });
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  " + title + ": "
+                              + (ok ? std::string("done")
+                                    : "failed (" + timedOutcomeText(timed) + ")"));
+                return ok;
+            }
+
+            void createAndEnter()
+            {
+                const std::string name(TEST_FOLDER_NAME);
+                const bool created = runCommand("create the test folder \"" + name + "\" under the current folder",
+                                                [name](Session& session, CommandCompletion done) {
+                                                    createFolder(session, name, std::move(done));
+                                                });
+                if (!created)
+                    throw CheckFailure("could not create the test folder \"" + name + "\" (it may already exist: nothing was deleted)");
+                _created = true;
+                const bool entered = runCommand("open the test folder", [name](Session& session, CommandCompletion done) {
+                    openFolder(session, name, std::move(done));
+                });
+                if (!entered)
+                    throw CheckFailure("could not open the test folder \"" + name + "\"");
+                _inside = true;
+            }
+
+            void removeIfCreated()
+            {
+                if (!_created)
+                    return;
+                // Climb out of whatever the check left open, then out of the test folder itself.
+                const int climbs = _depth + (_inside ? 1 : 0);
+                for (int step = 0; step < climbs; ++step)
+                {
+                    const bool closed = runCommand("close the folder the check left open", [](Session& session, CommandCompletion done) {
+                        closeFolder(session, std::move(done));
+                    });
+                    if (!closed)
+                    {
+                        _rig.result.knownStateRestored = false;
+                        _rig.log.note("  the test folder is left in place: the sampler would not climb out of it; remove \""
+                                      + std::string(TEST_FOLDER_NAME) + "\" by hand");
+                        return;
+                    }
+                }
+                if (_keep)
+                {
+                    _rig.log.note("  the test folder is kept, as the owner asked: remove \"" + std::string(TEST_FOLDER_NAME)
+                                  + "\" by hand before the next run");
+                    return;
+                }
+                _inside = false;
+                _depth = 0;
+                const bool deleted = runCommand("delete the test folder and everything in it", [](Session& session, CommandCompletion done) {
+                    deleteSubFolder(session, TEST_FOLDER_NAME, ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt,
+                                    std::move(done));
+                });
+                if (!deleted)
+                {
+                    _rig.result.knownStateRestored = false;
+                    _rig.log.note("  the test folder could not be deleted; remove \"" + std::string(TEST_FOLDER_NAME) + "\" by hand");
+                    return;
+                }
+                _created = false;
+            }
+
+            Rig& _rig;
+            Session& _session;
+            bool _created = false;
+            bool _inside = false;
+            bool _keep = false;
+            int _depth = 0;
+        };
+
         // The checks, one after the other.
         class Suite
         {
@@ -651,6 +1009,32 @@ namespace akm::harness
                     check("select the test sample, round-trip every §0E lifecycle and settable-parameter item on it, "
                           "and restore its name and parameters",
                           &Suite::samplesOnTestSample);
+                if (_rig.options.systemSetup)
+                {
+                    check("round-trip the sampler's name, Play Mode, front-panel lock and clock, and put them back",
+                          &Suite::systemSetupRoundTrips);
+                    check("a system setup check that fails half way and still puts back what it changed",
+                          &Suite::failedSystemSetupCheckPutsBack);
+                }
+                if (_rig.options.diskTools)
+                    check("create a disposable sub-folder, read the current disk, round-trip the folder items inside it, "
+                          "and delete it again",
+                          &Suite::diskToolsRoundTrips);
+                if (_rig.options.diskTools && _rig.options.diskToolsFiles)
+                    check("the file items of section 10 inside the disposable sub-folder: one save, the file read, renamed and "
+                          "deleted",
+                          &Suite::diskToolsFileItems);
+                if (_rig.options.diskTools && _rig.options.diskToolsAudition)
+                    check("the audition of the first .WAV file at the root of the selected disk: started with &30, stopped with &31 "
+                          "after the audition duration",
+                          &Suite::diskToolsAudition);
+                if (_rig.options.diskTools && _rig.options.diskToolsSlow)
+                    check("one long-running §10 item, sent inside the disposable sub-folder with Still Alive on, "
+                          "then the sub-folder deleted",
+                          &Suite::diskToolsSlowOperation);
+                if (_rig.options.frontPanel)
+                    check("the owner drives the sampler's front panel from the PC keyboard, on a screen the owner chose",
+                          &Suite::frontPanelRemote);
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -821,8 +1205,9 @@ namespace akm::harness
             {
                 const Timed<CloseResult> closed = guarded.close();
                 finding("closed after " + millisecondsText(closed.latency) + ", put back: " + settingsText(closed.result.restored));
-                expect(closed.result.restoredAll(), "every setting the session changed was put back (not put back: "
-                                                        + settingsText(closed.result.notRestored) + ")");
+                expect(closed.result.restoredAll(), "every setting the session changed was put back and every key it held released "
+                                                        "(not put back: " + settingsText(closed.result.notRestored)
+                                                        + "; keys not released: " + keysText(closed.result.keysNotReleased) + ")");
                 expect(guarded.session().state() == SessionState::Closed, "the session is closed");
             }
 
@@ -1107,6 +1492,688 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-061, the selection the disk checks need: every disk operation acts on the disk selected over SysEx,
+            // which the front panel's choice does not set (spec §10). Reads the connected disks (&04 and &05, read only),
+            // tests each writable one with &03 (read only), and has the owner choose among the valid ones; the choice is
+            // selected with &02. Nothing in §10 clears a selection, so the disk stays selected after the check, and the
+            // log says so. No way to ask, or no valid writable disk, skips the check before anything is selected or
+            // created. The list is not refreshed here: &01 is one of the long-running items, and the spec has the list
+            // refreshed when the sampler is switched on.
+            DiskInfo selectTestDisk(GuardedSession& guarded)
+            {
+                // Refused before anything is read from the disks, let alone selected: the owner picks the disk.
+                if (!_rig.options.askOwnerChoice)
+                    throw CheckSkipped("there is no way to ask the owner which disk to select, so nothing was selected or created");
+                const DiskCountResult count = readDisk<DiskCountResult>("the number of disks connected", [&guarded](DiskCountCompletion done) {
+                    getDiskCount(guarded.session(), std::move(done));
+                });
+                expect(count.count.has_value(), "the number of disks connected is read");
+                const DiskListResult listed = readDisk<DiskListResult>("the disks connected", [&guarded](DiskListCompletion done) {
+                    getConnectedDisks(guarded.session(), std::move(done));
+                });
+                expect(listed.disks.has_value(), "the list of the disks connected is read");
+                for (const DiskInfo& disk : *listed.disks)
+                    finding("disk " + std::to_string(disk.handle) + " \"" + disk.name + "\": type " + std::to_string(disk.type)
+                            + ", " + (disk.writable ? "writable" : "read-only"));
+
+                std::vector<DiskInfo> usable;
+                for (const DiskInfo& disk : *listed.disks)
+                {
+                    if (!disk.writable)
+                        continue;
+                    _rig.log.flush();
+                    const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [&guarded, &disk](CommandCompletion done) {
+                        testDiskValid(guarded.session(), disk.handle, std::move(done));
+                    });
+                    if (!timed)
+                        throw CheckFailure("the validity of disk " + std::to_string(disk.handle) + ": no completion within "
+                                           + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                    finding("the validity of disk " + std::to_string(disk.handle) + ": " + outcomeText(timed->result) + " after "
+                            + millisecondsText(timed->latency));
+                    if (succeeded(timed->result))
+                        usable.push_back(disk);
+                }
+                if (usable.empty())
+                    throw CheckSkipped("the sampler lists no writable disk that it reports valid, so there is no disk to work on; "
+                                       "nothing was selected or created");
+
+                const auto typeText = [](int type) -> std::string {
+                    if (type == 0)
+                        return "floppy";
+                    if (type == 1)
+                        return "hard disk";
+                    if (type == 2)
+                        return "CD-ROM";
+                    if (type == 3)
+                        return "removable";
+                    return "type " + std::to_string(type);
+                };
+                std::vector<std::string> choices;
+                for (const DiskInfo& disk : usable)
+                    choices.push_back("handle " + std::to_string(disk.handle) + " \"" + disk.name + "\", " + typeText(disk.type));
+                _rig.log.note("  asking the owner which disk to select");
+                _rig.log.flush();
+                const std::optional<std::size_t> picked = _rig.options.askOwnerChoice(
+                    "Choose the disk the disk checks select; the selection then stays on the sampler.", choices);
+                if (!picked || *picked >= usable.size())
+                    throw CheckSkipped("the owner did not choose a disk to select; nothing was selected or created");
+                const DiskInfo chosen = usable[*picked];
+                finding("the owner chose " + choices[*picked]);
+
+                expectCommand(guarded, "select disk " + std::to_string(chosen.handle) + " \"" + chosen.name + "\"",
+                              [handle = chosen.handle](Session& session, CommandCompletion done) {
+                                  selectDisk(session, handle, std::move(done));
+                              });
+                finding("the selection stays on the sampler after the check: no command of section 10 clears it");
+                return chosen;
+            }
+
+            // RQ-AKM-071, the safe half: selects a writable disk (selectTestDisk), reads the current disk, then, inside the
+            // disposable sub-folder, creates, renames, enters and leaves a sub-folder, reads the folder items and the file
+            // items of the empty folder, and deletes the whole sub-folder through the confirmed &17 guard. A file cannot be
+            // made without saving one, which is one of the long-running items, so no file is listed here.
+            void diskToolsRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                const DiskInfo disk = selectTestDisk(guarded);
+
+                const DiskTypeResult type = readDisk<DiskTypeResult>("the current disk's type", [&guarded](DiskTypeCompletion done) {
+                    getCurrentDiskType(guarded.session(), std::move(done));
+                });
+                expect(type.type.has_value(), "the current disk's type is read");
+                const DiskHandleResult handle = readDisk<DiskHandleResult>("the current disk's handle", [&guarded](DiskHandleCompletion done) {
+                    getCurrentDiskHandle(guarded.session(), std::move(done));
+                });
+                expect(handle.handle.has_value() && *handle.handle == disk.handle,
+                       "the current disk is the one selected (handle " + std::to_string(disk.handle) + ")");
+                // §10/&07 and &0E name a disk by its handle, so they read the one the list gave, without selecting anything.
+                const DiskTypeResult listedType = readDisk<DiskTypeResult>("the type of disk " + std::to_string(disk.handle),
+                                                                           [&guarded, &disk](DiskTypeCompletion done) {
+                                                                               getDiskType(guarded.session(), disk.handle, std::move(done));
+                                                                           });
+                expect(listedType.type.has_value() && *listedType.type == disk.type,
+                       "the type of disk " + std::to_string(disk.handle) + " is the one the list gave (" + std::to_string(disk.type) + ")");
+                const DiskNameResult listedName = readDisk<DiskNameResult>("the name of disk " + std::to_string(disk.handle),
+                                                                           [&guarded, &disk](DiskNameCompletion done) {
+                                                                               getDiskName(guarded.session(), disk.handle, std::move(done));
+                                                                           });
+                expect(listedName.name.has_value() && *listedName.name == disk.name,
+                       "the name of disk " + std::to_string(disk.handle) + " is \"" + disk.name + "\"");
+                const DiskFormatResult format = readDisk<DiskFormatResult>("the current disk's format", [&guarded](DiskFormatCompletion done) {
+                    getCurrentDiskFormat(guarded.session(), std::move(done));
+                });
+                expect(format.format.has_value(), "the current disk's format is read");
+                const DiskFreeSpaceResult freeSpace = readDisk<DiskFreeSpaceResult>("the current disk's free space", [&guarded](DiskFreeSpaceCompletion done) {
+                    getCurrentDiskFreeSpace(guarded.session(), std::move(done));
+                });
+                expect(freeSpace.freeBytes.has_value(), "the current disk's free space is read");
+                const DiskPathResult path = readDisk<DiskPathResult>("the current disk's path", [&guarded](DiskPathCompletion done) {
+                    getCurrentDiskPath(guarded.session(), std::move(done));
+                });
+                expect(path.path.has_value(), "the current disk's path is read");
+
+                const int before = folderCountHere(guarded);
+                {
+                    GuardedTestFolder folder(_rig, guarded.session());
+                    expect(folderCountHere(guarded) == 0, "the new test folder holds no sub-folder");
+                    expectCommand(guarded, "create the sub-folder \"INNER\" inside it", [](Session& session, CommandCompletion done) {
+                        createFolder(session, "INNER", std::move(done));
+                    });
+                    expect(folderCountHere(guarded) == 1, "the test folder now holds one sub-folder");
+                    const DiskFolderNamesResult names = readDisk<DiskFolderNamesResult>("the names of the sub-folders", [&guarded](DiskFolderNamesCompletion done) {
+                        getAllFolderNames(guarded.session(), std::move(done));
+                    });
+                    expect(names.names.has_value() && *names.names == std::vector<std::string>{"INNER"},
+                           "the only sub-folder is \"INNER\"");
+                    expectCommand(guarded, "rename \"INNER\" to \"INNER_2\"", [](Session& session, CommandCompletion done) {
+                        renameFolder(session, "INNER", "INNER_2", std::move(done));
+                    });
+                    const DiskFolderNameResult renamed = readDisk<DiskFolderNameResult>("the name of the sub-folder at index 0", [&guarded](DiskFolderNameCompletion done) {
+                        getFolderName(guarded.session(), 0, std::move(done));
+                    });
+                    expect(renamed.name.has_value() && *renamed.name == "INNER_2", "the renamed sub-folder reads back as \"INNER_2\"");
+
+                    if (!folder.enterSubFolder("INNER_2"))
+                        throw CheckFailure("could not open the sub-folder \"INNER_2\"");
+                    expect(fileCountHere(guarded) == 0, "the sub-folder holds no file (none is created in this check)");
+                    const DiskFileIndexResult missing = readDisk<DiskFileIndexResult>("the index of a file that is not there",
+                                                                                        [&guarded](DiskFileIndexCompletion done) {
+                                                                                            getFileIndexByName(guarded.session(), "NOT_THERE", std::move(done));
+                                                                                        });
+                    expect(!missing.index.has_value(), "no index is returned for a file that is not there");
+                    if (!folder.leaveSubFolder())
+                        throw CheckFailure("could not close the sub-folder \"INNER_2\"");
+                }
+                expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-065, RQ-AKM-069, RQ-AKM-071: the file items of §10 inside the disposable sub-folder, after one save of the
+            // test program. The save is sent only when the owner can check the file on the sampler (refused before anything
+            // is sent otherwise). The file is read, renamed, read again by name and deleted, then the sub-folder goes through
+            // the guard. The audition (&30, &31) is not here: the spec has it for a sample from disk, and this check saves a
+            // program, which cannot be auditioned.
+            void diskToolsFileItems()
+            {
+                if (!_rig.options.askOwner)
+                    throw CheckSkipped("this check saves a file, which only the owner can check on the sampler, and there is no way to ask the owner");
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                selectTestDisk(guarded);
+                const int before = folderCountHere(guarded);
+                {
+                    GuardedTestFolder folder(_rig, guarded.session());
+                    expect(fileCountHere(guarded) == 0, "the new test folder holds no file");
+                    {
+                        GuardedTestProgram program(_rig, guarded.session());
+                        const int programIndex = currentProgramIndex(guarded);
+                        expectCommand(guarded, "save the test program to the sub-folder (section 10, item 2C)",
+                                      [programIndex](Session& session, CommandCompletion done) {
+                                          saveMemoryItem(session, programIndex, SaveableMemoryType::Program, false, false, std::move(done));
+                                      });
+                    }
+                    const std::vector<std::string> saved = fileNamesHere(guarded);
+                    expect(saved.size() == 1, "the save left one file in the sub-folder");
+                    const std::string file = saved.front();
+                    ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                  "that it holds the file \"" + file + "\".");
+                    expect(fileCountHere(guarded) == 1, "the sub-folder holds one file");
+
+                    const DiskFileNameResult name = readDisk<DiskFileNameResult>("the name of the file at index 0",
+                                                                                 [&guarded](DiskFileNameCompletion done) {
+                                                                                     getFileName(guarded.session(), 0, std::move(done));
+                                                                                 });
+                    expect(name.name.has_value() && *name.name == file, "the file at index 0 is \"" + file + "\"");
+                    const DiskFileSizeResult size = readDisk<DiskFileSizeResult>("the size of the file at index 0",
+                                                                                 [&guarded](DiskFileSizeCompletion done) {
+                                                                                     getFileSize(guarded.session(), 0, std::move(done));
+                                                                                 });
+                    expect(size.sizeBytes.has_value() && *size.sizeBytes > 0, "the file has a size");
+                    const DiskFileIndexResult found = readDisk<DiskFileIndexResult>("the index of the file by name",
+                                                                                    [&guarded, &file](DiskFileIndexCompletion done) {
+                                                                                        getFileIndexByName(guarded.session(), file, std::move(done));
+                                                                                    });
+                    expect(found.index.has_value() && *found.index == 0, "the file is at index 0 by its name");
+
+                    // The new name is given without its extension: the sampler appends the renamed file's own extension (on the
+                    // S5000, a program file: "XS56K_RENAMED.AKP" given became "XS56K_RENAMED.AKP.AKP"). So the name to expect is
+                    // built the same way; the rule is not yet seen for sample files (.WAV).
+                    const std::size_t dot = file.find_last_of('.');
+                    const std::string extension = dot == std::string::npos ? std::string() : file.substr(dot);
+                    const std::string newBase = "XS56K_RENAMED";
+                    const std::string expected = newBase + extension;
+                    expectCommand(guarded, "rename the file to \"" + newBase + "\" (section 10, item 28)",
+                                  [&file, &newBase](Session& session, CommandCompletion done) {
+                                      renameFile(session, file, newBase, std::move(done));
+                                  });
+                    // What the sampler stores after the rename, read back from its own listing (&22), said in the log.
+                    const std::vector<std::string> afterRename = fileNamesHere(guarded);
+                    std::string listed;
+                    for (const std::string& listedName : afterRename)
+                        listed += (listed.empty() ? "" : ", ") + std::string("\"") + listedName + "\"";
+                    finding("the names in the sub-folder after the rename: " + (listed.empty() ? std::string("none") : listed));
+                    expect(afterRename.size() == 1 && afterRename.front() == expected,
+                           "after the rename the sub-folder holds the file \"" + expected + "\"");
+                    const std::string stored = afterRename.front();
+                    const DiskFileIndexResult byStoredName = readDisk<DiskFileIndexResult>("the index of the renamed file",
+                                                                                           [&guarded, &stored](DiskFileIndexCompletion done) {
+                                                                                               getFileIndexByName(guarded.session(), stored, std::move(done));
+                                                                                           });
+                    expect(byStoredName.index.has_value() && *byStoredName.index == 0, "the renamed file is at index 0 by its name");
+
+                    expectCommand(guarded, "delete the file \"" + stored + "\" (section 10, item 29)",
+                                  [&stored](Session& session, CommandCompletion done) {
+                                      deleteFile(session, stored, ConfirmDeleteFile::IUnderstandThisDeletesTheFile, std::move(done));
+                                  });
+                    expect(fileCountHere(guarded) == 0, "the sub-folder holds no file again");
+                }
+                expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-068: the audition of a sample from disk (§10/&30, &31). The spec has it for a sample file, so the check
+            // looks for the first .WAV file at the root of the selected disk. Nothing is saved: the owner confirms that such a
+            // file is there, the file is started with &30 and stopped with &31 after the audition duration. A stop the
+            // sampler refuses is recorded, not failed: a sample shorter than the duration has ended already.
+            void diskToolsAudition()
+            {
+                if (!_rig.options.askOwner)
+                    throw CheckSkipped("this check plays a sample, which only the owner can hear on the sampler, and there is no way to ask the owner");
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                selectTestDisk(guarded);
+                const DiskPathResult path = readDisk<DiskPathResult>("the current folder of the selected disk",
+                                                                     [&guarded](DiskPathCompletion done) {
+                                                                         getCurrentDiskPath(guarded.session(), std::move(done));
+                                                                     });
+                expect(path.path.has_value() && path.path->empty(), "the current folder is the root of the selected disk");
+                ownerConfirms("Make sure the selected disk holds at least one .WAV file at its root (not in a folder), and confirm "
+                              "that it is there on the sampler.");
+
+                const std::vector<std::string> names = fileNamesHere(guarded);
+                std::string listed;
+                for (const std::string& listedName : names)
+                    listed += (listed.empty() ? "" : ", ") + std::string("\"") + listedName + "\"";
+                finding("the files at the root of the selected disk: " + (listed.empty() ? std::string("none") : listed));
+                const auto isWav = [](const std::string& name) {
+                    if (name.size() < 4)
+                        return false;
+                    std::string extension = name.substr(name.size() - 4);
+                    for (char& character : extension)
+                        character = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
+                    return extension == ".WAV";
+                };
+                const auto wav = std::find_if(names.begin(), names.end(), isWav);
+                expect(wav != names.end(), "a .WAV file is at the root of the selected disk");
+                const std::string sample = *wav;
+
+                // &30 takes the sample's position in the root's list (&22), counted from 0 over all its files: the owner's MIDIOX
+                // test played S1 with position 2. &24 is not used: it finds a name without its extension (S1 found, S1.WAV
+                // refused), and the owner's tests disagree on its answers.
+                const int sampleIndex = static_cast<int>(std::distance(names.begin(), wav));
+                finding("&30 is sent with position " + std::to_string(sampleIndex) + " in the list of the root's files");
+                expectCommand(guarded, "start the audition of \"" + sample + "\" (section 10, item 30)",
+                              [sampleIndex](Session& session, CommandCompletion done) { startFileAudition(session, sampleIndex, std::move(done)); });
+
+                _rig.log.note("  listening for " + millisecondsText(_rig.options.auditionDuration));
+                _rig.log.flush();
+                std::this_thread::sleep_for(_rig.options.auditionDuration);
+
+                const CommandResult stopped = observeCommand(guarded, "stop the audition (section 10, item 31)",
+                                                             [](Session& session, CommandCompletion done) { stopFileAudition(session, std::move(done)); });
+                if (!succeeded(stopped))
+                    finding("the sampler refused the stop: the sample may have ended before the audition duration (a shorter sample)");
+                closeAndVerify(guarded);
+            }
+
+            // A sampler key as the owner and the log read it: its name on the front panel and its keycode.
+            static std::string keyText(FrontPanelKey key)
+            {
+                return std::string(remoteKeyName(key)) + " (" + hex(std::array<std::uint8_t, 1>{static_cast<std::uint8_t>(key)}) + ")";
+            }
+
+            // How a PC key is written in the log and to the owner.
+            static std::string pcKeyText(int pcKey)
+            {
+                constexpr int FIRST_VISIBLE = 33;
+                constexpr int LAST_VISIBLE = 126;
+                if (pcKey >= FIRST_VISIBLE && pcKey <= LAST_VISIBLE)
+                    return "'" + std::string(1, static_cast<char>(pcKey)) + "'";
+                return "key code " + std::to_string(pcKey);
+            }
+
+            // RQ-AKM-076: the owner drives the sampler's front panel from the PC keyboard. The owner picks the screen the
+            // sampler shows and confirms it before anything is sent; then each PC key sends only the §20 item the mapping gives
+            // it (`FrontPanelRemote.hpp`) — nothing is sent on the suite's own initiative — and what the sampler answered is
+            // said to the owner and written in the log. A short press is a Hold then a Release; Space holds ENT/PLAY until the
+            // next Space, as the spec's own example. The check ends on the end key, or when the owner's input ends, and every
+            // key still held is released then; if it fails or throws half way, the guard's close releases them (DEC-AKM-019).
+            void frontPanelRemote()
+            {
+                if (!_rig.options.askOwner || !_rig.options.readOwnerKey)
+                    throw CheckSkipped("this check is driven by the owner's keys, and there is no way to ask the owner or to read a key");
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto tell = [this](const std::string& line) {
+                    _rig.log.note("  " + line);
+                    if (_rig.options.tellOwner)
+                        _rig.options.tellOwner(line);
+                };
+                // The mapping is shown first, as a block of its own, before the owner is asked anything and before any key
+                // is read: the owner reads it, then confirms, then has the keyboard.
+                tell("");
+                tell("KEYBOARD MAPPING for the sampler's front panel: every key you press is sent to the sampler as the "
+                     "front-panel key it stands for; nothing is sent unless you press a key.");
+                for (const std::string& line : remoteMappingLines())
+                    tell(line);
+                ownerConfirms("Read the mapping above, put the sampler on the screen of your choice, then confirm. "
+                              "The keyboard is yours after that.");
+
+                tell("ready: press keys on the PC keyboard; q ends the check");
+
+                bool textMode = false;
+                std::optional<FrontPanelKey> held;
+                int keysPressed = 0;
+                int framesSent = 0;
+                const auto send = [&](const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch) {
+                    _rig.log.flush();
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded, &launch](CommandCompletion done) { launch(guarded.session(), std::move(done)); });
+                    if (!timed)
+                        throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                    ++framesSent;
+                    tell(title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                    return timed->result;
+                };
+
+                for (;;)
+                {
+                    const std::optional<int> pcKey = _rig.options.readOwnerKey(textMode);
+                    if (!pcKey)
+                    {
+                        tell("the owner's input ended");
+                        break;
+                    }
+                    const RemoteAction action = remoteAction(textMode, *pcKey);
+                    const std::string pressed = "PC " + pcKeyText(*pcKey);
+                    if (action.kind == RemoteActionKind::End)
+                    {
+                        tell(pressed + ": end of the check");
+                        break;
+                    }
+                    ++keysPressed;
+                    switch (action.kind)
+                    {
+                        case RemoteActionKind::None:
+                            tell(pressed + ": no sampler key, nothing sent");
+                            break;
+                        case RemoteActionKind::ToggleTextMode:
+                            textMode = true;
+                            tell(pressed + ": text mode, printable keys go as ASCII (Tab or Escape to leave)");
+                            break;
+                        case RemoteActionKind::LeaveTextMode:
+                            textMode = false;
+                            tell(pressed + ": back to the normal mode");
+                            break;
+                        case RemoteActionKind::Press:
+                        {
+                            const FrontPanelKey key = action.key;
+                            _rig.log.flush();
+                            const auto timed = awaitCompletion<KeyPressResult>(
+                                _rig.driver, _rig.commandPatience() * KEY_PRESS_PATIENCE_FACTOR,
+                                [&guarded, key](KeyPressCompletion done) { pressKey(guarded.session(), key, std::move(done)); });
+                            if (!timed)
+                                throw CheckFailure(pressed + ": no completion for the press: the session lost it");
+                            framesSent += 2;
+                            tell(pressed + " -> sampler key " + keyText(key) + ": hold " + outcomeText(timed->result.hold) + ", release "
+                                 + outcomeText(timed->result.release) + " after " + millisecondsText(timed->latency));
+                            // A press of the key held with Space ends with its Release: it is no longer held.
+                            if (held == key && succeeded(timed->result.release))
+                                held.reset();
+                            break;
+                        }
+                        case RemoteActionKind::ToggleHold:
+                        {
+                            const FrontPanelKey key = action.key;
+                            if (held)
+                            {
+                                const CommandResult released = send(pressed + " -> release sampler key " + keyText(key),
+                                                                    [key](Session& session, CommandCompletion done) {
+                                                                        releaseKey(session, key, std::move(done));
+                                                                    });
+                                if (succeeded(released))
+                                    held.reset();
+                            }
+                            else
+                            {
+                                // Held once the sampler queued the Hold: one it refused, or never answered, is not a key to
+                                // toggle (the session still remembers a timed-out one, and its close releases it).
+                                const CommandResult hold = send(pressed + " -> hold sampler key " + keyText(key),
+                                                                [key](Session& session, CommandCompletion done) {
+                                                                    holdKey(session, key, std::move(done));
+                                                                });
+                                if (succeeded(hold))
+                                    held = key;
+                            }
+                            break;
+                        }
+                        case RemoteActionKind::Wheel:
+                        {
+                            const DataWheelDirection direction = action.direction;
+                            const int clicks = action.clicks;
+                            static_cast<void>(send(pressed + " -> data wheel " + (direction == DataWheelDirection::Forwards ? "forwards " : "backwards ")
+                                                       + std::to_string(clicks) + (clicks == 1 ? " click" : " clicks"),
+                                                   [direction, clicks](Session& session, CommandCompletion done) {
+                                                       moveDataWheel(session, direction, clicks, std::move(done));
+                                                   }));
+                            break;
+                        }
+                        case RemoteActionKind::Ascii:
+                        {
+                            const int character = action.ascii;
+                            static_cast<void>(send(pressed + " -> ASCII " + std::to_string(character),
+                                                   [character](Session& session, CommandCompletion done) {
+                                                       sendAsciiKey(session, character, std::move(done));
+                                                   }));
+                            break;
+                        }
+                        case RemoteActionKind::End:
+                            break;
+                    }
+                }
+
+                if (held)
+                {
+                    const FrontPanelKey key = *held;
+                    static_cast<void>(send("end of the check: release the sampler key " + keyText(key) + " still held",
+                                           [key](Session& session, CommandCompletion done) { releaseKey(session, key, std::move(done)); }));
+                    held.reset();
+                }
+                finding(std::to_string(keysPressed) + " PC keys pressed by the owner, " + std::to_string(framesSent)
+                        + " front-panel commands sent");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-070: one long-running §10 item, sent with Still Alive on, inside the disposable sub-folder, and the
+            // sub-folder deleted afterwards whatever the item did. Each of the six needs a file or a program first, which
+            // can only be made inside the sub-folder by a save: the save is sent through the same timed path.
+            void diskToolsSlowOperation()
+            {
+                const DiskSlowOperation operation = *_rig.options.diskToolsSlow;
+                const bool savesAFile = operation == DiskSlowOperation::LoadFile || operation == DiskSlowOperation::LoadFileWithDependents
+                                        || operation == DiskSlowOperation::SaveMemoryItem || operation == DiskSlowOperation::SaveAllMemoryItems;
+                // Refused before anything is sent: a save that nobody can check on the sampler is not worth sending.
+                if (savesAFile && !_rig.options.askOwner)
+                    throw CheckSkipped("this item saves a file, which only the owner can check on the sampler, and there is no way to ask the owner");
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                expect(guarded.session().stillAliveMonitoring(),
+                       "Still Alive is on: a received F0 F7 restarts the pending command's timeout");
+                selectTestDisk(guarded);
+                const int before = folderCountHere(guarded);
+                {
+                    GuardedTestFolder folder(_rig, guarded.session());
+                    switch (operation)
+                    {
+                        case DiskSlowOperation::UpdateList:
+                            sendSlow(guarded, "update the list of disks connected (section 10, item 01)",
+                                     [](Session& session, CommandCompletion done) { updateDiskList(session, std::move(done)); });
+                            break;
+                        case DiskSlowOperation::LoadFolder:
+                            expectCommand(guarded, "create the sub-folder \"LOAD\" to load", [](Session& session, CommandCompletion done) {
+                                createFolder(session, "LOAD", std::move(done));
+                            });
+                            sendSlow(guarded, "load the folder \"LOAD\" (section 10, item 15)",
+                                     [](Session& session, CommandCompletion done) { loadFolder(session, "LOAD", std::move(done)); });
+                            break;
+                        case DiskSlowOperation::LoadFile:
+                        case DiskSlowOperation::LoadFileWithDependents:
+                        {
+                            GuardedTestProgram program(_rig, guarded.session());
+                            const int index = currentProgramIndex(guarded);
+                            sendSlow(guarded, "save the test program to the sub-folder, to have a file to load (section 10, item 2C)",
+                                     [index](Session& session, CommandCompletion done) {
+                                         saveMemoryItem(session, index, SaveableMemoryType::Program, false, false, std::move(done));
+                                     });
+                            const std::string file = firstFileName(guarded);
+                            // Between the save and the load: the owner sees the file on the sampler before anything loads it.
+                            ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                          "that it holds the file \"" + file + "\".");
+                            expectCommand(guarded, "take the test program out of memory, so the load brings back the only copy",
+                                          [](Session& session, CommandCompletion done) { deleteCurrentProgram(session, std::move(done)); });
+                            if (operation == DiskSlowOperation::LoadFile)
+                                sendSlow(guarded, "load the file \"" + file + "\" (section 10, item 2A)",
+                                         [file](Session& session, CommandCompletion done) {
+                                             loadFile(session, file, SampleLoadOption::Normal, std::move(done));
+                                         });
+                            else
+                                sendSlow(guarded, "load the file \"" + file + "\" with its dependents (section 10, item 2B)",
+                                         [file](Session& session, CommandCompletion done) {
+                                             loadFileWithDependents(session, file, std::move(done));
+                                         });
+                            break;
+                        }
+                        case DiskSlowOperation::SaveMemoryItem:
+                        {
+                            GuardedTestProgram program(_rig, guarded.session());
+                            const int index = currentProgramIndex(guarded);
+                            sendSlow(guarded, "save the test program to the sub-folder (section 10, item 2C)",
+                                     [index](Session& session, CommandCompletion done) {
+                                         saveMemoryItem(session, index, SaveableMemoryType::Program, false, false, std::move(done));
+                                     });
+                            const std::vector<std::string> saved = fileNamesHere(guarded);
+                            expect(!saved.empty(), "the save left a file in the sub-folder");
+                            ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                          "that it holds the file \"" + saved.front() + "\".");
+                            break;
+                        }
+                        case DiskSlowOperation::SaveAllMemoryItems:
+                        {
+                            // Every program in memory is saved, the owner's included: each copy lands in the sub-folder
+                            // and goes with it when it is deleted; nothing stored is changed.
+                            GuardedTestProgram program(_rig, guarded.session());
+                            sendSlow(guarded, "save every program in memory to the sub-folder (section 10, item 2D)",
+                                     [](Session& session, CommandCompletion done) {
+                                         saveAllMemoryItems(session, SaveableMemoryType::Program, false, false, std::move(done));
+                                     });
+                            const std::vector<std::string> saved = fileNamesHere(guarded);
+                            expect(!saved.empty(), "the save left at least one file in the sub-folder");
+                            std::string listed;
+                            for (const std::string& name : saved)
+                                listed += (listed.empty() ? "" : ", ") + std::string("\"") + name + "\"";
+                            ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                          "that it holds the files " + listed + ".");
+                            break;
+                        }
+                    }
+                }
+                expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
+                closeAndVerify(guarded);
+            }
+
+            // A command whose answer is what the check records, whatever it is: said in the log, never a failure by itself.
+            CommandResult observeCommand(GuardedSession& guarded, const std::string& title,
+                                         const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &launch](CommandCompletion done) { launch(guarded.session(), std::move(done)); });
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                finding(title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                return timed->result;
+            }
+
+            // A read that changes nothing, said in the log; a read the sampler does not answer fails the check.
+            template <typename Result, typename Launch>
+            Result readDisk(const std::string& title, Launch launch)
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<Result>(_rig.driver, _rig.commandPatience(), std::move(launch));
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                finding(title + ": " + outcomeText(timed->result.outcome) + " after " + millisecondsText(timed->latency));
+                return timed->result;
+            }
+
+            [[nodiscard]] int folderCountHere(GuardedSession& guarded)
+            {
+                const DiskFolderCountResult counted = readDisk<DiskFolderCountResult>("the number of sub-folders here",
+                                                                                      [&guarded](DiskFolderCountCompletion done) {
+                                                                                          getFolderCount(guarded.session(), std::move(done));
+                                                                                      });
+                if (!counted.count)
+                    throw CheckFailure("the number of sub-folders could not be read");
+                return *counted.count;
+            }
+
+            [[nodiscard]] int fileCountHere(GuardedSession& guarded)
+            {
+                const DiskFileCountResult counted = readDisk<DiskFileCountResult>("the number of files here", [&guarded](DiskFileCountCompletion done) {
+                    getFileCount(guarded.session(), std::move(done));
+                });
+                if (!counted.count)
+                    throw CheckFailure("the number of files could not be read");
+                return *counted.count;
+            }
+
+            [[nodiscard]] std::vector<std::string> fileNamesHere(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<DiskFileNamesResult>(_rig.driver, _rig.commandPatience(), [&guarded](DiskFileNamesCompletion done) {
+                    getAllFileNames(guarded.session(), std::move(done));
+                });
+                if (!timed || !timed->result.names)
+                    throw CheckFailure("the names of the files in the sub-folder could not be read");
+                return *timed->result.names;
+            }
+
+            [[nodiscard]] std::string firstFileName(GuardedSession& guarded)
+            {
+                const std::vector<std::string> names = fileNamesHere(guarded);
+                if (names.empty())
+                    throw CheckFailure("the save left no file in the sub-folder to load");
+                finding("file to load: \"" + names.front() + "\"");
+                return names.front();
+            }
+
+            // The owner looks at the sampler and confirms what the check expects there: a file a save has just made, which
+            // this layer cannot list without a save of its own. Declined, the check is skipped: nothing is sent after it,
+            // and the guards put back what the check changed.
+            void ownerConfirms(const std::string& instruction)
+            {
+                if (!_rig.options.askOwner)
+                    throw CheckSkipped("there is no way to ask the owner to check the sampler");
+                _rig.log.flush();
+                _rig.log.note("  asking the owner to check the sampler: " + instruction);
+                _rig.log.flush();
+                if (!_rig.options.askOwner(instruction))
+                    throw CheckSkipped("the owner did not confirm on the sampler: " + instruction);
+                _rig.log.note("  the owner confirms on the sampler");
+            }
+
+            [[nodiscard]] int currentProgramIndex(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<ProgramIndexResult>(_rig.driver, _rig.commandPatience(), [&guarded](ProgramIndexCompletion done) {
+                    getProgramIndex(guarded.session(), std::move(done));
+                });
+                if (!timed || !timed->result.index)
+                    throw CheckFailure("the index of the test program could not be read");
+                return *timed->result.index;
+            }
+
+            // One long-running command, with Still Alive on: its patience is the whole total wait the session allows, so a
+            // slow command completes and only a silent sampler times out. A timeout, or a completion that is lost, clears
+            // `knownStateRestored`: a sampler that stopped answering cannot be said to be in the known state.
+            void sendSlow(GuardedSession& guarded, const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                const Clock::duration patience = DEFAULT_MAX_TOTAL_WAIT + _rig.options.commandTimeout * COMMAND_PATIENCE_IN_TIMEOUTS;
+                _rig.log.flush();
+                const std::size_t stillAliveBefore = _rig.log.stillAliveMessages();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, patience, [&guarded, &launch](CommandCompletion done) {
+                    launch(guarded.session(), std::move(done));
+                });
+                if (!timed)
+                {
+                    _rig.result.knownStateRestored = false;
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(patience) + ": the session lost it");
+                }
+                const std::size_t seen = _rig.log.stillAliveMessages() - stillAliveBefore;
+                finding(title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency)
+                        + "; F0 F7 messages that reached the host meanwhile: " + std::to_string(seen));
+                if (std::holds_alternative<Timeout>(timed->result))
+                {
+                    _rig.result.knownStateRestored = false;
+                    throw CheckFailure(title + ": timed out although Still Alive is on: the sampler sent no F0 F7 while it worked, "
+                                       "or the backend did not deliver them. The sampler may need a power cycle before anything else "
+                                       "is asked (process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md)");
+                }
+                if (!succeeded(timed->result))
+                    throw CheckFailure(title + ": " + outcomeText(timed->result));
+            }
+
             // RQ-AKM-027: creates a program under the reserved test name (GuardedTestProgram's constructor),
             // changes it (add keygroups, crossfade, rename and back, every item of RQ-AKM-024's five parameter
             // groups), proves expectOnTestProgram refuses once the current program is no longer the test one, then
@@ -1120,7 +2187,7 @@ namespace akm::harness
                 const auto before = awaitCompletion<ProgramCountResult>(
                     _rig.driver, _rig.commandPatience(),
                     [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
-                if (!before || !before->result.count)
+                if (!before || !before->result.count.has_value())
                     throw CheckFailure("could not read the number of programs before creating the test program");
                 const int countBefore = *before->result.count;
 
@@ -1274,6 +2341,61 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // Sets one parameter case on the test program, reads it back and fails unless the value read is the
+            // one set (the selector being the first values the Get takes). Shared by the keygroup and zone checks.
+            template <typename ParameterCase>
+            void roundTripParameterCase(GuardedSession& guarded, GuardedTestProgram& program, const ParameterCase& parameterCase)
+            {
+                const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                const std::string title(descriptor(parameterCase.setId).name);
+
+                program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                });
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                    });
+                if (!timed)
+                    throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                if (!succeeded(timed->result))
+                    throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                const auto* replyData = std::get_if<Reply>(&timed->result);
+                const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                if (!decoded || *decoded != expectedValue)
+                    throw CheckFailure("get " + title + ": read back "
+                                       + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                       + valuesText(expectedValue));
+            }
+
+            // The wrong-program guard: with a program current that is not the test one, a command on the test
+            // program must be refused before it is sent. Not exercised when no program was current before.
+            void expectRefusedOnWrongProgram(GuardedTestProgram& program, const std::string& title,
+                                             const std::function<void(Session&, CommandCompletion)>& launch,
+                                             const std::string& refusalMessage)
+            {
+                if (!program.hadOriginalProgram())
+                {
+                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                    return;
+                }
+                expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                bool refused = false;
+                try
+                {
+                    program.expectOnTestProgram(title, launch);
+                }
+                catch (const CheckFailure&)
+                {
+                    refused = true;
+                }
+                expect(refused, refusalMessage);
+                expect(program.selectTestProgramAgain(), "reselected the test program");
+            }
+
             // RQ-AKM-028, RQ-AKM-030, RQ-AKM-031, RQ-AKM-033: keygroups added to the test program, every
             // §08 parameter item round-tripped on one of them, then the keygroup-0 ("all") shape, and the
             // wrong-program refusal for a keygroup-level command — the same guard as the program lifecycle
@@ -1286,7 +2408,7 @@ namespace akm::harness
                 const auto before = awaitCompletion<ProgramCountResult>(
                     _rig.driver, _rig.commandPatience(),
                     [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
-                if (!before || !before->result.count)
+                if (!before || !before->result.count.has_value())
                     throw CheckFailure("could not read the number of programs before creating the test program");
                 const int countBefore = *before->result.count;
 
@@ -1306,7 +2428,7 @@ namespace akm::harness
                     _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
                         getProgramKeygroupCount(guarded.session(), std::move(done));
                     });
-                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                if (!keygroupCountResult || !keygroupCountResult->result.count.has_value())
                     throw CheckFailure("could not read the keygroup count after adding keygroups");
                 const int keygroupCount = *keygroupCountResult->result.count;
                 expect(keygroupCount == 3, "the keygroup count read back is 3 (1 default + 2 added)");
@@ -1320,31 +2442,7 @@ namespace akm::harness
                 expect(currentResult && currentResult->result.keygroup == 2, "keygroup 2 read back as current");
 
                 for (const KeygroupParameterCase& parameterCase : allKeygroupParameterCases())
-                {
-                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
-                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
-                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
-                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
-                    const std::string title(descriptor(parameterCase.setId).name);
-
-                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
-                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
-                    });
-                    const auto timed = awaitCompletion<CommandResult>(
-                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
-                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
-                        });
-                    if (!timed)
-                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
-                    if (!succeeded(timed->result))
-                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
-                    const auto* replyData = std::get_if<Reply>(&timed->result);
-                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
-                    if (!decoded || *decoded != expectedValue)
-                        throw CheckFailure("get " + title + ": read back "
-                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
-                                           + valuesText(expectedValue));
-                }
+                    roundTripParameterCase(guarded, program, parameterCase);
                 finding(std::to_string(allKeygroupParameterCases().size())
                         + " keygroup parameter items of the six groups round-tripped on keygroup 2");
 
@@ -1398,26 +2496,10 @@ namespace akm::harness
                                                           });
                 expect(allLowNote50, "all " + std::to_string(keygroupCount) + " keygroups read back Low Note 50");
 
-                if (program.hadOriginalProgram())
-                {
-                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
-                    bool refused = false;
-                    try
-                    {
-                        program.expectOnTestProgram("select keygroup 0 (on the wrong program)",
-                                                    [](Session& session, CommandCompletion done) {
-                                                        selectKeygroup(session, 0, std::move(done));
-                                                    });
-                    }
-                    catch (const CheckFailure&)
-                    {
-                        refused = true;
-                    }
-                    expect(refused, "selecting keygroup 0 on the program that is current but not the test one was refused before sending");
-                    expect(program.selectTestProgramAgain(), "reselected the test program");
-                }
-                else
-                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                expectRefusedOnWrongProgram(
+                    program, "select keygroup 0 (on the wrong program)",
+                    [](Session& session, CommandCompletion done) { selectKeygroup(session, 0, std::move(done)); },
+                    "selecting keygroup 0 on the program that is current but not the test one was refused before sending");
                 }
                 finding("test program deleted and the original selection restored by the guard");
 
@@ -1442,7 +2524,7 @@ namespace akm::harness
                 const auto before = awaitCompletion<ProgramCountResult>(
                     _rig.driver, _rig.commandPatience(),
                     [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
-                if (!before || !before->result.count)
+                if (!before || !before->result.count.has_value())
                     throw CheckFailure("could not read the number of programs before creating the test program");
                 const int countBefore = *before->result.count;
 
@@ -1457,7 +2539,7 @@ namespace akm::harness
                     _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
                         getProgramKeygroupCount(guarded.session(), std::move(done));
                     });
-                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                if (!keygroupCountResult || !keygroupCountResult->result.count.has_value())
                     throw CheckFailure("could not read the keygroup count after adding a keygroup");
                 const int keygroupCount = *keygroupCountResult->result.count;
                 expect(keygroupCount == 2, "the keygroup count read back is 2 (1 default + 1 added)");
@@ -1467,31 +2549,7 @@ namespace akm::harness
                 });
 
                 for (const ZoneParameterCase& parameterCase : allZoneParameterCases())
-                {
-                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
-                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
-                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
-                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
-                    const std::string title(descriptor(parameterCase.setId).name);
-
-                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
-                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
-                    });
-                    const auto timed = awaitCompletion<CommandResult>(
-                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
-                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
-                        });
-                    if (!timed)
-                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
-                    if (!succeeded(timed->result))
-                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
-                    const auto* replyData = std::get_if<Reply>(&timed->result);
-                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
-                    if (!decoded || *decoded != expectedValue)
-                        throw CheckFailure("get " + title + ": read back "
-                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
-                                           + valuesText(expectedValue));
-                }
+                    roundTripParameterCase(guarded, program, parameterCase);
                 finding(std::to_string(allZoneParameterCases().size()) + " zone parameter items round-tripped on zone 3 of keygroup 2");
 
                 // RQ-AKM-036: zone 0 ("all four") on the current keygroup.
@@ -1555,25 +2613,12 @@ namespace akm::harness
                 else
                     finding("sample assignment: skipped (no --sample-name given)");
 
-                if (program.hadOriginalProgram())
-                {
-                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
-                    bool refused = false;
-                    try
-                    {
-                        program.expectOnTestProgram("set Zone Level (on the wrong program)", [](Session& session, CommandCompletion done) {
-                            session.submit(makeRequest(ItemId::ZoneSetLevel, {1, 0, 1}), std::move(done));
-                        });
-                    }
-                    catch (const CheckFailure&)
-                    {
-                        refused = true;
-                    }
-                    expect(refused, "a zone command on the program that is current but not the test one was refused before sending");
-                    expect(program.selectTestProgramAgain(), "reselected the test program");
-                }
-                else
-                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                expectRefusedOnWrongProgram(
+                    program, "set Zone Level (on the wrong program)",
+                    [](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(ItemId::ZoneSetLevel, {1, 0, 1}), std::move(done));
+                    },
+                    "a zone command on the program that is current but not the test one was refused before sending");
                 }
                 finding("test program deleted and the original selection restored by the guard");
 
@@ -1775,6 +2820,212 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory
+            // (so that the four data bytes of &33/&34 are decoded on the hardware), then round-trips the name, every Play
+            // Mode, the front-panel lock and the clock, each under the guard that puts them back — the Play Mode 3 (Muted)
+            // the spec's data column leaves out is sent too, its refusal being an observation, not a failure — and
+            // verifies, once the guard is gone, that every value is what it was before.
+            void systemSetupRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                SystemSetupSnapshot original;
+                {
+                    GuardedSystemSetup setup(_rig, guarded.session());
+                    original = setup.original();
+                    finding("system setup before: name \"" + original.name + "\", Play Mode " + playModeName(original.playMode)
+                            + ", front panel " + lockName(original.lock) + ", clock "
+                            + (original.clock ? clockText(*original.clock) : std::string("unreadable")));
+
+                    observeModelAndMemory(guarded);
+                    roundTripName(guarded);
+                    roundTripPlayModes(guarded);
+                    roundTripLock(guarded);
+                    roundTripClock(guarded, original);
+                }
+                expectSystemSetupRestored(guarded, original);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-058: a check that fails with the front panel locked and the sampler renamed still puts both back
+            // — the lock first — and leaves nothing changed.
+            void failedSystemSetupCheckPutsBack()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto original = readSystemSetup(_rig, guarded.session(), problem);
+                if (!original)
+                    throw CheckFailure(problem);
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedSystemSetup setup(_rig, guarded.session());
+                    expectCommand(guarded, "lock the front panel", [](Session& session, CommandCompletion done) {
+                        setFrontPanelLock(session, FrontPanelLock::Locked, std::move(done));
+                    });
+                    expectCommand(guarded, "rename the sampler", [](Session& session, CommandCompletion done) {
+                        setSamplerName(session, TEST_SAMPLER_NAME, std::move(done));
+                    });
+                    throw CheckFailure("this check fails on purpose, with the front panel locked");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectSystemSetupRestored(guarded, *original);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-053: the model and the memory, read and said in the log. The byte counts are compound double
+            // words of four data bytes (the spec writes their rows with two columns): a REPLY of another length is
+            // refused by the decoder, so reading them is what shows the length on the hardware.
+            void observeModelAndMemory(GuardedSession& guarded)
+            {
+                const auto model = awaitCompletion<SamplerModelResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SamplerModelCompletion done) { getSamplerModel(guarded.session(), std::move(done)); });
+                if (!model || !model->result.model)
+                    throw CheckFailure("could not read the sampler's model (&04): "
+                                       + (model ? outcomeText(model->result.outcome) : std::string("no completion")));
+                finding(std::string("model: ") + (*model->result.model == SamplerModel::S6000 ? "S6000" : "S5000"));
+
+                const auto wavePercent = awaitCompletion<MemoryPercentResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryPercentCompletion done) { getFreeWaveMemoryPercent(guarded.session(), std::move(done)); });
+                const auto mpksPercent = awaitCompletion<MemoryPercentResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryPercentCompletion done) { getFreeMpksMemoryPercent(guarded.session(), std::move(done)); });
+                const auto totalBytes = awaitCompletion<MemoryBytesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryBytesCompletion done) { getTotalWaveMemoryBytes(guarded.session(), std::move(done)); });
+                const auto freeBytes = awaitCompletion<MemoryBytesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MemoryBytesCompletion done) { getFreeWaveMemoryBytes(guarded.session(), std::move(done)); });
+                if (!wavePercent || !wavePercent->result.percent)
+                    throw CheckFailure("could not read the free Wave memory percentage (&30)");
+                if (!mpksPercent || !mpksPercent->result.percent)
+                    throw CheckFailure("could not read the free MPKS memory percentage (&31)");
+                if (!totalBytes || !totalBytes->result.bytes)
+                    throw CheckFailure("could not read the total bytes of Wave memory (&33): "
+                                       + (totalBytes ? outcomeText(totalBytes->result.outcome) : std::string("no completion")));
+                if (!freeBytes || !freeBytes->result.bytes)
+                    throw CheckFailure("could not read the free bytes of Wave memory (&34): "
+                                       + (freeBytes ? outcomeText(freeBytes->result.outcome) : std::string("no completion")));
+
+                const std::uint32_t total = *totalBytes->result.bytes;
+                const std::uint32_t free = *freeBytes->result.bytes;
+                finding("Wave memory: " + std::to_string(free) + " of " + std::to_string(total) + " bytes free ("
+                        + std::to_string(*wavePercent->result.percent) + " %, four data bytes decoded), MPKS memory "
+                        + std::to_string(*mpksPercent->result.percent) + " % free");
+                expect(total > 0 && free <= total, "the free Wave memory is a part of the total");
+            }
+
+            // RQ-AKM-052: Set then Get.
+            void roundTripName(GuardedSession& guarded)
+            {
+                expectCommand(guarded, "set the sampler's name to \"" + std::string(TEST_SAMPLER_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { setSamplerName(session, TEST_SAMPLER_NAME, std::move(done)); });
+                const auto name = awaitCompletion<SamplerNameResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SamplerNameCompletion done) { getSamplerName(guarded.session(), std::move(done)); });
+                expect(name && name->result.name == std::string(TEST_SAMPLER_NAME), "the sampler's name read back is the one set");
+            }
+
+            // RQ-AKM-055, RQ-AKM-057: each Play Mode, Set then Get. Muted is the one the spec's data column leaves out:
+            // if the sampler refuses it, that is what the erratum needed to know.
+            void roundTripPlayModes(GuardedSession& guarded)
+            {
+                for (const PlayMode mode : {PlayMode::Multi, PlayMode::Program, PlayMode::Sample, PlayMode::Muted})
+                {
+                    const std::string title = "play mode " + std::to_string(static_cast<int>(mode)) + " (" + playModeName(mode) + ")";
+                    _rig.log.flush();
+                    const auto set = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [&guarded, mode](CommandCompletion done) {
+                        setPlayMode(guarded.session(), mode, std::move(done));
+                    });
+                    if (!set)
+                        throw CheckFailure("set " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                    if (!succeeded(set->result))
+                    {
+                        if (mode == PlayMode::Muted && std::holds_alternative<Error>(set->result))
+                        {
+                            finding(title + " refused: " + outcomeText(set->result)
+                                    + " - the spec's data column \"0, 1, 2\" is the sampler's range (erratum of RQ-AKM-057)");
+                            continue;
+                        }
+                        throw CheckFailure("set " + title + ": " + outcomeText(set->result));
+                    }
+                    const auto read = awaitCompletion<PlayModeResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](PlayModeCompletion done) { getPlayMode(guarded.session(), std::move(done)); });
+                    expect(read && read->result.mode == mode, title + " read back as set");
+                    finding(title + " accepted and read back");
+                }
+            }
+
+            // RQ-AKM-055, RQ-AKM-058: locked, read, then normal again at once, before anything else is sent.
+            void roundTripLock(GuardedSession& guarded)
+            {
+                for (const FrontPanelLock lock : {FrontPanelLock::Locked, FrontPanelLock::Normal})
+                {
+                    expectCommand(guarded, "set the front panel " + lockName(lock),
+                                  [lock](Session& session, CommandCompletion done) { setFrontPanelLock(session, lock, std::move(done)); });
+                    const auto read = awaitCompletion<FrontPanelLockResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded](FrontPanelLockCompletion done) { getFrontPanelLock(guarded.session(), std::move(done)); });
+                    expect(read && read->result.lock == lock, "the front panel reads " + lockName(lock));
+                }
+            }
+
+            // RQ-AKM-054: a clock of 2030 is set and read back to within a few seconds: the year read is the whole
+            // year, so the two data bytes are the compound word the catalogue assumes.
+            void roundTripClock(GuardedSession& guarded, const SystemSetupSnapshot& original)
+            {
+                if (!original.clock)
+                {
+                    finding("clock NOT TESTED: " + original.clockProblem + "; it was neither set nor restored");
+                    return;
+                }
+                expectCommand(guarded, "set the clock to " + clockText(TEST_CLOCK),
+                              [](Session& session, CommandCompletion done) { setClockDate(session, TEST_CLOCK, std::move(done)); });
+                const auto read = awaitCompletion<ClockDateResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](ClockDateCompletion done) { getClockDate(guarded.session(), std::move(done)); });
+                if (!read || !read->result.clock)
+                    throw CheckFailure("could not read the clock back: " + (read ? outcomeText(read->result.outcome) : std::string("no completion")));
+                const std::int64_t drift = secondsBetween(TEST_CLOCK, *read->result.clock);
+                finding("clock read back as " + clockText(*read->result.clock) + " after setting " + clockText(TEST_CLOCK)
+                        + " (the year read is the whole year: the compound word of RQ-AKM-054)");
+                expect(drift >= 0 && drift <= CLOCK_RESTORE_TOLERANCE_SECONDS,
+                       "the clock read back is the one set, advanced by no more than " + std::to_string(CLOCK_RESTORE_TOLERANCE_SECONDS)
+                           + " s (drift " + std::to_string(drift) + " s)");
+            }
+
+            // RQ-AKM-058: once the guard is gone, every value is what it was before; the clock is what it was
+            // advanced by the time elapsed, to a few seconds. A value that is not back fails the check and says which.
+            void expectSystemSetupRestored(GuardedSession& guarded, const SystemSetupSnapshot& original)
+            {
+                std::string problem;
+                const auto after = readSystemSetup(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the system setup back to verify it was restored: " + problem);
+                expect(after->name == original.name,
+                       "the sampler's name is back to \"" + original.name + "\" (reads \"" + after->name + "\")");
+                expect(after->playMode == original.playMode,
+                       "the Play Mode is back to " + playModeName(original.playMode) + " (reads " + playModeName(after->playMode) + ")");
+                expect(after->lock == original.lock,
+                       "the front panel is back to " + lockName(original.lock) + " (reads " + lockName(after->lock) + ")");
+                if (!original.clock)
+                    return;
+                if (!after->clock)
+                    throw CheckFailure("the clock could not be read back to verify it was restored: " + after->clockProblem);
+                const ClockDate expected = addSeconds(*original.clock, elapsedSeconds(_rig, original.clockReadAt));
+                const std::int64_t drift = secondsBetween(expected, *after->clock);
+                finding("clock restored: reads " + clockText(*after->clock) + ", expected " + clockText(expected) + " (drift "
+                        + std::to_string(drift) + " s)");
+                expect(drift >= -CLOCK_RESTORE_TOLERANCE_SECONDS && drift <= CLOCK_RESTORE_TOLERANCE_SECONDS,
+                       "the clock is back to what it was, advanced by the time elapsed, to " + std::to_string(CLOCK_RESTORE_TOLERANCE_SECONDS)
+                           + " s (drift " + std::to_string(drift) + " s)");
+            }
+
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
@@ -1811,6 +3062,54 @@ namespace akm::harness
                          + "(RQ-AKM-048) and confirms the grouped replies &34/&4B agree with the items they group (RQ-AKM-049): "
                          + "the sample's name and every settable parameter, and the sampler's original current-sample selection, "
                          + "are restored before this check returns, even if it fails half way, and it never sends &07 or &08.");
+            if (options.systemSetup)
+                log.note(std::string("It also changes the sampler's own system setup (--system-setup, RQ-AKM-052 to RQ-AKM-055, RQ-AKM-058): ")
+                         + "its name, its Play Mode (all four, Muted included), its front-panel lock for an instant, and its clock, "
+                         + "each put back before the check returns, even if it fails half way — the lock first, the clock "
+                         + "advanced by the time elapsed — and it never sends section 02's Clear Sampler Memory (&32).");
+            if (options.diskTools)
+                log.note("It also asks the owner which writable disk the sampler reports valid to select (--disk-tools, RQ-AKM-061), creates a "
+                         "disposable sub-folder, XS56K_SUITE_TEST, under the current folder (RQ-AKM-071), works inside it, and "
+                         "deletes it again through the confirmed &17 guard. The selection stays on the sampler: no section 10 "
+                         "command clears it. It touches nothing that existed before.");
+            if (options.diskToolsFiles)
+                log.note("It also saves the test program into the disposable sub-folder (--disk-tools-files, RQ-AKM-065), has the owner "
+                         "confirm the file on the sampler, reads, renames and deletes it.");
+            if (options.diskToolsAudition)
+                log.note("It also plays the first .WAV file at the root of the selected disk (--disk-tools-audition, RQ-AKM-068) "
+                         "for " + millisecondsText(options.auditionDuration) + ", after the owner confirms that one is there.");
+            if (options.frontPanel)
+                log.note("It also lets the owner drive the sampler's front panel from the PC keyboard (--front-panel, RQ-AKM-076): the owner "
+                         "chooses the screen and confirms it, then every PC key sends only the front-panel item the printed mapping gives it, "
+                         "section 20 items only. Every key still held is released at the end, and by the session's close if the check fails.");
+            if (options.diskToolsSlow)
+            {
+                const char* name = "";
+                switch (*options.diskToolsSlow)
+                {
+                    case DiskSlowOperation::UpdateList:
+                        name = "update-list (section 10, item 01)";
+                        break;
+                    case DiskSlowOperation::LoadFolder:
+                        name = "load-folder (section 10, item 15)";
+                        break;
+                    case DiskSlowOperation::LoadFile:
+                        name = "load-file (sections 10, items 2C then 2A)";
+                        break;
+                    case DiskSlowOperation::LoadFileWithDependents:
+                        name = "load-file-with-dependents (sections 10, items 2C then 2B)";
+                        break;
+                    case DiskSlowOperation::SaveMemoryItem:
+                        name = "save-memory-item (section 10, item 2C)";
+                        break;
+                    case DiskSlowOperation::SaveAllMemoryItems:
+                        name = "save-all-memory-items (section 10, item 2D)";
+                        break;
+                }
+                log.note(std::string("It also sends one long-running §10 item, --disk-tools-slow ") + name + ", RQ-AKM-070: "
+                         + "documented as potentially hanging the sampler (process/2.architecture/"
+                         + "OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md, frames F4-F7).");
+            }
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }

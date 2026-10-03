@@ -136,12 +136,14 @@ namespace akm
 
         /// Closes the session and returns at once, from any thread but the session's own. On the session thread:
         /// the command in flight and every queued command complete as `Cancelled` (an open that is still going
-        /// ends as cancelled); then each §00 setting the session tried to change is put back to its documented
-        /// default (`samplerDefault`), the checksum mode first and with a checksum appended, one command at a time;
-        /// then the input port is stopped; then `onClosed` runs with what was and was not put back. A refused or
-        /// failed restoring command is reported and the next is tried; the first one that times out ends the
-        /// restoring — a sampler that does not answer one will not answer the others — and the rest are reported
-        /// as not restored. A close always finishes. Commands submitted after `close()` are refused with
+        /// ends as cancelled); then, first of all, each front-panel key the session held with `holdKey` and did not see
+        /// released is released, on the target it was held on (RQ-AKM-075, DEC-AKM-019); then each §00 setting the
+        /// session tried to change is put back to its documented default (`samplerDefault`), the checksum mode first
+        /// among them and with a checksum appended, one command at a time; then the input port is stopped; then
+        /// `onClosed` runs with what was and was not put back. A refused or failed restoring command is reported and
+        /// the next is tried. The first key release that times out leaves the keys after it unreleased — a sampler that
+        /// does not answer one will not answer the next — but the settings are still tried; the first setting that
+        /// times out ends the restoring, the rest being reported as not restored. A close always finishes. Commands submitted after `close()` are refused with
         /// `RefusalReason::SessionClosed`. Returns false, changing nothing, when it is called from the session
         /// thread — closing from one of the session's own completions is forbidden — or when the session is
         /// already closing. [RQ-AKM-042, ADR-AKM-001 (DEC-AKM-004, DEC-AKM-007)]

@@ -34,4 +34,10 @@ namespace akm
     /// The record for a section and an item code, or null when the catalogue does not list it. Both
     /// numbers are needed: an item code means something else in each section. [RQ-AKM-041]
     [[nodiscard]] const ItemDescriptor* findItem(std::uint8_t section, std::uint8_t item);
+
+    /// The record whose REPLY carries `section` and `item`: the one `findItem` finds, or the one that declares
+    /// `section` as the section of its REPLY (`ItemDescriptor::replySection`). Null when neither exists. What the
+    /// codec reads the length of a REPLY with while the checksum mode is unknown. [RQ-AKM-059, RQ-AKM-041,
+    /// ADR-AKM-001 (DEC-AKM-016)]
+    [[nodiscard]] const ItemDescriptor* findReplyItem(std::uint8_t section, std::uint8_t item);
 }

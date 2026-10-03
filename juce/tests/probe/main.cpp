@@ -33,13 +33,29 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <exception>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOGDI
+#define NOGDI  // its ERROR macro would clash with the names of the layer
+#endif
+#include <windows.h>
+#include <io.h>
+#endif
+
 #include "akm/Protocol.hpp"
 #include "akm/harness/FirstContactProbe.hpp"
+#include "akm/harness/FrontPanelRemote.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
 #include "akm/harness/ScenarioDriver.hpp"
 #include "akm/harness/SessionSmokeTest.hpp"
@@ -66,7 +82,8 @@ namespace
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
-        "                  [--sample-name NAME] [--timeout-ms N] [--log <file>] [--yes]\n"
+        "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--front-panel] [--sample-name NAME]\n"
+        "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
         "  --in, --out        the sampler's MIDI input port (what it sends) and output port (what it receives),\n"
@@ -99,6 +116,43 @@ namespace
         "                     group (RQ-AKM-045, RQ-AKM-048, RQ-AKM-049, RQ-AKM-051), then restores its name,\n"
         "                     every parameter and the sampler's original current-sample selection. Never\n"
         "                     sends &07 or &08. Skipped, not failed, without --sample-name.\n"
+        "  --system-setup     with --suite, two extra checks on the sampler's own settings (RQ-AKM-052 to\n"
+        "                     RQ-AKM-055, RQ-AKM-058): they read the model and the memory, then round-trip the\n"
+        "                     sampler's name, its four Play Modes (Muted included: it silences the sampler for an\n"
+        "                     instant), its front-panel lock (locked for an instant) and its clock, and put each\n"
+        "                     back - the lock first, the clock advanced by the time elapsed. Never sends Clear\n"
+        "                     Sampler Memory (section 02, item 32). Needs no sample, program or --sample-name.\n"
+        "  --disk-tools       with --suite, an extra check on the disk (section 10, RQ-AKM-071): it lists the disks,\n"
+        "                     asks you which of the writable disks the sampler reports valid to select (the selection\n"
+        "                     stays: no section 10 command clears it), creates a disposable sub-folder XS56K_SUITE_TEST under\n"
+        "                     its current folder, creates, renames, enters and leaves a sub-folder inside it, reads\n"
+        "                     the folder and file items, and deletes the whole sub-folder again through the confirmed\n"
+        "                     &17 guard. It touches nothing that existed before. If a disk check ends early, you are asked\n"
+        "                     to look at XS56K_SUITE_TEST on the sampler first: Enter deletes it, skip keeps it.\n"
+        "  --disk-tools-files  with --disk-tools, the file items of section 10 (RQ-AKM-068, RQ-AKM-069): one save of the\n"
+        "                     test program into the sub-folder (you confirm the file on the sampler), then the file is\n"
+        "                     read, renamed, read again and deleted. No audition: the spec allows it for samples only.\n"
+        "  --disk-tools-audition  with --disk-tools, the audition of a sample from disk (section 10, items 30 and 31,\n"
+        "                     RQ-AKM-068): you confirm that the selected disk holds a .WAV file at its root; the first\n"
+        "                     one is played for 3 seconds (it plays a sound), then stopped. A sample shorter than 3\n"
+        "                     seconds may already have ended: the stop is then recorded, not failed.\n"
+        "  --disk-tools-slow OP  with --disk-tools, one of the six long-running section 10 items, sent inside the\n"
+        "                     sub-folder with Still Alive on (RQ-AKM-070). OP is one of: update-list (item 01),\n"
+        "                     load-folder (item 15), load-file (items 2C then 2A), load-file-with-dependents (items\n"
+        "                     2C then 2B), save-memory-item (item 2C), save-all-memory-items (item 2D). Only one per\n"
+        "                     run. These are documented as potentially hanging the sampler, which then needs a\n"
+        "                     power cycle by hand; update-list did so on the owner's S5000 with a SCSI2SD disk\n"
+        "                     (a warning is printed before it runs). See process/2.architecture/\n"
+        "                     OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md, frames F4-F7. The saving items ask you, on\n"
+        "                     the sampler, to confirm the file a save has made (between a save and its load, for the\n"
+        "                     load items): declining skips the check.\n"
+        "  --front-panel      with --suite, you drive the sampler's front panel from the PC keyboard (section 20,\n"
+        "                     RQ-AKM-076). You choose the screen the sampler shows and confirm it; the mapping of PC keys\n"
+        "                     to sampler keys is then printed and every key you press is sent as the sampler key it stands\n"
+        "                     for, nothing else is sent (q ends it). The keys act on whatever the sampler shows: on some\n"
+        "                     screens SAVE, ENT/PLAY or the data wheel change or delete your data, so choose the screen\n"
+        "                     with care. Every key still held is released at the end. Windows console only: elsewhere the\n"
+        "                     check is skipped.\n"
         "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
         "                     it to a zone of the test program by name and reads it back, RQ-AKM-035,\n"
         "                     RQ-AKM-038) and/or --sample-lifecycle (see above). Never creates, changes or\n"
@@ -117,6 +171,79 @@ namespace
         "beyond a check that puts them back before returning (--program-lifecycle's zone-assignment step never\n"
         "does; --sample-lifecycle's own check does, and restores them), and neither ever deletes a sample.\n";
 
+#ifdef _WIN32
+    // The owner's keys for --front-panel, one at a time and without Enter (RQ-AKM-076), read as console key events
+    // (`ReadConsoleInputW`) rather than as characters (`_getch`): an event says which key it was apart from what it typed,
+    // so a character such as `à` (0xE0) is never taken for the prefix of an extended key, and the number row can be
+    // read by position. Function, arrow and page keys become the codes of `pc_key`; a character beyond ASCII, and any
+    // other key with no character, a code the mapping gives no meaning to.
+    constexpr WORD SCAN_NUMBER_ROW_FIRST = 0x02;  // the key printed 1 on a QWERTY keyboard
+    constexpr WORD SCAN_NUMBER_ROW_ZERO = 0x0B;   // the key printed 0, the last of the row
+    constexpr int ASCII_LIMIT = 128;
+    constexpr int UNMAPPED_EXTENDED_KEY = akm::harness::pc_key::EXTENDED_BASE + 100;
+
+    std::optional<int> readConsoleKey(bool textMode)
+    {
+        namespace pc_key = akm::harness::pc_key;
+        const HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
+        for (;;)
+        {
+            INPUT_RECORD record{};
+            DWORD read = 0;
+            if (!ReadConsoleInputW(input, &record, 1, &read) || read == 0)
+                return std::nullopt;
+            if (record.EventType != KEY_EVENT || !record.Event.KeyEvent.bKeyDown)
+                continue;
+            const KEY_EVENT_RECORD& key = record.Event.KeyEvent;
+            const WORD virtualKey = key.wVirtualKeyCode;
+            if (virtualKey >= VK_F1 && virtualKey <= VK_F12)
+                return pc_key::F1 + (virtualKey - VK_F1);
+            switch (virtualKey)
+            {
+                case VK_UP:
+                    return pc_key::UP;
+                case VK_DOWN:
+                    return pc_key::DOWN;
+                case VK_LEFT:
+                    return pc_key::LEFT;
+                case VK_RIGHT:
+                    return pc_key::RIGHT;
+                case VK_PRIOR:
+                    return pc_key::PAGE_UP;
+                case VK_NEXT:
+                    return pc_key::PAGE_DOWN;
+                default:
+                    break;
+            }
+            // In the normal mode the number row is the digits printed on it, wherever the layout puts them: an AZERTY row
+            // types `&é"'(-è_çà` unshifted, which would not be digits. Not with Ctrl, Alt or AltGr, which type symbols; not
+            // in the text mode, where what is typed is what is sent; not the numeric pad, whose keys type their digits.
+            const bool symbolModifier =
+                (key.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED | LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0;
+            const bool numberRow = key.wVirtualScanCode >= SCAN_NUMBER_ROW_FIRST && key.wVirtualScanCode <= SCAN_NUMBER_ROW_ZERO
+                                   && (key.dwControlKeyState & ENHANCED_KEY) == 0;
+            if (!textMode && numberRow && !symbolModifier)
+            {
+                if (key.wVirtualScanCode == SCAN_NUMBER_ROW_ZERO)
+                    return '0';
+                return '1' + (key.wVirtualScanCode - SCAN_NUMBER_ROW_FIRST);
+            }
+            const int character = key.uChar.UnicodeChar;
+            if (character >= ASCII_LIMIT)
+                return UNMAPPED_EXTENDED_KEY;
+            if (character != 0)
+                return character;
+            // A modifier alone, a dead key: nothing was typed yet.
+        }
+    }
+
+    // Whether keys can be read one at a time: only from a console, not from a file or a pipe.
+    bool consoleKeysAvailable()
+    {
+        return _isatty(_fileno(stdin)) != 0;
+    }
+#endif
+
     struct Arguments
     {
         bool list = false;
@@ -128,7 +255,13 @@ namespace
         bool slowOperation = false;
         bool programLifecycle = false;
         bool sampleLifecycle = false;
+        bool systemSetup = false;
+        bool diskTools = false;
+        bool diskToolsFiles = false;
+        bool diskToolsAudition = false;
+        bool frontPanel = false;
         bool noLcd = false;
+        std::string diskToolsSlow;
         std::string input;
         std::string output;
         std::string logPath;
@@ -150,6 +283,25 @@ namespace
         return args[index + 1];
     }
 
+    // The §10 long-running item named on the command line by --disk-tools-slow (RQ-AKM-070), or nothing.
+    std::optional<akm::harness::DiskSlowOperation> diskSlowOperationNamed(const std::string& name)
+    {
+        using akm::harness::DiskSlowOperation;
+        if (name == "update-list")
+            return DiskSlowOperation::UpdateList;
+        if (name == "load-folder")
+            return DiskSlowOperation::LoadFolder;
+        if (name == "load-file")
+            return DiskSlowOperation::LoadFile;
+        if (name == "load-file-with-dependents")
+            return DiskSlowOperation::LoadFileWithDependents;
+        if (name == "save-memory-item")
+            return DiskSlowOperation::SaveMemoryItem;
+        if (name == "save-all-memory-items")
+            return DiskSlowOperation::SaveAllMemoryItems;
+        return std::nullopt;
+    }
+
     bool parseNumber(const std::string& text, long long& value)
     {
         try
@@ -162,6 +314,18 @@ namespace
         {
             return false;
         }
+    }
+
+    // The text field a value-taking option fills; --sample-name is the last of the four.
+    std::string& textOptionTarget(Arguments& parsed, const std::string& option)
+    {
+        if (option == "--in")
+            return parsed.input;
+        if (option == "--out")
+            return parsed.output;
+        if (option == "--log")
+            return parsed.logPath;
+        return parsed.sampleName;
     }
 
     Arguments parseArguments(const std::vector<std::string>& args)
@@ -189,15 +353,28 @@ namespace
                 parsed.programLifecycle = true;
             else if (option == "--sample-lifecycle")
                 parsed.sampleLifecycle = true;
+            else if (option == "--system-setup")
+                parsed.systemSetup = true;
+            else if (option == "--disk-tools")
+                parsed.diskTools = true;
+            else if (option == "--disk-tools-files")
+                parsed.diskToolsFiles = true;
+            else if (option == "--disk-tools-audition")
+                parsed.diskToolsAudition = true;
+            else if (option == "--front-panel")
+                parsed.frontPanel = true;
+            else if (option == "--disk-tools-slow")
+            {
+                parsed.diskToolsSlow = valueOf(args, index++, parsed);
+                if (!parsed.error.empty())
+                    break;
+            }
             else if (option == "--no-lcd")
                 parsed.noLcd = true;
             else if (option == "--in" || option == "--out" || option == "--log" || option == "--sample-name")
             {
                 const std::string value = valueOf(args, index++, parsed);
-                (option == "--in"    ? parsed.input
-                 : option == "--out" ? parsed.output
-                 : option == "--log" ? parsed.logPath
-                                     : parsed.sampleName) = value;
+                textOptionTarget(parsed, option) = value;
             }
             else if (option == "--device-id" || option == "--other-device-id" || option == "--timeout-ms")
             {
@@ -226,8 +403,20 @@ namespace
             parsed.error = "--session and --suite cannot be used together";
         if (parsed.error.empty()
             && !parsed.suite
-            && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || !parsed.sampleName.empty()))
-            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle and --sample-name need --suite";
+            && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
+                || parsed.diskTools || parsed.diskToolsFiles || parsed.diskToolsAudition || !parsed.diskToolsSlow.empty()
+                || parsed.frontPanel || !parsed.sampleName.empty()))
+            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
+                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel and --sample-name need --suite";
+        if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
+            parsed.error = "--disk-tools-files needs --disk-tools";
+        if (parsed.error.empty() && parsed.diskToolsAudition && !parsed.diskTools)
+            parsed.error = "--disk-tools-audition needs --disk-tools";
+        if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !parsed.diskTools)
+            parsed.error = "--disk-tools-slow needs --disk-tools";
+        if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !diskSlowOperationNamed(parsed.diskToolsSlow))
+            parsed.error = "--disk-tools-slow needs one of update-list, load-folder, load-file, load-file-with-dependents, "
+                           "save-memory-item, save-all-memory-items, not \"" + parsed.diskToolsSlow + "\"";
         if (parsed.error.empty() && !parsed.sampleName.empty() && !parsed.programLifecycle && !parsed.sampleLifecycle)
             parsed.error = "--sample-name needs --program-lifecycle or --sample-lifecycle";
         return parsed;
@@ -286,6 +475,79 @@ namespace
         for (const std::string& name : backend.outputDeviceNames())
             std::cout << "  \"" << name << "\"\n";
     }
+
+    // What the real-sampler suite is about to do, for the owner to read before pressing Enter.
+    void describeSuite(const Arguments& arguments)
+    {
+        std::cout << "The real-sampler suite will send SysEx frames to \"" << arguments.output << "\" and listen on \""
+                  << arguments.input << "\".\n"
+                  << "Each check opens a session and closes it. It switches the sampler's checksum, Notification, Still Alive"
+                  << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
+                  << "checksums off, Still Alive off, Notification on"
+                  << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off")
+                  << (arguments.programLifecycle || arguments.sampleLifecycle || arguments.systemSetup
+                          ? ".\n"
+                          : ". It changes no stored program or sample.\n");
+        if (arguments.slowOperation)
+            std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
+        if (arguments.powerCycle)
+            std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
+        if (arguments.programLifecycle)
+        {
+            std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", add\n"
+                      << "keygroups to it, round-trip every section 08 item and every non-sample section 06 item on\n"
+                      << "them, and restore the program that was current before; no other program, multi or sample\n"
+                      << "is touched.\n";
+            if (!arguments.sampleName.empty())
+                std::cout << "It will also assign the sample \"" << arguments.sampleName
+                          << "\" to a zone of that program by name and read it back; the sample itself is never\n"
+                          << "created, changed or deleted.\n";
+            else
+                std::cout << "Sample assignment is skipped: no --sample-name was given.\n";
+        }
+        if (arguments.systemSetup)
+            std::cout << "It will also change the sampler's own settings and put them back: its name, its Play Mode (all four,\n"
+                      << "Muted included, which silences it for an instant), its front-panel lock (locked for an instant) and\n"
+                      << "its clock (advanced by the time elapsed when put back, to about three seconds). It never sends Clear\n"
+                      << "Sampler Memory. Note the sampler's name and time before you start.\n";
+        if (arguments.diskTools)
+            std::cout << "It will also ask you which writable disk the sampler reports valid to select, create the sub-folder\n"
+                      << "XS56K_SUITE_TEST under its current folder, work inside it and delete it again. The selection stays\n"
+                      << "on the sampler (no command clears it) and nothing that existed before is touched. Note the disks\n"
+                      << "and the current folder on the sampler before you start.\n";
+        if (arguments.diskToolsAudition)
+            std::cout << "It will also play the first .WAV file at the root of the selected disk for 3 seconds (it plays a\n"
+                      << "sound), once you confirm that one is there. Nothing is saved for it.\n";
+        if (arguments.diskToolsFiles)
+            std::cout << "It will also save the test program into the sub-folder (you confirm the file on the sampler), read,\n"
+                      << "rename and delete the file.\n";
+        if (arguments.frontPanel)
+            std::cout << "It will also let you drive the sampler's front panel from the PC keyboard: you choose the screen the\n"
+                      << "sampler shows, then each key you press is sent as the sampler key it stands for (the mapping is printed\n"
+                      << "first), nothing else. The keys act on whatever the sampler shows: SAVE, ENT/PLAY or the data wheel can\n"
+                      << "change or delete your data on some screens. Put the sampler on a screen where that cannot hurt.\n";
+        if (!arguments.diskToolsSlow.empty())
+            std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
+                      << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
+                      << "process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md): if it does, the sampler will\n"
+                      << "need a power cycle by hand. Be ready to do that.\n";
+        if (arguments.diskToolsSlow == "update-list")
+            std::cout << "WARNING: update-list hangs the sampler on this rig: the S5000 (OS 2.14) with a SCSI2SD disk (an\n"
+                      << "SCSI emulator on an SD card) stopped answering on it, from this check and from the sampler's own\n"
+                      << "screen. Expect the check to fail and the sampler to need a power cycle by hand, then the folder\n"
+                      << "XS56K_SUITE_TEST to be removed by hand.\n";
+        if (arguments.sampleLifecycle)
+        {
+            if (!arguments.sampleName.empty())
+                std::cout << "It will also select the sample \"" << arguments.sampleName
+                          << "\", rename it and back, start and stop auditioning it, round-trip every settable\n"
+                          << "section 0E item on it, and restore its name, its parameters and the sampler's\n"
+                          << "original current-sample selection; it never sends section 0E's Delete ALL or\n"
+                          << "Delete current sample item.\n";
+            else
+                std::cout << "The sample lifecycle check is skipped: no --sample-name was given.\n";
+        }
+    }
 }
 
 int main(int argc, char** argv)
@@ -327,43 +589,7 @@ int main(int argc, char** argv)
     if (!arguments.yes)
     {
         if (arguments.suite)
-        {
-            std::cout << "The real-sampler suite will send SysEx frames to \"" << arguments.output << "\" and listen on \""
-                      << arguments.input << "\".\n"
-                      << "Each check opens a session and closes it. It switches the sampler's checksum, Notification, Still Alive"
-                      << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
-                      << "checksums off, Still Alive off, Notification on"
-                      << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off")
-                      << (arguments.programLifecycle || arguments.sampleLifecycle ? ".\n" : ". It changes no stored program or sample.\n");
-            if (arguments.slowOperation)
-                std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
-            if (arguments.powerCycle)
-                std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
-            if (arguments.programLifecycle)
-            {
-                std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", add\n"
-                          << "keygroups to it, round-trip every section 08 item and every non-sample section 06 item on\n"
-                          << "them, and restore the program that was current before; no other program, multi or sample\n"
-                          << "is touched.\n";
-                if (!arguments.sampleName.empty())
-                    std::cout << "It will also assign the sample \"" << arguments.sampleName
-                              << "\" to a zone of that program by name and read it back; the sample itself is never\n"
-                              << "created, changed or deleted.\n";
-                else
-                    std::cout << "Sample assignment is skipped: no --sample-name was given.\n";
-            }
-            if (arguments.sampleLifecycle)
-            {
-                if (!arguments.sampleName.empty())
-                    std::cout << "It will also select the sample \"" << arguments.sampleName
-                              << "\", rename it and back, start and stop auditioning it, round-trip every settable\n"
-                              << "section 0E item on it, and restore its name, its parameters and the sampler's\n"
-                              << "original current-sample selection; it never sends section 0E's Delete ALL or\n"
-                              << "Delete current sample item.\n";
-                else
-                    std::cout << "The sample lifecycle check is skipped: no --sample-name was given.\n";
-            }
-        }
+            describeSuite(arguments);
         else if (arguments.session)
             std::cout << "The session smoke test will send SysEx frames to \"" << arguments.output << "\" and listen on \""
                       << arguments.input << "\".\n"
@@ -395,6 +621,18 @@ int main(int argc, char** argv)
         options.powerCycle = arguments.powerCycle;
         options.programLifecycle = arguments.programLifecycle;
         options.sampleLifecycle = arguments.sampleLifecycle;
+        options.systemSetup = arguments.systemSetup;
+        options.diskTools = arguments.diskTools;
+        options.diskToolsFiles = arguments.diskToolsFiles;
+        options.diskToolsAudition = arguments.diskToolsAudition;
+        options.frontPanel = arguments.frontPanel;
+#ifdef _WIN32
+        if (consoleKeysAvailable())
+            options.readOwnerKey = readConsoleKey;
+#endif
+        options.tellOwner = [](const std::string& line) { std::cout << "    " << line << std::endl; };
+        if (!arguments.diskToolsSlow.empty())
+            options.diskToolsSlow = diskSlowOperationNamed(arguments.diskToolsSlow);
         if (!arguments.sampleName.empty())
             options.sampleName = arguments.sampleName;
         options.startedAt = utcNow(false);
@@ -403,6 +641,28 @@ int main(int argc, char** argv)
             std::string answer;
             std::getline(std::cin, answer);
             return answer != "skip";
+        };
+        options.askOwnerChoice = [](const std::string& question, const std::vector<std::string>& choices) -> std::optional<std::size_t> {
+            std::cout << "\n>>> " << question << '\n';
+            for (std::size_t index = 0; index < choices.size(); ++index)
+                std::cout << "    " << (index + 1) << ". " << choices[index] << '\n';
+            for (;;)
+            {
+                std::cout << "    Type the number of the disk, or skip to skip this check: " << std::flush;
+                std::string answer;
+                if (!std::getline(std::cin, answer) || answer == "skip")
+                    return std::nullopt;
+                try
+                {
+                    const std::size_t number = std::stoul(answer);
+                    if (number >= 1 && number <= choices.size())
+                        return number - 1;
+                }
+                catch (const std::exception&)
+                {
+                }
+                std::cout << "    Not one of the numbers above.\n";
+            }
         };
 
         const akm::harness::RealSuiteResult result = akm::harness::runRealSamplerSuite(backend, driver, options, log);

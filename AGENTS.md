@@ -72,7 +72,48 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   (OS 2.14, no disk drive attached): `--slow-operation` got no reply at all, `F0 F7` included, and left the sampler
   answering no SysEx — a fresh discovery included — until it was power-cycled by hand; run `--power-cycle` on its
   own, not together with `--slow-operation`, if the point is to test persistence across a graceful restart
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). Exit status 0 when every check
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). More opt-in checks — `--program-lifecycle`,
+  `--sample-lifecycle` with `--sample-name`, listed by `--help` — each put back what they change, and
+  `--system-setup` adds two checks on the sampler's own settings: it reads the model and the memory, then round-trips
+  the sampler's name, its four Play Modes (the Muted mode the spec's data column leaves out included, whether the
+  sampler accepts it being what is observed), its front-panel lock (locked for an instant) and its clock, and puts each
+  back — the lock first, the clock advanced by the time elapsed, to about three seconds — even when a check fails half
+  way. It never sends section 02's Clear Sampler Memory (`&32`), which no real-sampler test may call.
+  `--disk-tools` (needs `--suite`) adds one check on the disk (section 10, RQ-AKM-071): it lists the connected disks
+  (`&04`, `&05`, read only), tests the writable ones (`&03`, read only) and asks the owner to choose one of the valid
+  ones, which it selects (`&02`, RQ-AKM-061 — every disk operation acts on that SysEx selection, which the front panel
+  does not set; nothing in section 10 clears it, so it stays selected). It creates the disposable sub-folder
+  `XS56K_SUITE_TEST` under that disk's current folder, works inside it, and deletes it again through the confirmed
+  `&17` guard. No usable disk, or no way to ask, skips the check before anything is selected or created. It also reads
+  the selected disk's type and name by handle (`&07`, `&0E`). `--disk-tools-files` (needs `--disk-tools`) adds one
+  check on the file items (RQ-AKM-068, RQ-AKM-069): it saves the test program into the sub-folder (the owner confirms
+  the file on the sampler; no owner to ask, no save), then reads (`&21`, `&23`, `&24`), renames (`&28`), deletes
+  (`&29`). It does not audition: `&30`/`&31` audition a sample from disk, and this check saves a program. The rename
+  takes the name without its extension, since the sampler appends the file's own extension (seen on the S5000:
+  `XS56K_RENAMED.AKP` given became `XS56K_RENAMED.AKP.AKP`); after it, the check lists the sub-folder (`&22`) and
+  expects exactly the renamed file.
+  `--disk-tools-audition` (needs `--disk-tools`) adds one check on the audition of a sample from disk (RQ-AKM-068,
+  `&30`, `&31`): the owner confirms that a `.WAV` file is at the root of the selected disk; the first one found is
+  started and, after 3 seconds, stopped. A stop the sampler refuses is recorded, not failed (a shorter sample may have
+  ended). It plays a sound and saves nothing.
+  It touches nothing that existed before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
+  sub-folder with Still Alive on — `update-list`, `load-folder`, `load-file`, `load-file-with-dependents`,
+  `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the
+  sampler (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7): a hang needs a power
+  cycle by hand, so run one only when ready for it. `load-file` and `load-file-with-dependents` send one save (`&2C`)
+  first, since a file can only be made inside the sub-folder by saving; the owner then confirms on the sampler that the
+  file is there (declining skips the check, and a save is never sent without a way to ask).
+  `--front-panel` adds the owner-driven check of the front panel (section 20, RQ-AKM-076): the probe prints the mapping
+  of PC keys to sampler keys (`juce/tests/support/include/akm/harness/FrontPanelRemote.hpp` and its `.cpp`, the one source
+  of the mapping and of what is printed), you confirm that the sampler shows a screen of your choice, then every key you
+  press is sent as the sampler key it stands for — F1–F8, digits, `-` `+`, cursors, Enter (ENT/PLAY), Space (ENT/PLAY held
+  until the next Space), Escape (EXIT), the mode keys as letters (`m x s p r u v l w k j`), the data wheel on the up/down
+  and page keys, Tab for a text mode that sends printable keys as ASCII — and nothing else is sent; `q` ends it. The keys
+  act on whatever the sampler shows: SAVE, ENT/PLAY or the wheel can change or delete data on some screens, so choose the
+  screen with care. Every key still held is released at the end, and by the session's close if the check fails (DEC-AKM-019).
+  Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run it on the real sampler once:
+  whether the S5000 obeys each key, takes Backspace/Enter as ASCII 8/13, or counts Holds of one key, is not yet observed.
+  Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`

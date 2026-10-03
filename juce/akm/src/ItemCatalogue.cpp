@@ -30,4 +30,12 @@ namespace akm
         });
         return found == ITEM_TABLE.end() ? nullptr : &*found;
     }
+
+    const ItemDescriptor* findReplyItem(std::uint8_t section, std::uint8_t item)
+    {
+        const auto found = std::find_if(ITEM_TABLE.begin(), ITEM_TABLE.end(), [section, item](const ItemDescriptor& record) {
+            return record.item == item && (record.section == section || record.replySection == section);
+        });
+        return found == ITEM_TABLE.end() ? nullptr : &*found;
+    }
 }

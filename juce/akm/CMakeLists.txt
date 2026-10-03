@@ -13,6 +13,8 @@ add_library(xs56k_akm STATIC
     src/CommandResult.cpp
     src/Confirmation.cpp
     src/DiagnosticSink.cpp
+    src/DiskPrimitives.cpp
+    src/FrontPanel.cpp
     src/ItemCatalogue.cpp
     src/ItemRequest.cpp
     src/KeygroupPrimitives.cpp
@@ -26,6 +28,7 @@ add_library(xs56k_akm STATIC
     src/Session.cpp
     src/SessionConfig.cpp
     src/SysExConfig.cpp
+    src/SystemSetup.cpp
     src/SystemVersion.cpp
     src/ThreadExecutor.cpp
     src/TimerQueue.cpp

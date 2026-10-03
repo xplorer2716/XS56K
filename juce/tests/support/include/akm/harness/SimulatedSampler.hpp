@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <compare>
 #include <cstdint>
@@ -83,6 +84,27 @@ namespace akm::harness
         std::uint16_t number = 0;
     };
 
+    /// An item whose REPLY the sampler tags with another section than the command's: what the S5000 (OS 2.14) does
+    /// for Get Clock Time & Date (§02/&05), whose REPLY carries section 0B — observed on the hardware by TASK-AKM-053.
+    /// Its OK, DONE and ERROR keep the command's section. [RQ-AKM-059]
+    struct ReplySectionOverride
+    {
+        std::uint8_t section = 0;
+        std::uint8_t item = 0;
+        std::uint8_t replySection = 0;
+    };
+
+    /// The anomaly observed on the S5000, which the simulated sampler reproduces by default.
+    inline constexpr ReplySectionOverride S5000_CLOCK_REPLY_SECTION{0x02, 0x05, 0x0B};
+
+    /// An item the sampler executes and answers with nothing at all, not even the OK: a sampler that is deaf to one item
+    /// and not to the others, where `SamplerBehaviour::silent` is deaf to all. [RQ-AKM-075]
+    struct SilentItem
+    {
+        std::uint8_t section = 0;
+        std::uint8_t item = 0;
+    };
+
     /// What a real bus does badly, switchable per sampler.
     struct SamplerBehaviour
     {
@@ -99,6 +121,8 @@ namespace akm::harness
         std::optional<std::uint16_t> errorAfterReply{};
         /// Items answered with an ERROR instead of being executed.
         std::vector<ItemError> itemErrors{};
+        /// Items executed and answered with nothing.
+        std::vector<SilentItem> silentItems{};
         /// While Still Alive is on and a reply is delayed, an `F0 F7` this often (spec: about every second).
         Scheduler::Clock::duration stillAliveInterval = std::chrono::seconds(1);
         ConfirmationDeviceId confirmationDeviceId = ConfirmationDeviceId::Own;
@@ -107,6 +131,9 @@ namespace akm::harness
         /// follows the previous mode (first-contact probe, TASK-AKM-012). Set to false to model a sampler that
         /// confirms in the previous mode.
         bool checksumChangeAppliesToOwnConfirmation = true;
+        /// Items whose REPLY carries another section than the command's. The real S5000 does it for the clock, and
+        /// so does the model by default; `clear()` it for a sampler that follows the spec to the letter.
+        std::vector<ReplySectionOverride> replySectionOverrides{S5000_CLOCK_REPLY_SECTION};
     };
 
     /// A command the sampler accepted: addressed to it, well framed, with a valid checksum when checksums
@@ -182,6 +209,127 @@ namespace akm::harness
         return a.name == b.name && a.keygroupCount == b.keygroupCount && a.crossfade == b.crossfade;
     }
 
+    /// The §02 system setup this model holds beyond the OS version (spec Tables 6-7), one field per item
+    /// pair as PLAN-AKM-006's tasks add them. Unlike the §00 settings it survives `powerCycle()`: the
+    /// real sampler keeps its name across a power cycle. [RQ-AKM-052]
+    struct SystemSetupState
+    {
+        /// What a sampler carries until its user changes it (Table 6, footnote b).
+        std::string name = "AKAI S5000";
+        /// &04's byte: 0 = S5000, 1 = S6000 (any other value is for a test that wants a malformed REPLY).
+        std::uint8_t model = 0;
+        /// The Wave memory (&30, &33, &34) and the MPKS memory (&31). The Wave percentage is derived from
+        /// the two byte counts, as it is on the real sampler; the defaults (64 MiB all free) are arbitrary,
+        /// the spec giving none. [RQ-AKM-053]
+        std::uint32_t waveTotalBytes = 64u * 1024 * 1024;
+        std::uint32_t waveFreeBytes = 64u * 1024 * 1024;
+        std::uint8_t mpksFreePercent = 100;
+        /// The clock (&05/&06, RQ-AKM-054) as the eight data bytes of the wire — year MSB and LSB, month, day of
+        /// month, day of week, hours, minutes, seconds — set to Saturday 1 January 2000, 00:00:00 (the spec
+        /// gives no default; 2000 is MSB 15, LSB 80).
+        std::array<std::uint8_t, 8> clock{15, 80, 1, 1, 7, 0, 0, 0};
+        /// The Play Mode (&10/&20, RQ-AKM-055): 0 = Multi, 1 = Program, 2 = Sample, 3 = Muted; Program until a
+        /// Set (the spec gives no default). Any other byte is for a test that wants a malformed REPLY.
+        std::uint8_t playMode = 1;
+        /// The front-panel lock (&11/&21): 0 = normal, 1 = locked.
+        std::uint8_t frontPanelLock = 0;
+        /// The highest Play Mode a Set accepts: 3 (Muted), the item's text; 2 models a sampler that follows
+        /// the spec's data column "0, 1, 2" instead (the erratum of §02/&10, RQ-AKM-057).
+        std::uint8_t highestPlayMode = 3;
+    };
+
+    /// What kind of §20 item the sampler received (RQ-AKM-073, RQ-AKM-074).
+    enum class FrontPanelEventKind
+    {
+        KeyHold,
+        KeyRelease,
+        DataWheel,
+        AsciiKey,
+    };
+
+    /// One §20 item the sampler queued, in order of arrival: `first` is its first data byte (a key's keycode, the
+    /// wheel's direction, the ASCII value) and `second` its second one (the wheel's clicks, else 0). Section §20 has
+    /// no Get, so this record is how a test sees what the sampler received. [RQ-AKM-073, RQ-AKM-074]
+    struct FrontPanelEvent
+    {
+        FrontPanelEventKind kind = FrontPanelEventKind::KeyHold;
+        std::uint8_t first = 0;
+        std::uint8_t second = 0;
+
+        friend bool operator==(const FrontPanelEvent&, const FrontPanelEvent&) = default;
+    };
+
+    /// The front panel as this model holds it: what it was sent and which keys are down now — a Hold puts a keycode
+    /// in `keysDown` (once), a Release takes it out (releasing a key that is not down is accepted and changes
+    /// nothing: the spec says nothing of it). Like the §02 setup it survives `powerCycle()`. [RQ-AKM-073,
+    /// RQ-AKM-075]
+    struct FrontPanelState
+    {
+        std::vector<std::uint8_t> keysDown{};
+        std::vector<FrontPanelEvent> events{};
+    };
+
+    /// One folder of a disk's hierarchy (§10/&10-&14, &16, &18, RQ-AKM-063): a name (ignored for the
+    /// root, which is reached with an empty path from `DiskRecord::rootFolder`, not a `FolderRecord` of
+    /// its own) and its sub-folders, in creation order (the spec's own order for &12, since nothing
+    /// deletes a folder yet — TASK-AKM-063's own lot).
+    /// One file listed in a folder (§10/&20-&24, &28, RQ-AKM-065): a name and a size in bytes, both
+    /// arbitrary (no real file content is modelled). Independent of `FolderRecord::programFiles`/
+    /// `sampleFiles`: a test that wants a listed file to also be loadable adds it to both, the way a
+    /// real folder's own file would be both listed and loadable.
+    struct FileRecord
+    {
+        std::string name;
+        std::uint32_t sizeBytes = 0;
+        /// What loading this file (§10/&2A/&2B, RQ-AKM-066) materializes: a program or a sample, named
+        /// independently of the file's own name since the real format does not require them to match.
+        /// Empty when this file represents neither — listed, but loading it adds nothing, which the
+        /// spec does not forbid.
+        std::optional<std::string> loadsProgramNamed{};
+        std::optional<std::string> loadsSampleNamed{};
+        /// Names of other files in the same folder this one depends on (§10/&2B only; §10/&2A never
+        /// follows these, spec footnotes d/e): one level, not modelled recursively beyond it, since
+        /// nothing in RQ-AKM-066 needs more.
+        std::vector<std::string> dependsOnFiles{};
+    };
+
+    struct FolderRecord
+    {
+        // Default member initializers, so a partial aggregate initializer is not a missing-field warning (GCC -Werror).
+        std::string name{};
+        std::vector<FolderRecord> subFolders{};
+        /// Programs and samples this folder directly contains, loaded by name into memory when this
+        /// folder or an ancestor is loaded (§10/&15, RQ-AKM-064), alongside whatever `subFolders`
+        /// recursively contains too. A real disk's files are not modelled (there is no AKAI file format
+        /// here, only the SysEx protocol), so a "file" is just the name it would load, nothing else.
+        std::vector<std::string> programFiles{};
+        std::vector<std::string> sampleFiles{};
+        /// The files this folder lists (RQ-AKM-065), separate from the above: listing and loading are
+        /// different items of the spec, and nothing requires every listed file to be loadable or every
+        /// loadable name to be listed.
+        std::vector<FileRecord> files{};
+    };
+
+    /// One disk connected to the sampler (§10, spec Tables 20-21): only what TASK-AKM-057's discovery
+    /// primitives set or read. `handle` is the model's own index into `SimulatedSampler`'s disk list,
+    /// not a value the spec assigns meaning to beyond "the disk `&02` was last asked to select".
+    /// [RQ-AKM-060]
+    struct DiskRecord
+    {
+        int handle = 0;
+        std::uint8_t type = 0;     ///< 0 = floppy, 1 = hard disk, 2 = CD-ROM, 3 = removable
+        std::uint8_t format = 0;   ///< 0 = other, 1 = MSDOS, 2 = FAT32, 3 = ISO9660, 4 = S1000, 5 = S3000, 6 = EMU, 7 = ROLAND
+        std::uint8_t scsiId = 0;
+        bool writable = true;
+        std::string name;
+        /// §10/&0B (RQ-AKM-062): the Compound Quad Word the spec gives no default for; arbitrary like
+        /// every other memory default in this model (`SystemSetupState::waveTotalBytes`).
+        std::uint64_t freeBytes = 0;
+        /// §10/&10-&14, &16, &18 (RQ-AKM-063): the disk's folder tree, root unnamed. A test seeds it
+        /// through this field directly, the same way `setDisks` seeds everything else about a disk.
+        FolderRecord rootFolder{};
+    };
+
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
     /// primitives set or read. Unlike a program, this model has no "create" for a sample: §0E has no
     /// such item (a sample only exists once `setSampleNames` — or a later item of this lot — puts it
@@ -234,11 +382,54 @@ namespace akm::harness
         /// wants a successful assignment or selection must call this first, like `setBehaviour`.
         void setSampleNames(std::vector<std::string> names);
 
+        /// Seeds the sampler's multis (§0C) by name. No §0C item is modelled — the section is not implemented —
+        /// so a multi can neither be read nor changed but through here; it exists so that Clear Sampler Memory
+        /// (§02/&32, RQ-AKM-056), which deletes "all programs/multis/samples", has all three to delete.
+        void setMultiNames(std::vector<std::string> names);
+
+        /// How many multis the sampler holds (RQ-AKM-056).
+        [[nodiscard]] std::size_t multiCount() const;
+
         /// Seeds the read-only attributes of the sample at `index` (§0E/&30-&33, RQ-AKM-049) — no Set
         /// item exists for them, so a test sets them directly, like `setSampleNames` itself. A no-op
         /// when `index` names no sample.
         void setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
                                  std::uint32_t length, std::uint32_t rate);
+
+        /// Sets what &04 reports (RQ-AKM-053): 0 = S5000, 1 = S6000, any other byte a REPLY no model has.
+        void setModel(std::uint8_t model);
+
+        /// Sets the memory &30, &31, &33 and &34 report (RQ-AKM-053): the Wave memory's total and free
+        /// bytes — its free percentage follows from them — and the free percentage of the MPKS memory, which
+        /// is given as is, whatever its value.
+        void setMemory(std::uint32_t waveTotalBytes, std::uint32_t waveFreeBytes, std::uint8_t mpksFreePercent);
+
+        /// Seeds the disks §10/&04 and &05 report (RQ-AKM-060), in the order given; each is otherwise
+        /// unchanged by this call (§10/&01, Update List of Disks, is a no-op in this model: the list a
+        /// test seeds here is always what &04/&05 answer, whether or not &01 was sent first).
+        void setDisks(std::vector<DiskRecord> disks);
+
+        /// Makes the disk at `index` the current one, as &02 would, with the current folder back at the root
+        /// (RQ-AKM-071: the real-sampler suite's Disk Tools checks start from whatever disk is current). A no-op
+        /// when `index` names no disk.
+        void setCurrentDisk(std::size_t index);
+
+        /// Sets what &20 reports (RQ-AKM-055): 0-3 are the four Play Modes, any other byte a REPLY no mode has.
+        void setPlayMode(std::uint8_t playMode);
+
+        /// Sets what &21 reports (RQ-AKM-055): 0 = normal, 1 = locked, any other byte a REPLY no state has.
+        void setFrontPanelLock(std::uint8_t lock);
+
+        /// Sets the highest Play Mode &10 accepts (RQ-AKM-057): above it a Set fails with ERROR OUT_OF_RANGE.
+        void setHighestPlayMode(std::uint8_t highest);
+
+        /// The §02 state beyond the OS version, as it is now: what a test compares with what it started with
+        /// (RQ-AKM-058).
+        [[nodiscard]] SystemSetupState systemSetup() const;
+
+        /// The front panel as it is now (§20, RQ-AKM-073): every item the sampler queued, in order, and the keys
+        /// held down.
+        [[nodiscard]] FrontPanelState frontPanel() const;
 
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.
@@ -263,6 +454,10 @@ namespace akm::harness
         mutable std::mutex _mutex;
         SamplerBehaviour _behaviour;
         SamplerSettings _settings;
+        // §02 system setup beyond the OS version (RQ-AKM-052): not touched by powerCycle().
+        SystemSetupState _system;
+        // §20 front panel (RQ-AKM-073): not touched by powerCycle().
+        FrontPanelState _frontPanel;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
 
@@ -278,5 +473,18 @@ namespace akm::harness
         // §0A's current program, §0E's current sample has no dependent selection to reset alongside it.
         std::vector<SampleRecord> _samples;
         std::optional<std::size_t> _currentSample;
+        // §0C multis (RQ-AKM-056): names only, seeded by `setMultiNames` and emptied by §02/&32; not touched by
+        // powerCycle().
+        std::vector<std::string> _multis;
+        // §10 disks (RQ-AKM-060), seeded by `setDisks`: not touched by powerCycle() or by &01.
+        std::vector<DiskRecord> _disks;
+        // §10 current disk selection (RQ-AKM-061, &02): an index into `_disks`, reset whenever `setDisks`
+        // reseeds the list, since a handle from the old list would otherwise dangle.
+        std::optional<std::size_t> _currentDisk;
+        // §10 current folder (RQ-AKM-063): a path of sub-folder indices from the current disk's
+        // `rootFolder`, empty at the root. Reset whenever `setDisks` reseeds the list or `&02` changes
+        // the current disk — the spec says nothing of what survives a disk change, and a stale path
+        // from a different disk's tree would be meaningless.
+        std::vector<std::size_t> _currentFolderPath;
     };
 }

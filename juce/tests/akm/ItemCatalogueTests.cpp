@@ -59,7 +59,7 @@ namespace
         std::optional<std::size_t> replyLength;
     };
 
-    const std::array<Expected, 9> CATALOGUE{{
+    const std::array<Expected, 23> CATALOGUE{{
         {ItemId::SysExQuery, 0x00, 0x00, ItemKind::Set, 0, std::nullopt},
         {ItemId::SysExNotification, 0x00, 0x01, ItemKind::Set, 1, std::nullopt},
         {ItemId::SysExSyncLcd, 0x00, 0x03, ItemKind::Set, 1, std::nullopt},
@@ -69,16 +69,38 @@ namespace
         {ItemId::SysExStillAlive, 0x00, 0x07, ItemKind::Set, 1, std::nullopt},
         {ItemId::SystemOsVersion, 0x02, 0x00, ItemKind::Get, 0, 2},
         {ItemId::SystemOsSubVersion, 0x02, 0x01, ItemKind::Get, 0, 1},
+        // The sampler name (TASK-AKM-048, RQ-AKM-052): a String has no fixed REPLY length.
+        {ItemId::SystemSetName, 0x02, 0x02, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SystemGetName, 0x02, 0x03, ItemKind::Get, 0, std::nullopt},
+        // The clock and date (TASK-AKM-050, RQ-AKM-054): seven values, the year a compound word, so eight
+        // data bytes in a REPLY.
+        {ItemId::SystemGetClock, 0x02, 0x05, ItemKind::Get, 0, 8},
+        {ItemId::SystemSetClock, 0x02, 0x06, ItemKind::Set, 7, std::nullopt},
+        // The Play Mode and the front-panel lock (TASK-AKM-051, RQ-AKM-055): one byte each.
+        {ItemId::SystemSetPlayMode, 0x02, 0x10, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SystemSetFrontPanelLock, 0x02, 0x11, ItemKind::Set, 1, std::nullopt},
+        {ItemId::SystemGetPlayMode, 0x02, 0x20, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetFrontPanelLock, 0x02, 0x21, ItemKind::Get, 0, 1},
+        // The guarded Clear Sampler Memory (TASK-AKM-052, RQ-AKM-056): no argument, no REPLY.
+        {ItemId::SystemClearMemory, 0x02, 0x32, ItemKind::Set, 0, std::nullopt},
+        // The model and the available memory (TASK-AKM-049, RQ-AKM-053): one byte each, the byte counts
+        // a compound double word of four data bytes.
+        {ItemId::SystemGetModel, 0x02, 0x04, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetWaveMemoryPercent, 0x02, 0x30, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetMpksMemoryPercent, 0x02, 0x31, ItemKind::Get, 0, 1},
+        {ItemId::SystemGetWaveMemoryTotal, 0x02, 0x33, ItemKind::Get, 0, 4},
+        {ItemId::SystemGetWaveMemoryFree, 0x02, 0x34, ItemKind::Get, 0, 4},
     }};
 
     constexpr std::size_t SYSEX_CONFIG_ITEM_COUNT = 7;
     constexpr std::uint8_t SECTION_SYSEX_CONFIG = 0x00;
 
     // One argument of every numeric format, with the ranges the formats allow.
-    constexpr std::array<ValueSpec, 6> EVERY_FORMAT{{
+    constexpr std::array<ValueSpec, 7> EVERY_FORMAT{{
         {"byte", ValueFormat::Byte, 0, 127},
         {"word", ValueFormat::Word, 0, 16383},
         {"dword", ValueFormat::Dword, 0, 268435455},
+        {"qword", ValueFormat::Qword, 0, 72057594037927935},
         {"signedByte", ValueFormat::SignedByte, -127, 127},
         {"signedWord", ValueFormat::SignedWord, -16383, 16383},
         {"signedDword", ValueFormat::SignedDword, -268435455, 268435455},
@@ -128,7 +150,8 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     }
 
     CHECK(sysexConfig == SYSEX_CONFIG_ITEM_COUNT);
-    // CATALOGUE tracks only sections 00 and 02; TASK-AKM-015 to 023 added 95 records of section 0A (now
+    // CATALOGUE tracks only sections 00 and 02 (PLAN-AKM-006's items are added to it one task at a time);
+    // TASK-AKM-015 to 023 added 95 records of section 0A (now
     // complete, TASK-AKM-023's guarded &07 included), TASK-AKM-026 to 032 added section 08's selection
     // (2), General Options (12), Pitch/Amp (10), Filter (12), Filter Envelope (18), Amplitude Envelope
     // (16) and Aux Envelope (10) — complete too (80/80 commands, 40/40 REPLY formats) — TASK-AKM-035
@@ -139,10 +162,28 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // remaining general-information items), TASK-AKM-043 added the 8 settable parameters and their
     // Gets (RQ-AKM-048: &20-&24, &28-&2A / &40-&44, &48-&4A) and TASK-AKM-044 added the 4 read-only
     // parameters and the two grouped-REPLY items (RQ-AKM-049: &30-&33, &34, &4B), 0E now 34/34,
-    // complete — which this count includes without tracking them here too (see
+    // complete; TASK-AKM-057 added section 10's first 3 records, disk discovery (RQ-AKM-060: &01, &04,
+    // &05), TASK-AKM-058 added 6 more, selection and status (RQ-AKM-061: &02, &03, &06-&09), and
+    // TASK-AKM-059 added 3 more, format/free space/name (RQ-AKM-062: &0A, &0B, &0E — the catalogue's
+    // first `Qword`, ADR-AKM-001 DEC-AKM-017), TASK-AKM-060 added 7 more, folder navigation, listing
+    // and management (RQ-AKM-063: &10-&14, &16, &18 — &18 the catalogue's first item with two `String`
+    // arguments, ADR-AKM-001 DEC-AKM-018), TASK-AKM-061 added 1 more, Load Folder (RQ-AKM-064: &15),
+    // and TASK-AKM-062 added 6 more, file listing/info/rename (RQ-AKM-065: &20-&24, &28 — &23's
+    // Compound Double Word split into four Bytes like §0E's position/loop items, not a single `Dword`
+    // like §02's Wave memory, since its own spec row decomposes into four comparable columns), and
+    // TASK-AKM-063 added 2 more, Load File with and without dependents (RQ-AKM-066: &2A, &2B — &2A's
+    // String-then-Byte shape built by hand, like `ProgramSetNumber`'s own conditional shape), and
+    // TASK-AKM-064 added 2 more, Save Memory Item(s) to disk (RQ-AKM-067: &2C, &2D), and TASK-AKM-065
+    // added 2 more, sample audition from disk (RQ-AKM-068: &30, &31), and TASK-AKM-066 added the last 3,
+    // destructive command guards for Eject/Delete Sub-Folder/Delete File (RQ-AKM-069: &0D, &17, &29) —
+    // completing §10's 35 command rows, and TASK-AKM-070 added 2 of section 20, Key Hold and Key Release
+    // (RQ-AKM-073: &01, &02) and TASK-AKM-071 the last 2, the data wheel and the ASCII keyboard
+    // (RQ-AKM-074: &03, &04) — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
-    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp and the other test files).
-    constexpr std::size_t PROGRAM_ITEM_COUNT = 95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6;
+    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp,
+    // FrontPanelTests.cpp and the other test files).
+    constexpr std::size_t PROGRAM_ITEM_COUNT =
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
@@ -153,12 +194,12 @@ TEST_CASE("Given a section and an item, When looked up, Then a record is found a
         CHECK(akm::findItem(expected.section, expected.item) == &akm::descriptor(expected.id));
 
     // Section 00 has no item 02 (the spec skips it); sections 0A (TASK-AKM-023), 08 (TASK-AKM-032) and
-    // 06 (TASK-AKM-036) are now all complete, so this uses section 02 (System), still partial: only its
-    // two version items (RQ-AKM-044) are catalogued, not &02.
+    // 06 (TASK-AKM-036) are now all complete, so this uses section 02 (System): the spec has no item
+    // &07 there, whatever PLAN-AKM-006 catalogues of the rest of the section.
     CHECK(akm::findItem(0x00, 0x02) == nullptr);
-    CHECK(akm::findItem(0x02, 0x02) == nullptr);
-    // The same item code in another section is another item.
-    CHECK(akm::findItem(0x02, 0x06) == nullptr);
+    CHECK(akm::findItem(0x02, 0x07) == nullptr);
+    // The same item code in another section is another item: &0A is Set Program Number in §0A, not §02.
+    CHECK(akm::findItem(0x02, 0x0A) == nullptr);
 }
 
 TEST_CASE("Given each record, When the length of its REPLY is asked, Then a Set has none and a Get has the total width of its values [RQ-AKM-041]",
@@ -174,11 +215,12 @@ TEST_CASE("Given each value format, When its width is asked, Then it is the numb
     CHECK(akm::valueWidth(ValueFormat::Byte) == 1);
     CHECK(akm::valueWidth(ValueFormat::Word) == 2);
     CHECK(akm::valueWidth(ValueFormat::Dword) == 4);
+    CHECK(akm::valueWidth(ValueFormat::Qword) == 8);
     // A sign byte, then the magnitude in a byte, a word or a dword.
     CHECK(akm::valueWidth(ValueFormat::SignedByte) == 2);
     CHECK(akm::valueWidth(ValueFormat::SignedWord) == 3);
     CHECK(akm::valueWidth(ValueFormat::SignedDword) == 5);
-    CHECK(EVERY_FORMAT_ITEM.fixedReplyLength() == 1 + 2 + 4 + 2 + 3 + 5);
+    CHECK(EVERY_FORMAT_ITEM.fixedReplyLength() == 1 + 2 + 4 + 8 + 2 + 3 + 5);
 }
 
 TEST_CASE("Given the String value format, When its width is asked, Then it is undefined: a String has no fixed width [RQ-AKM-002]",
@@ -297,14 +339,15 @@ TEST_CASE("Given options for the command, When it is encoded, Then they are kept
 TEST_CASE("Given a value of each numeric format, When encoded, Then the bytes are those the spec gives [RQ-AKM-002]",
           "[akm][catalogue]")
 {
-    const std::array<std::int64_t, 6> values{{5, 385, 268435455, -5, -37, 1}};
+    const std::array<std::int64_t, 7> values{{5, 385, 268435455, 128, -5, -37, 1}};
 
     const akm::CommandRequest request = akm::makeRequest(EVERY_FORMAT_ITEM, values);
 
     CHECK_FALSE(request.refusal.has_value());
-    // byte 5 | word 385 = 03 01 | dword 128^4-1 | signed byte -5 = 01 05 | signed word -37 = 01 00 25 | signed dword +1.
-    CHECK(request.command.data == bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00,
-                                         0x00, 0x00, 0x00, 0x01}));
+    // byte 5 | word 385 = 03 01 | dword 128^4-1 | qword 128 = 00*6 01 00 | signed byte -5 = 01 05 |
+    // signed word -37 = 01 00 25 | signed dword +1.
+    CHECK(request.command.data == bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                                         0x01, 0x00, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00, 0x00, 0x00, 0x00, 0x01}));
 }
 
 TEST_CASE("Given a value outside the range of the record but inside its format, When encoded, Then it is refused, and the bounds themselves are accepted [RQ-AKM-001]",
@@ -352,7 +395,7 @@ TEST_CASE("Given a name longer than the item's character-count range, When makeS
 TEST_CASE("Given a name that is not 7-bit ASCII or contains a 00 byte, When makeStringRequest encodes it, Then it is refused as not encodable [RQ-AKM-002]",
           "[akm][catalogue]")
 {
-    for (const std::string& text : {std::string("A\x80"), std::string("A\0B", 3)})
+    for (const std::string& text : {std::string("A\200"), std::string("A\0B", 3)})
     {
         const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, text);
 
@@ -400,13 +443,13 @@ TEST_CASE("Given reply data that is too short, too long or not made of data byte
 TEST_CASE("Given the data of a REPLY of every numeric format, When decoded, Then the values of the spec's examples come back [RQ-AKM-002]",
           "[akm][catalogue]")
 {
-    const Bytes data = bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x01, 0x05, 0x01, 0x00, 0x25, 0x00, 0x00, 0x00,
-                              0x00, 0x01});
+    const Bytes data = bytes({0x05, 0x03, 0x01, 0x7F, 0x7F, 0x7F, 0x7F, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00,
+                              0x01, 0x05, 0x01, 0x00, 0x25, 0x00, 0x00, 0x00, 0x00, 0x01});
 
     const auto values = akm::decodeReply(EVERY_FORMAT_ITEM, data);
 
     REQUIRE(values.has_value());
-    CHECK(*values == Values{5, 385, 268435455, -5, -37, 1});
+    CHECK(*values == Values{5, 385, 268435455, 128, -5, -37, 1});
 }
 
 TEST_CASE("Given the data of a String REPLY, When decodeStringReply reads it, Then the name comes back [RQ-AKM-002]",

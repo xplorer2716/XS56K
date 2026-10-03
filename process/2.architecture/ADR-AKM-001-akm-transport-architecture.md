@@ -22,7 +22,15 @@ which completes DEC-AKM-003's deferral of strings and DEC-AKM-012's schema; it c
 The all-programs Gets (TASK-AKM-017) added DEC-AKM-014, completing DEC-AKM-013's own deferral of
 repeated-record REPLYs; it changed no other decision either. Keygroup selection (TASK-AKM-026, FTR-AKM-003)
 added DEC-AKM-015, generalising DEC-AKM-014's decode into `decodeRepeatedReply` for §08's per-keygroup
-Gets; it changed no other decision.
+Gets; it changed no other decision. The real-sampler run of the system setup checks (TASK-AKM-053,
+FTR-AKM-006) found the S5000 answering one item's REPLY under a section its command does not use;
+TASK-AKM-055 added DEC-AKM-016 to fix it, touching `Session`'s confirmation matcher and the codec's
+REPLY-length lookup — no other decision changed. Disk Free Space (TASK-AKM-059, FTR-AKM-007) added
+DEC-AKM-017, the catalogue's first `Qword` value format, fitting the generic `int64_t` path unlike
+`String`; it changed no other decision. Disk folder navigation (TASK-AKM-060, FTR-AKM-007) added
+DEC-AKM-018, a second `String` argument for Rename Folder; it changed no other decision.
+The front panel keys (TASK-AKM-072, FTR-AKM-008) added DEC-AKM-019, extending DEC-AKM-004's closing
+sequence with a release of every key the session held; no other decision changed.
 The Diagram section holds the global architecture, the class diagrams,
 the sequence diagrams of the key use cases, and ends with a domain dictionary.
 
@@ -437,6 +445,129 @@ Writing 34 bespoke decode loops, one per item, would not scale the way `getAllPr
 - **Gated like `&18`/`&19`.** `getForAllKeygroups` always sets `ExpectedReply::NeedsKnownChecksumMode`
   (DEC-AKM-011, DEC-AKM-014): every item it is used for is variable-length by construction, not decided
   per call.
+
+### DEC-AKM-016: A REPLY may carry a section other than its command's, for one item that needs it
+Decided in TASK-AKM-055, for RQ-AKM-059: real-sampler observation (`OBSERVATIONS-RQ-AKM-059-clock-reply-section.md`,
+twice independently — the real-sampler suite and a raw frame typed by hand in MIDI-OX) showed the S5000 (OS 2.14)
+answering Get Clock Time & Date (§02/&05) with a REPLY whose section byte is `0B`, not `02` — its own OK still
+says `02`. No section `0B` exists in the spec; no other item observed so far does this.
+- **`ItemDescriptor` gains `replySection`, empty for every item but this one.** `items.json`'s schema adds an
+  optional `replySection` field, refused by the validator unless the item is a `get` and the value differs from
+  the item's own section (DEC-AKM-012's data-is-reviewed discipline extended, not relaxed: a typo that names the
+  item's own section is caught, not silently accepted). `SystemGetClock` is the one record that sets it, to `0B`.
+- **Two lookups, not one relaxed.** `findItem(section, item)` is unchanged — a REPLY under `0B` is still not a
+  *command* at section `0B`, and nothing else should start treating it as one. A new `findReplyItem(section, item)`
+  matches a record either by its own section or by its `replySection`; `Confirmation.cpp`'s REPLY-length lookup
+  (used only while the checksum mode is unknown, DEC-AKM-012) calls this one instead, so a REPLY of the right
+  length under either section is read while the port does not yet know how to delimit a REPLY by checksum.
+- **`Session`'s confirmation matcher accepts the declared section for a REPLY only.** `InFlight` carries the
+  command's `replySection` (read off the catalogue once, when the command is sent); `matches()` accepts a
+  confirmation whose section is the command's own, or — only when the confirmation is itself a REPLY — the
+  declared `replySection`. An OK, a DONE or an ERROR under `0B` would still be rejected as unsolicited: the
+  anomaly is only ever observed on the REPLY, and RQ-AKM-059 says so explicitly, so nothing wider is relaxed.
+- **The simulated sampler reproduces it by default.** `SamplerBehaviour::replySectionOverrides` defaults to one
+  entry, `S5000_CLOCK_REPLY_SECTION` (`{0x02, 0x05, 0x0B}`): every mock test exercises the session's real,
+  observed behaviour, not an idealised one; a test wanting a spec-conformant sampler clears the list.
+
+### DEC-AKM-017: A `Qword` value format, fitting the generic `int64_t` path unlike `String`
+Decided in TASK-AKM-059, for RQ-AKM-062: Get Free Space on the current disk (§10/&0B) is the first item
+whose REPLY the spec itself calls a Compound Quad Word — 8 data bytes, the same shape as a Dword but
+twice as wide (spec pp. 8-9). The codec already had `ByteWriter::appendQword`/`ByteReader::readQword`
+(DEC-AKM-002, added ahead of need, like `readStringList` was for DEC-AKM-014), unused by any item until
+now.
+- **A new `ValueFormat::Qword`, next to `Dword`.** `valueWidth` returns `QWORD_WIDTH` (8) for it, the
+  same shape as the other fixed-width numeric formats — unlike `String`, nothing about a `Qword` REPLY
+  is variable-length, so `ItemDescriptor::fixedReplyLength()` needs no change for it.
+- **Through `makeRequest`/`decodeReply`, not a dedicated pair of functions.** DEC-AKM-013's reason for
+  giving `String` its own `makeStringRequest`/`decodeStringReply` was that `std::int64_t` cannot hold
+  text; it does not apply here. A Qword's range (0 to 2^56-1) fits `std::int64_t` with room to spare
+  (`std::int64_t`'s own range reaches 2^63-1), so `appendValue`/`readValue` (`ItemRequest.cpp`) gained
+  one `Qword` case each, calling `appendQword`/`readQword` directly — the same one-case-per-format
+  pattern every other numeric format already uses, not a new mechanism.
+- **The generator script accepts `"qword"` like any other numeric format.** `generate_akm_items.py`'s
+  `FORMATS` dict gained an entry (`QWORD_MAX = 128**8 - 1`); no change to the validator or the table
+  generator was needed beyond that one entry, confirming the format list was the only thing deferred.
+- **The public primitive widens to `std::uint64_t`.** `getCurrentDiskFreeSpace` reads the one `Qword`
+  value through the generic `decodeReply` (as `std::int64_t`, always non-negative for this item) and
+  widens it to `std::uint64_t` in `DiskFreeSpaceResult`, since a byte count cannot be negative — the
+  only place this decision is visible outside the catalogue layer.
+
+### DEC-AKM-018: A second `String` argument, for Rename Folder and Rename File
+Decided in TASK-AKM-060, for RQ-AKM-063: Rename Folder (§10/&18) carries two consecutive
+null-terminated strings — the existing name, then the new one — the first item catalogued with more
+than one `String` value. `generate_akm_items.py`'s schema already allowed it (`validate_values`
+checks each value independently; nothing in it counted how many were `String`), so the gap was only in
+the C++ encode path: `makeStringRequest` refuses anything but exactly one `String` argument
+(DEC-AKM-013).
+- **`makeTwoStringRequest(item, first, second)` joins `makeStringRequest` in `ItemRequest.hpp`.** It
+  refuses as `WrongArgumentCount` unless `item.args` is exactly two `String` values in order, checks
+  each string's length against its own `ValueSpec` range, and appends both with
+  `ByteWriter::appendString` back to back — the second string's own terminator is what ends the frame,
+  the same way a single String argument's does.
+- **No decode counterpart.** Every two-String item catalogued so far (`&18` here; File's `&28` is the
+  same shape, `TASK-AKM-062`) is a `Set`, completing on `Done` or `Error`, never a `Reply` — so
+  `decodeStringReply` needs no equivalent change until an item answers a REPLY of two strings, which
+  none does yet.
+- **Not generalised to N strings.** Two is every width any item needs right now; a third would be
+  added the same way `Qword` was, not pre-built for a shape nothing in the spec uses.
+
+### DEC-AKM-019: A session releases the front-panel keys it held when it closes
+Decided by the owner (session AKM, 2026-10-03) for RQ-AKM-075. Key Hold (§20/&01) is the one command of the
+protocol whose effect lasts until a second command: the sampler keeps the key down until it receives the
+matching Key Release, "although there can be a delay" (spec p. 41), however long. A session that closes
+with a key held would leave it down on the machine. DEC-AKM-004's closing already puts back every §00
+setting the session tried to change; a held key is the same kind of thing, and is handled the same way.
+- **The session remembers the keys it tried to hold, and on which device.** `CommandOptions` gains `holdsKey`
+  and `releasesKey` (each an optional keycode, a plain `std::uint8_t` so that `CommandOptions.hpp` does not
+  include the §20 header), set by `holdKey` and `releaseKey` the way the §00 primitives set `changesSetting`;
+  a raw `submit` of the Hold item without the option is not remembered, as for a setting. A key is
+  remembered, with the DeviceID the command is addressed to, where `changed.insert` already sits in
+  `startCommand` — after the refusal, target and encoding checks, before the frame is sent — whether or not
+  the sampler then confirms it: a Hold that timed out may have been carried out, as for a setting
+  (DEC-AKM-004, "As built"). It is forgotten in `complete()` only, never in `recordResult`, so that a Release
+  cancelled by a close forgets nothing: when a Release of that key *succeeds* (DONE), or when the Hold itself
+  is answered with an ERROR of any number — a §20 item that is not queued is answered with one (spec Table 30,
+  note a), so the key was never down, and a sampler without §20 (ERROR 0) has nothing to release, as `changed`
+  is emptied of a setting the sampler does not have. A Hold that times out is not an answer: it may have been
+  carried out, and the key stays. A Release that is refused, errors or times out leaves the key remembered,
+  so the closing tries again. (Amended by TASK-AKM-075: the first version forgot only an ERROR 0 and kept any
+  other, at the cost of a spare Release and a `keysNotReleased` entry for a key that had never been down; a
+  code review of the delivered lot found it.)
+- **The closing releases them first.** `beginClose` queues one Release per remembered key addressed to the
+  current target, in ascending keycode order, before the §00 settings: a key down is the state most worth
+  clearing. A key remembered for another device (the target was rebound or reset by an `open()` since) is not
+  sent — it would release nothing on the target and leave the key down on its own device — and is reported
+  as not released. Framing: a Release has no REPLY and goes out in the checksum mode the session tracks
+  (`ExpectedReply::Delimited`), so the tracker must be right. It is not always right after a cancel:
+  `cancelEverything` completes the command in flight without `complete()`, which is where a failed
+  checksum-mode command turns the mode to Unknown. `cancelEverything` therefore now sets the mode to Unknown
+  when the command it cancels was a checksum-mode command; a Release sent in Unknown carries a checksum, which
+  a sampler not expecting one ignores, and its DONE decodes in either mode. (This corrects the order of the
+  closing for every command, not only keys: before it, the checksum restore alone, always sent with a
+  checksum, hid the gap.) The Releases run one at a time on the same `Purpose::Closing` path as the settings,
+  so DEC-AKM-004's rules hold, with one difference: a refused or failed Release is reported and the next is
+  tried; **the first Release that times out leaves the keys after it unreleased** (a sampler that did not answer
+  one will not answer the next) **but the settings are still tried**, and the first setting that times out ends
+  the restoring, the rest being reported as not restored. The first version of this decision let a key's
+  timeout abandon the settings too; the review of the delivered lot pointed out that the §00 state is what the
+  closing guarantees, and that a §20 command timing out does not say the §00 ones will. Two timeouts, a key's
+  then a setting's, are therefore the worst case of a close, as the destructor's wait allows (two command
+  timeouts and a second).
+- **`CloseResult` reports them.** `keysReleased` and `keysNotReleased` list the keycodes (plain `std::uint8_t`)
+  beside `restored` and `notRestored`; `restoredAll()` is false if any key is not released. "Released" means
+  the Release was *queued*: a §20 DONE confirms nothing more (spec Table 30, note a). A caller who needs to
+  tell "timed out, the key may still be down" from "refused, it probably never was" reads the session's
+  diagnostics, which report each failed closing command; the result does not carry the outcome per key.
+- **Limits.** RQ-AKM-075's "no key held by a session that is gone" is best effort, bounded exactly as
+  DEC-AKM-004 bounds the settings: the destructor of a session never closed runs the closing only where the
+  executor runs on its own thread, waits two command timeouts and a second, and then tears down; with Still
+  Alive on, each Release may be stretched up to the maximum total wait, and every key held adds one to the
+  closing before the settings. A caller's own `releaseKey` in flight when `close()` runs is cancelled like any
+  queued command; its key is released by the closing because its Hold was sent. Keys held by another session
+  or by the front panel itself are not known to this one and are not touched. The same key held twice is
+  remembered once and released once; whether the sampler counts Holds is unknown (the spec is silent) and is
+  a risk to check on the real sampler, as is the ascending keycode order, which is arbitrary — a human chord
+  is released in no fixed order. Reviewed independently (`REVIEW-DEC-AKM-019-opus.md`).
 
 ## Consequences
 

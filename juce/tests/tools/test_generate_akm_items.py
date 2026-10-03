@@ -80,6 +80,16 @@ class TableIsUpToDate(ScriptTest):
         self.assertEqual(first.read_bytes(), second.read_bytes())
         self.assertNotIn(b"\r", first.read_bytes())
 
+    def test_given_a_record_that_names_a_reply_section_when_generated_then_the_table_carries_it(self):
+        output = self.directory / "table.hpp"
+        self.assertEqual(run_script("--output", str(output)).returncode, 0)
+        text = output.read_text(encoding="utf-8")
+
+        clock_line = next(line for line in text.splitlines() if '"Get clock time and date"' in line)
+        self.assertIn("std::uint8_t{0x0B}", clock_line)
+        name_line = next(line for line in text.splitlines() if '"Get sampler name"' in line)
+        self.assertNotIn("0x0B", name_line)
+
     def test_given_the_data_file_when_generated_then_every_record_has_an_enumerator_and_a_table_entry(self):
         output = self.directory / "table.hpp"
         self.assertEqual(run_script("--output", str(output)).returncode, 0)
@@ -100,10 +110,11 @@ class DataFileIsValidated(ScriptTest):
         self.assertIn(expected_text, result.stderr)
 
     def test_given_a_format_the_schema_does_not_support_when_read_then_it_is_refused_naming_the_record(self):
-        # "qword" is deferred like "string" was (DEC-AKM-003); unlike "string" (added by DEC-AKM-013,
-        # TASK-AKM-014), it is still unsupported, so it stays a valid example of a rejected format.
+        # "qword" was deferred like "string" was (DEC-AKM-003) until TASK-AKM-059 (DEC-AKM-017) added it,
+        # the same way TASK-AKM-014 (DEC-AKM-013) added "string"; "nibble" is not a spec format at all, so
+        # it stays a valid example of a rejected format regardless of what gets added later.
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExEcho")["args"][0]
-                                     .update(format="qword"))
+                                     .update(format="nibble"))
 
         self.assert_refused(variant, "SysExEcho")
 
@@ -126,6 +137,22 @@ class DataFileIsValidated(ScriptTest):
 
         self.assert_refused(variant, "SystemOsVersion")
 
+    def test_given_a_set_that_names_a_reply_section_when_read_then_it_is_refused(self):
+        # Only a get has a REPLY, so only a get can say which section its REPLY carries (TASK-AKM-055).
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(replySection="0B"))
+
+        self.assert_refused(variant, "SysExQuery")
+
+    def test_given_a_reply_section_that_is_the_items_own_when_read_then_it_is_refused(self):
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SystemGetClock").update(replySection="02"))
+
+        self.assert_refused(variant, "SystemGetClock")
+
+    def test_given_a_reply_section_that_is_not_two_hexadecimal_digits_when_read_then_it_is_refused(self):
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SystemGetClock").update(replySection="B"))
+
+        self.assert_refused(variant, "SystemGetClock")
+
     def test_given_a_record_in_an_undeclared_section_when_read_then_it_is_refused(self):
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(section="04"))
 
@@ -140,11 +167,20 @@ class CoverageAgainstTheSpec(ScriptTest):
         self.assertIn(f"section 00: {SECTION_00_ITEM_COUNT} of {SECTION_00_ITEM_COUNT} spec rows covered", result.stdout)
         self.assertIn("unaccounted: none", result.stdout)
 
-    def test_given_the_two_version_items_when_coverage_runs_then_the_partial_section_reports_what_it_leaves_out(self):
-        result = run_script("--coverage")
+    def test_given_a_section_declared_incomplete_when_coverage_runs_then_it_reports_partial_and_the_gap(self):
+        # Every section currently in the catalogue is complete (TASK-AKM-054 closed the last one, §02),
+        # so a partial section is forced here rather than borrowed from the live data file.
+        def declare_incomplete(catalogue):
+            next(s for s in catalogue["sections"] if s["section"] == "02")["complete"] = False
+            catalogue["items"] = [entry for entry in catalogue["items"]
+                                  if not (entry["section"] == "02" and entry["item"] == "00")]
 
+        result = run_script("--coverage", "--data", str(self.write_variant(declare_incomplete)))
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertIn("section 02", result.stdout)
         self.assertIn("partial", result.stdout)
+        self.assertIn("1 not covered, as declared", result.stdout)
 
     def test_given_a_spec_row_without_a_record_in_a_complete_section_when_coverage_runs_then_it_is_listed(self):
         def remove_echo(catalogue):
@@ -183,6 +219,24 @@ class CoverageAgainstTheSpec(ScriptTest):
 
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn("SysExEcho", result.stdout + result.stderr)
+
+    def test_given_the_play_mode_catalogued_0_to_3_when_coverage_runs_then_it_passes_with_a_note_on_the_erratum(self):
+        result = run_script("--coverage")
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("SystemSetPlayMode: args[0] compared with the range 0..3", result.stdout)
+        self.assertIn("SystemGetPlayMode: reply[0] compared with the range 0..3", result.stdout)
+
+    def test_given_a_play_mode_range_that_drifts_from_the_item_text_when_coverage_runs_then_it_is_reported(self):
+        # The erratum excuses the spec's column ("0, 1, 2"), not any range: 0-4 is wrong against the text too.
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SystemSetPlayMode")["args"][0]
+                                     .update(max=4))
+
+        result = run_script("--coverage", "--data", str(variant))
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("SystemSetPlayMode", result.stdout + result.stderr)
+        self.assertIn("0..3", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":

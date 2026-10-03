@@ -36,6 +36,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "TestBytes.hpp"
 #include "akm/Command.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/SystemSetup.hpp"
+#include "akm/harness/ClockArithmetic.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
 #include "akm/harness/ScenarioDriver.hpp"
 #include "akm/harness/SimulatedMidiBackend.hpp"
@@ -73,6 +75,7 @@ namespace
     constexpr std::uint8_t ITEM_ECHO = 0x06;
     constexpr std::uint8_t ITEM_CHECKSUM_MODE = 0x04;
     constexpr std::uint16_t ERROR_UNKNOWN = 3;
+    constexpr std::uint16_t ERROR_NOT_SUPPORTED = 0;
 
     // The settings the suite leaves the sampler with: the ones found at the first contact (checksum off,
     // notification on, Still Alive off) and the spec's or assumed defaults for the other two.
@@ -104,6 +107,8 @@ namespace
         {
             RealSuiteOptions suite;
             suite.target = ScenarioTarget{backend.inputName(), backend.outputName(), targetDeviceId};
+            // The owner picks the first disk offered, unless a test says otherwise (Disk Tools).
+            suite.askOwnerChoice = [](const std::string&, const std::vector<std::string>&) { return std::optional<std::size_t>{0}; };
             return suite;
         }
 
@@ -154,6 +159,45 @@ namespace
         send(akm::makeRequest(akm::ItemId::SampleSetPlaybackMode, {0}));
         send(akm::makeRequest(akm::ItemId::SampleSetLoopStart, {0, 0, 0, 0}));
         send(akm::makeRequest(akm::ItemId::SampleSetLoopEnd, {0, 0, 0, 1}));
+    }
+
+    // What the owner's sampler holds of its system setup before any session is opened (RQ-AKM-058): a name, a clock
+    // — Saturday 14 March 2026, 09:26:53 — a Play Mode (2, Sample) and a lock; seeded through raw frames and the
+    // simulated sampler's own setters, the way `seedSampleParameters` does for a sample.
+    constexpr akm::ClockDate OWNER_CLOCK{2026, 3, 14, 7, 9, 26, 53};
+    constexpr std::uint8_t OWNER_PLAY_MODE_SAMPLE = 2;
+    constexpr std::uint8_t LOCK_NORMAL = 0;
+    constexpr std::uint8_t LOCK_LOCKED = 1;
+    constexpr std::uint8_t HIGHEST_PLAY_MODE_OF_THE_SPEC_COLUMN = 2;
+    // The suite puts the clock back advanced by the time it measured, and reads it back to a few seconds.
+    constexpr std::int64_t CLOCK_RESTORE_TOLERANCE_SECONDS = 3;
+    constexpr std::uint8_t ITEM_CLEAR_MEMORY = 0x32;
+    constexpr std::uint8_t ITEM_OS_VERSION = 0x00;
+    constexpr std::uint8_t ITEM_OS_SUB_VERSION = 0x01;
+
+    void seedSystemSetup(SimulatedMidiBackend& backend, SimulatedSampler& sampler, const std::string& name,
+                         std::uint8_t playMode, std::uint8_t lock)
+    {
+        akm::test::HostProbe host(backend, backend.inputName(), backend.outputName());
+        std::uint8_t userRef = 0x01;
+        const auto send = [&](const akm::CommandRequest& request) {
+            const akm::EncodeResult frame = akm::encodeCommand(0, akm::test::Bytes{userRef++}, request.command, akm::ChecksumMode::Off);
+            host.send(frame.bytes);
+        };
+        send(akm::makeStringRequest(akm::ItemId::SystemSetName, name));
+        send(akm::makeRequest(akm::ItemId::SystemSetClock,
+                              {OWNER_CLOCK.year, OWNER_CLOCK.month, OWNER_CLOCK.day, OWNER_CLOCK.dayOfWeek,
+                               OWNER_CLOCK.hours, OWNER_CLOCK.minutes, OWNER_CLOCK.seconds}));
+        sampler.setPlayMode(playMode);
+        sampler.setFrontPanelLock(lock);
+    }
+
+    // The clock the simulated sampler holds, as a date.
+    akm::ClockDate clockOf(const SimulatedSampler& sampler)
+    {
+        const auto& bytes = sampler.systemSetup().clock;
+        constexpr int BITS_PER_DATA_BYTE = 7;
+        return akm::ClockDate{(bytes[0] << BITS_PER_DATA_BYTE) | bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7]};
     }
 
     std::size_t occurrences(const std::string& text, const std::string& part)
@@ -462,6 +506,10 @@ TEST_CASE("Given the option for the slow operation, When the suite runs on a sam
           "[akm][suite]")
 {
     Rig rig;
+    // TASK-AKM-057 gave the simulated sampler real support for &01: forced to refuse it here, like a
+    // sampler whose §10 is not implemented, so this check still exercises the ERROR path it is named
+    // for rather than the DONE path TASK-AKM-057's own tests already cover (DiskPrimitivesTests.cpp).
+    rig.sampler.setBehaviour(SamplerBehaviour{.itemErrors = {{SECTION_DISK_TOOLS, ITEM_UPDATE_DISK_LIST, ERROR_NOT_SUPPORTED}}});
     RealSuiteOptions options = rig.options();
     options.slowOperation = true;
     std::ostringstream log;
@@ -796,4 +844,582 @@ TEST_CASE("Given no program current when the suite runs with the program lifecyc
     checkAllPassed(result);
     CHECK_THAT(reportOf(result, "reserved test name").detail,
               ContainsSubstring("wrong-program refusal is not exercised"));
+}
+
+
+TEST_CASE("Given a sampler with a name, a clock, a Play Mode and a lock of its own, When the suite runs with the system setup checks, Then it round-trips all four Play Modes, the lock, the name and the clock, puts every one back, and never sends Clear Sampler Memory [TASK-AKM-053, RQ-AKM-052, RQ-AKM-054, RQ-AKM-055, RQ-AKM-056, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    const std::string& detail = reportOf(result, "front-panel lock and clock").detail;
+    CHECK_THAT(detail, ContainsSubstring("play mode 3 (Muted) accepted"));
+    CHECK_THAT(detail, ContainsSubstring("clock restored"));
+    CHECK_THAT(log.str(), ContainsSubstring("the sampler's name is back to \"OWNER S5000\""));
+
+    const akm::harness::SystemSetupState after = rig.sampler.systemSetup();
+    CHECK(after.name == "OWNER S5000");
+    CHECK(after.playMode == OWNER_PLAY_MODE_SAMPLE);
+    CHECK(after.frontPanelLock == LOCK_NORMAL);
+    const std::int64_t drift = akm::harness::secondsBetween(OWNER_CLOCK, clockOf(rig.sampler));
+    CHECK(drift >= 0);
+    CHECK(drift <= CLOCK_RESTORE_TOLERANCE_SECONDS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SYSTEM && command.item == ITEM_CLEAR_MEMORY));
+}
+
+TEST_CASE("Given a sampler that follows the spec's column and refuses Play Mode 3, When the suite runs with the system setup checks, Then the check still passes, the refusal is an observation, and the Play Mode is back [TASK-AKM-053, RQ-AKM-055, RQ-AKM-057]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    rig.sampler.setHighestPlayMode(HIGHEST_PLAY_MODE_OF_THE_SPEC_COLUMN);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "front-panel lock and clock").detail, ContainsSubstring("play mode 3 (Muted) refused"));
+    CHECK(rig.sampler.systemSetup().playMode == OWNER_PLAY_MODE_SAMPLE);
+}
+
+TEST_CASE("Given a check made to fail after the front panel was locked, When the suite runs with the system setup checks, Then the panel reads normal again, and so do the name and the Play Mode [TASK-AKM-053, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    const CheckReport& failedHalfWay = reportOf(result, "fails half way and still puts back");
+    CHECK(failedHalfWay.outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with the front panel locked"));
+    CHECK_THAT(log.str(), ContainsSubstring("the front panel is back to normal"));
+    CHECK(rig.sampler.systemSetup().frontPanelLock == LOCK_NORMAL);
+}
+
+TEST_CASE("Given a front panel that was locked before the suite ran, When it runs with the system setup checks, Then the panel is left as it was found, locked [TASK-AKM-053, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_LOCKED);
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(rig.sampler.systemSetup().frontPanelLock == LOCK_LOCKED);
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then the system setup checks do not run and only the two version items of section 02 are sent [TASK-AKM-053, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    Rig rig;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, rig.options(), log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SYSTEM && command.item != ITEM_OS_VERSION && command.item != ITEM_OS_SUB_VERSION));
+}
+
+TEST_CASE("Given a sampler whose clock cannot be read, When the suite runs with the system setup checks, Then the clock is reported as not tested and is never set, and everything else is round-tripped and put back [TASK-AKM-053, RQ-AKM-054, RQ-AKM-058]",
+          "[akm][suite]")
+{
+    constexpr std::uint8_t ITEM_GET_CLOCK = 0x05;
+    constexpr std::uint16_t OUT_OF_RANGE = 0x02;
+    Rig rig;
+    seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
+    rig.sampler.setBehaviour(SamplerBehaviour{.itemErrors = {{SECTION_SYSTEM, ITEM_GET_CLOCK, OUT_OF_RANGE}}});
+    RealSuiteOptions options = rig.options();
+    options.systemSetup = true;
+    std::ostringstream log;
+    // &06: Set Clock Time & Date (§02). Written as a literal: a local constant only named inside a lambda is reported unused by GCC.
+    const auto isSetClock = [](const auto& command) { return command.section == SECTION_SYSTEM && command.item == 0x06; };
+    const auto acceptedBefore = rig.sampler.acceptedCommands();
+    const auto clockSetsBefore = std::count_if(acceptedBefore.begin(), acceptedBefore.end(), isSetClock);
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "front-panel lock and clock").detail, ContainsSubstring("clock NOT TESTED"));
+    CHECK_THAT(reportOf(result, "front-panel lock and clock").detail, ContainsSubstring("play mode 3 (Muted) accepted"));
+    CHECK_THAT(log.str(), ContainsSubstring("the clock was not read, so it was never changed and is not restored"));
+    const auto acceptedAfter = rig.sampler.acceptedCommands();
+    const auto clockSetsAfter = std::count_if(acceptedAfter.begin(), acceptedAfter.end(), isSetClock);
+    // The seeding sent the one Set Clock there was; the suite sent none.
+    CHECK(clockSetsAfter == clockSetsBefore);
+    CHECK(rig.sampler.systemSetup().name == "OWNER S5000");
+    CHECK(rig.sampler.systemSetup().playMode == OWNER_PLAY_MODE_SAMPLE);
+}
+
+// Disk Tools (TASK-AKM-067, RQ-AKM-070, RQ-AKM-071): the safe check and the one guarded long-running item, on the
+// simulated sampler. The checks read the sampler's own accepted commands to prove what was created and deleted.
+namespace
+{
+    constexpr std::uint8_t SECTION_DISK_ITEMS = 0x10;
+    constexpr std::uint8_t ITEM_DISK_SELECT = 0x02;
+    constexpr std::uint8_t ITEM_DISK_GET_TYPE_OF = 0x07;
+    constexpr std::uint8_t ITEM_DISK_GET_NAME = 0x0E;
+    constexpr std::uint8_t ITEM_DISK_FILE_NAME = 0x21;
+    constexpr std::uint8_t ITEM_DISK_FILE_SIZE = 0x23;
+    constexpr std::uint8_t ITEM_DISK_RENAME_FILE = 0x28;
+    constexpr std::uint8_t ITEM_DISK_DELETE_FILE = 0x29;
+    constexpr std::uint8_t ITEM_DISK_START_AUDITION = 0x30;
+    constexpr std::uint8_t ITEM_DISK_STOP_AUDITION = 0x31;
+    constexpr std::uint8_t ITEM_DISK_CREATE_FOLDER = 0x16;
+    constexpr std::uint8_t ITEM_DISK_DELETE_FOLDER = 0x17;
+    constexpr std::uint8_t ITEM_DISK_SAVE_MEMORY_ITEM = 0x2C;
+    constexpr std::uint8_t ITEM_DISK_LOAD_FILE = 0x2A;
+
+    std::size_t sentCount(const SimulatedSampler& sampler, std::uint8_t section, std::uint8_t item)
+    {
+        std::size_t count = 0;
+        for (const auto& command : sampler.acceptedCommands())
+            if (command.section == section && command.item == item)
+                ++count;
+        return count;
+    }
+
+    akm::harness::DiskRecord currentDiskRecord()
+    {
+        return akm::harness::DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"};
+    }
+}
+
+TEST_CASE("Given Disk Tools on a sampler with a writable disk and no disk selected, When the suite runs, Then the check selects it, the disposable folder is created, used and deleted, and every check passes [TASK-AKM-067, RQ-AKM-061, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    checkAllPassed(result);
+    CHECK(result.knownStateRestored);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) >= 2);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 1);
+}
+
+TEST_CASE("Given Disk Tools on a sampler whose first disk is read-only, When the suite runs, Then it selects the first writable disk and the check passes [TASK-AKM-071, RQ-AKM-061]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({
+        akm::harness::DiskRecord{.handle = 5, .type = 2, .format = 3, .scsiId = 1, .writable = false, .name = "CDROM"},
+        akm::harness::DiskRecord{.handle = 7, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"},
+    });
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) >= 2);
+}
+
+TEST_CASE("Given Disk Tools on a sampler with two writable disks, When the owner picks the second, Then the disks offered are both listed, the second is selected and the check passes [TASK-AKM-067, RQ-AKM-061]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({
+        akm::harness::DiskRecord{.handle = 4, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "ONE"},
+        akm::harness::DiskRecord{.handle = 9, .type = 3, .format = 1, .scsiId = 2, .writable = true, .name = "TWO"},
+    });
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::vector<std::string> offered;
+    options.askOwnerChoice = [&offered](const std::string&, const std::vector<std::string>& choices) {
+        offered = choices;
+        return std::optional<std::size_t>{1};
+    };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    checkAllPassed(result);
+    REQUIRE(offered.size() == 2);
+    CHECK(offered[0].find("handle 4") != std::string::npos);
+    CHECK(offered[1].find("handle 9") != std::string::npos);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
+}
+
+TEST_CASE("Given Disk Tools on a sampler with a writable disk, When the owner declines to choose, Then the check is skipped, nothing is selected and nothing is created [TASK-AKM-067, RQ-AKM-061, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.askOwnerChoice = [](const std::string&, const std::vector<std::string>&) { return std::optional<std::size_t>{}; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the file items, When the suite runs, Then the disk is read by handle, one save makes a file, the file is read, renamed and deleted, no audition is sent, and every check passes [RQ-AKM-065, RQ-AKM-069, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsFiles = true;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(result.knownStateRestored);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_GET_TYPE_OF) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_GET_NAME) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_FILE_NAME) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_FILE_SIZE) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_RENAME_FILE) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_STOP_AUDITION) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FILE) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
+}
+
+TEST_CASE("Given Disk Tools and the file items with no way to ask the owner, When the suite runs, Then the check is skipped before anything is saved [RQ-AKM-069]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsFiles = true;
+    options.askOwner = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the audition, When a .WAV file is at the root of the disk, Then it is started with &30, stopped with &31 and every check passes [RQ-AKM-068]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({akm::harness::DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = akm::harness::FolderRecord{"", {}, {}, {}, {akm::harness::FileRecord{"TONE.WAV", 4096}}}}});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsAudition = true;
+    options.auditionDuration = 0ms;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_STOP_AUDITION) == 1);
+}
+
+TEST_CASE("Given Disk Tools and the audition, When no .WAV file is at the root of the disk, Then the check fails and nothing is started [RQ-AKM-068]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({akm::harness::DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = akm::harness::FolderRecord{"", {}, {}, {}, {akm::harness::FileRecord{"LEAD.AKP", 10}}}}});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsAudition = true;
+    options.auditionDuration = 0ms;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Failed);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the audition with no way to ask the owner, When the suite runs, Then the check is skipped before any disk is selected [RQ-AKM-068]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsAudition = true;
+    options.askOwner = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    // Only the safe check's own selection: the audition selects nothing once it is skipped.
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the file items with a rename the sampler refuses, When the owner asks to keep the folder, Then the check fails, the owner is asked to look first and the folder is left in place [RQ-AKM-069, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setBehaviour(SamplerBehaviour{.itemErrors = {{SECTION_DISK_ITEMS, ITEM_DISK_RENAME_FILE, ERROR_UNKNOWN}}});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsFiles = true;
+    std::vector<std::string> asked;
+    options.askOwner = [&asked](const std::string& instruction) {
+        asked.push_back(instruction);
+        return instruction.find("did not finish") == std::string::npos;
+    };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Failed);
+    REQUIRE_FALSE(asked.empty());
+    CHECK(asked.back().find("did not finish") != std::string::npos);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 1);
+}
+
+TEST_CASE("Given Disk Tools with no way to ask the owner which disk to select, When the suite runs, Then the check is skipped before any disk is selected [TASK-AKM-067, RQ-AKM-061]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.askOwnerChoice = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
+}
+
+TEST_CASE("Given Disk Tools on a sampler that lists no writable disk, When the suite runs, Then the check is skipped, nothing is selected and nothing is created [TASK-AKM-067, RQ-AKM-061, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({
+        akm::harness::DiskRecord{.handle = 5, .type = 2, .format = 3, .scsiId = 1, .writable = false, .name = "CDROM"},
+    });
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the update-list slow item, When the suite runs, Then exactly one &01 is sent inside the disposable folder and every check passes [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::UpdateList;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_UPDATE_DISK_LIST) == 1);
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given Disk Tools and the save-memory-item slow item, When the suite runs, Then one &2C is sent into the folder, which is then deleted [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::SaveMemoryItem;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    // One deletion from the safe check that runs with it, one from this check's own folder.
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
+}
+
+TEST_CASE("Given Disk Tools and the load-file slow item, When the suite runs, Then the save that makes the file is followed by one &2A [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 1);
+}
+
+TEST_CASE("Given Disk Tools and the load-folder slow item, When the suite runs, Then an empty sub-folder is created and loaded, then the test folder deleted [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFolder;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, 0x15) == 1);
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given Disk Tools and the load-file-with-dependents slow item, When the suite runs, Then the save and the &2B load are each sent once [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFileWithDependents;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, 0x2B) == 1);
+}
+
+TEST_CASE("Given Disk Tools and the save-all-memory-items slow item, When the suite runs, Then one &2D is sent and the folder is deleted afterwards [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::SaveAllMemoryItems;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, 0x2D) == 1);
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given Disk Tools and a file-saving slow item with no way to ask the owner, When the suite runs, Then the check is skipped before anything is saved [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the owner declining to confirm the saved file, When the suite runs, Then the check is skipped, nothing is loaded and the folder is still deleted [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
+    // The owner declines the saved file, and presses Enter on the question asked when the check ends early.
+    options.askOwner = [](const std::string& instruction) { return instruction.find("did not finish") != std::string::npos; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
+    CHECK(result.knownStateRestored);
 }

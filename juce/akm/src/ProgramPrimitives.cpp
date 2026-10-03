@@ -156,7 +156,7 @@ namespace akm
         request.command.item = item.item;
 
         ByteWriter writer;
-        if (!frontPanelNumber)
+        if (!frontPanelNumber.has_value())
         {
             writer.appendByte(0);
         }
@@ -256,6 +256,26 @@ namespace akm
                        });
     }
 
+    namespace
+    {
+        // One (enabled, wire number) pair per program; nothing at all when a pair is cut short.
+        std::optional<std::vector<std::optional<int>>> decodeProgramNumbers(std::span<const std::uint8_t> data)
+        {
+            ByteReader reader(data);
+            std::vector<std::optional<int>> numbers;
+            while (reader.remaining() > 0)
+            {
+                const auto enabled = reader.readByte();
+                const auto number = reader.readByte();
+                if (!enabled.has_value() || !number.has_value())
+                    return std::nullopt;
+                // Table 14, footnote a: the wire number is the front-panel one minus one.
+                numbers.push_back(*enabled != 0 ? std::optional<int>(*number + 1) : std::nullopt);
+            }
+            return numbers;
+        }
+    }
+
     void getAllProgramNumbers(Session& session, AllProgramNumbersCompletion completion)
     {
         CommandOptions options;
@@ -266,25 +286,7 @@ namespace akm
                            if (answersEmptyMemory(outcome))
                                result.numbers = std::vector<std::optional<int>>{};
                            else if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
-                           {
-                               ByteReader reader(rep->data);
-                               std::vector<std::optional<int>> numbers;
-                               bool malformed = false;
-                               while (reader.remaining() > 0 && !malformed)
-                               {
-                                   const auto enabled = reader.readByte();
-                                   const auto number = reader.readByte();
-                                   if (!enabled || !number)
-                                   {
-                                       malformed = true;
-                                       break;
-                                   }
-                                   // Table 14, footnote a: the wire number is the front-panel one minus one.
-                                   numbers.push_back(*enabled != 0 ? std::optional<int>(*number + 1) : std::nullopt);
-                               }
-                               if (!malformed)
-                                   result.numbers = std::move(numbers);
-                           }
+                               result.numbers = decodeProgramNumbers(rep->data);
                            if (completion)
                                completion(result);
                        });

@@ -32,10 +32,29 @@ cd XS56K
 
 ### Build and test
 
-Build, test and lint commands are not defined yet (the project has no code beyond
-documentation). This section will be updated once they exist.
+```bash
+# Build (libraries only)
+cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug
+cmake --build juce/build -j"$(nproc)"
 
-All required commands must pass before you open a pull request.
+# Build with the placeholder app too
+cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_APP=ON
+cmake --build juce/build -j"$(nproc)"
+
+# Run the tests
+cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+cmake --build juce/build -j"$(nproc)"
+ctest --test-dir juce/build --output-on-failure
+```
+
+On Windows, use a generator of your choice (e.g. Visual Studio) and add `--config Debug` to the
+build/`ctest` commands.
+
+There is no separate lint step: the build itself must be warning-clean at `-Wall -Wextra
+-Wpedantic -Werror` (`/W4 /WX` on MSVC) for project code — JUCE's own sources are exempt. See
+[AGENTS.md](AGENTS.md) for the full command reference, including item-catalogue checks.
+
+All of the above must pass before you open a pull request.
 
 ## Workflow
 
