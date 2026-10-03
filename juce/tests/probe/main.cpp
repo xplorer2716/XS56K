@@ -107,11 +107,12 @@ namespace
         "                     instant), its front-panel lock (locked for an instant) and its clock, and put each\n"
         "                     back - the lock first, the clock advanced by the time elapsed. Never sends Clear\n"
         "                     Sampler Memory (section 02, item 32). Needs no sample, program or --sample-name.\n"
-        "  --disk-tools       with --suite, an extra check on the disk (section 10, RQ-AKM-071): it reads the\n"
-        "                     current disk without changing it, creates a disposable sub-folder XS56K_SUITE_TEST\n"
-        "                     under the current folder, creates, renames, enters and leaves a sub-folder inside it,\n"
-        "                     reads the folder and file items, and deletes the whole sub-folder again through the\n"
-        "                     confirmed &17 guard. It selects no other disk and touches nothing that existed before.\n"
+        "  --disk-tools       with --suite, an extra check on the disk (section 10, RQ-AKM-071): it lists the disks,\n"
+        "                     asks you which of the writable disks the sampler reports valid to select (the selection\n"
+        "                     stays: no section 10 command clears it), creates a disposable sub-folder XS56K_SUITE_TEST under\n"
+        "                     its current folder, creates, renames, enters and leaves a sub-folder inside it, reads\n"
+        "                     the folder and file items, and deletes the whole sub-folder again through the confirmed\n"
+        "                     &17 guard. It touches nothing that existed before.\n"
         "  --disk-tools-slow OP  with --disk-tools, one of the six long-running section 10 items, sent inside the\n"
         "                     sub-folder with Still Alive on (RQ-AKM-070). OP is one of: update-list (item 01),\n"
         "                     load-folder (item 15), load-file (items 2C then 2A), load-file-with-dependents (items\n"
@@ -421,9 +422,10 @@ int main(int argc, char** argv)
                           << "its clock (advanced by the time elapsed when put back, to about three seconds). It never sends Clear\n"
                           << "Sampler Memory. Note the sampler's name and time before you start.\n";
             if (arguments.diskTools)
-                std::cout << "It will also create the sub-folder XS56K_SUITE_TEST under the current folder of the current disk,\n"
-                          << "work inside it and delete it again. It selects no other disk and touches nothing that existed\n"
-                          << "before. Note the current folder on the sampler before you start.\n";
+                std::cout << "It will also ask you which writable disk the sampler reports valid to select, create the sub-folder\n"
+                          << "XS56K_SUITE_TEST under its current folder, work inside it and delete it again. The selection stays\n"
+                          << "on the sampler (no command clears it) and nothing that existed before is touched. Note the disks\n"
+                          << "and the current folder on the sampler before you start.\n";
             if (!arguments.diskToolsSlow.empty())
                 std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
                           << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
@@ -484,6 +486,28 @@ int main(int argc, char** argv)
             std::string answer;
             std::getline(std::cin, answer);
             return answer != "skip";
+        };
+        options.askOwnerChoice = [](const std::string& question, const std::vector<std::string>& choices) -> std::optional<std::size_t> {
+            std::cout << "\n>>> " << question << '\n';
+            for (std::size_t index = 0; index < choices.size(); ++index)
+                std::cout << "    " << (index + 1) << ". " << choices[index] << '\n';
+            for (;;)
+            {
+                std::cout << "    Type the number of the disk, or skip to skip this check: " << std::flush;
+                std::string answer;
+                if (!std::getline(std::cin, answer) || answer == "skip")
+                    return std::nullopt;
+                try
+                {
+                    const std::size_t number = std::stoul(answer);
+                    if (number >= 1 && number <= choices.size())
+                        return number - 1;
+                }
+                catch (const std::exception&)
+                {
+                }
+                std::cout << "    Not one of the numbers above.\n";
+            }
         };
 
         const akm::harness::RealSuiteResult result = akm::harness::runRealSamplerSuite(backend, driver, options, log);

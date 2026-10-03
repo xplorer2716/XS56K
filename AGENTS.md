@@ -79,10 +79,13 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   sampler accepts it being what is observed), its front-panel lock (locked for an instant) and its clock, and puts each
   back — the lock first, the clock advanced by the time elapsed, to about three seconds — even when a check fails half
   way. It never sends section 02's Clear Sampler Memory (`&32`), which no real-sampler test may call.
-  `--disk-tools` (needs `--suite`) adds one check on the disk (section 10, RQ-AKM-071): it reads the current disk
-  without changing it, creates the disposable sub-folder `XS56K_SUITE_TEST` under the current folder, works inside it,
-  and deletes it again through the confirmed `&17` guard. It selects no other disk and touches nothing that existed
-  before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
+  `--disk-tools` (needs `--suite`) adds one check on the disk (section 10, RQ-AKM-071): it lists the connected disks
+  (`&04`, `&05`, read only), tests the writable ones (`&03`, read only) and asks the owner to choose one of the valid
+  ones, which it selects (`&02`, RQ-AKM-061 — every disk operation acts on that SysEx selection, which the front panel
+  does not set; nothing in section 10 clears it, so it stays selected). It creates the disposable sub-folder
+  `XS56K_SUITE_TEST` under that disk's current folder, works inside it, and deletes it again through the confirmed
+  `&17` guard. No usable disk, or no way to ask, skips the check before anything is selected or created.
+  It touches nothing that existed before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
   sub-folder with Still Alive on — `update-list`, `load-folder`, `load-file`, `load-file-with-dependents`,
   `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the
   sampler (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7): a hang needs a power

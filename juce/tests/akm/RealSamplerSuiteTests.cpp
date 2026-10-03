@@ -107,6 +107,8 @@ namespace
         {
             RealSuiteOptions suite;
             suite.target = ScenarioTarget{backend.inputName(), backend.outputName(), targetDeviceId};
+            // The owner picks the first disk offered, unless a test says otherwise (Disk Tools).
+            suite.askOwnerChoice = [](const std::string&, const std::vector<std::string>&) { return std::optional<std::size_t>{0}; };
             return suite;
         }
 
@@ -976,6 +978,7 @@ TEST_CASE("Given a sampler whose clock cannot be read, When the suite runs with 
 namespace
 {
     constexpr std::uint8_t SECTION_DISK_ITEMS = 0x10;
+    constexpr std::uint8_t ITEM_DISK_SELECT = 0x02;
     constexpr std::uint8_t ITEM_DISK_CREATE_FOLDER = 0x16;
     constexpr std::uint8_t ITEM_DISK_DELETE_FOLDER = 0x17;
     constexpr std::uint8_t ITEM_DISK_SAVE_MEMORY_ITEM = 0x2C;
@@ -996,12 +999,11 @@ namespace
     }
 }
 
-TEST_CASE("Given Disk Tools on a sampler with a current disk, When the suite runs, Then the disposable folder is created, used and deleted, and every check passes [TASK-AKM-067, RQ-AKM-071]",
+TEST_CASE("Given Disk Tools on a sampler with a writable disk and no disk selected, When the suite runs, Then the check selects it, the disposable folder is created, used and deleted, and every check passes [TASK-AKM-067, RQ-AKM-061, RQ-AKM-071]",
           "[akm][suite][disk-tools]")
 {
     Rig rig;
     rig.sampler.setDisks({currentDiskRecord()});
-    rig.sampler.setCurrentDisk(0);
     RealSuiteOptions options = rig.options();
     options.diskTools = true;
     std::ostringstream log;
@@ -1011,15 +1013,19 @@ TEST_CASE("Given Disk Tools on a sampler with a current disk, When the suite run
     REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
     checkAllPassed(result);
     CHECK(result.knownStateRestored);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) >= 2);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 1);
 }
 
-TEST_CASE("Given Disk Tools on a sampler with no current disk, When the suite runs, Then the check fails and creates nothing [TASK-AKM-067, RQ-AKM-071]",
+TEST_CASE("Given Disk Tools on a sampler whose first disk is read-only, When the suite runs, Then it selects the first writable disk and the check passes [TASK-AKM-071, RQ-AKM-061]",
           "[akm][suite][disk-tools]")
 {
     Rig rig;
-    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setDisks({
+        akm::harness::DiskRecord{.handle = 5, .type = 2, .format = 3, .scsiId = 1, .writable = false, .name = "CDROM"},
+        akm::harness::DiskRecord{.handle = 7, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"},
+    });
     RealSuiteOptions options = rig.options();
     options.diskTools = true;
     std::ostringstream log;
@@ -1027,7 +1033,90 @@ TEST_CASE("Given Disk Tools on a sampler with no current disk, When the suite ru
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
 
     REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
-    CHECK(result.checks.back().outcome == CheckOutcome::Failed);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) >= 2);
+}
+
+TEST_CASE("Given Disk Tools on a sampler with two writable disks, When the owner picks the second, Then the disks offered are both listed, the second is selected and the check passes [TASK-AKM-067, RQ-AKM-061]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({
+        akm::harness::DiskRecord{.handle = 4, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "ONE"},
+        akm::harness::DiskRecord{.handle = 9, .type = 3, .format = 1, .scsiId = 2, .writable = true, .name = "TWO"},
+    });
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::vector<std::string> offered;
+    options.askOwnerChoice = [&offered](const std::string&, const std::vector<std::string>& choices) {
+        offered = choices;
+        return std::optional<std::size_t>{1};
+    };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    checkAllPassed(result);
+    REQUIRE(offered.size() == 2);
+    CHECK(offered[0].find("handle 4") != std::string::npos);
+    CHECK(offered[1].find("handle 9") != std::string::npos);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
+}
+
+TEST_CASE("Given Disk Tools on a sampler with a writable disk, When the owner declines to choose, Then the check is skipped, nothing is selected and nothing is created [TASK-AKM-067, RQ-AKM-061, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.askOwnerChoice = [](const std::string&, const std::vector<std::string>&) { return std::optional<std::size_t>{}; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
+}
+
+TEST_CASE("Given Disk Tools with no way to ask the owner which disk to select, When the suite runs, Then the check is skipped before any disk is selected [TASK-AKM-067, RQ-AKM-061]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.askOwnerChoice = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
+}
+
+TEST_CASE("Given Disk Tools on a sampler that lists no writable disk, When the suite runs, Then the check is skipped, nothing is selected and nothing is created [TASK-AKM-067, RQ-AKM-061, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({
+        akm::harness::DiskRecord{.handle = 5, .type = 2, .format = 3, .scsiId = 1, .writable = false, .name = "CDROM"},
+    });
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 0);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
 }
 

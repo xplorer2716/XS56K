@@ -1442,14 +1442,91 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
-            // RQ-AKM-071, the safe half: reads the current disk without changing it, then, inside the disposable
-            // sub-folder, creates, renames, enters and leaves a sub-folder, reads the folder items and the file items of
-            // the empty folder, and deletes the whole sub-folder through the confirmed &17 guard. A file cannot be made
-            // without saving one, which is one of the long-running items, so no file is listed here.
+            // RQ-AKM-061, the selection the disk checks need: every disk operation acts on the disk selected over SysEx,
+            // which the front panel's choice does not set (spec §10). Reads the connected disks (&04 and &05, read only),
+            // tests each writable one with &03 (read only), and has the owner choose among the valid ones; the choice is
+            // selected with &02. Nothing in §10 clears a selection, so the disk stays selected after the check, and the
+            // log says so. No way to ask, or no valid writable disk, skips the check before anything is selected or
+            // created. The list is not refreshed here: &01 is one of the long-running items, and the spec has the list
+            // refreshed when the sampler is switched on.
+            DiskInfo selectTestDisk(GuardedSession& guarded)
+            {
+                // Refused before anything is read from the disks, let alone selected: the owner picks the disk.
+                if (!_rig.options.askOwnerChoice)
+                    throw CheckSkipped("there is no way to ask the owner which disk to select, so nothing was selected or created");
+                const DiskCountResult count = readDisk<DiskCountResult>("the number of disks connected", [&guarded](DiskCountCompletion done) {
+                    getDiskCount(guarded.session(), std::move(done));
+                });
+                expect(count.count.has_value(), "the number of disks connected is read");
+                const DiskListResult listed = readDisk<DiskListResult>("the disks connected", [&guarded](DiskListCompletion done) {
+                    getConnectedDisks(guarded.session(), std::move(done));
+                });
+                expect(listed.disks.has_value(), "the list of the disks connected is read");
+                for (const DiskInfo& disk : *listed.disks)
+                    finding("disk " + std::to_string(disk.handle) + " \"" + disk.name + "\": type " + std::to_string(disk.type)
+                            + ", " + (disk.writable ? "writable" : "read-only"));
+
+                std::vector<DiskInfo> usable;
+                for (const DiskInfo& disk : *listed.disks)
+                {
+                    if (!disk.writable)
+                        continue;
+                    _rig.log.flush();
+                    const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [&guarded, &disk](CommandCompletion done) {
+                        testDiskValid(guarded.session(), disk.handle, std::move(done));
+                    });
+                    if (!timed)
+                        throw CheckFailure("the validity of disk " + std::to_string(disk.handle) + ": no completion within "
+                                           + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                    finding("the validity of disk " + std::to_string(disk.handle) + ": " + outcomeText(timed->result) + " after "
+                            + millisecondsText(timed->latency));
+                    if (succeeded(timed->result))
+                        usable.push_back(disk);
+                }
+                if (usable.empty())
+                    throw CheckSkipped("the sampler lists no writable disk that it reports valid, so there is no disk to work on; "
+                                       "nothing was selected or created");
+
+                const auto typeText = [](int type) -> std::string {
+                    if (type == 0)
+                        return "floppy";
+                    if (type == 1)
+                        return "hard disk";
+                    if (type == 2)
+                        return "CD-ROM";
+                    if (type == 3)
+                        return "removable";
+                    return "type " + std::to_string(type);
+                };
+                std::vector<std::string> choices;
+                for (const DiskInfo& disk : usable)
+                    choices.push_back("handle " + std::to_string(disk.handle) + " \"" + disk.name + "\", " + typeText(disk.type));
+                _rig.log.note("  asking the owner which disk to select");
+                _rig.log.flush();
+                const std::optional<std::size_t> picked = _rig.options.askOwnerChoice(
+                    "Choose the disk the disk checks select; the selection then stays on the sampler.", choices);
+                if (!picked || *picked >= usable.size())
+                    throw CheckSkipped("the owner did not choose a disk to select; nothing was selected or created");
+                const DiskInfo chosen = usable[*picked];
+                finding("the owner chose " + choices[*picked]);
+
+                expectCommand(guarded, "select disk " + std::to_string(chosen.handle) + " \"" + chosen.name + "\"",
+                              [handle = chosen.handle](Session& session, CommandCompletion done) {
+                                  selectDisk(session, handle, std::move(done));
+                              });
+                finding("the selection stays on the sampler after the check: no command of section 10 clears it");
+                return chosen;
+            }
+
+            // RQ-AKM-071, the safe half: selects a writable disk (selectTestDisk), reads the current disk, then, inside the
+            // disposable sub-folder, creates, renames, enters and leaves a sub-folder, reads the folder items and the file
+            // items of the empty folder, and deletes the whole sub-folder through the confirmed &17 guard. A file cannot be
+            // made without saving one, which is one of the long-running items, so no file is listed here.
             void diskToolsRoundTrips()
             {
                 GuardedSession guarded(_rig);
                 guarded.open(baseConfig());
+                const DiskInfo disk = selectTestDisk(guarded);
 
                 const DiskTypeResult type = readDisk<DiskTypeResult>("the current disk's type", [&guarded](DiskTypeCompletion done) {
                     getCurrentDiskType(guarded.session(), std::move(done));
@@ -1458,7 +1535,8 @@ namespace akm::harness
                 const DiskHandleResult handle = readDisk<DiskHandleResult>("the current disk's handle", [&guarded](DiskHandleCompletion done) {
                     getCurrentDiskHandle(guarded.session(), std::move(done));
                 });
-                expect(handle.handle.has_value(), "the current disk's handle is read");
+                expect(handle.handle.has_value() && *handle.handle == disk.handle,
+                       "the current disk is the one selected (handle " + std::to_string(disk.handle) + ")");
                 const DiskFormatResult format = readDisk<DiskFormatResult>("the current disk's format", [&guarded](DiskFormatCompletion done) {
                     getCurrentDiskFormat(guarded.session(), std::move(done));
                 });
@@ -1523,6 +1601,7 @@ namespace akm::harness
                 guarded.open(baseConfig());
                 expect(guarded.session().stillAliveMonitoring(),
                        "Still Alive is on: a received F0 F7 restarts the pending command's timeout");
+                selectTestDisk(guarded);
                 const int before = folderCountHere(guarded);
                 {
                     GuardedTestFolder folder(_rig, guarded.session());
@@ -2627,9 +2706,10 @@ namespace akm::harness
                          + "each put back before the check returns, even if it fails half way — the lock first, the clock "
                          + "advanced by the time elapsed — and it never sends section 02's Clear Sampler Memory (&32).");
             if (options.diskTools)
-                log.note("It also creates a disposable sub-folder, XS56K_SUITE_TEST, under the current folder (--disk-tools, "
-                         "RQ-AKM-071), works inside it, and deletes it again through the confirmed &17 guard. It selects no other "
-                         "disk and touches nothing that existed before.");
+                log.note("It also asks the owner which writable disk the sampler reports valid to select (--disk-tools, RQ-AKM-061), creates a "
+                         "disposable sub-folder, XS56K_SUITE_TEST, under the current folder (RQ-AKM-071), works inside it, and "
+                         "deletes it again through the confirmed &17 guard. The selection stays on the sampler: no section 10 "
+                         "command clears it. It touches nothing that existed before.");
             if (options.diskToolsSlow)
             {
                 const char* name = "";

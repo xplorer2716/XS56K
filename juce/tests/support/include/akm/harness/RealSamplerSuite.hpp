@@ -79,10 +79,10 @@ namespace akm::harness
         /// change settings the owner sees. Needs nothing stored: it acts on no program, multi or sample, and never
         /// sends Clear Sampler Memory (§02/&32, RQ-AKM-056).
         bool systemSetup = false;
-        /// The optional checks of Disk Tools (§10, RQ-AKM-071): create a disposable sub-folder under the current
-        /// folder, read the current disk, round-trip the folder items inside it and delete it again through the
-        /// confirmed `&17` guard (RQ-AKM-069). Nothing that existed before is touched, no other disk is selected, and
-        /// none of the six long-running items is sent. Off by default: it creates and deletes a folder on the owner's
+        /// The optional checks of Disk Tools (§10, RQ-AKM-071): have the owner choose one of the writable disks the sampler
+        /// reports valid (RQ-AKM-061, `askOwnerChoice`), create a disposable sub-folder under its current folder, round-trip the folder items inside it
+        /// and delete it again through the confirmed `&17` guard (RQ-AKM-069). Nothing that existed before is touched,
+        /// the selection stays (no §10 command clears it), and none of the six long-running items is sent. Off by default: it creates and deletes a folder on the owner's
         /// disk, even if the folder it leaves behind is always the suite's own.
         bool diskTools = false;
         /// The one long-running §10 item this run sends, inside the disposable sub-folder, with Still Alive on
@@ -100,6 +100,11 @@ namespace akm::harness
         /// Tells the owner what to do and returns once they have done it, or false when they decline. It runs on the
         /// scenario's thread, with nothing in flight and the log written up to that point.
         std::function<bool(const std::string& instruction)> askOwner;
+        /// Asks the owner to pick one of `choices` (one line each) and returns the index picked, or nothing when they
+        /// decline. Disk Tools needs it to choose the disk it selects among the writable ones the sampler reports valid
+        /// (RQ-AKM-061): nothing is selected without an answer, and without this the check is skipped before it selects.
+        /// It runs on the scenario's thread, like `askOwner`.
+        std::function<std::optional<std::size_t>(const std::string& question, const std::vector<std::string>& choices)> askOwnerChoice;
         /// Written in the log header when not empty (the scenario itself reads no wall clock).
         std::string startedAt;
     };
