@@ -53,9 +53,9 @@
     {
       "section": "20",
       "name": "Front Panel",
-      "complete": false,
+      "complete": true,
       "spec": "Tables 30 and 31, p. 41",
-      "note": "FTR-AKM-008 (PLAN-AKM-008), 4 command rows and no REPLY format. Key Hold and Key Release (RQ-AKM-073, TASK-AKM-070: &01, &02) are catalogued first: the keycode is a byte of 64-107, the range Table 30 gives, of which only the 43 codes of Table 31 are valid (`&66` is inside the range and listed by no row, note b), so the primitives, not the catalogue, refuse an unlisted code. The data wheel (RQ-AKM-074, TASK-AKM-071: &03, a direction byte 0-1 and 1-8 clicks) and the ASCII keyboard (&04, one byte 0-127) complete the four command rows; `complete` is set by TASK-AKM-074 after `--coverage`."
+      "note": "FTR-AKM-008 (PLAN-AKM-008), 4 command rows and no REPLY format. Key Hold and Key Release (RQ-AKM-073, TASK-AKM-070: &01, &02) are catalogued first: the keycode is a byte of 64-107, the range Table 30 gives, of which only the 43 codes of Table 31 are valid (`&66` is inside the range and listed by no row, note b), so the primitives, not the catalogue, refuse an unlisted code. The data wheel (RQ-AKM-074, TASK-AKM-071: &03, a direction byte 0-1 and 1-8 clicks) and the ASCII keyboard (&04, one byte 0-127) complete the four command rows: `complete` was set by TASK-AKM-074 after `--coverage` reported 4 of 4 spec rows covered with no unaccounted item. The section has no REPLY row and no erratum: Table 31 lists 43 of the 44 keycodes of `&40`-`&6B`, `&66` being listed by no row, which the primitives (not the catalogue) refuse."
     }
   ],
   "items": [

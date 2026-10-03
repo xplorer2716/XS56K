@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial project structure.
+- AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
+  the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
+  closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard
+  (Windows console).
 
 <!--
 Sections to use under each version (only those that apply):

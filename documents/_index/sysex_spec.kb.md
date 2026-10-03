@@ -170,6 +170,8 @@ Params (T25, index: name range):
 Mode: FX 40 · RECORD 41 · EDIT SAMPLE 42 · EDIT PROGRAM 43 · MULTI 44 · UTILITIES 45 · SAVE 46 · LOAD 47 ·
 F1–F8 48–4F · F9–F16 50–57 · digits 0–9 58–61 · − 62 · + 63 · CURSOR< 64 · CURSOR> 65 · WINDOW 67 · MARK 68 · JUMP 69 · EXIT 6A · ENT/PLAY 6B.
 &03 data wheel: d1 0 fwd/1 back, d2 clicks 1–8 · &04 ASCII key. DONE = queued, not executed (T30 fn a).
+T31 lists 43 of the 44 values of `&40`–`&6B` (64–107): `&66` (102) is listed by no row and T30 fn b forbids unlisted
+codes; the AKM layer refuses it (TASK-AKM-070). Not an erratum — nothing contradicts the spec.
 
 ## Spec errata / inconsistencies (checked against the PDF)
 - T11/T12 `&6C{107}` → &6C is 108 (T11 p18, T12 p19). Resolved (TASK-AKM-032): confirmable from the TSV

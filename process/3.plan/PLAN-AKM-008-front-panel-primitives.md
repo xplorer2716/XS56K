@@ -211,7 +211,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-074: Coverage of section §20
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `20`, list any exclusion with its
   reason, flip the section's `complete` flag in `items.json` if all four rows are covered, and update
   `SUMMARY-akm-sections-coverage.md`, `AGENTS.md` (the new probe option) and `CHANGELOG.md`.
@@ -220,5 +220,17 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-077.
 - **Dependencies**: TASK-AKM-070 to TASK-AKM-073
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: `generate_akm_items.py --coverage` re-run this session, before and after the flag flip:
+  `section 20: 4 of 4 spec rows covered (Front Panel, complete)`, `unaccounted: none`, exit 0 — no row excluded,
+  nothing left to give a reason for. `items.json`'s section-20 `complete` flag flipped `false` → `true`, its note
+  closed out; `generate_akm_items.py` (no args) regenerated `ItemTable.generated.hpp` with no diff (section
+  metadata, not read by the generator), `--check`: up to date (299 items). Windows/MSVC Debug: clean build, no
+  warning or error (`/W4 /WX`); `ctest --test-dir juce/build -C Debug` 596/596 passed, re-run after the flip. No
+  erratum found in §20: Table 31 lists 43 of the 44 keycodes of `&40`-`&6B`, `&66` unlisted and refused by the
+  primitives (TASK-AKM-070) — recorded as a note in `sysex_spec.kb.md`, not as an erratum, nothing there
+  contradicting the spec. `AGENTS.md`: the `--front-panel` option and its warning documented; `CHANGELOG.md`:
+  one `[Unreleased]` entry; `SUMMARY-akm-sections-coverage.md`: §20's bar to 100 %, the total to 445/560 (79 %),
+  and a note that §20 has not run on a real sampler yet.
+- **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §02
+  and §10 before it, not on a real-sampler run: §20 has no Get, and its hardware proof is the owner's
+  `--front-panel` run, still to come. One `CHANGELOG.md` entry covers the whole lot rather than one per task.

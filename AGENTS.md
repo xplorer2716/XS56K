@@ -103,6 +103,16 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   cycle by hand, so run one only when ready for it. `load-file` and `load-file-with-dependents` send one save (`&2C`)
   first, since a file can only be made inside the sub-folder by saving; the owner then confirms on the sampler that the
   file is there (declining skips the check, and a save is never sent without a way to ask).
+  `--front-panel` adds the owner-driven check of the front panel (section 20, RQ-AKM-076): the probe prints the mapping
+  of PC keys to sampler keys (`juce/tests/support/include/akm/harness/FrontPanelRemote.hpp` and its `.cpp`, the one source
+  of the mapping and of what is printed), you confirm that the sampler shows a screen of your choice, then every key you
+  press is sent as the sampler key it stands for — F1–F8, digits, `-` `+`, cursors, Enter (ENT/PLAY), Space (ENT/PLAY held
+  until the next Space), Escape (EXIT), the mode keys as letters (`m x s p r u v l w k j`), the data wheel on the up/down
+  and page keys, Tab for a text mode that sends printable keys as ASCII — and nothing else is sent; `q` ends it. The keys
+  act on whatever the sampler shows: SAVE, ENT/PLAY or the wheel can change or delete data on some screens, so choose the
+  screen with care. Every key still held is released at the end, and by the session's close if the check fails (DEC-AKM-019).
+  Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run it on the real sampler once:
+  whether the S5000 obeys each key, takes Backspace/Enter as ASCII 8/13, or counts Holds of one key, is not yet observed.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

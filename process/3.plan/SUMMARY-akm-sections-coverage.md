@@ -23,9 +23,9 @@
 | §12 | Multi FX | 18 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
 | §14 | Scenelist | 12 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
 | §16 | MIDI song files | 18 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
-| §20 | Front panel | 4 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
+| §20 | Front panel | 4 | 100 % | `████████████████████` |
 
-441 of 560 spec lines covered overall (79 %); every implemented section's commands are fully catalogued
+445 of 560 spec lines covered overall (79 %); every implemented section's commands are fully catalogued
 (no section is partially done right now — §02 was the last partial one before §10, closed by
 `TASK-AKM-053`/`TASK-AKM-055`). Coverage confirmed by `generate_akm_items.py --coverage`
 (`unaccounted: none`) for §00/§02/§06/§08/§0A/§0E/§10 — §10's own `35 of 35 spec rows covered` reached by
@@ -39,6 +39,12 @@ erratum as resolved. §02 was confirmed on a real S5000, 2026-10-01 (`akm-suite-
 re-ran `--coverage` (35/35, no unaccounted item) — the &0D/&0E decimal erratum was already resolved by
 `TASK-AKM-059`, so this closure needed no further erratum work, the same way §02's `TASK-AKM-054`
 needed none beyond confirming `TASK-AKM-053`'s own resolution.
+
+§20's own `complete` flag was flipped to `true` by `TASK-AKM-074` (`PLAN-AKM-008`, 2026-10-03), which re-ran
+`--coverage` (4/4, no unaccounted item): four command rows, no REPLY row, no erratum (Table 31 lists 43 of the 44
+keycodes of `&40`-`&6B`, `&66` unlisted, which the primitives refuse). §20 has not been run on a real sampler yet:
+the owner-driven `--front-panel` check is the way to do it, and the owner's own eyes are the read-back, the section
+having no Get.
 
 ### §10 on the real S5000 (2026-10-03)
 
