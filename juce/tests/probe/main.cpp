@@ -39,8 +39,14 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <vector>
 
+#ifdef _WIN32
+#include <conio.h>
+#include <io.h>
+#endif
+
 #include "akm/Protocol.hpp"
 #include "akm/harness/FirstContactProbe.hpp"
+#include "akm/harness/FrontPanelRemote.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
 #include "akm/harness/ScenarioDriver.hpp"
 #include "akm/harness/SessionSmokeTest.hpp"
@@ -67,7 +73,7 @@ namespace
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
-        "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--sample-name NAME]\n"
+        "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--front-panel] [--sample-name NAME]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
@@ -131,6 +137,13 @@ namespace
         "                     OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md, frames F4-F7. The saving items ask you, on\n"
         "                     the sampler, to confirm the file a save has made (between a save and its load, for the\n"
         "                     load items): declining skips the check.\n"
+        "  --front-panel      with --suite, you drive the sampler's front panel from the PC keyboard (section 20,\n"
+        "                     RQ-AKM-076). You choose the screen the sampler shows and confirm it; the mapping of PC keys\n"
+        "                     to sampler keys is then printed and every key you press is sent as the sampler key it stands\n"
+        "                     for, nothing else is sent (q ends it). The keys act on whatever the sampler shows: on some\n"
+        "                     screens SAVE, ENT/PLAY or the data wheel change or delete your data, so choose the screen\n"
+        "                     with care. Every key still held is released at the end. Windows console only: elsewhere the\n"
+        "                     check is skipped.\n"
         "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
         "                     it to a zone of the test program by name and reads it back, RQ-AKM-035,\n"
         "                     RQ-AKM-038) and/or --sample-lifecycle (see above). Never creates, changes or\n"
@@ -149,6 +162,65 @@ namespace
         "beyond a check that puts them back before returning (--program-lifecycle's zone-assignment step never\n"
         "does; --sample-lifecycle's own check does, and restores them), and neither ever deletes a sample.\n";
 
+#ifdef _WIN32
+    // The owner's keys for --front-panel, one at a time and without Enter (RQ-AKM-076). The console gives a key that has
+    // no character as a prefix, 0 or E0, then a scan code; the function keys, the arrows and the page keys are turned
+    // into the codes of `pc_key`, and any other such key into a code the mapping gives no meaning to.
+    constexpr int CONSOLE_PREFIX_NUMERIC_PAD = 0x00;
+    constexpr int CONSOLE_PREFIX_EXTENDED = 0xE0;
+    constexpr int SCAN_F1 = 0x3B;
+    constexpr int SCAN_F10 = 0x44;
+    constexpr int SCAN_F11 = 0x85;
+    constexpr int SCAN_F12 = 0x86;
+    constexpr int SCAN_UP = 0x48;
+    constexpr int SCAN_DOWN = 0x50;
+    constexpr int SCAN_LEFT = 0x4B;
+    constexpr int SCAN_RIGHT = 0x4D;
+    constexpr int SCAN_PAGE_UP = 0x49;
+    constexpr int SCAN_PAGE_DOWN = 0x51;
+    constexpr int UNMAPPED_EXTENDED_KEY = akm::harness::pc_key::EXTENDED_BASE + 100;
+
+    std::optional<int> readConsoleKey()
+    {
+        namespace pc_key = akm::harness::pc_key;
+        const int first = _getch();
+        if (first == EOF)
+            return std::nullopt;
+        if (first != CONSOLE_PREFIX_NUMERIC_PAD && first != CONSOLE_PREFIX_EXTENDED)
+            return first;
+        const int scan = _getch();
+        if (scan >= SCAN_F1 && scan <= SCAN_F10)
+            return pc_key::F1 + (scan - SCAN_F1);
+        switch (scan)
+        {
+            case SCAN_F11:
+                return pc_key::F1 + 10;
+            case SCAN_F12:
+                return pc_key::F1 + 11;
+            case SCAN_UP:
+                return pc_key::UP;
+            case SCAN_DOWN:
+                return pc_key::DOWN;
+            case SCAN_LEFT:
+                return pc_key::LEFT;
+            case SCAN_RIGHT:
+                return pc_key::RIGHT;
+            case SCAN_PAGE_UP:
+                return pc_key::PAGE_UP;
+            case SCAN_PAGE_DOWN:
+                return pc_key::PAGE_DOWN;
+            default:
+                return UNMAPPED_EXTENDED_KEY;
+        }
+    }
+
+    // Whether keys can be read one at a time: only from a console, not from a file or a pipe.
+    bool consoleKeysAvailable()
+    {
+        return _isatty(_fileno(stdin)) != 0;
+    }
+#endif
+
     struct Arguments
     {
         bool list = false;
@@ -164,6 +236,7 @@ namespace
         bool diskTools = false;
         bool diskToolsFiles = false;
         bool diskToolsAudition = false;
+        bool frontPanel = false;
         bool noLcd = false;
         std::string diskToolsSlow;
         std::string input;
@@ -253,6 +326,8 @@ namespace
                 parsed.diskToolsFiles = true;
             else if (option == "--disk-tools-audition")
                 parsed.diskToolsAudition = true;
+            else if (option == "--front-panel")
+                parsed.frontPanel = true;
             else if (option == "--disk-tools-slow")
             {
                 parsed.diskToolsSlow = valueOf(args, index++, parsed);
@@ -298,9 +373,9 @@ namespace
             && !parsed.suite
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
                 || parsed.diskTools || parsed.diskToolsFiles || parsed.diskToolsAudition || !parsed.diskToolsSlow.empty()
-                || !parsed.sampleName.empty()))
+                || parsed.frontPanel || !parsed.sampleName.empty()))
             parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
-                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow and --sample-name need --suite";
+                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel and --sample-name need --suite";
         if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
             parsed.error = "--disk-tools-files needs --disk-tools";
         if (parsed.error.empty() && parsed.diskToolsAudition && !parsed.diskTools)
@@ -452,6 +527,11 @@ int main(int argc, char** argv)
             if (arguments.diskToolsFiles)
                 std::cout << "It will also save the test program into the sub-folder (you confirm the file on the sampler), read,\n"
                           << "rename and delete the file.\n";
+            if (arguments.frontPanel)
+                std::cout << "It will also let you drive the sampler's front panel from the PC keyboard: you choose the screen the\n"
+                          << "sampler shows, then each key you press is sent as the sampler key it stands for (the mapping is printed\n"
+                          << "first), nothing else. The keys act on whatever the sampler shows: SAVE, ENT/PLAY or the data wheel can\n"
+                          << "change or delete your data on some screens. Put the sampler on a screen where that cannot hurt.\n";
             if (!arguments.diskToolsSlow.empty())
                 std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
                           << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
@@ -509,6 +589,12 @@ int main(int argc, char** argv)
         options.diskTools = arguments.diskTools;
         options.diskToolsFiles = arguments.diskToolsFiles;
         options.diskToolsAudition = arguments.diskToolsAudition;
+        options.frontPanel = arguments.frontPanel;
+#ifdef _WIN32
+        if (consoleKeysAvailable())
+            options.readOwnerKey = readConsoleKey;
+#endif
+        options.tellOwner = [](const std::string& line) { std::cout << "    " << line << std::endl; };
         if (!arguments.diskToolsSlow.empty())
             options.diskToolsSlow = diskSlowOperationNamed(arguments.diskToolsSlow);
         if (!arguments.sampleName.empty())

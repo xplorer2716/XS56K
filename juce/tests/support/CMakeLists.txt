@@ -6,6 +6,7 @@ add_library(xs56k_akm_test_support STATIC
     src/ClockArithmetic.cpp
     src/EchoScenario.cpp
     src/FirstContactProbe.cpp
+    src/FrontPanelRemote.cpp
     src/KeygroupParameterCases.cpp
     src/ProgramParameterCases.cpp
     src/RealSamplerSuite.cpp

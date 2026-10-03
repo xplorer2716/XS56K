@@ -100,6 +100,17 @@ namespace akm::harness
         /// after `auditionDuration` (3 seconds in a real run; tests use none). Off by default: it plays a sound.
         bool diskToolsAudition = false;
         Scheduler::Clock::duration auditionDuration = std::chrono::seconds(3);
+        /// The owner-driven check of the front panel (§20, RQ-AKM-076): the owner chooses the screen the sampler shows and
+        /// confirms it, then drives the sampler from the PC keyboard through `readOwnerKey`, each PC key sending only the
+        /// §20 item the mapping of `FrontPanelRemote.hpp` gives it, until the end key. Every key still held is released
+        /// at the end, and by the session's close if the check fails. Off by default: the keys act on whatever the sampler
+        /// shows, which only the owner can judge. Needs `askOwner` and `readOwnerKey`, and is skipped without either.
+        bool frontPanel = false;
+        /// Returns the next PC key the owner presses (`pc_key` codes of `FrontPanelRemote.hpp`), waiting for it, or nothing
+        /// when the owner's input has ended. Runs on the scenario's thread, like `askOwner`.
+        std::function<std::optional<int>()> readOwnerKey;
+        /// Shows the owner a line at once (the log is only written as the suite goes): what each key did.
+        std::function<void(const std::string& line)> tellOwner;
         /// A real sample the operator confirms is already in the sampler's memory, named by the caller.
         /// Shared by two independent checks: `programLifecycle`'s zone check assigns it to a zone by
         /// name (§06/&01, RQ-AKM-038) and, when empty, only that part is skipped, the rest of the check

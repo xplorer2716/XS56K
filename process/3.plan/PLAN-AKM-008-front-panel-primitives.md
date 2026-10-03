@@ -167,7 +167,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-073: Real-sampler check driven from the PC keyboard
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add `--front-panel` to `xs56k_akm_probe --suite`: print a named mapping table of PC keys to
   sampler keys, ask the owner (`askOwner`) to confirm the sampler shows a screen of their choice, then read
   PC keys through a new owner-input seam in `RealSamplerSuite` (one key at a time, no Enter) and send the
@@ -179,8 +179,33 @@ This plan implements the tasks in the format specified below.
   (scripted PC keys), and on the real sampler run by the owner.
 - **Dependencies**: TASK-AKM-070, TASK-AKM-071, TASK-AKM-072
 - **Assignee**: AI, with the owner running the real-sampler check
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: clean build with no warning or error (`/W4 /WX`), `ctest` 596/596 after
+  a re-run in this session (576 before, 20 new, `ctest -R RQ-AKM-076`, tests written before the code). New
+  `FrontPanelRemoteTests.cpp`: the mapping function (`remoteAction`) — all 36 rows of normal mode the owner
+  approved (F1–F8, digits, `-`, `+`/`=`, cursors, Enter, Escape, the eleven mode letters), letters read in either
+  case, the wheel keys (arrows 1 click, pages 8, up = forwards), Space/Tab/`q`, unmapped keys give nothing, the
+  text mode (every printable 32–126 is ASCII, Backspace/Enter are 8/13, Tab and Escape leave it, DEL and keys with
+  no character give nothing), the printed mapping names every sampler key, and each of the 43 keys has a name; the
+  check against the simulated sampler with a scripted source of PC keys — each key sends exactly the frames its row
+  names and `q` ends it (a key scripted after `q` is never read), Space holds ENT/PLAY and `q` releases it, Space
+  twice holds then releases it, the text mode sends ASCII and Escape in it sends no EXIT, unmapped keys send nothing
+  and the owner is told, the owner's input ending with a key held releases it, a reader that throws after a key
+  was held fails the check and the session's close releases the key with `knownStateRestored` true, a declined
+  confirmation or no way to ask or read a key skips the check with no §20 frame sent, no `--front-panel` means no
+  extra check, and all 36 rows pressed once reach the sampler as their own keycodes; the whole mapping is told to the owner as a
+  block of its own before the confirmation is asked and before the first key is read (added at the owner's request,
+  after the first closure: it had been inside the confirmation text only). By hand: `xs56k_akm_probe
+  --help` shows the option and its warning; `--front-panel` without `--suite` is refused, exit 1. `GuardedSession::close`
+  now logs each key released or not released and `closeAndVerify` names the keys not released. Not verified: the
+  real sampler and the Windows console reader (`_getch`, scan-code translation), which only the owner can run —
+  nothing here sent a frame to hardware.
+- **Assumptions**: The owner approved the mapping as proposed (session AKM, 2026-10-03): F9–F16 of the sampler
+  are not mapped. The console reader is Windows only (`_getch`); elsewhere, or when stdin is not a console, no
+  reader is given and the check is skipped — the owner works on Windows, and POSIX terminal code could not be
+  run here. A key pressed in the text mode is not interpreted by the suite: whether the S5000 accepts Backspace
+  as ASCII 8 or Enter as 13 is an observation for the owner's run. A failed command (an ERROR, a timeout of one
+  key) is said to the owner and logged but does not fail the check; only a lost completion does. A held ENT/PLAY
+  is remembered even if its Hold failed, as the session does (DEC-AKM-019).
 
 ---
 

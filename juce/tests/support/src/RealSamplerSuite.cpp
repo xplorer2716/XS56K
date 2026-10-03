@@ -39,6 +39,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/ItemCatalogue.hpp"
 #include "akm/ItemRequest.hpp"
 #include "akm/DiskPrimitives.hpp"
+#include "akm/FrontPanel.hpp"
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
@@ -46,6 +47,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/SystemSetup.hpp"
 #include "akm/ZonePrimitives.hpp"
 #include "akm/harness/ClockArithmetic.hpp"
+#include "akm/harness/FrontPanelRemote.hpp"
 #include "akm/harness/KeygroupParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/SampleParameterCases.hpp"
@@ -82,6 +84,8 @@ namespace akm::harness
         constexpr int COMMAND_PATIENCE_IN_TIMEOUTS = 2;
         constexpr int OPEN_PATIENCE_IN_TIMEOUTS = 8;
         constexpr int CLOSE_PATIENCE_IN_TIMEOUTS = 4;
+        // A key press is two commands, a Hold then a Release, each of which may take a whole timeout.
+        constexpr int KEY_PRESS_PATIENCE_FACTOR = 2;
 
         // After a power cycle the sampler gets this many Echos to answer again. A sampler that came back with its own
         // settings makes a session that assumes checksums on fail three verifications, then read the next confirmation
@@ -157,6 +161,17 @@ namespace akm::harness
             std::string text;
             for (const SamplerSetting setting : settings)
                 text += (text.empty() ? "" : ", ") + std::string(describe(setting));
+            return text;
+        }
+
+        // The keycodes of the keys a close did not release, as hex bytes, or "none".
+        std::string keysText(const std::vector<std::uint8_t>& keycodes)
+        {
+            if (keycodes.empty())
+                return "none";
+            std::string text;
+            for (const std::uint8_t keycode : keycodes)
+                text += (text.empty() ? "" : ", ") + hex(std::array<std::uint8_t, 1>{keycode});
             return text;
         }
 
@@ -273,6 +288,10 @@ namespace akm::harness
                     _rig.log.note("  put back: " + std::string(describe(setting)));
                 for (const SamplerSetting setting : timed->result.notRestored)
                     _rig.log.note("  NOT put back: " + std::string(describe(setting)));
+                for (const std::uint8_t keycode : timed->result.keysReleased)
+                    _rig.log.note("  released: front-panel key " + hex(std::array<std::uint8_t, 1>{keycode}));
+                for (const std::uint8_t keycode : timed->result.keysNotReleased)
+                    _rig.log.note("  NOT released: front-panel key " + hex(std::array<std::uint8_t, 1>{keycode}));
                 if (!timed->result.restoredAll())
                     _rig.result.knownStateRestored = false;
                 if (_closedInto != nullptr)
@@ -1014,6 +1033,9 @@ namespace akm::harness
                     check("one long-running §10 item, sent inside the disposable sub-folder with Still Alive on, "
                           "then the sub-folder deleted",
                           &Suite::diskToolsSlowOperation);
+                if (_rig.options.frontPanel)
+                    check("the owner drives the sampler's front panel from the PC keyboard, on a screen the owner chose",
+                          &Suite::frontPanelRemote);
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -1184,8 +1206,9 @@ namespace akm::harness
             {
                 const Timed<CloseResult> closed = guarded.close();
                 finding("closed after " + millisecondsText(closed.latency) + ", put back: " + settingsText(closed.result.restored));
-                expect(closed.result.restoredAll(), "every setting the session changed was put back (not put back: "
-                                                        + settingsText(closed.result.notRestored) + ")");
+                expect(closed.result.restoredAll(), "every setting the session changed was put back and every key it held released "
+                                                        "(not put back: " + settingsText(closed.result.notRestored)
+                                                        + "; keys not released: " + keysText(closed.result.keysNotReleased) + ")");
                 expect(guarded.session().state() == SessionState::Closed, "the session is closed");
             }
 
@@ -1762,6 +1785,170 @@ namespace akm::harness
                                                              [](Session& session, CommandCompletion done) { stopFileAudition(session, std::move(done)); });
                 if (!succeeded(stopped))
                     finding("the sampler refused the stop: the sample may have ended before the audition duration (a shorter sample)");
+                closeAndVerify(guarded);
+            }
+
+            // A sampler key as the owner and the log read it: its name on the front panel and its keycode.
+            static std::string keyText(FrontPanelKey key)
+            {
+                return std::string(remoteKeyName(key)) + " (" + hex(std::array<std::uint8_t, 1>{static_cast<std::uint8_t>(key)}) + ")";
+            }
+
+            // How a PC key is written in the log and to the owner.
+            static std::string pcKeyText(int pcKey)
+            {
+                constexpr int FIRST_VISIBLE = 33;
+                constexpr int LAST_VISIBLE = 126;
+                if (pcKey >= FIRST_VISIBLE && pcKey <= LAST_VISIBLE)
+                    return "'" + std::string(1, static_cast<char>(pcKey)) + "'";
+                return "key code " + std::to_string(pcKey);
+            }
+
+            // RQ-AKM-076: the owner drives the sampler's front panel from the PC keyboard. The owner picks the screen the
+            // sampler shows and confirms it before anything is sent; then each PC key sends only the §20 item the mapping gives
+            // it (`FrontPanelRemote.hpp`) — nothing is sent on the suite's own initiative — and what the sampler answered is
+            // said to the owner and written in the log. A short press is a Hold then a Release; Space holds ENT/PLAY until the
+            // next Space, as the spec's own example. The check ends on the end key, or when the owner's input ends, and every
+            // key still held is released then; if it fails or throws half way, the guard's close releases them (DEC-AKM-019).
+            void frontPanelRemote()
+            {
+                if (!_rig.options.askOwner || !_rig.options.readOwnerKey)
+                    throw CheckSkipped("this check is driven by the owner's keys, and there is no way to ask the owner or to read a key");
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const auto tell = [this](const std::string& line) {
+                    _rig.log.note("  " + line);
+                    if (_rig.options.tellOwner)
+                        _rig.options.tellOwner(line);
+                };
+                // The mapping is shown first, as a block of its own, before the owner is asked anything and before any key
+                // is read: the owner reads it, then confirms, then has the keyboard.
+                tell("");
+                tell("KEYBOARD MAPPING for the sampler's front panel: every key you press is sent to the sampler as the "
+                     "front-panel key it stands for; nothing is sent unless you press a key.");
+                for (const std::string& line : remoteMappingLines())
+                    tell(line);
+                ownerConfirms("Read the mapping above, put the sampler on the screen of your choice, then confirm. "
+                              "The keyboard is yours after that.");
+
+                tell("ready: press keys on the PC keyboard; q ends the check");
+
+                bool textMode = false;
+                std::optional<FrontPanelKey> held;
+                int keysPressed = 0;
+                int framesSent = 0;
+                const auto send = [&](const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch) {
+                    _rig.log.flush();
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [&guarded, &launch](CommandCompletion done) { launch(guarded.session(), std::move(done)); });
+                    if (!timed)
+                        throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                    ++framesSent;
+                    tell(title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                    return timed->result;
+                };
+
+                for (;;)
+                {
+                    const std::optional<int> pcKey = _rig.options.readOwnerKey();
+                    if (!pcKey)
+                    {
+                        tell("the owner's input ended");
+                        break;
+                    }
+                    const RemoteAction action = remoteAction(textMode, *pcKey);
+                    const std::string pressed = "PC " + pcKeyText(*pcKey);
+                    if (action.kind == RemoteActionKind::End)
+                    {
+                        tell(pressed + ": end of the check");
+                        break;
+                    }
+                    ++keysPressed;
+                    switch (action.kind)
+                    {
+                        case RemoteActionKind::None:
+                            tell(pressed + ": no sampler key, nothing sent");
+                            break;
+                        case RemoteActionKind::ToggleTextMode:
+                            textMode = true;
+                            tell(pressed + ": text mode, printable keys go as ASCII (Tab or Escape to leave)");
+                            break;
+                        case RemoteActionKind::LeaveTextMode:
+                            textMode = false;
+                            tell(pressed + ": back to the normal mode");
+                            break;
+                        case RemoteActionKind::Press:
+                        {
+                            const FrontPanelKey key = action.key;
+                            _rig.log.flush();
+                            const auto timed = awaitCompletion<KeyPressResult>(
+                                _rig.driver, _rig.commandPatience() * KEY_PRESS_PATIENCE_FACTOR,
+                                [&guarded, key](KeyPressCompletion done) { pressKey(guarded.session(), key, std::move(done)); });
+                            if (!timed)
+                                throw CheckFailure(pressed + ": no completion for the press: the session lost it");
+                            framesSent += 2;
+                            tell(pressed + " -> sampler key " + keyText(key) + ": hold " + outcomeText(timed->result.hold) + ", release "
+                                 + outcomeText(timed->result.release) + " after " + millisecondsText(timed->latency));
+                            break;
+                        }
+                        case RemoteActionKind::ToggleHold:
+                        {
+                            const FrontPanelKey key = action.key;
+                            if (held)
+                            {
+                                const CommandResult released = send(pressed + " -> release sampler key " + keyText(key),
+                                                                    [key](Session& session, CommandCompletion done) {
+                                                                        releaseKey(session, key, std::move(done));
+                                                                    });
+                                if (succeeded(released))
+                                    held.reset();
+                            }
+                            else
+                            {
+                                held = key;
+                                static_cast<void>(send(pressed + " -> hold sampler key " + keyText(key),
+                                                       [key](Session& session, CommandCompletion done) {
+                                                           holdKey(session, key, std::move(done));
+                                                       }));
+                            }
+                            break;
+                        }
+                        case RemoteActionKind::Wheel:
+                        {
+                            const DataWheelDirection direction = action.direction;
+                            const int clicks = action.clicks;
+                            static_cast<void>(send(pressed + " -> data wheel " + (direction == DataWheelDirection::Forwards ? "forwards " : "backwards ")
+                                                       + std::to_string(clicks) + (clicks == 1 ? " click" : " clicks"),
+                                                   [direction, clicks](Session& session, CommandCompletion done) {
+                                                       moveDataWheel(session, direction, clicks, std::move(done));
+                                                   }));
+                            break;
+                        }
+                        case RemoteActionKind::Ascii:
+                        {
+                            const int character = action.ascii;
+                            static_cast<void>(send(pressed + " -> ASCII " + std::to_string(character),
+                                                   [character](Session& session, CommandCompletion done) {
+                                                       sendAsciiKey(session, character, std::move(done));
+                                                   }));
+                            break;
+                        }
+                        case RemoteActionKind::End:
+                            break;
+                    }
+                }
+
+                if (held)
+                {
+                    const FrontPanelKey key = *held;
+                    static_cast<void>(send("end of the check: release the sampler key " + keyText(key) + " still held",
+                                           [key](Session& session, CommandCompletion done) { releaseKey(session, key, std::move(done)); }));
+                    held.reset();
+                }
+                finding(std::to_string(keysPressed) + " PC keys pressed by the owner, " + std::to_string(framesSent)
+                        + " front-panel commands sent");
                 closeAndVerify(guarded);
             }
 
@@ -2908,6 +3095,10 @@ namespace akm::harness
             if (options.diskToolsAudition)
                 log.note("It also plays the first .WAV file at the root of the selected disk (--disk-tools-audition, RQ-AKM-068) "
                          "for " + millisecondsText(options.auditionDuration) + ", after the owner confirms that one is there.");
+            if (options.frontPanel)
+                log.note("It also lets the owner drive the sampler's front panel from the PC keyboard (--front-panel, RQ-AKM-076): the owner "
+                         "chooses the screen and confirms it, then every PC key sends only the front-panel item the printed mapping gives it, "
+                         "section 20 items only. Every key still held is released at the end, and by the session's close if the check fails.");
             if (options.diskToolsSlow)
             {
                 const char* name = "";
