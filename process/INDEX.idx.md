@@ -214,7 +214,7 @@ TASK-AKM-053|247-301|Done|Real-sampler harness — system setup restored
 TASK-AKM-055|302-346|Done|The REPLY of Get Clock Time and Date carries section 0B, not 02
 TASK-AKM-054|347-380|Done|Coverage of section §02 and errata resolution
 @process/3.plan/PLAN-AKM-007-disk-tools-primitives.md
-PLAN-AKM-007|1-433||Disk Tools Primitives (Phase A, new lot, §10)
+PLAN-AKM-007|1-437||Disk Tools Primitives (Phase A, new lot, §10)
 TASK-AKM-056|22-45|Done|Author FTR-AKM-007 and PLAN-AKM-007
 TASK-AKM-057|46-82|Done|Disk discovery
 TASK-AKM-058|83-111|Done|Disk selection and status
@@ -226,8 +226,8 @@ TASK-AKM-063|249-280|Done|Load File, with and without dependent children
 TASK-AKM-064|281-316|Done|Save Memory Item(s) to disk
 TASK-AKM-065|317-337|Done|Sample audition from disk
 TASK-AKM-066|338-370|Done|Destructive command guards for Eject, Delete Sub-Folder and Delete File
-TASK-AKM-067|371-407|Done|Real-sampler harness — disposable test folder and slow-operation guard
-TASK-AKM-068|408-433|Done|Coverage of section §10 and errata resolution
+TASK-AKM-067|371-411|Done|Real-sampler harness — disposable test folder and slow-operation guard
+TASK-AKM-068|412-437|Done|Coverage of section §10 and errata resolution
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
@@ -249,4 +249,3 @@ TASK-BLD-011|19-29|Done|Pass `run-tests: true` from the generator to every workf
 PLAN-BLD-004|1-92||Mutation checks that leave the working tree alone
 TASK-BLD-012|20-92|Done|Mutation check tool on isolated copies
 @process/3.plan/SUMMARY-akm-sections-coverage.md
-@process/3.plan/chat.md

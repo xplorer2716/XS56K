@@ -1514,6 +1514,11 @@ namespace akm::harness
             void diskToolsSlowOperation()
             {
                 const DiskSlowOperation operation = *_rig.options.diskToolsSlow;
+                const bool savesAFile = operation == DiskSlowOperation::LoadFile || operation == DiskSlowOperation::LoadFileWithDependents
+                                        || operation == DiskSlowOperation::SaveMemoryItem || operation == DiskSlowOperation::SaveAllMemoryItems;
+                // Refused before anything is sent: a save that nobody can check on the sampler is not worth sending.
+                if (savesAFile && !_rig.options.askOwner)
+                    throw CheckSkipped("this item saves a file, which only the owner can check on the sampler, and there is no way to ask the owner");
                 GuardedSession guarded(_rig);
                 guarded.open(baseConfig());
                 expect(guarded.session().stillAliveMonitoring(),
@@ -1544,6 +1549,9 @@ namespace akm::harness
                                          saveMemoryItem(session, index, SaveableMemoryType::Program, false, false, std::move(done));
                                      });
                             const std::string file = firstFileName(guarded);
+                            // Between the save and the load: the owner sees the file on the sampler before anything loads it.
+                            ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                          "that it holds the file \"" + file + "\".");
                             expectCommand(guarded, "take the test program out of memory, so the load brings back the only copy",
                                           [](Session& session, CommandCompletion done) { deleteCurrentProgram(session, std::move(done)); });
                             if (operation == DiskSlowOperation::LoadFile)
@@ -1566,7 +1574,10 @@ namespace akm::harness
                                      [index](Session& session, CommandCompletion done) {
                                          saveMemoryItem(session, index, SaveableMemoryType::Program, false, false, std::move(done));
                                      });
-                            expect(fileCountHere(guarded) >= 1, "the save left a file in the sub-folder");
+                            const std::vector<std::string> saved = fileNamesHere(guarded);
+                            expect(!saved.empty(), "the save left a file in the sub-folder");
+                            ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                          "that it holds the file \"" + saved.front() + "\".");
                             break;
                         }
                         case DiskSlowOperation::SaveAllMemoryItems:
@@ -1578,7 +1589,13 @@ namespace akm::harness
                                      [](Session& session, CommandCompletion done) {
                                          saveAllMemoryItems(session, SaveableMemoryType::Program, false, false, std::move(done));
                                      });
-                            expect(fileCountHere(guarded) >= 1, "the save left at least one file in the sub-folder");
+                            const std::vector<std::string> saved = fileNamesHere(guarded);
+                            expect(!saved.empty(), "the save left at least one file in the sub-folder");
+                            std::string listed;
+                            for (const std::string& name : saved)
+                                listed += (listed.empty() ? "" : ", ") + std::string("\"") + name + "\"";
+                            ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                          "that it holds the files " + listed + ".");
                             break;
                         }
                     }
@@ -1620,15 +1637,38 @@ namespace akm::harness
                 return *counted.count;
             }
 
-            [[nodiscard]] std::string firstFileName(GuardedSession& guarded)
+            [[nodiscard]] std::vector<std::string> fileNamesHere(GuardedSession& guarded)
             {
                 const auto timed = awaitCompletion<DiskFileNamesResult>(_rig.driver, _rig.commandPatience(), [&guarded](DiskFileNamesCompletion done) {
                     getAllFileNames(guarded.session(), std::move(done));
                 });
-                if (!timed || !timed->result.names || timed->result.names->empty())
+                if (!timed || !timed->result.names)
+                    throw CheckFailure("the names of the files in the sub-folder could not be read");
+                return *timed->result.names;
+            }
+
+            [[nodiscard]] std::string firstFileName(GuardedSession& guarded)
+            {
+                const std::vector<std::string> names = fileNamesHere(guarded);
+                if (names.empty())
                     throw CheckFailure("the save left no file in the sub-folder to load");
-                finding("file to load: \"" + timed->result.names->front() + "\"");
-                return timed->result.names->front();
+                finding("file to load: \"" + names.front() + "\"");
+                return names.front();
+            }
+
+            // The owner looks at the sampler and confirms what the check expects there: a file a save has just made, which
+            // this layer cannot list without a save of its own. Declined, the check is skipped: nothing is sent after it,
+            // and the guards put back what the check changed.
+            void ownerConfirms(const std::string& instruction)
+            {
+                if (!_rig.options.askOwner)
+                    throw CheckSkipped("there is no way to ask the owner to check the sampler");
+                _rig.log.flush();
+                _rig.log.note("  asking the owner to check the sampler: " + instruction);
+                _rig.log.flush();
+                if (!_rig.options.askOwner(instruction))
+                    throw CheckSkipped("the owner did not confirm on the sampler: " + instruction);
+                _rig.log.note("  the owner confirms on the sampler");
             }
 
             [[nodiscard]] int currentProgramIndex(GuardedSession& guarded)

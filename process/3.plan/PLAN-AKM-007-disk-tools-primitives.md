@@ -393,7 +393,11 @@ This plan implements the tasks in the format specified below.
   `load-file-with-dependents` one `&2C` then one `&2B`; `load-folder` one `&15` on an empty child folder;
   `save-all-memory-items` one `&2D`. `--disk-tools-slow` refusals checked by hand: without `--suite`,
   without `--disk-tools`, and with an unknown or missing OP, each refused before any port is opened.
-  `AGENTS.md` updated (the two flags, the one-per-run rule and the hang citation). `setCurrentDisk`
+  Owner confirmation added after the owner's request: each save-making item asks the owner, through
+  `askOwner`, to confirm the file on the sampler (after the save, and before the load for the load items);
+  declined → Skipped; no way to ask → Skipped before any save is sent. 3 more cases, 11 disk-tools cases in
+  total; `ctest` 540/540 after the change.
+  `AGENTS.md` updated (the two flags, the one-per-run rule, the hang citation and the owner confirmation). `setCurrentDisk`
   added to `SimulatedSampler` as the test seam the safe check needs (the suite never selects a disk).
   The real-sampler run is the owner's to make: nothing here sent a frame to hardware.
 - **Assumptions**: Three choices made here, to be confirmed by the owner before a real run:

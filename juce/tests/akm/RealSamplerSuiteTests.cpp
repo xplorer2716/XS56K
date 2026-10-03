@@ -1059,6 +1059,7 @@ TEST_CASE("Given Disk Tools and the save-memory-item slow item, When the suite r
     RealSuiteOptions options = rig.options();
     options.diskTools = true;
     options.diskToolsSlow = akm::harness::DiskSlowOperation::SaveMemoryItem;
+    options.askOwner = [](const std::string&) { return true; };
     std::ostringstream log;
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
@@ -1079,6 +1080,7 @@ TEST_CASE("Given Disk Tools and the load-file slow item, When the suite runs, Th
     RealSuiteOptions options = rig.options();
     options.diskTools = true;
     options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
+    options.askOwner = [](const std::string&) { return true; };
     std::ostringstream log;
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
@@ -1117,6 +1119,7 @@ TEST_CASE("Given Disk Tools and the load-file-with-dependents slow item, When th
     RealSuiteOptions options = rig.options();
     options.diskTools = true;
     options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFileWithDependents;
+    options.askOwner = [](const std::string&) { return true; };
     std::ostringstream log;
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
@@ -1136,6 +1139,7 @@ TEST_CASE("Given Disk Tools and the save-all-memory-items slow item, When the su
     RealSuiteOptions options = rig.options();
     options.diskTools = true;
     options.diskToolsSlow = akm::harness::DiskSlowOperation::SaveAllMemoryItems;
+    options.askOwner = [](const std::string&) { return true; };
     std::ostringstream log;
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
@@ -1143,5 +1147,46 @@ TEST_CASE("Given Disk Tools and the save-all-memory-items slow item, When the su
     REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
     checkAllPassed(result);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, 0x2D) == 1);
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given Disk Tools and a file-saving slow item with no way to ask the owner, When the suite runs, Then the check is skipped before anything is saved [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the owner declining to confirm the saved file, When the suite runs, Then the check is skipped, nothing is loaded and the folder is still deleted [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
+    options.askOwner = [](const std::string&) { return false; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
     CHECK(result.knownStateRestored);
 }

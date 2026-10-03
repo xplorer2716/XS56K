@@ -87,7 +87,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the
   sampler (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7): a hang needs a power
   cycle by hand, so run one only when ready for it. `load-file` and `load-file-with-dependents` send one save (`&2C`)
-  first, since a file can only be made inside the sub-folder by saving.
+  first, since a file can only be made inside the sub-folder by saving; the owner then confirms on the sampler that the
+  file is there (declining skips the check, and a save is never sent without a way to ask).
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]
