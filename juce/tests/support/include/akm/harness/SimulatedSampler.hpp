@@ -254,18 +254,19 @@ namespace akm::harness
 
     struct FolderRecord
     {
-        std::string name;
-        std::vector<FolderRecord> subFolders;
+        // Default member initializers, so a partial aggregate initializer is not a missing-field warning (GCC -Werror).
+        std::string name{};
+        std::vector<FolderRecord> subFolders{};
         /// Programs and samples this folder directly contains, loaded by name into memory when this
         /// folder or an ancestor is loaded (§10/&15, RQ-AKM-064), alongside whatever `subFolders`
         /// recursively contains too. A real disk's files are not modelled (there is no AKAI file format
         /// here, only the SysEx protocol), so a "file" is just the name it would load, nothing else.
-        std::vector<std::string> programFiles;
-        std::vector<std::string> sampleFiles;
+        std::vector<std::string> programFiles{};
+        std::vector<std::string> sampleFiles{};
         /// The files this folder lists (RQ-AKM-065), separate from the above: listing and loading are
         /// different items of the spec, and nothing requires every listed file to be loadable or every
         /// loadable name to be listed.
-        std::vector<FileRecord> files;
+        std::vector<FileRecord> files{};
     };
 
     /// One disk connected to the sampler (§10, spec Tables 20-21): only what TASK-AKM-057's discovery
@@ -285,7 +286,7 @@ namespace akm::harness
         std::uint64_t freeBytes = 0;
         /// §10/&10-&14, &16, &18 (RQ-AKM-063): the disk's folder tree, root unnamed. A test seeds it
         /// through this field directly, the same way `setDisks` seeds everything else about a disk.
-        FolderRecord rootFolder;
+        FolderRecord rootFolder{};
     };
 
     /// One sample in the sampler's memory (§0E, spec Tables 18-19): only what TASK-AKM-040's lifecycle
