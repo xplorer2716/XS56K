@@ -66,7 +66,6 @@ namespace
     const std::string TOO_LONG_NAME(21, 'A');
 
     // The model bytes of spec Table 7 (&04), and one no model has.
-    constexpr std::uint8_t MODEL_S5000 = 0;
     constexpr std::uint8_t MODEL_S6000 = 1;
     constexpr std::uint8_t MODEL_UNKNOWN = 2;
     // A sampler with 64 MiB of Wave memory, 16 MiB of it free, and 40 % of its MPKS memory free: the Wave
