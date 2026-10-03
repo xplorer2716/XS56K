@@ -122,7 +122,7 @@ TEST_CASE("Given a name containing a byte above 7F, When it is assigned to a zon
     SessionHarness harness{driver};
     createAndSelectAProgram(harness);
 
-    const std::string invalid = "K\x80" "CK";  // "\x" consumes every following hex digit, hence the split
+    const std::string invalid = "K\200CK";  // octal, which stops after three digits (a hex escape would swallow the "C")
     akm::setZoneSample(harness.session(), 1, invalid, harness.recorder().completion());
     REQUIRE(harness.waitForCompletions(2));
     const CommandResult result = harness.recorder().results().back();

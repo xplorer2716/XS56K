@@ -395,7 +395,7 @@ TEST_CASE("Given a name longer than the item's character-count range, When makeS
 TEST_CASE("Given a name that is not 7-bit ASCII or contains a 00 byte, When makeStringRequest encodes it, Then it is refused as not encodable [RQ-AKM-002]",
           "[akm][catalogue]")
 {
-    for (const std::string& text : {std::string("A\x80"), std::string("A\0B", 3)})
+    for (const std::string& text : {std::string("A\200"), std::string("A\0B", 3)})
     {
         const akm::CommandRequest request = akm::makeStringRequest(STRING_ITEM, text);
 

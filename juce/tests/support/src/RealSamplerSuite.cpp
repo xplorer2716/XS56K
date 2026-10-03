@@ -344,8 +344,7 @@ namespace akm::harness
                         _rig.log.note(std::string("  test program deleted: ")
                                       + (timed && succeeded(timed->result) ? "done"
                                                                             : "failed ("
-                                                                                  + (timed ? outcomeText(timed->result)
-                                                                                          : std::string("no completion"))
+                                                                                  + timedOutcomeText(timed)
                                                                                   + ")"));
                     }
                     else
@@ -420,7 +419,7 @@ namespace akm::harness
                 });
                 if (!timed || !succeeded(timed->result))
                     throw CheckFailure("could not create the test program \"" + std::string(TEST_PROGRAM_NAME)
-                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                                       + "\": " + timedOutcomeText(timed));
                 _rig.log.note("  test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created and current");
             }
 
@@ -433,7 +432,7 @@ namespace akm::harness
                 });
                 const bool ok = timed && succeeded(timed->result);
                 _rig.log.note(std::string("  ") + title + ": "
-                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                              + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
                 return ok;
             }
 
@@ -556,7 +555,7 @@ namespace akm::harness
                 });
                 if (!timed || !succeeded(timed->result))
                     throw CheckFailure("could not select the test sample \"" + _sampleName
-                                       + "\": " + (timed ? outcomeText(timed->result) : std::string("no completion"))
+                                       + "\": " + timedOutcomeText(timed)
                                        + " (is it really in the sampler's memory?)");
                 _rig.log.note("  test sample \"" + _sampleName + "\" selected and current");
             }
@@ -570,7 +569,7 @@ namespace akm::harness
                 });
                 if (!timed || !succeeded(timed->result))
                     throw CheckFailure("could not read the test sample's settable parameters before changing them: "
-                                       + (timed ? outcomeText(timed->result) : std::string("no completion")));
+                                       + timedOutcomeText(timed));
                 const auto* replyData = std::get_if<Reply>(&timed->result);
                 const auto decoded = replyData ? decodeReply(ItemId::SampleGetAllSettableParams, replyData->data) : std::nullopt;
                 if (!decoded)
@@ -587,7 +586,7 @@ namespace akm::harness
                 });
                 const bool ok = timed && succeeded(timed->result);
                 _rig.log.note(std::string("  ") + title + ": "
-                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                              + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
                 return ok;
             }
 
@@ -800,7 +799,7 @@ namespace akm::harness
                 const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
                 const bool ok = timed && succeeded(timed->result);
                 _rig.log.note("  restore " + title + ": "
-                              + (ok ? "done" : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                              + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
             }
 
             void restore()
@@ -904,7 +903,7 @@ namespace akm::harness
                 const bool ok = timed && succeeded(timed->result);
                 _rig.log.note("  " + title + ": "
                               + (ok ? std::string("done")
-                                    : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                                    : "failed (" + timedOutcomeText(timed) + ")"));
                 return ok;
             }
 
@@ -2188,7 +2187,7 @@ namespace akm::harness
                 const auto before = awaitCompletion<ProgramCountResult>(
                     _rig.driver, _rig.commandPatience(),
                     [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
-                if (!before || !before->result.count)
+                if (!before || !before->result.count.has_value())
                     throw CheckFailure("could not read the number of programs before creating the test program");
                 const int countBefore = *before->result.count;
 
@@ -2409,7 +2408,7 @@ namespace akm::harness
                 const auto before = awaitCompletion<ProgramCountResult>(
                     _rig.driver, _rig.commandPatience(),
                     [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
-                if (!before || !before->result.count)
+                if (!before || !before->result.count.has_value())
                     throw CheckFailure("could not read the number of programs before creating the test program");
                 const int countBefore = *before->result.count;
 
@@ -2429,7 +2428,7 @@ namespace akm::harness
                     _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
                         getProgramKeygroupCount(guarded.session(), std::move(done));
                     });
-                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                if (!keygroupCountResult || !keygroupCountResult->result.count.has_value())
                     throw CheckFailure("could not read the keygroup count after adding keygroups");
                 const int keygroupCount = *keygroupCountResult->result.count;
                 expect(keygroupCount == 3, "the keygroup count read back is 3 (1 default + 2 added)");
@@ -2525,7 +2524,7 @@ namespace akm::harness
                 const auto before = awaitCompletion<ProgramCountResult>(
                     _rig.driver, _rig.commandPatience(),
                     [&guarded](ProgramCountCompletion done) { getProgramCount(guarded.session(), std::move(done)); });
-                if (!before || !before->result.count)
+                if (!before || !before->result.count.has_value())
                     throw CheckFailure("could not read the number of programs before creating the test program");
                 const int countBefore = *before->result.count;
 
@@ -2540,7 +2539,7 @@ namespace akm::harness
                     _rig.driver, _rig.commandPatience(), [&guarded](ProgramKeygroupCountCompletion done) {
                         getProgramKeygroupCount(guarded.session(), std::move(done));
                     });
-                if (!keygroupCountResult || !keygroupCountResult->result.count)
+                if (!keygroupCountResult || !keygroupCountResult->result.count.has_value())
                     throw CheckFailure("could not read the keygroup count after adding a keygroup");
                 const int keygroupCount = *keygroupCountResult->result.count;
                 expect(keygroupCount == 2, "the keygroup count read back is 2 (1 default + 1 added)");

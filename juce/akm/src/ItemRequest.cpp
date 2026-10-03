@@ -57,7 +57,7 @@ namespace akm
         template <typename Integer>
         std::optional<std::int64_t> widened(const std::optional<Integer>& value)
         {
-            if (!value)
+            if (!value.has_value())
                 return std::nullopt;
             return static_cast<std::int64_t>(*value);
         }
@@ -136,7 +136,7 @@ namespace akm
         for (const ValueSpec& spec : item.reply)
         {
             const std::optional<std::int64_t> value = readValue(reader, spec.format);
-            if (!value)
+            if (!value.has_value())
                 return std::nullopt;
             values.push_back(*value);
         }
@@ -165,7 +165,7 @@ namespace akm
             for (const ValueSpec& spec : item.reply)
             {
                 const std::optional<std::int64_t> value = readValue(reader, spec.format);
-                if (!value)
+                if (!value.has_value())
                     return std::nullopt;
                 record.push_back(*value);
             }

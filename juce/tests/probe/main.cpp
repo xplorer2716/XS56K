@@ -316,6 +316,18 @@ namespace
         }
     }
 
+    // The text field a value-taking option fills; --sample-name is the last of the four.
+    std::string& textOptionTarget(Arguments& parsed, const std::string& option)
+    {
+        if (option == "--in")
+            return parsed.input;
+        if (option == "--out")
+            return parsed.output;
+        if (option == "--log")
+            return parsed.logPath;
+        return parsed.sampleName;
+    }
+
     Arguments parseArguments(const std::vector<std::string>& args)
     {
         Arguments parsed;
@@ -362,10 +374,7 @@ namespace
             else if (option == "--in" || option == "--out" || option == "--log" || option == "--sample-name")
             {
                 const std::string value = valueOf(args, index++, parsed);
-                (option == "--in"    ? parsed.input
-                 : option == "--out" ? parsed.output
-                 : option == "--log" ? parsed.logPath
-                                     : parsed.sampleName) = value;
+                textOptionTarget(parsed, option) = value;
             }
             else if (option == "--device-id" || option == "--other-device-id" || option == "--timeout-ms")
             {

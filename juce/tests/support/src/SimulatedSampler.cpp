@@ -548,7 +548,7 @@ namespace akm::harness
             const ParameterMatch match = matchParameterItem(PARAMETER_GROUP_RANGES, item);
             if (match.access == ParameterAccess::None)
                 return failure(error_number::NOT_SUPPORTED);
-            if (!current)
+            if (!current.has_value())
                 return failure(error_number::NOT_FOUND);
             return executeStoredParameter(SECTION_PROGRAM, match, data, programs[*current].parameters);
         }
@@ -557,8 +557,8 @@ namespace akm::harness
         // front-panel one minus one (spec Table 13, footnote a), 0 with the number disabled.
         void appendProgramNumber(akm::ByteWriter& writer, const std::optional<int>& number)
         {
-            writer.appendByte(number ? 1 : 0);
-            writer.appendByte(number ? static_cast<std::uint32_t>(*number - 1) : 0);
+            writer.appendByte(number.has_value() ? 1 : 0);
+            writer.appendByte(number.has_value() ? static_cast<std::uint32_t>(*number - 1) : 0);
         }
 
         Outcome selectProgramByName(const Bytes& data, const std::vector<ProgramRecord>& programs,
@@ -582,7 +582,7 @@ namespace akm::harness
         {
             akm::ByteReader reader(data);
             const auto index = reader.readWord();
-            if (!index)
+            if (!index.has_value())
                 return failure(error_number::INVALID_FORMAT);
             if (*index >= programs.size())
                 return failure(error_number::NOT_FOUND);
@@ -594,7 +594,7 @@ namespace akm::harness
         Outcome deleteCurrentProgram(std::vector<ProgramRecord>& programs, std::optional<std::size_t>& current,
                                      std::optional<int>& currentKeygroup)
         {
-            if (!current)
+            if (!current.has_value())
                 return failure(error_number::NOT_FOUND);
             programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
             current.reset();
@@ -755,7 +755,7 @@ namespace akm::harness
                 case ITEM_GET_CROSSFADE:
                 case ITEM_GET_INDEX:
                 case ITEM_GET_CURRENT_PROGRAM_NAME:
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     return executeCurrentProgram(item, data, programs[*current], *current);
                 default:
@@ -800,7 +800,7 @@ namespace akm::harness
             const ParameterMatch match = matchParameterItem(KEYGROUP_PARAMETER_GROUP_RANGES, item);
             if (match.access == ParameterAccess::None)
                 return failure(error_number::NOT_SUPPORTED);
-            if (!currentProgram || !currentKeygroup)
+            if (!currentProgram.has_value() || !currentKeygroup.has_value())
                 return failure(error_number::NOT_FOUND);
             const auto widths = parameterWidths(SECTION_KEYGROUP, match.getItem);
             if (!widths)
@@ -832,7 +832,7 @@ namespace akm::harness
             {
                 case ITEM_SELECT_KEYGROUP:
                 {
-                    if (!currentProgram)
+                    if (!currentProgram.has_value())
                         return failure(error_number::NOT_FOUND);
                     if (data.empty())
                         return failure(error_number::INVALID_FORMAT);
@@ -844,7 +844,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_CURRENT_KEYGROUP:
                 {
-                    if (!currentProgram || !currentKeygroup)
+                    if (!currentProgram.has_value() || !currentKeygroup.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendByte(static_cast<std::uint32_t>(*currentKeygroup));
@@ -884,7 +884,7 @@ namespace akm::harness
             const ParameterMatch match = matchParameterItem(ZONE_PARAMETER_GROUP_RANGES, item);
             if (match.access == ParameterAccess::None)
                 return failure(error_number::NOT_SUPPORTED);
-            if (!currentProgram || !currentKeygroup)
+            if (!currentProgram.has_value() || !currentKeygroup.has_value())
                 return failure(error_number::NOT_FOUND);
             const auto widths = parameterWidths(SECTION_ZONE, match.getItem);
             if (!widths)
@@ -935,12 +935,12 @@ namespace akm::harness
             {
                 case ITEM_SET_ZONE_SAMPLE:
                 {
-                    if (!currentProgram || !currentKeygroup || *currentKeygroup == 0)
+                    if (!currentProgram.has_value() || !currentKeygroup.has_value() || *currentKeygroup == 0)
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto zone = reader.readByte();
                     const auto name = reader.readString();
-                    if (!zone || !name)
+                    if (!zone.has_value() || !name)
                         return failure(error_number::INVALID_FORMAT);
                     if (std::find(sampleNames.begin(), sampleNames.end(), *name) == sampleNames.end())
                         return failure(error_number::NOT_FOUND);
@@ -952,7 +952,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_ZONE_SAMPLE:
                 {
-                    if (!currentProgram || !currentKeygroup || *currentKeygroup == 0)
+                    if (!currentProgram.has_value() || !currentKeygroup.has_value() || *currentKeygroup == 0)
                         return failure(error_number::NOT_FOUND);
                     if (data.empty())
                         return failure(error_number::INVALID_FORMAT);
@@ -985,7 +985,7 @@ namespace akm::harness
             const ParameterMatch match = matchParameterItem(SAMPLE_PARAMETER_GROUP_RANGES, item);
             if (match.access == ParameterAccess::None)
                 return failure(error_number::NOT_SUPPORTED);
-            if (!current)
+            if (!current.has_value())
                 return failure(error_number::NOT_FOUND);
             return executeStoredParameter(SECTION_SAMPLE, match, data, samples[*current].parameters);
         }
@@ -1019,7 +1019,7 @@ namespace akm::harness
                 {
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
-                    if (!index)
+                    if (!index.has_value())
                         return failure(error_number::INVALID_FORMAT);
                     if (*index >= samples.size())
                         return failure(error_number::NOT_FOUND);
@@ -1027,14 +1027,14 @@ namespace akm::harness
                     return done();
                 }
                 case ITEM_DELETE_CURRENT_SAMPLE:
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     samples.erase(samples.begin() + static_cast<std::ptrdiff_t>(*current));
                     current.reset();
                     return done();
                 case ITEM_RENAME_CURRENT_SAMPLE:
                 {
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1045,12 +1045,12 @@ namespace akm::harness
                 }
                 case ITEM_START_SAMPLE_AUDITION:
                 case ITEM_STOP_SAMPLE_AUDITION:
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     return done();
                 case ITEM_GET_CURRENT_SAMPLE_INDEX:
                 {
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(*current));
@@ -1058,7 +1058,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_CURRENT_SAMPLE_NAME:
                 {
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendString(samples[*current].name);
@@ -1078,7 +1078,7 @@ namespace akm::harness
                 {
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
-                    if (!index)
+                    if (!index.has_value())
                         return failure(error_number::INVALID_FORMAT);
                     if (*index >= samples.size())
                         return failure(error_number::NOT_FOUND);
@@ -1094,16 +1094,16 @@ namespace akm::harness
                     return reply(writer.bytes());
                 }
                 case ITEM_GET_SAMPLE_TYPE:
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     return reply(Bytes{samples[*current].type});
                 case ITEM_GET_SAMPLE_CHANNELS:
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     return reply(Bytes{samples[*current].channels});
                 case ITEM_GET_SAMPLE_LENGTH:
                 {
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     appendCompoundWord(writer, samples[*current].length);
@@ -1111,7 +1111,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_SAMPLE_RATE:
                 {
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     appendCompoundWord(writer, samples[*current].rate);
@@ -1119,7 +1119,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_ALL_BASIC_PARAMS:
                 {
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     const SampleRecord& sample = samples[*current];
                     akm::ByteWriter writer;
@@ -1131,7 +1131,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_ALL_SETTABLE_PARAMS:
                 {
-                    if (!current)
+                    if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     const SampleRecord& sample = samples[*current];
                     Bytes concatenated;
@@ -1349,7 +1349,7 @@ namespace akm::harness
                     return findDiskByHandle(disks, static_cast<int>(*handle)) ? done() : failure(error_number::NOT_FOUND);
                 }
                 case ITEM_GET_CURRENT_DISK_TYPE:
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     return reply(Bytes{disks[*currentDisk].type});
                 case ITEM_GET_DISK_TYPE:
@@ -1365,7 +1365,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_CURRENT_DISK_HANDLE:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(disks[*currentDisk].handle));
@@ -1373,19 +1373,19 @@ namespace akm::harness
                 }
                 case ITEM_GET_CURRENT_DISK_PATH:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendString("");
                     return reply(writer.bytes());
                 }
                 case ITEM_GET_CURRENT_DISK_FORMAT:
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     return reply(Bytes{disks[*currentDisk].format});
                 case ITEM_GET_DISK_FREE_SPACE:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendQword(disks[*currentDisk].freeBytes);
@@ -1406,7 +1406,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_FOLDER_COUNT:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
@@ -1415,11 +1415,11 @@ namespace akm::harness
                 }
                 case ITEM_GET_FOLDER_NAME:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
-                    if (!index)
+                    if (!index.has_value())
                         return failure(error_number::INVALID_FORMAT);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     if (folder == nullptr || *index >= folder->subFolders.size())
@@ -1430,7 +1430,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_ALL_FOLDER_NAMES:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
@@ -1441,7 +1441,7 @@ namespace akm::harness
                 }
                 case ITEM_OPEN_FOLDER:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1460,7 +1460,7 @@ namespace akm::harness
                     return done();
                 }
                 case ITEM_CLOSE_FOLDER:
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     if (currentFolderPath.empty())
                         return failure(error_number::NOT_FOUND);
@@ -1468,7 +1468,7 @@ namespace akm::harness
                     return done();
                 case ITEM_CREATE_FOLDER:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1482,7 +1482,7 @@ namespace akm::harness
                 }
                 case ITEM_RENAME_FOLDER:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto oldName = reader.readString();
@@ -1498,7 +1498,7 @@ namespace akm::harness
                 }
                 case ITEM_LOAD_FOLDER:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1526,7 +1526,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_FILE_COUNT:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
@@ -1535,11 +1535,11 @@ namespace akm::harness
                 }
                 case ITEM_GET_FILE_NAME:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
-                    if (!index)
+                    if (!index.has_value())
                         return failure(error_number::INVALID_FORMAT);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     if (folder == nullptr || *index >= folder->files.size())
@@ -1550,7 +1550,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_ALL_FILE_NAMES:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
@@ -1561,11 +1561,11 @@ namespace akm::harness
                 }
                 case ITEM_GET_FILE_SIZE:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
-                    if (!index)
+                    if (!index.has_value())
                         return failure(error_number::INVALID_FORMAT);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     if (folder == nullptr || *index >= folder->files.size())
@@ -1576,7 +1576,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_FILE_INDEX_BY_NAME:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1592,7 +1592,7 @@ namespace akm::harness
                 }
                 case ITEM_RENAME_FILE:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto oldName = reader.readString();
@@ -1613,7 +1613,7 @@ namespace akm::harness
                 }
                 case ITEM_LOAD_FILE:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1629,7 +1629,7 @@ namespace akm::harness
                 }
                 case ITEM_LOAD_FILE_WITH_DEPENDENTS:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1650,14 +1650,14 @@ namespace akm::harness
                 }
                 case ITEM_SAVE_MEMORY_ITEM:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
                     const auto type = index ? reader.readByte() : std::nullopt;
                     const auto overwriteExisting = type ? reader.readByte() : std::nullopt;
                     const auto saveChildren = overwriteExisting ? reader.readByte() : std::nullopt;
-                    if (!index || !type || !overwriteExisting || !saveChildren)
+                    if (!index.has_value() || !type || !overwriteExisting || !saveChildren)
                         return failure(error_number::INVALID_FORMAT);
                     std::string itemName;
                     if (*type == SAVE_TYPE_PROGRAM)
@@ -1681,7 +1681,7 @@ namespace akm::harness
                 }
                 case ITEM_SAVE_ALL_MEMORY_ITEMS:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto type = reader.readByte();
@@ -1714,11 +1714,11 @@ namespace akm::harness
                 }
                 case ITEM_START_FILE_AUDITION:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
-                    if (!index)
+                    if (!index.has_value())
                         return failure(error_number::INVALID_FORMAT);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     if (folder == nullptr || *index >= folder->files.size())
@@ -1759,7 +1759,7 @@ namespace akm::harness
                 }
                 case ITEM_DELETE_SUB_FOLDER:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1774,7 +1774,7 @@ namespace akm::harness
                 }
                 case ITEM_DELETE_FILE:
                 {
-                    if (!currentDisk)
+                    if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
@@ -1841,37 +1841,49 @@ namespace akm::harness
         // parameters (RQ-AKM-034, RQ-AKM-035), §0E's lifecycle (RQ-AKM-045) and §10's disk discovery
         // and selection (RQ-AKM-060, RQ-AKM-061) are modelled. A byte after the data an item expects is
         // ignored, as the spec says of a checksum sent while checksums are off.
-        Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerSettings& settings,
-                        const OsVersion& osVersion, SystemSetupState& system, std::vector<ProgramRecord>& programs,
-                        std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
-                        std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
-                        std::vector<std::string>& multis, std::vector<DiskRecord>& disks,
-                        std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
-                        FrontPanelState& frontPanel)
+        // The sampler's mutable state, by reference, that `execute` hands to the section it dispatches to.
+        struct SamplerState
+        {
+            SamplerSettings& settings;
+            const OsVersion& osVersion;
+            SystemSetupState& system;
+            std::vector<ProgramRecord>& programs;
+            std::optional<std::size_t>& currentProgram;
+            std::optional<int>& currentKeygroup;
+            std::vector<SampleRecord>& samples;
+            std::optional<std::size_t>& currentSample;
+            std::vector<std::string>& multis;
+            std::vector<DiskRecord>& disks;
+            std::optional<std::size_t>& currentDisk;
+            std::vector<std::size_t>& currentFolderPath;
+            FrontPanelState& frontPanel;
+        };
+
+        Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerState& state)
         {
             if (section == SECTION_FRONT_PANEL)
-                return executeFrontPanel(item, data, frontPanel);
+                return executeFrontPanel(item, data, state.frontPanel);
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
-                return executeClearMemory(system, programs, currentProgram, currentKeygroup, samples, currentSample,
-                                      multis);
+                return executeClearMemory(state.system, state.programs, state.currentProgram, state.currentKeygroup,
+                                          state.samples, state.currentSample, state.multis);
             if (section == SECTION_ZONE)
             {
                 std::vector<std::string> sampleNames;
-                sampleNames.reserve(samples.size());
-                for (const SampleRecord& sample : samples)
+                sampleNames.reserve(state.samples.size());
+                for (const SampleRecord& sample : state.samples)
                     sampleNames.push_back(sample.name);
-                return executeZone(item, data, programs, currentProgram, currentKeygroup, sampleNames);
+                return executeZone(item, data, state.programs, state.currentProgram, state.currentKeygroup, sampleNames);
             }
             if (section == SECTION_SYSTEM)
-                return executeSystem(item, data, osVersion, system);
+                return executeSystem(item, data, state.osVersion, state.system);
             if (section == SECTION_PROGRAM)
-                return executeProgram(item, data, programs, currentProgram, currentKeygroup);
+                return executeProgram(item, data, state.programs, state.currentProgram, state.currentKeygroup);
             if (section == SECTION_KEYGROUP)
-                return executeKeygroup(item, data, programs, currentProgram, currentKeygroup);
+                return executeKeygroup(item, data, state.programs, state.currentProgram, state.currentKeygroup);
             if (section == SECTION_SAMPLE)
-                return executeSample(item, data, samples, currentSample);
+                return executeSample(item, data, state.samples, state.currentSample);
             if (section == SECTION_DISK)
-                return executeDisk(item, data, disks, currentDisk, currentFolderPath, programs, samples);
+                return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)
@@ -1879,23 +1891,23 @@ namespace akm::harness
                 case ITEM_QUERY:
                     return done();
                 case ITEM_NOTIFICATION:
-                    return setToggle(data, settings.notification);
+                    return setToggle(data, state.settings.notification);
                 case ITEM_SYNC_LCD:
-                    if (osVersion < SYNC_LCD_SINCE)
+                    if (state.osVersion < SYNC_LCD_SINCE)
                         return failure(error_number::NOT_SUPPORTED);
-                    return setToggle(data, settings.syncLcd);
+                    return setToggle(data, state.settings.syncLcd);
                 case ITEM_CHECKSUM:
-                    return setToggle(data, settings.checksum);
+                    return setToggle(data, state.settings.checksum);
                 case ITEM_AUTO_SCREEN_UPDATE:
-                    return setToggle(data, settings.autoScreenUpdate);
+                    return setToggle(data, state.settings.autoScreenUpdate);
                 case ITEM_ECHO:
                     if (data.size() < ECHO_DATA_SIZE)
                         return failure(error_number::INVALID_FORMAT);
                     return reply(Bytes(data.begin(), data.begin() + ECHO_DATA_SIZE));
                 case ITEM_STILL_ALIVE:
-                    if (osVersion < STILL_ALIVE_SINCE)
+                    if (state.osVersion < STILL_ALIVE_SINCE)
                         return failure(error_number::NOT_SUPPORTED);
-                    return setToggle(data, settings.stillAlive);
+                    return setToggle(data, state.settings.stillAlive);
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }
@@ -2180,11 +2192,11 @@ namespace akm::harness
                                           [section, item](const ItemError& candidate) {
                                               return candidate.section == section && candidate.item == item;
                                           });
-        const Outcome outcome = refused != _behaviour.itemErrors.end()
-                                    ? failure(refused->number)
-                                    : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
-                                              _currentKeygroup, _samples, _currentSample, _multis, _disks, _currentDisk,
-                                              _currentFolderPath, _frontPanel);
+        SamplerState state{_settings,      _config.osVersion, _system,      _programs,         _currentProgram,
+                           _currentKeygroup, _samples,         _currentSample, _multis,       _disks,
+                           _currentDisk,     _currentFolderPath, _frontPanel};
+        const Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
+                                                                        : execute(section, item, data, state);
         // An item the sampler is deaf to ran, and says nothing, the OK included.
         const bool silentItem = std::any_of(_behaviour.silentItems.begin(), _behaviour.silentItems.end(),
                                             [section, item](const SilentItem& candidate) {
