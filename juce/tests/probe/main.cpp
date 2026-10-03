@@ -466,6 +466,79 @@ namespace
         for (const std::string& name : backend.outputDeviceNames())
             std::cout << "  \"" << name << "\"\n";
     }
+
+    // What the real-sampler suite is about to do, for the owner to read before pressing Enter.
+    void describeSuite(const Arguments& arguments)
+    {
+        std::cout << "The real-sampler suite will send SysEx frames to \"" << arguments.output << "\" and listen on \""
+                  << arguments.input << "\".\n"
+                  << "Each check opens a session and closes it. It switches the sampler's checksum, Notification, Still Alive"
+                  << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
+                  << "checksums off, Still Alive off, Notification on"
+                  << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off")
+                  << (arguments.programLifecycle || arguments.sampleLifecycle || arguments.systemSetup
+                          ? ".\n"
+                          : ". It changes no stored program or sample.\n");
+        if (arguments.slowOperation)
+            std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
+        if (arguments.powerCycle)
+            std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
+        if (arguments.programLifecycle)
+        {
+            std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", add\n"
+                      << "keygroups to it, round-trip every section 08 item and every non-sample section 06 item on\n"
+                      << "them, and restore the program that was current before; no other program, multi or sample\n"
+                      << "is touched.\n";
+            if (!arguments.sampleName.empty())
+                std::cout << "It will also assign the sample \"" << arguments.sampleName
+                          << "\" to a zone of that program by name and read it back; the sample itself is never\n"
+                          << "created, changed or deleted.\n";
+            else
+                std::cout << "Sample assignment is skipped: no --sample-name was given.\n";
+        }
+        if (arguments.systemSetup)
+            std::cout << "It will also change the sampler's own settings and put them back: its name, its Play Mode (all four,\n"
+                      << "Muted included, which silences it for an instant), its front-panel lock (locked for an instant) and\n"
+                      << "its clock (advanced by the time elapsed when put back, to about three seconds). It never sends Clear\n"
+                      << "Sampler Memory. Note the sampler's name and time before you start.\n";
+        if (arguments.diskTools)
+            std::cout << "It will also ask you which writable disk the sampler reports valid to select, create the sub-folder\n"
+                      << "XS56K_SUITE_TEST under its current folder, work inside it and delete it again. The selection stays\n"
+                      << "on the sampler (no command clears it) and nothing that existed before is touched. Note the disks\n"
+                      << "and the current folder on the sampler before you start.\n";
+        if (arguments.diskToolsAudition)
+            std::cout << "It will also play the first .WAV file at the root of the selected disk for 3 seconds (it plays a\n"
+                      << "sound), once you confirm that one is there. Nothing is saved for it.\n";
+        if (arguments.diskToolsFiles)
+            std::cout << "It will also save the test program into the sub-folder (you confirm the file on the sampler), read,\n"
+                      << "rename and delete the file.\n";
+        if (arguments.frontPanel)
+            std::cout << "It will also let you drive the sampler's front panel from the PC keyboard: you choose the screen the\n"
+                      << "sampler shows, then each key you press is sent as the sampler key it stands for (the mapping is printed\n"
+                      << "first), nothing else. The keys act on whatever the sampler shows: SAVE, ENT/PLAY or the data wheel can\n"
+                      << "change or delete your data on some screens. Put the sampler on a screen where that cannot hurt.\n";
+        if (!arguments.diskToolsSlow.empty())
+            std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
+                      << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
+                      << "process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md): if it does, the sampler will\n"
+                      << "need a power cycle by hand. Be ready to do that.\n";
+        if (arguments.diskToolsSlow == "update-list")
+            std::cout << "WARNING: update-list hangs the sampler on this rig: the S5000 (OS 2.14) with a SCSI2SD disk (an\n"
+                      << "SCSI emulator on an SD card) stopped answering on it, from this check and from the sampler's own\n"
+                      << "screen. Expect the check to fail and the sampler to need a power cycle by hand, then the folder\n"
+                      << "XS56K_SUITE_TEST to be removed by hand.\n";
+        if (arguments.sampleLifecycle)
+        {
+            if (!arguments.sampleName.empty())
+                std::cout << "It will also select the sample \"" << arguments.sampleName
+                          << "\", rename it and back, start and stop auditioning it, round-trip every settable\n"
+                          << "section 0E item on it, and restore its name, its parameters and the sampler's\n"
+                          << "original current-sample selection; it never sends section 0E's Delete ALL or\n"
+                          << "Delete current sample item.\n";
+            else
+                std::cout << "The sample lifecycle check is skipped: no --sample-name was given.\n";
+        }
+    }
 }
 
 int main(int argc, char** argv)
@@ -507,76 +580,7 @@ int main(int argc, char** argv)
     if (!arguments.yes)
     {
         if (arguments.suite)
-        {
-            std::cout << "The real-sampler suite will send SysEx frames to \"" << arguments.output << "\" and listen on \""
-                      << arguments.input << "\".\n"
-                      << "Each check opens a session and closes it. It switches the sampler's checksum, Notification, Still Alive"
-                      << (arguments.noLcd ? "" : ", Sync LCD and Auto screen update") << " settings on and off, and ends with\n"
-                      << "checksums off, Still Alive off, Notification on"
-                      << (arguments.noLcd ? "" : ", Sync LCD on and Auto screen update off")
-                      << (arguments.programLifecycle || arguments.sampleLifecycle || arguments.systemSetup
-                              ? ".\n"
-                              : ". It changes no stored program or sample.\n");
-            if (arguments.slowOperation)
-                std::cout << "It also sends one command outside sections 00 and 02: update the list of disks (section 10, item 01).\n";
-            if (arguments.powerCycle)
-                std::cout << "It will ask you to switch the sampler off and on while a session is open.\n";
-            if (arguments.programLifecycle)
-            {
-                std::cout << "It will also create, change, select and delete a program named \"XS56K_SUITE_TEST\", add\n"
-                          << "keygroups to it, round-trip every section 08 item and every non-sample section 06 item on\n"
-                          << "them, and restore the program that was current before; no other program, multi or sample\n"
-                          << "is touched.\n";
-                if (!arguments.sampleName.empty())
-                    std::cout << "It will also assign the sample \"" << arguments.sampleName
-                              << "\" to a zone of that program by name and read it back; the sample itself is never\n"
-                              << "created, changed or deleted.\n";
-                else
-                    std::cout << "Sample assignment is skipped: no --sample-name was given.\n";
-            }
-            if (arguments.systemSetup)
-                std::cout << "It will also change the sampler's own settings and put them back: its name, its Play Mode (all four,\n"
-                          << "Muted included, which silences it for an instant), its front-panel lock (locked for an instant) and\n"
-                          << "its clock (advanced by the time elapsed when put back, to about three seconds). It never sends Clear\n"
-                          << "Sampler Memory. Note the sampler's name and time before you start.\n";
-            if (arguments.diskTools)
-                std::cout << "It will also ask you which writable disk the sampler reports valid to select, create the sub-folder\n"
-                          << "XS56K_SUITE_TEST under its current folder, work inside it and delete it again. The selection stays\n"
-                          << "on the sampler (no command clears it) and nothing that existed before is touched. Note the disks\n"
-                          << "and the current folder on the sampler before you start.\n";
-            if (arguments.diskToolsAudition)
-                std::cout << "It will also play the first .WAV file at the root of the selected disk for 3 seconds (it plays a\n"
-                          << "sound), once you confirm that one is there. Nothing is saved for it.\n";
-            if (arguments.diskToolsFiles)
-                std::cout << "It will also save the test program into the sub-folder (you confirm the file on the sampler), read,\n"
-                          << "rename and delete the file.\n";
-            if (arguments.frontPanel)
-                std::cout << "It will also let you drive the sampler's front panel from the PC keyboard: you choose the screen the\n"
-                          << "sampler shows, then each key you press is sent as the sampler key it stands for (the mapping is printed\n"
-                          << "first), nothing else. The keys act on whatever the sampler shows: SAVE, ENT/PLAY or the data wheel can\n"
-                          << "change or delete your data on some screens. Put the sampler on a screen where that cannot hurt.\n";
-            if (!arguments.diskToolsSlow.empty())
-                std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
-                          << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
-                          << "process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md): if it does, the sampler will\n"
-                          << "need a power cycle by hand. Be ready to do that.\n";
-            if (arguments.diskToolsSlow == "update-list")
-                std::cout << "WARNING: update-list hangs the sampler on this rig: the S5000 (OS 2.14) with a SCSI2SD disk (an\n"
-                          << "SCSI emulator on an SD card) stopped answering on it, from this check and from the sampler's own\n"
-                          << "screen. Expect the check to fail and the sampler to need a power cycle by hand, then the folder\n"
-                          << "XS56K_SUITE_TEST to be removed by hand.\n";
-            if (arguments.sampleLifecycle)
-            {
-                if (!arguments.sampleName.empty())
-                    std::cout << "It will also select the sample \"" << arguments.sampleName
-                              << "\", rename it and back, start and stop auditioning it, round-trip every settable\n"
-                              << "section 0E item on it, and restore its name, its parameters and the sampler's\n"
-                              << "original current-sample selection; it never sends section 0E's Delete ALL or\n"
-                              << "Delete current sample item.\n";
-                else
-                    std::cout << "The sample lifecycle check is skipped: no --sample-name was given.\n";
-            }
-        }
+            describeSuite(arguments);
         else if (arguments.session)
             std::cout << "The session smoke test will send SysEx frames to \"" << arguments.output << "\" and listen on \""
                       << arguments.input << "\".\n"

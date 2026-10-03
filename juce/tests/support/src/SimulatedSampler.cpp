@@ -454,6 +454,88 @@ namespace akm::harness
             return total;
         }
 
+        // Where an item of a parameter group falls: a Set (the item is its own Set), a Get (its Set is the
+        // item minus the group's offset) or neither.
+        enum class ParameterAccess
+        {
+            None,
+            Set,
+            Get
+        };
+
+        struct ParameterMatch
+        {
+            ParameterAccess access = ParameterAccess::None;
+            std::uint8_t setItem = 0;
+            std::uint8_t getItem = 0;
+        };
+
+        ParameterMatch matchParameterItem(std::span<const ParameterGroupRange> ranges, std::uint8_t item)
+        {
+            for (const ParameterGroupRange& range : ranges)
+            {
+                if (item >= range.setFirst && item <= range.setLast)
+                    return {ParameterAccess::Set, item, static_cast<std::uint8_t>(item + range.offsetToGet)};
+                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
+                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
+                if (item >= getFirst && item <= getLast)
+                    return {ParameterAccess::Get, static_cast<std::uint8_t>(item - range.offsetToGet), item};
+            }
+            return {};
+        }
+
+        // The widths of a Set's selector and value, which the paired Get's own args and reply give.
+        struct ParameterWidths
+        {
+            std::size_t selector;
+            std::size_t value;
+        };
+
+        std::optional<ParameterWidths> parameterWidths(std::uint8_t section, std::uint8_t getItem)
+        {
+            const akm::ItemDescriptor* descriptor = akm::findItem(section, getItem);
+            if (descriptor == nullptr)
+                return std::nullopt;
+            return ParameterWidths{totalWidth(descriptor->args), totalWidth(descriptor->reply)};
+        }
+
+        Bytes slice(const Bytes& data, std::size_t from, std::size_t count)
+        {
+            const auto first = data.begin() + static_cast<std::ptrdiff_t>(from);
+            return Bytes(first, first + static_cast<std::ptrdiff_t>(count));
+        }
+
+        // What a Get reads back: the value stored for its selector, or width-many zero bytes when nothing
+        // was set yet.
+        template <typename Map>
+        Bytes storedValue(const Map& map, std::uint8_t setItem, const Bytes& key, std::size_t width)
+        {
+            const auto found = map.find({setItem, key});
+            return found != map.end() ? found->second : Bytes(width, 0);
+        }
+
+        using ParameterMap = decltype(ProgramRecord::parameters);
+
+        // A Set writes [selector bytes][value bytes]; a Get reads back the value stored for its selector.
+        // Shared by the program and sample groups, which keep one map each.
+        Outcome executeStoredParameter(std::uint8_t section, const ParameterMatch& match, const Bytes& data,
+                                       ParameterMap& parameters)
+        {
+            const auto widths = parameterWidths(section, match.getItem);
+            if (!widths)
+                return failure(error_number::NOT_SUPPORTED);
+            if (match.access == ParameterAccess::Get)
+            {
+                if (data.size() < widths->selector)
+                    return failure(error_number::INVALID_FORMAT);
+                return reply(storedValue(parameters, match.setItem, slice(data, 0, widths->selector), widths->value));
+            }
+            if (data.size() < widths->selector + widths->value)
+                return failure(error_number::INVALID_FORMAT);
+            parameters[{match.setItem, slice(data, 0, widths->selector)}] = slice(data, widths->selector, widths->value);
+            return done();
+        }
+
         // A Set writes [selector bytes][value bytes] (the paired Get's own args and reply give their
         // widths); a Get reads back the value stored for its selector, or width-many zero bytes when
         // nothing was set yet. Generic over every item of the five groups: a new item is a new catalogue
@@ -463,50 +545,169 @@ namespace akm::harness
         Outcome executeParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
                                       std::optional<std::size_t>& current)
         {
-            for (const ParameterGroupRange& range : PARAMETER_GROUP_RANGES)
+            const ParameterMatch match = matchParameterItem(PARAMETER_GROUP_RANGES, item);
+            if (match.access == ParameterAccess::None)
+                return failure(error_number::NOT_SUPPORTED);
+            if (!current)
+                return failure(error_number::NOT_FOUND);
+            return executeStoredParameter(SECTION_PROGRAM, match, data, programs[*current].parameters);
+        }
+
+        // The (enabled, wire number) pair of a front-panel program number: the wire number is the
+        // front-panel one minus one (spec Table 13, footnote a), 0 with the number disabled.
+        void appendProgramNumber(akm::ByteWriter& writer, const std::optional<int>& number)
+        {
+            writer.appendByte(number ? 1 : 0);
+            writer.appendByte(number ? static_cast<std::uint32_t>(*number - 1) : 0);
+        }
+
+        Outcome selectProgramByName(const Bytes& data, const std::vector<ProgramRecord>& programs,
+                                    std::optional<std::size_t>& current, std::optional<int>& currentKeygroup)
+        {
+            akm::ByteReader reader(data);
+            const auto name = reader.readString();
+            if (!name)
+                return failure(error_number::INVALID_FORMAT);
+            const auto found = std::find_if(programs.begin(), programs.end(),
+                                            [&](const ProgramRecord& p) { return p.name == *name; });
+            if (found == programs.end())
+                return failure(error_number::NOT_FOUND);
+            current = static_cast<std::size_t>(found - programs.begin());
+            currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
+            return done();
+        }
+
+        Outcome selectProgramByIndex(const Bytes& data, const std::vector<ProgramRecord>& programs,
+                                     std::optional<std::size_t>& current, std::optional<int>& currentKeygroup)
+        {
+            akm::ByteReader reader(data);
+            const auto index = reader.readWord();
+            if (!index)
+                return failure(error_number::INVALID_FORMAT);
+            if (*index >= programs.size())
+                return failure(error_number::NOT_FOUND);
+            current = *index;
+            currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
+            return done();
+        }
+
+        Outcome deleteCurrentProgram(std::vector<ProgramRecord>& programs, std::optional<std::size_t>& current,
+                                     std::optional<int>& currentKeygroup)
+        {
+            if (!current)
+                return failure(error_number::NOT_FOUND);
+            programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
+            current.reset();
+            currentKeygroup.reset();
+            return done();
+        }
+
+        // Observed on a real S5000: ERROR 4 with 0 programs, not an empty REPLY, unlike &10
+        // (documents/_index/sysex_spec.kb.md, "Common value codes"). One (enabled, wire number) pair per
+        // program, memory order (Table 14, footnote b).
+        Outcome programNumbers(const std::vector<ProgramRecord>& programs)
+        {
+            if (programs.empty())
+                return failure(error_number::NOT_FOUND);
+            akm::ByteWriter writer;
+            for (const ProgramRecord& program : programs)
+                appendProgramNumber(writer, program.frontPanelNumber);
+            return reply(writer.bytes());
+        }
+
+        Outcome programNames(const std::vector<ProgramRecord>& programs)
+        {
+            if (programs.empty())
+                return failure(error_number::NOT_FOUND);
+            akm::ByteWriter writer;
+            for (const ProgramRecord& program : programs)
+                writer.appendString(program.name);
+            return reply(writer.bytes());
+        }
+
+        // The items that act on the current program, which `executeProgram` has already checked exists.
+        // `index` is its place in memory order.
+        Outcome executeCurrentProgram(std::uint8_t item, const Bytes& data, ProgramRecord& program, std::size_t index)
+        {
+            switch (item)
             {
-                if (item >= range.setFirst && item <= range.setLast)
+                case ITEM_RENAME_CURRENT_PROGRAM:
                 {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    ProgramRecord& program = programs[*current];
-                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_PROGRAM, getItem);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth + valueWidth)
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
                         return failure(error_number::INVALID_FORMAT);
-                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
-                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
-                    program.parameters[{item, std::move(key)}] = std::move(value);
+                    program.name = *name;
                     return done();
                 }
-                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
-                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
-                if (item >= getFirst && item <= getLast)
+                case ITEM_SET_PROGRAM_NUMBER:
                 {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    const ProgramRecord& program = programs[*current];
-                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_PROGRAM, item);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth)
+                    if (data.empty())
                         return failure(error_number::INVALID_FORMAT);
-                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    const auto found = program.parameters.find({setItem, key});
-                    if (found != program.parameters.end())
-                        return reply(found->second);
-                    return reply(Bytes(valueWidth, 0));
+                    if (data.front() == 0)
+                    {
+                        program.frontPanelNumber.reset();
+                        return done();
+                    }
+                    if (data.size() < 2)
+                        return failure(error_number::INVALID_FORMAT);
+                    // The wire number is the front-panel one minus one (spec Table 13, footnote a).
+                    program.frontPanelNumber = data[1] + 1;
+                    return done();
                 }
+                case ITEM_ADD_KEYGROUPS:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    program.keygroupCount += data.front();
+                    program.keygroups.resize(program.keygroups.size() + data.front());
+                    return done();
+                }
+                case ITEM_DELETE_KEYGROUP:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() >= program.keygroupCount)
+                        return failure(error_number::KEYGROUP_NOT_IN_PROGRAM);
+                    --program.keygroupCount;
+                    program.keygroups.erase(program.keygroups.begin() + data.front());
+                    return done();
+                }
+                case ITEM_SET_CROSSFADE:
+                    return setToggle(data, program.crossfade);
+                case ITEM_GET_PROGRAM_NUMBER:
+                {
+                    akm::ByteWriter writer;
+                    appendProgramNumber(writer, program.frontPanelNumber);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_KEYGROUP_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendByte(static_cast<std::uint32_t>(program.keygroupCount));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CROSSFADE:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendByte(program.crossfade ? 1 : 0);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_INDEX:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(index));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_PROGRAM_NAME:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendString(program.name);
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
             }
-            return failure(error_number::NOT_SUPPORTED);
         }
 
         Outcome executeProgram(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
@@ -524,173 +725,39 @@ namespace akm::harness
                     return createProgram(Bytes(data.begin() + 1, data.end()), data.front(), programs, current, currentKeygroup);
                 }
                 case ITEM_SELECT_PROGRAM_BY_NAME:
-                {
-                    akm::ByteReader reader(data);
-                    const auto name = reader.readString();
-                    if (!name)
-                        return failure(error_number::INVALID_FORMAT);
-                    const auto found = std::find_if(programs.begin(), programs.end(),
-                                                    [&](const ProgramRecord& p) { return p.name == *name; });
-                    if (found == programs.end())
-                        return failure(error_number::NOT_FOUND);
-                    current = static_cast<std::size_t>(found - programs.begin());
-                    currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
-                    return done();
-                }
+                    return selectProgramByName(data, programs, current, currentKeygroup);
                 case ITEM_SELECT_PROGRAM_BY_INDEX:
-                {
-                    akm::ByteReader reader(data);
-                    const auto index = reader.readWord();
-                    if (!index)
-                        return failure(error_number::INVALID_FORMAT);
-                    if (*index >= programs.size())
-                        return failure(error_number::NOT_FOUND);
-                    current = *index;
-                    currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
-                    return done();
-                }
+                    return selectProgramByIndex(data, programs, current, currentKeygroup);
                 case ITEM_DELETE_CURRENT_PROGRAM:
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
-                    current.reset();
-                    currentKeygroup.reset();
-                    return done();
+                    return deleteCurrentProgram(programs, current, currentKeygroup);
                 case ITEM_DELETE_ALL:
                     programs.clear();
                     current.reset();
                     currentKeygroup.reset();
                     return done();
-                case ITEM_RENAME_CURRENT_PROGRAM:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteReader reader(data);
-                    const auto name = reader.readString();
-                    if (!name)
-                        return failure(error_number::INVALID_FORMAT);
-                    programs[*current].name = *name;
-                    return done();
-                }
-                case ITEM_SET_PROGRAM_NUMBER:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    if (data.empty())
-                        return failure(error_number::INVALID_FORMAT);
-                    if (data.front() == 0)
-                    {
-                        programs[*current].frontPanelNumber.reset();
-                        return done();
-                    }
-                    if (data.size() < 2)
-                        return failure(error_number::INVALID_FORMAT);
-                    // The wire number is the front-panel one minus one (spec Table 13, footnote a).
-                    programs[*current].frontPanelNumber = data[1] + 1;
-                    return done();
-                }
-                case ITEM_ADD_KEYGROUPS:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    if (data.empty())
-                        return failure(error_number::INVALID_FORMAT);
-                    ProgramRecord& program = programs[*current];
-                    program.keygroupCount += data.front();
-                    program.keygroups.resize(program.keygroups.size() + data.front());
-                    return done();
-                }
-                case ITEM_DELETE_KEYGROUP:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    if (data.empty())
-                        return failure(error_number::INVALID_FORMAT);
-                    ProgramRecord& program = programs[*current];
-                    if (data.front() >= program.keygroupCount)
-                        return failure(error_number::KEYGROUP_NOT_IN_PROGRAM);
-                    --program.keygroupCount;
-                    program.keygroups.erase(program.keygroups.begin() + data.front());
-                    return done();
-                }
-                case ITEM_SET_CROSSFADE:
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    return setToggle(data, programs[*current].crossfade);
-                case ITEM_GET_PROGRAM_NUMBER:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    const std::optional<int>& number = programs[*current].frontPanelNumber;
-                    akm::ByteWriter writer;
-                    writer.appendByte(number ? 1 : 0);
-                    writer.appendByte(number ? static_cast<std::uint32_t>(*number - 1) : 0);
-                    return reply(writer.bytes());
-                }
-                case ITEM_GET_KEYGROUP_COUNT:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    writer.appendByte(static_cast<std::uint32_t>(programs[*current].keygroupCount));
-                    return reply(writer.bytes());
-                }
-                case ITEM_GET_CROSSFADE:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    writer.appendByte(programs[*current].crossfade ? 1 : 0);
-                    return reply(writer.bytes());
-                }
                 case ITEM_GET_NUMBER_OF_PROGRAMS:
                 {
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(programs.size()));
                     return reply(writer.bytes());
                 }
-                case ITEM_GET_INDEX:
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    writer.appendWord(static_cast<std::uint32_t>(*current));
-                    return reply(writer.bytes());
-                }
                 case ITEM_GET_ALL_NUMBERS:
-                {
-                    // Observed on a real S5000: ERROR 4 with 0 programs, not an empty REPLY, unlike &10
-                    // (documents/_index/sysex_spec.kb.md, "Common value codes").
-                    if (programs.empty())
-                        return failure(error_number::NOT_FOUND);
-                    // One (enabled, wire number) pair per program, memory order (Table 14, footnote b).
-                    akm::ByteWriter writer;
-                    for (const ProgramRecord& program : programs)
-                    {
-                        writer.appendByte(program.frontPanelNumber ? 1 : 0);
-                        writer.appendByte(program.frontPanelNumber
-                                              ? static_cast<std::uint32_t>(*program.frontPanelNumber - 1)
-                                              : 0);
-                    }
-                    return reply(writer.bytes());
-                }
+                    return programNumbers(programs);
                 case ITEM_GET_ALL_NAMES:
-                {
-                    if (programs.empty())
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    for (const ProgramRecord& program : programs)
-                        writer.appendString(program.name);
-                    return reply(writer.bytes());
-                }
+                    return programNames(programs);
+                case ITEM_RENAME_CURRENT_PROGRAM:
+                case ITEM_SET_PROGRAM_NUMBER:
+                case ITEM_ADD_KEYGROUPS:
+                case ITEM_DELETE_KEYGROUP:
+                case ITEM_SET_CROSSFADE:
+                case ITEM_GET_PROGRAM_NUMBER:
+                case ITEM_GET_KEYGROUP_COUNT:
+                case ITEM_GET_CROSSFADE:
+                case ITEM_GET_INDEX:
                 case ITEM_GET_CURRENT_PROGRAM_NAME:
-                {
                     if (!current)
                         return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    writer.appendString(programs[*current].name);
-                    return reply(writer.bytes());
-                }
+                    return executeCurrentProgram(item, data, programs[*current], *current);
                 default:
                     return executeParameterGroup(item, data, programs, current);
             }
@@ -710,6 +777,16 @@ namespace akm::harness
             {0x60, 0x64, 0x08},  // Aux Envelope
         }};
 
+        // The keygroups a keygroup or zone item acts on: every keygroup of the program while keygroup 0
+        // ("all") is current, otherwise the one selected.
+        std::span<KeygroupRecord> selectedKeygroups(ProgramRecord& program, int currentKeygroup)
+        {
+            const std::span<KeygroupRecord> all(program.keygroups);
+            if (currentKeygroup == 0)
+                return all;
+            return all.subspan(static_cast<std::size_t>(currentKeygroup - 1), 1);
+        }
+
         // A Set while keygroup 0 ("all") is current writes every keygroup of the current program with the
         // same value (RQ-AKM-028's AC); a Get while keygroup 0 is current answers one value set per
         // keygroup, in keygroup order (RQ-AKM-031) — the client decodes that shape with
@@ -720,70 +797,32 @@ namespace akm::harness
                                               const std::optional<std::size_t>& currentProgram,
                                               const std::optional<int>& currentKeygroup)
         {
-            for (const ParameterGroupRange& range : KEYGROUP_PARAMETER_GROUP_RANGES)
+            const ParameterMatch match = matchParameterItem(KEYGROUP_PARAMETER_GROUP_RANGES, item);
+            if (match.access == ParameterAccess::None)
+                return failure(error_number::NOT_SUPPORTED);
+            if (!currentProgram || !currentKeygroup)
+                return failure(error_number::NOT_FOUND);
+            const auto widths = parameterWidths(SECTION_KEYGROUP, match.getItem);
+            if (!widths)
+                return failure(error_number::NOT_SUPPORTED);
+            const std::span<KeygroupRecord> targets = selectedKeygroups(programs[*currentProgram], *currentKeygroup);
+            if (match.access == ParameterAccess::Get)
             {
-                if (item >= range.setFirst && item <= range.setLast)
-                {
-                    if (!currentProgram || !currentKeygroup)
-                        return failure(error_number::NOT_FOUND);
-                    ProgramRecord& program = programs[*currentProgram];
-                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_KEYGROUP, getItem);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth + valueWidth)
-                        return failure(error_number::INVALID_FORMAT);
-                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
-                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
-                    if (*currentKeygroup == 0)
-                    {
-                        for (KeygroupRecord& keygroup : program.keygroups)
-                            keygroup.parameters[{item, key}] = value;
-                    }
-                    else
-                    {
-                        program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)].parameters[{item, std::move(key)}] =
-                            std::move(value);
-                    }
-                    return done();
-                }
-                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
-                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
-                if (item >= getFirst && item <= getLast)
-                {
-                    if (!currentProgram || !currentKeygroup)
-                        return failure(error_number::NOT_FOUND);
-                    const ProgramRecord& program = programs[*currentProgram];
-                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_KEYGROUP, item);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth)
-                        return failure(error_number::INVALID_FORMAT);
-                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    const auto valueOf = [&](const KeygroupRecord& keygroup) {
-                        const auto found = keygroup.parameters.find({setItem, key});
-                        return found != keygroup.parameters.end() ? found->second : Bytes(valueWidth, 0);
-                    };
-                    if (*currentKeygroup == 0)
-                    {
-                        Bytes concatenated;
-                        for (const KeygroupRecord& keygroup : program.keygroups)
-                        {
-                            const Bytes value = valueOf(keygroup);
-                            appendBytes(concatenated, value);
-                        }
-                        return reply(std::move(concatenated));
-                    }
-                    return reply(valueOf(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
-                }
+                if (data.size() < widths->selector)
+                    return failure(error_number::INVALID_FORMAT);
+                const Bytes key = slice(data, 0, widths->selector);
+                Bytes concatenated;
+                for (const KeygroupRecord& keygroup : targets)
+                    appendBytes(concatenated, storedValue(keygroup.parameters, match.setItem, key, widths->value));
+                return reply(std::move(concatenated));
             }
-            return failure(error_number::NOT_SUPPORTED);
+            if (data.size() < widths->selector + widths->value)
+                return failure(error_number::INVALID_FORMAT);
+            const Bytes key = slice(data, 0, widths->selector);
+            const Bytes value = slice(data, widths->selector, widths->value);
+            for (KeygroupRecord& keygroup : targets)
+                keygroup.parameters[{match.setItem, key}] = value;
+            return done();
         }
 
         Outcome executeKeygroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
@@ -830,95 +869,51 @@ namespace akm::harness
         }};
         constexpr std::array<std::uint8_t, 4> EVERY_ZONE{{1, 2, 3, 4}};
 
+        // Zone 0 ("all four") fans out over zones 1-4; any other zone is itself.
+        std::vector<std::uint8_t> zonesOf(std::uint8_t zone)
+        {
+            if (zone == 0)
+                return std::vector<std::uint8_t>(EVERY_ZONE.begin(), EVERY_ZONE.end());
+            return std::vector<std::uint8_t>{zone};
+        }
+
         Outcome executeZoneParameterGroup(std::uint8_t item, const Bytes& data, std::vector<ProgramRecord>& programs,
                                           const std::optional<std::size_t>& currentProgram,
                                           const std::optional<int>& currentKeygroup)
         {
-            for (const ParameterGroupRange& range : ZONE_PARAMETER_GROUP_RANGES)
+            const ParameterMatch match = matchParameterItem(ZONE_PARAMETER_GROUP_RANGES, item);
+            if (match.access == ParameterAccess::None)
+                return failure(error_number::NOT_SUPPORTED);
+            if (!currentProgram || !currentKeygroup)
+                return failure(error_number::NOT_FOUND);
+            const auto widths = parameterWidths(SECTION_ZONE, match.getItem);
+            if (!widths)
+                return failure(error_number::NOT_SUPPORTED);
+            const std::span<KeygroupRecord> targets = selectedKeygroups(programs[*currentProgram], *currentKeygroup);
+            if (match.access == ParameterAccess::Get)
             {
-                if (item >= range.setFirst && item <= range.setLast)
+                if (data.size() < widths->selector)
+                    return failure(error_number::INVALID_FORMAT);
+                const std::vector<std::uint8_t> zones = zonesOf(data[0]);
+                Bytes concatenated;
+                for (const KeygroupRecord& keygroup : targets)
                 {
-                    if (!currentProgram || !currentKeygroup)
-                        return failure(error_number::NOT_FOUND);
-                    ProgramRecord& program = programs[*currentProgram];
-                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_ZONE, getItem);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth + valueWidth)
-                        return failure(error_number::INVALID_FORMAT);
-                    const std::uint8_t zone = data[0];
-                    const Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
-                                      data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
-                    const auto writeToKeygroup = [&](KeygroupRecord& keygroup) {
-                        if (zone == 0)
-                        {
-                            for (const std::uint8_t z : EVERY_ZONE)
-                                keygroup.zoneParameters[{item, Bytes{z}}] = value;
-                        }
-                        else
-                        {
-                            keygroup.zoneParameters[{item, Bytes{zone}}] = value;
-                        }
-                    };
-                    if (*currentKeygroup == 0)
-                    {
-                        for (KeygroupRecord& keygroup : program.keygroups)
-                            writeToKeygroup(keygroup);
-                    }
-                    else
-                    {
-                        writeToKeygroup(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]);
-                    }
-                    return done();
+                    for (const std::uint8_t zone : zones)
+                        appendBytes(concatenated,
+                                    storedValue(keygroup.zoneParameters, match.setItem, Bytes{zone}, widths->value));
                 }
-                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
-                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
-                if (item >= getFirst && item <= getLast)
-                {
-                    if (!currentProgram || !currentKeygroup)
-                        return failure(error_number::NOT_FOUND);
-                    const ProgramRecord& program = programs[*currentProgram];
-                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_ZONE, item);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth)
-                        return failure(error_number::INVALID_FORMAT);
-                    const std::uint8_t zone = data[0];
-                    const auto valueOf = [&](const KeygroupRecord& keygroup, std::uint8_t z) {
-                        const auto found = keygroup.zoneParameters.find({setItem, Bytes{z}});
-                        return found != keygroup.zoneParameters.end() ? found->second : Bytes(valueWidth, 0);
-                    };
-                    const auto readFromKeygroup = [&](const KeygroupRecord& keygroup) {
-                        if (zone != 0)
-                            return valueOf(keygroup, zone);
-                        Bytes concatenated;
-                        for (const std::uint8_t z : EVERY_ZONE)
-                        {
-                            const Bytes value = valueOf(keygroup, z);
-                            appendBytes(concatenated, value);
-                        }
-                        return concatenated;
-                    };
-                    if (*currentKeygroup == 0)
-                    {
-                        Bytes concatenated;
-                        for (const KeygroupRecord& keygroup : program.keygroups)
-                        {
-                            const Bytes value = readFromKeygroup(keygroup);
-                            appendBytes(concatenated, value);
-                        }
-                        return reply(std::move(concatenated));
-                    }
-                    return reply(readFromKeygroup(program.keygroups[static_cast<std::size_t>(*currentKeygroup - 1)]));
-                }
+                return reply(std::move(concatenated));
             }
-            return failure(error_number::NOT_SUPPORTED);
+            if (data.size() < widths->selector + widths->value)
+                return failure(error_number::INVALID_FORMAT);
+            const std::vector<std::uint8_t> zones = zonesOf(data[0]);
+            const Bytes value = slice(data, widths->selector, widths->value);
+            for (KeygroupRecord& keygroup : targets)
+            {
+                for (const std::uint8_t zone : zones)
+                    keygroup.zoneParameters[{match.setItem, Bytes{zone}}] = value;
+            }
+            return done();
         }
 
         // §06/&01 (Set Zone Sample) and &21 (Get Zone Sample), RQ-AKM-035: a String value, so it is
@@ -987,50 +982,12 @@ namespace akm::harness
         Outcome executeSampleParameterGroup(std::uint8_t item, const Bytes& data, std::vector<SampleRecord>& samples,
                                             const std::optional<std::size_t>& current)
         {
-            for (const ParameterGroupRange& range : SAMPLE_PARAMETER_GROUP_RANGES)
-            {
-                if (item >= range.setFirst && item <= range.setLast)
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    SampleRecord& sample = samples[*current];
-                    const auto getItem = static_cast<std::uint8_t>(item + range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_SAMPLE, getItem);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth + valueWidth)
-                        return failure(error_number::INVALID_FORMAT);
-                    Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    Bytes value(data.begin() + static_cast<std::ptrdiff_t>(selectorWidth),
-                               data.begin() + static_cast<std::ptrdiff_t>(selectorWidth + valueWidth));
-                    sample.parameters[{item, std::move(key)}] = std::move(value);
-                    return done();
-                }
-                const auto getFirst = static_cast<std::uint8_t>(range.setFirst + range.offsetToGet);
-                const auto getLast = static_cast<std::uint8_t>(range.setLast + range.offsetToGet);
-                if (item >= getFirst && item <= getLast)
-                {
-                    if (!current)
-                        return failure(error_number::NOT_FOUND);
-                    const SampleRecord& sample = samples[*current];
-                    const auto setItem = static_cast<std::uint8_t>(item - range.offsetToGet);
-                    const akm::ItemDescriptor* getDescriptor = akm::findItem(SECTION_SAMPLE, item);
-                    if (getDescriptor == nullptr)
-                        return failure(error_number::NOT_SUPPORTED);
-                    const std::size_t selectorWidth = totalWidth(getDescriptor->args);
-                    const std::size_t valueWidth = totalWidth(getDescriptor->reply);
-                    if (data.size() < selectorWidth)
-                        return failure(error_number::INVALID_FORMAT);
-                    const Bytes key(data.begin(), data.begin() + static_cast<std::ptrdiff_t>(selectorWidth));
-                    const auto found = sample.parameters.find({setItem, key});
-                    if (found != sample.parameters.end())
-                        return reply(found->second);
-                    return reply(Bytes(valueWidth, 0));
-                }
-            }
-            return failure(error_number::NOT_SUPPORTED);
+            const ParameterMatch match = matchParameterItem(SAMPLE_PARAMETER_GROUP_RANGES, item);
+            if (match.access == ParameterAccess::None)
+                return failure(error_number::NOT_SUPPORTED);
+            if (!current)
+                return failure(error_number::NOT_FOUND);
+            return executeStoredParameter(SECTION_SAMPLE, match, data, samples[*current].parameters);
         }
 
         // §0E sample lifecycle (RQ-AKM-045): select by name/index, delete/rename the current sample,

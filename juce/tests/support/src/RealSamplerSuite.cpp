@@ -2342,6 +2342,61 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // Sets one parameter case on the test program, reads it back and fails unless the value read is the
+            // one set (the selector being the first values the Get takes). Shared by the keygroup and zone checks.
+            template <typename ParameterCase>
+            void roundTripParameterCase(GuardedSession& guarded, GuardedTestProgram& program, const ParameterCase& parameterCase)
+            {
+                const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
+                const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
+                const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
+                const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
+                const std::string title(descriptor(parameterCase.setId).name);
+
+                program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                });
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
+                        guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
+                    });
+                if (!timed)
+                    throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
+                if (!succeeded(timed->result))
+                    throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
+                const auto* replyData = std::get_if<Reply>(&timed->result);
+                const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                if (!decoded || *decoded != expectedValue)
+                    throw CheckFailure("get " + title + ": read back "
+                                       + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
+                                       + valuesText(expectedValue));
+            }
+
+            // The wrong-program guard: with a program current that is not the test one, a command on the test
+            // program must be refused before it is sent. Not exercised when no program was current before.
+            void expectRefusedOnWrongProgram(GuardedTestProgram& program, const std::string& title,
+                                             const std::function<void(Session&, CommandCompletion)>& launch,
+                                             const std::string& refusalMessage)
+            {
+                if (!program.hadOriginalProgram())
+                {
+                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                    return;
+                }
+                expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
+                bool refused = false;
+                try
+                {
+                    program.expectOnTestProgram(title, launch);
+                }
+                catch (const CheckFailure&)
+                {
+                    refused = true;
+                }
+                expect(refused, refusalMessage);
+                expect(program.selectTestProgramAgain(), "reselected the test program");
+            }
+
             // RQ-AKM-028, RQ-AKM-030, RQ-AKM-031, RQ-AKM-033: keygroups added to the test program, every
             // §08 parameter item round-tripped on one of them, then the keygroup-0 ("all") shape, and the
             // wrong-program refusal for a keygroup-level command — the same guard as the program lifecycle
@@ -2388,31 +2443,7 @@ namespace akm::harness
                 expect(currentResult && currentResult->result.keygroup == 2, "keygroup 2 read back as current");
 
                 for (const KeygroupParameterCase& parameterCase : allKeygroupParameterCases())
-                {
-                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
-                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
-                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
-                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
-                    const std::string title(descriptor(parameterCase.setId).name);
-
-                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
-                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
-                    });
-                    const auto timed = awaitCompletion<CommandResult>(
-                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
-                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
-                        });
-                    if (!timed)
-                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
-                    if (!succeeded(timed->result))
-                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
-                    const auto* replyData = std::get_if<Reply>(&timed->result);
-                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
-                    if (!decoded || *decoded != expectedValue)
-                        throw CheckFailure("get " + title + ": read back "
-                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
-                                           + valuesText(expectedValue));
-                }
+                    roundTripParameterCase(guarded, program, parameterCase);
                 finding(std::to_string(allKeygroupParameterCases().size())
                         + " keygroup parameter items of the six groups round-tripped on keygroup 2");
 
@@ -2466,26 +2497,10 @@ namespace akm::harness
                                                           });
                 expect(allLowNote50, "all " + std::to_string(keygroupCount) + " keygroups read back Low Note 50");
 
-                if (program.hadOriginalProgram())
-                {
-                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
-                    bool refused = false;
-                    try
-                    {
-                        program.expectOnTestProgram("select keygroup 0 (on the wrong program)",
-                                                    [](Session& session, CommandCompletion done) {
-                                                        selectKeygroup(session, 0, std::move(done));
-                                                    });
-                    }
-                    catch (const CheckFailure&)
-                    {
-                        refused = true;
-                    }
-                    expect(refused, "selecting keygroup 0 on the program that is current but not the test one was refused before sending");
-                    expect(program.selectTestProgramAgain(), "reselected the test program");
-                }
-                else
-                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                expectRefusedOnWrongProgram(
+                    program, "select keygroup 0 (on the wrong program)",
+                    [](Session& session, CommandCompletion done) { selectKeygroup(session, 0, std::move(done)); },
+                    "selecting keygroup 0 on the program that is current but not the test one was refused before sending");
                 }
                 finding("test program deleted and the original selection restored by the guard");
 
@@ -2535,31 +2550,7 @@ namespace akm::harness
                 });
 
                 for (const ZoneParameterCase& parameterCase : allZoneParameterCases())
-                {
-                    const ItemDescriptor& getDescriptor = descriptor(parameterCase.getId);
-                    const auto selectorCount = static_cast<std::ptrdiff_t>(getDescriptor.args.size());
-                    const std::vector<std::int64_t> selector(parameterCase.values.begin(), parameterCase.values.begin() + selectorCount);
-                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + selectorCount, parameterCase.values.end());
-                    const std::string title(descriptor(parameterCase.setId).name);
-
-                    program.expectOnTestProgram("set " + title, [&parameterCase](Session& session, CommandCompletion done) {
-                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
-                    });
-                    const auto timed = awaitCompletion<CommandResult>(
-                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase, &selector](CommandCompletion done) {
-                            guarded.session().submit(makeRequest(parameterCase.getId, selector), std::move(done));
-                        });
-                    if (!timed)
-                        throw CheckFailure("get " + title + ": no completion within " + millisecondsText(_rig.commandPatience()));
-                    if (!succeeded(timed->result))
-                        throw CheckFailure("get " + title + ": " + outcomeText(timed->result));
-                    const auto* replyData = std::get_if<Reply>(&timed->result);
-                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
-                    if (!decoded || *decoded != expectedValue)
-                        throw CheckFailure("get " + title + ": read back "
-                                           + (decoded ? valuesText(*decoded) : std::string("nothing decodable")) + ", expected "
-                                           + valuesText(expectedValue));
-                }
+                    roundTripParameterCase(guarded, program, parameterCase);
                 finding(std::to_string(allZoneParameterCases().size()) + " zone parameter items round-tripped on zone 3 of keygroup 2");
 
                 // RQ-AKM-036: zone 0 ("all four") on the current keygroup.
@@ -2623,25 +2614,12 @@ namespace akm::harness
                 else
                     finding("sample assignment: skipped (no --sample-name given)");
 
-                if (program.hadOriginalProgram())
-                {
-                    expect(program.selectOriginalProgram(), "navigated away to the program that was current before");
-                    bool refused = false;
-                    try
-                    {
-                        program.expectOnTestProgram("set Zone Level (on the wrong program)", [](Session& session, CommandCompletion done) {
-                            session.submit(makeRequest(ItemId::ZoneSetLevel, {1, 0, 1}), std::move(done));
-                        });
-                    }
-                    catch (const CheckFailure&)
-                    {
-                        refused = true;
-                    }
-                    expect(refused, "a zone command on the program that is current but not the test one was refused before sending");
-                    expect(program.selectTestProgramAgain(), "reselected the test program");
-                }
-                else
-                    finding("no program was current before: the wrong-program refusal is not exercised this run");
+                expectRefusedOnWrongProgram(
+                    program, "set Zone Level (on the wrong program)",
+                    [](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(ItemId::ZoneSetLevel, {1, 0, 1}), std::move(done));
+                    },
+                    "a zone command on the program that is current but not the test one was refused before sending");
                 }
                 finding("test program deleted and the original selection restored by the guard");
 
