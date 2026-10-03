@@ -946,7 +946,6 @@ TEST_CASE("Given a sampler whose clock cannot be read, When the suite runs with 
           "[akm][suite]")
 {
     constexpr std::uint8_t ITEM_GET_CLOCK = 0x05;
-    constexpr std::uint8_t ITEM_SET_CLOCK = 0x06;
     constexpr std::uint16_t OUT_OF_RANGE = 0x02;
     Rig rig;
     seedSystemSetup(rig.backend, rig.sampler, "OWNER S5000", OWNER_PLAY_MODE_SAMPLE, LOCK_NORMAL);
@@ -954,7 +953,8 @@ TEST_CASE("Given a sampler whose clock cannot be read, When the suite runs with 
     RealSuiteOptions options = rig.options();
     options.systemSetup = true;
     std::ostringstream log;
-    const auto isSetClock = [](const auto& command) { return command.section == SECTION_SYSTEM && command.item == ITEM_SET_CLOCK; };
+    // &06: Set Clock Time & Date (§02). Written as a literal: a local constant only named inside a lambda is reported unused by GCC.
+    const auto isSetClock = [](const auto& command) { return command.section == SECTION_SYSTEM && command.item == 0x06; };
     const auto acceptedBefore = rig.sampler.acceptedCommands();
     const auto clockSetsBefore = std::count_if(acceptedBefore.begin(), acceptedBefore.end(), isSetClock);
 
