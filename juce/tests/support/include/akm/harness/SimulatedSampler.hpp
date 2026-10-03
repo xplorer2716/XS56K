@@ -97,6 +97,14 @@ namespace akm::harness
     /// The anomaly observed on the S5000, which the simulated sampler reproduces by default.
     inline constexpr ReplySectionOverride S5000_CLOCK_REPLY_SECTION{0x02, 0x05, 0x0B};
 
+    /// An item the sampler executes and answers with nothing at all, not even the OK: a sampler that is deaf to one item
+    /// and not to the others, where `SamplerBehaviour::silent` is deaf to all. [RQ-AKM-075]
+    struct SilentItem
+    {
+        std::uint8_t section = 0;
+        std::uint8_t item = 0;
+    };
+
     /// What a real bus does badly, switchable per sampler.
     struct SamplerBehaviour
     {
@@ -113,6 +121,8 @@ namespace akm::harness
         std::optional<std::uint16_t> errorAfterReply{};
         /// Items answered with an ERROR instead of being executed.
         std::vector<ItemError> itemErrors{};
+        /// Items executed and answered with nothing.
+        std::vector<SilentItem> silentItems{};
         /// While Still Alive is on and a reply is delayed, an `F0 F7` this often (spec: about every second).
         Scheduler::Clock::duration stillAliveInterval = std::chrono::seconds(1);
         ConfirmationDeviceId confirmationDeviceId = ConfirmationDeviceId::Own;

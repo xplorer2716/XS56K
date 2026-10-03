@@ -1852,7 +1852,7 @@ namespace akm::harness
 
                 for (;;)
                 {
-                    const std::optional<int> pcKey = _rig.options.readOwnerKey();
+                    const std::optional<int> pcKey = _rig.options.readOwnerKey(textMode);
                     if (!pcKey)
                     {
                         tell("the owner's input ended");
@@ -1891,6 +1891,9 @@ namespace akm::harness
                             framesSent += 2;
                             tell(pressed + " -> sampler key " + keyText(key) + ": hold " + outcomeText(timed->result.hold) + ", release "
                                  + outcomeText(timed->result.release) + " after " + millisecondsText(timed->latency));
+                            // A press of the key held with Space ends with its Release: it is no longer held.
+                            if (held == key && succeeded(timed->result.release))
+                                held.reset();
                             break;
                         }
                         case RemoteActionKind::ToggleHold:
@@ -1907,11 +1910,14 @@ namespace akm::harness
                             }
                             else
                             {
-                                held = key;
-                                static_cast<void>(send(pressed + " -> hold sampler key " + keyText(key),
-                                                       [key](Session& session, CommandCompletion done) {
-                                                           holdKey(session, key, std::move(done));
-                                                       }));
+                                // Held once the sampler queued the Hold: one it refused, or never answered, is not a key to
+                                // toggle (the session still remembers a timed-out one, and its close releases it).
+                                const CommandResult hold = send(pressed + " -> hold sampler key " + keyText(key),
+                                                                [key](Session& session, CommandCompletion done) {
+                                                                    holdKey(session, key, std::move(done));
+                                                                });
+                                if (succeeded(hold))
+                                    held = key;
                             }
                             break;
                         }

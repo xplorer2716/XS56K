@@ -526,10 +526,13 @@ setting the session tried to change; a held key is the same kind of thing, and i
   the sampler then confirms it: a Hold that timed out may have been carried out, as for a setting
   (DEC-AKM-004, "As built"). It is forgotten in `complete()` only, never in `recordResult`, so that a Release
   cancelled by a close forgets nothing: when a Release of that key *succeeds* (DONE), or when the Hold itself
-  is answered ERROR 0 (not supported), a sampler without §20 having nothing to release, as `changed` is
-  emptied of a setting the sampler does not have. A Release that is refused, errors or times out leaves the key
-  remembered, so the closing tries again; a Hold answered by any other ERROR leaves it too, the cost being
-  at most one spare Release, which the spec does not forbid.
+  is answered with an ERROR of any number — a §20 item that is not queued is answered with one (spec Table 30,
+  note a), so the key was never down, and a sampler without §20 (ERROR 0) has nothing to release, as `changed`
+  is emptied of a setting the sampler does not have. A Hold that times out is not an answer: it may have been
+  carried out, and the key stays. A Release that is refused, errors or times out leaves the key remembered,
+  so the closing tries again. (Amended by TASK-AKM-075: the first version forgot only an ERROR 0 and kept any
+  other, at the cost of a spare Release and a `keysNotReleased` entry for a key that had never been down; a
+  code review of the delivered lot found it.)
 - **The closing releases them first.** `beginClose` queues one Release per remembered key addressed to the
   current target, in ascending keycode order, before the §00 settings: a key down is the state most worth
   clearing. A key remembered for another device (the target was rebound or reset by an `open()` since) is not
@@ -542,9 +545,14 @@ setting the session tried to change; a held key is the same kind of thing, and i
   a sampler not expecting one ignores, and its DONE decodes in either mode. (This corrects the order of the
   closing for every command, not only keys: before it, the checksum restore alone, always sent with a
   checksum, hid the gap.) The Releases run one at a time on the same `Purpose::Closing` path as the settings,
-  so DEC-AKM-004's rules hold unchanged: a refused or failed Release is reported and the next is tried, and
-  **the first one that times out ends the restoring**, the rest — keys and settings alike — being reported as
-  not restored.
+  so DEC-AKM-004's rules hold, with one difference: a refused or failed Release is reported and the next is
+  tried; **the first Release that times out leaves the keys after it unreleased** (a sampler that did not answer
+  one will not answer the next) **but the settings are still tried**, and the first setting that times out ends
+  the restoring, the rest being reported as not restored. The first version of this decision let a key's
+  timeout abandon the settings too; the review of the delivered lot pointed out that the §00 state is what the
+  closing guarantees, and that a §20 command timing out does not say the §00 ones will. Two timeouts, a key's
+  then a setting's, are therefore the worst case of a close, as the destructor's wait allows (two command
+  timeouts and a second).
 - **`CloseResult` reports them.** `keysReleased` and `keysNotReleased` list the keycodes (plain `std::uint8_t`)
   beside `restored` and `notRestored`; `restoredAll()` is false if any key is not released. "Released" means
   the Release was *queued*: a §20 DONE confirms nothing more (spec Table 30, note a). A caller who needs to

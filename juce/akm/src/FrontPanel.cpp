@@ -70,12 +70,15 @@ namespace akm
 
     void moveDataWheel(Session& session, DataWheelDirection direction, int clicks, CommandCompletion completion)
     {
+        // The direction (0-1) and the clicks (1-8) are refused out of range by the catalogue's own ranges for `&03`
+        // (`items.json`), as `makeRequest` does for every item: `ArgumentOutOfRange`, nothing sent.
         session.submit(makeRequest(ItemId::FrontPanelDataWheel, {static_cast<std::int64_t>(direction), clicks}),
                        std::move(completion));
     }
 
     void sendAsciiKey(Session& session, int ascii, CommandCompletion completion)
     {
+        // 0-127 is the catalogue's range for `&04`; anything else is refused by `makeRequest`, nothing sent.
         session.submit(makeRequest(ItemId::FrontPanelAsciiKey, {ascii}), std::move(completion));
     }
 

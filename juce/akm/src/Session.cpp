@@ -67,7 +67,8 @@ namespace akm
                                                               SamplerSetting::AutoScreenUpdate};
 
         /// How long a session destroyed without a close waits for its shutdown, in command timeouts and a grace: the
-        /// first restoring command that times out ends the restoring, so one timeout is the worst case.
+        /// first key release that times out leaves the other keys alone, and the first setting that times out ends the
+        /// restoring, so two timeouts are the worst case.
         constexpr int CLOSE_WAIT_IN_COMMAND_TIMEOUTS = 2;
         constexpr std::chrono::milliseconds CLOSE_WAIT_GRACE{1000};
 
@@ -539,12 +540,13 @@ namespace akm
             // A setting the sampler does not have has not been changed: there is nothing for a close to put back.
             if (options.changesSetting && notSupported(result))
                 changed.erase(*options.changesSetting);
-            // A key is forgotten when its Release succeeded, or when the sampler has no front panel section to hold it
-            // on. Only here, never when a command is cancelled: a Release that never ran releases nothing
-            // (ADR-AKM-001, DEC-AKM-019).
+            // A key is forgotten when its Release succeeded, or when the sampler answered its Hold with an ERROR, of
+            // any number: a §20 item that is not queued is answered with one (spec Table 30, note a), so the key was
+            // never down. A timeout is not an answer, and the key stays. Only here, never when a command is
+            // cancelled: a Release that never ran releases nothing (ADR-AKM-001, DEC-AKM-019).
             if (options.releasesKey && succeeded(result))
                 keysHeld.erase({flight.deviceId, *options.releasesKey});
-            if (options.holdsKey && notSupported(result))
+            if (options.holdsKey && std::holds_alternative<Error>(result))
                 keysHeld.erase({flight.deviceId, *options.holdsKey});
 
             remember(CompletedCommand{flight.userRef, flight.section, flight.item,
@@ -856,13 +858,13 @@ namespace akm
                 outcome.keysNotReleased.push_back(keycode);
                 if (std::holds_alternative<Timeout>(result))
                 {
-                    // The sampler is not answering: what is left, keys and settings, is reported and not tried.
+                    // The keys left are reported and not tried: a sampler that did not answer one Release will not answer
+                    // the next. The settings are still tried, though: the §00 state is what the closing guarantees, and a
+                    // §20 command timing out does not say the §00 ones will. The first of them that times out ends the
+                    // restoring, as it always did (DEC-AKM-019).
                     for (const std::uint8_t left : closingContext->pendingKeys)
                         outcome.keysNotReleased.push_back(left);
                     closingContext->pendingKeys.clear();
-                    for (const SamplerSetting left : closingContext->pending)
-                        outcome.notRestored.push_back(left);
-                    closingContext->pending.clear();
                 }
             }
             // On a turn of its own, so that a refusal on the spot cannot make the closing recurse.

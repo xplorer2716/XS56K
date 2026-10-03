@@ -95,12 +95,13 @@ namespace
         {'k', FrontPanelKey::Mark},             {'j', FrontPanelKey::Jump},
     };
 
-    // A scripted source of PC keys: each call gives the next key, then nothing (the owner's input ends).
-    std::function<std::optional<int>()> scripted(std::vector<int> keys)
+    // A scripted source of PC keys: each call gives the next key, then nothing (the owner's input ends). The mode the
+    // check tells the reader it is in is ignored here; a test that wants it writes its own reader.
+    std::function<std::optional<int>(bool)> scripted(std::vector<int> keys)
     {
         auto remaining = std::make_shared<std::vector<int>>(std::move(keys));
         auto next = std::make_shared<std::size_t>(0);
-        return [remaining, next]() -> std::optional<int> {
+        return [remaining, next](bool) -> std::optional<int> {
             if (*next >= remaining->size())
                 return std::nullopt;
             return (*remaining)[(*next)++];
@@ -364,7 +365,7 @@ TEST_CASE("Given a check that throws after a key was held, When it ends, Then th
     Rig rig;
     RealSuiteOptions options = rig.options();
     auto calls = std::make_shared<int>(0);
-    options.readOwnerKey = [calls]() -> std::optional<int> {
+    options.readOwnerKey = [calls](bool) -> std::optional<int> {
         if ((*calls)++ == 0)
             return pc_key::SPACE;
         throw std::runtime_error("the console broke");
@@ -486,10 +487,10 @@ TEST_CASE("Given the owner is about to be given the keyboard, When the check sta
     };
     std::size_t toldAtFirstKey = 0;
     auto keys = scripted({'q'});
-    options.readOwnerKey = [&told, &toldAtFirstKey, keys]() {
+    options.readOwnerKey = [&told, &toldAtFirstKey, keys](bool textMode) {
         if (toldAtFirstKey == 0)
             toldAtFirstKey = told.size();
-        return keys();
+        return keys(textMode);
     };
 
     const RealSuiteResult result = rig.run(options);
@@ -500,4 +501,69 @@ TEST_CASE("Given the owner is about to be given the keyboard, When the check sta
     for (std::size_t index = 0; index < mapping.size(); ++index)
         CHECK(told[index + (toldAtConfirmation - mapping.size())] == mapping[index]);
     CHECK(toldAtFirstKey >= toldAtConfirmation);
+}
+
+TEST_CASE("Given Space, then a short press of Enter on the same key, then Space, When the check runs, Then the second Space holds again because the Enter released the key, and the end releases it once [RQ-AKM-076, RQ-AKM-075]",
+          "[akm][suite][front-panel][remote]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.readOwnerKey = scripted({pc_key::SPACE, pc_key::ENTER, pc_key::SPACE, 'q'});
+
+    const RealSuiteResult result = rig.run(options);
+
+    CHECK(remoteCheck(result).outcome == CheckOutcome::Passed);
+    const std::uint8_t entPlay = code(FrontPanelKey::EntPlay);
+    CHECK(seen(rig.sampler)
+          == std::vector<Seen>{{FrontPanelEventKind::KeyHold, entPlay},
+                               {FrontPanelEventKind::KeyHold, entPlay},
+                               {FrontPanelEventKind::KeyRelease, entPlay},
+                               {FrontPanelEventKind::KeyHold, entPlay},
+                               {FrontPanelEventKind::KeyRelease, entPlay}});
+    CHECK(rig.sampler.frontPanel().keysDown.empty());
+}
+
+TEST_CASE("Given a Hold the sampler answers with an ERROR, When Space is pressed twice, Then two Holds are sent, no Release, and none at the end because no key was held [RQ-AKM-076]",
+          "[akm][suite][front-panel][remote]")
+{
+    Rig rig;
+    akm::harness::SamplerBehaviour refuses;
+    refuses.itemErrors = {{0x20, 0x01, 3}};
+    rig.sampler.setBehaviour(refuses);
+    RealSuiteOptions options = rig.options();
+    options.readOwnerKey = scripted({pc_key::SPACE, pc_key::SPACE, 'q'});
+
+    const RealSuiteResult result = rig.run(options);
+
+    CHECK(remoteCheck(result).outcome == CheckOutcome::Passed);
+    std::size_t holds = 0;
+    std::size_t releases = 0;
+    for (const akm::harness::AcceptedCommand& command : rig.sampler.acceptedCommands())
+    {
+        if (command.section != 0x20)
+            continue;
+        (command.item == 0x01 ? holds : releases) += 1;
+    }
+    CHECK(holds == 2);
+    CHECK(releases == 0);
+    CHECK(rig.sampler.frontPanel().keysDown.empty());
+}
+
+TEST_CASE("Given the check in the normal mode then in the text mode, When it reads a key, Then it tells the reader which mode it is in [RQ-AKM-076]",
+          "[akm][suite][front-panel][remote]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    auto modes = std::make_shared<std::vector<bool>>();
+    auto keys = scripted({pc_key::TAB, 'H', pc_key::ESCAPE, 'q'});
+    options.readOwnerKey = [modes, keys](bool textMode) {
+        modes->push_back(textMode);
+        return keys(textMode);
+    };
+
+    const RealSuiteResult result = rig.run(options);
+
+    CHECK(remoteCheck(result).outcome == CheckOutcome::Passed);
+    // Tab is read in the normal mode, then H and Escape in the text mode, then q in the normal mode again.
+    CHECK(*modes == std::vector<bool>{false, true, true, false});
 }

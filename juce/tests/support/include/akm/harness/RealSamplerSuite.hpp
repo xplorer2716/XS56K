@@ -107,8 +107,11 @@ namespace akm::harness
         /// shows, which only the owner can judge. Needs `askOwner` and `readOwnerKey`, and is skipped without either.
         bool frontPanel = false;
         /// Returns the next PC key the owner presses (`pc_key` codes of `FrontPanelRemote.hpp`), waiting for it, or nothing
-        /// when the owner's input has ended. Runs on the scenario's thread, like `askOwner`.
-        std::function<std::optional<int>()> readOwnerKey;
+        /// when the owner's input has ended. `textMode` says whether the check is in its text mode: there the reader reports
+        /// the character typed; in the normal mode it reports the number row's keys as the digits printed on them wherever
+        /// the keyboard layout puts them (an AZERTY row types `&é"'(-è_çà` unshifted). Runs on the scenario's thread, like
+        /// `askOwner`.
+        std::function<std::optional<int>(bool textMode)> readOwnerKey;
         /// Shows the owner a line at once (the log is only written as the suite goes): what each key did.
         std::function<void(const std::string& line)> tellOwner;
         /// A real sample the operator confirms is already in the sampler's memory, named by the caller.

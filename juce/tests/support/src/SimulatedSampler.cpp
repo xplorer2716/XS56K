@@ -2228,6 +2228,13 @@ namespace akm::harness
                                     : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
                                               _currentKeygroup, _samples, _currentSample, _multis, _disks, _currentDisk,
                                               _currentFolderPath, _frontPanel);
+        // An item the sampler is deaf to ran, and says nothing, the OK included.
+        const bool silentItem = std::any_of(_behaviour.silentItems.begin(), _behaviour.silentItems.end(),
+                                            [section, item](const SilentItem& candidate) {
+                                                return candidate.section == section && candidate.item == item;
+                                            });
+        if (silentItem)
+            return {};
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

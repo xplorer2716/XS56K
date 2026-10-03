@@ -40,7 +40,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 
 #ifdef _WIN32
-#include <conio.h>
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOGDI
+#define NOGDI  // its ERROR macro would clash with the names of the layer
+#endif
+#include <windows.h>
 #include <io.h>
 #endif
 
@@ -163,54 +172,68 @@ namespace
         "does; --sample-lifecycle's own check does, and restores them), and neither ever deletes a sample.\n";
 
 #ifdef _WIN32
-    // The owner's keys for --front-panel, one at a time and without Enter (RQ-AKM-076). The console gives a key that has
-    // no character as a prefix, 0 or E0, then a scan code; the function keys, the arrows and the page keys are turned
-    // into the codes of `pc_key`, and any other such key into a code the mapping gives no meaning to.
-    constexpr int CONSOLE_PREFIX_NUMERIC_PAD = 0x00;
-    constexpr int CONSOLE_PREFIX_EXTENDED = 0xE0;
-    constexpr int SCAN_F1 = 0x3B;
-    constexpr int SCAN_F10 = 0x44;
-    constexpr int SCAN_F11 = 0x85;
-    constexpr int SCAN_F12 = 0x86;
-    constexpr int SCAN_UP = 0x48;
-    constexpr int SCAN_DOWN = 0x50;
-    constexpr int SCAN_LEFT = 0x4B;
-    constexpr int SCAN_RIGHT = 0x4D;
-    constexpr int SCAN_PAGE_UP = 0x49;
-    constexpr int SCAN_PAGE_DOWN = 0x51;
+    // The owner's keys for --front-panel, one at a time and without Enter (RQ-AKM-076), read as console key events
+    // (`ReadConsoleInputW`) rather than as characters (`_getch`): an event says which key it was apart from what it typed,
+    // so a character such as `à` (0xE0) is never taken for the prefix of an extended key, and the number row can be
+    // read by position. Function, arrow and page keys become the codes of `pc_key`; a character beyond ASCII, and any
+    // other key with no character, a code the mapping gives no meaning to.
+    constexpr WORD SCAN_NUMBER_ROW_FIRST = 0x02;  // the key printed 1 on a QWERTY keyboard
+    constexpr WORD SCAN_NUMBER_ROW_ZERO = 0x0B;   // the key printed 0, the last of the row
+    constexpr int ASCII_LIMIT = 128;
     constexpr int UNMAPPED_EXTENDED_KEY = akm::harness::pc_key::EXTENDED_BASE + 100;
 
-    std::optional<int> readConsoleKey()
+    std::optional<int> readConsoleKey(bool textMode)
     {
         namespace pc_key = akm::harness::pc_key;
-        const int first = _getch();
-        if (first == EOF)
-            return std::nullopt;
-        if (first != CONSOLE_PREFIX_NUMERIC_PAD && first != CONSOLE_PREFIX_EXTENDED)
-            return first;
-        const int scan = _getch();
-        if (scan >= SCAN_F1 && scan <= SCAN_F10)
-            return pc_key::F1 + (scan - SCAN_F1);
-        switch (scan)
+        const HANDLE input = GetStdHandle(STD_INPUT_HANDLE);
+        for (;;)
         {
-            case SCAN_F11:
-                return pc_key::F1 + 10;
-            case SCAN_F12:
-                return pc_key::F1 + 11;
-            case SCAN_UP:
-                return pc_key::UP;
-            case SCAN_DOWN:
-                return pc_key::DOWN;
-            case SCAN_LEFT:
-                return pc_key::LEFT;
-            case SCAN_RIGHT:
-                return pc_key::RIGHT;
-            case SCAN_PAGE_UP:
-                return pc_key::PAGE_UP;
-            case SCAN_PAGE_DOWN:
-                return pc_key::PAGE_DOWN;
-            default:
+            INPUT_RECORD record{};
+            DWORD read = 0;
+            if (!ReadConsoleInputW(input, &record, 1, &read) || read == 0)
+                return std::nullopt;
+            if (record.EventType != KEY_EVENT || !record.Event.KeyEvent.bKeyDown)
+                continue;
+            const KEY_EVENT_RECORD& key = record.Event.KeyEvent;
+            const WORD virtualKey = key.wVirtualKeyCode;
+            if (virtualKey >= VK_F1 && virtualKey <= VK_F12)
+                return pc_key::F1 + (virtualKey - VK_F1);
+            switch (virtualKey)
+            {
+                case VK_UP:
+                    return pc_key::UP;
+                case VK_DOWN:
+                    return pc_key::DOWN;
+                case VK_LEFT:
+                    return pc_key::LEFT;
+                case VK_RIGHT:
+                    return pc_key::RIGHT;
+                case VK_PRIOR:
+                    return pc_key::PAGE_UP;
+                case VK_NEXT:
+                    return pc_key::PAGE_DOWN;
+                default:
+                    break;
+            }
+            // In the normal mode the number row is the digits printed on it, wherever the layout puts them: an AZERTY row
+            // types `&é"'(-è_çà` unshifted, which would not be digits. Not with Ctrl, Alt or AltGr, which type symbols; not
+            // in the text mode, where what is typed is what is sent; not the numeric pad, whose keys type their digits.
+            const bool symbolModifier =
+                (key.dwControlKeyState & (LEFT_CTRL_PRESSED | RIGHT_CTRL_PRESSED | LEFT_ALT_PRESSED | RIGHT_ALT_PRESSED)) != 0;
+            const bool numberRow = key.wVirtualScanCode >= SCAN_NUMBER_ROW_FIRST && key.wVirtualScanCode <= SCAN_NUMBER_ROW_ZERO
+                                   && (key.dwControlKeyState & ENHANCED_KEY) == 0;
+            if (!textMode && numberRow && !symbolModifier)
+            {
+                if (key.wVirtualScanCode == SCAN_NUMBER_ROW_ZERO)
+                    return '0';
+                return '1' + (key.wVirtualScanCode - SCAN_NUMBER_ROW_FIRST);
+            }
+            const int character = key.uChar.UnicodeChar;
+            if (character >= ASCII_LIMIT)
                 return UNMAPPED_EXTENDED_KEY;
+            if (character != 0)
+                return character;
+            // A modifier alone, a dead key: nothing was typed yet.
         }
     }
 

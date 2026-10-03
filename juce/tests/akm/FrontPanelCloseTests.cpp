@@ -224,25 +224,105 @@ TEST_CASE("Given a Hold that timed out, When the session is closed, Then the key
     CHECK(closed->keysReleased == Keys{EXIT_CODE});
 }
 
-TEST_CASE("Given a Hold answered with an ERROR, When the session is closed, Then the key is released all the same [RQ-AKM-075]",
+TEST_CASE("Given a Hold answered with an ERROR of any number, When the session is closed, Then the key is forgotten: Table 30 note a says an ERROR means the data was not queued, so nothing is released and nothing is reported [RQ-AKM-075]",
+          "[akm][close][front-panel]")
+{
+    for (const std::uint16_t number : {akm::error_number::UNKNOWN_ERROR, akm::error_number::OUT_OF_RANGE})
+    {
+        ManualScenarioDriver driver;
+        SessionHarness harness{driver, closeTiming()};
+        REQUIRE(harness.establishChecksumMode(false).has_value());
+        SamplerBehaviour refuses;
+        refuses.itemErrors = {{SECTION_FRONT_PANEL, ITEM_KEY_HOLD, number}};
+        harness.sampler().setBehaviour(refuses);
+        holdAndWait(harness, FrontPanelKey::Exit);
+        REQUIRE(std::holds_alternative<Error>(harness.recorder().results().back()));
+        answerAgain(harness);
+        const std::size_t sentBefore = harness.sentCount();
+
+        const auto closed = harness.closeForResult();
+
+        CAPTURE(number);
+        REQUIRE(closed.has_value());
+        CHECK(harness.sentCount() == sentBefore);
+        CHECK(closed->keysReleased.empty());
+        CHECK(closed->keysNotReleased.empty());
+        CHECK(closed->restoredAll());
+    }
+}
+
+TEST_CASE("Given a Release at the close that times out and settings the session changed, When the session is closed, Then the key is reported not released and the settings are still put back [RQ-AKM-075, RQ-AKM-042]",
           "[akm][close][front-panel]")
 {
     ManualScenarioDriver driver;
-    SessionHarness harness{driver, closeTiming()};
-    REQUIRE(harness.establishChecksumMode(false).has_value());
-    SamplerBehaviour refuses;
-    refuses.itemErrors = {{SECTION_FRONT_PANEL, ITEM_KEY_HOLD, akm::error_number::UNKNOWN_ERROR}};
-    harness.sampler().setBehaviour(refuses);
+    SessionHarness harness{driver, closeTiming(), SamplerConfig{}, false};
+    REQUIRE(harness.openAndWait(SessionConfig{})->ready());
     holdAndWait(harness, FrontPanelKey::Exit);
-    REQUIRE(std::holds_alternative<Error>(harness.recorder().results().back()));
-    answerAgain(harness);
+    SamplerBehaviour deaf;
+    deaf.silentItems = {{SECTION_FRONT_PANEL, ITEM_KEY_RELEASE}};
+    harness.sampler().setBehaviour(deaf);
+    const auto before = driver.scheduler().now();
+
+    const auto closed = harness.closeForResult();
+
+    const auto elapsed = driver.scheduler().now() - before;
+    REQUIRE(closed.has_value());
+    CHECK(closed->keysNotReleased == Keys{EXIT_CODE});
+    CHECK(closed->keysReleased.empty());
+    CHECK(closed->restored
+          == std::vector<akm::SamplerSetting>{akm::SamplerSetting::Checksums, akm::SamplerSetting::StillAlive,
+                                              akm::SamplerSetting::SyncLcd});
+    CHECK(closed->notRestored.empty());
+    CHECK_FALSE(closed->restoredAll());
+    // One timeout, the Release's: the settings answer.
+    CHECK(elapsed >= COMMAND_TIMEOUT);
+    CHECK(elapsed < 2 * COMMAND_TIMEOUT);
+}
+
+TEST_CASE("Given two keys held and the first Release timing out at the close, When the session is closed, Then the second is reported not released without being tried and the settings are still put back [RQ-AKM-075, RQ-AKM-042]",
+          "[akm][close][front-panel]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver, closeTiming(), SamplerConfig{}, false};
+    REQUIRE(harness.openAndWait(SessionConfig{})->ready());
+    holdAndWait(harness, FrontPanelKey::Exit);
+    holdAndWait(harness, FrontPanelKey::F1);
+    SamplerBehaviour deaf;
+    deaf.silentItems = {{SECTION_FRONT_PANEL, ITEM_KEY_RELEASE}};
+    harness.sampler().setBehaviour(deaf);
     const std::size_t sentBefore = harness.sentCount();
 
     const auto closed = harness.closeForResult();
 
     REQUIRE(closed.has_value());
-    CHECK(frontPanelSince(harness, sentBefore) == Sent{{ITEM_KEY_RELEASE, EXIT_CODE}});
-    CHECK(closed->keysReleased == Keys{EXIT_CODE});
+    CHECK(closed->keysNotReleased == Keys{F1_CODE, EXIT_CODE});
+    CHECK(closed->keysReleased.empty());
+    CHECK(closed->restored.size() == 3);
+    CHECK(closed->notRestored.empty());
+    // Only the first key's Release went out.
+    CHECK(frontPanelSince(harness, sentBefore) == Sent{{ITEM_KEY_RELEASE, F1_CODE}});
+}
+
+TEST_CASE("Given a sampler that answers nothing at all, When the session closes with a key held and settings changed, Then the close ends after the key's timeout and the first setting's, and everything is reported not done [RQ-AKM-075, RQ-AKM-042]",
+          "[akm][close][front-panel]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver, closeTiming(), SamplerConfig{}, false};
+    REQUIRE(harness.openAndWait(SessionConfig{})->ready());
+    holdAndWait(harness, FrontPanelKey::Exit);
+    makeSilent(harness);
+    const auto before = driver.scheduler().now();
+
+    const auto closed = harness.closeForResult();
+
+    const auto elapsed = driver.scheduler().now() - before;
+    REQUIRE(closed.has_value());
+    CHECK(closed->keysNotReleased == Keys{EXIT_CODE});
+    CHECK(closed->restored.empty());
+    CHECK(closed->notRestored.size() == 3);
+    CHECK(elapsed >= 2 * COMMAND_TIMEOUT);
+    CHECK(elapsed < 2 * COMMAND_TIMEOUT + 10ms);
+    CHECK(harness.session().state() == SessionState::Closed);
 }
 
 TEST_CASE("Given a Release the sampler refuses at the close, When the session is closed, Then the key is reported not released, the close finishes and the result is not complete [RQ-AKM-075]",

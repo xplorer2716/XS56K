@@ -168,96 +168,46 @@ namespace akm::harness
         return textMode ? textModeAction(pcKey) : normalModeAction(pcKey);
     }
 
+    namespace
+    {
+        // The name the front panel gives each key of Table 31: one table, the one place a key's name is written.
+        struct KeyName
+        {
+            FrontPanelKey key;
+            std::string_view name;
+        };
+        constexpr std::array<KeyName, 43> KEY_NAMES{{
+            {FrontPanelKey::Multi, "MULTI"},           {FrontPanelKey::Fx, "FX"},
+            {FrontPanelKey::EditSample, "EDIT SAMPLE"}, {FrontPanelKey::EditProgram, "EDIT PROGRAM"},
+            {FrontPanelKey::Record, "RECORD"},         {FrontPanelKey::Utilities, "UTILITIES"},
+            {FrontPanelKey::Save, "SAVE"},             {FrontPanelKey::Load, "LOAD"},
+            {FrontPanelKey::F1, "F1"},                 {FrontPanelKey::F2, "F2"},
+            {FrontPanelKey::F3, "F3"},                 {FrontPanelKey::F4, "F4"},
+            {FrontPanelKey::F5, "F5"},                 {FrontPanelKey::F6, "F6"},
+            {FrontPanelKey::F7, "F7"},                 {FrontPanelKey::F8, "F8"},
+            {FrontPanelKey::F9, "F9"},                 {FrontPanelKey::F10, "F10"},
+            {FrontPanelKey::F11, "F11"},               {FrontPanelKey::F12, "F12"},
+            {FrontPanelKey::F13, "F13"},               {FrontPanelKey::F14, "F14"},
+            {FrontPanelKey::F15, "F15"},               {FrontPanelKey::F16, "F16"},
+            {FrontPanelKey::Digit0, "0"},              {FrontPanelKey::Digit1, "1"},
+            {FrontPanelKey::Digit2, "2"},              {FrontPanelKey::Digit3, "3"},
+            {FrontPanelKey::Digit4, "4"},              {FrontPanelKey::Digit5, "5"},
+            {FrontPanelKey::Digit6, "6"},              {FrontPanelKey::Digit7, "7"},
+            {FrontPanelKey::Digit8, "8"},              {FrontPanelKey::Digit9, "9"},
+            {FrontPanelKey::Minus, "-"},               {FrontPanelKey::Plus, "+"},
+            {FrontPanelKey::CursorLeft, "CURSOR <"},   {FrontPanelKey::CursorRight, "CURSOR >"},
+            {FrontPanelKey::Window, "WINDOW"},         {FrontPanelKey::Mark, "MARK"},
+            {FrontPanelKey::Jump, "JUMP"},             {FrontPanelKey::Exit, "EXIT"},
+            {FrontPanelKey::EntPlay, "ENT/PLAY"},
+        }};
+    }
+
     std::string_view remoteKeyName(FrontPanelKey key)
     {
-        switch (key)
+        for (const KeyName& entry : KEY_NAMES)
         {
-            case FrontPanelKey::Multi:
-                return "MULTI";
-            case FrontPanelKey::Fx:
-                return "FX";
-            case FrontPanelKey::EditSample:
-                return "EDIT SAMPLE";
-            case FrontPanelKey::EditProgram:
-                return "EDIT PROGRAM";
-            case FrontPanelKey::Record:
-                return "RECORD";
-            case FrontPanelKey::Utilities:
-                return "UTILITIES";
-            case FrontPanelKey::Save:
-                return "SAVE";
-            case FrontPanelKey::Load:
-                return "LOAD";
-            case FrontPanelKey::F1:
-                return "F1";
-            case FrontPanelKey::F2:
-                return "F2";
-            case FrontPanelKey::F3:
-                return "F3";
-            case FrontPanelKey::F4:
-                return "F4";
-            case FrontPanelKey::F5:
-                return "F5";
-            case FrontPanelKey::F6:
-                return "F6";
-            case FrontPanelKey::F7:
-                return "F7";
-            case FrontPanelKey::F8:
-                return "F8";
-            case FrontPanelKey::F9:
-                return "F9";
-            case FrontPanelKey::F10:
-                return "F10";
-            case FrontPanelKey::F11:
-                return "F11";
-            case FrontPanelKey::F12:
-                return "F12";
-            case FrontPanelKey::F13:
-                return "F13";
-            case FrontPanelKey::F14:
-                return "F14";
-            case FrontPanelKey::F15:
-                return "F15";
-            case FrontPanelKey::F16:
-                return "F16";
-            case FrontPanelKey::Digit0:
-                return "0";
-            case FrontPanelKey::Digit1:
-                return "1";
-            case FrontPanelKey::Digit2:
-                return "2";
-            case FrontPanelKey::Digit3:
-                return "3";
-            case FrontPanelKey::Digit4:
-                return "4";
-            case FrontPanelKey::Digit5:
-                return "5";
-            case FrontPanelKey::Digit6:
-                return "6";
-            case FrontPanelKey::Digit7:
-                return "7";
-            case FrontPanelKey::Digit8:
-                return "8";
-            case FrontPanelKey::Digit9:
-                return "9";
-            case FrontPanelKey::Minus:
-                return "-";
-            case FrontPanelKey::Plus:
-                return "+";
-            case FrontPanelKey::CursorLeft:
-                return "CURSOR <";
-            case FrontPanelKey::CursorRight:
-                return "CURSOR >";
-            case FrontPanelKey::Window:
-                return "WINDOW";
-            case FrontPanelKey::Mark:
-                return "MARK";
-            case FrontPanelKey::Jump:
-                return "JUMP";
-            case FrontPanelKey::Exit:
-                return "EXIT";
-            case FrontPanelKey::EntPlay:
-                return "ENT/PLAY";
+            if (entry.key == key)
+                return entry.name;
         }
         return {};
     }

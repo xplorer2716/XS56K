@@ -27,9 +27,10 @@ on every exit path (`RQ-AKM-075`, `RQ-AKM-076`).
   it holds when it closes), added to the existing file like `DEC-AKM-012` to `018` before it, not a new
   ADR document.
 
-The plan has 6 tasks (TASK-AKM-069 to TASK-AKM-074): 069 authors the artifacts; 070 and 071 deliver the
+The plan has 7 tasks (TASK-AKM-069 to TASK-AKM-075): 069 authors the artifacts; 070 and 071 deliver the
 primitives (independent, both after 069); 072 adds the release at session close (after 070); 073 is the
-real-sampler harness (after 070, 071, 072); 074 closes the coverage (after 070 to 073).
+real-sampler harness (after 070, 071, 072); 074 closes the coverage (after 070 to 073); 075, added in the
+same session after an independent code review of the delivered lot, corrects what that review found (after 070 to 074).
 
 This plan implements the tasks in the format specified below.
 
@@ -234,3 +235,60 @@ This plan implements the tasks in the format specified below.
 - **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §02
   and §10 before it, not on a real-sampler run: §20 has no Get, and its hardware proof is the owner's
   `--front-panel` run, still to come. One `CHANGELOG.md` entry covers the whole lot rather than one per task.
+
+---
+
+### TASK-AKM-075: Corrections found by the code review of the front panel lot
+- **Tier**: L
+- **Status**: Done
+- **Description**: Correct what a review of the delivered lot found and the author verified against the code: (1) the
+  owner-driven check's held-key bookkeeping — a short press of the key currently held must clear it, and a key is
+  "held" only once its Hold succeeded; (2) the session forgets a key whose Hold the sampler answered with an ERROR
+  of any number, since Table 30 note a says an ERROR means the data was not queued (DEC-AKM-019 amended); (3) a
+  closing Release that times out no longer abandons the §00 settings: the keys not yet tried are reported, the
+  settings are still tried, and the first setting that times out ends the restoring (DEC-AKM-019 amended); (4) the
+  console reader of `--front-panel` reads the keys through `ReadConsoleInputW`, which separates a character from a
+  prefix of an extended key and reports the number row as the digits printed on it whatever the layout — an
+  AZERTY keyboard's unshifted number row included (the reader is told whether the check is in the text mode, where
+  it must report the characters typed); (5) smaller points: the `close()` documentation says keys then settings, the
+  key names come from one table, the wheel and ASCII primitives say where their range refusal comes from.
+- **Requirement refs**: RQ-AKM-075, RQ-AKM-076
+- **ADR refs**: ADR-AKM-001 (DEC-AKM-004, DEC-AKM-019)
+- **Acceptance Criteria** (Gherkin): *Given* Space then Enter then Space, *When* the check runs, *Then* the second Space
+  holds again (the Enter released the key) and the end of the check releases it once. *Given* a Hold the sampler
+  answers with ERROR, *When* Space is pressed twice, *Then* two Holds are sent, no Release, and none at the end.
+  *Given* a Hold answered ERROR 3, *When* the session is closed, *Then* no Release is sent and nothing is reported not
+  released. *Given* a Release at the close that times out and settings the session changed, *When* the session
+  is closed, *Then* the key is reported not released and the settings are still put back. *Given* a reader, *When* the
+  check is in the text mode, *Then* it is told so.
+- **Dependencies**: TASK-AKM-070 to TASK-AKM-074
+- **Assignee**: AI, at the owner's request (2026-10-03)
+- **Verification**: Windows/MSVC Debug: clean build with no warning or error (`/W4 /WX`), `ctest` 602/602 after a
+  re-run in this session (596 before, 6 new cases; one existing case rewritten, see below). New or changed cases,
+  written before the code: `FrontPanelCloseTests.cpp` — a Hold answered ERROR 3 or ERROR 2 is forgotten, nothing
+  released and nothing reported (this case replaces "Hold answered ERROR → released all the same": its old
+  expectation was the behaviour being corrected, Table 30 note a saying an ERROR means the data was not queued,
+  an edit reflecting the corrected expected behaviour, no assertion weakened to pass); a Release timing out at the
+  close with settings changed → the key reported not released, the three settings put back, one timeout elapsed;
+  two keys with the first Release timing out → the second reported without being sent, settings put back; a
+  sampler answering nothing → the close ends after two timeouts (the key's, the first setting's), everything
+  reported not done. `FrontPanelRemoteTests.cpp` — Space, Enter, Space, `q` → hold, hold, release, hold, release
+  (the Enter cleared the key held); a Hold refused with ERROR, Space twice → two Holds, no Release, none at the
+  end; the reader is told false, true, true, false for Tab, `H`, Escape, `q`. Mutation check by hand: with the
+  two session changes reverted to the old behaviour the four close cases above fail (4 failed of 22 run);
+  restored, all pass. The simulated sampler gained `SamplerBehaviour::silentItems` (an item executed and answered
+  with nothing) as the seam for a Release that alone does not answer. DEC-AKM-019 amended in `ADR-AKM-001`; the
+  `close()` comment in `Session.hpp` now reads keys first, then the settings; `remoteKeyName` reads one table;
+  `FrontPanel.cpp` says where the wheel's and ASCII's range refusal comes from. The review's remaining point, a
+  missing test for the checksum-mode cancel in `cancelEverything`, was already covered: `FrontPanelCloseTests.cpp`
+  has it (TASK-AKM-072), and that test fails with the fix disabled. Not verified: the new console reader of
+  `--front-panel` (`ReadConsoleInputW`, the number row read by position on an AZERTY keyboard, `à` no longer taken for
+  a key prefix), which compiles and links but only the owner can run on a console — nothing here sent a frame to
+  hardware.
+- **Assumptions**: The number row is read by position (scan codes `0x02`–`0x0B`) in the normal mode, so that the
+  digits work on any layout; a key of the numeric pad, which types its digit, is read by its character. In the
+  text mode the character typed is what is sent. The reader's own layout independence is by the scan codes
+  Windows gives the keys, assumed to be those of a PC keyboard in the order QWERTY prints them. A Hold that
+  merely times out is still remembered by the session (it may have been carried out) while the check's own
+  Space toggle does not count it as held: the close releases it. Both reviews of this session's lot were run by
+  the owner (`/code-review`); only the findings verified against the code were acted on.
