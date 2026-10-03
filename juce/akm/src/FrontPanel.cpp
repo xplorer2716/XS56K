@@ -63,6 +63,17 @@ namespace akm
         session.submit(keyRequest(ItemId::FrontPanelKeyRelease, key), std::move(completion));
     }
 
+    void moveDataWheel(Session& session, DataWheelDirection direction, int clicks, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FrontPanelDataWheel, {static_cast<std::int64_t>(direction), clicks}),
+                       std::move(completion));
+    }
+
+    void sendAsciiKey(Session& session, int ascii, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FrontPanelAsciiKey, {ascii}), std::move(completion));
+    }
+
     void pressKey(Session& session, FrontPanelKey key, KeyPressCompletion completion)
     {
         // Both completions run on the session's thread, the hold's before the release's, so the result needs no lock.

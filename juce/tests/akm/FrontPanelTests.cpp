@@ -19,8 +19,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // The front panel primitives of section §20 (spec Tables 30-31): on a session and the simulated sampler. Section
 // §20 has no Get and no REPLY, every item completes on DONE, which only means "queued" (Table 30, note a): the
 // simulated sampler's record of what it received is what proves a primitive. This file grows with each task of
-// PLAN-AKM-008 — for now the keys, Hold and Release (&01, &02). Real-sampler verification is TASK-AKM-073's.
-// [TASK-AKM-070, RQ-AKM-073, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+// PLAN-AKM-008 — for now the keys, Hold and Release (&01, &02), the data wheel (&03) and the ASCII keyboard (&04).
+// Real-sampler verification is TASK-AKM-073's.
+// [TASK-AKM-070, TASK-AKM-071, RQ-AKM-073, RQ-AKM-074, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -36,6 +37,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/SamplerError.hpp"
 
 using akm::CommandResult;
+using akm::DataWheelDirection;
 using akm::Done;
 using akm::Error;
 using akm::FrontPanelKey;
@@ -81,6 +83,23 @@ namespace
         {FrontPanelKey::Mark, 0x68},        {FrontPanelKey::Jump, 0x69},        {FrontPanelKey::Exit, 0x6A},
         {FrontPanelKey::EntPlay, 0x6B},
     }};
+
+    // The data wheel and ASCII items of Table 30 (RQ-AKM-074): the wheel's direction byte (0 forwards, 1 backwards)
+    // and its 1-8 clicks, the ASCII value 0-127.
+    constexpr std::uint8_t ITEM_DATA_WHEEL = 0x03;
+    constexpr std::uint8_t ITEM_ASCII_KEY = 0x04;
+    constexpr std::uint8_t WHEEL_FORWARDS_BYTE = 0;
+    constexpr std::uint8_t WHEEL_BACKWARDS_BYTE = 1;
+    constexpr int WHEEL_CLICKS_MIN = 1;
+    constexpr int WHEEL_CLICKS_MAX = 8;
+    constexpr int WHEEL_CLICKS_BELOW_RANGE = 0;
+    constexpr int WHEEL_CLICKS_ABOVE_RANGE = 9;
+    constexpr int WHEEL_CLICKS_TYPICAL = 3;
+    constexpr int WHEEL_DIRECTION_BEYOND_RANGE = 2;
+    constexpr int ASCII_CAPITAL_A = 65;
+    constexpr int ASCII_MAX = 127;
+    constexpr int ASCII_BEYOND_RANGE = 128;
+    constexpr int ASCII_BELOW_RANGE = -1;
 
     constexpr std::uint8_t EXIT_CODE = 0x6A;
     // Inside the item's range 64-107 but listed by no row of Table 31, and one just below and just above it.
@@ -280,4 +299,133 @@ TEST_CASE("Given a value that is not a key of Table 31, When it is pressed, Then
     REQUIRE(std::holds_alternative<Refused>(result.release));
     CHECK(std::get<Refused>(result.release).reason == RefusalReason::ArgumentOutOfRange);
     CHECK(harness.sentCount() == sentBefore);
+}
+
+TEST_CASE("Given a simulated sampler, When the data wheel is moved backwards by 3 clicks, Then the data bytes are 01 03 under item 03 and the sampler records one wheel movement of 3 clicks backwards [RQ-AKM-074]",
+          "[akm][front-panel]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+
+    akm::moveDataWheel(harness.session(), DataWheelDirection::Backwards, WHEEL_CLICKS_TYPICAL,
+                       harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    const std::vector<Bytes> frames = harness.sentFrames();
+    REQUIRE(frames.size() == sentBefore + 1);
+    CHECK(frames[sentBefore].at(akm::test::SENT_SECTION_INDEX) == SECTION_FRONT_PANEL);
+    CHECK(frames[sentBefore].at(akm::test::SENT_ITEM_INDEX) == ITEM_DATA_WHEEL);
+    CHECK(dataOf(frames[sentBefore]) == bytes({WHEEL_BACKWARDS_BYTE, static_cast<std::uint8_t>(WHEEL_CLICKS_TYPICAL)}));
+
+    const std::vector<FrontPanelEvent> events = harness.sampler().frontPanel().events;
+    REQUIRE(events.size() == 1);
+    CHECK(events[0].kind == FrontPanelEventKind::DataWheel);
+    CHECK(events[0].first == WHEEL_BACKWARDS_BYTE);
+    CHECK(events[0].second == WHEEL_CLICKS_TYPICAL);
+}
+
+TEST_CASE("Given both directions and the smallest and largest number of clicks, When the wheel is moved, Then each goes out as its own bytes and is recorded [RQ-AKM-074]",
+          "[akm][front-panel]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+
+    akm::moveDataWheel(harness.session(), DataWheelDirection::Forwards, WHEEL_CLICKS_MIN, harness.recorder().completion());
+    akm::moveDataWheel(harness.session(), DataWheelDirection::Forwards, WHEEL_CLICKS_MAX, harness.recorder().completion());
+    akm::moveDataWheel(harness.session(), DataWheelDirection::Backwards, WHEEL_CLICKS_MIN, harness.recorder().completion());
+    akm::moveDataWheel(harness.session(), DataWheelDirection::Backwards, WHEEL_CLICKS_MAX, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(4));
+
+    const std::vector<Bytes> frames = harness.sentFrames();
+    REQUIRE(frames.size() == sentBefore + 4);
+    CHECK(dataOf(frames[sentBefore]) == bytes({WHEEL_FORWARDS_BYTE, static_cast<std::uint8_t>(WHEEL_CLICKS_MIN)}));
+    CHECK(dataOf(frames[sentBefore + 1]) == bytes({WHEEL_FORWARDS_BYTE, static_cast<std::uint8_t>(WHEEL_CLICKS_MAX)}));
+    CHECK(dataOf(frames[sentBefore + 2]) == bytes({WHEEL_BACKWARDS_BYTE, static_cast<std::uint8_t>(WHEEL_CLICKS_MIN)}));
+    CHECK(dataOf(frames[sentBefore + 3]) == bytes({WHEEL_BACKWARDS_BYTE, static_cast<std::uint8_t>(WHEEL_CLICKS_MAX)}));
+    for (const CommandResult& result : harness.recorder().results())
+        CHECK(std::holds_alternative<Done>(result));
+    CHECK(harness.sampler().frontPanel().events.size() == 4);
+}
+
+TEST_CASE("Given 0 or 9 clicks or a direction of 2, When the wheel is moved, Then it is refused as ArgumentOutOfRange without sending [RQ-AKM-074]",
+          "[akm][front-panel]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+
+    akm::moveDataWheel(harness.session(), DataWheelDirection::Forwards, WHEEL_CLICKS_BELOW_RANGE,
+                       harness.recorder().completion());
+    akm::moveDataWheel(harness.session(), DataWheelDirection::Backwards, WHEEL_CLICKS_ABOVE_RANGE,
+                       harness.recorder().completion());
+    akm::moveDataWheel(harness.session(), static_cast<DataWheelDirection>(WHEEL_DIRECTION_BEYOND_RANGE),
+                       WHEEL_CLICKS_TYPICAL, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+
+    for (const CommandResult& result : harness.recorder().results())
+    {
+        REQUIRE(std::holds_alternative<Refused>(result));
+        CHECK(std::get<Refused>(result).reason == RefusalReason::ArgumentOutOfRange);
+    }
+    CHECK(harness.sentCount() == sentBefore);
+    CHECK(harness.sampler().frontPanel().events.empty());
+}
+
+TEST_CASE("Given the ASCII value 65, When it is sent, Then the data byte is 41 under item 04 and the sampler records it; 0 and 127 go out as they are [RQ-AKM-074]",
+          "[akm][front-panel]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+
+    akm::sendAsciiKey(harness.session(), ASCII_CAPITAL_A, harness.recorder().completion());
+    akm::sendAsciiKey(harness.session(), 0, harness.recorder().completion());
+    akm::sendAsciiKey(harness.session(), ASCII_MAX, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+
+    for (const CommandResult& result : harness.recorder().results())
+        CHECK(std::holds_alternative<Done>(result));
+    const std::vector<Bytes> frames = harness.sentFrames();
+    REQUIRE(frames.size() == sentBefore + 3);
+    CHECK(frames[sentBefore].at(akm::test::SENT_SECTION_INDEX) == SECTION_FRONT_PANEL);
+    CHECK(frames[sentBefore].at(akm::test::SENT_ITEM_INDEX) == ITEM_ASCII_KEY);
+    CHECK(dataOf(frames[sentBefore]) == bytes({0x41}));
+    CHECK(dataOf(frames[sentBefore + 1]) == bytes({0x00}));
+    CHECK(dataOf(frames[sentBefore + 2]) == bytes({0x7F}));
+
+    const std::vector<FrontPanelEvent> events = harness.sampler().frontPanel().events;
+    REQUIRE(events.size() == 3);
+    for (const FrontPanelEvent& event : events)
+        CHECK(event.kind == FrontPanelEventKind::AsciiKey);
+    CHECK(events[0].first == ASCII_CAPITAL_A);
+    CHECK(events[1].first == 0);
+    CHECK(events[2].first == ASCII_MAX);
+}
+
+TEST_CASE("Given an ASCII value of 128 or below 0, When it is sent, Then it is refused as ArgumentOutOfRange without sending [RQ-AKM-074]",
+          "[akm][front-panel]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+
+    akm::sendAsciiKey(harness.session(), ASCII_BEYOND_RANGE, harness.recorder().completion());
+    akm::sendAsciiKey(harness.session(), ASCII_BELOW_RANGE, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+
+    for (const CommandResult& result : harness.recorder().results())
+    {
+        REQUIRE(std::holds_alternative<Refused>(result));
+        CHECK(std::get<Refused>(result).reason == RefusalReason::ArgumentOutOfRange);
+    }
+    CHECK(harness.sentCount() == sentBefore);
+    CHECK(harness.sampler().frontPanel().events.empty());
 }

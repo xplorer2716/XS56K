@@ -113,4 +113,20 @@ namespace akm
     /// so a press never leaves the key down by its own doing. `completion` runs once, after both. A value that is not
     /// a key of Table 31 has both refused and nothing sent. [RQ-AKM-073]
     void pressKey(Session& session, FrontPanelKey key, KeyPressCompletion completion);
+
+    /// The two directions of the data wheel (Table 30, &03), with the byte each travels as. [RQ-AKM-074]
+    enum class DataWheelDirection : std::uint8_t
+    {
+        Forwards = 0,
+        Backwards = 1,
+    };
+
+    /// Moves the data wheel (§20/&03) `clicks` clicks, 1 to 8; a direction that is neither, or a number of clicks
+    /// outside 1-8, is refused without sending (`ArgumentOutOfRange`). DONE means the movement was queued, not
+    /// that the sampler made it. [RQ-AKM-074]
+    void moveDataWheel(Session& session, DataWheelDirection direction, int clicks, CommandCompletion completion);
+
+    /// Sends one character of ASCII keyboard data (§20/&04), 0 to 127; a value outside that is refused without
+    /// sending (`ArgumentOutOfRange`). DONE means the character was queued, not typed. [RQ-AKM-074]
+    void sendAsciiKey(Session& session, int ascii, CommandCompletion completion);
 }

@@ -99,7 +99,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-071: Data wheel and ASCII keyboard
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&03` (direction 0/1, clicks 1–8) and `&04` (0–127); expose `moveDataWheel` and
   `sendAsciiKey`, refusing out-of-range values without sending. Extend the simulated sampler to record them.
 - **Requirement refs**: RQ-AKM-074
@@ -107,8 +107,22 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-074 on the simulated sampler.
 - **Dependencies**: TASK-AKM-069
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 561/561 after a
+  re-run in this session. 5 new cases in `FrontPanelTests.cpp` (`[akm][front-panel]`, written before the
+  code, `ctest -R RQ-AKM-074`): the wheel moved backwards by 3 clicks sends item `03` with data `01 03` and the
+  simulated sampler records one wheel movement (direction 1, 3 clicks); both directions at 1 and at 8 clicks
+  go out as their own bytes (4 DONE, 4 events); 0 or 9 clicks, or a direction cast to 2, are refused
+  `ArgumentOutOfRange` with nothing sent; ASCII 65 sends item `04` with data `41`, 0 and 127 go out as `00`
+  and `7F`; 128 and -1 are refused `ArgumentOutOfRange` with nothing sent. Collateral: `ItemCatalogueTests.cpp`'s
+  total count gained 2 (an edit reflecting the new expected state, no assertion weakened).
+  `generate_akm_items.py --check`: up to date (299 items); `--coverage`: section `20` 4 of 4 spec rows
+  covered, `unaccounted: none` (`complete` is flipped by TASK-AKM-074). Not verified: real sampler
+  (TASK-AKM-073, which exercises the keys only, as decided); mutation testing.
+- **Assumptions**: The ASCII primitive takes an `int` so that 128 and negative values are refusable by the
+  catalogue's range check, rather than a `std::uint8_t` that could not hold them; the same for the wheel's
+  click count. The simulated sampler records an ASCII character without interpreting it (no text field is
+  modelled) and, like the keys, keeps the record across `powerCycle()` — modelling choices, not proven on
+  hardware.
 
 ---
 

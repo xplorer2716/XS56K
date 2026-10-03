@@ -228,20 +228,23 @@ namespace akm::harness
         std::uint8_t highestPlayMode = 3;
     };
 
-    /// What kind of §20 item the sampler received (RQ-AKM-073); the data wheel and the ASCII keyboard are added by
-    /// the task that catalogues them.
+    /// What kind of §20 item the sampler received (RQ-AKM-073, RQ-AKM-074).
     enum class FrontPanelEventKind
     {
         KeyHold,
         KeyRelease,
+        DataWheel,
+        AsciiKey,
     };
 
-    /// One §20 item the sampler queued, in order of arrival: `first` is its first data byte (the keycode of a key
-    /// item). Section §20 has no Get, so this record is how a test sees what the sampler received. [RQ-AKM-073]
+    /// One §20 item the sampler queued, in order of arrival: `first` is its first data byte (a key's keycode, the
+    /// wheel's direction, the ASCII value) and `second` its second one (the wheel's clicks, else 0). Section §20 has
+    /// no Get, so this record is how a test sees what the sampler received. [RQ-AKM-073, RQ-AKM-074]
     struct FrontPanelEvent
     {
         FrontPanelEventKind kind = FrontPanelEventKind::KeyHold;
         std::uint8_t first = 0;
+        std::uint8_t second = 0;
 
         friend bool operator==(const FrontPanelEvent&, const FrontPanelEvent&) = default;
     };

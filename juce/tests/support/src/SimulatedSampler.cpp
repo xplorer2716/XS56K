@@ -188,10 +188,17 @@ namespace akm::harness
         // items answer ERROR 0 until their own lot.
         // Section §20 (front panel), spec Table 30: the key items of TASK-AKM-070 (RQ-AKM-073). The keycode is
         // one of the 64-107 the item's range gives; Table 31's own list is the primitive's to enforce, not the
-        // sampler's, which answers an out-of-range byte only.
+        // sampler's, which answers an out-of-range byte only. The data wheel (direction 0 or 1, then 1-8 clicks)
+        // and the ASCII keyboard of TASK-AKM-071 (RQ-AKM-074).
         constexpr std::uint8_t SECTION_FRONT_PANEL = 0x20;
         constexpr std::uint8_t ITEM_KEY_HOLD = 0x01;
         constexpr std::uint8_t ITEM_KEY_RELEASE = 0x02;
+        constexpr std::uint8_t ITEM_DATA_WHEEL = 0x03;
+        constexpr std::uint8_t ITEM_ASCII_KEY = 0x04;
+        constexpr std::size_t DATA_WHEEL_DATA_SIZE = 2;
+        constexpr std::uint8_t WHEEL_BACKWARDS = 1;
+        constexpr std::uint8_t WHEEL_CLICKS_FIRST = 1;
+        constexpr std::uint8_t WHEEL_CLICKS_LAST = 8;
         constexpr std::uint8_t KEYCODE_FIRST = 64;
         constexpr std::uint8_t KEYCODE_LAST = 107;
         constexpr std::uint8_t SECTION_DISK = 0x10;
@@ -1828,10 +1835,26 @@ namespace akm::harness
             }
         }
 
-        // §20: the key items (RQ-AKM-073). The data is queued, not acted on: only the record of it and the keys
-        // down are kept (Table 30, note a).
+        // §20: the key items (RQ-AKM-073), the data wheel and the ASCII keyboard (RQ-AKM-074). The data is queued,
+        // not acted on: only the record of it and the keys down are kept (Table 30, note a).
         Outcome executeFrontPanel(std::uint8_t item, const Bytes& data, FrontPanelState& frontPanel)
         {
+            if (item == ITEM_DATA_WHEEL)
+            {
+                if (data.size() < DATA_WHEEL_DATA_SIZE)
+                    return failure(error_number::INVALID_FORMAT);
+                if (data[0] > WHEEL_BACKWARDS || data[1] < WHEEL_CLICKS_FIRST || data[1] > WHEEL_CLICKS_LAST)
+                    return failure(error_number::OUT_OF_RANGE);
+                frontPanel.events.push_back({FrontPanelEventKind::DataWheel, data[0], data[1]});
+                return done();
+            }
+            if (item == ITEM_ASCII_KEY)
+            {
+                if (data.empty())
+                    return failure(error_number::INVALID_FORMAT);
+                frontPanel.events.push_back({FrontPanelEventKind::AsciiKey, data.front(), 0});
+                return done();
+            }
             if (item != ITEM_KEY_HOLD && item != ITEM_KEY_RELEASE)
                 return failure(error_number::NOT_SUPPORTED);
             if (data.empty())
@@ -1846,13 +1869,13 @@ namespace akm::harness
             {
                 if (held == down.end())
                     down.push_back(keycode);
-                frontPanel.events.push_back({FrontPanelEventKind::KeyHold, keycode});
+                frontPanel.events.push_back({FrontPanelEventKind::KeyHold, keycode, 0});
             }
             else
             {
                 if (held != down.end())
                     down.erase(held);
-                frontPanel.events.push_back({FrontPanelEventKind::KeyRelease, keycode});
+                frontPanel.events.push_back({FrontPanelEventKind::KeyRelease, keycode, 0});
             }
             return done();
         }

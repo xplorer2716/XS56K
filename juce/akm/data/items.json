@@ -55,7 +55,7 @@
       "name": "Front Panel",
       "complete": false,
       "spec": "Tables 30 and 31, p. 41",
-      "note": "FTR-AKM-008 (PLAN-AKM-008), 4 command rows and no REPLY format. Key Hold and Key Release (RQ-AKM-073, TASK-AKM-070: &01, &02) are catalogued first: the keycode is a byte of 64-107, the range Table 30 gives, of which only the 43 codes of Table 31 are valid (`&66` is inside the range and listed by no row, note b), so the primitives, not the catalogue, refuse an unlisted code. The data wheel and the ASCII keyboard (&03, &04) follow in TASK-AKM-071; `complete` is set by TASK-AKM-074."
+      "note": "FTR-AKM-008 (PLAN-AKM-008), 4 command rows and no REPLY format. Key Hold and Key Release (RQ-AKM-073, TASK-AKM-070: &01, &02) are catalogued first: the keycode is a byte of 64-107, the range Table 30 gives, of which only the 43 codes of Table 31 are valid (`&66` is inside the range and listed by no row, note b), so the primitives, not the catalogue, refuse an unlisted code. The data wheel (RQ-AKM-074, TASK-AKM-071: &03, a direction byte 0-1 and 1-8 clicks) and the ASCII keyboard (&04, one byte 0-127) complete the four command rows; `complete` is set by TASK-AKM-074 after `--coverage`."
     }
   ],
   "items": [
@@ -2018,6 +2018,19 @@
       "id": "FrontPanelKeyRelease", "section": "20", "item": "02", "name": "Key Release", "kind": "set",
       "args": [{"name": "keycode", "format": "byte", "min": 64, "max": 107}],
       "requirements": ["RQ-AKM-073"]
+    },
+    {
+      "id": "FrontPanelDataWheel", "section": "20", "item": "03", "name": "Data Wheel", "kind": "set",
+      "args": [
+        {"name": "direction", "format": "byte", "min": 0, "max": 1},
+        {"name": "clicks", "format": "byte", "min": 1, "max": 8}
+      ],
+      "requirements": ["RQ-AKM-074"]
+    },
+    {
+      "id": "FrontPanelAsciiKey", "section": "20", "item": "04", "name": "ASCII keyboard data", "kind": "set",
+      "args": [{"name": "ascii", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-074"]
     }
   ]
 }
