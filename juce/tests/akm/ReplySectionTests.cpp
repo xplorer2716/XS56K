@@ -57,7 +57,6 @@ namespace
     constexpr std::uint8_t SECTION_SYSTEM = 0x02;
     constexpr std::uint8_t ITEM_CLOCK = 0x05;
     constexpr std::uint8_t ITEM_NAME = 0x03;
-    constexpr std::uint8_t ITEM_MODEL = 0x04;
     // The section byte of the REPLY of the clock on the S5000, and one that no item declares.
     constexpr std::uint8_t CLOCK_REPLY_SECTION = 0x0B;
     constexpr std::uint8_t UNDECLARED_SECTION = 0x0C;
