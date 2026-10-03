@@ -1505,7 +1505,7 @@ namespace akm::harness
                     FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     if (folder == nullptr)
                         return failure(error_number::NOT_FOUND);
-                    folder->subFolders.push_back(FolderRecord{*name, {}});
+                    folder->subFolders.push_back(FolderRecord{*name, {}, {}, {}, {}});
                     return done();
                 }
                 case ITEM_RENAME_FOLDER:

@@ -444,7 +444,7 @@ TEST_CASE("Given a simulated folder with two sub-folders, When their count, one 
     REQUIRE(harness.establishChecksumMode(false).has_value());
     harness.sampler().setDisks({DiskRecord{
         .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
-        .rootFolder = FolderRecord{"", {FolderRecord{"ALPHA", {}}, FolderRecord{"BETA", {}}}}}});
+        .rootFolder = FolderRecord{"", {FolderRecord{"ALPHA", {}, {}, {}, {}}, FolderRecord{"BETA", {}, {}, {}, {}}}}}});
     selectDisk(harness, 0);
     REQUIRE(harness.waitForCompletions(1));
 
@@ -483,7 +483,7 @@ TEST_CASE("Given a sub-folder opened then a new one created and renamed, When it
     REQUIRE(harness.establishChecksumMode(false).has_value());
     harness.sampler().setDisks({DiskRecord{
         .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
-        .rootFolder = FolderRecord{"", {FolderRecord{"SONGS", {}}}}}});
+        .rootFolder = FolderRecord{"", {FolderRecord{"SONGS", {}, {}, {}, {}}}}}});
     selectDisk(harness, 0);
     REQUIRE(harness.waitForCompletions(1));
 
@@ -945,7 +945,7 @@ TEST_CASE("Given confirmation, When eject-with-discard, delete sub-folder and de
     REQUIRE(harness.establishChecksumMode(false).has_value());
     harness.sampler().setDisks({DiskRecord{
         .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
-        .rootFolder = FolderRecord{"", {FolderRecord{"OLD", {}}}, {}, {}, {FileRecord{"JUNK.AKP", 1}}}}});
+        .rootFolder = FolderRecord{"", {FolderRecord{"OLD", {}, {}, {}, {}}}, {}, {}, {FileRecord{"JUNK.AKP", 1}}}}});
     selectDisk(harness, 0);
     REQUIRE(harness.waitForCompletions(1));
 
