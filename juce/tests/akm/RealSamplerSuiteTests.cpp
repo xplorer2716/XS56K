@@ -979,6 +979,14 @@ namespace
 {
     constexpr std::uint8_t SECTION_DISK_ITEMS = 0x10;
     constexpr std::uint8_t ITEM_DISK_SELECT = 0x02;
+    constexpr std::uint8_t ITEM_DISK_GET_TYPE_OF = 0x07;
+    constexpr std::uint8_t ITEM_DISK_GET_NAME = 0x0E;
+    constexpr std::uint8_t ITEM_DISK_FILE_NAME = 0x21;
+    constexpr std::uint8_t ITEM_DISK_FILE_SIZE = 0x23;
+    constexpr std::uint8_t ITEM_DISK_RENAME_FILE = 0x28;
+    constexpr std::uint8_t ITEM_DISK_DELETE_FILE = 0x29;
+    constexpr std::uint8_t ITEM_DISK_START_AUDITION = 0x30;
+    constexpr std::uint8_t ITEM_DISK_STOP_AUDITION = 0x31;
     constexpr std::uint8_t ITEM_DISK_CREATE_FOLDER = 0x16;
     constexpr std::uint8_t ITEM_DISK_DELETE_FOLDER = 0x17;
     constexpr std::uint8_t ITEM_DISK_SAVE_MEMORY_ITEM = 0x2C;
@@ -1081,6 +1089,78 @@ TEST_CASE("Given Disk Tools on a sampler with a writable disk, When the owner de
     CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 0);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the file items, When the suite runs, Then the disk is read by handle, one save makes a file, the file is read, renamed and deleted, no audition is sent, and every check passes [RQ-AKM-065, RQ-AKM-069, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsFiles = true;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(result.knownStateRestored);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_GET_TYPE_OF) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_GET_NAME) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_FILE_NAME) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_FILE_SIZE) >= 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_RENAME_FILE) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_STOP_AUDITION) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FILE) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
+}
+
+TEST_CASE("Given Disk Tools and the file items with no way to ask the owner, When the suite runs, Then the check is skipped before anything is saved [RQ-AKM-069]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsFiles = true;
+    options.askOwner = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 0);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the file items with a rename the sampler refuses, When the owner asks to keep the folder, Then the check fails, the owner is asked to look first and the folder is left in place [RQ-AKM-069, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setBehaviour(SamplerBehaviour{.itemErrors = {{SECTION_DISK_ITEMS, ITEM_DISK_RENAME_FILE, ERROR_UNKNOWN}}});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsFiles = true;
+    std::vector<std::string> asked;
+    options.askOwner = [&asked](const std::string& instruction) {
+        asked.push_back(instruction);
+        return instruction.find("did not finish") == std::string::npos;
+    };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Failed);
+    REQUIRE_FALSE(asked.empty());
+    CHECK(asked.back().find("did not finish") != std::string::npos);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 1);
 }
 
 TEST_CASE("Given Disk Tools with no way to ask the owner which disk to select, When the suite runs, Then the check is skipped before any disk is selected [TASK-AKM-067, RQ-AKM-061]",
@@ -1267,7 +1347,8 @@ TEST_CASE("Given Disk Tools and the owner declining to confirm the saved file, W
     RealSuiteOptions options = rig.options();
     options.diskTools = true;
     options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
-    options.askOwner = [](const std::string&) { return false; };
+    // The owner declines the saved file, and presses Enter on the question asked when the check ends early.
+    options.askOwner = [](const std::string& instruction) { return instruction.find("did not finish") != std::string::npos; };
     std::ostringstream log;
 
     const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);

@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <array>
 #include <chrono>
 #include <cstdint>
+#include <exception>
 #include <functional>
 #include <optional>
 #include <stdexcept>
@@ -827,6 +828,16 @@ namespace akm::harness
             {
                 try
                 {
+                    // A check that ends early (failed or skipped) leaves the folder for the owner to look at on the sampler,
+                    // when there is a way to ask: Enter lets the guard delete it as usual, skip keeps it for a delete by hand.
+                    if (std::uncaught_exceptions() > 0 && _created && _rig.options.askOwner)
+                    {
+                        _rig.log.flush();
+                        if (!_rig.options.askOwner("The check did not finish. Look at the sub-folder " + std::string(TEST_FOLDER_NAME)
+                                                   + " on the sampler now. Press Enter to delete it, or type skip to keep it for you "
+                                                     "to delete by hand."))
+                            _keep = true;
+                    }
                     removeIfCreated();
                 }
                 catch (...)  // NOLINT: a destructor does not throw
@@ -913,6 +924,12 @@ namespace akm::harness
                         return;
                     }
                 }
+                if (_keep)
+                {
+                    _rig.log.note("  the test folder is kept, as the owner asked: remove \"" + std::string(TEST_FOLDER_NAME)
+                                  + "\" by hand before the next run");
+                    return;
+                }
                 _inside = false;
                 _depth = 0;
                 const bool deleted = runCommand("delete the test folder and everything in it", [](Session& session, CommandCompletion done) {
@@ -932,6 +949,7 @@ namespace akm::harness
             Session& _session;
             bool _created = false;
             bool _inside = false;
+            bool _keep = false;
             int _depth = 0;
         };
 
@@ -982,6 +1000,10 @@ namespace akm::harness
                     check("create a disposable sub-folder, read the current disk, round-trip the folder items inside it, "
                           "and delete it again",
                           &Suite::diskToolsRoundTrips);
+                if (_rig.options.diskTools && _rig.options.diskToolsFiles)
+                    check("the file items of section 10 inside the disposable sub-folder: one save, the file read, renamed and "
+                          "deleted",
+                          &Suite::diskToolsFileItems);
                 if (_rig.options.diskTools && _rig.options.diskToolsSlow)
                     check("one long-running §10 item, sent inside the disposable sub-folder with Still Alive on, "
                           "then the sub-folder deleted",
@@ -1537,6 +1559,19 @@ namespace akm::harness
                 });
                 expect(handle.handle.has_value() && *handle.handle == disk.handle,
                        "the current disk is the one selected (handle " + std::to_string(disk.handle) + ")");
+                // §10/&07 and &0E name a disk by its handle, so they read the one the list gave, without selecting anything.
+                const DiskTypeResult listedType = readDisk<DiskTypeResult>("the type of disk " + std::to_string(disk.handle),
+                                                                           [&guarded, &disk](DiskTypeCompletion done) {
+                                                                               getDiskType(guarded.session(), disk.handle, std::move(done));
+                                                                           });
+                expect(listedType.type.has_value() && *listedType.type == disk.type,
+                       "the type of disk " + std::to_string(disk.handle) + " is the one the list gave (" + std::to_string(disk.type) + ")");
+                const DiskNameResult listedName = readDisk<DiskNameResult>("the name of disk " + std::to_string(disk.handle),
+                                                                           [&guarded, &disk](DiskNameCompletion done) {
+                                                                               getDiskName(guarded.session(), disk.handle, std::move(done));
+                                                                           });
+                expect(listedName.name.has_value() && *listedName.name == disk.name,
+                       "the name of disk " + std::to_string(disk.handle) + " is \"" + disk.name + "\"");
                 const DiskFormatResult format = readDisk<DiskFormatResult>("the current disk's format", [&guarded](DiskFormatCompletion done) {
                     getCurrentDiskFormat(guarded.session(), std::move(done));
                 });
@@ -1581,6 +1616,89 @@ namespace akm::harness
                     expect(!missing.index.has_value(), "no index is returned for a file that is not there");
                     if (!folder.leaveSubFolder())
                         throw CheckFailure("could not close the sub-folder \"INNER_2\"");
+                }
+                expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-065, RQ-AKM-069, RQ-AKM-071: the file items of §10 inside the disposable sub-folder, after one save of the
+            // test program. The save is sent only when the owner can check the file on the sampler (refused before anything
+            // is sent otherwise). The file is read, renamed, read again by name and deleted, then the sub-folder goes through
+            // the guard. The audition (&30, &31) is not here: the spec has it for a sample from disk, and this check saves a
+            // program, which cannot be auditioned.
+            void diskToolsFileItems()
+            {
+                if (!_rig.options.askOwner)
+                    throw CheckSkipped("this check saves a file, which only the owner can check on the sampler, and there is no way to ask the owner");
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                selectTestDisk(guarded);
+                const int before = folderCountHere(guarded);
+                {
+                    GuardedTestFolder folder(_rig, guarded.session());
+                    expect(fileCountHere(guarded) == 0, "the new test folder holds no file");
+                    {
+                        GuardedTestProgram program(_rig, guarded.session());
+                        const int programIndex = currentProgramIndex(guarded);
+                        expectCommand(guarded, "save the test program to the sub-folder (section 10, item 2C)",
+                                      [programIndex](Session& session, CommandCompletion done) {
+                                          saveMemoryItem(session, programIndex, SaveableMemoryType::Program, false, false, std::move(done));
+                                      });
+                    }
+                    const std::vector<std::string> saved = fileNamesHere(guarded);
+                    expect(saved.size() == 1, "the save left one file in the sub-folder");
+                    const std::string file = saved.front();
+                    ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
+                                  "that it holds the file \"" + file + "\".");
+                    expect(fileCountHere(guarded) == 1, "the sub-folder holds one file");
+
+                    const DiskFileNameResult name = readDisk<DiskFileNameResult>("the name of the file at index 0",
+                                                                                 [&guarded](DiskFileNameCompletion done) {
+                                                                                     getFileName(guarded.session(), 0, std::move(done));
+                                                                                 });
+                    expect(name.name.has_value() && *name.name == file, "the file at index 0 is \"" + file + "\"");
+                    const DiskFileSizeResult size = readDisk<DiskFileSizeResult>("the size of the file at index 0",
+                                                                                 [&guarded](DiskFileSizeCompletion done) {
+                                                                                     getFileSize(guarded.session(), 0, std::move(done));
+                                                                                 });
+                    expect(size.sizeBytes.has_value() && *size.sizeBytes > 0, "the file has a size");
+                    const DiskFileIndexResult found = readDisk<DiskFileIndexResult>("the index of the file by name",
+                                                                                    [&guarded, &file](DiskFileIndexCompletion done) {
+                                                                                        getFileIndexByName(guarded.session(), file, std::move(done));
+                                                                                    });
+                    expect(found.index.has_value() && *found.index == 0, "the file is at index 0 by its name");
+
+                    // The new name is given without its extension: the sampler appends the renamed file's own extension (on the
+                    // S5000, a program file: "XS56K_RENAMED.AKP" given became "XS56K_RENAMED.AKP.AKP"). So the name to expect is
+                    // built the same way; the rule is not yet seen for sample files (.WAV).
+                    const std::size_t dot = file.find_last_of('.');
+                    const std::string extension = dot == std::string::npos ? std::string() : file.substr(dot);
+                    const std::string newBase = "XS56K_RENAMED";
+                    const std::string expected = newBase + extension;
+                    expectCommand(guarded, "rename the file to \"" + newBase + "\" (section 10, item 28)",
+                                  [&file, &newBase](Session& session, CommandCompletion done) {
+                                      renameFile(session, file, newBase, std::move(done));
+                                  });
+                    // What the sampler stores after the rename, read back from its own listing (&22), said in the log.
+                    const std::vector<std::string> afterRename = fileNamesHere(guarded);
+                    std::string listed;
+                    for (const std::string& listedName : afterRename)
+                        listed += (listed.empty() ? "" : ", ") + std::string("\"") + listedName + "\"";
+                    finding("the names in the sub-folder after the rename: " + (listed.empty() ? std::string("none") : listed));
+                    expect(afterRename.size() == 1 && afterRename.front() == expected,
+                           "after the rename the sub-folder holds the file \"" + expected + "\"");
+                    const std::string stored = afterRename.front();
+                    const DiskFileIndexResult byStoredName = readDisk<DiskFileIndexResult>("the index of the renamed file",
+                                                                                           [&guarded, &stored](DiskFileIndexCompletion done) {
+                                                                                               getFileIndexByName(guarded.session(), stored, std::move(done));
+                                                                                           });
+                    expect(byStoredName.index.has_value() && *byStoredName.index == 0, "the renamed file is at index 0 by its name");
+
+                    expectCommand(guarded, "delete the file \"" + stored + "\" (section 10, item 29)",
+                                  [&stored](Session& session, CommandCompletion done) {
+                                      deleteFile(session, stored, ConfirmDeleteFile::IUnderstandThisDeletesTheFile, std::move(done));
+                                  });
+                    expect(fileCountHere(guarded) == 0, "the sub-folder holds no file again");
                 }
                 expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
                 closeAndVerify(guarded);
@@ -2710,6 +2828,9 @@ namespace akm::harness
                          "disposable sub-folder, XS56K_SUITE_TEST, under the current folder (RQ-AKM-071), works inside it, and "
                          "deletes it again through the confirmed &17 guard. The selection stays on the sampler: no section 10 "
                          "command clears it. It touches nothing that existed before.");
+            if (options.diskToolsFiles)
+                log.note("It also saves the test program into the disposable sub-folder (--disk-tools-files, RQ-AKM-065), has the owner "
+                         "confirm the file on the sampler, reads, renames and deletes it.");
             if (options.diskToolsSlow)
             {
                 const char* name = "";

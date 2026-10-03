@@ -84,7 +84,14 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   ones, which it selects (`&02`, RQ-AKM-061 — every disk operation acts on that SysEx selection, which the front panel
   does not set; nothing in section 10 clears it, so it stays selected). It creates the disposable sub-folder
   `XS56K_SUITE_TEST` under that disk's current folder, works inside it, and deletes it again through the confirmed
-  `&17` guard. No usable disk, or no way to ask, skips the check before anything is selected or created.
+  `&17` guard. No usable disk, or no way to ask, skips the check before anything is selected or created. It also reads
+  the selected disk's type and name by handle (`&07`, `&0E`). `--disk-tools-files` (needs `--disk-tools`) adds one
+  check on the file items (RQ-AKM-068, RQ-AKM-069): it saves the test program into the sub-folder (the owner confirms
+  the file on the sampler; no owner to ask, no save), then reads (`&21`, `&23`, `&24`), renames (`&28`), deletes
+  (`&29`). It does not audition: `&30`/`&31` audition a sample from disk, and this check saves a program. The rename
+  takes the name without its extension, since the sampler appends the file's own extension (seen on the S5000:
+  `XS56K_RENAMED.AKP` given became `XS56K_RENAMED.AKP.AKP`); after it, the check lists the sub-folder (`&22`) and
+  expects exactly the renamed file.
   It touches nothing that existed before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
   sub-folder with Still Alive on — `update-list`, `load-folder`, `load-file`, `load-file-with-dependents`,
   `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the

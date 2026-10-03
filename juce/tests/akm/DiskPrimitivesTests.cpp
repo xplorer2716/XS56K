@@ -642,13 +642,14 @@ TEST_CASE("Given a file renamed with an extension accidentally included in the n
     selectDisk(harness, 0);
     REQUIRE(harness.waitForCompletions(1));
 
-    renameFile(harness, "OLD.AKP", "NEW.AKP.AKP");
+    // The name is given without its extension: the sampler appends the renamed file's own extension.
+    renameFile(harness, "OLD.AKP", "NEW");
     REQUIRE(harness.waitForCompletions(2));
     CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
 
     const DiskFileNameResult name = getFileName(harness, 0);
     REQUIRE(name.name.has_value());
-    CHECK(*name.name == "NEW.AKP.AKP");
+    CHECK(*name.name == "NEW.AKP");
 }
 
 TEST_CASE("Given a file name that does not exist, When its index is requested or it is renamed, Then each completes ERROR [RQ-AKM-065]",
@@ -834,7 +835,7 @@ TEST_CASE("Given a simulated disk with an existing file at the target name, When
     CHECK(*count.count == 1);
     const DiskFileSizeResult size = getFileSize(harness, 0);
     REQUIRE(size.sizeBytes.has_value());
-    CHECK(*size.sizeBytes == 0u);
+    CHECK(*size.sizeBytes == 4096u);
 }
 
 TEST_CASE("Given two programs in memory, When all are saved, Then two files appear in the current folder [RQ-AKM-067]",

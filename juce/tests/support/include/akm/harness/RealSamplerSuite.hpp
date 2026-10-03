@@ -91,6 +91,10 @@ namespace akm::harness
         /// power cycle by hand before anything else can be asked. `LoadFile` and `LoadFileWithDependents` need a file
         /// first, which only a save (&2C) can create inside the sub-folder, so each sends that save before its load.
         std::optional<DiskSlowOperation> diskToolsSlow;
+        /// The file items of §10 (RQ-AKM-069): needs `diskTools`. One save of the test program makes a file in the
+        /// disposable sub-folder (the owner checks it on the sampler first); the file is then read, renamed, read again
+        /// and deleted. The audition is not part of it: the spec has it for samples only. Off by default.
+        bool diskToolsFiles = false;
         /// A real sample the operator confirms is already in the sampler's memory, named by the caller.
         /// Shared by two independent checks: `programLifecycle`'s zone check assigns it to a zone by
         /// name (§06/&01, RQ-AKM-038) and, when empty, only that part is skipped, the rest of the check

@@ -40,6 +40,27 @@ re-ran `--coverage` (35/35, no unaccounted item) — the &0D/&0E decimal erratum
 `TASK-AKM-059`, so this closure needed no further erratum work, the same way §02's `TASK-AKM-054`
 needed none beyond confirming `TASK-AKM-053`'s own resolution.
 
+### §10 on the real S5000 (2026-10-03)
+
+The table above measures the catalogue against the spec. This is separate: what the owner's S5000 (OS 2.14, disk
+handle 129 "S5K", hard disk) actually answered, from the `--disk-tools`, `--disk-tools-files` and
+`--disk-tools-slow` runs of the day (`akm-suite-20261003-*.log` and the named logs in
+`juce/build/tests/probe/Debug`).
+
+- **30 of 35 items answered correctly**: `&02 &03 &04 &05 &06 &07 &08 &09 &0A &0B &0E` (safe check);
+  `&10 &11 &12 &13 &14 &16 &17 &18 &20 &24` (safe check, folders and file count); `&15 &2A &2B &2C &2D` (slow items);
+  `&21 &22 &23 &28` (file check: names, size, rename).
+- **`&01` update the list of disks: no answer.** Timeout after 3 s with no `F0 F7`, even with Still Alive on; the
+  sampler then needed a power cycle by hand. The owner's SCSI2SD disk is suspected, not verified.
+- **`&29` delete file: not yet verified.** The file check failed at the rename before reaching it.
+- **`&30`, `&31` audition: not run.** The spec has them for a sample from disk; the file check saves a program, which
+  cannot be auditioned.
+- **`&0D` eject disk: not run**, by design (destructive, outside the suite).
+
+Open observations: `&0B` free space answered 0 bytes on a disk with about 10 GB free. `&28` rename: the sampler appends
+the renamed file's own extension (`XS56K_RENAMED.AKP` given → `XS56K_RENAMED.AKP.AKP`), observed on a program file;
+not yet observed on a sample (`.WAV`).
+
 Not in the table above — 0 of their own spec lines, so no bar applies:
 
 | Section | Name | Spec lines |

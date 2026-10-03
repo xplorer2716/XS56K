@@ -112,14 +112,19 @@ namespace
         "                     stays: no section 10 command clears it), creates a disposable sub-folder XS56K_SUITE_TEST under\n"
         "                     its current folder, creates, renames, enters and leaves a sub-folder inside it, reads\n"
         "                     the folder and file items, and deletes the whole sub-folder again through the confirmed\n"
-        "                     &17 guard. It touches nothing that existed before.\n"
+        "                     &17 guard. It touches nothing that existed before. If a disk check ends early, you are asked\n"
+        "                     to look at XS56K_SUITE_TEST on the sampler first: Enter deletes it, skip keeps it.\n"
+        "  --disk-tools-files  with --disk-tools, the file items of section 10 (RQ-AKM-068, RQ-AKM-069): one save of the\n"
+        "                     test program into the sub-folder (you confirm the file on the sampler), then the file is\n"
+        "                     read, renamed, read again and deleted. No audition: the spec allows it for samples only.\n"
         "  --disk-tools-slow OP  with --disk-tools, one of the six long-running section 10 items, sent inside the\n"
         "                     sub-folder with Still Alive on (RQ-AKM-070). OP is one of: update-list (item 01),\n"
         "                     load-folder (item 15), load-file (items 2C then 2A), load-file-with-dependents (items\n"
         "                     2C then 2B), save-memory-item (item 2C), save-all-memory-items (item 2D). Only one per\n"
         "                     run. These are documented as potentially hanging the sampler, which then needs a\n"
-        "                     power cycle by hand (process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md,\n"
-        "                     frames F4-F7): run one only when you are ready for that. The saving items ask you, on\n"
+        "                     power cycle by hand; update-list did so on the owner's S5000 with a SCSI2SD disk\n"
+        "                     (a warning is printed before it runs). See process/2.architecture/\n"
+        "                     OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md, frames F4-F7. The saving items ask you, on\n"
         "                     the sampler, to confirm the file a save has made (between a save and its load, for the\n"
         "                     load items): declining skips the check.\n"
         "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
@@ -153,6 +158,7 @@ namespace
         bool sampleLifecycle = false;
         bool systemSetup = false;
         bool diskTools = false;
+        bool diskToolsFiles = false;
         bool noLcd = false;
         std::string diskToolsSlow;
         std::string input;
@@ -238,6 +244,8 @@ namespace
                 parsed.systemSetup = true;
             else if (option == "--disk-tools")
                 parsed.diskTools = true;
+            else if (option == "--disk-tools-files")
+                parsed.diskToolsFiles = true;
             else if (option == "--disk-tools-slow")
             {
                 parsed.diskToolsSlow = valueOf(args, index++, parsed);
@@ -282,9 +290,11 @@ namespace
         if (parsed.error.empty()
             && !parsed.suite
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
-                || parsed.diskTools || !parsed.diskToolsSlow.empty() || !parsed.sampleName.empty()))
+                || parsed.diskTools || parsed.diskToolsFiles || !parsed.diskToolsSlow.empty() || !parsed.sampleName.empty()))
             parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
-                           "--disk-tools-slow and --sample-name need --suite";
+                           "--disk-tools-files, --disk-tools-slow and --sample-name need --suite";
+        if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
+            parsed.error = "--disk-tools-files needs --disk-tools";
         if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !parsed.diskTools)
             parsed.error = "--disk-tools-slow needs --disk-tools";
         if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !diskSlowOperationNamed(parsed.diskToolsSlow))
@@ -426,11 +436,19 @@ int main(int argc, char** argv)
                           << "XS56K_SUITE_TEST under its current folder, work inside it and delete it again. The selection stays\n"
                           << "on the sampler (no command clears it) and nothing that existed before is touched. Note the disks\n"
                           << "and the current folder on the sampler before you start.\n";
+            if (arguments.diskToolsFiles)
+                std::cout << "It will also save the test program into the sub-folder (you confirm the file on the sampler), read,\n"
+                          << "rename and delete the file.\n";
             if (!arguments.diskToolsSlow.empty())
                 std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
                           << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
                           << "process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md): if it does, the sampler will\n"
                           << "need a power cycle by hand. Be ready to do that.\n";
+            if (arguments.diskToolsSlow == "update-list")
+                std::cout << "WARNING: update-list hangs the sampler on this rig: the S5000 (OS 2.14) with a SCSI2SD disk (an\n"
+                          << "SCSI emulator on an SD card) stopped answering on it, from this check and from the sampler's own\n"
+                          << "screen. Expect the check to fail and the sampler to need a power cycle by hand, then the folder\n"
+                          << "XS56K_SUITE_TEST to be removed by hand.\n";
             if (arguments.sampleLifecycle)
             {
                 if (!arguments.sampleName.empty())
@@ -476,6 +494,7 @@ int main(int argc, char** argv)
         options.sampleLifecycle = arguments.sampleLifecycle;
         options.systemSetup = arguments.systemSetup;
         options.diskTools = arguments.diskTools;
+        options.diskToolsFiles = arguments.diskToolsFiles;
         if (!arguments.diskToolsSlow.empty())
             options.diskToolsSlow = diskSlowOperationNamed(arguments.diskToolsSlow);
         if (!arguments.sampleName.empty())

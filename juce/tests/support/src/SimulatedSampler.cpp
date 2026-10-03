@@ -1290,6 +1290,8 @@ namespace akm::harness
                 return failure(error_number::NOT_FOUND);
             FileRecord file;
             file.name = itemName + extensionForSaveType(type);
+            // A saved file has a size; the simulated sampler gives every one the same nominal size (RQ-AKM-065, &23).
+            file.sizeBytes = 4096;
             if (type == SAVE_TYPE_PROGRAM)
                 file.loadsProgramNamed = itemName;
             else if (type == SAVE_TYPE_SAMPLE)
@@ -1629,7 +1631,12 @@ namespace akm::harness
                     const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *oldName);
                     if (!found)
                         return failure(error_number::NOT_FOUND);
-                    folder->files[*found].name = *newName;
+                    // The sampler keeps the extension of the file it renames and appends it to the new name: the name given is
+                    // the name without its extension. Observed on the S5000 (OS 2.14) for a program file (.AKP): "XS56K_RENAMED.AKP"
+                    // given gave "XS56K_RENAMED.AKP.AKP" (RQ-AKM-065). Not yet observed for sample files (.WAV).
+                    const std::size_t dot = oldName->rfind('.');
+                    const std::string extension = dot == std::string::npos ? std::string() : oldName->substr(dot);
+                    folder->files[*found].name = *newName + extension;
                     return done();
                 }
                 case ITEM_LOAD_FILE:
