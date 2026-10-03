@@ -1138,6 +1138,69 @@ TEST_CASE("Given Disk Tools and the file items with no way to ask the owner, Whe
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
 }
 
+TEST_CASE("Given Disk Tools and the audition, When a .WAV file is at the root of the disk, Then it is started with &30, stopped with &31 and every check passes [RQ-AKM-068]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({akm::harness::DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = akm::harness::FolderRecord{"", {}, {}, {}, {akm::harness::FileRecord{"TONE.WAV", 4096}}}}});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsAudition = true;
+    options.auditionDuration = 0ms;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_STOP_AUDITION) == 1);
+}
+
+TEST_CASE("Given Disk Tools and the audition, When no .WAV file is at the root of the disk, Then the check fails and nothing is started [RQ-AKM-068]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({akm::harness::DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = akm::harness::FolderRecord{"", {}, {}, {}, {akm::harness::FileRecord{"LEAD.AKP", 10}}}}});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsAudition = true;
+    options.auditionDuration = 0ms;
+    options.askOwner = [](const std::string&) { return true; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Failed);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the audition with no way to ask the owner, When the suite runs, Then the check is skipped before any disk is selected [RQ-AKM-068]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsAudition = true;
+    options.askOwner = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    CHECK(result.checks.back().outcome == CheckOutcome::Skipped);
+    // Only the safe check's own selection: the audition selects nothing once it is skipped.
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SELECT) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_START_AUDITION) == 0);
+}
+
 TEST_CASE("Given Disk Tools and the file items with a rename the sampler refuses, When the owner asks to keep the folder, Then the check fails, the owner is asked to look first and the folder is left in place [RQ-AKM-069, RQ-AKM-071]",
           "[akm][suite][disk-tools]")
 {

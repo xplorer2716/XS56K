@@ -95,6 +95,11 @@ namespace akm::harness
         /// disposable sub-folder (the owner checks it on the sampler first); the file is then read, renamed, read again
         /// and deleted. The audition is not part of it: the spec has it for samples only. Off by default.
         bool diskToolsFiles = false;
+        /// The audition of a sample from disk (RQ-AKM-068, §10/&30 and &31): needs `diskTools`. The owner confirms that a
+        /// .WAV file is at the root of the selected disk; the first one found is started with `&30` and stopped with `&31`
+        /// after `auditionDuration` (3 seconds in a real run; tests use none). Off by default: it plays a sound.
+        bool diskToolsAudition = false;
+        Scheduler::Clock::duration auditionDuration = std::chrono::seconds(3);
         /// A real sample the operator confirms is already in the sampler's memory, named by the caller.
         /// Shared by two independent checks: `programLifecycle`'s zone check assigns it to a zone by
         /// name (§06/&01, RQ-AKM-038) and, when empty, only that part is skipped, the rest of the check

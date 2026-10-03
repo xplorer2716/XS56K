@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <algorithm>
 #include <array>
+#include <cctype>
 #include <chrono>
 #include <cstdint>
 #include <exception>
@@ -26,6 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -1004,6 +1006,10 @@ namespace akm::harness
                     check("the file items of section 10 inside the disposable sub-folder: one save, the file read, renamed and "
                           "deleted",
                           &Suite::diskToolsFileItems);
+                if (_rig.options.diskTools && _rig.options.diskToolsAudition)
+                    check("the audition of the first .WAV file at the root of the selected disk: started with &30, stopped with &31 "
+                          "after the audition duration",
+                          &Suite::diskToolsAudition);
                 if (_rig.options.diskTools && _rig.options.diskToolsSlow)
                     check("one long-running §10 item, sent inside the disposable sub-folder with Still Alive on, "
                           "then the sub-folder deleted",
@@ -1704,6 +1710,61 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // RQ-AKM-068: the audition of a sample from disk (§10/&30, &31). The spec has it for a sample file, so the check
+            // looks for the first .WAV file at the root of the selected disk. Nothing is saved: the owner confirms that such a
+            // file is there, the file is started with &30 and stopped with &31 after the audition duration. A stop the
+            // sampler refuses is recorded, not failed: a sample shorter than the duration has ended already.
+            void diskToolsAudition()
+            {
+                if (!_rig.options.askOwner)
+                    throw CheckSkipped("this check plays a sample, which only the owner can hear on the sampler, and there is no way to ask the owner");
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                selectTestDisk(guarded);
+                const DiskPathResult path = readDisk<DiskPathResult>("the current folder of the selected disk",
+                                                                     [&guarded](DiskPathCompletion done) {
+                                                                         getCurrentDiskPath(guarded.session(), std::move(done));
+                                                                     });
+                expect(path.path.has_value() && path.path->empty(), "the current folder is the root of the selected disk");
+                ownerConfirms("Make sure the selected disk holds at least one .WAV file at its root (not in a folder), and confirm "
+                              "that it is there on the sampler.");
+
+                const std::vector<std::string> names = fileNamesHere(guarded);
+                std::string listed;
+                for (const std::string& listedName : names)
+                    listed += (listed.empty() ? "" : ", ") + std::string("\"") + listedName + "\"";
+                finding("the files at the root of the selected disk: " + (listed.empty() ? std::string("none") : listed));
+                const auto isWav = [](const std::string& name) {
+                    if (name.size() < 4)
+                        return false;
+                    std::string extension = name.substr(name.size() - 4);
+                    for (char& character : extension)
+                        character = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
+                    return extension == ".WAV";
+                };
+                const auto wav = std::find_if(names.begin(), names.end(), isWav);
+                expect(wav != names.end(), "a .WAV file is at the root of the selected disk");
+                const std::string sample = *wav;
+
+                // &30 takes the sample's position in the root's list (&22), counted from 0 over all its files: the owner's MIDIOX
+                // test played S1 with position 2. &24 is not used: it finds a name without its extension (S1 found, S1.WAV
+                // refused), and the owner's tests disagree on its answers.
+                const int sampleIndex = static_cast<int>(std::distance(names.begin(), wav));
+                finding("&30 is sent with position " + std::to_string(sampleIndex) + " in the list of the root's files");
+                expectCommand(guarded, "start the audition of \"" + sample + "\" (section 10, item 30)",
+                              [sampleIndex](Session& session, CommandCompletion done) { startFileAudition(session, sampleIndex, std::move(done)); });
+
+                _rig.log.note("  listening for " + millisecondsText(_rig.options.auditionDuration));
+                _rig.log.flush();
+                std::this_thread::sleep_for(_rig.options.auditionDuration);
+
+                const CommandResult stopped = observeCommand(guarded, "stop the audition (section 10, item 31)",
+                                                             [](Session& session, CommandCompletion done) { stopFileAudition(session, std::move(done)); });
+                if (!succeeded(stopped))
+                    finding("the sampler refused the stop: the sample may have ended before the audition duration (a shorter sample)");
+                closeAndVerify(guarded);
+            }
+
             // RQ-AKM-070: one long-running §10 item, sent with Still Alive on, inside the disposable sub-folder, and the
             // sub-folder deleted afterwards whatever the item did. Each of the six needs a file or a program first, which
             // can only be made inside the sub-folder by a save: the save is sent through the same timed path.
@@ -1799,6 +1860,19 @@ namespace akm::harness
                 }
                 expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
                 closeAndVerify(guarded);
+            }
+
+            // A command whose answer is what the check records, whatever it is: said in the log, never a failure by itself.
+            CommandResult observeCommand(GuardedSession& guarded, const std::string& title,
+                                         const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &launch](CommandCompletion done) { launch(guarded.session(), std::move(done)); });
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                finding(title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency));
+                return timed->result;
             }
 
             // A read that changes nothing, said in the log; a read the sampler does not answer fails the check.
@@ -2831,6 +2905,9 @@ namespace akm::harness
             if (options.diskToolsFiles)
                 log.note("It also saves the test program into the disposable sub-folder (--disk-tools-files, RQ-AKM-065), has the owner "
                          "confirm the file on the sampler, reads, renames and deletes it.");
+            if (options.diskToolsAudition)
+                log.note("It also plays the first .WAV file at the root of the selected disk (--disk-tools-audition, RQ-AKM-068) "
+                         "for " + millisecondsText(options.auditionDuration) + ", after the owner confirms that one is there.");
             if (options.diskToolsSlow)
             {
                 const char* name = "";

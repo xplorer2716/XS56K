@@ -92,6 +92,10 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   takes the name without its extension, since the sampler appends the file's own extension (seen on the S5000:
   `XS56K_RENAMED.AKP` given became `XS56K_RENAMED.AKP.AKP`); after it, the check lists the sub-folder (`&22`) and
   expects exactly the renamed file.
+  `--disk-tools-audition` (needs `--disk-tools`) adds one check on the audition of a sample from disk (RQ-AKM-068,
+  `&30`, `&31`): the owner confirms that a `.WAV` file is at the root of the selected disk; the first one found is
+  started and, after 3 seconds, stopped. A stop the sampler refuses is recorded, not failed (a shorter sample may have
+  ended). It plays a sound and saves nothing.
   It touches nothing that existed before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
   sub-folder with Still Alive on — `update-list`, `load-folder`, `load-file`, `load-file-with-dependents`,
   `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the

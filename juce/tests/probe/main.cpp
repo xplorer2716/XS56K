@@ -117,6 +117,10 @@ namespace
         "  --disk-tools-files  with --disk-tools, the file items of section 10 (RQ-AKM-068, RQ-AKM-069): one save of the\n"
         "                     test program into the sub-folder (you confirm the file on the sampler), then the file is\n"
         "                     read, renamed, read again and deleted. No audition: the spec allows it for samples only.\n"
+        "  --disk-tools-audition  with --disk-tools, the audition of a sample from disk (section 10, items 30 and 31,\n"
+        "                     RQ-AKM-068): you confirm that the selected disk holds a .WAV file at its root; the first\n"
+        "                     one is played for 3 seconds (it plays a sound), then stopped. A sample shorter than 3\n"
+        "                     seconds may already have ended: the stop is then recorded, not failed.\n"
         "  --disk-tools-slow OP  with --disk-tools, one of the six long-running section 10 items, sent inside the\n"
         "                     sub-folder with Still Alive on (RQ-AKM-070). OP is one of: update-list (item 01),\n"
         "                     load-folder (item 15), load-file (items 2C then 2A), load-file-with-dependents (items\n"
@@ -159,6 +163,7 @@ namespace
         bool systemSetup = false;
         bool diskTools = false;
         bool diskToolsFiles = false;
+        bool diskToolsAudition = false;
         bool noLcd = false;
         std::string diskToolsSlow;
         std::string input;
@@ -246,6 +251,8 @@ namespace
                 parsed.diskTools = true;
             else if (option == "--disk-tools-files")
                 parsed.diskToolsFiles = true;
+            else if (option == "--disk-tools-audition")
+                parsed.diskToolsAudition = true;
             else if (option == "--disk-tools-slow")
             {
                 parsed.diskToolsSlow = valueOf(args, index++, parsed);
@@ -290,11 +297,14 @@ namespace
         if (parsed.error.empty()
             && !parsed.suite
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
-                || parsed.diskTools || parsed.diskToolsFiles || !parsed.diskToolsSlow.empty() || !parsed.sampleName.empty()))
+                || parsed.diskTools || parsed.diskToolsFiles || parsed.diskToolsAudition || !parsed.diskToolsSlow.empty()
+                || !parsed.sampleName.empty()))
             parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
-                           "--disk-tools-files, --disk-tools-slow and --sample-name need --suite";
+                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow and --sample-name need --suite";
         if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
             parsed.error = "--disk-tools-files needs --disk-tools";
+        if (parsed.error.empty() && parsed.diskToolsAudition && !parsed.diskTools)
+            parsed.error = "--disk-tools-audition needs --disk-tools";
         if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !parsed.diskTools)
             parsed.error = "--disk-tools-slow needs --disk-tools";
         if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !diskSlowOperationNamed(parsed.diskToolsSlow))
@@ -436,6 +446,9 @@ int main(int argc, char** argv)
                           << "XS56K_SUITE_TEST under its current folder, work inside it and delete it again. The selection stays\n"
                           << "on the sampler (no command clears it) and nothing that existed before is touched. Note the disks\n"
                           << "and the current folder on the sampler before you start.\n";
+            if (arguments.diskToolsAudition)
+                std::cout << "It will also play the first .WAV file at the root of the selected disk for 3 seconds (it plays a\n"
+                          << "sound), once you confirm that one is there. Nothing is saved for it.\n";
             if (arguments.diskToolsFiles)
                 std::cout << "It will also save the test program into the sub-folder (you confirm the file on the sampler), read,\n"
                           << "rename and delete the file.\n";
@@ -495,6 +508,7 @@ int main(int argc, char** argv)
         options.systemSetup = arguments.systemSetup;
         options.diskTools = arguments.diskTools;
         options.diskToolsFiles = arguments.diskToolsFiles;
+        options.diskToolsAudition = arguments.diskToolsAudition;
         if (!arguments.diskToolsSlow.empty())
             options.diskToolsSlow = diskSlowOperationNamed(arguments.diskToolsSlow);
         if (!arguments.sampleName.empty())
