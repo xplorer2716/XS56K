@@ -35,6 +35,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/CommandResult.hpp"
 #include "akm/ItemCatalogue.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/DiskPrimitives.hpp"
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
@@ -807,6 +808,133 @@ namespace akm::harness
             SystemSetupSnapshot _original;
         };
 
+        // The disposable sub-folder the Disk Tools checks work in (RQ-AKM-071): created under the folder that is
+        // current when the check starts, entered, and removed on destruction however the check ends. Only what this
+        // guard created is removed: a folder already carrying the reserved name makes the create fail, and nothing is
+        // deleted. If it cannot climb back out to where it started, it leaves the folder in place and clears
+        // `knownStateRestored`, rather than claim a state it could not confirm.
+        constexpr std::string_view TEST_FOLDER_NAME = "XS56K_SUITE_TEST";
+
+        class GuardedTestFolder
+        {
+        public:
+            GuardedTestFolder(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                createAndEnter();
+            }
+
+            ~GuardedTestFolder()
+            {
+                try
+                {
+                    removeIfCreated();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.result.knownStateRestored = false;
+                    _rig.log.note("  the test folder guard could not fully clean up; see the log above");
+                }
+            }
+
+            GuardedTestFolder(const GuardedTestFolder&) = delete;
+            GuardedTestFolder& operator=(const GuardedTestFolder&) = delete;
+
+            // Navigation below the test folder, counted so the guard can climb back out of whatever a check left open.
+            [[nodiscard]] bool enterSubFolder(const std::string& name)
+            {
+                const bool ok = runCommand("open the sub-folder \"" + name + "\"", [name](Session& session, CommandCompletion done) {
+                    openFolder(session, name, std::move(done));
+                });
+                if (ok)
+                    ++_depth;
+                return ok;
+            }
+
+            [[nodiscard]] bool leaveSubFolder()
+            {
+                if (_depth == 0)
+                    return false;
+                const bool ok = runCommand("close the sub-folder", [](Session& session, CommandCompletion done) {
+                    closeFolder(session, std::move(done));
+                });
+                if (ok)
+                    --_depth;
+                return ok;
+            }
+
+        private:
+            bool runCommand(const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this, &launch](CommandCompletion done) {
+                    launch(_session, std::move(done));
+                });
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  " + title + ": "
+                              + (ok ? std::string("done")
+                                    : "failed (" + (timed ? outcomeText(timed->result) : std::string("no completion")) + ")"));
+                return ok;
+            }
+
+            void createAndEnter()
+            {
+                const std::string name(TEST_FOLDER_NAME);
+                const bool created = runCommand("create the test folder \"" + name + "\" under the current folder",
+                                                [name](Session& session, CommandCompletion done) {
+                                                    createFolder(session, name, std::move(done));
+                                                });
+                if (!created)
+                    throw CheckFailure("could not create the test folder \"" + name + "\" (it may already exist: nothing was deleted)");
+                _created = true;
+                const bool entered = runCommand("open the test folder", [name](Session& session, CommandCompletion done) {
+                    openFolder(session, name, std::move(done));
+                });
+                if (!entered)
+                    throw CheckFailure("could not open the test folder \"" + name + "\"");
+                _inside = true;
+            }
+
+            void removeIfCreated()
+            {
+                if (!_created)
+                    return;
+                // Climb out of whatever the check left open, then out of the test folder itself.
+                const int climbs = _depth + (_inside ? 1 : 0);
+                for (int step = 0; step < climbs; ++step)
+                {
+                    const bool closed = runCommand("close the folder the check left open", [](Session& session, CommandCompletion done) {
+                        closeFolder(session, std::move(done));
+                    });
+                    if (!closed)
+                    {
+                        _rig.result.knownStateRestored = false;
+                        _rig.log.note("  the test folder is left in place: the sampler would not climb out of it; remove \""
+                                      + std::string(TEST_FOLDER_NAME) + "\" by hand");
+                        return;
+                    }
+                }
+                _inside = false;
+                _depth = 0;
+                const bool deleted = runCommand("delete the test folder and everything in it", [](Session& session, CommandCompletion done) {
+                    deleteSubFolder(session, TEST_FOLDER_NAME, ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt,
+                                    std::move(done));
+                });
+                if (!deleted)
+                {
+                    _rig.result.knownStateRestored = false;
+                    _rig.log.note("  the test folder could not be deleted; remove \"" + std::string(TEST_FOLDER_NAME) + "\" by hand");
+                    return;
+                }
+                _created = false;
+            }
+
+            Rig& _rig;
+            Session& _session;
+            bool _created = false;
+            bool _inside = false;
+            int _depth = 0;
+        };
+
         // The checks, one after the other.
         class Suite
         {
@@ -850,6 +978,14 @@ namespace akm::harness
                     check("a system setup check that fails half way and still puts back what it changed",
                           &Suite::failedSystemSetupCheckPutsBack);
                 }
+                if (_rig.options.diskTools)
+                    check("create a disposable sub-folder, read the current disk, round-trip the folder items inside it, "
+                          "and delete it again",
+                          &Suite::diskToolsRoundTrips);
+                if (_rig.options.diskTools && _rig.options.diskToolsSlow)
+                    check("one long-running §10 item, sent inside the disposable sub-folder with Still Alive on, "
+                          "then the sub-folder deleted",
+                          &Suite::diskToolsSlowOperation);
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -1304,6 +1440,235 @@ namespace akm::harness
                     finding("the checksum mode did not survive the power cycle: the session recovered at Echo " + std::to_string(*answeredAt)
                             + " (mode changes: " + _rig.diagnostics.modeChanges() + "); read the log for an OK before each REPLY to see whether Notification came back on");
                 closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-071, the safe half: reads the current disk without changing it, then, inside the disposable
+            // sub-folder, creates, renames, enters and leaves a sub-folder, reads the folder items and the file items of
+            // the empty folder, and deletes the whole sub-folder through the confirmed &17 guard. A file cannot be made
+            // without saving one, which is one of the long-running items, so no file is listed here.
+            void diskToolsRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                const DiskTypeResult type = readDisk<DiskTypeResult>("the current disk's type", [&guarded](DiskTypeCompletion done) {
+                    getCurrentDiskType(guarded.session(), std::move(done));
+                });
+                expect(type.type.has_value(), "the current disk's type is read");
+                const DiskHandleResult handle = readDisk<DiskHandleResult>("the current disk's handle", [&guarded](DiskHandleCompletion done) {
+                    getCurrentDiskHandle(guarded.session(), std::move(done));
+                });
+                expect(handle.handle.has_value(), "the current disk's handle is read");
+                const DiskFormatResult format = readDisk<DiskFormatResult>("the current disk's format", [&guarded](DiskFormatCompletion done) {
+                    getCurrentDiskFormat(guarded.session(), std::move(done));
+                });
+                expect(format.format.has_value(), "the current disk's format is read");
+                const DiskFreeSpaceResult freeSpace = readDisk<DiskFreeSpaceResult>("the current disk's free space", [&guarded](DiskFreeSpaceCompletion done) {
+                    getCurrentDiskFreeSpace(guarded.session(), std::move(done));
+                });
+                expect(freeSpace.freeBytes.has_value(), "the current disk's free space is read");
+                const DiskPathResult path = readDisk<DiskPathResult>("the current disk's path", [&guarded](DiskPathCompletion done) {
+                    getCurrentDiskPath(guarded.session(), std::move(done));
+                });
+                expect(path.path.has_value(), "the current disk's path is read");
+
+                const int before = folderCountHere(guarded);
+                {
+                    GuardedTestFolder folder(_rig, guarded.session());
+                    expect(folderCountHere(guarded) == 0, "the new test folder holds no sub-folder");
+                    expectCommand(guarded, "create the sub-folder \"INNER\" inside it", [](Session& session, CommandCompletion done) {
+                        createFolder(session, "INNER", std::move(done));
+                    });
+                    expect(folderCountHere(guarded) == 1, "the test folder now holds one sub-folder");
+                    const DiskFolderNamesResult names = readDisk<DiskFolderNamesResult>("the names of the sub-folders", [&guarded](DiskFolderNamesCompletion done) {
+                        getAllFolderNames(guarded.session(), std::move(done));
+                    });
+                    expect(names.names.has_value() && *names.names == std::vector<std::string>{"INNER"},
+                           "the only sub-folder is \"INNER\"");
+                    expectCommand(guarded, "rename \"INNER\" to \"INNER_2\"", [](Session& session, CommandCompletion done) {
+                        renameFolder(session, "INNER", "INNER_2", std::move(done));
+                    });
+                    const DiskFolderNameResult renamed = readDisk<DiskFolderNameResult>("the name of the sub-folder at index 0", [&guarded](DiskFolderNameCompletion done) {
+                        getFolderName(guarded.session(), 0, std::move(done));
+                    });
+                    expect(renamed.name.has_value() && *renamed.name == "INNER_2", "the renamed sub-folder reads back as \"INNER_2\"");
+
+                    if (!folder.enterSubFolder("INNER_2"))
+                        throw CheckFailure("could not open the sub-folder \"INNER_2\"");
+                    expect(fileCountHere(guarded) == 0, "the sub-folder holds no file (none is created in this check)");
+                    const DiskFileIndexResult missing = readDisk<DiskFileIndexResult>("the index of a file that is not there",
+                                                                                        [&guarded](DiskFileIndexCompletion done) {
+                                                                                            getFileIndexByName(guarded.session(), "NOT_THERE", std::move(done));
+                                                                                        });
+                    expect(!missing.index.has_value(), "no index is returned for a file that is not there");
+                    if (!folder.leaveSubFolder())
+                        throw CheckFailure("could not close the sub-folder \"INNER_2\"");
+                }
+                expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-070: one long-running §10 item, sent with Still Alive on, inside the disposable sub-folder, and the
+            // sub-folder deleted afterwards whatever the item did. Each of the six needs a file or a program first, which
+            // can only be made inside the sub-folder by a save: the save is sent through the same timed path.
+            void diskToolsSlowOperation()
+            {
+                const DiskSlowOperation operation = *_rig.options.diskToolsSlow;
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                expect(guarded.session().stillAliveMonitoring(),
+                       "Still Alive is on: a received F0 F7 restarts the pending command's timeout");
+                const int before = folderCountHere(guarded);
+                {
+                    GuardedTestFolder folder(_rig, guarded.session());
+                    switch (operation)
+                    {
+                        case DiskSlowOperation::UpdateList:
+                            sendSlow(guarded, "update the list of disks connected (section 10, item 01)",
+                                     [](Session& session, CommandCompletion done) { updateDiskList(session, std::move(done)); });
+                            break;
+                        case DiskSlowOperation::LoadFolder:
+                            expectCommand(guarded, "create the sub-folder \"LOAD\" to load", [](Session& session, CommandCompletion done) {
+                                createFolder(session, "LOAD", std::move(done));
+                            });
+                            sendSlow(guarded, "load the folder \"LOAD\" (section 10, item 15)",
+                                     [](Session& session, CommandCompletion done) { loadFolder(session, "LOAD", std::move(done)); });
+                            break;
+                        case DiskSlowOperation::LoadFile:
+                        case DiskSlowOperation::LoadFileWithDependents:
+                        {
+                            GuardedTestProgram program(_rig, guarded.session());
+                            const int index = currentProgramIndex(guarded);
+                            sendSlow(guarded, "save the test program to the sub-folder, to have a file to load (section 10, item 2C)",
+                                     [index](Session& session, CommandCompletion done) {
+                                         saveMemoryItem(session, index, SaveableMemoryType::Program, false, false, std::move(done));
+                                     });
+                            const std::string file = firstFileName(guarded);
+                            expectCommand(guarded, "take the test program out of memory, so the load brings back the only copy",
+                                          [](Session& session, CommandCompletion done) { deleteCurrentProgram(session, std::move(done)); });
+                            if (operation == DiskSlowOperation::LoadFile)
+                                sendSlow(guarded, "load the file \"" + file + "\" (section 10, item 2A)",
+                                         [file](Session& session, CommandCompletion done) {
+                                             loadFile(session, file, SampleLoadOption::Normal, std::move(done));
+                                         });
+                            else
+                                sendSlow(guarded, "load the file \"" + file + "\" with its dependents (section 10, item 2B)",
+                                         [file](Session& session, CommandCompletion done) {
+                                             loadFileWithDependents(session, file, std::move(done));
+                                         });
+                            break;
+                        }
+                        case DiskSlowOperation::SaveMemoryItem:
+                        {
+                            GuardedTestProgram program(_rig, guarded.session());
+                            const int index = currentProgramIndex(guarded);
+                            sendSlow(guarded, "save the test program to the sub-folder (section 10, item 2C)",
+                                     [index](Session& session, CommandCompletion done) {
+                                         saveMemoryItem(session, index, SaveableMemoryType::Program, false, false, std::move(done));
+                                     });
+                            expect(fileCountHere(guarded) >= 1, "the save left a file in the sub-folder");
+                            break;
+                        }
+                        case DiskSlowOperation::SaveAllMemoryItems:
+                        {
+                            // Every program in memory is saved, the owner's included: each copy lands in the sub-folder
+                            // and goes with it when it is deleted; nothing stored is changed.
+                            GuardedTestProgram program(_rig, guarded.session());
+                            sendSlow(guarded, "save every program in memory to the sub-folder (section 10, item 2D)",
+                                     [](Session& session, CommandCompletion done) {
+                                         saveAllMemoryItems(session, SaveableMemoryType::Program, false, false, std::move(done));
+                                     });
+                            expect(fileCountHere(guarded) >= 1, "the save left at least one file in the sub-folder");
+                            break;
+                        }
+                    }
+                }
+                expect(folderCountHere(guarded) == before, "the test folder is gone: the folder count is back to what it was");
+                closeAndVerify(guarded);
+            }
+
+            // A read that changes nothing, said in the log; a read the sampler does not answer fails the check.
+            template <typename Result, typename Launch>
+            Result readDisk(const std::string& title, Launch launch)
+            {
+                _rig.log.flush();
+                const auto timed = awaitCompletion<Result>(_rig.driver, _rig.commandPatience(), std::move(launch));
+                if (!timed)
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(_rig.commandPatience()) + ": the session lost it");
+                finding(title + ": " + outcomeText(timed->result.outcome) + " after " + millisecondsText(timed->latency));
+                return timed->result;
+            }
+
+            [[nodiscard]] int folderCountHere(GuardedSession& guarded)
+            {
+                const DiskFolderCountResult counted = readDisk<DiskFolderCountResult>("the number of sub-folders here",
+                                                                                      [&guarded](DiskFolderCountCompletion done) {
+                                                                                          getFolderCount(guarded.session(), std::move(done));
+                                                                                      });
+                if (!counted.count)
+                    throw CheckFailure("the number of sub-folders could not be read");
+                return *counted.count;
+            }
+
+            [[nodiscard]] int fileCountHere(GuardedSession& guarded)
+            {
+                const DiskFileCountResult counted = readDisk<DiskFileCountResult>("the number of files here", [&guarded](DiskFileCountCompletion done) {
+                    getFileCount(guarded.session(), std::move(done));
+                });
+                if (!counted.count)
+                    throw CheckFailure("the number of files could not be read");
+                return *counted.count;
+            }
+
+            [[nodiscard]] std::string firstFileName(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<DiskFileNamesResult>(_rig.driver, _rig.commandPatience(), [&guarded](DiskFileNamesCompletion done) {
+                    getAllFileNames(guarded.session(), std::move(done));
+                });
+                if (!timed || !timed->result.names || timed->result.names->empty())
+                    throw CheckFailure("the save left no file in the sub-folder to load");
+                finding("file to load: \"" + timed->result.names->front() + "\"");
+                return timed->result.names->front();
+            }
+
+            [[nodiscard]] int currentProgramIndex(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<ProgramIndexResult>(_rig.driver, _rig.commandPatience(), [&guarded](ProgramIndexCompletion done) {
+                    getProgramIndex(guarded.session(), std::move(done));
+                });
+                if (!timed || !timed->result.index)
+                    throw CheckFailure("the index of the test program could not be read");
+                return *timed->result.index;
+            }
+
+            // One long-running command, with Still Alive on: its patience is the whole total wait the session allows, so a
+            // slow command completes and only a silent sampler times out. A timeout, or a completion that is lost, clears
+            // `knownStateRestored`: a sampler that stopped answering cannot be said to be in the known state.
+            void sendSlow(GuardedSession& guarded, const std::string& title, const std::function<void(Session&, CommandCompletion)>& launch)
+            {
+                const Clock::duration patience = DEFAULT_MAX_TOTAL_WAIT + _rig.options.commandTimeout * COMMAND_PATIENCE_IN_TIMEOUTS;
+                _rig.log.flush();
+                const std::size_t stillAliveBefore = _rig.log.stillAliveMessages();
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, patience, [&guarded, &launch](CommandCompletion done) {
+                    launch(guarded.session(), std::move(done));
+                });
+                if (!timed)
+                {
+                    _rig.result.knownStateRestored = false;
+                    throw CheckFailure(title + ": no completion within " + millisecondsText(patience) + ": the session lost it");
+                }
+                const std::size_t seen = _rig.log.stillAliveMessages() - stillAliveBefore;
+                finding(title + ": " + outcomeText(timed->result) + " after " + millisecondsText(timed->latency)
+                        + "; F0 F7 messages that reached the host meanwhile: " + std::to_string(seen));
+                if (std::holds_alternative<Timeout>(timed->result))
+                {
+                    _rig.result.knownStateRestored = false;
+                    throw CheckFailure(title + ": timed out although Still Alive is on: the sampler sent no F0 F7 while it worked, "
+                                       "or the backend did not deliver them. The sampler may need a power cycle before anything else "
+                                       "is asked (process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md)");
+                }
+                if (!succeeded(timed->result))
+                    throw CheckFailure(title + ": " + outcomeText(timed->result));
             }
 
             // RQ-AKM-027: creates a program under the reserved test name (GuardedTestProgram's constructor),
@@ -2221,6 +2586,38 @@ namespace akm::harness
                          + "its name, its Play Mode (all four, Muted included), its front-panel lock for an instant, and its clock, "
                          + "each put back before the check returns, even if it fails half way — the lock first, the clock "
                          + "advanced by the time elapsed — and it never sends section 02's Clear Sampler Memory (&32).");
+            if (options.diskTools)
+                log.note("It also creates a disposable sub-folder, XS56K_SUITE_TEST, under the current folder (--disk-tools, "
+                         "RQ-AKM-071), works inside it, and deletes it again through the confirmed &17 guard. It selects no other "
+                         "disk and touches nothing that existed before.");
+            if (options.diskToolsSlow)
+            {
+                const char* name = "";
+                switch (*options.diskToolsSlow)
+                {
+                    case DiskSlowOperation::UpdateList:
+                        name = "update-list (section 10, item 01)";
+                        break;
+                    case DiskSlowOperation::LoadFolder:
+                        name = "load-folder (section 10, item 15)";
+                        break;
+                    case DiskSlowOperation::LoadFile:
+                        name = "load-file (sections 10, items 2C then 2A)";
+                        break;
+                    case DiskSlowOperation::LoadFileWithDependents:
+                        name = "load-file-with-dependents (sections 10, items 2C then 2B)";
+                        break;
+                    case DiskSlowOperation::SaveMemoryItem:
+                        name = "save-memory-item (section 10, item 2C)";
+                        break;
+                    case DiskSlowOperation::SaveAllMemoryItems:
+                        name = "save-all-memory-items (section 10, item 2D)";
+                        break;
+                }
+                log.note(std::string("It also sends one long-running §10 item, --disk-tools-slow ") + name + ", RQ-AKM-070: "
+                         + "documented as potentially hanging the sampler (process/2.architecture/"
+                         + "OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md, frames F4-F7).");
+            }
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "
                      "cannot delay the exchanges it records: the times of the frames are those of the wire.");
         }

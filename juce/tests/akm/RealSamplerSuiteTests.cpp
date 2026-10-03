@@ -970,3 +970,178 @@ TEST_CASE("Given a sampler whose clock cannot be read, When the suite runs with 
     CHECK(rig.sampler.systemSetup().name == "OWNER S5000");
     CHECK(rig.sampler.systemSetup().playMode == OWNER_PLAY_MODE_SAMPLE);
 }
+
+// Disk Tools (TASK-AKM-067, RQ-AKM-070, RQ-AKM-071): the safe check and the one guarded long-running item, on the
+// simulated sampler. The checks read the sampler's own accepted commands to prove what was created and deleted.
+namespace
+{
+    constexpr std::uint8_t SECTION_DISK_ITEMS = 0x10;
+    constexpr std::uint8_t ITEM_DISK_CREATE_FOLDER = 0x16;
+    constexpr std::uint8_t ITEM_DISK_DELETE_FOLDER = 0x17;
+    constexpr std::uint8_t ITEM_DISK_SAVE_MEMORY_ITEM = 0x2C;
+    constexpr std::uint8_t ITEM_DISK_LOAD_FILE = 0x2A;
+
+    std::size_t sentCount(const SimulatedSampler& sampler, std::uint8_t section, std::uint8_t item)
+    {
+        std::size_t count = 0;
+        for (const auto& command : sampler.acceptedCommands())
+            if (command.section == section && command.item == item)
+                ++count;
+        return count;
+    }
+
+    akm::harness::DiskRecord currentDiskRecord()
+    {
+        return akm::harness::DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"};
+    }
+}
+
+TEST_CASE("Given Disk Tools on a sampler with a current disk, When the suite runs, Then the disposable folder is created, used and deleted, and every check passes [TASK-AKM-067, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    checkAllPassed(result);
+    CHECK(result.knownStateRestored);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) >= 2);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 1);
+}
+
+TEST_CASE("Given Disk Tools on a sampler with no current disk, When the suite runs, Then the check fails and creates nothing [TASK-AKM-067, RQ-AKM-071]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 1);
+    CHECK(result.checks.back().outcome == CheckOutcome::Failed);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_CREATE_FOLDER) == 0);
+}
+
+TEST_CASE("Given Disk Tools and the update-list slow item, When the suite runs, Then exactly one &01 is sent inside the disposable folder and every check passes [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::UpdateList;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_UPDATE_DISK_LIST) == 1);
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given Disk Tools and the save-memory-item slow item, When the suite runs, Then one &2C is sent into the folder, which is then deleted [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::SaveMemoryItem;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    // One deletion from the safe check that runs with it, one from this check's own folder.
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
+}
+
+TEST_CASE("Given Disk Tools and the load-file slow item, When the suite runs, Then the save that makes the file is followed by one &2A [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFile;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 1);
+}
+
+TEST_CASE("Given Disk Tools and the load-folder slow item, When the suite runs, Then an empty sub-folder is created and loaded, then the test folder deleted [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFolder;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, 0x15) == 1);
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given Disk Tools and the load-file-with-dependents slow item, When the suite runs, Then the save and the &2B load are each sent once [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::LoadFileWithDependents;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_SAVE_MEMORY_ITEM) == 1);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, 0x2B) == 1);
+}
+
+TEST_CASE("Given Disk Tools and the save-all-memory-items slow item, When the suite runs, Then one &2D is sent and the folder is deleted afterwards [TASK-AKM-067, RQ-AKM-070]",
+          "[akm][suite][disk-tools]")
+{
+    Rig rig;
+    rig.sampler.setDisks({currentDiskRecord()});
+    rig.sampler.setCurrentDisk(0);
+    RealSuiteOptions options = rig.options();
+    options.diskTools = true;
+    options.diskToolsSlow = akm::harness::DiskSlowOperation::SaveAllMemoryItems;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + 2);
+    checkAllPassed(result);
+    CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, 0x2D) == 1);
+    CHECK(result.knownStateRestored);
+}

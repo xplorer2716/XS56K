@@ -79,6 +79,15 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   sampler accepts it being what is observed), its front-panel lock (locked for an instant) and its clock, and puts each
   back — the lock first, the clock advanced by the time elapsed, to about three seconds — even when a check fails half
   way. It never sends section 02's Clear Sampler Memory (`&32`), which no real-sampler test may call.
+  `--disk-tools` (needs `--suite`) adds one check on the disk (section 10, RQ-AKM-071): it reads the current disk
+  without changing it, creates the disposable sub-folder `XS56K_SUITE_TEST` under the current folder, works inside it,
+  and deletes it again through the confirmed `&17` guard. It selects no other disk and touches nothing that existed
+  before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
+  sub-folder with Still Alive on — `update-list`, `load-folder`, `load-file`, `load-file-with-dependents`,
+  `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the
+  sampler (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7): a hang needs a power
+  cycle by hand, so run one only when ready for it. `load-file` and `load-file-with-dependents` send one save (`&2C`)
+  first, since a file can only be made inside the sub-folder by saving.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

@@ -1978,6 +1978,15 @@ namespace akm::harness
         _system.mpksFreePercent = mpksFreePercent;
     }
 
+    void SimulatedSampler::setCurrentDisk(std::size_t index)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _disks.size())
+            return;
+        _currentDisk = index;
+        _currentFolderPath.clear();
+    }
+
     void SimulatedSampler::setDisks(std::vector<DiskRecord> disks)
     {
         const std::lock_guard lock(_mutex);

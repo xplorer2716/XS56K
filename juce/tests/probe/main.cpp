@@ -33,6 +33,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <exception>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <streambuf>
 #include <string>
@@ -66,7 +67,8 @@ namespace
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
-        "                  [--system-setup] [--sample-name NAME] [--timeout-ms N] [--log <file>] [--yes]\n"
+        "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--sample-name NAME]\n"
+        "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
         "  --in, --out        the sampler's MIDI input port (what it sends) and output port (what it receives),\n"
@@ -105,6 +107,18 @@ namespace
         "                     instant), its front-panel lock (locked for an instant) and its clock, and put each\n"
         "                     back - the lock first, the clock advanced by the time elapsed. Never sends Clear\n"
         "                     Sampler Memory (section 02, item 32). Needs no sample, program or --sample-name.\n"
+        "  --disk-tools       with --suite, an extra check on the disk (section 10, RQ-AKM-071): it reads the\n"
+        "                     current disk without changing it, creates a disposable sub-folder XS56K_SUITE_TEST\n"
+        "                     under the current folder, creates, renames, enters and leaves a sub-folder inside it,\n"
+        "                     reads the folder and file items, and deletes the whole sub-folder again through the\n"
+        "                     confirmed &17 guard. It selects no other disk and touches nothing that existed before.\n"
+        "  --disk-tools-slow OP  with --disk-tools, one of the six long-running section 10 items, sent inside the\n"
+        "                     sub-folder with Still Alive on (RQ-AKM-070). OP is one of: update-list (item 01),\n"
+        "                     load-folder (item 15), load-file (items 2C then 2A), load-file-with-dependents (items\n"
+        "                     2C then 2B), save-memory-item (item 2C), save-all-memory-items (item 2D). Only one per\n"
+        "                     run. These are documented as potentially hanging the sampler, which then needs a\n"
+        "                     power cycle by hand (process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md,\n"
+        "                     frames F4-F7): run one only when you are ready for that.\n"
         "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
         "                     it to a zone of the test program by name and reads it back, RQ-AKM-035,\n"
         "                     RQ-AKM-038) and/or --sample-lifecycle (see above). Never creates, changes or\n"
@@ -135,7 +149,9 @@ namespace
         bool programLifecycle = false;
         bool sampleLifecycle = false;
         bool systemSetup = false;
+        bool diskTools = false;
         bool noLcd = false;
+        std::string diskToolsSlow;
         std::string input;
         std::string output;
         std::string logPath;
@@ -155,6 +171,25 @@ namespace
             return {};
         }
         return args[index + 1];
+    }
+
+    // The §10 long-running item named on the command line by --disk-tools-slow (RQ-AKM-070), or nothing.
+    std::optional<akm::harness::DiskSlowOperation> diskSlowOperationNamed(const std::string& name)
+    {
+        using akm::harness::DiskSlowOperation;
+        if (name == "update-list")
+            return DiskSlowOperation::UpdateList;
+        if (name == "load-folder")
+            return DiskSlowOperation::LoadFolder;
+        if (name == "load-file")
+            return DiskSlowOperation::LoadFile;
+        if (name == "load-file-with-dependents")
+            return DiskSlowOperation::LoadFileWithDependents;
+        if (name == "save-memory-item")
+            return DiskSlowOperation::SaveMemoryItem;
+        if (name == "save-all-memory-items")
+            return DiskSlowOperation::SaveAllMemoryItems;
+        return std::nullopt;
     }
 
     bool parseNumber(const std::string& text, long long& value)
@@ -198,6 +233,14 @@ namespace
                 parsed.sampleLifecycle = true;
             else if (option == "--system-setup")
                 parsed.systemSetup = true;
+            else if (option == "--disk-tools")
+                parsed.diskTools = true;
+            else if (option == "--disk-tools-slow")
+            {
+                parsed.diskToolsSlow = valueOf(args, index++, parsed);
+                if (!parsed.error.empty())
+                    break;
+            }
             else if (option == "--no-lcd")
                 parsed.noLcd = true;
             else if (option == "--in" || option == "--out" || option == "--log" || option == "--sample-name")
@@ -236,8 +279,14 @@ namespace
         if (parsed.error.empty()
             && !parsed.suite
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
-                || !parsed.sampleName.empty()))
-            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup and --sample-name need --suite";
+                || parsed.diskTools || !parsed.diskToolsSlow.empty() || !parsed.sampleName.empty()))
+            parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
+                           "--disk-tools-slow and --sample-name need --suite";
+        if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !parsed.diskTools)
+            parsed.error = "--disk-tools-slow needs --disk-tools";
+        if (parsed.error.empty() && !parsed.diskToolsSlow.empty() && !diskSlowOperationNamed(parsed.diskToolsSlow))
+            parsed.error = "--disk-tools-slow needs one of update-list, load-folder, load-file, load-file-with-dependents, "
+                           "save-memory-item, save-all-memory-items, not \"" + parsed.diskToolsSlow + "\"";
         if (parsed.error.empty() && !parsed.sampleName.empty() && !parsed.programLifecycle && !parsed.sampleLifecycle)
             parsed.error = "--sample-name needs --program-lifecycle or --sample-lifecycle";
         return parsed;
@@ -369,6 +418,15 @@ int main(int argc, char** argv)
                           << "Muted included, which silences it for an instant), its front-panel lock (locked for an instant) and\n"
                           << "its clock (advanced by the time elapsed when put back, to about three seconds). It never sends Clear\n"
                           << "Sampler Memory. Note the sampler's name and time before you start.\n";
+            if (arguments.diskTools)
+                std::cout << "It will also create the sub-folder XS56K_SUITE_TEST under the current folder of the current disk,\n"
+                          << "work inside it and delete it again. It selects no other disk and touches nothing that existed\n"
+                          << "before. Note the current folder on the sampler before you start.\n";
+            if (!arguments.diskToolsSlow.empty())
+                std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
+                          << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
+                          << "process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md): if it does, the sampler will\n"
+                          << "need a power cycle by hand. Be ready to do that.\n";
             if (arguments.sampleLifecycle)
             {
                 if (!arguments.sampleName.empty())
@@ -413,6 +471,9 @@ int main(int argc, char** argv)
         options.programLifecycle = arguments.programLifecycle;
         options.sampleLifecycle = arguments.sampleLifecycle;
         options.systemSetup = arguments.systemSetup;
+        options.diskTools = arguments.diskTools;
+        if (!arguments.diskToolsSlow.empty())
+            options.diskToolsSlow = diskSlowOperationNamed(arguments.diskToolsSlow);
         if (!arguments.sampleName.empty())
             options.sampleName = arguments.sampleName;
         options.startedAt = utcNow(false);

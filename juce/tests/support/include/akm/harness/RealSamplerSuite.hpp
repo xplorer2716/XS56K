@@ -34,6 +34,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm::harness
 {
+    /// The six long-running §10 items `RealSuiteOptions::diskToolsSlow` can send, one per run (RQ-AKM-070).
+    enum class DiskSlowOperation
+    {
+        UpdateList,
+        LoadFolder,
+        LoadFile,
+        LoadFileWithDependents,
+        SaveMemoryItem,
+        SaveAllMemoryItems,
+    };
+
     struct RealSuiteOptions
     {
         ScenarioTarget target;
@@ -68,6 +79,18 @@ namespace akm::harness
         /// change settings the owner sees. Needs nothing stored: it acts on no program, multi or sample, and never
         /// sends Clear Sampler Memory (§02/&32, RQ-AKM-056).
         bool systemSetup = false;
+        /// The optional checks of Disk Tools (§10, RQ-AKM-071): create a disposable sub-folder under the current
+        /// folder, read the current disk, round-trip the folder items inside it and delete it again through the
+        /// confirmed `&17` guard (RQ-AKM-069). Nothing that existed before is touched, no other disk is selected, and
+        /// none of the six long-running items is sent. Off by default: it creates and deletes a folder on the owner's
+        /// disk, even if the folder it leaves behind is always the suite's own.
+        bool diskTools = false;
+        /// The one long-running §10 item this run sends, inside the disposable sub-folder, with Still Alive on
+        /// (RQ-AKM-070). Needs `diskTools`. Only one per run: each is documented as potentially hanging the sampler
+        /// (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7), and a hang needs a
+        /// power cycle by hand before anything else can be asked. `LoadFile` and `LoadFileWithDependents` need a file
+        /// first, which only a save (&2C) can create inside the sub-folder, so each sends that save before its load.
+        std::optional<DiskSlowOperation> diskToolsSlow;
         /// A real sample the operator confirms is already in the sampler's memory, named by the caller.
         /// Shared by two independent checks: `programLifecycle`'s zone check assigns it to a zone by
         /// name (§06/&01, RQ-AKM-038) and, when empty, only that part is skipped, the rest of the check

@@ -370,12 +370,12 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-067: Real-sampler harness — disposable test folder and slow-operation guard
 - **Tier**: L
-- **Status**: Not Started
-- **Description**: Add a `--disk-tools` (name to be confirmed against the probe's existing flag
-  style) check to `xs56k_akm_probe --suite` that creates its own disposable sub-folder, exercises the
-  safe §10 primitives inside it, deletes it through TASK-AKM-066's guard when done, never touches
-  anything that existed before, and gates `&01`/`&15`/`&2A`/`&2B`/`&2C`/`&2D` behind a further,
-  separate opt-in flag that documents the observed hang risk in its own help text.
+- **Status**: Done
+- **Description**: Add a `--disk-tools` check to `xs56k_akm_probe --suite` that creates its own
+  disposable sub-folder, exercises the safe §10 primitives inside it, deletes it through TASK-AKM-066's
+  guard when done, never touches anything that existed before, and gates `&01`/`&15`/`&2A`/`&2B`/`&2C`/
+  `&2D` behind a further, separate opt-in flag (`--disk-tools-slow OP`) that documents the observed hang
+  risk in its own help text.
 - **Requirement refs**: RQ-AKM-070, RQ-AKM-071
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-008 precedent for `--slow-operation`)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-070 and RQ-AKM-071, on the
@@ -383,8 +383,27 @@ This plan implements the tasks in the format specified below.
   owner explicitly also passes the slow-operation guard).
 - **Dependencies**: TASK-AKM-057 to TASK-AKM-066
 - **Assignee**: AI, with the owner running the real-sampler suite
-- **Verification**: to be filled at closure.
-- **Assumptions**: None.
+- **Verification**: Windows/MSVC Debug: clean rebuild, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 538/538 passed. 8 new cases in `RealSamplerSuiteTests.cpp`
+  (`ctest -R "Disk Tools"`, `[akm][suite][disk-tools]`): the safe check on a sampler with a current disk
+  passes, creates the folder and its inner sub-folder (at least two `&16`) and deletes the test folder
+  with exactly one `&17`; with no current disk the safe check fails before creating anything; each of the six
+  guarded items passes on the simulated sampler inside the folder — `update-list` sends exactly one
+  `&01`; `save-memory-item` sends one `&2C`; `load-file` sends one `&2C` then one `&2A`;
+  `load-file-with-dependents` one `&2C` then one `&2B`; `load-folder` one `&15` on an empty child folder;
+  `save-all-memory-items` one `&2D`. `--disk-tools-slow` refusals checked by hand: without `--suite`,
+  without `--disk-tools`, and with an unknown or missing OP, each refused before any port is opened.
+  `AGENTS.md` updated (the two flags, the one-per-run rule and the hang citation). `setCurrentDisk`
+  added to `SimulatedSampler` as the test seam the safe check needs (the suite never selects a disk).
+  The real-sampler run is the owner's to make: nothing here sent a frame to hardware.
+- **Assumptions**: Three choices made here, to be confirmed by the owner before a real run:
+  (1) `--disk-tools-slow` sends **one** long-running item per run, as chosen, but `load-file` and
+  `load-file-with-dependents` each send a save (`&2C`) before their load (`&2A`/`&2B`): no file can be
+  made inside the sub-folder without saving one, so the two-command sequence is forced by the spec and
+  not a choice; the owner is told this in the help text and in the pre-run printout. (2) The safe check
+  cannot list real files — there is no safe way to create one — so its file items are only read on the
+  empty folder. (3) `--slow-operation` (the older flag, sending one raw `&01`) is left unchanged; it does
+  not go through `DiskPrimitives` and is not gated behind `--disk-tools`.
 
 ### TASK-AKM-068: Coverage of section §10 and errata resolution
 - **Tier**: M

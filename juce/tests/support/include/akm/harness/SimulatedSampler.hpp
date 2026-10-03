@@ -367,6 +367,11 @@ namespace akm::harness
         /// test seeds here is always what &04/&05 answer, whether or not &01 was sent first).
         void setDisks(std::vector<DiskRecord> disks);
 
+        /// Makes the disk at `index` the current one, as &02 would, with the current folder back at the root
+        /// (RQ-AKM-071: the real-sampler suite's Disk Tools checks start from whatever disk is current). A no-op
+        /// when `index` names no disk.
+        void setCurrentDisk(std::size_t index);
+
         /// Sets what &20 reports (RQ-AKM-055): 0-3 are the four Play Modes, any other byte a REPLY no mode has.
         void setPlayMode(std::uint8_t playMode);
 
