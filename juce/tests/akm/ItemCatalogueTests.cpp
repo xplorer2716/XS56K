@@ -176,12 +176,13 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // TASK-AKM-064 added 2 more, Save Memory Item(s) to disk (RQ-AKM-067: &2C, &2D), and TASK-AKM-065
     // added 2 more, sample audition from disk (RQ-AKM-068: &30, &31), and TASK-AKM-066 added the last 3,
     // destructive command guards for Eject/Delete Sub-Folder/Delete File (RQ-AKM-069: &0D, &17, &29) —
-    // completing §10's 35 command rows — which this count includes without tracking them here too (see
+    // completing §10's 35 command rows, and TASK-AKM-070 added 2 of section 20, Key Hold and Key Release
+    // (RQ-AKM-073: &01, &02) — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
-    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp and the
-    // other test files).
+    // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp,
+    // FrontPanelTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

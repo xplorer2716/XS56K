@@ -63,7 +63,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-070: Key Hold and Key Release, keycodes of Table 31
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&01` and `&02` (Set, byte argument, complete on DONE); add a typed
   `FrontPanelKey` enumeration with the 43 keycodes of Table 31 (an unlisted value is refused, `&66` included);
   expose `holdKey`, `releaseKey` and `pressKey` (Hold then Release, the Release sent whatever the Hold's
@@ -73,8 +73,27 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-073 on the simulated sampler.
 - **Dependencies**: TASK-AKM-069
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 556/556 after a
+  re-run in this session. New `FrontPanelTests.cpp` (6 cases, `[akm][front-panel]`, written before the
+  primitive, run standalone with `ctest -R RQ-AKM-073`): EXIT held then released puts `20 01 6A` then
+  `20 02 6A` on the wire, both DONE, and the simulated sampler records the key down then up with nothing
+  left down; each of the 43 keycodes of Table 31 (the table re-typed in the test from the spec, not read from
+  the primitive) goes out as its own code; of the 128 data-byte values exactly those 43 convert to a key, and
+  `&66`, `&3F` and `&6C` are refused `ArgumentOutOfRange` on both Hold and Release with nothing sent;
+  `pressKey` sends Hold then Release and completes once with both results; with the Hold answered ERROR 3
+  (`itemErrors`) the Release is still sent and both results are reported; an unlisted value pressed has both
+  refused and nothing sent. Collateral: `ItemCatalogueTests.cpp`'s total count of catalogued items gained 2
+  (an edit reflecting the new expected state, no assertion weakened). `generate_akm_items.py --check`: up to
+  date (297 items); `--coverage`: section `20` 2 of 4 spec rows covered, `unaccounted: none`. Not verified:
+  real sampler (TASK-AKM-073); mutation testing.
+- **Assumptions**: The catalogue's range for the keycode is Table 30's own 64-107, and the exclusion of
+  `&66` is the primitive's (`frontPanelKeyFromCode`), not the catalogue's: a range cannot express a hole.
+  `pressKey` queues the Release behind the Hold with two `submit` calls rather than `submitSequence`, which
+  would cancel the Release when the Hold fails (`DEC-AKM-010`); another command from another thread may
+  therefore interleave between the two, which is harmless. The simulated sampler accepts a Release of a key
+  that is not down (the spec is silent) and, like its §02 setup, keeps the front panel across `powerCycle()`
+  — modelling choices, not proven on hardware. The primitives live in a new `FrontPanel.hpp`/`.cpp` that
+  TASK-AKM-071 and 072 extend.
 
 ---
 

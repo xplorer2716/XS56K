@@ -14,6 +14,7 @@ add_library(xs56k_akm STATIC
     src/Confirmation.cpp
     src/DiagnosticSink.cpp
     src/DiskPrimitives.cpp
+    src/FrontPanel.cpp
     src/ItemCatalogue.cpp
     src/ItemRequest.cpp
     src/KeygroupPrimitives.cpp

@@ -236,13 +236,13 @@ TASK-AKM-066|338-370|Done|Destructive command guards for Eject, Delete Sub-Folde
 TASK-AKM-067|371-411|Done|Real-sampler harness — disposable test folder and slow-operation guard
 TASK-AKM-068|412-437|Done|Coverage of section §10 and errata resolution
 @process/3.plan/PLAN-AKM-008-front-panel-primitives.md
-PLAN-AKM-008|1-144||Front Panel Control Primitives (Phase A, new lot, §20)
+PLAN-AKM-008|1-163||Front Panel Control Primitives (Phase A, new lot, §20)
 TASK-AKM-069|40-63|Done|Author FTR-AKM-008 and PLAN-AKM-008
-TASK-AKM-070|64-80|Not Started|Key Hold and Key Release, keycodes of Table 31
-TASK-AKM-071|81-95|Not Started|Data wheel and ASCII keyboard
-TASK-AKM-072|96-112|Not Started|Release held keys when the session closes
-TASK-AKM-073|113-131|Not Started|Real-sampler check driven from the PC keyboard
-TASK-AKM-074|132-144|Not Started|Coverage of section §20
+TASK-AKM-070|64-99|Done|Key Hold and Key Release, keycodes of Table 31
+TASK-AKM-071|100-114|Not Started|Data wheel and ASCII keyboard
+TASK-AKM-072|115-131|Not Started|Release held keys when the session closes
+TASK-AKM-073|132-150|Not Started|Real-sampler check driven from the PC keyboard
+TASK-AKM-074|151-163|Not Started|Coverage of section §20
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

@@ -186,6 +186,14 @@ namespace akm::harness
 
         // Section §10 (Disk), spec Tables 20-21: disk discovery of TASK-AKM-057 (RQ-AKM-060). Other §10
         // items answer ERROR 0 until their own lot.
+        // Section §20 (front panel), spec Table 30: the key items of TASK-AKM-070 (RQ-AKM-073). The keycode is
+        // one of the 64-107 the item's range gives; Table 31's own list is the primitive's to enforce, not the
+        // sampler's, which answers an out-of-range byte only.
+        constexpr std::uint8_t SECTION_FRONT_PANEL = 0x20;
+        constexpr std::uint8_t ITEM_KEY_HOLD = 0x01;
+        constexpr std::uint8_t ITEM_KEY_RELEASE = 0x02;
+        constexpr std::uint8_t KEYCODE_FIRST = 64;
+        constexpr std::uint8_t KEYCODE_LAST = 107;
         constexpr std::uint8_t SECTION_DISK = 0x10;
         constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
         constexpr std::uint8_t ITEM_SELECT_DISK = 0x02;
@@ -1820,6 +1828,35 @@ namespace akm::harness
             }
         }
 
+        // §20: the key items (RQ-AKM-073). The data is queued, not acted on: only the record of it and the keys
+        // down are kept (Table 30, note a).
+        Outcome executeFrontPanel(std::uint8_t item, const Bytes& data, FrontPanelState& frontPanel)
+        {
+            if (item != ITEM_KEY_HOLD && item != ITEM_KEY_RELEASE)
+                return failure(error_number::NOT_SUPPORTED);
+            if (data.empty())
+                return failure(error_number::INVALID_FORMAT);
+            const std::uint8_t keycode = data.front();
+            if (keycode < KEYCODE_FIRST || keycode > KEYCODE_LAST)
+                return failure(error_number::OUT_OF_RANGE);
+
+            auto& down = frontPanel.keysDown;
+            const auto held = std::find(down.begin(), down.end(), keycode);
+            if (item == ITEM_KEY_HOLD)
+            {
+                if (held == down.end())
+                    down.push_back(keycode);
+                frontPanel.events.push_back({FrontPanelEventKind::KeyHold, keycode});
+            }
+            else
+            {
+                if (held != down.end())
+                    down.erase(held);
+                frontPanel.events.push_back({FrontPanelEventKind::KeyRelease, keycode});
+            }
+            return done();
+        }
+
         // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
         // parameters (RQ-AKM-034, RQ-AKM-035), §0E's lifecycle (RQ-AKM-045) and §10's disk discovery
         // and selection (RQ-AKM-060, RQ-AKM-061) are modelled. A byte after the data an item expects is
@@ -1829,8 +1866,11 @@ namespace akm::harness
                         std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                         std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
                         std::vector<std::string>& multis, std::vector<DiskRecord>& disks,
-                        std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath)
+                        std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
+                        FrontPanelState& frontPanel)
         {
+            if (section == SECTION_FRONT_PANEL)
+                return executeFrontPanel(item, data, frontPanel);
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(system, programs, currentProgram, currentKeygroup, samples, currentSample,
                                       multis);
@@ -1968,6 +2008,12 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         return _system;
+    }
+
+    FrontPanelState SimulatedSampler::frontPanel() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _frontPanel;
     }
 
     void SimulatedSampler::setModel(std::uint8_t model)
@@ -2158,7 +2204,7 @@ namespace akm::harness
                                     ? failure(refused->number)
                                     : execute(section, item, data, _settings, _config.osVersion, _system, _programs, _currentProgram,
                                               _currentKeygroup, _samples, _currentSample, _multis, _disks, _currentDisk,
-                                              _currentFolderPath);
+                                              _currentFolderPath, _frontPanel);
         const bool resultChecksum = _behaviour.checksumChangeAppliesToOwnConfirmation ? _settings.checksum : before.checksum;
         confirmations.push_back(confirmation(outcome.replyId, outcome.data, resultChecksum));
         if (outcome.replyId == REPLY_REPLY && _behaviour.errorAfterReply)

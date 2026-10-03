@@ -228,6 +228,34 @@ namespace akm::harness
         std::uint8_t highestPlayMode = 3;
     };
 
+    /// What kind of §20 item the sampler received (RQ-AKM-073); the data wheel and the ASCII keyboard are added by
+    /// the task that catalogues them.
+    enum class FrontPanelEventKind
+    {
+        KeyHold,
+        KeyRelease,
+    };
+
+    /// One §20 item the sampler queued, in order of arrival: `first` is its first data byte (the keycode of a key
+    /// item). Section §20 has no Get, so this record is how a test sees what the sampler received. [RQ-AKM-073]
+    struct FrontPanelEvent
+    {
+        FrontPanelEventKind kind = FrontPanelEventKind::KeyHold;
+        std::uint8_t first = 0;
+
+        friend bool operator==(const FrontPanelEvent&, const FrontPanelEvent&) = default;
+    };
+
+    /// The front panel as this model holds it: what it was sent and which keys are down now — a Hold puts a keycode
+    /// in `keysDown` (once), a Release takes it out (releasing a key that is not down is accepted and changes
+    /// nothing: the spec says nothing of it). Like the §02 setup it survives `powerCycle()`. [RQ-AKM-073,
+    /// RQ-AKM-075]
+    struct FrontPanelState
+    {
+        std::vector<std::uint8_t> keysDown{};
+        std::vector<FrontPanelEvent> events{};
+    };
+
     /// One folder of a disk's hierarchy (§10/&10-&14, &16, &18, RQ-AKM-063): a name (ignored for the
     /// root, which is reached with an empty path from `DiskRecord::rootFolder`, not a `FolderRecord` of
     /// its own) and its sub-folders, in creation order (the spec's own order for &12, since nothing
@@ -386,6 +414,10 @@ namespace akm::harness
         /// (RQ-AKM-058).
         [[nodiscard]] SystemSetupState systemSetup() const;
 
+        /// The front panel as it is now (§20, RQ-AKM-073): every item the sampler queued, in order, and the keys
+        /// held down.
+        [[nodiscard]] FrontPanelState frontPanel() const;
+
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.
         void powerCycle();
@@ -411,6 +443,8 @@ namespace akm::harness
         SamplerSettings _settings;
         // §02 system setup beyond the OS version (RQ-AKM-052): not touched by powerCycle().
         SystemSetupState _system;
+        // §20 front panel (RQ-AKM-073): not touched by powerCycle().
+        FrontPanelState _frontPanel;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
 
