@@ -149,7 +149,16 @@ TEST_CASE("Given a part whose twelve parameters were set, When &47 is read, Then
     {
         const CommandResult set = *harness.submitAndWait(akm::makeRequest(testCase.setId, testCase.values));
         REQUIRE(std::holds_alternative<akm::Done>(set));
-        expected.push_back(static_cast<int>(testCase.values[1]));
+    }
+    // The twelve single Gets say what each value is now (the Set of the solo clears the mute: observed on the real
+    // sampler, TASK-AKM-094), and `&47` must agree with them in order.
+    for (const akm::harness::MultiPartParameterCase& testCase : akm::harness::allMultiPartParameterCases())
+    {
+        const CommandResult get = *harness.submitAndWait(akm::makeRequest(testCase.getId, {testCase.values.front()}));
+        REQUIRE(std::holds_alternative<akm::Reply>(get));
+        const auto decoded = akm::decodeReply(testCase.getId, std::get<akm::Reply>(get).data);
+        REQUIRE(decoded.has_value());
+        expected.push_back(static_cast<int>(decoded->front()));
     }
 
     const auto all = await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getAllMultiPartParameters(harness.session(), 3, done); });

@@ -154,6 +154,9 @@ namespace akm
         ByteWriter writer;
         if (!frontPanelNumber.has_value())
         {
+            // Off carries the number byte too, as 0: the spec says the number is "only required if Data1=1", but the
+            // real S5000 (OS 2.14) answers ERROR 2 (out of range) to the flag alone (observed, TASK-AKM-094).
+            writer.appendByte(0);
             writer.appendByte(0);
         }
         else if (*frontPanelNumber < FRONT_PANEL_MIN || *frontPanelNumber > FRONT_PANEL_MAX)

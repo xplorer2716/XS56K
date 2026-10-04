@@ -42,6 +42,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/FrontPanel.hpp"
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/MidiConfig.hpp"
+#include "akm/MultiPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SongPrimitives.hpp"
@@ -51,6 +52,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/harness/ClockArithmetic.hpp"
 #include "akm/harness/FrontPanelRemote.hpp"
 #include "akm/harness/KeygroupParameterCases.hpp"
+#include "akm/harness/MultiPartParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/SampleParameterCases.hpp"
 #include "akm/harness/WireFormat.hpp"
@@ -1009,6 +1011,152 @@ namespace akm::harness
             std::optional<int> _renamedSetList{};
         };
 
+        // The reserved names the multi check creates its multi and renames it under (RQ-AKM-093), and the two parts it works
+        // on: the part the shared parameter cases act on, and one more for the assignment by index. Inside the 20
+        // characters the other names allow, and nothing an owner would keep.
+        constexpr std::string_view TEST_MULTI_NAME = "XS56K_MULTI_TEST";
+        constexpr std::string_view TEST_MULTI_RENAMED = "XS56K_MULTI_TEST2";
+        constexpr int TEST_MULTI_PART = 3;
+        constexpr int TEST_MULTI_PART_BY_INDEX = 4;
+        constexpr int PROGRAM_NUMBER_FOR_THE_TEST = 5;
+
+        // The sampler's multis as read before a check creates its own: their names in memory order and the current one
+        // (`currentIndex` is empty when none is). [RQ-AKM-091, RQ-AKM-093]
+        struct MultisSnapshot
+        {
+            std::vector<std::string> names;
+            std::optional<int> currentIndex{};
+            std::string currentProblem;
+        };
+
+        std::string multisText(const MultisSnapshot& snapshot)
+        {
+            std::string text = std::to_string(snapshot.names.size()) + " multi(s)";
+            for (const std::string& name : snapshot.names)
+                text += std::string(text.find(':') == std::string::npos ? ": \"" : ", \"") + name + "\"";
+            return text + "; current multi "
+                   + (snapshot.currentIndex ? std::to_string(*snapshot.currentIndex) : "none (" + snapshot.currentProblem + ")");
+        }
+
+        // Reads the names of all the multis (an empty list is a normal answer) and the current one. It changes nothing.
+        std::optional<MultisSnapshot> readMultis(Rig& rig, Session& session, std::string& problem)
+        {
+            MultisSnapshot snapshot;
+            const auto names = awaitCompletion<MultiNameListResult>(
+                rig.driver, rig.commandPatience(), [&session](MultiNameListCompletion done) { getAllMultiNames(session, std::move(done)); });
+            if (!names || !names->result.names)
+            {
+                problem = "could not read the names of all multis (&51): " + (names ? outcomeText(names->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.names = *names->result.names;
+            const auto current = awaitCompletion<MultiIndexResult>(
+                rig.driver, rig.commandPatience(), [&session](MultiIndexCompletion done) { getCurrentMultiIndex(session, std::move(done)); });
+            if (!current)
+            {
+                problem = "could not read the current multi's index (&42): no completion";
+                return std::nullopt;
+            }
+            if (current->result.index)
+                snapshot.currentIndex = *current->result.index;
+            else
+                snapshot.currentProblem = outcomeText(current->result.outcome);
+            return snapshot;
+        }
+
+        // Wraps one multi created under TEST_MULTI_NAME for the life of one check (RQ-AKM-093): on construction it reads the
+        // sampler's multis, refuses to go on when one already bears a reserved name (it is never touched), then creates the
+        // test multi, which Create makes current and which lands last in memory. On destruction, even when the check throws
+        // half way, it selects the test multi again by its index and deletes it only if it still bears one of the two
+        // reserved names, then selects again the multi that was current. Logged, best effort, nothing let out of the
+        // destructor, mirroring GuardedTestProgram. It never sends §0C/&07 (Delete ALL Multis) or &01: nothing in this
+        // class can, there is no method that does.
+        class GuardedTestMulti
+        {
+        public:
+            GuardedTestMulti(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                std::string problem;
+                const auto before = readMultis(rig, session, problem);
+                if (!before)
+                    throw CheckFailure(problem + " (nothing was created)");
+                _original = *before;
+                for (const std::string& name : _original.names)
+                    if (name == TEST_MULTI_NAME || name == TEST_MULTI_RENAMED)
+                        throw CheckFailure("a multi named \"" + name + "\" already exists in the sampler: the check stops without touching it");
+                _testIndex = static_cast<int>(_original.names.size());
+                const auto created = awaitCompletion<CommandResult>(
+                    rig.driver, rig.commandPatience(), [this](CommandCompletion done) { createMulti(_session, TEST_MULTI_NAME, std::move(done)); });
+                if (!created || !succeeded(created->result))
+                    throw CheckFailure("could not create the test multi \"" + std::string(TEST_MULTI_NAME) + "\": " + timedOutcomeText(created));
+                _created = true;
+            }
+
+            ~GuardedTestMulti()
+            {
+                try
+                {
+                    cleanup();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the test multi guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedTestMulti(const GuardedTestMulti&) = delete;
+            GuardedTestMulti& operator=(const GuardedTestMulti&) = delete;
+
+            /// The multis as they were before the test multi was created.
+            [[nodiscard]] const MultisSnapshot& original() const { return _original; }
+            /// The test multi's position in memory: the number of multis before it.
+            [[nodiscard]] int testIndex() const { return _testIndex; }
+
+        private:
+            template <typename Launch>
+            bool step(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  " + title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+                return ok;
+            }
+
+            void cleanup()
+            {
+                if (!_created)
+                    return;
+                const int index = _testIndex;
+                if (step("select the test multi again by its index (" + std::to_string(index) + ")",
+                         [this, index](CommandCompletion done) { selectMultiByIndex(_session, index, std::move(done)); }))
+                {
+                    const auto name = awaitCompletion<MultiNameResult>(
+                        _rig.driver, _rig.commandPatience(), [this](MultiNameCompletion done) { getCurrentMultiName(_session, std::move(done)); });
+                    if (name && name->result.name && (*name->result.name == TEST_MULTI_NAME || *name->result.name == TEST_MULTI_RENAMED))
+                        step("delete the test multi \"" + *name->result.name + "\"",
+                             [this](CommandCompletion done) { deleteCurrentMulti(_session, std::move(done)); });
+                    else
+                        _rig.log.note("  the multi at index " + std::to_string(index) + " is not the test one ("
+                                      + (name && name->result.name ? "\"" + *name->result.name + "\"" : std::string("name unreadable"))
+                                      + "): it is NOT deleted");
+                }
+                else
+                    _rig.log.note("  the test multi could not be selected to delete it; it may already be gone");
+                if (_original.currentIndex)
+                {
+                    const int original = *_original.currentIndex;
+                    step("select again the multi that was current (" + std::to_string(original) + ")",
+                         [this, original](CommandCompletion done) { selectMultiByIndex(_session, original, std::move(done)); });
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            MultisSnapshot _original;
+            int _testIndex = 0;
+            bool _created = false;
+        };
+
         // What the owner says the sampler's MIDI setup holds, in terms of the sampler's own MIDI SETUP and MIDI FILTER
         // pages (RQ-AKM-080). Section 04 has no Get, so this declaration is the only source of the values to put back.
         // `filterEvent` and `filterChannel` name the one filter the check exercises, `filterAllows` what it does now.
@@ -1349,6 +1497,15 @@ namespace akm::harness
                           &Suite::midiConfigRoundTrips);
                     check("a MIDI setup check that fails half way and still puts back what it changed",
                           &Suite::failedMidiConfigCheckPutsBack);
+                }
+                if (_rig.options.multiLifecycle)
+                {
+                    check("create a test program and a test multi, round-trip every §0C item on them, then delete both and "
+                          "put back the multi that was current",
+                          &Suite::multiLifecycleOnTestMulti);
+                    check("a multi check that fails half way still deletes the test multi and the test program and restores the "
+                          "selection",
+                          &Suite::failedMultiCheckLeavesTheKnownState);
                 }
                 if (_rig.options.songFiles)
                 {
@@ -3408,6 +3565,310 @@ namespace akm::harness
                 closeAndVerify(guarded);
                 if (!notSeen.empty())
                     throw CheckFailure("not met: the owner did not see on the sampler: " + notSeen.front());
+            }
+
+            // Reads one value out of a result of the multi check: the member of the result that holds it, or a failure that
+            // names `what`. [RQ-AKM-089, RQ-AKM-091]
+            template <typename Result, typename Member, typename Launch>
+            auto readMultiValue(const std::string& what, Member member, Launch launch)
+            {
+                const auto timed = awaitCompletion<Result>(_rig.driver, _rig.commandPatience(), launch);
+                if (!timed || !(timed->result.*member).has_value())
+                    throw CheckFailure("could not read " + what + ": " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *(timed->result.*member);
+            }
+
+            std::string multiNameNow(GuardedSession& guarded)
+            {
+                return readMultiValue<MultiNameResult>("the current multi's name (&43)", &MultiNameResult::name,
+                                                       [&guarded](MultiNameCompletion done) { getCurrentMultiName(guarded.session(), std::move(done)); });
+            }
+
+            int multiIndexNow(GuardedSession& guarded)
+            {
+                return readMultiValue<MultiIndexResult>("the current multi's index (&42)", &MultiIndexResult::index,
+                                                        [&guarded](MultiIndexCompletion done) { getCurrentMultiIndex(guarded.session(), std::move(done)); });
+            }
+
+            std::string multiPartNameNow(GuardedSession& guarded, int part)
+            {
+                return readMultiValue<MultiNameResult>("the name of part " + std::to_string(part) + " (&45)", &MultiNameResult::name,
+                                                       [&guarded, part](MultiNameCompletion done) { getMultiPartName(guarded.session(), part, std::move(done)); });
+            }
+
+            std::vector<int> multiValuesNow(GuardedSession& guarded, const std::string& what, void (*launch)(Session&, MultiValueListCompletion))
+            {
+                return readMultiValue<MultiValueListResult>(what, &MultiValueListResult::values,
+                                                            [&guarded, launch](MultiValueListCompletion done) { launch(guarded.session(), std::move(done)); });
+            }
+
+            // RQ-AKM-087 to RQ-AKM-093: creates a test program and a test multi under reserved names, round-trips every §0C
+            // item on them, then (the guards) deletes both and selects again the multi that was current, and verifies,
+            // once the guards are gone, that the sampler holds the multis it held and has the same one current. Never
+            // sends &07 or &01; every deletion is of the test multi, selected again by index and named first.
+            void multiLifecycleOnTestMulti()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("multis before: " + multisText(*before));
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created, to be assigned to parts of the test multi");
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test multi \"" + std::string(TEST_MULTI_NAME) + "\" created and current, at index " + std::to_string(multi.testIndex()));
+
+                    const int partCount = multiCreationChecks(guarded, multi);
+                    multiPartParameterChecks(guarded);
+                    multiMuteSoloChecks(guarded, partCount);
+                    multiProgramNumberChecks(guarded);
+                    multiPartAssignmentChecks(guarded, partCount);
+                    multiRenameAndSelectionChecks(guarded, multi);
+                }
+                expectMultisRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-093: a check that fails with the test program and the test multi current still deletes both and
+            // selects again the multi that was current, and leaves nothing changed.
+            void failedMultiCheckLeavesTheKnownState()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                const auto programNamesBefore = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                if (!programNamesBefore || !programNamesBefore->result.names)
+                    throw CheckFailure("could not read the names of all programs before the test program is created");
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test program and test multi created for a check that fails on purpose");
+                    throw CheckFailure("this check fails on purpose, with the test multi current");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guards above have already been destroyed, their cleanup already run, by the time the exception
+                    // reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guards' destructors ran when the check failed");
+                expectMultisRestored(guarded, *before);
+                const auto programNamesAfter = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                expect(programNamesAfter && programNamesAfter->result.names == programNamesBefore->result.names,
+                       "the sampler holds exactly the programs it held before");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-087, RQ-AKM-091: what the creation did, read back through the Gets: the number of parts (an observation of
+            // the stored setting for new multis, which no item reads), the count, the index, the name, and the three
+            // all-multis Gets, each ending with the test multi. Returns the number of parts.
+            int multiCreationChecks(GuardedSession& guarded, const GuardedTestMulti& multi)
+            {
+                const std::size_t countBefore = multi.original().names.size();
+                const int partCount = readMultiValue<MultiPartCountResult>("the number of parts (&44)", &MultiPartCountResult::partCount,
+                                                                           [&guarded](MultiPartCountCompletion done) { getCurrentMultiPartCount(guarded.session(), std::move(done)); });
+                finding("the test multi has " + std::to_string(partCount) + " parts (the sampler's own setting for new multis)");
+                expect(partCount == 32 || partCount == 64 || partCount == 128, "the number of parts is 32, 64 or 128");
+
+                const int count = readMultiValue<MultiCountResult>("the number of multis (&40)", &MultiCountResult::count,
+                                                                   [&guarded](MultiCountCompletion done) { getMultiCount(guarded.session(), std::move(done)); });
+                expect(static_cast<std::size_t>(count) == countBefore + 1, "the number of multis is one more (" + std::to_string(count) + ")");
+                expect(multiIndexNow(guarded) == multi.testIndex(), "the current multi's index is " + std::to_string(multi.testIndex()));
+                expect(multiNameNow(guarded) == TEST_MULTI_NAME, "the current multi's name is the reserved one");
+
+                const auto names = readMultiValue<MultiNameListResult>("the names of all multis (&51)", &MultiNameListResult::names,
+                                                                       [&guarded](MultiNameListCompletion done) { getAllMultiNames(guarded.session(), std::move(done)); });
+                expect(names.size() == countBefore + 1 && names.back() == TEST_MULTI_NAME, "the names of all multis end with the test multi");
+                const auto counts = multiValuesNow(guarded, "the number of parts of all multis (&52)", getAllMultiPartCounts);
+                expect(counts.size() == countBefore + 1 && counts.back() == partCount, "the numbers of parts of all multis end with the test multi's");
+                const auto numbers = readMultiValue<MultiProgramNumbersResult>("the program numbers of all multis (&50)", &MultiProgramNumbersResult::numbers,
+                                                                               [&guarded](MultiProgramNumbersCompletion done) { getAllMultiProgramNumbers(guarded.session(), std::move(done)); });
+                expect(numbers.size() == countBefore + 1, "the program numbers of all multis are one per multi");
+                return partCount;
+            }
+
+            // RQ-AKM-089, RQ-AKM-090: every one of the twelve part parameter items is set on part 3 then read back, and
+            // `&47` returns the twelve values in the order of the Gets.
+            void multiPartParameterChecks(GuardedSession& guarded)
+            {
+                std::vector<int> expected;
+                for (const MultiPartParameterCase& parameterCase : allMultiPartParameterCases())
+                {
+                    const std::string title(descriptor(parameterCase.setId).name);
+                    expectCommand(guarded, "set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                    });
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(parameterCase.getId, {parameterCase.values.front()}), std::move(done));
+                        });
+                    if (!timed || !succeeded(timed->result))
+                        throw CheckFailure("get " + title + ": " + timedOutcomeText(timed));
+                    const auto* replyData = std::get_if<Reply>(&timed->result);
+                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + 1, parameterCase.values.end());
+                    if (!decoded || *decoded != expectedValue)
+                        throw CheckFailure("get " + title + ": read back " + (decoded ? valuesText(*decoded) : std::string("nothing decodable"))
+                                           + ", expected " + valuesText(expectedValue));
+                    expected.push_back(static_cast<int>(parameterCase.values[1]));
+                }
+                finding(std::to_string(allMultiPartParameterCases().size()) + " part parameter items round-tripped on part " + std::to_string(TEST_MULTI_PART));
+                const auto all = readMultiValue<MultiValueListResult>(
+                    "all the parameters of part " + std::to_string(TEST_MULTI_PART) + " (&47)", &MultiValueListResult::values,
+                    [&guarded](MultiValueListCompletion done) { getAllMultiPartParameters(guarded.session(), TEST_MULTI_PART, std::move(done)); });
+                // Observed on the real S5000 (OS 2.14): setting a part's solo clears its mute, so the cases' own order (mute, then
+                // solo) leaves the mute off. `&47` is therefore compared with the Sets for every value but the mute, whose
+                // reading is a finding.
+                constexpr std::size_t MUTE_POSITION = 1;
+                bool sameButTheMute = all.size() == expected.size();
+                for (std::size_t position = 0; sameButTheMute && position < expected.size(); ++position)
+                    if (position != MUTE_POSITION && all[position] != expected[position])
+                        sameButTheMute = false;
+                expect(sameButTheMute, "&47 returns the twelve values the twelve Sets wrote, in the order of the Gets, but for the mute");
+                finding("&47 reads the mute of part " + std::to_string(TEST_MULTI_PART) + " as " + std::to_string(all[MUTE_POSITION])
+                        + (all[MUTE_POSITION] != expected[MUTE_POSITION] ? " (set to " + std::to_string(expected[MUTE_POSITION]) + " before the solo was set: setting the solo clears it)"
+                                                                         : " (as set)"));
+            }
+
+            // RQ-AKM-090: the mute and solo status of every part. With mute and solo both on (what the parameter cases left
+            // on part 3) the sampler's answer is an observation; then each alone is expected as the spec gives it.
+            void multiMuteSoloChecks(GuardedSession& guarded, int partCount)
+            {
+                const auto both = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(static_cast<int>(both.size()) == partCount, "&48 returns one value per part (" + std::to_string(both.size()) + ")");
+                finding("part " + std::to_string(TEST_MULTI_PART) + " with the mute set, then the solo, reads " + std::to_string(both[TEST_MULTI_PART])
+                        + " (0 none, 1 mute, 2 solo)");
+
+                expectCommand(guarded, "clear the mute of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetMute, {TEST_MULTI_PART, 0}), std::move(done));
+                });
+                const auto soloOnly = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(soloOnly[TEST_MULTI_PART] == 2, "with solo alone on, part 3 reads 2 (solo)");
+                expectCommand(guarded, "clear the solo of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetSolo, {TEST_MULTI_PART, 0}), std::move(done));
+                });
+                expectCommand(guarded, "set the mute of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetMute, {TEST_MULTI_PART, 1}), std::move(done));
+                });
+                const auto muteOnly = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(muteOnly[TEST_MULTI_PART] == 1, "with mute alone on, part 3 reads 1 (mute)");
+                expectCommand(guarded, "clear the mute of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetMute, {TEST_MULTI_PART, 0}), std::move(done));
+                });
+                const auto none = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(std::all_of(none.begin(), none.end(), [](int value) { return value == 0; }), "with both cleared, every part reads 0");
+            }
+
+            // RQ-AKM-092, RQ-AKM-091: the program number set, read and cleared.
+            void multiProgramNumberChecks(GuardedSession& guarded)
+            {
+                expectCommand(guarded, "set the multi's program number to " + std::to_string(PROGRAM_NUMBER_FOR_THE_TEST),
+                              [](Session& session, CommandCompletion done) { setMultiProgramNumber(session, PROGRAM_NUMBER_FOR_THE_TEST, std::move(done)); });
+                const auto number = awaitCompletion<MultiProgramNumberResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MultiProgramNumberCompletion done) { getMultiProgramNumber(guarded.session(), std::move(done)); });
+                expect(number && number->result.frontPanelNumber == PROGRAM_NUMBER_FOR_THE_TEST,
+                       "the program number reads " + std::to_string(PROGRAM_NUMBER_FOR_THE_TEST));
+                expectCommand(guarded, "clear the multi's program number", [](Session& session, CommandCompletion done) {
+                    setMultiProgramNumber(session, std::nullopt, std::move(done));
+                });
+                const auto off = awaitCompletion<MultiProgramNumberResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MultiProgramNumberCompletion done) { getMultiProgramNumber(guarded.session(), std::move(done)); });
+                expect(off && std::holds_alternative<Reply>(off->result.outcome) && !off->result.frontPanelNumber.has_value(),
+                       "the program number reads off");
+            }
+
+            // RQ-AKM-092, RQ-AKM-091: the test program assigned to a part by name and to another by index, read back by
+            // `&45` and `&46`, then deleted from both; what the sampler answers for an index and a name that name nothing is
+            // an observation.
+            void multiPartAssignmentChecks(GuardedSession& guarded, int partCount)
+            {
+                expectCommand(guarded, "assign the test program to part " + std::to_string(TEST_MULTI_PART) + " by name",
+                              [](Session& session, CommandCompletion done) { setMultiPartByName(session, TEST_MULTI_PART, TEST_PROGRAM_NAME, std::move(done)); });
+                expect(multiPartNameNow(guarded, TEST_MULTI_PART) == TEST_PROGRAM_NAME, "&45 reads the test program's name on that part");
+                const auto names = readMultiValue<MultiNameListResult>("the names of all parts (&46)", &MultiNameListResult::names,
+                                                                       [&guarded](MultiNameListCompletion done) { getAllMultiPartNames(guarded.session(), std::move(done)); });
+                expect(static_cast<int>(names.size()) == partCount && names[TEST_MULTI_PART] == TEST_PROGRAM_NAME,
+                       "&46 returns one name per part, the test program's on part " + std::to_string(TEST_MULTI_PART));
+                expectCommand(guarded, "delete the program of part " + std::to_string(TEST_MULTI_PART), [](Session& session, CommandCompletion done) {
+                    deleteMultiPart(session, TEST_MULTI_PART, std::move(done));
+                });
+                expect(multiPartNameNow(guarded, TEST_MULTI_PART).empty(), "&45 reads an empty name once the part is deleted");
+
+                const int programIndex = readMultiValue<ProgramIndexResult>("the test program's index (§0A/&12)", &ProgramIndexResult::index,
+                                                                           [&guarded](ProgramIndexCompletion done) { getProgramIndex(guarded.session(), std::move(done)); });
+                expectCommand(guarded, "assign the program at index " + std::to_string(programIndex) + " to part " + std::to_string(TEST_MULTI_PART_BY_INDEX),
+                              [programIndex](Session& session, CommandCompletion done) { setMultiPartByIndex(session, TEST_MULTI_PART_BY_INDEX, programIndex, std::move(done)); });
+                expect(multiPartNameNow(guarded, TEST_MULTI_PART_BY_INDEX) == TEST_PROGRAM_NAME, "&45 reads the test program's name on that part");
+                expectCommand(guarded, "delete the program of part " + std::to_string(TEST_MULTI_PART_BY_INDEX), [](Session& session, CommandCompletion done) {
+                    deleteMultiPart(session, TEST_MULTI_PART_BY_INDEX, std::move(done));
+                });
+
+                observeIndexPastTheEnd("assign a program no memory holds to part 0 by name", [&guarded](CommandCompletion done) {
+                    setMultiPartByName(guarded.session(), 0, "XS56K NO SUCH PROGRAM", std::move(done));
+                });
+            }
+
+            // RQ-AKM-087, RQ-AKM-092: the test multi renamed and renamed back, the selection by index and by name (a multi of
+            // the owner's is selected, never changed), and what the sampler answers to a name and an index that name nothing.
+            void multiRenameAndSelectionChecks(GuardedSession& guarded, const GuardedTestMulti& multi)
+            {
+                expectCommand(guarded, "rename the test multi to \"" + std::string(TEST_MULTI_RENAMED) + "\"", [](Session& session, CommandCompletion done) {
+                    renameCurrentMulti(session, TEST_MULTI_RENAMED, std::move(done));
+                });
+                expect(multiNameNow(guarded) == TEST_MULTI_RENAMED, "the current multi's name reads the new name");
+                expectCommand(guarded, "rename the test multi back", [](Session& session, CommandCompletion done) {
+                    renameCurrentMulti(session, TEST_MULTI_NAME, std::move(done));
+                });
+                expect(multiNameNow(guarded) == TEST_MULTI_NAME, "the current multi's name reads the reserved name again");
+
+                if (!multi.original().names.empty())
+                {
+                    expectCommand(guarded, "select multi 0 by index (the owner's, not changed)", [](Session& session, CommandCompletion done) {
+                        selectMultiByIndex(session, 0, std::move(done));
+                    });
+                    expect(multiIndexNow(guarded) == 0, "the current multi's index reads 0");
+                    expect(multiNameNow(guarded) == multi.original().names.front(), "its name is the owner's first multi's");
+                }
+                expectCommand(guarded, "select the test multi by name", [](Session& session, CommandCompletion done) {
+                    selectMultiByName(session, TEST_MULTI_NAME, std::move(done));
+                });
+                expect(multiIndexNow(guarded) == multi.testIndex(), "the current multi's index is the test multi's");
+
+                const int pastTheEnd = multi.testIndex() + 1;
+                observeIndexPastTheEnd("select multi " + std::to_string(pastTheEnd) + ", past the last", [&guarded, pastTheEnd](CommandCompletion done) {
+                    selectMultiByIndex(guarded.session(), pastTheEnd, std::move(done));
+                });
+                observeIndexPastTheEnd("select a multi no memory holds by name", [&guarded](CommandCompletion done) {
+                    selectMultiByName(guarded.session(), "XS56K NO SUCH MULTI", std::move(done));
+                });
+                expect(multiNameNow(guarded) == TEST_MULTI_NAME, "the test multi is still the current one");
+            }
+
+            void expectMultisRestored(GuardedSession& guarded, const MultisSnapshot& before)
+            {
+                std::string problem;
+                const auto after = readMultis(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the multis back to verify they were restored: " + problem);
+                expect(after->names == before.names, "the sampler holds exactly the multis it held before (" + multisText(*after) + ")");
+                if (before.currentIndex)
+                    expect(after->currentIndex == before.currentIndex, "the current multi is back to " + std::to_string(*before.currentIndex));
+                else
+                    finding("no multi was current before the check, so the selection is left on the one the check chose last");
             }
 
             // RQ-AKM-082, RQ-AKM-083, RQ-AKM-084, RQ-AKM-085: reads the song files and the set lists, selects each song file

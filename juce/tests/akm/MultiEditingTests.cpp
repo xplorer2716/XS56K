@@ -121,7 +121,8 @@ TEST_CASE("Given the program number set to 5 then cleared, When &41 is read, The
     akm::setMultiProgramNumber(harness.session(), std::nullopt, harness.recorder().completion());
     REQUIRE(harness.waitForCompletions(5));
     CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
-    CHECK(lastData(harness, 1) == bytes({0x00}));
+    // Off sends the number byte too, as 0: the real S5000 answers ERROR 2 to the flag alone (TASK-AKM-094).
+    CHECK(lastData(harness, 2) == bytes({0x00, 0x00}));
     CHECK_FALSE(await<akm::MultiProgramNumberResult>(harness, [&](auto done) { akm::getMultiProgramNumber(harness.session(), done); })
                     .frontPanelNumber.has_value());
 }

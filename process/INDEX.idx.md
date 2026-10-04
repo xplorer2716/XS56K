@@ -178,6 +178,7 @@ DEC-BLD-028|24-36||The generator passes `run-tests: true` to `build-app` in ever
 @process/2.architecture/OBSERVATIONS-RQ-AKM-059-clock-reply-section.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md
+@process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
@@ -289,15 +290,15 @@ TASK-AKM-085|73-100|Done|Set lists
 TASK-AKM-086|101-135|Done|Real-sampler check of the song files and set lists
 TASK-AKM-087|136-159|Done|Coverage of section §16
 @process/3.plan/PLAN-AKM-011-multi-primitives.md
-PLAN-AKM-011|1-215||Multi Primitives (Phase A, new lot, §0C)
+PLAN-AKM-011|1-235||Multi Primitives (Phase A, new lot, §0C)
 TASK-AKM-088|34-47|Done|Author FTR-AKM-011 and PLAN-AKM-011
 TASK-AKM-089|48-77|Done|Multi creation, selection, deletion and the current multi's name and index
 TASK-AKM-090|78-98|Done|Destructive command guard for "Delete ALL Multis"
 TASK-AKM-091|99-124|Done|Multi part parameters (Set and Get)
 TASK-AKM-092|125-157|Done|General information about the current multi and about all the multis
 TASK-AKM-093|158-185|Done|Multi renaming, program number and part assignment
-TASK-AKM-094|186-202|Not Started|Real-sampler check on a dedicated test multi
-TASK-AKM-095|203-215|Not Started|Coverage of section §0C
+TASK-AKM-094|186-222|Done|Real-sampler check on a dedicated test multi
+TASK-AKM-095|223-235|Not Started|Coverage of section §0C
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

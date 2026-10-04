@@ -490,6 +490,10 @@ namespace akm::harness
         /// The number of parts of the multi at `index`, or nothing when there is none (RQ-AKM-087).
         [[nodiscard]] std::optional<int> multiPartCount(std::size_t index) const;
 
+        /// Makes the multi at `index` current, as &06 would; a no-op when `index` names none (RQ-AKM-093: the real-sampler
+        /// check puts back the selection it found).
+        void setCurrentMulti(std::size_t index);
+
         /// The current multi's index, or nothing when none is current (RQ-AKM-087).
         [[nodiscard]] std::optional<std::size_t> currentMulti() const;
 

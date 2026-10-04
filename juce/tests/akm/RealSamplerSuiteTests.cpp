@@ -1829,3 +1829,119 @@ TEST_CASE("Given the default options, When the suite runs, Then no section 16 it
     for (const auto& command : rig.sampler.acceptedCommands())
         CHECK(command.section != SECTION_SONG_FILES);
 }
+
+namespace
+{
+    constexpr std::size_t MULTI_LIFECYCLE_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_MULTI = 0x0C;
+    constexpr std::uint8_t ITEM_SET_NEW_MULTI_PART_COUNT = 0x01;
+    constexpr std::uint8_t ITEM_CREATE_MULTI = 0x02;
+    constexpr std::uint8_t ITEM_DELETE_ALL_MULTIS = 0x07;
+
+    // A sampler that holds two multis of the owner's, the second one current, as an owner's would.
+    void seedMultis(SimulatedSampler& sampler)
+    {
+        sampler.setMultiNames({"OWNER A", "OWNER B"});
+        sampler.setCurrentMulti(1);
+    }
+
+    bool sentMultiItem(const SimulatedSampler& sampler, std::uint8_t item)
+    {
+        const auto commands = sampler.acceptedCommands();
+        return std::any_of(commands.begin(), commands.end(),
+                           [item](const auto& command) { return command.section == SECTION_MULTI && command.item == item; });
+    }
+}
+
+TEST_CASE("Given a sampler holding two multis of the owner's, When the suite runs with the multi checks, Then every item is round-tripped on a test multi, both test items are deleted, the multis and the selection are as they were, and neither &07 nor &01 is sent [TASK-AKM-094, RQ-AKM-087, RQ-AKM-089, RQ-AKM-090, RQ-AKM-091, RQ-AKM-092, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    checkAllPassed(result);
+    const std::string& detail = reportOf(result, "create a test program and a test multi").detail;
+    CHECK_THAT(detail, ContainsSubstring("12 part parameter items round-tripped on part 3"));
+    CHECK_THAT(log.str(), ContainsSubstring("&47 returns the twelve values the twelve Sets wrote"));
+    CHECK_THAT(log.str(), ContainsSubstring("delete the test multi \"XS56K_MULTI_TEST\": done"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+    CHECK(sentMultiItem(rig.sampler, ITEM_CREATE_MULTI));
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_DELETE_ALL_MULTIS));
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_SET_NEW_MULTI_PART_COUNT));
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given a sampler holding no multi, When the suite runs with the multi checks, Then the checks pass and no multi is left [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK(rig.sampler.multiCount() == 0);
+    CHECK_THAT(log.str(), ContainsSubstring("no multi was current before the check"));
+}
+
+TEST_CASE("Given a multi that already bears the reserved test name, When the suite runs with the multi checks, Then the check stops without creating or touching anything [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    rig.sampler.setMultiNames({"XS56K_MULTI_TEST"});
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    const CheckReport& first = reportOf(result, "create a test program and a test multi");
+    CHECK(first.outcome == CheckOutcome::Failed);
+    CHECK_THAT(first.detail, ContainsSubstring("already exists in the sampler: the check stops without touching it"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"XS56K_MULTI_TEST"});
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_CREATE_MULTI));
+}
+
+TEST_CASE("Given a check made to fail with the test multi current, When the suite runs with the multi checks, Then the test multi and the test program are deleted and the selection is the one found [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    CHECK(reportOf(result, "multi check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with the test multi current"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 0C item is sent [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_MULTI);
+}

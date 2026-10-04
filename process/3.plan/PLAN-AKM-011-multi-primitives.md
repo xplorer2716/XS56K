@@ -185,7 +185,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-094: Real-sampler check on a dedicated test multi
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add `--multi-lifecycle` to `xs56k_akm_probe --suite`: create a test multi and a test program under
   reserved names, round-trip every item of the section on them, put back the current multi and delete both on every
   exit path; run it on the real sampler.
@@ -195,8 +195,28 @@ This plan implements the tasks in the format specified below.
   the real sampler.
 - **Dependencies**: TASK-AKM-089 to TASK-AKM-093
 - **Assignee**: AI, running the real-sampler check under the owner's standing authorization
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 674/674 passed
+  after a full re-run in this session (661 before TASK-AKM-093, 8 of its own, 5 new here in `RealSamplerSuiteTests.cpp`,
+  `ctest -R RQ-AKM-093` 6/6 with the shared table's test): with two owner's multis (the second current) both checks pass,
+  the test multi and the test program are gone, the multis and the selection are as they were, `&02` was sent and
+  neither `&07` nor `&01`; with no multi both pass; a multi already bearing the reserved name makes the first check
+  fail ("already exists … stops without touching it") with no `&02` sent and the multi untouched; the check made to
+  fail leaves the sampler as found; without `--multi-lifecycle` no section 0C item is sent. Real sampler (S5000, OS 2.14),
+  `xs56k_akm_probe --suite --multi-lifecycle --in "MIDIIN2 (ESI M8U eX)" --out "MIDIOUT15 (ESI M8U eX)"`, three runs this
+  session (`akm-suite-20261004-161129.log`, `-161416.log`, `-161454.log`): the first two failed on two things the spec
+  leaves open (setting a part's solo clears its mute; `&31` off needs its number byte, `00 00`), each time with both test
+  items deleted by the guards and the sampler as found; the third passed 9 checks of 9, every §0C item of the plan
+  sent and read back, the sampler left in the known state (`process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`).
+  Not verified on hardware: `&01`, `&07` (never sent, by design), mute set after solo, parts beyond the multi's
+  size, selection of an existing multi of the owner's (the sampler held none).
+- **Assumptions**: The suite's own program (`GuardedTestProgram`, `XS56K_SUITE_TEST`) is reused for the part assignment.
+  The test multi lands last in memory, so its index is the number of multis before it, and the guard deletes it only
+  after reading its name (one of the two reserved ones). The multi created takes the number of parts the sampler's
+  setting gives it (32 here), which no item reads before the creation. The simulated sampler now clears a part's mute
+  when its solo is set, and `setMultiProgramNumber` off sends `00 00`, both from the hardware observations (TASK-AKM-092's
+  and TASK-AKM-093's tests were adjusted to them: the `&47` test reads its expectation from the twelve Gets, the off
+  frame is `00 00`; no test was changed to force a pass: each states the observed behaviour). The reverse
+  (solo cleared by mute) is not modelled, not being known.
 
 ---
 

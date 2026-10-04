@@ -83,7 +83,7 @@ namespace
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
         "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--front-panel] [--midi-config]\n"
-        "                  [--song-files]\n"
+        "                  [--song-files] [--multi-lifecycle]\n"
         "                  [--sample-name NAME]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
@@ -170,6 +170,12 @@ namespace
         "                     index and by name, renames the first song file and the first set list, reads the new names back and\n"
         "                     puts every name and the selection back, even if a check fails half way. Section 16 cannot create\n"
         "                     one, so it works on what the sampler holds and is skipped when there is none. It never deletes.\n"
+        "  --multi-lifecycle  with --suite, two extra checks on the multis (section 0C, RQ-AKM-087 to RQ-AKM-093). It creates one\n"
+        "                     program and one multi under reserved names (XS56K_SUITE_TEST, XS56K_MULTI_TEST) and stops without\n"
+        "                     touching anything if a multi already bears one, round-trips every item of the section on them (part\n"
+        "                     parameters, program number, part assignment, renaming, selection, every Get), then deletes both and\n"
+        "                     selects again the multi that was current, even if a check fails half way. It never sends Delete ALL\n"
+        "                     Multis and never changes the number of parts of new multis, a setting no item reads back.\n"
         "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
         "                     it to a zone of the test program by name and reads it back, RQ-AKM-035,\n"
         "                     RQ-AKM-038) and/or --sample-lifecycle (see above). Never creates, changes or\n"
@@ -279,6 +285,7 @@ namespace
         bool frontPanel = false;
         bool midiConfig = false;
         bool songFiles = false;
+        bool multiLifecycle = false;
         bool noLcd = false;
         std::string diskToolsSlow;
         std::string input;
@@ -386,6 +393,8 @@ namespace
                 parsed.midiConfig = true;
             else if (option == "--song-files")
                 parsed.songFiles = true;
+            else if (option == "--multi-lifecycle")
+                parsed.multiLifecycle = true;
             else if (option == "--disk-tools-slow")
             {
                 parsed.diskToolsSlow = valueOf(args, index++, parsed);
@@ -428,10 +437,11 @@ namespace
             && !parsed.suite
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
                 || parsed.diskTools || parsed.diskToolsFiles || parsed.diskToolsAudition || !parsed.diskToolsSlow.empty()
-                || parsed.frontPanel || parsed.midiConfig || parsed.songFiles || !parsed.sampleName.empty()))
+                || parsed.frontPanel || parsed.midiConfig || parsed.songFiles || parsed.multiLifecycle
+                || !parsed.sampleName.empty()))
             parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
-                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel, --midi-config, --song-files "
-                           "and --sample-name need --suite";
+                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel, --midi-config, --song-files, "
+                           "--multi-lifecycle and --sample-name need --suite";
         if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
             parsed.error = "--disk-tools-files needs --disk-tools";
         if (parsed.error.empty() && parsed.diskToolsAudition && !parsed.diskTools)
@@ -555,6 +565,11 @@ namespace
                       << "MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH and one MIDI filter. The sampler cannot say what they are, so\n"
                       << "you will be asked: note them on UTILITIES > MIDI SETUP and MIDI FILTER before you start. Nothing is sent\n"
                       << "before you have answered, and each change is confirmed by you on the sampler's screen.\n";
+        if (arguments.multiLifecycle)
+            std::cout << "It will also create one program and one multi under reserved names (XS56K_SUITE_TEST, XS56K_MULTI_TEST),\n"
+                      << "round-trip every section 0C item on them, then delete both and select again the multi that was current.\n"
+                      << "It never deletes anything else, never sends Delete ALL Multis and never changes the number of parts of\n"
+                      << "new multis.\n";
         if (arguments.songFiles)
             std::cout << "It will also read the sampler's MIDI song files and set lists, select each song file, rename the first\n"
                       << "song file and the first set list and put every name and the selection back. It never deletes anything.\n";
@@ -660,6 +675,7 @@ int main(int argc, char** argv)
         options.frontPanel = arguments.frontPanel;
         options.midiConfig = arguments.midiConfig;
         options.songFiles = arguments.songFiles;
+        options.multiLifecycle = arguments.multiLifecycle;
 #ifdef _WIN32
         if (consoleKeysAvailable())
             options.readOwnerKey = readConsoleKey;

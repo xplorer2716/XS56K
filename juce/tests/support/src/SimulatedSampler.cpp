@@ -1498,7 +1498,13 @@ namespace akm::harness
                         return failure(error_number::NOT_SUPPORTED);
                     if (!state.current.has_value())
                         return failure(error_number::NOT_FOUND);
-                    return executeStoredParameter(SECTION_MULTI, match, data, state.multis[*state.current].parameters);
+                    MultiRecord& multi = state.multis[*state.current];
+                    const Outcome outcome = executeStoredParameter(SECTION_MULTI, match, data, multi.parameters);
+                    // Observed on the real S5000 (OS 2.14): setting a part's solo on clears its mute (the reverse is not
+                    // known, and not modelled). [TASK-AKM-094]
+                    if (match.access == ParameterAccess::Set && match.setItem == MULTI_PART_SOLO_ITEM && data.size() >= 2 && data[1] != 0)
+                        multi.parameters[{MULTI_PART_MUTE_ITEM, Bytes{data[0]}}] = Bytes{0};
+                    return outcome;
                 }
             }
         }
@@ -2584,6 +2590,13 @@ namespace akm::harness
         if (index >= _multis.multis.size() || part >= _multis.multis[index].partPrograms.size())
             return;
         _multis.multis[index].partPrograms[part] = std::move(program);
+    }
+
+    void SimulatedSampler::setCurrentMulti(std::size_t index)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index < _multis.multis.size())
+            _multis.current = index;
     }
 
     std::optional<std::size_t> SimulatedSampler::currentMulti() const
