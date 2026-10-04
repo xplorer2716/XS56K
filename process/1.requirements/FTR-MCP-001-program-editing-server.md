@@ -41,7 +41,7 @@ ADR-AKM-001 (DEC-AKM-001 layering, DEC-AKM-002 threading, DEC-AKM-003 and DEC-AK
 
 **Sources.** `documents/_index/sysex_spec.kb.md` (state model: §08 acts on the current keygroup of the current program, keygroup
 0 is "all"), `documents/akai_s5000_s6000_sysex_spec_2.10.pdf.md` pp. 20-25 (Tables 11 to 15), the MCP specification
-(revision to be pinned by `TASK-MCP-002`, see ADR-MCP-001 DEC-MCP-002).
+(revisions 2026-07-28 and 2025-11-25 and earlier, see ADR-MCP-001 DEC-MCP-002).
 
 ## Stakeholders
 
@@ -56,10 +56,10 @@ ADR-AKM-001 (DEC-AKM-001 layering, DEC-AKM-002 threading, DEC-AKM-003 and DEC-AK
 ### RQ-MCP-001: MCP server over standard input and output
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN an MCP client starts the server and sends `initialize`, the server SHALL answer with a protocol revision it supports (the client's when supported, its own latest otherwise), the `tools` capability and its name and version, SHALL then accept `notifications/initialized` and `ping`, and SHALL write only protocol messages on standard output (one JSON-RPC message per line), sending its own diagnostics to standard error.
-- **Rationale**: this is what lets a client launch the server and list its tools; a stray line on standard output corrupts the protocol.
+- **Statement**: WHEN an MCP client sends `server/discover`, or any request carrying `_meta` with `io.modelcontextprotocol/protocolVersion` (the stateless revision 2026-07-28), the server SHALL serve it without remembering earlier requests and answer an unsupported version with error -32022 listing the versions it supports; WHEN a client sends `initialize` (the revisions 2025-11-25 and earlier), the server SHALL answer with the client's revision when it supports it and its latest legacy revision otherwise, with the `tools` capability and its name and version, and SHALL then accept `notifications/initialized`; in both eras it SHALL serve `ping`, `tools/list` and `tools/call`, and SHALL write only protocol messages on standard output (one JSON-RPC message per line), sending its own diagnostics to standard error.
+- **Rationale**: this is what lets a client launch the server and list its tools, whichever era the client speaks (a modern client probes with `server/discover` and falls back to `initialize`); a stray line on standard output corrupts the protocol.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* a server on in-memory streams, *When* an `initialize` request carrying a supported revision is sent, *Then* the answer carries the same revision, the `tools` capability and the server's name, and nothing else is written on the output stream. *Given* a revision the server does not know, *When* `initialize` is sent, *Then* the answer carries the server's latest revision. *Given* a line that is not JSON, *When* it is read, *Then* the server answers a JSON-RPC parse error (-32700) and keeps reading. *Given* a method it does not have, *When* a request names it, *Then* the answer is a method-not-found error (-32601).
+- **Acceptance Criteria** (Gherkin): *Given* a server on in-memory streams, *When* `server/discover` carries `2026-07-28`, *Then* the answer lists the supported versions, the `tools` capability, the server's name and version in `_meta`, `resultType` complete and `ttlMs` and `cacheScope`, and nothing else is written. *Given* a request carrying a version the server does not support, *When* it is sent, *Then* the answer is error -32022 with the supported versions. *Given* a request with no `_meta` and no earlier `initialize`, *Then* the answer is -32602. *Given* an `initialize` request carrying a supported legacy revision, *When* sent, *Then* the answer carries the same revision and the `tools` capability, and a later `tools/list` without `_meta` is served; *Given* an unknown revision, *Then* the answer carries the latest legacy one. *Given* a line that is not JSON, *When* it is read, *Then* the server answers a JSON-RPC parse error (-32700) and keeps reading. *Given* a method it does not have, *When* a request names it, *Then* the answer is a method-not-found error (-32601).
 - **Dependencies**: ADR-MCP-001 (DEC-MCP-001, DEC-MCP-002)
 
 ### RQ-MCP-002: Configuration of the sampler connection by launch arguments
@@ -173,7 +173,7 @@ ADR-AKM-001 (DEC-AKM-001 layering, DEC-AKM-002 threading, DEC-AKM-003 and DEC-AK
 
 ## Open points
 
-- **MCP revision to pin.** The server negotiates a revision; which ones it supports is fixed by `TASK-MCP-002` from the specification text, not from memory.
+- **Which client era.** The server serves both eras; the revision a real client opens with (modern probe or legacy `initialize`) is observed by the real run (`TASK-MCP-009`). Of the legacy revisions only 2025-11-25 was read in full.
 - **Setting with "all" keygroups** (§08 `&01` with 0 current): the spec says a Set then reaches every keygroup (Table 11, p. 20); not yet observed on the real sampler. The default of the tools is "all", which is the natural reading of "set the filter cutoff"; the real run (`TASK-MCP-009`) confirms or changes it.
 - **The current keygroup is left as the last edit set it** (selecting a keygroup is a side effect of an edit); whether to put the sampler's keygroup selection back is decided with the real run.
 - **Scratch program for the real run**: prepared by the owner by hand (recommended), or a creation tool added later; this feature has none (`RQ-MCP-008`).

@@ -72,6 +72,19 @@ FetchContent_Declare(JUCE
     GIT_SHALLOW TRUE)
 FetchContent_MakeAvailable(JUCE)
 
+# nlohmann/json: the MCP server's JSON (header-only, MIT), from the project's own release archive, pinned by
+# version and by hash. [RQ-MCP-011, ADR-MCP-001 (DEC-MCP-001), TASK-MCP-002]
+set(NLOHMANN_JSON_VERSION 3.12.0)
+FetchContent_Declare(nlohmann_json
+    URL https://github.com/nlohmann/json/releases/download/v${NLOHMANN_JSON_VERSION}/json.tar.xz
+    URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+FetchContent_MakeAvailable(nlohmann_json)
+# Third-party like JUCE and Catch2: the strict warnings are for project code only, so its include directories
+# are marked SYSTEM (see Catch2 below). [RQ-BLD-003]
+set_target_properties(nlohmann_json PROPERTIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES
+    "$<TARGET_PROPERTY:nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>")
+
 if(BUILD_TESTS)
     set(CATCH2_VERSION 3.9.1)
     FetchContent_Declare(Catch2
@@ -109,6 +122,7 @@ add_library(xs56k::warnings ALIAS xs56k_warnings)
 add_subdirectory(midi)
 add_subdirectory(framework)
 add_subdirectory(akm)  # [RQ-AKM-019, ADR-AKM-001 (DEC-AKM-001)]
+add_subdirectory(mcp)  # [RQ-MCP-011, ADR-MCP-001 (DEC-MCP-001)]
 
 if(BUILD_TESTS)
     add_subdirectory(tests)  # [RQ-AKM-016, ADR-AKM-001 (DEC-AKM-008), TASK-AKM-003]

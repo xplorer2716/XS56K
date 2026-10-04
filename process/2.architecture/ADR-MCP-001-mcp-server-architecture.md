@@ -1,10 +1,9 @@
 # ADR-MCP-001: MCP Server Architecture — Layers, Transport, Threading, Connection, Parameter Catalogue and Tools
 
 ## Status
-Proposed — drafted in session MCP (2026-10-04) for FTR-MCP-001 (RQ-MCP-001 to RQ-MCP-012); to be reviewed and accepted by
-the owner before `TASK-MCP-002` starts. DEC-MCP-003 (a blocking bridge over an asynchronous session) is the kind of
-decision the owner has had reviewed independently before (as for ADR-AKM-001): a review by a second model is offered with
-this ADR.
+Accepted — drafted in session MCP (2026-10-04) for FTR-MCP-001 (RQ-MCP-001 to RQ-MCP-012) and accepted by the owner the
+same day, without the independent review by a second model that was offered for DEC-MCP-003 (a blocking bridge over an
+asynchronous session).
 
 ## Context
 
@@ -21,9 +20,15 @@ envelope, LFOs) in the musician's vocabulary. Facts of this repository and of th
 - `xs56k_akm` exposes no JUCE type (DEC-AKM-001); the MIDI ports come from `xs56k_midi`'s `MidiBackend`, whose JUCE
   implementation (`xs56k_midi_juce`) is what the probe uses against the real sampler.
 - MCP is JSON-RPC 2.0. For a local server, a client launches the process and exchanges messages on its standard input and
-  output, one JSON message per line (the `stdio` transport); standard output must carry nothing else. The server declares
-  capabilities at `initialize`; this one declares `tools` only. A tool call's failure that the model can act on is a result
-  with `isError: true`, not a protocol error.
+  output, one JSON message per line with no embedded newline (the `stdio` transport); standard output must carry nothing
+  else. A tool call's failure that the model can act on is a result with `isError: true`, not a protocol error.
+- MCP exists in **two eras** (specification pages read in session MCP, 2026-10-04: versioning, stdio transport, discover,
+  tools, caching, and the 2025-11-25 lifecycle). The *modern* revision `2026-07-28` is current and stateless: there is no
+  `initialize`; every request carries `_meta` with `io.modelcontextprotocol/protocolVersion` and
+  `io.modelcontextprotocol/clientCapabilities`; every result carries `resultType`; `server/discover` is mandatory; the lists
+  carry `ttlMs` and `cacheScope`; an unsupported version is error -32022. The *legacy* revisions (`2025-11-25` and earlier)
+  open with an `initialize` handshake. A modern client probes a stdio server with `server/discover` first and falls back to
+  `initialize` on any other error, so a dual-era server serves whichever way the client opens.
 - The owner's decisions for this feature (session MCP): the server lives in `juce/mcp`; the MIDI ports are launch
   parameters of the server's configuration; the tools speak the musician's vocabulary ("filter cutoff", "2-pole LP+",
   "amplitude envelope attack"); the JSON library is nlohmann/json. The scope is the editing of a program as a proof of
@@ -42,15 +47,27 @@ nlohmann/json (MIT, header-only) is fetched by CMake like JUCE and Catch2, from 
 version and hash (`FetchContent` with `URL` and `URL_HASH`); it is a third-party include, marked `SYSTEM`, so the strict
 warnings stay for project code only (RQ-BLD-003). [RQ-MCP-001, RQ-MCP-011]
 
-### DEC-MCP-002: Standard input and output transport; the revision is negotiated and pinned from the specification
+### DEC-MCP-002: Standard input and output transport; a dual-era server, modern and legacy, both read from the specification
 The only transport is `stdio`: the server reads one JSON-RPC message per line from standard input and writes one per line to
-standard output, flushing after each; every diagnostic goes to standard error. `initialize` is answered with the revision the
-client asks for when the server lists it, with the server's latest listed revision otherwise (the client then decides
-whether to continue); `notifications/initialized` and `ping` are accepted; `tools/list` and `tools/call` are the only other
-methods, anything else answers -32601. A parse error answers -32700 with a null id and the server keeps reading;
-a message that is valid JSON but not a request answers -32600. The list of revisions the server supports is a named constant
-set by `TASK-MCP-002` after reading the specification text of the revisions (not from memory). Requests are handled one at a
-time in arrival order (DEC-MCP-003). [RQ-MCP-001, RQ-MCP-009]
+standard output (compact, no embedded newline), flushing after each; every diagnostic goes to standard error. The server is
+**dual-era** and chooses the era from how the client opens:
+- **Modern** (`2026-07-28`): a request whose `params._meta` carries `io.modelcontextprotocol/protocolVersion` is served
+  statelessly, nothing being remembered from earlier requests. An unsupported version answers -32022 with
+  `data: {supported, requested}`; a missing `protocolVersion` or `clientCapabilities` answers -32602. Every result carries
+  `resultType: "complete"` and `_meta["io.modelcontextprotocol/serverInfo"]`. `server/discover` answers the supported
+  versions, the `tools` capability, `instructions` and the caching hints; `tools/list` carries `ttlMs` (a named constant,
+  short, since the list is fixed per build) and `cacheScope: "public"`; `ping` answers an empty complete result.
+- **Legacy** (`2025-11-25`, `2025-06-18`, `2025-03-26`, `2024-11-05`): an `initialize` request selects legacy semantics for
+  the process; it is answered with the client's `protocolVersion` when listed, with the latest legacy revision otherwise,
+  with the `tools` capability, `serverInfo` and `instructions`; `notifications/initialized` is accepted and `ping` answers
+  `{}`; results carry no `resultType`. Of the legacy revisions only `2025-11-25` was read in full: the three older ones are
+  listed because the messages this server uses (`initialize`, `tools/list`, `tools/call`) have the same shape in them, and
+  a client that asks for one confirms it.
+`tools/list` and `tools/call` are served in both eras with the same tool results (content text and `isError`); anything
+else answers -32601; a request with no `_meta` before any `initialize` answers -32602, the spec's answer to a request
+missing its required `_meta`. A notification gets no answer and an unknown one is ignored. A parse error answers -32700 with
+a null id and the server keeps reading; valid JSON that is not a request answers -32600. Requests are handled one at a time
+in arrival order (DEC-MCP-003). [RQ-MCP-001, RQ-MCP-009]
 
 ### DEC-MCP-003: One request at a time on the main thread, blocking on the session's completion through a deadline
 The protocol loop runs on the process's main thread and handles one request at a time. A tool that needs the sampler calls
@@ -130,6 +147,8 @@ sampler (`TASK-MCP-009`) records what the simulated sampler had wrong, as every 
 - **Easier.** Adding a parameter or a whole group is a row of the table; extending to another domain adds rows and, for a
   domain with another target (multis, samples), a gateway method and a tool or two. The same library can later serve another
   transport or an in-process caller. The tool list the model sees stays at six.
+- **Harder.** Two eras mean two result shapes (`resultType`, caching hints, `_meta`) in the protocol unit; the tools see
+  neither: a tool returns text and an error flag.
 - **Easier.** Everything but the executable's `main` is testable in `ctest` without hardware or a process.
 - **Harder.** One new third-party dependency (nlohmann/json) in every build, including the CI workflows; it is header-only
   and pinned, but it is fetched at configure time.

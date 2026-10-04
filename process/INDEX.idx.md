@@ -199,16 +199,16 @@ DEC-BLD-027|35-43||Live descriptions follow; provenance stays
 ADR-BLD-005|1-76|Accepted — owner decision ("les tests devraient être exécutés dans toutes les targets"); implemented by|Every Generated Workflow Runs the Test Suites
 DEC-BLD-028|24-36||The generator passes `run-tests: true` to `build-app` in every workflow
 @process/2.architecture/ADR-MCP-001-mcp-server-architecture.md
-ADR-MCP-001|1-225|Proposed — drafted in session MCP (2026-10-04) for FTR-MCP-001 (RQ-MCP-001 to RQ-MCP-012); to be reviewed and accepted by|MCP Server Architecture — Layers, Transport, Threading, Connection, Parameter Catalogue and Tools
-DEC-MCP-001|34-44||A library `xs56k_mcp` and an executable `xs56k_mcp_server` in `juce/mcp`, depending on `xs56k_akm` and nlohmann/json
-DEC-MCP-002|45-54||Standard input and output transport; the revision is negotiated and pinned from the specification
-DEC-MCP-003|55-66||One request at a time on the main thread, blocking on the session's completion through a deadline
-DEC-MCP-004|67-75||The connection is opened when first needed, retried when it failed, closed with the input
-DEC-MCP-005|76-89||The parameter catalogue is a table of musician-named rows, checked against the item catalogue
-DEC-MCP-006|90-102||Six tools, generic in the parameter but named in words; "all keygroups" by default; every Set is read back
-DEC-MCP-007|103-112||The server edits, it never creates, deletes, renames or saves
-DEC-MCP-008|113-119||Configuration is the launch arguments, nothing else
-DEC-MCP-009|120-127||Tested bottom-up on in-memory streams and the simulated sampler; the server also runs against the simulated sampler
+ADR-MCP-001|1-244|Accepted — drafted in session MCP (2026-10-04) for FTR-MCP-001 (RQ-MCP-001 to RQ-MCP-012) and accepted by the owner the|MCP Server Architecture — Layers, Transport, Threading, Connection, Parameter Catalogue and Tools
+DEC-MCP-001|39-49||A library `xs56k_mcp` and an executable `xs56k_mcp_server` in `juce/mcp`, depending on `xs56k_akm` and nlohmann/json
+DEC-MCP-002|50-71||Standard input and output transport; a dual-era server, modern and legacy, both read from the specification
+DEC-MCP-003|72-83||One request at a time on the main thread, blocking on the session's completion through a deadline
+DEC-MCP-004|84-92||The connection is opened when first needed, retried when it failed, closed with the input
+DEC-MCP-005|93-106||The parameter catalogue is a table of musician-named rows, checked against the item catalogue
+DEC-MCP-006|107-119||Six tools, generic in the parameter but named in words; "all keygroups" by default; every Set is read back
+DEC-MCP-007|120-129||The server edits, it never creates, deletes, renames or saves
+DEC-MCP-008|130-136||Configuration is the launch arguments, nothing else
+DEC-MCP-009|137-144||Tested bottom-up on in-memory streams and the simulated sampler; the server also runs against the simulated sampler
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
@@ -377,7 +377,7 @@ TASK-BLD-012|20-92|Done|Mutation check tool on isolated copies
 @process/3.plan/PLAN-MCP-001-program-editing-server.md
 PLAN-MCP-001|1-138||MCP Server for Program Editing (proof of concept)
 TASK-MCP-001|32-43|Done|Author FTR-MCP-001, ADR-MCP-001 and PLAN-MCP-001
-TASK-MCP-002|44-55|Not Started|Module skeleton, nlohmann/json and the protocol (JSON-RPC lines, initialize, ping, tools/list, tools/call dispatch)
+TASK-MCP-002|44-55|Done|Module skeleton, nlohmann/json and the protocol (JSON-RPC lines, initialize, ping, tools/list, tools/call dispatch)
 TASK-MCP-003|56-67|Not Started|Parameter catalogue, lot 1 (24 parameters), name and value resolution
 TASK-MCP-004|68-79|Not Started|Sampler gateway — blocking calls over a Session
 TASK-MCP-005|80-91|Not Started|The six tools
