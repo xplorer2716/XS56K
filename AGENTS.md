@@ -123,9 +123,12 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   skips it. Each value is also put back when a check fails half way, which the second check provokes on purpose with
   MULTI SELECT. It changes your stored MIDI setup for a moment: a filter that ignores NoteOn silences that channel while
   it lasts. The values you declare are not verified, and a wrong declaration is put back as given (the log records it).
-  Observed so far (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`): `&01` is obeyed; `&02` answered DONE but
-  was not seen on the screen with PROGRAM CHANGE off, whether because of that is not settled. `&03` to `&07`, and whether
-  the channel code of `&06`/`&07` carries the port ("Port A & B", FTR-AKM-009 open points), are not yet observed.
+  The check switches Auto screen update on for its session (§00/&05; put back off at the close, left alone with `--no-lcd`)
+  and, after a "no", asks you to leave the page, open it again and look once more: a screen that is not redrawn by itself
+  looks like an item the sampler ignored. Observed so far (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`):
+  the sampler answers DONE to every §04 item; `&01` and `&07` were seen on the screen, `&02` to `&05` were not, with
+  Auto screen update off and no second look, so whether they are ignored or only not redrawn is not settled. `&06` and
+  whether the channel code of `&06`/`&07` carries the port ("Port A & B", FTR-AKM-009 open points) are not yet observed.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

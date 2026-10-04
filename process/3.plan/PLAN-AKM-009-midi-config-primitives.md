@@ -225,3 +225,36 @@ This plan implements the tasks in the format specified below.
   stacked its changes), not a failing test forced to pass. The final confirmation (the original screens are back) is
   noted like the others and listed with them. Whether MULTI SELECT depends on PROGRAM CHANGE is not decided here:
   the owner's hypothesis is recorded as such, to be settled by the next run.
+
+---
+
+### TASK-AKM-082: Make the screen redraw, and look again, in the MIDI configuration check
+- **Tier**: M
+- **Status**: Done
+- **Description**: The second real-sampler run (`OBSERVATIONS-RQ-AKM-080-midi-config.md`) saw only `&01` and `&07` on the
+  screen. §00/&05 (automatic screen updating when a SysEx message is processed) was off, so a page that is not redrawn
+  cannot be told from an item the sampler ignores. Open the MIDI checks' session with Auto screen update on (put back off
+  by the close; left alone under `--no-lcd`), and after a "no" ask the owner to leave the page, open it again and look
+  once more.
+- **Requirement refs**: RQ-AKM-080
+- **ADR refs**: ADR-AKM-001 (DEC-AKM-007 for the session's settings, DEC-AKM-008 precedent for the suite's seams)
+- **Acceptance Criteria** (Gherkin): *Given* a scripted owner, *When* the check runs, *Then* Auto screen update is on at
+  every look and off again afterwards; under `--no-lcd` it is never switched. *Given* an owner who sees nothing at the
+  first look but sees the change after opening the page again, *When* the check runs, *Then* the checks pass and the log
+  says the screen did not redraw by itself. *Given* an owner who still sees nothing, *When* the check runs, *Then* the
+  setting is named as not seen after re-opening the page.
+- **Dependencies**: TASK-AKM-081
+- **Assignee**: AI, with the owner's third real-sampler run
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 617/617 after a re-run in
+  this session (615 before, 2 new). In `RealSamplerSuiteTests.cpp`: the main case now also checks that Auto screen update
+  was on at every look and is off after the run; a new case (first look "no", look after re-opening "yes") passes both
+  checks, leaves the seeded state and logs "the screen showed it only after the page was opened again"; a new case with
+  `touchLcdSettings = false` sees Auto screen update off at every look; the "no" case now also expects "still so after
+  opening the page again" in the detail. The facts of the second run are in
+  `OBSERVATIONS-RQ-AKM-080-midi-config.md`. Not verified: the third run on the real sampler, which only the owner can
+  make; nothing here sent a frame to hardware.
+- **Assumptions**: The final "the pages show the declared values again" question gets the same second look. The second
+  check (the failure on purpose) uses the same non-throwing question and fails at its end if it is not seen. Whether the
+  S5000 redraws its MIDI SETUP page on a SysEx message once §00/&05 is on is exactly what the next run shows; the
+  suite's probe still asks the owner to confirm, it assumes nothing.
+

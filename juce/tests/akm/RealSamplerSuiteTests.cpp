@@ -1480,6 +1480,10 @@ namespace
     struct ScriptedOwner
     {
         std::size_t seen = CHOICE_YES;
+        // What the owner sees after leaving the page and opening it again, when the first look said no.
+        std::size_t seenAfterReopening = CHOICE_NO;
+        // Whether Auto screen update was on at each look, one entry per "NOW LOOK" question.
+        std::vector<bool> autoScreenUpdateAtLook;
         std::size_t eventsAtFirstAsk = std::numeric_limits<std::size_t>::max();
         std::vector<std::string> questions;
     };
@@ -1502,13 +1506,18 @@ namespace
             owner.questions.push_back(question);
             return OWNER_EXTERNAL_APM;
         };
-        options.askOwnerChoice = [&owner, noteFirstAsk](const std::string& question,
-                                                        const std::vector<std::string>&) -> std::optional<std::size_t> {
+        options.askOwnerChoice = [&owner, &sampler, noteFirstAsk](const std::string& question,
+                                                                  const std::vector<std::string>&) -> std::optional<std::size_t> {
             noteFirstAsk();
             owner.questions.push_back(question);
             const auto asks = [&question](const char* part) { return question.find(part) != std::string::npos; };
+            if (asks("LOOK AGAIN AT THE SAMPLER"))
+                return owner.seenAfterReopening;
             if (asks("NOW LOOK AT THE SAMPLER"))
+            {
+                owner.autoScreenUpdateAtLook.push_back(sampler.settings().autoScreenUpdate);
                 return owner.seen;
+            }
             if (asks("PROGRAM CHANGE"))
                 return CHOICE_PROGRAM_CHANGE_OFF;
             if (asks("MULTI SLCT CH"))
@@ -1589,6 +1598,11 @@ TEST_CASE("Given an owner who declares the sampler's real MIDI setup, When the s
     const std::vector<MidiConfigEvent> sent(after.events.begin() + static_cast<std::ptrdiff_t>(seedEvents), after.events.end());
     CHECK(sent == expected);
     CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with MULTI SELECT changed"));
+    // The sampler redraws its pages itself while the owner looks (Auto screen update on, §00/&05); the closing puts it back off.
+    REQUIRE(!owner.autoScreenUpdateAtLook.empty());
+    for (const bool on : owner.autoScreenUpdateAtLook)
+        CHECK(on);
+    CHECK_FALSE(rig.sampler.settings().autoScreenUpdate);
 }
 
 TEST_CASE("Given an owner who declines to declare the sampler's MIDI setup, When the suite runs with the MIDI config checks, Then both checks are skipped and no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
@@ -1648,6 +1662,7 @@ TEST_CASE("Given an owner who sees that the sampler did not change, When the sui
     CHECK(rig.sampler.midiConfig().events.size() == seedEvents + ITEMS_SENT);
     CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("MULTI SELECT"));
     CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("MIDI FILTER"));
+    CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("still so after opening the page again"));
 }
 
 TEST_CASE("Given the default options, When the suite runs, Then no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
@@ -1661,4 +1676,42 @@ TEST_CASE("Given the default options, When the suite runs, Then no section 04 it
 
     REQUIRE(result.checks.size() == AUTOMATIC_CHECKS);
     CHECK(rig.sampler.midiConfig().events.empty());
+}
+
+TEST_CASE("Given a screen that shows the change only after the page is opened again, When the suite runs with the MIDI config checks, Then the checks pass and say that the screen did not redraw by itself [TASK-AKM-082, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    ScriptedOwner owner;
+    owner.seen = CHOICE_NO;
+    owner.seenAfterReopening = CHOICE_YES;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    checkAllPassed(result);
+    checkSeededState(rig.sampler.midiConfig());
+    CHECK_THAT(log.str(), ContainsSubstring("the screen showed it only after the page was opened again"));
+}
+
+TEST_CASE("Given a run that must leave the LCD settings alone, When the suite runs with the MIDI config checks, Then Auto screen update is never switched [TASK-AKM-082, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    options.touchLcdSettings = false;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    checkAllPassed(result);
+    REQUIRE(!owner.autoScreenUpdateAtLook.empty());
+    for (const bool on : owner.autoScreenUpdateAtLook)
+        CHECK_FALSE(on);
 }

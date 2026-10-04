@@ -3047,15 +3047,6 @@ namespace akm::harness
                 }
             }
 
-            // The owner looks at the sampler's screen and says whether it shows what the check just did. A "no" fails the
-            // check, the guards putting back what was changed; declined, the check is skipped. [RQ-AKM-080]
-            void ownerSees(const std::string& what)
-            {
-                const std::size_t answer =
-                    ownerChooses("NOW LOOK AT THE SAMPLER: " + what + ". Does it?", {"Yes", "No, it shows something else"});
-                expect(answer == 0, "the owner sees on the sampler: " + what);
-            }
-
             // One setting, on its own: how to undo the change is registered, the change is sent, the owner says whether the
             // screen shows it, and the guard puts the setting back before the next one is touched — so that no setting is
             // tested while another is still changed (a setting may depend on another one: found on the real S5000 with
@@ -3071,6 +3062,18 @@ namespace akm::harness
                 ownerSeesOrNotes(setting + " now shows " + newText, notSeen);
             }
 
+            // The session of the MIDI checks: Auto screen update on (§00/&05, "automatic screen updating when a SysEx message
+            // is processed"), so that the sampler redraws its MIDI SETUP and MIDI FILTER pages when a §04 item changes
+            // them; the closing puts it back off. Without it the first real run saw only two of the seven items on the
+            // screen. A run that must leave the LCD settings alone (--no-lcd) leaves this one too. [RQ-AKM-080]
+            [[nodiscard]] SessionConfig midiConfigSessionConfig() const
+            {
+                SessionConfig config = baseConfig();
+                if (_rig.options.touchLcdSettings)
+                    config.autoScreenUpdate = SettingChoice::On;
+                return config;
+            }
+
             // The owner looks at the screen: a "no" is noted in `notSeen`, not thrown, so that the other settings are still
             // tried and the report names every one that was not seen. [RQ-AKM-080]
             void ownerSeesOrNotes(const std::string& what, std::vector<std::string>& notSeen)
@@ -3080,11 +3083,22 @@ namespace akm::harness
                 const std::vector<std::string> choices{"Yes", "No, nothing changed on the screen", "No, the screen shows another value"};
                 const std::size_t answer = ownerChooses("NOW LOOK AT THE SAMPLER: " + what + ". Does it?", choices);
                 if (answer == 0)
+                {
                     _rig.log.note("  as expected: the owner sees on the sampler: " + what);
+                    return;
+                }
+                // A screen that is not redrawn by itself looks like a command that was ignored: the owner leaves the page and
+                // opens it again, which redraws it from the sampler's own values, and looks once more.
+                const std::size_t again = ownerChooses(
+                    "LOOK AGAIN AT THE SAMPLER: press EXIT, open the page again (the screen may not redraw by itself), then look: " + what
+                        + ". Does it now?",
+                    {"Yes, after opening the page again", "No, still not"});
+                if (again == 0)
+                    finding("the screen showed it only after the page was opened again (not redrawn by itself): " + what);
                 else
                 {
-                    _rig.log.note("  NOT MET: the owner sees on the sampler: " + what + " (" + choices[answer] + ")");
-                    notSeen.push_back(what + " (" + choices[answer] + ")");
+                    _rig.log.note("  NOT MET: the owner sees on the sampler: " + what + " (" + choices[answer] + ", and still so after opening the page again)");
+                    notSeen.push_back(what + " (" + choices[answer] + ", still so after opening the page again)");
                 }
             }
 
@@ -3096,7 +3110,7 @@ namespace akm::harness
             {
                 const MidiConfigDeclaration declared = midiConfigDeclaration();
                 GuardedSession guarded(_rig);
-                guarded.open(baseConfig());
+                guarded.open(midiConfigSessionConfig());
                 std::vector<std::string> notSeen;
                 {
                     const bool newProgramChange = !declared.programChangeEnabled;
@@ -3177,7 +3191,7 @@ namespace akm::harness
             {
                 const MidiConfigDeclaration declared = midiConfigDeclaration();
                 GuardedSession guarded(_rig);
-                guarded.open(baseConfig());
+                guarded.open(midiConfigSessionConfig());
 
                 bool cleanedUp = false;
                 try
@@ -3202,8 +3216,11 @@ namespace akm::harness
                     _rig.log.note(std::string("  the check failed: ") + failure.what());
                 }
                 expect(cleanedUp, "the guard's destructor ran when the check failed");
-                ownerSees("MIDI SETUP, MULTI SELECT shows " + multiSelectName(declared.multiSelect) + " again");
+                std::vector<std::string> notSeen;
+                ownerSeesOrNotes("MIDI SETUP, MULTI SELECT shows " + multiSelectName(declared.multiSelect) + " again", notSeen);
                 closeAndVerify(guarded);
+                if (!notSeen.empty())
+                    throw CheckFailure("not met: the owner did not see on the sampler: " + notSeen.front());
             }
 
             // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory
