@@ -394,6 +394,29 @@ namespace akm::harness
         std::uint32_t rate = 0;
     };
 
+    /// One multi in the sampler's memory (§0C, spec Tables 16-17): what the lot's primitives set or read. A multi
+    /// has 32, 64 or 128 parts, each with a program assigned by name (empty: none), a program number that is on
+    /// or off, and the part parameters of RQ-AKM-089 keyed by (the Set item code, the part number) like
+    /// `ProgramRecord::parameters`. [RQ-AKM-087]
+    struct MultiRecord
+    {
+        std::string name;
+        int partCount = 32;
+        bool programNumberOn = false;
+        std::uint8_t programNumber = 0;
+        std::vector<std::string> partPrograms;
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
+    };
+
+    /// The sampler's multis: the list in memory order, the current one, and the code (0, 1, 2) §0C/&01 gave for
+    /// the number of parts of the multis created from now on (32, 64, 128). [RQ-AKM-087]
+    struct MultiState
+    {
+        std::vector<MultiRecord> multis;
+        std::optional<std::size_t> current;
+        std::uint8_t newPartCountCode = 0;
+    };
+
     /// The sampler's MIDI song files (§16, spec Tables 28-29): names only, in memory order, with the current
     /// selection the way §0E keeps its own. Like a sample, a song file cannot be created through §16, so
     /// `setSongNames` is the only way to give the model one. [RQ-AKM-082]
@@ -454,13 +477,21 @@ namespace akm::harness
         /// The names of the set lists the sampler holds now, in memory order (RQ-AKM-084).
         [[nodiscard]] std::vector<std::string> setListNames() const;
 
-        /// Seeds the sampler's multis (§0C) by name. No §0C item is modelled — the section is not implemented —
-        /// so a multi can neither be read nor changed but through here; it exists so that Clear Sampler Memory
-        /// (§02/&32, RQ-AKM-056), which deletes "all programs/multis/samples", has all three to delete.
+        /// Seeds the sampler's multis (§0C) by name, 32 parts each, current selection reset. Also what Clear Sampler
+        /// Memory (§02/&32, RQ-AKM-056), which deletes "all programs/multis/samples", has to delete.
         void setMultiNames(std::vector<std::string> names);
 
         /// How many multis the sampler holds (RQ-AKM-056).
         [[nodiscard]] std::size_t multiCount() const;
+
+        /// The names of the multis the sampler holds now, in memory order (RQ-AKM-087).
+        [[nodiscard]] std::vector<std::string> multiNames() const;
+
+        /// The number of parts of the multi at `index`, or nothing when there is none (RQ-AKM-087).
+        [[nodiscard]] std::optional<int> multiPartCount(std::size_t index) const;
+
+        /// The current multi's index, or nothing when none is current (RQ-AKM-087).
+        [[nodiscard]] std::optional<std::size_t> currentMulti() const;
 
         /// Seeds the read-only attributes of the sample at `index` (§0E/&30-&33, RQ-AKM-049) — no Set
         /// item exists for them, so a test sets them directly, like `setSampleNames` itself. A no-op
@@ -552,9 +583,9 @@ namespace akm::harness
         std::optional<std::size_t> _currentSample;
         // §16 MIDI song files (RQ-AKM-082), seeded by `setSongNames`: not touched by powerCycle().
         SongState _songs;
-        // §0C multis (RQ-AKM-056): names only, seeded by `setMultiNames` and emptied by §02/&32; not touched by
-        // powerCycle().
-        std::vector<std::string> _multis;
+        // §0C multis (RQ-AKM-056, RQ-AKM-087): seeded by `setMultiNames` or created through §0C, emptied by
+        // §02/&32; not touched by powerCycle().
+        MultiState _multis;
         // §10 disks (RQ-AKM-060), seeded by `setDisks`: not touched by powerCycle() or by &01.
         std::vector<DiskRecord> _disks;
         // §10 current disk selection (RQ-AKM-061, &02): an index into `_disks`, reset whenever `setDisks`

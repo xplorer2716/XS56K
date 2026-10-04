@@ -47,7 +47,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-089: Multi creation, selection, deletion and the current multi's name and index
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue and implement `&01`, `&02`, `&05`, `&06`, `&08` and, to verify them, `&42` and `&43` as
   primitives in `MultiPrimitives`; move the simulated sampler's multis to records (`setMultiNames` unchanged for its
   callers, §0C items modelled).
@@ -56,8 +56,22 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-087.
 - **Dependencies**: TASK-AKM-088
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 645/645 passed
+  after a full re-run in this session (636 before, 9 new in `MultiPrimitivesTests.cpp`, written before the code,
+  `ctest -R RQ-AKM-087` 9/9): create `MIX1` (frame `4D 49 58 31 00`) makes it current, index 1 after a seeded `OLD`,
+  count 2; `&01` carries `01` for 64 parts and the multis created after it have 32, 64 and 128 parts (the default 32
+  before any `&01`); an unknown name or an index past the end fails ERROR 04; a duplicate name fails ERROR 05 and adds
+  nothing; selection by name and by index (frame `00 02`) is followed by `&42`/`&43`; deleting the current multi leaves
+  the others in order with none current; delete, `&42` and `&43` fail ERROR 04 with none current; an index of 16384 is
+  refused `ArgumentOutOfRange` and a non-ASCII name `NotEncodable`, nothing sent; the name Get is refused
+  `ChecksumModeUnknown`. `generate_akm_items.py --check`: up to date (325 items); `--coverage`: `unaccounted: none`.
+  Clear Sampler Memory tests (`RQ-AKM-056`) still pass on the multi records. `ItemCatalogueTests.cpp`'s count formula
+  extended by the 7 records. Not verified: the real sampler (TASK-AKM-094).
+- **Assumptions**: The simulated sampler answers ERROR 05 for a duplicate multi name (as for a program) and ERROR 04
+  for a name, an index or a "current" item with no multi (as §0A and §0E do): modelling choices, the spec being silent.
+  `MultiPartCount` is an enumerator rather than a bare 0-2 so that an out-of-range code cannot be built. Section `0C`
+  was added to `items.json` with `complete: false` until TASK-AKM-095. `setMultiNames` keeps its signature; its
+  multis now have 32 parts.
 
 ---
 

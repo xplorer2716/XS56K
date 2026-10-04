@@ -288,15 +288,15 @@ TASK-AKM-085|73-100|Done|Set lists
 TASK-AKM-086|101-135|Done|Real-sampler check of the song files and set lists
 TASK-AKM-087|136-159|Done|Coverage of section §16
 @process/3.plan/PLAN-AKM-011-multi-primitives.md
-PLAN-AKM-011|1-153||Multi Primitives (Phase A, new lot, §0C)
+PLAN-AKM-011|1-167||Multi Primitives (Phase A, new lot, §0C)
 TASK-AKM-088|34-47|Done|Author FTR-AKM-011 and PLAN-AKM-011
-TASK-AKM-089|48-63|Not Started|Multi creation, selection, deletion and the current multi's name and index
-TASK-AKM-090|64-78|Not Started|Destructive command guard for "Delete ALL Multis"
-TASK-AKM-091|79-93|Not Started|Multi part parameters (Set and Get)
-TASK-AKM-092|94-108|Not Started|General information about the current multi and about all the multis
-TASK-AKM-093|109-123|Not Started|Multi renaming, program number and part assignment
-TASK-AKM-094|124-140|Not Started|Real-sampler check on a dedicated test multi
-TASK-AKM-095|141-153|Not Started|Coverage of section §0C
+TASK-AKM-089|48-77|Done|Multi creation, selection, deletion and the current multi's name and index
+TASK-AKM-090|78-92|Not Started|Destructive command guard for "Delete ALL Multis"
+TASK-AKM-091|93-107|Not Started|Multi part parameters (Set and Get)
+TASK-AKM-092|108-122|Not Started|General information about the current multi and about all the multis
+TASK-AKM-093|123-137|Not Started|Multi renaming, program number and part assignment
+TASK-AKM-094|138-154|Not Started|Real-sampler check on a dedicated test multi
+TASK-AKM-095|155-167|Not Started|Coverage of section §0C
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

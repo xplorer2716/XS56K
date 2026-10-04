@@ -70,6 +70,13 @@
       "complete": true,
       "spec": "Tables 28 and 29, p. 40",
       "note": "FTR-AKM-010 (PLAN-AKM-010), 12 command rows and 6 REPLY formats. Song file selection, renaming, deletion and general information (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084: &05, &06, &08, &09, &10, &11, &13, &14) are catalogued first, the same shape as section 0E's lifecycle: a sampler-wide current song file, an index carried as two Byte values (MSB, LSB) and a name as a String. The four set list items (RQ-AKM-084, TASK-AKM-085: &20, &21, &22, &23) have no current selection: each takes its index, and &23 (Rename) carries the index then a String, a shape built by hand like §10's &2A. `complete` was set by TASK-AKM-087 after `--coverage` reported 12 of 12 spec rows covered with no unaccounted item; the section has no erratum beyond the two cosmetic ones of the kb (Table 29's title, Table 28's sub-group header)."
+    },
+    {
+      "section": "0C",
+      "name": "Multi",
+      "complete": false,
+      "spec": "Tables 16 and 17, pp. 26-28",
+      "note": "FTR-AKM-011 (PLAN-AKM-011), 49 command rows and 11 REPLY formats. Multi creation, selection and deletion (RQ-AKM-087, TASK-AKM-089: &01, &02, &05, &06, &08, plus &42 and &43 pulled in early, as TASK-AKM-015 did for Program's &10/&13) are catalogued first: the same shape as section 0A's lifecycle, a sampler-wide current multi, an index carried as two Byte values (MSB, LSB) and a name as a String."
     }
   ],
   "items": [
@@ -2187,6 +2194,57 @@
         {"name": "name", "format": "string", "min": 0, "max": 255}
       ],
       "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "MultiSetPartCount", "section": "0C", "item": "01", "name": "Set the number of parts for new multis", "kind": "set",
+      "args": [
+        {"name": "partCountCode", "format": "byte", "min": 0, "max": 2}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiCreate", "section": "0C", "item": "02", "name": "Create Multi", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiSelectByName", "section": "0C", "item": "05", "name": "Select Multi by name", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiSelectByIndex", "section": "0C", "item": "06", "name": "Select Multi by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiDeleteCurrent", "section": "0C", "item": "08", "name": "Delete the currently selected Multi", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiGetCurrentIndex", "section": "0C", "item": "42", "name": "Get Current Multi Index", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-087", "RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetCurrentName", "section": "0C", "item": "43", "name": "Get Current Multi Name", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-087", "RQ-AKM-091"]
     }
   ]
 }
