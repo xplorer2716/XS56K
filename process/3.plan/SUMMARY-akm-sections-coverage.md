@@ -21,11 +21,11 @@
 | §0E | Sample tools | 53 | 100 % | `████████████████████` |
 | §10 | Disk tools | 51 | 100 % | `████████████████████` |
 | §12 | Multi FX | 18 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
-| §14 | Scenelist | 12 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
+| §14 | Scenelist | 12 | 100 % | `████████████████████` |
 | §16 | MIDI song files | 18 | 100 % | `████████████████████` |
 | §20 | Front panel | 4 | 100 % | `████████████████████` |
 
-530 of 560 spec lines covered overall (95 %); every implemented section's commands are fully catalogued
+542 of 560 spec lines covered overall (97 %); every implemented section's commands are fully catalogued
 (no section is partially done right now — §02 was the last partial one before §10, closed by
 `TASK-AKM-053`/`TASK-AKM-055`). Coverage confirmed by `generate_akm_items.py --coverage`
 (`unaccounted: none`) for §00/§02/§06/§08/§0A/§0E/§10 — §10's own `35 of 35 spec rows covered` reached by
@@ -73,7 +73,14 @@ the five Sets of general information and the ten Gets, no erratum. The real S500
 2026-10-04 (nine checks of nine, third run; `process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`): every item the check
 sends was obeyed and read back, and two behaviours the spec leaves open were found and are now in the code — setting a
 part's solo clears its mute, and the program number's "off" needs its number byte (`00 00`). Not run on hardware: `&01`
-and `&07`, by design. Sections still at 0 %: §12 Multi FX (18 lines), §14 Scenelist (12).
+and `&07`, by design.
+
+§14's own `complete` flag was flipped to `true` by `TASK-AKM-099` (`PLAN-AKM-012`, 2026-10-04), which re-ran `--coverage`
+(8/8, no unaccounted item): eight command rows (the same shape as the song file half of §16) and four REPLY rows, no
+erratum. The real S5000 (OS 2.14) supports the section but held no scenelist: `--scenelists` read the count (0) and saw
+ERROR 4 for every item naming something, nothing more (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`).
+Renaming, selection and the REPLYs of the Gets for a scenelist that exists have not been run on a real sampler yet.
+Section still at 0 %: §12 Multi FX (18 lines).
 
 ### §10 on the real S5000 (2026-10-03)
 

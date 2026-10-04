@@ -74,9 +74,9 @@
     {
       "section": "14",
       "name": "Scenelist",
-      "complete": false,
+      "complete": true,
       "spec": "Tables 26 and 27, p. 39",
-      "note": "FTR-AKM-012 (PLAN-AKM-012), 8 command rows and 4 REPLY formats. Scenelist selection, renaming, deletion and general information (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097: &05, &06, &08, &09, &10, &11, &13, &14) have the shape of the song file half of section 16: a sampler-wide current scenelist, an index carried as two Byte values (MSB, LSB) and a name as a String. `complete` is set by TASK-AKM-099."
+      "note": "FTR-AKM-012 (PLAN-AKM-012), 8 command rows and 4 REPLY formats. Scenelist selection, renaming, deletion and general information (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097: &05, &06, &08, &09, &10, &11, &13, &14) have the shape of the song file half of section 16: a sampler-wide current scenelist, an index carried as two Byte values (MSB, LSB) and a name as a String. `complete` was set by TASK-AKM-099 after `--coverage` reported 8 of 8 spec rows covered with no unaccounted item; the section has no erratum. The real S5000 (OS 2.14) supports the section but held no scenelist: only the empty-memory answers are observed (TASK-AKM-098)."
     },
     {
       "section": "0C",

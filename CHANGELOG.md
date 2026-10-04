@@ -27,6 +27,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transpose, low and high note), the program number, a part's program by index or by name, and every Get of general
   information; "Delete ALL Multis" needs an explicit confirmation. `xs56k_akm_probe --suite --multi-lifecycle` round-trips all
   of it on a test multi and a test program it creates and deletes again.
+- AKM: scenelist primitives (SysEx section 14): select a scenelist by name or by index, rename or delete the current one,
+  count the scenelists and read their names, the current one's index and name. `xs56k_akm_probe --suite --scenelists`
+  reads what the sampler holds, renames the first scenelist and puts the name and the selection back; it never deletes
+  anything.
 
 <!--
 Sections to use under each version (only those that apply):

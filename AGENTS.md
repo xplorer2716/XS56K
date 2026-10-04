@@ -148,6 +148,12 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   and is skipped (after logging what an empty memory answers) when there is none. Observed once on an S5000 (OS 2.14)
   that held none: both counts 0, ERROR 4 for every item naming something
   (`process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`); run it again once a MIDI song file is loaded.
+  `--scenelists` adds the same two checks on the sampler's scenelists (section 14, RQ-AKM-097): it reads the number of
+  scenelists and every name (16 at most), selects each by index and by name, renames the first and reads the new name
+  back, then puts the name and the selection back, even when a check fails half way. Section 14 cannot create a scenelist,
+  so it works on what the sampler holds, never deletes, and is skipped when there is none. Observed once on an S5000
+  (OS 2.14) that held none: the section is supported, the count is 0, ERROR 4 for every item naming something
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`); run it again once a scenelist is loaded.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

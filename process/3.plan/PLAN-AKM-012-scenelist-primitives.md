@@ -107,7 +107,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-099: Coverage of section §14
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `14`, list any exclusion with its reason,
   flip the section's `complete` flag in `items.json`, and update `SUMMARY-akm-sections-coverage.md`, `AGENTS.md`
   (the new probe option) and `CHANGELOG.md`.
@@ -116,5 +116,13 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-098.
 - **Dependencies**: TASK-AKM-097, TASK-AKM-098
 - **Assignee**: AI
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: `generate_akm_items.py --coverage` re-run this session after the flag flip: `section 14: 8 of 8
+  spec rows covered (Scenelist, complete)`, `unaccounted: none` — no row excluded, nothing left to give a reason for;
+  `--check`: up to date (373 items); full `ctest` after the flip: 687/687 passed. `items.json`'s section-14 `complete`
+  flipped `false` → `true`, its note closed out. No erratum: the spec's section 14 text and tables agree (the two
+  cosmetic errata of `sysex_spec.kb.md` lines 192-193 are in section 16). `SUMMARY-akm-sections-coverage.md`: §14's bar
+  to 100 %, the total to 542/560 (97 %) and a note of what the real sampler did and did not show; `AGENTS.md`:
+  `--scenelists` documented; `CHANGELOG.md`: one `[Unreleased]` entry.
+- **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §16 before
+  it, not on a real-sampler run that exercised everything: the sampler held no scenelist (see TASK-AKM-098). The
+  spec's twelve rows are 8 commands and 4 REPLYs; `--coverage` counts the 8 command rows.
