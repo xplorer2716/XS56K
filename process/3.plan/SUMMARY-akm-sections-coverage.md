@@ -42,9 +42,9 @@ needed none beyond confirming `TASK-AKM-053`'s own resolution.
 
 §20's own `complete` flag was flipped to `true` by `TASK-AKM-074` (`PLAN-AKM-008`, 2026-10-03), which re-ran
 `--coverage` (4/4, no unaccounted item): four command rows, no REPLY row, no erratum (Table 31 lists 43 of the 44
-keycodes of `&40`-`&6B`, `&66` unlisted, which the primitives refuse). §20 has not been run on a real sampler yet:
-the owner-driven `--front-panel` check is the way to do it, and the owner's own eyes are the read-back, the section
-having no Get.
+keycodes of `&40`-`&6B`, `&66` unlisted, which the primitives refuse). §20 was run on the owner's real sampler with
+the owner-driven `--front-panel` check, and the owner judged the run good (reported 2026-10-04; no log or per-key
+observation kept). The owner's own eyes are the read-back, the section having no Get.
 
 §04's own `complete` flag was flipped to `true` by `TASK-AKM-080` (`PLAN-AKM-009`, 2026-10-04), which re-ran `--coverage`
 (7/7, no unaccounted item): seven command rows, no REPLY row, no erratum. §04 has not been run on a real sampler yet.
