@@ -84,7 +84,8 @@ catch_discover_tests(xs56k_akm_tests)
 # The MCP server's library: its units are tested without a sampler and without a process, and its public headers
 # hold no JUCE include. [RQ-MCP-011, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
 add_executable(xs56k_mcp_tests
-    mcp/McpServerTests.cpp)
+    mcp/McpServerTests.cpp
+    mcp/ParameterCatalogueTests.cpp)
 target_link_libraries(xs56k_mcp_tests PRIVATE
     xs56k_mcp
     Catch2::Catch2WithMain

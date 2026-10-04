@@ -55,15 +55,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-003: Parameter catalogue, lot 1 (24 parameters), name and value resolution
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Deliver the table of musician-named parameters for the filter (type, cutoff, resonance, keyboard tracking, attenuation), the amplitude envelope (attack, decay, sustain, release), the filter envelope (attack, decay, sustain, release, depth) and the LFOs 1 and 2 (rate, delay, depth, waveform, and sync for LFO 1 or re-trigger for LFO 2), with their value kinds, labels, ranges and aliases; the tolerant resolution of a name and of a choice label or code; the conversion of a signed value to and from the sign and magnitude pair; and the suggestions for an unknown name.
 - **Requirement refs**: RQ-MCP-004, RQ-MCP-005, RQ-MCP-006, RQ-MCP-011
 - **ADR refs**: ADR-MCP-001 (DEC-MCP-005)
 - **Acceptance Criteria** (Gherkin): *Given* the catalogue, *When* every row is compared with `descriptor(ItemId)`, *Then* its Set and Get items exist, take the arguments the row gives, and its range equals the item's. *Given* "Filter-Cutoff", "filter cutoff" and the alias "cutoff", *When* resolved, *Then* each is the same parameter. *Given* "filter cutof", *When* resolved, *Then* it is refused and "filter cutoff" is proposed. *Given* the label "2-pole lp+" and the code 2, *When* resolved for "filter type", *Then* both give code 2, and the code 26 is refused. *Given* -40 for a signed value, *When* converted, *Then* the sign is 1 and the magnitude 40, and back. *Given* the lot 1 catalogue, *When* counted, *Then* it holds 24 parameters.
 - **Dependencies**: TASK-MCP-001
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: (to be filled at closure)
+- **Verification**: `xs56k_mcp_tests` 33 cases / 670 assertions pass, among them the 14 of the catalogue: 24 parameters in five groups (5, 4, 5, 5, 5); every row compared with `akm::descriptor` (Set and Get kinds, same section, argument and reply counts, leading arguments inside the item's ranges, the value range equal to the item's, labels count = max + 1, signed range = ±magnitude max); no two names or aliases normalise alike and no two labels of a parameter; `Filter-Cutoff` / `cutoff` / `filter frequency` resolve to one parameter; `filter cutof` proposes `filter cutoff`, a far name proposes nothing; filter type 26 labels, `2-pole lp+` / `2 POLE LP plus` / code 2 give 2 and `2-pole lp` gives 0, code 26 refused listing the choices; `square` / `SQUARE +` / `square minus` give 2 / 3 / 4; -40 converts to sign 1 magnitude 40 and back, sign 1 magnitude 0 reads 0; 101, -1, 80.5, `eighty` refused naming 0 to 100; attenuation 12 is code 2 and 7 is refused naming 0, 6, 12, 18, 24 or 30; switches take on/off/true/no/1/0; group lookup incl. `lfo` giving both LFOs. Build warning-clean at /W4 /WX.
+- **Assumptions**: The label spellings are the user manual's (EDIT PROGRAM: NOTCH 1, WIDE NOTCH, PHASER 1, SQUARE +) over the spec's (WIDENOTCH, SQUARE+), the code order being the spec's. The filter attenuation is catalogued as a Number in dB with a step of 6 (not a choice) so that a person saying 12 means 12 dB, not code 12. Keyboard tracking is not given a unit: the spec gives none. Descriptions of the envelope stages and the LFO are generic wording, not taken from a source that states the units (the sampler's 0-100 is not claimed to be seconds). Tests were written before the code and not run red (the headers did not exist: the first build was the red step).
 
 ### TASK-MCP-004: Sampler gateway — blocking calls over a Session
 - **Tier**: M

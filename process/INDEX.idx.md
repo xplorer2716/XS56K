@@ -378,7 +378,7 @@ TASK-BLD-012|20-92|Done|Mutation check tool on isolated copies
 PLAN-MCP-001|1-138||MCP Server for Program Editing (proof of concept)
 TASK-MCP-001|32-43|Done|Author FTR-MCP-001, ADR-MCP-001 and PLAN-MCP-001
 TASK-MCP-002|44-55|Done|Module skeleton, nlohmann/json and the protocol (JSON-RPC lines, initialize, ping, tools/list, tools/call dispatch)
-TASK-MCP-003|56-67|Not Started|Parameter catalogue, lot 1 (24 parameters), name and value resolution
+TASK-MCP-003|56-67|Done|Parameter catalogue, lot 1 (24 parameters), name and value resolution
 TASK-MCP-004|68-79|Not Started|Sampler gateway — blocking calls over a Session
 TASK-MCP-005|80-91|Not Started|The six tools
 TASK-MCP-006|92-103|Not Started|The executable `xs56k_mcp_server` — arguments, real ports, loop, shutdown
