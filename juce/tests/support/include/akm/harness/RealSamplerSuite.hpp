@@ -106,6 +106,14 @@ namespace akm::harness
         /// at the end, and by the session's close if the check fails. Off by default: the keys act on whatever the sampler
         /// shows, which only the owner can judge. Needs `askOwner` and `readOwnerKey`, and is skipped without either.
         bool frontPanel = false;
+        /// The owner-guided checks of the MIDI configuration (§04, RQ-AKM-080): section 04 has no Get, so the owner declares
+        /// what the sampler's MIDI SETUP and MIDI FILTER pages show (`askOwnerChoice`, `askOwnerNumber`) before anything is
+        /// sent; the suite then changes each of the settings (program change, multi select, its channel, the external APM
+        /// controller, aftertouch and one filter) to another value, has the owner confirm each change on the sampler's screen,
+        /// and puts each back to the value declared, even when a check fails half way. Off by default: it changes the owner's
+        /// stored MIDI setup for an instant. Needs `askOwner`, `askOwnerChoice` and `askOwnerNumber`, and is skipped without
+        /// one of them or when the owner declines.
+        bool midiConfig = false;
         /// Returns the next PC key the owner presses (`pc_key` codes of `FrontPanelRemote.hpp`), waiting for it, or nothing
         /// when the owner's input has ended. `textMode` says whether the check is in its text mode: there the reader reports
         /// the character typed; in the normal mode it reports the number row's keys as the digits printed on them wherever
@@ -128,6 +136,10 @@ namespace akm::harness
         /// (RQ-AKM-061): nothing is selected without an answer, and without this the check is skipped before it selects.
         /// It runs on the scenario's thread, like `askOwner`.
         std::function<std::optional<std::size_t>(const std::string& question, const std::vector<std::string>& choices)> askOwnerChoice;
+        /// Asks the owner for a whole number from `minimum` to `maximum` inclusive and returns it, or nothing when they
+        /// decline. The MIDI configuration check needs it for the external APM controller (0 to 127), too long a list to
+        /// offer as choices (RQ-AKM-080). It runs on the scenario's thread, like `askOwner`.
+        std::function<std::optional<int>(const std::string& question, int minimum, int maximum)> askOwnerNumber;
         /// Written in the log header when not empty (the scenario itself reads no wall clock).
         std::string startedAt;
     };

@@ -41,6 +41,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/DiskPrimitives.hpp"
 #include "akm/FrontPanel.hpp"
 #include "akm/KeygroupPrimitives.hpp"
+#include "akm/MidiConfig.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SysExConfig.hpp"
@@ -829,6 +830,133 @@ namespace akm::harness
             SystemSetupSnapshot _original;
         };
 
+        // What the owner says the sampler's MIDI setup holds, in terms of the sampler's own MIDI SETUP and MIDI FILTER
+        // pages (RQ-AKM-080). Section 04 has no Get, so this declaration is the only source of the values to put back.
+        // `filterEvent` and `filterChannel` name the one filter the check exercises, `filterAllows` what it does now.
+        struct MidiConfigDeclaration
+        {
+            bool programChangeEnabled = true;
+            MultiSelectMode multiSelect = MultiSelectMode::Off;
+            int multiSelectChannel = 0;
+            int externalApmController = 0;
+            AftertouchType aftertouch = AftertouchType::Channel;
+            MidiFilterEvent filterEvent = MidiFilterEvent::NoteOn;
+            int filterChannel = 0;
+            bool filterAllows = true;
+        };
+
+        constexpr int MIDI_CHANNELS = 32;
+        constexpr int MIDI_CHANNELS_PER_PORT = 16;
+        constexpr int MULTI_SELECT_MODES = 3;
+        constexpr int EXTERNAL_APM_CONTROLLERS = 128;
+
+        // The channel code 0-31 as the sampler's screen writes it: 1A to 16A, then 1B to 16B.
+        std::string midiChannelName(int channel)
+        {
+            return std::to_string(channel % MIDI_CHANNELS_PER_PORT + 1) + (channel < MIDI_CHANNELS_PER_PORT ? "A" : "B");
+        }
+
+        std::string multiSelectName(MultiSelectMode mode)
+        {
+            switch (mode)
+            {
+                case MultiSelectMode::Off:
+                    return "OFF";
+                case MultiSelectMode::ProgramChange:
+                    return "PROG CHANGE";
+                case MultiSelectMode::Bank:
+                    return "BANK";
+            }
+            return "?";
+        }
+
+        std::string aftertouchName(AftertouchType type)
+        {
+            return type == AftertouchType::Channel ? "CHANNEL" : "POLYPHONIC";
+        }
+
+        std::string midiFilterEventName(MidiFilterEvent event)
+        {
+            switch (event)
+            {
+                case MidiFilterEvent::NoteOn:
+                    return "NOTE ON";
+                case MidiFilterEvent::Aftertouch:
+                    return "AFTERTOUCH";
+                case MidiFilterEvent::Wheels:
+                    return "WHEELS";
+                case MidiFilterEvent::Volume:
+                    return "VOLUME";
+            }
+            return "?";
+        }
+
+        std::string onOffName(bool on)
+        {
+            return on ? "ON" : "OFF";
+        }
+
+        // Puts the owner's MIDI setup back (RQ-AKM-080). The check registers, before sending each change, the command that
+        // undoes it; on destruction — even when the check throws half way — the registered commands run in the opposite
+        // order, each logged, best effort, nothing let out of the destructor, mirroring GuardedSystemSetup. A restore that
+        // fails clears `knownStateRestored`: the owner's MIDI setup is then not what it was declared to be.
+        class GuardedMidiConfig
+        {
+        public:
+            using Launch = std::function<void(Session&, CommandCompletion)>;
+
+            GuardedMidiConfig(Rig& rig, Session& session) : _rig(rig), _session(session) {}
+
+            ~GuardedMidiConfig()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.result.knownStateRestored = false;
+                    _rig.log.note("  the MIDI setup guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedMidiConfig(const GuardedMidiConfig&) = delete;
+            GuardedMidiConfig& operator=(const GuardedMidiConfig&) = delete;
+
+            /// Registers how to undo a change that is about to be sent: registered first, so that a change the sampler
+            /// registered without confirming it is put back too.
+            void willRestore(std::string title, Launch launch)
+            {
+                _steps.push_back({std::move(title), std::move(launch)});
+            }
+
+        private:
+            struct Step
+            {
+                std::string title;
+                Launch launch;
+            };
+
+            void restore()
+            {
+                for (auto step = _steps.rbegin(); step != _steps.rend(); ++step)
+                {
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [this, &step](CommandCompletion done) { step->launch(_session, std::move(done)); });
+                    const bool ok = timed && succeeded(timed->result);
+                    _rig.log.note("  restore " + step->title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+                    if (!ok)
+                        _rig.result.knownStateRestored = false;
+                }
+                _steps.clear();
+            }
+
+            Rig& _rig;
+            Session& _session;
+            std::vector<Step> _steps;
+        };
+
         // The disposable sub-folder the Disk Tools checks work in (RQ-AKM-071): created under the folder that is
         // current when the check starts, entered, and removed on destruction however the check ends. Only what this
         // guard created is removed: a folder already carrying the reserved name makes the create fail, and nothing is
@@ -1035,6 +1163,14 @@ namespace akm::harness
                 if (_rig.options.frontPanel)
                     check("the owner drives the sampler's front panel from the PC keyboard, on a screen the owner chose",
                           &Suite::frontPanelRemote);
+                if (_rig.options.midiConfig)
+                {
+                    check("change every MIDI setup setting and one MIDI filter to another value, the owner confirming each on the "
+                          "sampler's screen, and put them back to the values the owner declared",
+                          &Suite::midiConfigRoundTrips);
+                    check("a MIDI setup check that fails half way and still puts back what it changed",
+                          &Suite::failedMidiConfigCheckPutsBack);
+                }
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -2820,6 +2956,227 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // One question to the owner, said in the log with the answer; declined, the check is skipped (the guards put back
+            // what it changed). [RQ-AKM-080]
+            [[nodiscard]] std::size_t ownerChooses(const std::string& question, const std::vector<std::string>& choices)
+            {
+                _rig.log.flush();
+                _rig.log.note("  asking the owner: " + question);
+                _rig.log.flush();
+                const auto picked = _rig.options.askOwnerChoice(question, choices);
+                if (!picked || *picked >= choices.size())
+                    throw CheckSkipped("the owner did not answer: " + question);
+                _rig.log.note("  the owner answers: " + choices[*picked]);
+                return *picked;
+            }
+
+            [[nodiscard]] int ownerNumber(const std::string& question, int minimum, int maximum)
+            {
+                _rig.log.flush();
+                _rig.log.note("  asking the owner: " + question);
+                _rig.log.flush();
+                const auto number = _rig.options.askOwnerNumber(question, minimum, maximum);
+                if (!number || *number < minimum || *number > maximum)
+                    throw CheckSkipped("the owner did not answer: " + question);
+                _rig.log.note("  the owner answers: " + std::to_string(*number));
+                return *number;
+            }
+
+            // The channel labels of the sampler's screen, in the order of the channel codes 0-31.
+            [[nodiscard]] static std::vector<std::string> midiChannelChoices()
+            {
+                std::vector<std::string> names;
+                for (int channel = 0; channel < MIDI_CHANNELS; ++channel)
+                    names.push_back(midiChannelName(channel));
+                return names;
+            }
+
+            // RQ-AKM-080: what the owner says the MIDI SETUP and MIDI FILTER pages show, asked once per run and nothing sent
+            // before it is known. The first decline skips this check and the next one without asking again.
+            [[nodiscard]] MidiConfigDeclaration midiConfigDeclaration()
+            {
+                if (_midiDeclined)
+                    throw CheckSkipped("the owner declined to declare the sampler's MIDI setup");
+                if (_midiDeclaration)
+                    return *_midiDeclaration;
+                if (!_rig.options.askOwner || !_rig.options.askOwnerChoice || !_rig.options.askOwnerNumber)
+                    throw CheckSkipped("section 04 cannot be read back, so this check needs the owner to declare the sampler's MIDI "
+                                       "setup, and there is no way to ask");
+                try
+                {
+                    ownerConfirms("Press UTILITIES, then MIDI SETUP, and note what PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, "
+                                  "EXT APM CONTROL and AFTERTOUCH show; then open MIDI FILTER and choose one filter to look at "
+                                  "(its event type and its channel) and note whether it is on or off. You will be asked for these "
+                                  "values now, and the check puts them back at the end. Nothing is sent before you have answered.");
+                    MidiConfigDeclaration declared;
+                    declared.programChangeEnabled =
+                        ownerChooses("MIDI SETUP, PROGRAM CHANGE: what does the sampler show now?", {"ON", "OFF"}) == 0;
+                    declared.multiSelect = static_cast<MultiSelectMode>(ownerChooses(
+                        "MIDI SETUP, MULTI SELECT: what does the sampler show now?",
+                        {multiSelectName(MultiSelectMode::Off), multiSelectName(MultiSelectMode::ProgramChange),
+                         multiSelectName(MultiSelectMode::Bank)}));
+                    declared.multiSelectChannel = static_cast<int>(
+                        ownerChooses("MIDI SETUP, MULTI SLCT CH: which channel does the sampler show now?", midiChannelChoices()));
+                    declared.externalApmController = ownerNumber(
+                        "MIDI SETUP, EXT APM CONTROL: which controller number does the sampler show now?", 0,
+                        EXTERNAL_APM_CONTROLLERS - 1);
+                    declared.aftertouch = static_cast<AftertouchType>(ownerChooses(
+                        "MIDI SETUP, AFTERTOUCH: what does the sampler show now?",
+                        {aftertouchName(AftertouchType::Channel), aftertouchName(AftertouchType::Polyphonic)}));
+                    declared.filterEvent = static_cast<MidiFilterEvent>(ownerChooses(
+                        "MIDI FILTER, event type: which event type will the check exercise?",
+                        {midiFilterEventName(MidiFilterEvent::NoteOn), midiFilterEventName(MidiFilterEvent::Aftertouch),
+                         midiFilterEventName(MidiFilterEvent::Wheels), midiFilterEventName(MidiFilterEvent::Volume)}));
+                    declared.filterChannel = static_cast<int>(
+                        ownerChooses("MIDI FILTER, channel: on which channel?", midiChannelChoices()));
+                    declared.filterAllows =
+                        ownerChooses("MIDI FILTER, that filter: what does the sampler do with those messages now?",
+                                     {"it allows them (they are received)", "it ignores them (they are filtered out)"}) == 0;
+                    finding("declared by the owner: PROGRAM CHANGE " + onOffName(declared.programChangeEnabled) + ", MULTI SELECT "
+                            + multiSelectName(declared.multiSelect) + ", MULTI SLCT CH " + midiChannelName(declared.multiSelectChannel)
+                            + ", EXT APM CONTROL " + std::to_string(declared.externalApmController) + ", AFTERTOUCH "
+                            + aftertouchName(declared.aftertouch) + ", filter " + midiFilterEventName(declared.filterEvent) + " on "
+                            + midiChannelName(declared.filterChannel) + (declared.filterAllows ? " allows" : " ignores") + " its messages");
+                    _midiDeclaration = declared;
+                    return declared;
+                }
+                catch (const CheckSkipped&)
+                {
+                    _midiDeclined = true;
+                    throw;
+                }
+            }
+
+            // The owner looks at the sampler's screen and says whether it shows what the check just did. A "no" fails the
+            // check, the guards putting back what was changed; declined, the check is skipped. [RQ-AKM-080]
+            void ownerSees(const std::string& what)
+            {
+                const std::size_t answer =
+                    ownerChooses("NOW LOOK AT THE SAMPLER: " + what + ". Does it?", {"Yes", "No, it shows something else"});
+                expect(answer == 0, "the owner sees on the sampler: " + what);
+            }
+
+            // One setting: how to undo the change is registered, the change is sent and the owner confirms it on the
+            // screen. [RQ-AKM-080]
+            void changeMidiSetting(GuardedSession& guarded, GuardedMidiConfig& guard, const std::string& setting,
+                                   const std::string& declaredText, const std::string& newText,
+                                   const GuardedMidiConfig::Launch& change, const GuardedMidiConfig::Launch& restore)
+            {
+                guard.willRestore(setting + " (back to " + declaredText + ")", restore);
+                expectCommand(guarded, "set " + setting + " to " + newText + " (the owner declared " + declaredText + ")", change);
+                ownerSees(setting + " now shows " + newText);
+            }
+
+            // RQ-AKM-078, RQ-AKM-079, RQ-AKM-080: every §04 item sent once, to a value other than the one the owner declared,
+            // each confirmed on the sampler's own screen, then each put back to the declared value by the guard; the owner
+            // confirms the original screens are back. §04 has no Get: the sampler's answer is DONE (queued), the screen is the
+            // read-back.
+            void midiConfigRoundTrips()
+            {
+                const MidiConfigDeclaration declared = midiConfigDeclaration();
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+                {
+                    GuardedMidiConfig guard(_rig, guarded.session());
+                    const bool newProgramChange = !declared.programChangeEnabled;
+                    changeMidiSetting(guarded, guard, "MIDI SETUP, PROGRAM CHANGE", onOffName(declared.programChangeEnabled),
+                                      onOffName(newProgramChange),
+                                      [newProgramChange](Session& session, CommandCompletion done) {
+                                          setProgramChangeEnabled(session, newProgramChange, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setProgramChangeEnabled(session, declared.programChangeEnabled, std::move(done));
+                                      });
+                    const auto newMultiSelect = static_cast<MultiSelectMode>((static_cast<int>(declared.multiSelect) + 1) % MULTI_SELECT_MODES);
+                    changeMidiSetting(guarded, guard, "MIDI SETUP, MULTI SELECT", multiSelectName(declared.multiSelect),
+                                      multiSelectName(newMultiSelect),
+                                      [newMultiSelect](Session& session, CommandCompletion done) {
+                                          setMultiSelect(session, newMultiSelect, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setMultiSelect(session, declared.multiSelect, std::move(done));
+                                      });
+                    const int newChannel = (declared.multiSelectChannel + 1) % MIDI_CHANNELS;
+                    changeMidiSetting(guarded, guard, "MIDI SETUP, MULTI SLCT CH", midiChannelName(declared.multiSelectChannel),
+                                      midiChannelName(newChannel),
+                                      [newChannel](Session& session, CommandCompletion done) {
+                                          setMultiSelectChannel(session, newChannel, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setMultiSelectChannel(session, declared.multiSelectChannel, std::move(done));
+                                      });
+                    const int newController = (declared.externalApmController + 1) % EXTERNAL_APM_CONTROLLERS;
+                    changeMidiSetting(guarded, guard, "MIDI SETUP, EXT APM CONTROL", std::to_string(declared.externalApmController),
+                                      std::to_string(newController),
+                                      [newController](Session& session, CommandCompletion done) {
+                                          setExternalApmController(session, newController, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setExternalApmController(session, declared.externalApmController, std::move(done));
+                                      });
+                    const AftertouchType newAftertouch =
+                        declared.aftertouch == AftertouchType::Channel ? AftertouchType::Polyphonic : AftertouchType::Channel;
+                    changeMidiSetting(guarded, guard, "MIDI SETUP, AFTERTOUCH", aftertouchName(declared.aftertouch),
+                                      aftertouchName(newAftertouch),
+                                      [newAftertouch](Session& session, CommandCompletion done) {
+                                          setAftertouch(session, newAftertouch, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setAftertouch(session, declared.aftertouch, std::move(done));
+                                      });
+                    const auto filterLaunch = [declared](bool allows) {
+                        return [declared, allows](Session& session, CommandCompletion done) {
+                            if (allows)
+                                allowMidiEvents(session, declared.filterEvent, declared.filterChannel, std::move(done));
+                            else
+                                ignoreMidiEvents(session, declared.filterEvent, declared.filterChannel, std::move(done));
+                        };
+                    };
+                    const std::string filterName = "MIDI FILTER, " + midiFilterEventName(declared.filterEvent) + " on "
+                                                   + midiChannelName(declared.filterChannel);
+                    changeMidiSetting(guarded, guard, filterName, declared.filterAllows ? "allowing" : "ignoring",
+                                      declared.filterAllows ? "ignoring" : "allowing", filterLaunch(!declared.filterAllows),
+                                      filterLaunch(declared.filterAllows));
+                }
+                ownerSees("the MIDI SETUP and MIDI FILTER pages show the values you declared again (every setting back as it was)");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-080: a check that fails with a setting changed still puts it back. MULTI SELECT is changed, then the
+            // check throws on purpose; the guard has restored it by the time the exception is caught, and the owner confirms.
+            void failedMidiConfigCheckPutsBack()
+            {
+                const MidiConfigDeclaration declared = midiConfigDeclaration();
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedMidiConfig guard(_rig, guarded.session());
+                    const auto newMultiSelect = static_cast<MultiSelectMode>((static_cast<int>(declared.multiSelect) + 1) % MULTI_SELECT_MODES);
+                    guard.willRestore("MIDI SETUP, MULTI SELECT (back to " + multiSelectName(declared.multiSelect) + ")",
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setMultiSelect(session, declared.multiSelect, std::move(done));
+                                      });
+                    expectCommand(guarded, "set MIDI SETUP, MULTI SELECT to " + multiSelectName(newMultiSelect),
+                                  [newMultiSelect](Session& session, CommandCompletion done) {
+                                      setMultiSelect(session, newMultiSelect, std::move(done));
+                                  });
+                    throw CheckFailure("this check fails on purpose, with MULTI SELECT changed");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                ownerSees("MIDI SETUP, MULTI SELECT shows " + multiSelectName(declared.multiSelect) + " again");
+                closeAndVerify(guarded);
+            }
+
             // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory
             // (so that the four data bytes of &33/&34 are decoded on the hardware), then round-trips the name, every Play
             // Mode, the front-panel lock and the clock, each under the guard that puts them back — the Play Mode 3 (Muted)
@@ -3029,6 +3386,9 @@ namespace akm::harness
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
+            // What the owner declared of the sampler's MIDI setup (asked once per run), or that they declined (RQ-AKM-080).
+            std::optional<MidiConfigDeclaration> _midiDeclaration;
+            bool _midiDeclined = false;
         };
 
         void writeHeader(WireLog& log, const RealSuiteOptions& options)
@@ -3082,6 +3442,11 @@ namespace akm::harness
                 log.note("It also lets the owner drive the sampler's front panel from the PC keyboard (--front-panel, RQ-AKM-076): the owner "
                          "chooses the screen and confirms it, then every PC key sends only the front-panel item the printed mapping gives it, "
                          "section 20 items only. Every key still held is released at the end, and by the session's close if the check fails.");
+            if (options.midiConfig)
+                log.note("It also changes the sampler's MIDI setup for an instant (--midi-config, RQ-AKM-078 to RQ-AKM-080): PROGRAM CHANGE, "
+                         "MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH and one MIDI filter, each to another value, each "
+                         "confirmed by the owner on the sampler's screen, then put back to the value the owner declared (section 04 has "
+                         "no Get: nothing is sent before the owner has declared them). Section 04 items only.");
             if (options.diskToolsSlow)
             {
                 const char* name = "";

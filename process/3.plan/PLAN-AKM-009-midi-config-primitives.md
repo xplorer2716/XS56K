@@ -128,8 +128,8 @@ This plan implements the tasks in the format specified below.
 ---
 
 ### TASK-AKM-079: Real-sampler check guided by the owner
-- **Tier**: M
-- **Status**: Not Started
+- **Tier**: L (re-tiered from M, see Assumptions)
+- **Status**: Done
 - **Description**: Add `--midi-config` to `xs56k_akm_probe --suite`: tell the owner where the values are shown,
   ask for the current value of every setting the check changes (`askOwnerChoice`), change each to a different
   value with the owner's confirmation on the sampler's screen, then put each back to the declared value, on every
@@ -141,9 +141,29 @@ This plan implements the tasks in the format specified below.
   (scripted owner), and on the real sampler run by the owner.
 - **Dependencies**: TASK-AKM-077, TASK-AKM-078
 - **Assignee**: AI, with the owner running the real-sampler check
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet. Tier M assumes the existing owner seams are enough; it becomes L if a new public API
-  or seam is needed.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 615/615 after a
+  re-run in this session (610 before, 5 new, `ctest -R RQ-AKM-080`, written before the code). New cases in
+  `RealSamplerSuiteTests.cpp` (`[akm][suite][midi-config]`): an owner declaring the values the sampler was
+  seeded with (program change off, multi select BANK, channel 6A, controller 74, polyphonic aftertouch, the
+  Wheels filter of channel 2B ignoring) — the sampler is sent exactly 14 §04 items in this order: six changes to
+  another value (program change on, multi select OFF, channel 7A, controller 75, channel aftertouch, the filter
+  allowed), the six restores in the opposite order, then the failed check's change and restore; it ends in the
+  seeded state, all 9 checks pass, `knownStateRestored` true, and the sampler had been sent no §04 item when the
+  owner was first asked anything; an owner who declines the declaration, or no way to ask for a number: both
+  checks Skipped, no §04 item sent; an owner who sees that nothing changed: the first check Failed ("NOT MET"
+  in the log) and the sampler back to the seeded state all the same; default options: no §04 item sent. By hand,
+  on the built probe: `xs56k_akm_probe --help` shows `--midi-config` and its warning; `--midi-config` without
+  `--suite` is refused, exit 1. Not verified: the real sampler and the probe's console prompts — which only the
+  owner can run; nothing here sent a frame to hardware.
+- **Assumptions**: Re-tiered from M to L as the plan itself foresaw: the check needs a new owner seam,
+  `RealSuiteOptions::askOwnerNumber`, for the external APM controller (0-127, too long a list for
+  `askOwnerChoice`); no ADR (like `readOwnerKey` in TASK-AKM-073, test-support API only, DEC-AKM-008 precedent).
+  The owner declares one filter (its event type, its channel, whether it allows or ignores) rather than all 128.
+  The value each setting is changed to is the next one after the declared (multi select, channel, controller:
+  +1 modulo the range; the two-valued ones toggled; the filter reversed). The declaration is asked once per run
+  and shared by the two checks. A "No" on a screen confirmation fails the check, a decline skips it, and either
+  way the guard puts back what was changed. The probe's choice prompt now says "your choice" instead of "the
+  disk" since it serves both. The owner's declaration is not verified (stated in FTR-AKM-009).
 
 ---
 

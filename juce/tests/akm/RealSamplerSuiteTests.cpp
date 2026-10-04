@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -1422,4 +1424,234 @@ TEST_CASE("Given Disk Tools and the owner declining to confirm the saved file, W
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 0);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
     CHECK(result.knownStateRestored);
+}
+
+// ---- Section §04, the MIDI configuration check guided by the owner (TASK-AKM-079, RQ-AKM-080) ----
+
+namespace
+{
+    // What the owner's sampler holds of its MIDI setup before any session is opened, and what the scripted owner then
+    // declares it holds: §04 has no Get, so the suite can only put back what it is told (RQ-AKM-080).
+    constexpr std::uint8_t ITEM_PROGRAM_CHANGE = 0x01;
+    constexpr std::uint8_t ITEM_MULTI_SELECT = 0x02;
+    constexpr std::uint8_t ITEM_MULTI_SELECT_CHANNEL = 0x03;
+    constexpr std::uint8_t ITEM_EXTERNAL_APM = 0x04;
+    constexpr std::uint8_t ITEM_AFTERTOUCH = 0x05;
+    constexpr std::uint8_t ITEM_FILTER_ALLOW = 0x06;
+    constexpr std::uint8_t ITEM_FILTER_IGNORE = 0x07;
+
+    constexpr int OWNER_PROGRAM_CHANGE = 0;
+    constexpr int OWNER_MULTI_SELECT = 2;
+    constexpr int OWNER_MULTI_SELECT_CHANNEL = 5;
+    constexpr int OWNER_EXTERNAL_APM = 74;
+    constexpr int OWNER_AFTERTOUCH = 1;
+    constexpr int OWNER_FILTER_EVENT = 2;
+    constexpr int OWNER_FILTER_CHANNEL = 17;
+    // The question about program change offers ON then OFF; the seeded sampler has it off.
+    constexpr std::size_t CHOICE_PROGRAM_CHANGE_OFF = 1;
+    // The seeded filter ignores its messages; the question about it offers "allows" then "ignores".
+    constexpr std::size_t CHOICE_FILTER_IGNORES = 1;
+    constexpr std::size_t CHOICE_YES = 0;
+    constexpr std::size_t CHOICE_NO = 1;
+    constexpr std::size_t MIDI_CONFIG_EXTRA_CHECKS = 2;
+
+    using akm::harness::MidiConfigEvent;
+    using akm::harness::MidiConfigState;
+
+    void seedMidiConfig(SimulatedMidiBackend& backend)
+    {
+        akm::test::HostProbe host(backend, backend.inputName(), backend.outputName());
+        std::uint8_t userRef = 0x01;
+        const auto send = [&](const akm::CommandRequest& request) {
+            const akm::EncodeResult frame = akm::encodeCommand(0, akm::test::Bytes{userRef++}, request.command, akm::ChecksumMode::Off);
+            host.send(frame.bytes);
+        };
+        send(akm::makeRequest(akm::ItemId::MidiProgramChangeEnable, {OWNER_PROGRAM_CHANGE}));
+        send(akm::makeRequest(akm::ItemId::MidiMultiSelect, {OWNER_MULTI_SELECT}));
+        send(akm::makeRequest(akm::ItemId::MidiMultiSelectChannel, {OWNER_MULTI_SELECT_CHANNEL}));
+        send(akm::makeRequest(akm::ItemId::MidiExternalApmController, {OWNER_EXTERNAL_APM}));
+        send(akm::makeRequest(akm::ItemId::MidiAftertouch, {OWNER_AFTERTOUCH}));
+        send(akm::makeRequest(akm::ItemId::MidiFilterIgnore, {OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL}));
+    }
+
+    // The owner of the tests: it answers the declaration with the values the sampler was seeded with, and what it
+    // sees on the screen with `seen`. `eventsAtFirstAsk` is how many §04 items the sampler had been sent when the
+    // owner was first asked anything.
+    struct ScriptedOwner
+    {
+        std::size_t seen = CHOICE_YES;
+        std::size_t eventsAtFirstAsk = std::numeric_limits<std::size_t>::max();
+        std::vector<std::string> questions;
+    };
+
+    RealSuiteOptions midiConfigOptions(const Rig& rig, SimulatedSampler& sampler, ScriptedOwner& owner)
+    {
+        RealSuiteOptions options = rig.options();
+        options.midiConfig = true;
+        const auto noteFirstAsk = [&owner, &sampler] {
+            if (owner.eventsAtFirstAsk == std::numeric_limits<std::size_t>::max())
+                owner.eventsAtFirstAsk = sampler.midiConfig().events.size();
+        };
+        options.askOwner = [&owner, noteFirstAsk](const std::string& instruction) {
+            noteFirstAsk();
+            owner.questions.push_back(instruction);
+            return true;
+        };
+        options.askOwnerNumber = [&owner, noteFirstAsk](const std::string& question, int, int) -> std::optional<int> {
+            noteFirstAsk();
+            owner.questions.push_back(question);
+            return OWNER_EXTERNAL_APM;
+        };
+        options.askOwnerChoice = [&owner, noteFirstAsk](const std::string& question,
+                                                        const std::vector<std::string>&) -> std::optional<std::size_t> {
+            noteFirstAsk();
+            owner.questions.push_back(question);
+            const auto asks = [&question](const char* part) { return question.find(part) != std::string::npos; };
+            if (asks("NOW LOOK AT THE SAMPLER"))
+                return owner.seen;
+            if (asks("PROGRAM CHANGE"))
+                return CHOICE_PROGRAM_CHANGE_OFF;
+            if (asks("MULTI SLCT CH"))
+                return static_cast<std::size_t>(OWNER_MULTI_SELECT_CHANNEL);
+            if (asks("MULTI SELECT"))
+                return static_cast<std::size_t>(OWNER_MULTI_SELECT);
+            if (asks("AFTERTOUCH"))
+                return static_cast<std::size_t>(OWNER_AFTERTOUCH);
+            if (asks("MIDI FILTER, event type"))
+                return static_cast<std::size_t>(OWNER_FILTER_EVENT);
+            if (asks("MIDI FILTER, channel"))
+                return static_cast<std::size_t>(OWNER_FILTER_CHANNEL);
+            if (asks("MIDI FILTER, that filter"))
+                return CHOICE_FILTER_IGNORES;
+            return std::nullopt;
+        };
+        return options;
+    }
+
+    // The §04 state the owner's sampler started in, without the record of what it was sent.
+    void checkSeededState(const MidiConfigState& state)
+    {
+        CHECK(state.programChangeEnable == OWNER_PROGRAM_CHANGE);
+        CHECK(state.multiSelect == OWNER_MULTI_SELECT);
+        CHECK(state.multiSelectChannel == OWNER_MULTI_SELECT_CHANNEL);
+        CHECK(state.externalApmController == OWNER_EXTERNAL_APM);
+        CHECK(state.aftertouch == OWNER_AFTERTOUCH);
+        for (std::size_t type = 0; type < akm::harness::MIDI_FILTER_EVENT_TYPES; ++type)
+            for (std::size_t channel = 0; channel < akm::harness::MIDI_FILTER_CHANNELS; ++channel)
+                CHECK(state.filterAllowed[type][channel]
+                      == !(type == static_cast<std::size_t>(OWNER_FILTER_EVENT)
+                           && channel == static_cast<std::size_t>(OWNER_FILTER_CHANNEL)));
+    }
+}
+
+TEST_CASE("Given an owner who declares the sampler's real MIDI setup, When the suite runs with the MIDI config checks, Then each setting is changed to another value then put back, the failed check restores too, and nothing is sent before the owner has declared [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    const std::size_t seedEvents = rig.sampler.midiConfig().events.size();
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK(result.knownStateRestored);
+    CHECK(owner.eventsAtFirstAsk == seedEvents);
+
+    const MidiConfigState after = rig.sampler.midiConfig();
+    checkSeededState(after);
+    // Six changes to another value, the six restores in the opposite order, then the second check's one change and
+    // its restore.
+    const auto event = [](std::uint8_t item, int first, int second) {
+        return MidiConfigEvent{item, static_cast<std::uint8_t>(first), static_cast<std::uint8_t>(second)};
+    };
+    const std::vector<MidiConfigEvent> expected{
+        event(ITEM_PROGRAM_CHANGE, 1, 0),
+        event(ITEM_MULTI_SELECT, 0, 0),
+        event(ITEM_MULTI_SELECT_CHANNEL, OWNER_MULTI_SELECT_CHANNEL + 1, 0),
+        event(ITEM_EXTERNAL_APM, OWNER_EXTERNAL_APM + 1, 0),
+        event(ITEM_AFTERTOUCH, 0, 0),
+        event(ITEM_FILTER_ALLOW, OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL),
+        event(ITEM_FILTER_IGNORE, OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL),
+        event(ITEM_AFTERTOUCH, OWNER_AFTERTOUCH, 0),
+        event(ITEM_EXTERNAL_APM, OWNER_EXTERNAL_APM, 0),
+        event(ITEM_MULTI_SELECT_CHANNEL, OWNER_MULTI_SELECT_CHANNEL, 0),
+        event(ITEM_MULTI_SELECT, OWNER_MULTI_SELECT, 0),
+        event(ITEM_PROGRAM_CHANGE, OWNER_PROGRAM_CHANGE, 0),
+        event(ITEM_MULTI_SELECT, 0, 0),
+        event(ITEM_MULTI_SELECT, OWNER_MULTI_SELECT, 0),
+    };
+    REQUIRE(after.events.size() == seedEvents + expected.size());
+    const std::vector<MidiConfigEvent> sent(after.events.begin() + static_cast<std::ptrdiff_t>(seedEvents), after.events.end());
+    CHECK(sent == expected);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with MULTI SELECT changed"));
+}
+
+TEST_CASE("Given an owner who declines to declare the sampler's MIDI setup, When the suite runs with the MIDI config checks, Then both checks are skipped and no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    options.askOwnerChoice = [](const std::string&, const std::vector<std::string>&) { return std::optional<std::size_t>{}; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    CHECK(result.checks[AUTOMATIC_CHECKS].outcome == CheckOutcome::Skipped);
+    CHECK(result.checks[AUTOMATIC_CHECKS + 1].outcome == CheckOutcome::Skipped);
+    CHECK(rig.sampler.midiConfig().events.empty());
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given no way to ask the owner for a number, When the suite runs with the MIDI config checks, Then both checks are skipped and no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    options.askOwnerNumber = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    CHECK(result.checks[AUTOMATIC_CHECKS].outcome == CheckOutcome::Skipped);
+    CHECK(result.checks[AUTOMATIC_CHECKS + 1].outcome == CheckOutcome::Skipped);
+    CHECK(rig.sampler.midiConfig().events.empty());
+}
+
+TEST_CASE("Given an owner who sees that the sampler did not change, When the suite runs with the MIDI config checks, Then the check fails and the setting it had changed is put back all the same [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    ScriptedOwner owner;
+    owner.seen = CHOICE_NO;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    CHECK(result.checks[AUTOMATIC_CHECKS].outcome == CheckOutcome::Failed);
+    checkSeededState(rig.sampler.midiConfig());
+    CHECK_THAT(log.str(), ContainsSubstring("NOT MET"));
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS);
+    CHECK(rig.sampler.midiConfig().events.empty());
 }

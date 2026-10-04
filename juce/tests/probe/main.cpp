@@ -82,7 +82,8 @@ namespace
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
-        "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--front-panel] [--sample-name NAME]\n"
+        "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--front-panel] [--midi-config]\n"
+        "                  [--sample-name NAME]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
         "  --list             list the MIDI input and output ports and exit\n"
@@ -153,6 +154,16 @@ namespace
         "                     screens SAVE, ENT/PLAY or the data wheel change or delete your data, so choose the screen\n"
         "                     with care. Every key still held is released at the end. Windows console only: elsewhere the\n"
         "                     check is skipped.\n"
+        "  --midi-config      with --suite, two extra checks on the sampler's MIDI setup (section 04, RQ-AKM-078 to\n"
+        "                     RQ-AKM-080). Section 04 cannot be read back, so YOU tell the check what the sampler shows:\n"
+        "                     note PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL and AFTERTOUCH on\n"
+        "                     UTILITIES > MIDI SETUP, and pick one filter on MIDI FILTER (an event type and a channel) and\n"
+        "                     whether it is on. Nothing is sent before you have answered. The check then changes each of\n"
+        "                     those settings to another value, one at a time, asks you to confirm on the sampler's screen\n"
+        "                     that it shows the new value, and puts each back to the value you declared, even if a check\n"
+        "                     fails half way. It changes your stored MIDI setup for a moment (a filter that ignores NoteOn,\n"
+        "                     for instance, silences that channel while it lasts). The values you declare are not\n"
+        "                     verified: a wrong declaration is put back as given, and the log records it.\n"
         "  --sample-name      a sample already in the sampler's memory, named for --program-lifecycle (assigns\n"
         "                     it to a zone of the test program by name and reads it back, RQ-AKM-035,\n"
         "                     RQ-AKM-038) and/or --sample-lifecycle (see above). Never creates, changes or\n"
@@ -260,6 +271,7 @@ namespace
         bool diskToolsFiles = false;
         bool diskToolsAudition = false;
         bool frontPanel = false;
+        bool midiConfig = false;
         bool noLcd = false;
         std::string diskToolsSlow;
         std::string input;
@@ -363,6 +375,8 @@ namespace
                 parsed.diskToolsAudition = true;
             else if (option == "--front-panel")
                 parsed.frontPanel = true;
+            else if (option == "--midi-config")
+                parsed.midiConfig = true;
             else if (option == "--disk-tools-slow")
             {
                 parsed.diskToolsSlow = valueOf(args, index++, parsed);
@@ -405,9 +419,10 @@ namespace
             && !parsed.suite
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
                 || parsed.diskTools || parsed.diskToolsFiles || parsed.diskToolsAudition || !parsed.diskToolsSlow.empty()
-                || parsed.frontPanel || !parsed.sampleName.empty()))
+                || parsed.frontPanel || parsed.midiConfig || !parsed.sampleName.empty()))
             parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
-                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel and --sample-name need --suite";
+                           "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel, --midi-config and "
+                           "--sample-name need --suite";
         if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
             parsed.error = "--disk-tools-files needs --disk-tools";
         if (parsed.error.empty() && parsed.diskToolsAudition && !parsed.diskTools)
@@ -526,6 +541,11 @@ namespace
                       << "sampler shows, then each key you press is sent as the sampler key it stands for (the mapping is printed\n"
                       << "first), nothing else. The keys act on whatever the sampler shows: SAVE, ENT/PLAY or the data wheel can\n"
                       << "change or delete your data on some screens. Put the sampler on a screen where that cannot hurt.\n";
+        if (arguments.midiConfig)
+            std::cout << "It will also change the sampler's MIDI setup for a moment and put it back: PROGRAM CHANGE, MULTI SELECT,\n"
+                      << "MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH and one MIDI filter. The sampler cannot say what they are, so\n"
+                      << "you will be asked: note them on UTILITIES > MIDI SETUP and MIDI FILTER before you start. Nothing is sent\n"
+                      << "before you have answered, and each change is confirmed by you on the sampler's screen.\n";
         if (!arguments.diskToolsSlow.empty())
             std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
                       << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
@@ -626,6 +646,7 @@ int main(int argc, char** argv)
         options.diskToolsFiles = arguments.diskToolsFiles;
         options.diskToolsAudition = arguments.diskToolsAudition;
         options.frontPanel = arguments.frontPanel;
+        options.midiConfig = arguments.midiConfig;
 #ifdef _WIN32
         if (consoleKeysAvailable())
             options.readOwnerKey = readConsoleKey;
@@ -648,7 +669,7 @@ int main(int argc, char** argv)
                 std::cout << "    " << (index + 1) << ". " << choices[index] << '\n';
             for (;;)
             {
-                std::cout << "    Type the number of the disk, or skip to skip this check: " << std::flush;
+                std::cout << "    Type the number of your choice, or skip to skip this check: " << std::flush;
                 std::string answer;
                 if (!std::getline(std::cin, answer) || answer == "skip")
                     return std::nullopt;
@@ -662,6 +683,20 @@ int main(int argc, char** argv)
                 {
                 }
                 std::cout << "    Not one of the numbers above.\n";
+            }
+        };
+        options.askOwnerNumber = [](const std::string& question, int minimum, int maximum) -> std::optional<int> {
+            std::cout << "\n>>> " << question << '\n';
+            for (;;)
+            {
+                std::cout << "    Type a number from " << minimum << " to " << maximum << ", or skip to skip this check: " << std::flush;
+                std::string answer;
+                if (!std::getline(std::cin, answer) || answer == "skip")
+                    return std::nullopt;
+                long long number = 0;
+                if (parseNumber(answer, number) && number >= minimum && number <= maximum)
+                    return static_cast<int>(number);
+                std::cout << "    Not a number in that range.\n";
             }
         };
 
