@@ -86,7 +86,8 @@ catch_discover_tests(xs56k_akm_tests)
 add_executable(xs56k_mcp_tests
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueTests.cpp
-    mcp/SamplerGatewayTests.cpp)
+    mcp/SamplerGatewayTests.cpp
+    mcp/ToolsTests.cpp)
 # The gateway tests seed the simulated sampler with the raw-frame helpers of the AKM tests.
 target_include_directories(xs56k_mcp_tests PRIVATE akm)
 target_link_libraries(xs56k_mcp_tests PRIVATE
