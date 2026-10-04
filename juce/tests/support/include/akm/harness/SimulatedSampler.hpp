@@ -270,8 +270,9 @@ namespace akm::harness
     };
 
     /// One §04 item the sampler accepted, in order of arrival: its item code and its data bytes (`second` is 0 for
-    /// the one-byte switches). Section §04 has no Get, so this record and `MidiConfigState`'s values are how a test
-    /// sees what the sampler received. [RQ-AKM-078]
+    /// the one-byte switches; for a filter `first` is the event type and `second` the channel). Section §04 has no
+    /// Get, so this record and `MidiConfigState`'s values are how a test sees what the sampler received.
+    /// [RQ-AKM-078, RQ-AKM-079]
     struct MidiConfigEvent
     {
         std::uint8_t item = 0;
@@ -281,12 +282,26 @@ namespace akm::harness
         friend bool operator==(const MidiConfigEvent&, const MidiConfigEvent&) = default;
     };
 
-    /// The MIDI setup as this model holds it (§04, RQ-AKM-078): the five switches at the values a Set left them —
-    /// the spec gives no defaults, so these are program change on, multi select off on channel 1A, controller 0,
-    /// channel aftertouch — and what the sampler was sent. Like the §02 setup it is stored configuration and
-    /// survives `powerCycle()`.
+    /// Event types (NoteOn, Aftertouch, Wheels, Volume) and channels (1A-16B) a §04 MIDI filter exists for.
+    inline constexpr std::size_t MIDI_FILTER_EVENT_TYPES = 4;
+    inline constexpr std::size_t MIDI_FILTER_CHANNELS = 32;
+
+    /// The MIDI setup as this model holds it (§04, RQ-AKM-078, RQ-AKM-079): the five switches at the values a Set
+    /// left them — the spec gives no defaults, so these are program change on, multi select off on channel 1A,
+    /// controller 0, channel aftertouch — the filters (every event type allowed on every channel until an
+    /// `&07`) and what the sampler was sent. Like the §02 setup it is stored configuration and survives
+    /// `powerCycle()`.
     struct MidiConfigState
     {
+        using FilterRow = std::array<bool, MIDI_FILTER_CHANNELS>;
+        /// `filterAllowed[eventType][channel]`: true while the sampler allows those messages (`&06`), false once
+        /// it ignores them (`&07`).
+        std::array<FilterRow, MIDI_FILTER_EVENT_TYPES> filterAllowed = [] {
+            std::array<FilterRow, MIDI_FILTER_EVENT_TYPES> all{};
+            for (FilterRow& row : all)
+                row.fill(true);
+            return all;
+        }();
         std::uint8_t programChangeEnable = 1;
         std::uint8_t multiSelect = 0;
         std::uint8_t multiSelectChannel = 0;

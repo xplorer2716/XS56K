@@ -214,6 +214,11 @@ namespace akm::harness
         constexpr std::uint8_t MIDI_CHANNEL_LAST = 31;
         constexpr std::uint8_t EXTERNAL_APM_CONTROLLER_LAST = 127;
         constexpr std::uint8_t AFTERTOUCH_LAST = 1;
+        // The two filter items (RQ-AKM-079, TASK-AKM-078): an event type 0-3 then a channel 0-31.
+        constexpr std::uint8_t ITEM_FILTER_ALLOW = 0x06;
+        constexpr std::uint8_t ITEM_FILTER_IGNORE = 0x07;
+        constexpr std::size_t FILTER_DATA_SIZE = 2;
+        constexpr std::uint8_t FILTER_EVENT_TYPE_LAST = 3;
         constexpr std::uint8_t SECTION_DISK = 0x10;
         constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
         constexpr std::uint8_t ITEM_SELECT_DISK = 0x02;
@@ -1850,10 +1855,24 @@ namespace akm::harness
             return done();
         }
 
-        // §04: the five switches (RQ-AKM-078). Each takes one data byte, refused out of range; the value is kept and
-        // the item recorded in order of arrival. The sampler has no Get for them.
+        // §04 &06/&07: allow or ignore one event type on one channel (RQ-AKM-079), refused out of range.
+        Outcome executeMidiFilter(std::uint8_t item, const Bytes& data, MidiConfigState& midiConfig)
+        {
+            if (data.size() < FILTER_DATA_SIZE)
+                return failure(error_number::INVALID_FORMAT);
+            if (data[0] > FILTER_EVENT_TYPE_LAST || data[1] > MIDI_CHANNEL_LAST)
+                return failure(error_number::OUT_OF_RANGE);
+            midiConfig.filterAllowed[data[0]][data[1]] = item == ITEM_FILTER_ALLOW;
+            midiConfig.events.push_back({item, data[0], data[1]});
+            return done();
+        }
+
+        // §04: the five switches (RQ-AKM-078) and the two filters. A switch takes one data byte, refused out of
+        // range; the value is kept and the item recorded in order of arrival. The sampler has no Get for them.
         Outcome executeMidiConfig(std::uint8_t item, const Bytes& data, MidiConfigState& midiConfig)
         {
+            if (item == ITEM_FILTER_ALLOW || item == ITEM_FILTER_IGNORE)
+                return executeMidiFilter(item, data, midiConfig);
             std::uint8_t* target = nullptr;
             std::uint8_t last = 0;
             switch (item)

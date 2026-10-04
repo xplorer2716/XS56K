@@ -98,7 +98,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-078: MIDI filters
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&06` and `&07` (Set, two byte arguments: event type 0-3, channel 0-31) and expose
   one primitive for each intent (allow, ignore), refusing an out-of-range event type or channel without
   sending. Extend the simulated sampler to record the filter state per event type and channel.
@@ -107,8 +107,23 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-079 on the simulated sampler.
 - **Dependencies**: TASK-AKM-076
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 610/610 after a
+  re-run in this session (607 before, 3 new, `ctest -R RQ-AKM-079`). Three new cases in `MidiConfigTests.cpp`
+  (`[akm][midi-config]`, written before the primitives): the Wheels filter on channel 3A ignored then allowed
+  sends `04 07 02 02` then `04 06 02 02`, both DONE, exactly one of the 128 filters is recorded ignoring in
+  between, and the two events are recorded in order; each of the 4 event types on channel 0 and on channel 31
+  (1A and 16B) is ignored then allowed, each going out as its own item and bytes, with the filter state
+  following; event type 4, channel 32 and channel -1 are refused `ArgumentOutOfRange` through both
+  primitives with nothing sent and no event. `generate_akm_items.py` regenerated the table (306 items),
+  `--check` up to date, `--coverage`: section `04` 7 of 7 spec rows covered, `unaccounted: none` (`complete`
+  stays `false` until TASK-AKM-080). Collateral: `ItemCatalogueTests.cpp`'s total count gained 2 (an edit
+  reflecting the new expected state, no assertion weakened). Not verified: real sampler (TASK-AKM-079);
+  mutation testing. As in TASK-AKM-077 the tests were written first but not run red.
+- **Assumptions**: The primitives are named for their effect on the messages (`allowMidiEvents`,
+  `ignoreMidiEvents`), not for the item's "enable/disable filter" wording, which reads the opposite way round
+  (enabling the filter allows the messages). The channel is the spec's 0-31 code carrying the port; the
+  simulated sampler keeps one filter per (event type, channel) and does not model the port a frame arrives
+  on — whether the sampler cares is the open point on Port B in `FTR-AKM-009`, for the real sampler.
 
 ---
 

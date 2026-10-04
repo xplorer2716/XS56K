@@ -62,7 +62,7 @@
       "name": "MIDI Configuration",
       "complete": false,
       "spec": "Table 8, p. 12",
-      "note": "FTR-AKM-009 (PLAN-AKM-009), 7 command rows and no REPLY format. The five switches (RQ-AKM-078, TASK-AKM-077: &01 program change enable 0-1, &02 multi select 0-2, &03 multi select channel 0-31, &04 external APM controller 0-127, &05 aftertouch 0-1) are catalogued first, one byte each; the two MIDI filters (&06, &07) are RQ-AKM-079's (TASK-AKM-078)."
+      "note": "FTR-AKM-009 (PLAN-AKM-009), 7 command rows and no REPLY format. The five switches (RQ-AKM-078, TASK-AKM-077: &01 program change enable 0-1, &02 multi select 0-2, &03 multi select channel 0-31, &04 external APM controller 0-127, &05 aftertouch 0-1) are catalogued first, one byte each; the two MIDI filters (RQ-AKM-079, TASK-AKM-078: &06 allow, &07 ignore) take an event type 0-3 and a channel 0-31, two bytes each, which completes the section's seven command rows; `complete` is set by TASK-AKM-080 once `--coverage` reports 7 of 7."
     }
   ],
   "items": [
@@ -2063,6 +2063,22 @@
       "id": "MidiAftertouch", "section": "04", "item": "05", "name": "Aftertouch", "kind": "set",
       "args": [{"name": "type", "format": "byte", "min": 0, "max": 1}],
       "requirements": ["RQ-AKM-078"]
+    },
+    {
+      "id": "MidiFilterAllow", "section": "04", "item": "06", "name": "Enable MIDI filter (allow messages)", "kind": "set",
+      "args": [
+        {"name": "eventType", "format": "byte", "min": 0, "max": 3},
+        {"name": "channel", "format": "byte", "min": 0, "max": 31}
+      ],
+      "requirements": ["RQ-AKM-079"]
+    },
+    {
+      "id": "MidiFilterIgnore", "section": "04", "item": "07", "name": "Disable MIDI filter (ignore messages)", "kind": "set",
+      "args": [
+        {"name": "eventType", "format": "byte", "min": 0, "max": 3},
+        {"name": "channel", "format": "byte", "min": 0, "max": 31}
+      ],
+      "requirements": ["RQ-AKM-079"]
     }
   ]
 }

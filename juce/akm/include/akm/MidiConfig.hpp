@@ -45,6 +45,15 @@ namespace akm
         Polyphonic = 1,
     };
 
+    /// The MIDI event types a filter acts on (§04/&06, &07), with the byte each travels as. [RQ-AKM-079]
+    enum class MidiFilterEvent : std::uint8_t
+    {
+        NoteOn = 0,
+        Aftertouch = 1,
+        Wheels = 2,
+        Volume = 3,
+    };
+
     /// Program Change Enable (§04/&01): remote selection of programs within parts. [RQ-AKM-078]
     void setProgramChangeEnabled(Session& session, bool enabled, CommandCompletion completion);
 
@@ -62,4 +71,14 @@ namespace akm
 
     /// Aftertouch (§04/&05); refused like `setMultiSelect` for a value that is neither type. [RQ-AKM-078]
     void setAftertouch(Session& session, AftertouchType type, CommandCompletion completion);
+
+    /// Enables the MIDI filter of an event type on a channel (§04/&06): the sampler allows those messages. The
+    /// channel is 0 to 31, 1A = 0 … 16B = 31, carrying the port; an event type that is not one of the four (an
+    /// enumerator cast from another value) or a channel outside that is refused without sending
+    /// (`ArgumentOutOfRange`). [RQ-AKM-079]
+    void allowMidiEvents(Session& session, MidiFilterEvent event, int channel, CommandCompletion completion);
+
+    /// Disables the MIDI filter of an event type on a channel (§04/&07): the sampler ignores those messages;
+    /// refused like `allowMidiEvents`. [RQ-AKM-079]
+    void ignoreMidiEvents(Session& session, MidiFilterEvent event, int channel, CommandCompletion completion);
 }

@@ -18,11 +18,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // The MIDI configuration primitives of section §04 (spec Table 8): on a session and the simulated sampler. Section
 // §04 has no Get and no REPLY, every item completes on DONE: the simulated sampler's record of what it received is
-// what proves a primitive. This file grows with each task of PLAN-AKM-009 — for now the five switches (&01 to &05).
-// Real-sampler verification is TASK-AKM-079's.
-// [TASK-AKM-077, RQ-AKM-078, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+// what proves a primitive. This file grows with each task of PLAN-AKM-009 — for now the five switches (&01 to &05)
+// and the two MIDI filters (&06, &07). Real-sampler verification is TASK-AKM-079's.
+// [TASK-AKM-077, TASK-AKM-078, RQ-AKM-078, RQ-AKM-079, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
 #include <catch2/catch_test_macros.hpp>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -38,6 +39,7 @@ using akm::AftertouchType;
 using akm::CommandResult;
 using akm::Done;
 using akm::Error;
+using akm::MidiFilterEvent;
 using akm::MultiSelectMode;
 using akm::RefusalReason;
 using akm::Refused;
@@ -69,6 +71,22 @@ namespace
     constexpr int CONTROLLER_BEYOND_RANGE = 128;
     constexpr int BELOW_RANGE = -1;
     constexpr std::int64_t SWITCH_BEYOND_RANGE = 2;
+
+    // The two filter items of Table 8 (RQ-AKM-079): `&06` allows the messages, `&07` ignores them. Data1 is the
+    // event type 0-3, Data2 the channel 0-31 (1A = 0 … 16B = 31).
+    constexpr std::uint8_t ITEM_FILTER_ALLOW = 0x06;
+    constexpr std::uint8_t ITEM_FILTER_IGNORE = 0x07;
+    constexpr int FILTER_EVENT_TYPE_COUNT = 4;
+    constexpr int FILTER_EVENT_BEYOND_RANGE = 4;
+    constexpr int CHANNEL_3A = 2;
+    constexpr int EVENT_WHEELS = 2;
+    constexpr std::array<MidiFilterEvent, FILTER_EVENT_TYPE_COUNT> FILTER_EVENTS{
+        MidiFilterEvent::NoteOn, MidiFilterEvent::Aftertouch, MidiFilterEvent::Wheels, MidiFilterEvent::Volume};
+
+    MidiFilterEvent filterEventOf(int value)
+    {
+        return static_cast<MidiFilterEvent>(value);
+    }
 
     MultiSelectMode multiSelectOf(int value)
     {
@@ -225,4 +243,99 @@ TEST_CASE("Given a sampler that answers the multi select with an ERROR, When it 
     REQUIRE(std::holds_alternative<Error>(harness.recorder().results().back()));
     CHECK(std::get<Error>(harness.recorder().results().back()).number == akm::error_number::UNKNOWN_ERROR);
     CHECK(harness.sampler().midiConfig().multiSelect == 0);
+}
+
+TEST_CASE("Given a simulated sampler, When the Wheels filter on channel 3A is disabled then enabled, Then the frames carry 04 07 02 02 then 04 06 02 02 and the sampler records that filter ignoring then allowing [RQ-AKM-079]",
+          "[akm][midi-config]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+
+    akm::ignoreMidiEvents(harness.session(), MidiFilterEvent::Wheels, CHANNEL_3A, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(1));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+    CHECK(sentDataOf(harness, sentBefore, ITEM_FILTER_IGNORE) == bytes({EVENT_WHEELS, CHANNEL_3A}));
+
+    // Only that one filter changed: every other event type on every channel still allows its messages.
+    akm::harness::MidiConfigState state = harness.sampler().midiConfig();
+    CHECK_FALSE(state.filterAllowed[EVENT_WHEELS][CHANNEL_3A]);
+    std::size_t ignoring = 0;
+    for (const auto& channels : state.filterAllowed)
+        for (const bool allowed : channels)
+            ignoring += allowed ? 0 : 1;
+    CHECK(ignoring == 1);
+
+    const std::size_t sentAfterIgnore = harness.sentCount();
+    akm::allowMidiEvents(harness.session(), MidiFilterEvent::Wheels, CHANNEL_3A, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+    CHECK(sentDataOf(harness, sentAfterIgnore, ITEM_FILTER_ALLOW) == bytes({EVENT_WHEELS, CHANNEL_3A}));
+
+    state = harness.sampler().midiConfig();
+    CHECK(state.filterAllowed[EVENT_WHEELS][CHANNEL_3A]);
+    CHECK(state.events == std::vector<MidiConfigEvent>{{ITEM_FILTER_IGNORE, EVENT_WHEELS, CHANNEL_3A},
+                                                       {ITEM_FILTER_ALLOW, EVENT_WHEELS, CHANNEL_3A}});
+}
+
+TEST_CASE("Given each event type on the first and the last channel, When it is ignored then allowed, Then each goes out as its own item and bytes and the sampler records each [RQ-AKM-079]",
+          "[akm][midi-config]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+
+    std::size_t completed = 0;
+    for (const int channel : {CHANNEL_FIRST, CHANNEL_LAST})
+    {
+        for (int type = 0; type < FILTER_EVENT_TYPE_COUNT; ++type)
+        {
+            const MidiFilterEvent event = FILTER_EVENTS[static_cast<std::size_t>(type)];
+            const std::size_t sentBefore = harness.sentCount();
+            akm::ignoreMidiEvents(harness.session(), event, channel, harness.recorder().completion());
+            REQUIRE(harness.waitForCompletions(++completed));
+            CHECK(sentDataOf(harness, sentBefore, ITEM_FILTER_IGNORE) ==
+                  bytes({static_cast<std::uint8_t>(type), static_cast<std::uint8_t>(channel)}));
+            CHECK_FALSE(harness.sampler().midiConfig().filterAllowed[static_cast<std::size_t>(type)]
+                                                                    [static_cast<std::size_t>(channel)]);
+
+            const std::size_t sentAfterIgnore = harness.sentCount();
+            akm::allowMidiEvents(harness.session(), event, channel, harness.recorder().completion());
+            REQUIRE(harness.waitForCompletions(++completed));
+            CHECK(sentDataOf(harness, sentAfterIgnore, ITEM_FILTER_ALLOW) ==
+                  bytes({static_cast<std::uint8_t>(type), static_cast<std::uint8_t>(channel)}));
+            CHECK(harness.sampler().midiConfig().filterAllowed[static_cast<std::size_t>(type)]
+                                                              [static_cast<std::size_t>(channel)]);
+        }
+    }
+    CHECK(harness.sampler().midiConfig().events.size() == completed);
+}
+
+TEST_CASE("Given an event type above 3 or a channel outside 0-31, When a filter is allowed or ignored, Then nothing is sent and it is refused as ArgumentOutOfRange [RQ-AKM-079]",
+          "[akm][midi-config]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const std::size_t sentBefore = harness.sentCount();
+    auto completion = [&] { return harness.recorder().completion(); };
+    auto& session = harness.session();
+
+    akm::ignoreMidiEvents(session, filterEventOf(FILTER_EVENT_BEYOND_RANGE), CHANNEL_FIRST, completion());
+    akm::allowMidiEvents(session, filterEventOf(FILTER_EVENT_BEYOND_RANGE), CHANNEL_FIRST, completion());
+    akm::ignoreMidiEvents(session, MidiFilterEvent::NoteOn, CHANNEL_BEYOND_RANGE, completion());
+    akm::allowMidiEvents(session, MidiFilterEvent::NoteOn, CHANNEL_BEYOND_RANGE, completion());
+    akm::ignoreMidiEvents(session, MidiFilterEvent::NoteOn, BELOW_RANGE, completion());
+    akm::allowMidiEvents(session, MidiFilterEvent::NoteOn, BELOW_RANGE, completion());
+    constexpr std::size_t REFUSED_COUNT = 6;
+    REQUIRE(harness.waitForCompletions(REFUSED_COUNT));
+
+    for (const CommandResult& result : harness.recorder().results())
+    {
+        REQUIRE(std::holds_alternative<Refused>(result));
+        CHECK(std::get<Refused>(result).reason == RefusalReason::ArgumentOutOfRange);
+    }
+    CHECK(harness.sentCount() == sentBefore);
+    CHECK(harness.sampler().midiConfig().events.empty());
 }

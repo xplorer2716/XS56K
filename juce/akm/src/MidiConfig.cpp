@@ -50,4 +50,16 @@ namespace akm
     {
         session.submit(makeRequest(ItemId::MidiAftertouch, {static_cast<std::int64_t>(type)}), std::move(completion));
     }
+
+    void allowMidiEvents(Session& session, MidiFilterEvent event, int channel, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MidiFilterAllow, {static_cast<std::int64_t>(event), channel}),
+                       std::move(completion));
+    }
+
+    void ignoreMidiEvents(Session& session, MidiFilterEvent event, int channel, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MidiFilterIgnore, {static_cast<std::int64_t>(event), channel}),
+                       std::move(completion));
+    }
 }
