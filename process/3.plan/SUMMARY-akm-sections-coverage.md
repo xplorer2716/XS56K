@@ -52,6 +52,12 @@ Unlike §20 it sets stored configuration (UTILITIES > MIDI SETUP and MIDI FILTER
 owner-guided `--midi-config` check asks the owner for the values to put back (`RQ-AKM-080`); the owner's eyes on the
 sampler's screen are its read-back.
 
+§04 was run on the owner's S5000 (OS 2.14) on 2026-10-04 (`akm-suite-20261004-103116.log`, third run,
+`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`): **all seven items are obeyed** and every change was seen on
+the sampler's screen. The sampler redraws those pages after a SysEx message only while §00/&05 (automatic screen updating)
+is on; with it off, as in the first two runs, only `&01` and `&07` showed. Not observed: the channel code of `&06`/`&07`
+for port B (codes 16-31), the three other filter event types, and the effect on real MIDI input.
+
 ### §10 on the real S5000 (2026-10-03)
 
 The table above measures the catalogue against the spec. This is separate: what the owner's S5000 (OS 2.14, disk

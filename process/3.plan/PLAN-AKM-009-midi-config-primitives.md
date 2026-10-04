@@ -251,8 +251,11 @@ This plan implements the tasks in the format specified below.
   checks, leaves the seeded state and logs "the screen showed it only after the page was opened again"; a new case with
   `touchLcdSettings = false` sees Auto screen update off at every look; the "no" case now also expects "still so after
   opening the page again" in the detail. The facts of the second run are in
-  `OBSERVATIONS-RQ-AKM-080-midi-config.md`. Not verified: the third run on the real sampler, which only the owner can
-  make; nothing here sent a frame to hardware.
+  `OBSERVATIONS-RQ-AKM-080-midi-config.md`. The owner's third run on the real S5000 (`akm-suite-20261004-103116.log`,
+  2026-10-04): `00 05 01` sent at the open and `00 05 00` at the close, all nine checks passed, every §04 item
+  (`&01`-`&05`, `&07`, and `&06` as a restore) answered DONE and was seen on the screen at the first look, the final
+  "pages show the declared values again" answered yes. Not verified: the channel code of port B, the other filter event
+  types, the effect on real MIDI input.
 - **Assumptions**: The final "the pages show the declared values again" question gets the same second look. The second
   check (the failure on purpose) uses the same non-throwing question and fails at its end if it is not seen. Whether the
   S5000 redraws its MIDI SETUP page on a SysEx message once §00/&05 is on is exactly what the next run shows; the

@@ -125,10 +125,11 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   it lasts. The values you declare are not verified, and a wrong declaration is put back as given (the log records it).
   The check switches Auto screen update on for its session (§00/&05; put back off at the close, left alone with `--no-lcd`)
   and, after a "no", asks you to leave the page, open it again and look once more: a screen that is not redrawn by itself
-  looks like an item the sampler ignored. Observed so far (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`):
-  the sampler answers DONE to every §04 item; `&01` and `&07` were seen on the screen, `&02` to `&05` were not, with
-  Auto screen update off and no second look, so whether they are ignored or only not redrawn is not settled. `&06` and
-  whether the channel code of `&06`/`&07` carries the port ("Port A & B", FTR-AKM-009 open points) are not yet observed.
+  looks like an item the sampler ignored. Observed (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`, third
+  run, 2026-10-04): the S5000 obeys all seven items and every change was seen at once on its screen. With Auto screen update
+  off (the first two runs) only `&01` and `&07` showed, so §00/&05 must be on for the sampler's pages to follow SysEx. Not
+  observed: the channel code of `&06`/`&07` for port B (1B to 16B, "Port A & B", FTR-AKM-009 open points), the other filter
+  event types and the effect on real MIDI input.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

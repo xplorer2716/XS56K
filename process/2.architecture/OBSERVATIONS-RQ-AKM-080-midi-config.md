@@ -65,9 +65,41 @@ The owner's remark that, wherever "no" was answered, the values on the screen ha
 - **The final "no" is uninformative:** it does not say which page is wrong. After run 2 the real state of the sampler's MIDI
   setup is not known; the owner should look at the pages by hand and put right what differs.
 
-## To settle on the next run (after `TASK-AKM-082`)
+## Run 3 of 2026-10-04 (`akm-suite-20261004-103116.log`, not committed) — with Auto screen update on
 
-The session of the MIDI checks now opens with Auto screen update on (§00/&05, put back off by the close), and a "no" is
-followed by a second look after the owner leaves the page and opens it again. Three outcomes per item: seen at once (the
-item works and the screen redraws); seen only after re-opening the page (the item works, the screen did not redraw
-by itself); still not seen after re-opening (the sampler ignores the item). Only the last one is a finding about the item.
+After `TASK-AKM-082` the session of the MIDI checks switches Auto screen update (§00/&05) on (`00 05 01` at the open, `00 05 00`
+at the close). The owner declared what the sampler held (PROGRAM CHANGE OFF, MULTI SELECT PROG CHANGE, MULTI SLCT CH 1A,
+EXT APM CONTROL 0, AFTERTOUCH CHANNEL, the AFTERTOUCH filter of channel 1A allowing). Every item was answered OK then DONE in
+10 ms, and **every change was seen on the screen at the first look**; the second look was never needed. All nine checks passed.
+
+| Item | Sent | Owner on the screen |
+|---|---|---|
+| `&01` Program Change Enable | `04 01 01` (ON) | seen |
+| `&02` Multi Select | `04 02 02` (BANK) | seen |
+| `&03` Multi Select Channel | `04 03 01` (2A) | seen |
+| `&04` External APM Controller | `04 04 01` (1) | seen |
+| `&05` Aftertouch | `04 05 01` (POLYPHONIC) | seen |
+| `&07` Ignore filter | `04 07 01 00` (AFTERTOUCH, 1A) | seen |
+| `&06` Allow filter | `04 06 01 00`, as the restore | seen, indirectly: the final question "every page shows the declared values again" was answered yes, the filter being among them |
+| restores of `&01` to `&05` | the declared values | seen, by the same final question |
+
+## What is established (after run 3)
+
+- **All seven §04 items are obeyed by the S5000 (OS 2.14)**, with the values of Table 8 as the spec gives them: `&01` 0-1,
+  `&02` 0-2 (OFF, PROG CHANGE, BANK; BANK seen, PROG CHANGE seen as a restore), `&03` channel 2A as code 1, `&04` controller 1,
+  `&05` 1 = polyphonic, `&06`/`&07` event type 1 (Aftertouch) on channel code 0 (1A).
+- **The sampler does not redraw its MIDI SETUP and MIDI FILTER pages after a SysEx message unless §00/&05 is on.** With it off
+  (runs 1 and 2) only `&01` and `&07` showed; with it on all seven did. DONE is no proof of effect in section 04, and
+  nor is the screen if §00/&05 is off. An application that changes these settings and wants the sampler's own screen to follow
+  must switch §00/&05 on.
+- **Corrected:** the first records of runs 1 and 2 above read "not seen" as "the sampler ignores the item", and the
+  dependence of `&02` on PROGRAM CHANGE as a possible cause. Neither holds: the sampler had taken the items, the screen had
+  not been redrawn.
+
+## Not observed
+
+- The channel code of `&06`/`&07` on the other port: only channel code 0 (1A) was exercised. Whether codes 16 to 31 (1B to
+  16B) act on the same channels of port B, or on those of the port the frame arrived on, is not known.
+- The other event types (NoteOn, Wheels, Volume) and the effect of a filter on actual MIDI input: only that the setting
+  changes on the screen.
+- That a Multi Select channel or mode actually selects a multi when MIDI arrives.
