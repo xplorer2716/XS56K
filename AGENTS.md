@@ -112,8 +112,10 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   act on whatever the sampler shows: SAVE, ENT/PLAY or the wheel can change or delete data on some screens, so choose the
   screen with care. Every key still held is released at the end, and by the session's close if the check fails (DEC-AKM-019).
   Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run on the real sampler by the
-  owner, who judged it good; no log or per-key observation was kept, so whether the S5000 takes Backspace/Enter as ASCII
-  8/13, or counts Holds of one key, is not recorded.
+  owner in two runs (2026-10-04, `process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`): every Hold, Release and
+  data wheel step was accepted and the owner reports the shortcuts worked; not yet pressed: Escape, `-`/`+`, the other
+  digits, EDIT SAMPLE, EDIT PROGRAM, RECORD, UTILITIES, and any character in the text mode, so whether the S5000 takes
+  Backspace/Enter as ASCII 8/13, or counts Holds of one key, is still open.
   `--midi-config` adds two owner-guided checks on the sampler's MIDI setup (section 04, RQ-AKM-080). Section 04 has no Get,
   so the check cannot read what the sampler holds: before anything is sent it asks you what UTILITIES > MIDI SETUP shows
   (PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH) and, on MIDI FILTER, one filter you pick (event

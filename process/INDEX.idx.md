@@ -176,6 +176,7 @@ DEC-BLD-028|24-36||The generator passes `run-tests: true` to `build-app` in ever
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-059-clock-reply-section.md
+@process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md
@@ -265,14 +266,14 @@ TASK-AKM-066|338-370|Done|Destructive command guards for Eject, Delete Sub-Folde
 TASK-AKM-067|371-411|Done|Real-sampler harness — disposable test folder and slow-operation guard
 TASK-AKM-068|412-437|Done|Coverage of section §10 and errata resolution
 @process/3.plan/PLAN-AKM-008-front-panel-primitives.md
-PLAN-AKM-008|1-296||Front Panel Control Primitives (Phase A, new lot, §20)
+PLAN-AKM-008|1-300||Front Panel Control Primitives (Phase A, new lot, §20)
 TASK-AKM-069|41-64|Done|Author FTR-AKM-008 and PLAN-AKM-008
 TASK-AKM-070|65-100|Done|Key Hold and Key Release, keycodes of Table 31
 TASK-AKM-071|101-129|Done|Data wheel and ASCII keyboard
 TASK-AKM-072|130-168|Done|Release held keys when the session closes
-TASK-AKM-073|169-214|Done|Real-sampler check driven from the PC keyboard
-TASK-AKM-074|215-242|Done|Coverage of section §20
-TASK-AKM-075|243-296|Done|Corrections found by the code review of the front panel lot
+TASK-AKM-073|169-218|Done|Real-sampler check driven from the PC keyboard
+TASK-AKM-074|219-246|Done|Coverage of section §20
+TASK-AKM-075|247-300|Done|Corrections found by the code review of the front panel lot
 @process/3.plan/PLAN-AKM-009-midi-config-primitives.md
 PLAN-AKM-009|1-263||MIDI Configuration Primitives (Phase A, new lot, §04)
 TASK-AKM-076|39-64|Done|Author FTR-AKM-009 and PLAN-AKM-009

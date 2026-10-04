@@ -200,8 +200,12 @@ This plan implements the tasks in the format specified below.
   now logs each key released or not released and `closeAndVerify` names the keys not released. Not verified: the
   real sampler and the Windows console reader (`_getch`, scan-code translation), which only the owner can run —
   nothing here sent a frame to hardware. Real sampler (RQ-AKM-076, last Gherkin): the owner ran `--front-panel` on
-  the S5000 and reported it good (2026-10-04, as stated by the owner; no log or per-key observation was kept, so
-  nothing here is re-produced from tool output).
+  the S5000 twice on 2026-10-04 (`akm-suite-20261004-162529.log`, `-162917.log`, supplied by the owner, not committed):
+  8 checks of 8 passed each time, 129 and 278 PC keys, 250 and 343 §20 commands, every one answered OK then DONE, every
+  key released, the sampler left in the known state; the owner reports the shortcuts worked on the sampler. Not
+  pressed: Escape, `-`/`+`, most digits, EDIT SAMPLE, EDIT PROGRAM, RECORD, UTILITIES, and any character in the text
+  mode (`&04` never sent). Details in `process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`. The effect on the
+  screen is the owner's word, the logs only show the acceptance.
 - **Assumptions**: The owner approved the mapping as proposed (session AKM, 2026-10-03): F9–F16 of the sampler
   are not mapped. The console reader is Windows only (`_getch`); elsewhere, or when stdin is not a console, no
   reader is given and the check is skipped — the owner works on Windows, and POSIX terminal code could not be

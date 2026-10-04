@@ -26,7 +26,7 @@ Nothing is open in PLAN-AKM-010 and PLAN-AKM-011: TASK-AKM-093 (`b331278`), TASK
 (`404393e`) were done after the checkpoint was first written, §16 and §0C are complete in the catalogue (`ctest` 674/674,
 530 of 560 spec lines covered). Sections still at 0 %: §12 Multi FX (18 lines) and §14 Scenelist (12). Still to run on the
 real sampler: `--song-files` once a MIDI song file is loaded, `--multi-lifecycle` with the owner's own multis in memory,
-`--front-panel` (§20, the owner judged it good, no log).
+`--front-panel` keys not yet pressed (Escape, `-`/`+`, other digits, four mode keys, text-mode ASCII; §20 itself ran twice, see OBSERVATIONS-RQ-AKM-076-front-panel.md).
 
 ## Key decisions and facts to keep
 
@@ -40,4 +40,4 @@ real sampler: `--song-files` once a MIDI song file is loaded, `--multi-lifecycle
 - No new decision (DEC) was needed so far: §16 and §0C reuse DEC-AKM-003, -011, -012, -013, -014, -015.
 - Hand-built request shapes live in the primitives (`renameSetList`, as `loadFile` and `setZoneSample` before it).
 - The shell here rewrites heredocs badly: write multi-line scripts to the scratchpad with the Write tool and run them.
-- Not run by anyone yet: `--front-panel` (§20) is considered good by the owner (reported 2026-10-04), no log kept.
+- §20 ran twice on the real S5000 on 2026-10-04 (logs given by the owner): all accepted, owner says the shortcuts worked.
