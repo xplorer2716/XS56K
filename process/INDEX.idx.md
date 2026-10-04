@@ -307,11 +307,11 @@ TASK-AKM-093|158-185|Done|Multi renaming, program number and part assignment
 TASK-AKM-094|186-222|Done|Real-sampler check on a dedicated test multi
 TASK-AKM-095|223-243|Done|Coverage of section §0C
 @process/3.plan/PLAN-AKM-012-scenelist-primitives.md
-PLAN-AKM-012|1-89||Scenelist Primitives (Phase A, new lot, §14)
+PLAN-AKM-012|1-105||Scenelist Primitives (Phase A, new lot, §14)
 TASK-AKM-096|31-44|Done|Author FTR-AKM-012 and PLAN-AKM-012
-TASK-AKM-097|45-59|Not Started|Scenelist selection, renaming, deletion and general information
-TASK-AKM-098|60-76|Not Started|Real-sampler check of the scenelists
-TASK-AKM-099|77-89|Not Started|Coverage of section §14
+TASK-AKM-097|45-75|Done|Scenelist selection, renaming, deletion and general information
+TASK-AKM-098|76-92|Not Started|Real-sampler check of the scenelists
+TASK-AKM-099|93-105|Not Started|Coverage of section §14
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

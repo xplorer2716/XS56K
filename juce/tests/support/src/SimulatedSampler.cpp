@@ -225,16 +225,19 @@ namespace akm::harness
         constexpr int MULTI_PART_COUNT_CODE_FIRST = 32;
 
         // Section §16 (MIDI song files), spec Tables 28-29: the song file items of TASK-AKM-084 (RQ-AKM-082,
-        // RQ-AKM-083). The same pattern as §0E: a current selection, an index as two 7-bit bytes.
+        // RQ-AKM-083). The same pattern as §0E: a current selection, an index as two 7-bit bytes. Section §14
+        // (scenelists, Tables 26-27, TASK-AKM-097, RQ-AKM-095, RQ-AKM-096) has the same eight items under the same
+        // codes, so the ITEM_LIST_* codes below serve both.
         constexpr std::uint8_t SECTION_SONG_FILES = 0x16;
-        constexpr std::uint8_t ITEM_SELECT_SONG_BY_NAME = 0x05;
-        constexpr std::uint8_t ITEM_SELECT_SONG_BY_INDEX = 0x06;
-        constexpr std::uint8_t ITEM_DELETE_CURRENT_SONG = 0x08;
-        constexpr std::uint8_t ITEM_RENAME_CURRENT_SONG = 0x09;
-        constexpr std::uint8_t ITEM_GET_SONG_COUNT = 0x10;
-        constexpr std::uint8_t ITEM_GET_SONG_NAME_BY_INDEX = 0x11;
-        constexpr std::uint8_t ITEM_GET_CURRENT_SONG_INDEX = 0x13;
-        constexpr std::uint8_t ITEM_GET_CURRENT_SONG_NAME = 0x14;
+        constexpr std::uint8_t SECTION_SCENE_LIST = 0x14;
+        constexpr std::uint8_t ITEM_LIST_SELECT_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_LIST_SELECT_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_LIST_DELETE_CURRENT = 0x08;
+        constexpr std::uint8_t ITEM_LIST_RENAME_CURRENT = 0x09;
+        constexpr std::uint8_t ITEM_LIST_GET_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_LIST_GET_NAME_BY_INDEX = 0x11;
+        constexpr std::uint8_t ITEM_LIST_GET_CURRENT_INDEX = 0x13;
+        constexpr std::uint8_t ITEM_LIST_GET_CURRENT_NAME = 0x14;
         // The set lists of TASK-AKM-085 (RQ-AKM-084): addressed by index, with no current selection.
         constexpr std::uint8_t ITEM_GET_SET_LIST_COUNT = 0x20;
         constexpr std::uint8_t ITEM_GET_SET_LIST_NAME_BY_INDEX = 0x21;
@@ -1537,87 +1540,101 @@ namespace akm::harness
             return reply(writer.bytes());
         }
 
-        // §16 song files (RQ-AKM-082, RQ-AKM-083): select by name/index, delete/rename the current one and the
-        // four Gets. A name or an index with no song file, and any "current" item with none current, fail with
-        // ERROR 04, as §0E does (the spec is silent on §16, so this is a modelling choice). [TASK-AKM-084]
+        // The eight items a list of named things with a current one has: select by name/index, delete/rename the
+        // current one and the four Gets. It is the song file half of §16 (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084) and
+        // the whole of §14, the scenelists (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097), whose items have the same codes.
+        // A name or an index with none, and any "current" item with none current, fail with ERROR 04, as §0E does
+        // (the spec is silent on both sections, so this is a modelling choice).
+        Outcome executeCurrentNamedList(std::uint8_t item, const Bytes& data, std::vector<std::string>& names,
+                                        std::optional<std::size_t>& current)
+        {
+            switch (item)
+            {
+                case ITEM_LIST_SELECT_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find(names.begin(), names.end(), *name);
+                    if (found == names.end())
+                        return failure(error_number::NOT_FOUND);
+                    current = static_cast<std::size_t>(found - names.begin());
+                    return done();
+                }
+                case ITEM_LIST_SELECT_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= names.size())
+                        return failure(error_number::NOT_FOUND);
+                    current = *index;
+                    return done();
+                }
+                case ITEM_LIST_DELETE_CURRENT:
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    names.erase(names.begin() + static_cast<std::ptrdiff_t>(*current));
+                    current.reset();
+                    return done();
+                case ITEM_LIST_RENAME_CURRENT:
+                {
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    names[*current] = *name;
+                    return done();
+                }
+                case ITEM_LIST_GET_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(names.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_LIST_GET_NAME_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= names.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(names[*index]);
+                    return reply(writer.bytes());
+                }
+                case ITEM_LIST_GET_CURRENT_INDEX:
+                {
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_LIST_GET_CURRENT_NAME:
+                {
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(names[*current]);
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
+        // §16 song files and set lists (RQ-AKM-082 to RQ-AKM-084): the song file half is the shared named list, the
+        // set list items (&20-&23) are addressed by index. [TASK-AKM-084, TASK-AKM-085]
         Outcome executeSongFiles(std::uint8_t item, const Bytes& data, SongState& state)
         {
             switch (item)
             {
-                case ITEM_SELECT_SONG_BY_NAME:
-                {
-                    akm::ByteReader reader(data);
-                    const auto name = reader.readString();
-                    if (!name)
-                        return failure(error_number::INVALID_FORMAT);
-                    const auto found = std::find(state.songs.begin(), state.songs.end(), *name);
-                    if (found == state.songs.end())
-                        return failure(error_number::NOT_FOUND);
-                    state.current = static_cast<std::size_t>(found - state.songs.begin());
-                    return done();
-                }
-                case ITEM_SELECT_SONG_BY_INDEX:
-                {
-                    akm::ByteReader reader(data);
-                    const auto index = reader.readWord();
-                    if (!index.has_value())
-                        return failure(error_number::INVALID_FORMAT);
-                    if (*index >= state.songs.size())
-                        return failure(error_number::NOT_FOUND);
-                    state.current = *index;
-                    return done();
-                }
-                case ITEM_DELETE_CURRENT_SONG:
-                    if (!state.current.has_value())
-                        return failure(error_number::NOT_FOUND);
-                    state.songs.erase(state.songs.begin() + static_cast<std::ptrdiff_t>(*state.current));
-                    state.current.reset();
-                    return done();
-                case ITEM_RENAME_CURRENT_SONG:
-                {
-                    if (!state.current.has_value())
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteReader reader(data);
-                    const auto name = reader.readString();
-                    if (!name)
-                        return failure(error_number::INVALID_FORMAT);
-                    state.songs[*state.current] = *name;
-                    return done();
-                }
-                case ITEM_GET_SONG_COUNT:
-                {
-                    akm::ByteWriter writer;
-                    writer.appendWord(static_cast<std::uint32_t>(state.songs.size()));
-                    return reply(writer.bytes());
-                }
-                case ITEM_GET_SONG_NAME_BY_INDEX:
-                {
-                    akm::ByteReader reader(data);
-                    const auto index = reader.readWord();
-                    if (!index.has_value())
-                        return failure(error_number::INVALID_FORMAT);
-                    if (*index >= state.songs.size())
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    writer.appendString(state.songs[*index]);
-                    return reply(writer.bytes());
-                }
-                case ITEM_GET_CURRENT_SONG_INDEX:
-                {
-                    if (!state.current.has_value())
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    writer.appendWord(static_cast<std::uint32_t>(*state.current));
-                    return reply(writer.bytes());
-                }
-                case ITEM_GET_CURRENT_SONG_NAME:
-                {
-                    if (!state.current.has_value())
-                        return failure(error_number::NOT_FOUND);
-                    akm::ByteWriter writer;
-                    writer.appendString(state.songs[*state.current]);
-                    return reply(writer.bytes());
-                }
                 case ITEM_GET_SET_LIST_COUNT:
                 {
                     akm::ByteWriter writer;
@@ -1629,7 +1646,7 @@ namespace akm::harness
                 case ITEM_RENAME_SET_LIST:
                     return executeSetListByIndex(item, data, state.setLists);
                 default:
-                    return failure(error_number::NOT_SUPPORTED);
+                    return executeCurrentNamedList(item, data, state.songs, state.current);
             }
         }
 
@@ -2396,6 +2413,7 @@ namespace akm::harness
             FrontPanelState& frontPanel;
             MidiConfigState& midiConfig;
             SongState& songs;
+            SceneListState& sceneLists;
         };
 
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerState& state)
@@ -2427,6 +2445,8 @@ namespace akm::harness
                 return executeMulti(item, data, state.multis, state.programs);
             if (section == SECTION_SONG_FILES)
                 return executeSongFiles(item, data, state.songs);
+            if (section == SECTION_SCENE_LIST)
+                return executeCurrentNamedList(item, data, state.sceneLists.scenes, state.sceneLists.current);
             if (section == SECTION_DISK)
                 return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples);
             if (section != SECTION_SYSEX_CONFIG)
@@ -2517,6 +2537,32 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         return _songs.current;
+    }
+
+    void SimulatedSampler::setSceneListNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _sceneLists.scenes = std::move(names);
+        _sceneLists.current.reset();
+    }
+
+    void SimulatedSampler::setCurrentSceneList(std::size_t index)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index < _sceneLists.scenes.size())
+            _sceneLists.current = index;
+    }
+
+    std::optional<std::size_t> SimulatedSampler::currentSceneList() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _sceneLists.current;
+    }
+
+    std::vector<std::string> SimulatedSampler::sceneListNames() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _sceneLists.scenes;
     }
 
     void SimulatedSampler::setSetListNames(std::vector<std::string> names)
@@ -2840,7 +2886,7 @@ namespace akm::harness
         SamplerState state{_settings,      _config.osVersion, _system,      _programs,         _currentProgram,
                            _currentKeygroup, _samples,         _currentSample, _multis,       _disks,
                            _currentDisk,     _currentFolderPath, _frontPanel,  _midiConfig,
-                           _songs};
+                           _songs,           _sceneLists};
         const Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
                                                                         : execute(section, item, data, state);
         // An item the sampler is deaf to ran, and says nothing, the OK included.

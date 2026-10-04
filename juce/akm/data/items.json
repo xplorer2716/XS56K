@@ -72,6 +72,13 @@
       "note": "FTR-AKM-010 (PLAN-AKM-010), 12 command rows and 6 REPLY formats. Song file selection, renaming, deletion and general information (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084: &05, &06, &08, &09, &10, &11, &13, &14) are catalogued first, the same shape as section 0E's lifecycle: a sampler-wide current song file, an index carried as two Byte values (MSB, LSB) and a name as a String. The four set list items (RQ-AKM-084, TASK-AKM-085: &20, &21, &22, &23) have no current selection: each takes its index, and &23 (Rename) carries the index then a String, a shape built by hand like §10's &2A. `complete` was set by TASK-AKM-087 after `--coverage` reported 12 of 12 spec rows covered with no unaccounted item; the section has no erratum beyond the two cosmetic ones of the kb (Table 29's title, Table 28's sub-group header)."
     },
     {
+      "section": "14",
+      "name": "Scenelist",
+      "complete": false,
+      "spec": "Tables 26 and 27, p. 39",
+      "note": "FTR-AKM-012 (PLAN-AKM-012), 8 command rows and 4 REPLY formats. Scenelist selection, renaming, deletion and general information (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097: &05, &06, &08, &09, &10, &11, &13, &14) have the shape of the song file half of section 16: a sampler-wide current scenelist, an index carried as two Byte values (MSB, LSB) and a name as a String. `complete` is set by TASK-AKM-099."
+    },
+    {
       "section": "0C",
       "name": "Multi",
       "complete": true,
@@ -2194,6 +2201,70 @@
         {"name": "name", "format": "string", "min": 0, "max": 255}
       ],
       "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "SceneListSelectByName", "section": "14", "item": "05", "name": "Select Scenelist by name", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListSelectByIndex", "section": "14", "item": "06", "name": "Select Scenelist by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListDeleteCurrent", "section": "14", "item": "08", "name": "Delete the currently selected Scenelist", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListRenameCurrent", "section": "14", "item": "09", "name": "Rename the currently selected Scenelist", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListGetCount", "section": "14", "item": "10", "name": "Get the Number of Scenelists loaded into memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-096"]
+    },
+    {
+      "id": "SceneListGetNameByIndex", "section": "14", "item": "11", "name": "Get the name of Scenelist by index", "kind": "get",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-096"]
+    },
+    {
+      "id": "SceneListGetCurrentIndex", "section": "14", "item": "13", "name": "Get Current Scenelist's Index", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-096"]
+    },
+    {
+      "id": "SceneListGetCurrentName", "section": "14", "item": "14", "name": "Get Current Scenelist's Name", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-096"]
     },
     {
       "id": "MultiSetPartCount", "section": "0C", "item": "01", "name": "Set the number of parts for new multis", "kind": "set",

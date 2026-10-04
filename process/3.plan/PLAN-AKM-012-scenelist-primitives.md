@@ -44,7 +44,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-097: Scenelist selection, renaming, deletion and general information
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue and implement `&05`, `&06`, `&08`, `&09`, `&10`, `&11`, `&13`, `&14` as primitives
   in `SceneListPrimitives`, and model them in the simulated sampler (seeded by `setSceneListNames`).
 - **Requirement refs**: RQ-AKM-095, RQ-AKM-096
@@ -52,8 +52,24 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-095 and RQ-AKM-096.
 - **Dependencies**: TASK-AKM-096
 - **Assignee**: AI
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 682/682
+  passed after a full re-run in this session (674 before, 8 new in `SceneListPrimitivesTests.cpp`, written before the
+  code, `ctest -R "RQ-AKM-09[56]"` 8/8): select by name sends section `14`, item `05` and `53 43 45 4E 45 31 00`,
+  then rename (`09`) round-trips through `&14`; a name or an index with no scenelist fails ERROR 04; select by index
+  (`06`, frame `00 00`), delete (`08`), then the count is one less, no scenelist is current and index 0 names what
+  was `B`; index 130 goes on the wire as `01 02`; delete, rename and the two current Gets fail ERROR 04 with none
+  current; count and name by index read `A`, `B`, `C` in order, an index past the end fails ERROR 04, reading by
+  index leaves the selection alone; an empty memory counts 0 on a REPLY; both name Gets are refused
+  `ChecksumModeUnknown` with nothing sent. `generate_akm_items.py --check`: up to date (373 items).
+  `ItemCatalogueTests.cpp`'s count formula extended by the 8 records. Not verified: the real sampler
+  (TASK-AKM-098).
+- **Assumptions**: The spec is silent on what §14 answers with no scenelist current or an unknown name or index: the
+  simulated sampler answers ERROR `04` as §16 does (a modelling choice). To model it without duplicating §16's
+  code, `executeSongFiles`'s eight song file cases became `executeCurrentNamedList`, shared by §16 and §14 (the
+  codes are the same; its constants were renamed `ITEM_LIST_*`), with no change of behaviour: the song file tests
+  still pass unmodified. The result types are aliases of the song file ones (as the set lists' are), so
+  `SceneListPrimitives.hpp` includes `SongPrimitives.hpp`. Name bound `0-255` as §16's. Section `14` was added to
+  `items.json` with `complete: false` until TASK-AKM-099.
 
 ---
 

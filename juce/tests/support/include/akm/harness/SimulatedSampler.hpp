@@ -428,6 +428,15 @@ namespace akm::harness
         std::vector<std::string> setLists;
     };
 
+    /// The sampler's scenelists (§14, spec Tables 26-27): names only, in memory order, with the current selection
+    /// kept the way a song file's is. §14 builds none (spec p. 39), so `setSceneListNames` is the only way to give
+    /// the model one. [RQ-AKM-095]
+    struct SceneListState
+    {
+        std::vector<std::string> scenes;
+        std::optional<std::size_t> current;
+    };
+
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
     /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. §00, the two version items of §02
@@ -470,6 +479,20 @@ namespace akm::harness
 
         /// The current song file's index, or nothing when none is current (RQ-AKM-085).
         [[nodiscard]] std::optional<std::size_t> currentSong() const;
+
+        /// Seeds the sampler's scenelists (§14) by name, current selection reset. Empty by default: no §14 item
+        /// creates a scenelist. [RQ-AKM-095]
+        void setSceneListNames(std::vector<std::string> names);
+
+        /// The names of the scenelists the sampler holds now, in memory order (RQ-AKM-095).
+        [[nodiscard]] std::vector<std::string> sceneListNames() const;
+
+        /// Makes the scenelist at `index` current, as &06 would; a no-op when `index` names none (RQ-AKM-097: the
+        /// real-sampler check puts back the selection it found).
+        void setCurrentSceneList(std::size_t index);
+
+        /// The current scenelist's index, or nothing when none is current (RQ-AKM-097).
+        [[nodiscard]] std::optional<std::size_t> currentSceneList() const;
 
         /// Seeds the sampler's set lists (§16/&20-&23) by name; no §16 item creates one. [RQ-AKM-084]
         void setSetListNames(std::vector<std::string> names);
@@ -595,6 +618,8 @@ namespace akm::harness
         std::optional<std::size_t> _currentSample;
         // §16 MIDI song files (RQ-AKM-082), seeded by `setSongNames`: not touched by powerCycle().
         SongState _songs;
+        // §14 scenelists (RQ-AKM-095), seeded by `setSceneListNames`: not touched by powerCycle().
+        SceneListState _sceneLists;
         // §0C multis (RQ-AKM-056, RQ-AKM-087): seeded by `setMultiNames` or created through §0C, emptied by
         // §02/&32; not touched by powerCycle().
         MultiState _multis;
