@@ -60,6 +60,18 @@ namespace akm
     /// Deletes the current multi from memory (§0C/&08); ERROR 04 when none is current. [RQ-AKM-087]
     void deleteCurrentMulti(Session& session, CommandCompletion completion);
 
+    /// Passed to `deleteAllMultis` to prove the caller means it. A default `bool` could be satisfied by
+    /// accident (`true`, `1`, a stray flag); this enumerator cannot — it must be named. [RQ-AKM-088]
+    enum class ConfirmDeleteAllMultis
+    {
+        IUnderstandThisDeletesEveryMultiInMemory,
+    };
+
+    /// Deletes every multi in memory (§0C/&07) — irreversible without a saved backup. `confirmation` has no
+    /// default: sent only when it is the enumerator; `std::nullopt` refuses the command as `NotConfirmed`
+    /// without sending anything. No real-sampler test of any feature calls this. [RQ-AKM-088]
+    void deleteAllMultis(Session& session, std::optional<ConfirmDeleteAllMultis> confirmation, CommandCompletion completion);
+
     /// `index` is empty when no multi is current (or the command did not complete on a REPLY of the length the
     /// catalogue gives it); `outcome` is the result of the command. [RQ-AKM-087, RQ-AKM-091]
     struct MultiIndexResult

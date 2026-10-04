@@ -61,6 +61,21 @@ namespace akm
         session.submit(makeRequest(ItemId::MultiDeleteCurrent, NO_VALUES), std::move(completion));
     }
 
+    void deleteAllMultis(Session& session, std::optional<ConfirmDeleteAllMultis> confirmation, CommandCompletion completion)
+    {
+        if (!confirmation)
+        {
+            const ItemDescriptor& item = descriptor(ItemId::MultiDeleteAll);
+            CommandRequest request;
+            request.command.section = item.section;
+            request.command.item = item.item;
+            request.refusal = RefusalReason::NotConfirmed;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        session.submit(makeRequest(ItemId::MultiDeleteAll, NO_VALUES), std::move(completion));
+    }
+
     void getCurrentMultiIndex(Session& session, MultiIndexCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetCurrentIndex, NO_VALUES),

@@ -32,6 +32,7 @@ add_executable(xs56k_akm_tests
     akm/LfoParametersTests.cpp
     akm/LibraryInfoTests.cpp
     akm/MidiConfigTests.cpp
+    akm/MultiDeleteAllGuardTests.cpp
     akm/MultiPrimitivesTests.cpp
     akm/MidiTuneParametersTests.cpp
     akm/OutputParametersTests.cpp

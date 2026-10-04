@@ -77,7 +77,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-090: Destructive command guard for "Delete ALL Multis"
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&07` so that it is sent only with an explicit confirmation argument that no default
   supplies, mirroring `ConfirmDeleteAllSamples`, and audit the real-sampler test sources to confirm none calls it.
 - **Requirement refs**: RQ-AKM-088
@@ -85,8 +85,14 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-088.
 - **Dependencies**: TASK-AKM-089
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 647/647 passed
+  after a full re-run in this session (645 before, 2 new in `MultiDeleteAllGuardTests.cpp`, mirroring
+  `SampleDeleteAllGuardTests.cpp`): `std::nullopt` refuses as `NotConfirmed` with nothing sent and both multis still
+  held; the enumerator sends `&07`, completes on DONE, leaves no multi and a following select-by-index fails ERROR 04.
+  `generate_akm_items.py --check`: up to date (326 items); `--coverage`: `unaccounted: none`. Audit: a search of
+  `juce/tests/support/src/*.cpp` and `juce/tests/probe/main.cpp` for `deleteAllMultis|MultiDeleteAll` returns no match,
+  confirming no real-sampler test calls it.
+- **Assumptions**: None.
 
 ---
 

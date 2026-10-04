@@ -183,13 +183,13 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // added 8 of section 16, song file selection, renaming, deletion and information (RQ-AKM-082,
     // RQ-AKM-083: &05, &06, &08, &09, &10, &11, &13, &14) and TASK-AKM-085 the 4 set list items
     // (RQ-AKM-084: &20-&23) and TASK-AKM-089 the first 7 of section 0C, the multi lifecycle (RQ-AKM-087: &01, &02,
-    // &05, &06, &08, plus &42, &43 pulled in early)
+    // &05, &06, &08, plus &42, &43 pulled in early) and TASK-AKM-090 the guarded &07 (RQ-AKM-088)
     // — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
     // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp,
     // FrontPanelTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4 + 7;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4 + 7 + 1;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

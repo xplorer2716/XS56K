@@ -192,6 +192,7 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_CREATE_MULTI = 0x02;
         constexpr std::uint8_t ITEM_SELECT_MULTI_BY_NAME = 0x05;
         constexpr std::uint8_t ITEM_SELECT_MULTI_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_DELETE_ALL_MULTIS = 0x07;
         constexpr std::uint8_t ITEM_DELETE_CURRENT_MULTI = 0x08;
         constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_INDEX = 0x42;
         constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_NAME = 0x43;
@@ -1257,6 +1258,10 @@ namespace akm::harness
                     state.current = *index;
                     return done();
                 }
+                case ITEM_DELETE_ALL_MULTIS:
+                    state.multis.clear();
+                    state.current.reset();
+                    return done();
                 case ITEM_DELETE_CURRENT_MULTI:
                     if (!state.current.has_value())
                         return failure(error_number::NOT_FOUND);
