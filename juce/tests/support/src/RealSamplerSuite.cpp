@@ -3056,15 +3056,33 @@ namespace akm::harness
                 expect(answer == 0, "the owner sees on the sampler: " + what);
             }
 
-            // One setting: how to undo the change is registered, the change is sent and the owner confirms it on the
-            // screen. [RQ-AKM-080]
-            void changeMidiSetting(GuardedSession& guarded, GuardedMidiConfig& guard, const std::string& setting,
+            // One setting, on its own: how to undo the change is registered, the change is sent, the owner says whether the
+            // screen shows it, and the guard puts the setting back before the next one is touched — so that no setting is
+            // tested while another is still changed (a setting may depend on another one: found on the real S5000 with
+            // MULTI SELECT while PROGRAM CHANGE was off). A "no" is noted in `notSeen` and the check goes on with the other
+            // settings; a declined question skips the check. [RQ-AKM-080]
+            void changeMidiSetting(GuardedSession& guarded, std::vector<std::string>& notSeen, const std::string& setting,
                                    const std::string& declaredText, const std::string& newText,
                                    const GuardedMidiConfig::Launch& change, const GuardedMidiConfig::Launch& restore)
             {
+                GuardedMidiConfig guard(_rig, guarded.session());
                 guard.willRestore(setting + " (back to " + declaredText + ")", restore);
                 expectCommand(guarded, "set " + setting + " to " + newText + " (the owner declared " + declaredText + ")", change);
-                ownerSees(setting + " now shows " + newText);
+                ownerSeesOrNotes(setting + " now shows " + newText, notSeen);
+            }
+
+            // The owner looks at the screen: a "no" is noted in `notSeen`, not thrown, so that the other settings are still
+            // tried and the report names every one that was not seen. [RQ-AKM-080]
+            void ownerSeesOrNotes(const std::string& what, std::vector<std::string>& notSeen)
+            {
+                const std::size_t answer = ownerChooses("NOW LOOK AT THE SAMPLER: " + what + ". Does it?", {"Yes", "No, it shows something else"});
+                if (answer == 0)
+                    _rig.log.note("  as expected: the owner sees on the sampler: " + what);
+                else
+                {
+                    _rig.log.note("  NOT MET: the owner sees on the sampler: " + what);
+                    notSeen.push_back(what);
+                }
             }
 
             // RQ-AKM-078, RQ-AKM-079, RQ-AKM-080: every §04 item sent once, to a value other than the one the owner declared,
@@ -3076,10 +3094,10 @@ namespace akm::harness
                 const MidiConfigDeclaration declared = midiConfigDeclaration();
                 GuardedSession guarded(_rig);
                 guarded.open(baseConfig());
+                std::vector<std::string> notSeen;
                 {
-                    GuardedMidiConfig guard(_rig, guarded.session());
                     const bool newProgramChange = !declared.programChangeEnabled;
-                    changeMidiSetting(guarded, guard, "MIDI SETUP, PROGRAM CHANGE", onOffName(declared.programChangeEnabled),
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, PROGRAM CHANGE", onOffName(declared.programChangeEnabled),
                                       onOffName(newProgramChange),
                                       [newProgramChange](Session& session, CommandCompletion done) {
                                           setProgramChangeEnabled(session, newProgramChange, std::move(done));
@@ -3088,7 +3106,7 @@ namespace akm::harness
                                           setProgramChangeEnabled(session, declared.programChangeEnabled, std::move(done));
                                       });
                     const auto newMultiSelect = static_cast<MultiSelectMode>((static_cast<int>(declared.multiSelect) + 1) % MULTI_SELECT_MODES);
-                    changeMidiSetting(guarded, guard, "MIDI SETUP, MULTI SELECT", multiSelectName(declared.multiSelect),
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, MULTI SELECT", multiSelectName(declared.multiSelect),
                                       multiSelectName(newMultiSelect),
                                       [newMultiSelect](Session& session, CommandCompletion done) {
                                           setMultiSelect(session, newMultiSelect, std::move(done));
@@ -3097,7 +3115,7 @@ namespace akm::harness
                                           setMultiSelect(session, declared.multiSelect, std::move(done));
                                       });
                     const int newChannel = (declared.multiSelectChannel + 1) % MIDI_CHANNELS;
-                    changeMidiSetting(guarded, guard, "MIDI SETUP, MULTI SLCT CH", midiChannelName(declared.multiSelectChannel),
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, MULTI SLCT CH", midiChannelName(declared.multiSelectChannel),
                                       midiChannelName(newChannel),
                                       [newChannel](Session& session, CommandCompletion done) {
                                           setMultiSelectChannel(session, newChannel, std::move(done));
@@ -3106,7 +3124,7 @@ namespace akm::harness
                                           setMultiSelectChannel(session, declared.multiSelectChannel, std::move(done));
                                       });
                     const int newController = (declared.externalApmController + 1) % EXTERNAL_APM_CONTROLLERS;
-                    changeMidiSetting(guarded, guard, "MIDI SETUP, EXT APM CONTROL", std::to_string(declared.externalApmController),
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, EXT APM CONTROL", std::to_string(declared.externalApmController),
                                       std::to_string(newController),
                                       [newController](Session& session, CommandCompletion done) {
                                           setExternalApmController(session, newController, std::move(done));
@@ -3116,7 +3134,7 @@ namespace akm::harness
                                       });
                     const AftertouchType newAftertouch =
                         declared.aftertouch == AftertouchType::Channel ? AftertouchType::Polyphonic : AftertouchType::Channel;
-                    changeMidiSetting(guarded, guard, "MIDI SETUP, AFTERTOUCH", aftertouchName(declared.aftertouch),
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, AFTERTOUCH", aftertouchName(declared.aftertouch),
                                       aftertouchName(newAftertouch),
                                       [newAftertouch](Session& session, CommandCompletion done) {
                                           setAftertouch(session, newAftertouch, std::move(done));
@@ -3134,12 +3152,20 @@ namespace akm::harness
                     };
                     const std::string filterName = "MIDI FILTER, " + midiFilterEventName(declared.filterEvent) + " on "
                                                    + midiChannelName(declared.filterChannel);
-                    changeMidiSetting(guarded, guard, filterName, declared.filterAllows ? "allowing" : "ignoring",
+                    changeMidiSetting(guarded, notSeen, filterName, declared.filterAllows ? "allowing" : "ignoring",
                                       declared.filterAllows ? "ignoring" : "allowing", filterLaunch(!declared.filterAllows),
                                       filterLaunch(declared.filterAllows));
                 }
-                ownerSees("the MIDI SETUP and MIDI FILTER pages show the values you declared again (every setting back as it was)");
+                ownerSeesOrNotes("the MIDI SETUP and MIDI FILTER pages show the values you declared again (every setting back as it was)",
+                                 notSeen);
                 closeAndVerify(guarded);
+                if (!notSeen.empty())
+                {
+                    std::string list;
+                    for (const std::string& what : notSeen)
+                        list += (list.empty() ? "" : "; ") + what;
+                    throw CheckFailure("not met: the owner did not see on the sampler: " + list);
+                }
             }
 
             // RQ-AKM-080: a check that fails with a setting changed still puts it back. MULTI SELECT is changed, then the

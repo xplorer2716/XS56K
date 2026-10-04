@@ -117,12 +117,15 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   so the check cannot read what the sampler holds: before anything is sent it asks you what UTILITIES > MIDI SETUP shows
   (PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH) and, on MIDI FILTER, one filter you pick (event
   type, channel, on or off). It then changes each of those to another value, one at a time, asks you to confirm on the
-  sampler's screen that it shows the new value, and puts each back to the value you declared — also when a check fails
-  half way, which the second check provokes on purpose with MULTI SELECT — before asking you to confirm the original
-  screens are back. A "no" on a screen fails the check; declining a question skips it. It changes your stored MIDI setup for a
-  moment: a filter that ignores NoteOn silences that channel while it lasts. The values you declare are not verified,
-  and a wrong declaration is put back as given (the log records it). Whether the S5000 obeys each of the seven items, and
-  whether the channel code of `&06`/`&07` carries the port ("Port A & B", FTR-AKM-009 open points), is not yet observed.
+  sampler's screen that it shows the new value, and puts each back to the value you declared before touching the next
+  (a setting may depend on another). A "no" is noted and the other settings are still tried; the check then asks you to
+  confirm the original screens are back and fails at the end naming every setting you did not see. Declining a question
+  skips it. Each value is also put back when a check fails half way, which the second check provokes on purpose with
+  MULTI SELECT. It changes your stored MIDI setup for a moment: a filter that ignores NoteOn silences that channel while
+  it lasts. The values you declare are not verified, and a wrong declaration is put back as given (the log records it).
+  Observed so far (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`): `&01` is obeyed; `&02` answered DONE but
+  was not seen on the screen with PROGRAM CHANGE off, whether because of that is not settled. `&03` to `&07`, and whether
+  the channel code of `&06`/`&07` carries the port ("Port A & B", FTR-AKM-009 open points), are not yet observed.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

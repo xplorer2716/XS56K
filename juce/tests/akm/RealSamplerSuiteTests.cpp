@@ -1563,24 +1563,25 @@ TEST_CASE("Given an owner who declares the sampler's real MIDI setup, When the s
 
     const MidiConfigState after = rig.sampler.midiConfig();
     checkSeededState(after);
-    // Six changes to another value, the six restores in the opposite order, then the second check's one change and
-    // its restore.
+    // Each setting on its own: changed to another value, then put back before the next one is touched — a setting may
+    // depend on another (MULTI SELECT while PROGRAM CHANGE was off, on the real S5000) — then the second check's one change
+    // and its restore.
     const auto event = [](std::uint8_t item, int first, int second) {
         return MidiConfigEvent{item, static_cast<std::uint8_t>(first), static_cast<std::uint8_t>(second)};
     };
     const std::vector<MidiConfigEvent> expected{
         event(ITEM_PROGRAM_CHANGE, 1, 0),
+        event(ITEM_PROGRAM_CHANGE, OWNER_PROGRAM_CHANGE, 0),
         event(ITEM_MULTI_SELECT, 0, 0),
+        event(ITEM_MULTI_SELECT, OWNER_MULTI_SELECT, 0),
         event(ITEM_MULTI_SELECT_CHANNEL, OWNER_MULTI_SELECT_CHANNEL + 1, 0),
+        event(ITEM_MULTI_SELECT_CHANNEL, OWNER_MULTI_SELECT_CHANNEL, 0),
         event(ITEM_EXTERNAL_APM, OWNER_EXTERNAL_APM + 1, 0),
+        event(ITEM_EXTERNAL_APM, OWNER_EXTERNAL_APM, 0),
         event(ITEM_AFTERTOUCH, 0, 0),
+        event(ITEM_AFTERTOUCH, OWNER_AFTERTOUCH, 0),
         event(ITEM_FILTER_ALLOW, OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL),
         event(ITEM_FILTER_IGNORE, OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL),
-        event(ITEM_AFTERTOUCH, OWNER_AFTERTOUCH, 0),
-        event(ITEM_EXTERNAL_APM, OWNER_EXTERNAL_APM, 0),
-        event(ITEM_MULTI_SELECT_CHANNEL, OWNER_MULTI_SELECT_CHANNEL, 0),
-        event(ITEM_MULTI_SELECT, OWNER_MULTI_SELECT, 0),
-        event(ITEM_PROGRAM_CHANGE, OWNER_PROGRAM_CHANGE, 0),
         event(ITEM_MULTI_SELECT, 0, 0),
         event(ITEM_MULTI_SELECT, OWNER_MULTI_SELECT, 0),
     };
@@ -1625,11 +1626,12 @@ TEST_CASE("Given no way to ask the owner for a number, When the suite runs with 
     CHECK(rig.sampler.midiConfig().events.empty());
 }
 
-TEST_CASE("Given an owner who sees that the sampler did not change, When the suite runs with the MIDI config checks, Then the check fails and the setting it had changed is put back all the same [TASK-AKM-079, RQ-AKM-080]",
+TEST_CASE("Given an owner who sees that the sampler did not change, When the suite runs with the MIDI config checks, Then every setting is still tried and put back, and the check fails naming them [TASK-AKM-079, TASK-AKM-081, RQ-AKM-080]",
           "[akm][suite][midi-config]")
 {
     Rig rig;
     seedMidiConfig(rig.backend);
+    const std::size_t seedEvents = rig.sampler.midiConfig().events.size();
     ScriptedOwner owner;
     owner.seen = CHOICE_NO;
     RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
@@ -1641,6 +1643,11 @@ TEST_CASE("Given an owner who sees that the sampler did not change, When the sui
     CHECK(result.checks[AUTOMATIC_CHECKS].outcome == CheckOutcome::Failed);
     checkSeededState(rig.sampler.midiConfig());
     CHECK_THAT(log.str(), ContainsSubstring("NOT MET"));
+    // Not stopped at the first "no": all six settings were changed and put back (twelve items), then the second check's two.
+    constexpr std::size_t ITEMS_SENT = 12 + 2;
+    CHECK(rig.sampler.midiConfig().events.size() == seedEvents + ITEMS_SENT);
+    CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("MULTI SELECT"));
+    CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("MIDI FILTER"));
 }
 
 TEST_CASE("Given the default options, When the suite runs, Then no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",

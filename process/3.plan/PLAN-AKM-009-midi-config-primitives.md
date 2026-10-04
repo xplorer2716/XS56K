@@ -193,3 +193,33 @@ This plan implements the tasks in the format specified below.
 - **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §02,
   §10 and §20 before it, not on a real-sampler run: §04 has no Get, and its hardware proof is the owner's
   `--midi-config` run, still to come. One `CHANGELOG.md` entry covers the whole lot rather than one per task.
+
+---
+
+### TASK-AKM-081: Correct the MIDI configuration check after its first real-sampler run
+- **Tier**: M
+- **Status**: Done
+- **Description**: The owner's first run of `--midi-config` on the S5000 (`OBSERVATIONS-RQ-AKM-080-midi-config.md`)
+  stopped at the first setting the owner did not see (MULTI SELECT) and had tested it while PROGRAM CHANGE was still
+  changed. Make the check change and put back each setting before the next is touched, note a "no" instead of
+  stopping, try every setting, and fail at the end naming those not seen.
+- **Requirement refs**: RQ-AKM-080
+- **ADR refs**: ADR-AKM-001 (DEC-AKM-008 precedent for the suite's seams)
+- **Acceptance Criteria** (Gherkin): *Given* a scripted owner who declares the sampler's real values, *When* the check
+  runs, *Then* the §04 items reach the sampler as one change then its restore per setting, in turn, and the sampler
+  ends in the declared state. *Given* an owner who sees nothing change, *When* the check runs, *Then* all six settings
+  are still changed and put back, the check fails and names them, and the sampler ends in the declared state.
+- **Dependencies**: TASK-AKM-079
+- **Assignee**: AI, with the owner's second real-sampler run
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 615/615 after a re-run in
+  this session. In `RealSamplerSuiteTests.cpp` the two cases of TASK-AKM-079 changed to the new expected behaviour:
+  the first now expects the §04 items as pairs (program change 1 then 0, multi select 0 then 2, channel 6 then 5,
+  controller 75 then 74, aftertouch 0 then 1, filter allowed then ignored) followed by the failed check's pair, the
+  sampler ending in the seeded state; the second (owner answering "no" everywhere) expects the same 14 items, the first
+  check Failed with its detail naming MULTI SELECT and MIDI FILTER, and the seeded state back. The first run's own
+  facts are in `OBSERVATIONS-RQ-AKM-080-midi-config.md`. Not verified: the second run on the real sampler, which only
+  the owner can make; nothing here sent a frame to hardware.
+- **Assumptions**: The two edited tests describe a corrected expectation (a check that stopped at the first "no" and
+  stacked its changes), not a failing test forced to pass. The final confirmation (the original screens are back) is
+  noted like the others and listed with them. Whether MULTI SELECT depends on PROGRAM CHANGE is not decided here:
+  the owner's hypothesis is recorded as such, to be settled by the next run.
