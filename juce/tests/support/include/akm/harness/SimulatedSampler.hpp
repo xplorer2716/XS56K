@@ -401,6 +401,8 @@ namespace akm::harness
     {
         std::vector<std::string> songs;
         std::optional<std::size_t> current;
+        /// The set lists (§16/&20-&23, RQ-AKM-084): names only, addressed by index, with no current selection.
+        std::vector<std::string> setLists;
     };
 
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
@@ -438,6 +440,12 @@ namespace akm::harness
 
         /// The names of the song files the sampler holds now, in memory order (RQ-AKM-082).
         [[nodiscard]] std::vector<std::string> songNames() const;
+
+        /// Seeds the sampler's set lists (§16/&20-&23) by name; no §16 item creates one. [RQ-AKM-084]
+        void setSetListNames(std::vector<std::string> names);
+
+        /// The names of the set lists the sampler holds now, in memory order (RQ-AKM-084).
+        [[nodiscard]] std::vector<std::string> setListNames() const;
 
         /// Seeds the sampler's multis (§0C) by name. No §0C item is modelled — the section is not implemented —
         /// so a multi can neither be read nor changed but through here; it exists so that Clear Sampler Memory

@@ -69,7 +69,7 @@
       "name": "MIDI Song Files",
       "complete": false,
       "spec": "Tables 28 and 29, p. 40",
-      "note": "FTR-AKM-010 (PLAN-AKM-010), 12 command rows and 6 REPLY formats. Song file selection, renaming, deletion and general information (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084: &05, &06, &08, &09, &10, &11, &13, &14) are catalogued first, the same shape as section 0E's lifecycle: a sampler-wide current song file, an index carried as two Byte values (MSB, LSB) and a name as a String."
+      "note": "FTR-AKM-010 (PLAN-AKM-010), 12 command rows and 6 REPLY formats. Song file selection, renaming, deletion and general information (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084: &05, &06, &08, &09, &10, &11, &13, &14) are catalogued first, the same shape as section 0E's lifecycle: a sampler-wide current song file, an index carried as two Byte values (MSB, LSB) and a name as a String. The four set list items (RQ-AKM-084, TASK-AKM-085: &20, &21, &22, &23) have no current selection: each takes its index, and &23 (Rename) carries the index then a String, a shape built by hand like §10's &2A."
     }
   ],
   "items": [
@@ -2150,6 +2150,43 @@
         {"name": "name", "format": "string", "min": 0, "max": 255}
       ],
       "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SetListGetCount", "section": "16", "item": "20", "name": "Get the Number of Set Lists loaded into memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "SetListGetNameByIndex", "section": "16", "item": "21", "name": "Get the name of Set List by index", "kind": "get",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "SetListDelete", "section": "16", "item": "22", "name": "Delete the Set List by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "SetListRename", "section": "16", "item": "23", "name": "Rename the Set List by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-084"]
     }
   ]
 }

@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <utility>
 #include <variant>
 
+#include "akm/ByteWriter.hpp"
 #include "akm/ItemRequest.hpp"
 
 namespace akm
@@ -32,6 +33,8 @@ namespace akm
         // A zero-based index is split into two 7-bit data bytes, most significant first (spec pp. 8-9's
         // compound word), the same convention SamplePrimitives.cpp uses for &06/&11.
         constexpr std::int64_t DATA_BYTE_BASE = 128;
+        // The 14 bits two data bytes carry: the largest index a set list item can name.
+        constexpr int INDEX_LIMIT = 128 * 128;
 
         CommandOptions nameReplyOptions()
         {
@@ -118,5 +121,63 @@ namespace akm
                            if (completion)
                                completion({decodeNameReply(ItemId::SongGetCurrentName, outcome), outcome});
                        });
+    }
+
+    void getSetListCount(Session& session, SetListCountCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::SetListGetCount, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           if (completion)
+                               completion({decodeWordReply(ItemId::SetListGetCount, outcome), outcome});
+                       });
+    }
+
+    void getSetListNameByIndex(Session& session, int index, SetListNameCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::SetListGetNameByIndex, {msb, lsb}, nameReplyOptions()),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           if (completion)
+                               completion({decodeNameReply(ItemId::SetListGetNameByIndex, outcome), outcome});
+                       });
+    }
+
+    void deleteSetList(Session& session, int index, CommandCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::SetListDelete, {msb, lsb}), std::move(completion));
+    }
+
+    void renameSetList(Session& session, int index, std::string_view name, CommandCompletion completion)
+    {
+        // &23's shape (an index as two Bytes, then a String) fits neither makeStringRequest (exactly one
+        // String) nor the generic int64_t path (no String support), so it is written by hand, the same way
+        // DiskPrimitives::loadFile builds &2A (ADR-AKM-001, DEC-AKM-013).
+        const ItemDescriptor& item = descriptor(ItemId::SetListRename);
+        CommandRequest request;
+        request.command.section = item.section;
+        request.command.item = item.item;
+
+        const auto nameLength = static_cast<std::int64_t>(name.size());
+        if (index < 0 || index >= INDEX_LIMIT || nameLength < item.args[2].min || nameLength > item.args[2].max)
+        {
+            request.refusal = RefusalReason::ArgumentOutOfRange;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+
+        ByteWriter writer;
+        writer.appendByte(static_cast<std::uint32_t>(index / DATA_BYTE_BASE));
+        writer.appendByte(static_cast<std::uint32_t>(index % DATA_BYTE_BASE));
+        if (!writer.appendString(name))
+        {
+            request.refusal = RefusalReason::NotEncodable;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        request.command.data = writer.bytes();
+        session.submit(std::move(request), std::move(completion));
     }
 }

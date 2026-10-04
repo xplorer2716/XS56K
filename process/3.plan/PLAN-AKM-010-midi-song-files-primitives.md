@@ -72,7 +72,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-085: Set lists
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue and implement `&20`, `&21`, `&22`, `&23` (the index then the name, built by hand) as
   primitives, and model them in the simulated sampler (seeded by `setSetListNames`).
 - **Requirement refs**: RQ-AKM-084
@@ -80,8 +80,21 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-084.
 - **Dependencies**: TASK-AKM-084
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 631/631
+  passed after a full re-run in this session (624 before, 7 new in `SetListPrimitivesTests.cpp`, written before
+  the code): count and names `SET1`, `SET2` in order with an index past the end failing ERROR 04; rename at index 1
+  sends `00 01 53 45 54 33 00` (two index bytes, then `SET3` null-terminated), completes on DONE and reads back
+  `SET3` with index 0 untouched; delete at index 0 sends `00 00`, leaves a count of 1 and index 0 naming what was
+  at index 1; delete and rename of an index with no set list fail ERROR 04 and change nothing; an index of 16384
+  or -1 is refused `ArgumentOutOfRange` and a non-ASCII name `NotEncodable`, with nothing sent; an empty memory
+  counts 0 on a REPLY; the name Get is refused `ChecksumModeUnknown` with nothing sent. `generate_akm_items.py
+  --check`: up to date (318 items); `--coverage`: `unaccounted: none` (`&23`'s args not compared, the spec row
+  being variable-length). `ItemCatalogueTests.cpp`'s count formula extended by the 4 records. Not verified: the
+  real sampler (TASK-AKM-086).
+- **Assumptions**: `SetListCountResult` and `SetListNameResult` are aliases of the song file results, a count and
+  a name being the same thing, rather than parallel types. `renameSetList` checks the index range itself (0-16383),
+  the generic encoder not being used for `&23`. As for song files, ERROR `04` for an index with no set list is the
+  simulated sampler's modelling choice, the spec being silent.
 
 ---
 

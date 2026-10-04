@@ -90,4 +90,29 @@ namespace akm
     /// Gets the current song file's name (§16/&14); refused as `ChecksumModeUnknown` like
     /// `getSongNameByIndex`. [RQ-AKM-083, RQ-AKM-041]
     void getCurrentSongName(Session& session, SongNameCompletion completion);
+
+    // The set lists of section 16 (&20-&23, Table 28). A set list has no "current" selection: every item
+    // takes its zero-based index, carried as two 7-bit data bytes, most significant first. The results
+    // are the song file ones, a count and a name being the same thing. [RQ-AKM-084]
+    using SetListCountResult = SongCountResult;
+    using SetListCountCompletion = SongCountCompletion;
+    using SetListNameResult = SongNameResult;
+    using SetListNameCompletion = SongNameCompletion;
+
+    /// Gets the number of set lists in memory (§16/&20). [RQ-AKM-084]
+    void getSetListCount(Session& session, SetListCountCompletion completion);
+
+    /// Gets the name of the set list at zero-based `index` (§16/&21); ERROR 04 when it names none;
+    /// refused as `ChecksumModeUnknown` while the port's checksum mode is unknown (ADR-AKM-001,
+    /// DEC-AKM-013). [RQ-AKM-084, RQ-AKM-041]
+    void getSetListNameByIndex(Session& session, int index, SetListNameCompletion completion);
+
+    /// Deletes the set list at zero-based `index` (§16/&22); ERROR 04 when it names none. [RQ-AKM-084]
+    void deleteSetList(Session& session, int index, CommandCompletion completion);
+
+    /// Renames the set list at zero-based `index` to `name` (§16/&23: the index, then the name); ERROR 04
+    /// when the index names none. Refused as `ArgumentOutOfRange` for an index outside 0-16383 or a name
+    /// outside the catalogue's length range, and as `NotEncodable` for a name that is not 7-bit ASCII.
+    /// [RQ-AKM-084]
+    void renameSetList(Session& session, int index, std::string_view name, CommandCompletion completion);
 }

@@ -195,6 +195,11 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_SONG_NAME_BY_INDEX = 0x11;
         constexpr std::uint8_t ITEM_GET_CURRENT_SONG_INDEX = 0x13;
         constexpr std::uint8_t ITEM_GET_CURRENT_SONG_NAME = 0x14;
+        // The set lists of TASK-AKM-085 (RQ-AKM-084): addressed by index, with no current selection.
+        constexpr std::uint8_t ITEM_GET_SET_LIST_COUNT = 0x20;
+        constexpr std::uint8_t ITEM_GET_SET_LIST_NAME_BY_INDEX = 0x21;
+        constexpr std::uint8_t ITEM_DELETE_SET_LIST = 0x22;
+        constexpr std::uint8_t ITEM_RENAME_SET_LIST = 0x23;
 
         // Section §10 (Disk), spec Tables 20-21: disk discovery of TASK-AKM-057 (RQ-AKM-060). Other §10
         // items answer ERROR 0 until their own lot.
@@ -1181,6 +1186,34 @@ namespace akm::harness
             }
         }
 
+        // §16 set lists (RQ-AKM-084): the name by index, the deletion by index and the renaming (the index, then
+        // the new name). An index with no set list fails with ERROR 04, as a song file does. [TASK-AKM-085]
+        Outcome executeSetListByIndex(std::uint8_t item, const Bytes& data, std::vector<std::string>& setLists)
+        {
+            akm::ByteReader reader(data);
+            const auto index = reader.readWord();
+            if (!index.has_value())
+                return failure(error_number::INVALID_FORMAT);
+            if (*index >= setLists.size())
+                return failure(error_number::NOT_FOUND);
+            if (item == ITEM_DELETE_SET_LIST)
+            {
+                setLists.erase(setLists.begin() + static_cast<std::ptrdiff_t>(*index));
+                return done();
+            }
+            if (item == ITEM_RENAME_SET_LIST)
+            {
+                const auto name = reader.readString();
+                if (!name)
+                    return failure(error_number::INVALID_FORMAT);
+                setLists[*index] = *name;
+                return done();
+            }
+            akm::ByteWriter writer;
+            writer.appendString(setLists[*index]);
+            return reply(writer.bytes());
+        }
+
         // §16 song files (RQ-AKM-082, RQ-AKM-083): select by name/index, delete/rename the current one and the
         // four Gets. A name or an index with no song file, and any "current" item with none current, fail with
         // ERROR 04, as §0E does (the spec is silent on §16, so this is a modelling choice). [TASK-AKM-084]
@@ -1262,6 +1295,16 @@ namespace akm::harness
                     writer.appendString(state.songs[*state.current]);
                     return reply(writer.bytes());
                 }
+                case ITEM_GET_SET_LIST_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(state.setLists.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SET_LIST_NAME_BY_INDEX:
+                case ITEM_DELETE_SET_LIST:
+                case ITEM_RENAME_SET_LIST:
+                    return executeSetListByIndex(item, data, state.setLists);
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }
@@ -2135,6 +2178,18 @@ namespace akm::harness
         const std::lock_guard lock(_mutex);
         _songs.songs = std::move(names);
         _songs.current.reset();
+    }
+
+    void SimulatedSampler::setSetListNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _songs.setLists = std::move(names);
+    }
+
+    std::vector<std::string> SimulatedSampler::setListNames() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _songs.setLists;
     }
 
     std::vector<std::string> SimulatedSampler::songNames() const

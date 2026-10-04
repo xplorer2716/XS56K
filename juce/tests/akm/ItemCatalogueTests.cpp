@@ -181,12 +181,13 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // (RQ-AKM-074: &03, &04), and TASK-AKM-077 added 5 of section 04, the MIDI setup switches (RQ-AKM-078:
     // &01-&05) and TASK-AKM-078 the last 2, the MIDI filters (RQ-AKM-079: &06, &07), and TASK-AKM-084
     // added 8 of section 16, song file selection, renaming, deletion and information (RQ-AKM-082,
-    // RQ-AKM-083: &05, &06, &08, &09, &10, &11, &13, &14) — which this count includes without tracking them here too (see
+    // RQ-AKM-083: &05, &06, &08, &09, &10, &11, &13, &14) and TASK-AKM-085 the 4 set list items
+    // (RQ-AKM-084: &20-&23) — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
     // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp,
     // FrontPanelTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
