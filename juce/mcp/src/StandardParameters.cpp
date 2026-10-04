@@ -59,6 +59,47 @@ namespace mcp
             return labels;
         }
 
+        // The modulation sources of Table 15, in code order. Codes 12 to 14 repeat MODWHEEL, BEND and EXTERNAL in the
+        // spec's table; what sets them apart from codes 1, 2 and 4 is not documented, so they are named 2 here and the
+        // difference is left to be observed on the sampler.
+        const std::vector<std::string>& modulationSourceLabels()
+        {
+            static const std::vector<std::string> labels{"NO SOURCE", "MODWHEEL", "BEND",       "AFTERTOUCH", "EXTERNAL",
+                                                         "VELOCITY",  "KEYBOARD", "LFO1",       "LFO2",       "AMP ENV",
+                                                         "FILT ENV",  "AUX ENV",  "MODWHEEL 2", "BEND 2",     "EXTERNAL 2"};
+            return labels;
+        }
+
+        constexpr const char* MODULATION_SOURCE_NOTE =
+            " A source of the sampler's modulation matrix (spec Table 15). Codes 12 to 14 repeat MODWHEEL, BEND and EXTERNAL; "
+            "what sets them apart from the first three is not documented.";
+
+        // Other ways to say a source: the manual's words for the ones the spec abbreviates.
+        std::vector<std::pair<std::string, std::int64_t>> modulationSourceAliases()
+        {
+            return {{"none", 0},          {"off", 0},           {"pitch bend", 2},      {"pitchbend", 2},
+                    {"external midi", 4}, {"amp envelope", 9},  {"amplitude envelope", 9}, {"filter envelope", 10},
+                    {"filter env", 10},   {"aux envelope", 11}};
+        }
+
+        // The MIDI clock divisions of LFO 2 (spec Table 13, item &5F): codes 0 to 5 are 8, 6, 4, 3, 2 and 1 cycles per
+        // beat, codes 6 to 68 are 2 to 64 beats per cycle.
+        const std::vector<std::string>& clockDivisionLabels()
+        {
+            static const std::vector<std::string> labels = [] {
+                constexpr std::int64_t FIRST_BEATS_PER_CYCLE_CODE = 6;
+                constexpr std::int64_t LAST_CODE = 68;
+                constexpr std::int64_t BEATS_PER_CYCLE_OFFSET = 4;  // code 6 is 2 beats per cycle
+                std::vector<std::string> made;
+                for (const std::int64_t cycles : {8, 6, 4, 3, 2, 1})
+                    made.push_back(std::to_string(cycles) + (cycles == 1 ? " cycle per beat" : " cycles per beat"));
+                for (std::int64_t code = FIRST_BEATS_PER_CYCLE_CODE; code <= LAST_CODE; ++code)
+                    made.push_back(std::to_string(code - BEATS_PER_CYCLE_OFFSET) + " beats per cycle");
+                return made;
+            }();
+            return labels;
+        }
+
         const std::vector<std::string>& switchLabels()
         {
             static const std::vector<std::string> labels{"off", "on"};
@@ -86,10 +127,11 @@ namespace mcp
 
         ParameterDefinition signedNumber(std::string name, std::vector<std::string> aliases, const char* group,
                                          std::string description, ParameterScope scope, akm::ItemId setItem,
-                                         akm::ItemId getItem, std::int64_t magnitudeMax)
+                                         akm::ItemId getItem, std::int64_t magnitudeMax,
+                                         std::vector<std::int64_t> leadingArguments = {})
         {
             ParameterDefinition row = number(std::move(name), std::move(aliases), group, std::move(description), scope,
-                                             setItem, getItem, magnitudeMax);
+                                             setItem, getItem, magnitudeMax, std::move(leadingArguments));
             row.kind = ParameterKind::Signed;
             row.min = -magnitudeMax;
             return row;
@@ -114,6 +156,17 @@ namespace mcp
             ParameterDefinition row = choice(std::move(name), std::move(aliases), group, std::move(description), scope,
                                              setItem, getItem, switchLabels(), std::move(leadingArguments));
             row.kind = ParameterKind::Switch;
+            return row;
+        }
+
+        ParameterDefinition sourceChoice(std::string name, std::vector<std::string> aliases, const char* group,
+                                         std::string description, akm::ItemId setItem, akm::ItemId getItem,
+                                         std::int64_t leadingArgument)
+        {
+            ParameterDefinition row = choice(std::move(name), std::move(aliases), group,
+                                             std::move(description) + MODULATION_SOURCE_NOTE, ParameterScope::Program, setItem,
+                                             getItem, modulationSourceLabels(), {leadingArgument});
+            row.choiceAliases = modulationSourceAliases();
             return row;
         }
 
@@ -157,6 +210,37 @@ namespace mcp
             rows.push_back(number(prefix + " release", aliasesFor("release"), group,
                                   "Release time of the " + prefix + ": how long it takes to fall to nothing once the key is released.",
                                   ParameterScope::Keygroup, setRelease, getRelease, LEVEL_MAX));
+        }
+    }
+
+    namespace
+    {
+        // The four signed items every envelope of a keygroup has besides its stages: what the note-on velocity does to
+        // the attack and to the release, what the note-off velocity does to the release, and the key scaling.
+        void addEnvelopeExtras(std::vector<ParameterDefinition>& rows, const char* group, const std::string& prefix,
+                               const std::vector<std::string>& prefixAliases, akm::ItemId setVelocityToAttack,
+                               akm::ItemId getVelocityToAttack, akm::ItemId setOnVelocityToRelease,
+                               akm::ItemId getOnVelocityToRelease, akm::ItemId setOffVelocityToRelease,
+                               akm::ItemId getOffVelocityToRelease, akm::ItemId setKeyscale, akm::ItemId getKeyscale)
+        {
+            const auto aliasesFor = [&prefixAliases](const char* extra) {
+                std::vector<std::string> aliases;
+                for (const std::string& alias : prefixAliases)
+                    aliases.push_back(alias + " " + extra);
+                return aliases;
+            };
+            rows.push_back(signedNumber(prefix + " velocity to attack", aliasesFor("velocity to attack"), group,
+                                        "How the note-on velocity changes the attack time of the " + prefix + ", as a signed amount.",
+                                        ParameterScope::Keygroup, setVelocityToAttack, getVelocityToAttack, LEVEL_MAX));
+            rows.push_back(signedNumber(prefix + " on-velocity to release", aliasesFor("on-velocity to release"), group,
+                                        "How the note-on velocity changes the release time of the " + prefix + ", as a signed amount.",
+                                        ParameterScope::Keygroup, setOnVelocityToRelease, getOnVelocityToRelease, LEVEL_MAX));
+            rows.push_back(signedNumber(prefix + " off-velocity to release", aliasesFor("off-velocity to release"), group,
+                                        "How the note-off velocity changes the release time of the " + prefix + ", as a signed amount.",
+                                        ParameterScope::Keygroup, setOffVelocityToRelease, getOffVelocityToRelease, LEVEL_MAX));
+            rows.push_back(signedNumber(prefix + " key scale", aliasesFor("key scale"), group,
+                                        "How the note played changes the times of the " + prefix + ", as a signed amount.",
+                                        ParameterScope::Keygroup, setKeyscale, getKeyscale, LEVEL_MAX));
         }
     }
 
@@ -249,6 +333,81 @@ namespace mcp
                              "Whether LFO 2 starts its cycle again on each new note (re-trigger, LFO 2 only).",
                              ParameterScope::Program, akm::ItemId::ProgramSetLfoRetrigger,
                              akm::ItemId::ProgramGetLfoRetrigger, {SECOND_LFO}));
+
+        // Lot 2: the rest of the four groups. The filter's three modulation inputs: the source is a program value, the
+        // amount a keygroup value.
+        for (const std::int64_t input : {1, 2, 3})
+        {
+            const std::string which = std::to_string(input);
+            rows.push_back(sourceChoice("filter modulation " + which + " source", {"filter mod " + which + " source"}, GROUP_FILTER,
+                                        "The source routed to the filter's modulation input " + which + ".",
+                                        akm::ItemId::ProgramSetFilterModInputSource, akm::ItemId::ProgramGetFilterModInputSource,
+                                        input));
+            rows.push_back(signedNumber("filter modulation " + which + " amount", {"filter mod " + which + " amount"}, GROUP_FILTER,
+                                        "How much the source of the filter's modulation input " + which +
+                                            " moves the cutoff, as a signed amount.",
+                                        ParameterScope::Keygroup, akm::ItemId::KeygroupSetFilterModInputValue,
+                                        akm::ItemId::KeygroupGetFilterModInputValue, LEVEL_MAX, {input}));
+        }
+
+        addEnvelopeExtras(rows, GROUP_AMP_ENVELOPE, "amplitude envelope", {"amp envelope", "amp env", "amp"},
+                          akm::ItemId::KeygroupSetAmpEnvVelocityToAttack, akm::ItemId::KeygroupGetAmpEnvVelocityToAttack,
+                          akm::ItemId::KeygroupSetAmpEnvOnVelocityToRelease, akm::ItemId::KeygroupGetAmpEnvOnVelocityToRelease,
+                          akm::ItemId::KeygroupSetAmpEnvOffVelocityToRelease, akm::ItemId::KeygroupGetAmpEnvOffVelocityToRelease,
+                          akm::ItemId::KeygroupSetAmpEnvKeyscale, akm::ItemId::KeygroupGetAmpEnvKeyscale);
+        addEnvelopeExtras(rows, GROUP_FILTER_ENVELOPE, "filter envelope", {"filter env"},
+                          akm::ItemId::KeygroupSetFilterEnvVelocityToAttack, akm::ItemId::KeygroupGetFilterEnvVelocityToAttack,
+                          akm::ItemId::KeygroupSetFilterEnvOnVelocityToRelease, akm::ItemId::KeygroupGetFilterEnvOnVelocityToRelease,
+                          akm::ItemId::KeygroupSetFilterEnvOffVelocityToRelease,
+                          akm::ItemId::KeygroupGetFilterEnvOffVelocityToRelease, akm::ItemId::KeygroupSetFilterEnvKeyscale,
+                          akm::ItemId::KeygroupGetFilterEnvKeyscale);
+
+        // Each LFO's rate, delay and depth can be moved by a source, by an amount of it.
+        struct LfoModulation
+        {
+            const char* what;
+            akm::ItemId setSource;
+            akm::ItemId getSource;
+            akm::ItemId setValue;
+            akm::ItemId getValue;
+        };
+        const LfoModulation lfoModulations[]{
+            {"rate", akm::ItemId::ProgramSetLfoRateModSource, akm::ItemId::ProgramGetLfoRateModSource,
+             akm::ItemId::ProgramSetLfoRateModValue, akm::ItemId::ProgramGetLfoRateModValue},
+            {"delay", akm::ItemId::ProgramSetLfoDelayModSource, akm::ItemId::ProgramGetLfoDelayModSource,
+             akm::ItemId::ProgramSetLfoDelayModValue, akm::ItemId::ProgramGetLfoDelayModValue},
+            {"depth", akm::ItemId::ProgramSetLfoDepthModSource, akm::ItemId::ProgramGetLfoDepthModSource,
+             akm::ItemId::ProgramSetLfoDepthModValue, akm::ItemId::ProgramGetLfoDepthModValue}};
+        for (const std::int64_t lfo : {FIRST_LFO, SECOND_LFO})
+        {
+            for (const LfoModulation& modulation : lfoModulations)
+            {
+                const std::string prefix = lfoName(lfo, modulation.what) + " modulation ";
+                rows.push_back(sourceChoice(prefix + "source", {}, lfoGroup(lfo),
+                                            std::string("The source that moves the ") + modulation.what + " of LFO " +
+                                                std::to_string(lfo) + ".",
+                                            modulation.setSource, modulation.getSource, lfo));
+                rows.push_back(signedNumber(prefix + "amount", {}, lfoGroup(lfo),
+                                            std::string("How much the source moves the ") + modulation.what + " of LFO " +
+                                                std::to_string(lfo) + ", as a signed amount.",
+                                            ParameterScope::Program, modulation.setValue, modulation.getValue, LEVEL_MAX, {lfo}));
+            }
+        }
+        rows.push_back(number("lfo 1 modwheel", {}, GROUP_LFO_1, "How much the modwheel adds to LFO 1's modulation.",
+                              ParameterScope::Program, akm::ItemId::ProgramSetLfoModwheel, akm::ItemId::ProgramGetLfoModwheel,
+                              LEVEL_MAX, {FIRST_LFO}));
+        rows.push_back(number("lfo 1 aftertouch", {}, GROUP_LFO_1, "How much aftertouch adds to LFO 1's modulation.",
+                              ParameterScope::Program, akm::ItemId::ProgramSetLfoAftertouch,
+                              akm::ItemId::ProgramGetLfoAftertouch, LEVEL_MAX, {FIRST_LFO}));
+        rows.push_back(onOff("lfo 2 clock sync", {"lfo 2 midi clock sync"}, GROUP_LFO_2,
+                             "Whether LFO 2 follows the MIDI clock (LFO 2 only).", ParameterScope::Program,
+                             akm::ItemId::ProgramSetLfoMidiClockSyncEnable, akm::ItemId::ProgramGetLfoMidiClockSyncEnable,
+                             {SECOND_LFO}));
+        rows.push_back(choice("lfo 2 clock division", {"lfo 2 midi clock division"}, GROUP_LFO_2,
+                              "How LFO 2's cycle divides the MIDI clock when it follows it: from 8 cycles per beat to 64 beats "
+                              "per cycle (LFO 2 only).",
+                              ParameterScope::Program, akm::ItemId::ProgramSetLfoMidiClockSyncDivision,
+                              akm::ItemId::ProgramGetLfoMidiClockSyncDivision, clockDivisionLabels(), {SECOND_LFO}));
         return rows;
     }
 }

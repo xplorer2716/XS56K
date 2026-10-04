@@ -332,6 +332,11 @@ namespace mcp
                     if (normalizeText(parameter.labels[code]) == wanted)
                         return accepted(static_cast<std::int64_t>(code));
                 }
+                for (const auto& [alias, code] : parameter.choiceAliases)
+                {
+                    if (normalizeText(alias) == wanted)
+                        return accepted(code);
+                }
                 const auto number = parseWholeNumber(said);
                 return number ? resolveValue(parameter, *number) : refusedValue(parameter, quoted);
             }

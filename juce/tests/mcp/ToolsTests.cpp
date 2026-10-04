@@ -239,7 +239,7 @@ TEST_CASE("Given select_program with the name LEAD, When get_status runs, Then t
     CHECK(isError(rig.call("select_program", {{"name", 7}})));
 }
 
-TEST_CASE("Given the lot 1 catalogue, When list_parameters runs, Then it lists 24 parameters and, for filter type, its 26 labels; a group narrows it and an unknown group is an error naming the groups [RQ-MCP-004]",
+TEST_CASE("Given the catalogue, When list_parameters runs, Then it lists its 54 parameters and, for filter type, its 26 labels; a group narrows it and an unknown group is an error naming the groups [RQ-MCP-004]",
           "[mcp][tools]")
 {
     Rig rig;
@@ -248,7 +248,7 @@ TEST_CASE("Given the lot 1 catalogue, When list_parameters runs, Then it lists 2
     std::size_t parameterLines = 0;
     for (std::size_t at = all.find("\n- "); at != std::string::npos; at = all.find("\n- ", at + 1))
         ++parameterLines;
-    CHECK(parameterLines == 24);
+    CHECK(parameterLines == 54);
     CHECK(contains(all, "filter cutoff"));
     CHECK(contains(all, "0 to 100"));
     CHECK(contains(all, "2-POLE LP+ (2)"));
@@ -443,4 +443,41 @@ TEST_CASE("Given the sampler with no connection possible, When tools/list is ask
     CHECK(list["result"]["tools"].size() == 6);
     CHECK(status["result"]["isError"] == true);
     CHECK(contains(status["result"]["content"][0]["text"].get<std::string>(), "answer"));
+}
+
+TEST_CASE("Given parameters of lot 2, When each kind is set through set_parameter, Then the sampler is sent the codes the spec gives and each reads back [RQ-MCP-010, RQ-MCP-006]",
+          "[mcp][tools][lot2]")
+{
+    Rig rig;
+    struct Case
+    {
+        const char* parameter;
+        json value;
+        akm::ItemId item;
+        std::vector<unsigned int> data;
+    };
+    const std::vector<Case> cases{
+        {"lfo 1 rate modulation source", "velocity", akm::ItemId::ProgramSetLfoRateModSource, {1, 5}},
+        {"filter modulation 3 source", "aux env", akm::ItemId::ProgramSetFilterModInputSource, {3, 11}},
+        {"filter modulation 2 amount", -30, akm::ItemId::KeygroupSetFilterModInputValue, {2, 1, 30}},
+        {"amplitude envelope key scale", -20, akm::ItemId::KeygroupSetAmpEnvKeyscale, {1, 20}},
+        {"filter envelope off-velocity to release", 15, akm::ItemId::KeygroupSetFilterEnvOffVelocityToRelease, {0, 15}},
+        {"lfo 2 clock division", "4 beats per cycle", akm::ItemId::ProgramSetLfoMidiClockSyncDivision, {2, 8}},
+        {"lfo 2 clock sync", "on", akm::ItemId::ProgramSetLfoMidiClockSyncEnable, {2, 1}},
+        {"lfo 1 modwheel", 50, akm::ItemId::ProgramSetLfoModwheel, {1, 50}},
+        {"lfo 2 depth modulation amount", -5, akm::ItemId::ProgramSetLfoDepthModValue, {2, 1, 5}},
+    };
+
+    for (const Case& test : cases)
+    {
+        CAPTURE(test.parameter);
+        const json answer = rig.call("set_parameter", {{"parameter", test.parameter}, {"value", test.value}});
+        REQUIRE_FALSE(isError(answer));
+        const auto sent = acceptedFor(rig, test.item);
+        REQUIRE(sent.size() == 1);
+        akm::test::Bytes expected;
+        for (const unsigned int byte : test.data)
+            expected.push_back(static_cast<std::uint8_t>(byte));
+        CHECK(sent.front().data == expected);
+    }
 }

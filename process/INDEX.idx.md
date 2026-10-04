@@ -383,6 +383,6 @@ TASK-MCP-004|68-79|Done|Sampler gateway — blocking calls over a Session
 TASK-MCP-005|80-91|Done|The six tools
 TASK-MCP-006|92-103|Done|The executable `xs56k_mcp_server` — arguments, real ports, loop, shutdown
 TASK-MCP-007|104-115|Done|Simulated-sampler twin and the scripted conversation in ctest
-TASK-MCP-008|116-127|Not Started|Lot 2 — the rest of the filter, envelope and LFO items
+TASK-MCP-008|116-127|Done|Lot 2 — the rest of the filter, envelope and LFO items
 TASK-MCP-009|128-138|Not Started|Real-sampler run, observations and documentation
 @process/3.plan/SUMMARY-akm-sections-coverage.md

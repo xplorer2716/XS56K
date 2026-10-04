@@ -55,21 +55,33 @@ namespace
     }
 }
 
-TEST_CASE("Given the lot 1 catalogue, When it is counted, Then it holds 24 parameters in five groups: filter 5, amplitude envelope 4, filter envelope 5, LFO 1 5 and LFO 2 5 [RQ-MCP-004]",
+TEST_CASE("Given the catalogue in five groups, When the 24 parameters of lot 1 are looked up, Then each is there and belongs to the group its name says (lot 2 adds to the groups, see ParameterCatalogueLot2Tests) [RQ-MCP-004]",
           "[mcp][catalogue]")
 {
     const auto& catalogue = ParameterCatalogue::standard();
+    const std::vector<std::pair<const char*, std::vector<const char*>>> lot1{
+        {"filter", {"filter type", "filter cutoff", "filter resonance", "filter keyboard tracking", "filter attenuation"}},
+        {"amplitude envelope", {"amplitude envelope attack", "amplitude envelope decay", "amplitude envelope sustain",
+                                "amplitude envelope release"}},
+        {"filter envelope", {"filter envelope attack", "filter envelope decay", "filter envelope sustain",
+                             "filter envelope release", "filter envelope depth"}},
+        {"lfo 1", {"lfo 1 rate", "lfo 1 delay", "lfo 1 depth", "lfo 1 waveform", "lfo 1 sync"}},
+        {"lfo 2", {"lfo 2 rate", "lfo 2 delay", "lfo 2 depth", "lfo 2 waveform", "lfo 2 retrigger"}}};
 
-    CHECK(catalogue.parameters().size() == 24);
     REQUIRE(catalogue.groups().size() == 5);
-    for (const auto& [group, expected] : std::vector<std::pair<const char*, std::size_t>>{
-             {"filter", 5}, {"amplitude envelope", 4}, {"filter envelope", 5}, {"lfo 1", 5}, {"lfo 2", 5}})
+    std::size_t found = 0;
+    for (const auto& [group, names] : lot1)
     {
-        CAPTURE(group);
-        const auto groups = catalogue.findGroups(group);
-        REQUIRE(groups.size() == 1);
-        CHECK(catalogue.parametersInGroup(*groups.front()).size() == expected);
+        for (const char* name : names)
+        {
+            CAPTURE(name);
+            const auto resolution = catalogue.resolveName(name);
+            REQUIRE(resolution.parameter != nullptr);
+            CHECK(resolution.parameter->group == group);
+            ++found;
+        }
     }
+    CHECK(found == 24);
 }
 
 TEST_CASE("Given every row of the catalogue, When it is compared with the AKM item catalogue, Then its Set and Get items exist, take the arguments the row gives and its range equals the item's [RQ-MCP-004, RQ-MCP-011]",

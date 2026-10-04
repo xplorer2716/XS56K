@@ -33,16 +33,26 @@
 {"jsonrpc":"2.0","id":32,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 2 depth","value":25}}}
 {"jsonrpc":"2.0","id":33,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 2 waveform","value":"square -"}}}
 {"jsonrpc":"2.0","id":34,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 2 retrigger","value":"off"}}}
-{"jsonrpc":"2.0","id":35,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"filter"}}}
-{"jsonrpc":"2.0","id":36,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"amplitude envelope"}}}
-{"jsonrpc":"2.0","id":37,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"filter envelope"}}}
-{"jsonrpc":"2.0","id":38,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"lfo"}}}
-{"jsonrpc":"2.0","id":39,"method":"tools/call","params":{"name":"get_parameters","arguments":{"parameters":["cutoff"],"keygroup":3}}}
-{"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutoff","value":101}}}
-{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutof","value":50}}}
-{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter type","value":"sawtooth"}}}
-{"jsonrpc":"2.0","id":43,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutoff","value":40,"keygroup":4}}}
-{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"NOPE"}}}
-{"jsonrpc":"2.0","id":45,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"LEAD"}}}
-{"jsonrpc":"2.0","id":46,"method":"tools/call","params":{"name":"get_parameters","arguments":{"parameters":["filter cutoff","lfo 1 rate"]}}}
-{"jsonrpc":"2.0","id":47,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":35,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter modulation 1 source","value":"velocity"}}}
+{"jsonrpc":"2.0","id":36,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter modulation 1 amount","value":35}}}
+{"jsonrpc":"2.0","id":37,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"amplitude envelope velocity to attack","value":-20}}}
+{"jsonrpc":"2.0","id":38,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"amplitude envelope key scale","value":10,"keygroup":3}}}
+{"jsonrpc":"2.0","id":39,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter envelope off-velocity to release","value":15}}}
+{"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 1 rate modulation source","value":"modwheel"}}}
+{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 1 rate modulation amount","value":30}}}
+{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 1 modwheel","value":50}}}
+{"jsonrpc":"2.0","id":43,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 2 clock sync","value":"on"}}}
+{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"lfo 2 clock division","value":"4 beats per cycle"}}}
+{"jsonrpc":"2.0","id":45,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"filter"}}}
+{"jsonrpc":"2.0","id":46,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"amplitude envelope"}}}
+{"jsonrpc":"2.0","id":47,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"filter envelope"}}}
+{"jsonrpc":"2.0","id":48,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"lfo"}}}
+{"jsonrpc":"2.0","id":49,"method":"tools/call","params":{"name":"get_parameters","arguments":{"parameters":["cutoff"],"keygroup":3}}}
+{"jsonrpc":"2.0","id":50,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutoff","value":101}}}
+{"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutof","value":50}}}
+{"jsonrpc":"2.0","id":52,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter type","value":"sawtooth"}}}
+{"jsonrpc":"2.0","id":53,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutoff","value":40,"keygroup":4}}}
+{"jsonrpc":"2.0","id":54,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"NOPE"}}}
+{"jsonrpc":"2.0","id":55,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"LEAD"}}}
+{"jsonrpc":"2.0","id":56,"method":"tools/call","params":{"name":"get_parameters","arguments":{"parameters":["filter cutoff","lfo 1 rate"]}}}
+{"jsonrpc":"2.0","id":57,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

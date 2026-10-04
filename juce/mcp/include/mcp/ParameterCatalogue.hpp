@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <span>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 #include "akm/ItemCatalogue.hpp"
@@ -71,6 +72,8 @@ namespace mcp
         std::int64_t step = 1;
         std::string unit;                   ///< "dB", or empty
         std::vector<std::string> labels;    ///< `Choice`: the label of code i; `Switch`: off, on
+        /// `Choice` only: other ways to say a choice, each with its code ("pitch bend" for BEND).
+        std::vector<std::pair<std::string, std::int64_t>> choiceAliases;
     };
 
     struct GroupDefinition
