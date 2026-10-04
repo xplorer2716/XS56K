@@ -185,13 +185,14 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // (RQ-AKM-084: &20-&23) and TASK-AKM-089 the first 7 of section 0C, the multi lifecycle (RQ-AKM-087: &01, &02,
     // &05, &06, &08, plus &42, &43 pulled in early) and TASK-AKM-090 the guarded &07 (RQ-AKM-088) and TASK-AKM-091 the 24 part parameter
     // items (RQ-AKM-089: Set &10-&1B, Get &20-&2B) and TASK-AKM-092 the 10 Gets of general information
-    // (RQ-AKM-090, RQ-AKM-091: &40, &41, &44-&48, &50-&52)
+    // (RQ-AKM-090, RQ-AKM-091: &40, &41, &44-&48, &50-&52) and TASK-AKM-093 the 5 Sets of general information
+    // (RQ-AKM-092: &30-&34)
     // — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
     // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp,
     // FrontPanelTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4 + 7 + 1 + 24 + 10;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4 + 7 + 1 + 24 + 10 + 5;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

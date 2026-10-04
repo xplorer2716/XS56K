@@ -157,7 +157,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-093: Multi renaming, program number and part assignment
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&30`, `&31`, `&32`, `&33`, `&34` as primitives (`&31`, `&32`, `&33` built by hand) and
   model them in the simulated sampler.
 - **Requirement refs**: RQ-AKM-092
@@ -165,8 +165,21 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-092.
 - **Dependencies**: TASK-AKM-089, TASK-AKM-092
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 669/669 passed
+  after a full re-run in this session (661 before, 8 new in `MultiEditingTests.cpp`, written before the code,
+  `ctest -R RQ-AKM-092` 8/8): rename to `MIX2` sends `4D 49 58 32 00` and `&43` reads `MIX2`; the program number 5 sends
+  `01 04` and reads 5 on `&41`, cleared it sends `00` and reads off; 0 and 129 are refused `ArgumentOutOfRange`,
+  nothing sent; assigning `LEAD` to part 2 by name sends `02 4C 45 41 44 00` and `&45` reads `LEAD`, `&34` on part 2
+  (`02`) leaves it empty; assigning program index 1 to part 5 sends `05 00 01` and `&45` reads `PAD`; a name or an
+  index no program has fails ERROR 04 and the part stays empty; with no multi current all five Sets fail ERROR 04;
+  part 128, program index 16384 and a non-ASCII name are refused (`ArgumentOutOfRange`, `ArgumentOutOfRange`,
+  `NotEncodable`) with nothing sent. `generate_akm_items.py --check`: up to date (365 items); `--coverage`: section
+  `0C` 47 of 47 rows covered, `unaccounted: none`. `ItemCatalogueTests.cpp`'s count formula extended by the 5 records.
+  Not verified: the real sampler (TASK-AKM-094).
+- **Assumptions**: The simulated sampler assigns a program only if the sampler's program memory holds it (ERROR 04
+  otherwise) and refuses a part beyond the multi's size with ERROR 02 (a modelling choice, the spec says nothing of
+  either). `&31` with the flag off sends the flag alone, as `setProgramNumber` does for §0A. `&32`'s program index is
+  the position in the sampler's program memory, as §0A's selection by index.
 
 ---
 

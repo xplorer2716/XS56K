@@ -194,6 +194,11 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_SELECT_MULTI_BY_INDEX = 0x06;
         constexpr std::uint8_t ITEM_DELETE_ALL_MULTIS = 0x07;
         constexpr std::uint8_t ITEM_DELETE_CURRENT_MULTI = 0x08;
+        constexpr std::uint8_t ITEM_RENAME_MULTI = 0x30;
+        constexpr std::uint8_t ITEM_SET_MULTI_PROGRAM_NUMBER = 0x31;
+        constexpr std::uint8_t ITEM_SET_MULTI_PART_BY_INDEX = 0x32;
+        constexpr std::uint8_t ITEM_SET_MULTI_PART_BY_NAME = 0x33;
+        constexpr std::uint8_t ITEM_DELETE_MULTI_PART = 0x34;
         constexpr std::uint8_t ITEM_GET_MULTI_COUNT = 0x40;
         constexpr std::uint8_t ITEM_GET_MULTI_PROGRAM_NUMBER = 0x41;
         constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_INDEX = 0x42;
@@ -1294,7 +1299,75 @@ namespace akm::harness
             }
         }
 
-        Outcome executeMulti(std::uint8_t item, const Bytes& data, MultiState& state)
+        // The §0C Sets that change the current multi's general information: its name, its program number (a flag,
+        // then the number only when the flag is 1) and the program of a part, assigned by index or by name from the
+        // sampler's programs, or deleted. A program with no such index or name fails with ERROR 04, as selecting
+        // one does (the spec is silent). [TASK-AKM-093]
+        Outcome executeCurrentMultiSet(std::uint8_t item, const Bytes& data, MultiRecord& multi,
+                                       const std::vector<ProgramRecord>& programs)
+        {
+            akm::ByteReader reader(data);
+            switch (item)
+            {
+                case ITEM_RENAME_MULTI:
+                {
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    multi.name = *name;
+                    return done();
+                }
+                case ITEM_SET_MULTI_PROGRAM_NUMBER:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() == 0)
+                    {
+                        multi.programNumberOn = false;
+                        multi.programNumber = 0;
+                        return done();
+                    }
+                    if (data.size() < 2)
+                        return failure(error_number::INVALID_FORMAT);
+                    multi.programNumberOn = true;
+                    multi.programNumber = data[1];
+                    return done();
+                }
+                default:
+                    break;
+            }
+            const auto part = reader.readByte();
+            if (!part)
+                return failure(error_number::INVALID_FORMAT);
+            if (*part >= multi.partPrograms.size())
+                return failure(error_number::OUT_OF_RANGE);
+            std::string& slot = multi.partPrograms[*part];
+            if (item == ITEM_DELETE_MULTI_PART)
+            {
+                slot.clear();
+                return done();
+            }
+            if (item == ITEM_SET_MULTI_PART_BY_INDEX)
+            {
+                const auto index = reader.readWord();
+                if (!index.has_value())
+                    return failure(error_number::INVALID_FORMAT);
+                if (*index >= programs.size())
+                    return failure(error_number::NOT_FOUND);
+                slot = programs[*index].name;
+                return done();
+            }
+            const auto name = reader.readString();  // ITEM_SET_MULTI_PART_BY_NAME
+            if (!name)
+                return failure(error_number::INVALID_FORMAT);
+            if (std::none_of(programs.begin(), programs.end(), [&](const ProgramRecord& program) { return program.name == *name; }))
+                return failure(error_number::NOT_FOUND);
+            slot = *name;
+            return done();
+        }
+
+        Outcome executeMulti(std::uint8_t item, const Bytes& data, MultiState& state,
+                             const std::vector<ProgramRecord>& programs)
         {
             switch (item)
             {
@@ -1377,6 +1450,16 @@ namespace akm::harness
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(state.multis.size()));
                     return reply(writer.bytes());
+                }
+                case ITEM_RENAME_MULTI:
+                case ITEM_SET_MULTI_PROGRAM_NUMBER:
+                case ITEM_SET_MULTI_PART_BY_INDEX:
+                case ITEM_SET_MULTI_PART_BY_NAME:
+                case ITEM_DELETE_MULTI_PART:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    return executeCurrentMultiSet(item, data, state.multis[*state.current], programs);
                 }
                 case ITEM_GET_ALL_MULTI_PROGRAM_NUMBERS:
                 case ITEM_GET_ALL_MULTI_NAMES:
@@ -2335,7 +2418,7 @@ namespace akm::harness
             if (section == SECTION_SAMPLE)
                 return executeSample(item, data, state.samples, state.currentSample);
             if (section == SECTION_MULTI)
-                return executeMulti(item, data, state.multis);
+                return executeMulti(item, data, state.multis, state.programs);
             if (section == SECTION_SONG_FILES)
                 return executeSongFiles(item, data, state.songs);
             if (section == SECTION_DISK)

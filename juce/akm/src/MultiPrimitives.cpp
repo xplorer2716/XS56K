@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <variant>
 
 #include "akm/ByteReader.hpp"
+#include "akm/ByteWriter.hpp"
 #include "akm/ItemRequest.hpp"
 #include "akm/SamplerError.hpp"
 
@@ -131,6 +132,90 @@ namespace akm
                            if (completion)
                                completion(result);
                        });
+    }
+
+    void renameCurrentMulti(Session& session, std::string_view name, CommandCompletion completion)
+    {
+        session.submit(makeStringRequest(ItemId::MultiRename, name), std::move(completion));
+    }
+
+    void setMultiProgramNumber(Session& session, std::optional<int> frontPanelNumber, CommandCompletion completion)
+    {
+        // The front-panel range (spec Table 16, footnote a); &31's Data1/Data2 shape is conditional on Data1, so it
+        // is written by hand rather than through makeRequest, as ProgramPrimitives::setProgramNumber does for §0A.
+        constexpr int FRONT_PANEL_MIN = 1;
+        constexpr int FRONT_PANEL_MAX = 128;
+        const ItemDescriptor& item = descriptor(ItemId::MultiSetProgramNumber);
+
+        CommandRequest request;
+        request.command.section = item.section;
+        request.command.item = item.item;
+
+        ByteWriter writer;
+        if (!frontPanelNumber.has_value())
+        {
+            writer.appendByte(0);
+        }
+        else if (*frontPanelNumber < FRONT_PANEL_MIN || *frontPanelNumber > FRONT_PANEL_MAX)
+        {
+            request.refusal = RefusalReason::ArgumentOutOfRange;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        else
+        {
+            writer.appendByte(1);
+            writer.appendByte(static_cast<std::uint32_t>(*frontPanelNumber - WIRE_OFFSET));
+        }
+        request.command.data = writer.bytes();
+        session.submit(std::move(request), std::move(completion));
+    }
+
+    void setMultiPartByIndex(Session& session, int part, int programIndex, CommandCompletion completion)
+    {
+        const auto msb = static_cast<std::int64_t>(programIndex) / DATA_BYTE_BASE;
+        const auto lsb = static_cast<std::int64_t>(programIndex) % DATA_BYTE_BASE;
+        session.submit(makeRequest(ItemId::MultiSetPartByIndex, {static_cast<std::int64_t>(part), msb, lsb}),
+                       std::move(completion));
+    }
+
+    void setMultiPartByName(Session& session, int part, std::string_view name, CommandCompletion completion)
+    {
+        // &33's shape (a part, then a String) fits neither makeStringRequest (exactly one String) nor the generic
+        // int64_t path (no String support), so it is written by hand, the same way ZonePrimitives::setZoneSample
+        // builds §06's &01 (ADR-AKM-001, DEC-AKM-013).
+        const ItemDescriptor& item = descriptor(ItemId::MultiSetPartByName);
+        const ValueSpec& partSpec = item.args[0];
+        const ValueSpec& nameSpec = item.args[1];
+
+        CommandRequest request;
+        request.command.section = item.section;
+        request.command.item = item.item;
+
+        const auto partValue = static_cast<std::int64_t>(part);
+        const auto length = static_cast<std::int64_t>(name.size());
+        if (partValue < partSpec.min || partValue > partSpec.max || length < nameSpec.min || length > nameSpec.max)
+        {
+            request.refusal = RefusalReason::ArgumentOutOfRange;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+
+        ByteWriter writer;
+        writer.appendByte(static_cast<std::uint32_t>(part));
+        if (!writer.appendString(name))
+        {
+            request.refusal = RefusalReason::NotEncodable;
+            session.submit(std::move(request), std::move(completion));
+            return;
+        }
+        request.command.data = writer.bytes();
+        session.submit(std::move(request), std::move(completion));
+    }
+
+    void deleteMultiPart(Session& session, int part, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MultiDeletePart, {static_cast<std::int64_t>(part)}), std::move(completion));
     }
 
     void getMultiCount(Session& session, MultiCountCompletion completion)

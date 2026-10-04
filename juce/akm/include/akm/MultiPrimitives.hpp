@@ -99,6 +99,31 @@ namespace akm
     /// [RQ-AKM-087, RQ-AKM-091, RQ-AKM-041]
     void getCurrentMultiName(Session& session, MultiNameCompletion completion);
 
+    // The Sets of general information about the current multi (§0C/&30-&34). [RQ-AKM-092]
+
+    /// Renames the current multi to `name` (§0C/&30); ERROR 04 when none is current. [RQ-AKM-092]
+    void renameCurrentMulti(Session& session, std::string_view name, CommandCompletion completion);
+
+    /// Sets or clears the current multi's program number (§0C/&31). `frontPanelNumber` is the number as shown on
+    /// the front panel (1-128); the wire carries it minus one (spec Table 16, footnote a). `std::nullopt`
+    /// switches it off. A number outside 1-128 is refused without sending. ERROR 04 when no multi is current.
+    /// [RQ-AKM-092]
+    void setMultiProgramNumber(Session& session, std::optional<int> frontPanelNumber, CommandCompletion completion);
+
+    /// Assigns the program at zero-based `programIndex` of the sampler's memory to part `part` (0-127) of the
+    /// current multi (§0C/&32); ERROR 04 when no program has that index or no multi is current. A part outside
+    /// 0-127 or an index outside 0-16383 is refused without sending. [RQ-AKM-092]
+    void setMultiPartByIndex(Session& session, int part, int programIndex, CommandCompletion completion);
+
+    /// Assigns the program named `name` to part `part` (0-127) of the current multi (§0C/&33); ERROR 04 when no
+    /// program has that name or no multi is current. A part outside 0-127 is refused as `ArgumentOutOfRange` and
+    /// a name that is not 7-bit ASCII as `NotEncodable`, without sending. [RQ-AKM-092]
+    void setMultiPartByName(Session& session, int part, std::string_view name, CommandCompletion completion);
+
+    /// Deletes the program of part `part` (0-127) of the current multi (§0C/&34); ERROR 04 when no multi is
+    /// current. [RQ-AKM-092]
+    void deleteMultiPart(Session& session, int part, CommandCompletion completion);
+
     // General information about the multis (§0C/&40-&48, &50-&52, Table 17). The Gets that return a name, a
     // list or a count that depends on the multi are refused as `ChecksumModeUnknown` while the port's checksum
     // mode is unknown: their REPLY has no fixed length to delimit it by (ADR-AKM-001, DEC-AKM-013,

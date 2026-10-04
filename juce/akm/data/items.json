@@ -76,7 +76,7 @@
       "name": "Multi",
       "complete": false,
       "spec": "Tables 16 and 17, pp. 26-28",
-      "note": "FTR-AKM-011 (PLAN-AKM-011), 49 command rows and 11 REPLY formats. Multi creation, selection and deletion (RQ-AKM-087, TASK-AKM-089: &01, &02, &05, &06, &08, plus &42 and &43 pulled in early, as TASK-AKM-015 did for Program's &10/&13) are catalogued first: the same shape as section 0A's lifecycle, a sampler-wide current multi, an index carried as two Byte values (MSB, LSB) and a name as a String. The guarded &07 (RQ-AKM-088, TASK-AKM-090), mirroring Program's and Sample's. The twelve part parameters (RQ-AKM-089, TASK-AKM-091: Set &10-&1B, Get &20-&2B) take a part number (0-127) first, like section 06's zone number, then one value in the range of the item. The Gets of general information (RQ-AKM-090, RQ-AKM-091, TASK-AKM-092: &40, &41, &44-&48, &50-&52) complete the section's Gets: &41 and &50 carry a flag then a number like Program's &11/&18, &45/&46/&51 names with a single 00 for none, &47 twelve values (the twelve parameters, in the order of items &20-&2B), &48/&52 one byte per part or per multi."
+      "note": "FTR-AKM-011 (PLAN-AKM-011), 49 command rows and 11 REPLY formats. Multi creation, selection and deletion (RQ-AKM-087, TASK-AKM-089: &01, &02, &05, &06, &08, plus &42 and &43 pulled in early, as TASK-AKM-015 did for Program's &10/&13) are catalogued first: the same shape as section 0A's lifecycle, a sampler-wide current multi, an index carried as two Byte values (MSB, LSB) and a name as a String. The guarded &07 (RQ-AKM-088, TASK-AKM-090), mirroring Program's and Sample's. The twelve part parameters (RQ-AKM-089, TASK-AKM-091: Set &10-&1B, Get &20-&2B) take a part number (0-127) first, like section 06's zone number, then one value in the range of the item. The Gets of general information (RQ-AKM-090, RQ-AKM-091, TASK-AKM-092: &40, &41, &44-&48, &50-&52) complete the section's Gets: &41 and &50 carry a flag then a number like Program's &11/&18, &45/&46/&51 names with a single 00 for none, &47 twelve values (the twelve parameters, in the order of items &20-&2B), &48/&52 one byte per part or per multi. The five Sets of general information (RQ-AKM-092, TASK-AKM-093: &30 rename, &31 program number, &32 and &33 a part's program by index or by name, &34 delete a part's program) complete the section's command rows: &31's shape is conditional (a flag, then a number only when it is 1) and &33's is a part then a String, both built by hand like section 0A's &0A and section 06's &01."
     }
   ],
   "items": [
@@ -2476,6 +2476,31 @@
         {"name": "partCountCode", "format": "byte", "min": 31, "max": 127}
       ],
       "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiRename", "section": "0C", "item": "30", "name": "Rename Multi", "kind": "set",
+      "args": [{"name": "name", "format": "string", "min": 0, "max": 255}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiSetProgramNumber", "section": "0C", "item": "31", "name": "Set Multi Program Number", "kind": "set",
+      "args": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}, {"name": "number", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiSetPartByIndex", "section": "0C", "item": "32", "name": "Set Multi Part by index", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "indexMsb", "format": "byte", "min": 0, "max": 127}, {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiSetPartByName", "section": "0C", "item": "33", "name": "Set Multi Part by name", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "name", "format": "string", "min": 0, "max": 255}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiDeletePart", "section": "0C", "item": "34", "name": "Delete Selected Part from Multi", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-092"]
     }
   ]
 }
