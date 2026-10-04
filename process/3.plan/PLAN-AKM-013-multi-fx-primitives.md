@@ -76,7 +76,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-102: Channel mute, module type and module state
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue and implement `&20`, `&21`, `&30`, `&31`, `&40`, `&41` and the `FxModuleType` enumeration
   of Table 24, and model them in the simulated sampler.
 - **Requirement refs**: RQ-AKM-100
@@ -84,8 +84,26 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-100.
 - **Dependencies**: TASK-AKM-101
 - **Assignee**: AI
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 700/700
+  passed after a full re-run in this session (693 before, 6 in `MultiFxConfigurationTests.cpp` and 1 in
+  `test_generate_akm_items.py`, written before the code; `ctest -R RQ-AKM-100` 7/7 for the C++ ones): muting channel 1
+  sends section `12`, item `20`, data `01 01` and reads MUTE (then `01 00`, ON), channel 0 untouched; setting module
+  2 of channel 0 to Flange sends `30` with `00 02 03` and reads Flange (`31` with `00 02`), channel 1 untouched;
+  a code Table 24 does not name (`11`) is read back unchanged; disabling module 3 of channel 0 sends `40` with
+  `00 03 00` and reads disabled (`41`), enabling it `00 03 01`; a channel or module the board lacks fails ERROR 04
+  with nothing changed and no value; with no multi current the Sets and Gets fail ERROR 04; a channel or module of 128 or
+  -1, or a type code of 128, is refused `ArgumentOutOfRange` with nothing sent. `generate_akm_items.py --check`: up to
+  date (382 items); `--coverage`: `section 12: 9 of 11 spec rows covered`, `unaccounted: none`. `ItemCatalogueTests.cpp`'s
+  count formula extended by the 6 records. Not verified: the real sampler (TASK-AKM-104).
+- **Assumptions**: The type of a module, and a flag, are not checked against Table 24 or the board's rules: the protocol
+  is "as flexible and extensible as possible", the catalogue takes the spec's own range (0-127), and the layer names the
+  17 known codes with an enumeration that a cast can step outside of (RQ-AKM-100's last criterion was reworded
+  accordingly: it asked for a refusal above 16, which the spec's range does not support). "Only modules 2 and 3 of
+  channels 0 and 1 may be changed" is not enforced in the model, the sampler's answer being unknown. As for the
+  discovery items, the model answers ERROR 04 for what it does not have (channel, module, current multi). `--coverage`
+  found §12 &30's spec row malformed by the PDF's text flow (its description is merged into the second data column, so the
+  row seemed to describe 5 values, not 3): `spec_domains` now cuts a merged description that follows the last domain,
+  and leaves a mid-column one (§10 &2C) as it was; `test_generate_akm_items.py` gained a test of the new rule.
 
 ---
 

@@ -57,6 +57,26 @@ namespace akm
                 return std::nullopt;
             return static_cast<int>(*value);
         }
+
+        // A flag byte (0 or 1), as a bool; empty for no REPLY. The catalogue gives the byte the range 0-1.
+        std::optional<bool> flagFromReply(std::optional<std::int64_t> value)
+        {
+            if (!value)
+                return std::nullopt;
+            return *value != 0;
+        }
+
+        std::optional<FxModuleType> moduleTypeFromReply(std::optional<std::int64_t> value)
+        {
+            if (!value)
+                return std::nullopt;
+            return static_cast<FxModuleType>(*value);
+        }
+
+        constexpr std::int64_t MUTED = 1;
+        constexpr std::int64_t NOT_MUTED = 0;
+        constexpr std::int64_t ENABLED = 1;
+        constexpr std::int64_t DISABLED = 0;
     }
 
     void getFxCard(Session& session, FxCardCompletion completion)
@@ -83,6 +103,50 @@ namespace akm
                        [completion = std::move(completion)](const CommandResult& outcome) {
                            if (completion)
                                completion({countFromReply(decodeByteReply(ItemId::FxGetModuleCount, outcome)), outcome});
+                       });
+    }
+
+    void setFxChannelMute(Session& session, int channel, bool muted, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FxSetChannelMute, {channel, muted ? MUTED : NOT_MUTED}), std::move(completion));
+    }
+
+    void getFxChannelMute(Session& session, int channel, FxMuteCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FxGetChannelMute, {channel}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           if (completion)
+                               completion({flagFromReply(decodeByteReply(ItemId::FxGetChannelMute, outcome)), outcome});
+                       });
+    }
+
+    void setFxModuleType(Session& session, int channel, int module, FxModuleType type, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FxSetModuleType, {channel, module, static_cast<std::int64_t>(type)}),
+                       std::move(completion));
+    }
+
+    void getFxModuleType(Session& session, int channel, int module, FxModuleTypeCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FxGetModuleType, {channel, module}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           if (completion)
+                               completion({moduleTypeFromReply(decodeByteReply(ItemId::FxGetModuleType, outcome)), outcome});
+                       });
+    }
+
+    void setFxModuleEnabled(Session& session, int channel, int module, bool enabled, CommandCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FxSetModuleEnabled, {channel, module, enabled ? ENABLED : DISABLED}),
+                       std::move(completion));
+    }
+
+    void getFxModuleEnabled(Session& session, int channel, int module, FxEnabledCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FxGetModuleEnabled, {channel, module}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           if (completion)
+                               completion({flagFromReply(decodeByteReply(ItemId::FxGetModuleEnabled, outcome)), outcome});
                        });
     }
 }

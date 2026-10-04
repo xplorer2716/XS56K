@@ -2236,6 +2236,64 @@
       "requirements": ["RQ-AKM-099"]
     },
     {
+      "id": "FxSetChannelMute", "section": "12", "item": "20", "name": "Set Mute Status of Channel", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "mute", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxGetChannelMute", "section": "12", "item": "21", "name": "Get Mute Status of Channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "mute", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxSetModuleType", "section": "12", "item": "30", "name": "Set Type of FX module on given channel", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "moduleType", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxGetModuleType", "section": "12", "item": "31", "name": "Get Type of FX module on given channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "moduleType", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxSetModuleEnabled", "section": "12", "item": "40", "name": "Set Enabled/Disabled State of FX module", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "enabled", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxGetModuleEnabled", "section": "12", "item": "41", "name": "Get Enabled/Disabled State of FX module", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "enabled", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
       "id": "SceneListSelectByName", "section": "14", "item": "05", "name": "Select Scenelist by name", "kind": "set",
       "args": [
         {"name": "name", "format": "string", "min": 0, "max": 255}

@@ -321,13 +321,13 @@ TASK-AKM-097|45-75|Done|Scenelist selection, renaming, deletion and general info
 TASK-AKM-098|76-107|Done|Real-sampler check of the scenelists
 TASK-AKM-099|108-128|Done|Coverage of section §14
 @process/3.plan/PLAN-AKM-013-multi-fx-primitives.md
-PLAN-AKM-013|1-137||Multi FX Primitives (Phase A, new lot, §12)
+PLAN-AKM-013|1-155||Multi FX Primitives (Phase A, new lot, §12)
 TASK-AKM-100|32-45|Done|Author FTR-AKM-013 and PLAN-AKM-013
 TASK-AKM-101|46-76|Done|FX board and layout discovery, and the section in the simulated sampler
-TASK-AKM-102|77-91|Not Started|Channel mute, module type and module state
-TASK-AKM-103|92-106|Not Started|FX parameter values
-TASK-AKM-104|107-124|Not Started|Real-sampler check of the Multi FX
-TASK-AKM-105|125-137|Not Started|Coverage of section §12
+TASK-AKM-102|77-109|Done|Channel mute, module type and module state
+TASK-AKM-103|110-124|Not Started|FX parameter values
+TASK-AKM-104|125-142|Not Started|Real-sampler check of the Multi FX
+TASK-AKM-105|143-155|Not Started|Coverage of section §12
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

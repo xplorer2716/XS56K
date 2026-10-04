@@ -236,6 +236,13 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_FX_GET_CARD = 0x01;
         constexpr std::uint8_t ITEM_FX_GET_CHANNEL_COUNT = 0x10;
         constexpr std::uint8_t ITEM_FX_GET_MODULE_COUNT = 0x11;
+        // The configuration items of TASK-AKM-102 (RQ-AKM-100).
+        constexpr std::uint8_t ITEM_FX_SET_CHANNEL_MUTE = 0x20;
+        constexpr std::uint8_t ITEM_FX_GET_CHANNEL_MUTE = 0x21;
+        constexpr std::uint8_t ITEM_FX_SET_MODULE_TYPE = 0x30;
+        constexpr std::uint8_t ITEM_FX_GET_MODULE_TYPE = 0x31;
+        constexpr std::uint8_t ITEM_FX_SET_MODULE_ENABLED = 0x40;
+        constexpr std::uint8_t ITEM_FX_GET_MODULE_ENABLED = 0x41;
         constexpr std::uint8_t ITEM_LIST_SELECT_BY_NAME = 0x05;
         constexpr std::uint8_t ITEM_LIST_SELECT_BY_INDEX = 0x06;
         constexpr std::uint8_t ITEM_LIST_DELETE_CURRENT = 0x08;
@@ -1656,10 +1663,12 @@ namespace akm::harness
             }
         }
 
-        // §12 Multi FX (RQ-AKM-099): the card, the number of channels and of the modules of a channel, which describe
-        // the hardware and need no multi. With no board, the channel count is 0 and a channel has no modules, so ERROR 04
-        // (the spec is silent on a sampler with no board, so this is a modelling choice). [TASK-AKM-101]
-        Outcome executeMultiFx(std::uint8_t item, const Bytes& data, const FxState& fx)
+        // §12 Multi FX (RQ-AKM-099, RQ-AKM-100): the card, the number of channels and of the modules of a channel, which
+        // describe the hardware and need no multi, then the mute of a channel, the type and the enabled state of a module,
+        // which are the current multi's effects and so need one. With no board, the channel count is 0 and a channel has
+        // no modules, so ERROR 04, as it is for a channel or a module the board does not have and for no current multi
+        // (the spec is silent on all three, so this is a modelling choice). [TASK-AKM-101, TASK-AKM-102]
+        Outcome executeMultiFx(std::uint8_t item, const Bytes& data, FxState& fx, bool multiIsCurrent)
         {
             switch (item)
             {
@@ -1667,16 +1676,59 @@ namespace akm::harness
                     return reply(Bytes{fx.cardCode});
                 case ITEM_FX_GET_CHANNEL_COUNT:
                     return reply(Bytes{static_cast<std::uint8_t>(fx.channels.size())});
-                case ITEM_FX_GET_MODULE_COUNT:
+                default:
+                    break;
+            }
+            akm::ByteReader reader(data);
+            const auto channelIndex = reader.readByte();
+            if (!channelIndex.has_value())
+                return failure(error_number::INVALID_FORMAT);
+            if (*channelIndex >= fx.channels.size())
+                return failure(error_number::NOT_FOUND);
+            FxChannelRecord& channel = fx.channels[*channelIndex];
+            if (item == ITEM_FX_GET_MODULE_COUNT)
+                return reply(Bytes{static_cast<std::uint8_t>(channel.modules.size())});
+            if (!multiIsCurrent)
+                return failure(error_number::NOT_FOUND);
+            if (item == ITEM_FX_SET_CHANNEL_MUTE)
+            {
+                const auto muted = reader.readByte();
+                if (!muted.has_value())
+                    return failure(error_number::INVALID_FORMAT);
+                channel.muted = *muted != 0;
+                return done();
+            }
+            if (item == ITEM_FX_GET_CHANNEL_MUTE)
+                return reply(Bytes{static_cast<std::uint8_t>(channel.muted ? 1 : 0)});
+
+            const auto moduleIndex = reader.readByte();
+            if (!moduleIndex.has_value())
+                return failure(error_number::INVALID_FORMAT);
+            if (*moduleIndex >= channel.modules.size())
+                return failure(error_number::NOT_FOUND);
+            FxModuleRecord& module = channel.modules[*moduleIndex];
+            switch (item)
+            {
+                case ITEM_FX_SET_MODULE_TYPE:
                 {
-                    akm::ByteReader reader(data);
-                    const auto channel = reader.readByte();
-                    if (!channel.has_value())
+                    const auto type = reader.readByte();
+                    if (!type.has_value())
                         return failure(error_number::INVALID_FORMAT);
-                    if (*channel >= fx.channels.size())
-                        return failure(error_number::NOT_FOUND);
-                    return reply(Bytes{static_cast<std::uint8_t>(fx.channels[*channel].modules.size())});
+                    module.type = static_cast<std::uint8_t>(*type);
+                    return done();
                 }
+                case ITEM_FX_GET_MODULE_TYPE:
+                    return reply(Bytes{module.type});
+                case ITEM_FX_SET_MODULE_ENABLED:
+                {
+                    const auto enabled = reader.readByte();
+                    if (!enabled.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    module.enabled = *enabled != 0;
+                    return done();
+                }
+                case ITEM_FX_GET_MODULE_ENABLED:
+                    return reply(Bytes{static_cast<std::uint8_t>(module.enabled ? 1 : 0)});
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }
@@ -2481,7 +2533,7 @@ namespace akm::harness
             if (section == SECTION_SCENE_LIST)
                 return executeCurrentNamedList(item, data, state.sceneLists.scenes, state.sceneLists.current);
             if (section == SECTION_MULTI_FX)
-                return executeMultiFx(item, data, state.fx);
+                return executeMultiFx(item, data, state.fx, state.multis.current.has_value());
             if (section == SECTION_DISK)
                 return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples);
             if (section != SECTION_SYSEX_CONFIG)

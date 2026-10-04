@@ -441,12 +441,16 @@ namespace akm::harness
     struct FxModuleRecord
     {
         std::uint8_t type = 0;
+        /// Whether the module is enabled (§12/&40, &41); a module starts enabled. [RQ-AKM-100]
+        bool enabled = true;
     };
 
     /// One FX channel of the simulated board. [RQ-AKM-099]
     struct FxChannelRecord
     {
         std::vector<FxModuleRecord> modules;
+        /// The mute status (§12/&20, &21): a channel starts not muted. [RQ-AKM-100]
+        bool muted = false;
     };
 
     /// The sampler's FX board (§12, spec Tables 22-25): the code §12/&01 answers (0 none, 1 EB20) and the channels of

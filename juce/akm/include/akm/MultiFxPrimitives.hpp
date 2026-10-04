@@ -67,4 +67,79 @@ namespace akm
     /// `ArgumentOutOfRange` without sending, and the sampler's ERROR is reported unchanged for a channel it does not
     /// have. [RQ-AKM-099]
     void getFxModuleCount(Session& session, int channel, FxCountCompletion completion);
+
+    // The configuration of the channels and the modules (§12/&20-&41, Tables 22-24). A channel and a module are
+    // zero-based; one outside 0-127 is refused as `ArgumentOutOfRange` without sending, and the sampler's ERROR is
+    // reported unchanged for one the board does not have or when no multi is current. [RQ-AKM-100]
+
+    /// Mutes or unmutes the effects channel `channel` (§12/&20; the wire carries 0 for ON and 1 for MUTE).
+    /// [RQ-AKM-100]
+    void setFxChannelMute(Session& session, int channel, bool muted, CommandCompletion completion);
+
+    /// `muted` is empty when the command did not complete on a REPLY of the length the catalogue gives it.
+    /// [RQ-AKM-100]
+    struct FxMuteResult
+    {
+        std::optional<bool> muted{};
+        CommandResult outcome{};
+    };
+    using FxMuteCompletion = std::function<void(const FxMuteResult&)>;
+
+    /// Gets the mute status of the effects channel `channel` (§12/&21). [RQ-AKM-100]
+    void getFxChannelMute(Session& session, int channel, FxMuteCompletion completion);
+
+    /// The module types the spec names (Table 24, §12/&30 and &31). The enumeration is a convenience, not a limit: the
+    /// protocol is "as flexible and extensible as possible" (spec p. 35), so a code Table 24 does not name is read and
+    /// written as it is, through a cast, and only a code outside 0-127 is refused. [RQ-AKM-100]
+    enum class FxModuleType
+    {
+        None = 0x00,
+        RingModDistortion = 0x01,
+        Chorus = 0x02,
+        Flange = 0x03,
+        Phase = 0x04,
+        RotarySpeaker = 0x05,
+        FModAutopan = 0x06,
+        PitchShift = 0x07,
+        PitchShiftFeedback = 0x08,
+        Eq = 0x09,
+        MonoDelay = 0x0A,
+        MonoLeftRight = 0x0B,
+        MonoCrossover = 0x0C,
+        StereoDelay = 0x0D,
+        Reverb = 0x0E,
+        OutputMix = 0x0F,
+        ReverbInput = 0x10,
+    };
+
+    /// Sets the type of module `module` of channel `channel` (§12/&30). With the EB20 only modules 2 and 3 of channels 0
+    /// and 1 may be changed (spec p. 35). [RQ-AKM-100]
+    void setFxModuleType(Session& session, int channel, int module, FxModuleType type, CommandCompletion completion);
+
+    /// `type` is empty when the command did not complete on a REPLY of the length the catalogue gives it; a code Table 24
+    /// does not name is given unchanged. [RQ-AKM-100]
+    struct FxModuleTypeResult
+    {
+        std::optional<FxModuleType> type{};
+        CommandResult outcome{};
+    };
+    using FxModuleTypeCompletion = std::function<void(const FxModuleTypeResult&)>;
+
+    /// Gets the type of module `module` of channel `channel` (§12/&31). [RQ-AKM-100]
+    void getFxModuleType(Session& session, int channel, int module, FxModuleTypeCompletion completion);
+
+    /// Enables or disables (bypasses) module `module` of channel `channel` (§12/&40). [RQ-AKM-100]
+    void setFxModuleEnabled(Session& session, int channel, int module, bool enabled, CommandCompletion completion);
+
+    /// `enabled` is empty when the command did not complete on a REPLY of the length the catalogue gives it.
+    /// [RQ-AKM-100]
+    struct FxEnabledResult
+    {
+        std::optional<bool> enabled{};
+        CommandResult outcome{};
+    };
+    using FxEnabledCompletion = std::function<void(const FxEnabledResult&)>;
+
+    /// Gets whether module `module` of channel `channel` is enabled (§12/&41). [RQ-AKM-100]
+    void getFxModuleEnabled(Session& session, int channel, int module, FxEnabledCompletion completion);
 }

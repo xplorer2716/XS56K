@@ -34,6 +34,7 @@ add_executable(xs56k_akm_tests
     akm/MidiConfigTests.cpp
     akm/MultiDeleteAllGuardTests.cpp
     akm/MultiEditingTests.cpp
+    akm/MultiFxConfigurationTests.cpp
     akm/MultiFxDiscoveryTests.cpp
     akm/MultiInformationTests.cpp
     akm/MultiPartParametersTests.cpp
