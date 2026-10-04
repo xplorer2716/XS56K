@@ -184,6 +184,18 @@ namespace akm::harness
         // item codes this lot's &4B concatenates, in the order the spec's own grouped REPLY gives them.
         constexpr std::array<std::uint8_t, 8> SETTABLE_PARAM_SET_ITEMS{{0x20, 0x21, 0x22, 0x23, 0x24, 0x28, 0x29, 0x2A}};
 
+        // Section §16 (MIDI song files), spec Tables 28-29: the song file items of TASK-AKM-084 (RQ-AKM-082,
+        // RQ-AKM-083). The same pattern as §0E: a current selection, an index as two 7-bit bytes.
+        constexpr std::uint8_t SECTION_SONG_FILES = 0x16;
+        constexpr std::uint8_t ITEM_SELECT_SONG_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_SELECT_SONG_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_DELETE_CURRENT_SONG = 0x08;
+        constexpr std::uint8_t ITEM_RENAME_CURRENT_SONG = 0x09;
+        constexpr std::uint8_t ITEM_GET_SONG_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_GET_SONG_NAME_BY_INDEX = 0x11;
+        constexpr std::uint8_t ITEM_GET_CURRENT_SONG_INDEX = 0x13;
+        constexpr std::uint8_t ITEM_GET_CURRENT_SONG_NAME = 0x14;
+
         // Section §10 (Disk), spec Tables 20-21: disk discovery of TASK-AKM-057 (RQ-AKM-060). Other §10
         // items answer ERROR 0 until their own lot.
         // Section §20 (front panel), spec Table 30: the key items of TASK-AKM-070 (RQ-AKM-073). The keycode is
@@ -1169,6 +1181,92 @@ namespace akm::harness
             }
         }
 
+        // §16 song files (RQ-AKM-082, RQ-AKM-083): select by name/index, delete/rename the current one and the
+        // four Gets. A name or an index with no song file, and any "current" item with none current, fail with
+        // ERROR 04, as §0E does (the spec is silent on §16, so this is a modelling choice). [TASK-AKM-084]
+        Outcome executeSongFiles(std::uint8_t item, const Bytes& data, SongState& state)
+        {
+            switch (item)
+            {
+                case ITEM_SELECT_SONG_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find(state.songs.begin(), state.songs.end(), *name);
+                    if (found == state.songs.end())
+                        return failure(error_number::NOT_FOUND);
+                    state.current = static_cast<std::size_t>(found - state.songs.begin());
+                    return done();
+                }
+                case ITEM_SELECT_SONG_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= state.songs.size())
+                        return failure(error_number::NOT_FOUND);
+                    state.current = *index;
+                    return done();
+                }
+                case ITEM_DELETE_CURRENT_SONG:
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    state.songs.erase(state.songs.begin() + static_cast<std::ptrdiff_t>(*state.current));
+                    state.current.reset();
+                    return done();
+                case ITEM_RENAME_CURRENT_SONG:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    state.songs[*state.current] = *name;
+                    return done();
+                }
+                case ITEM_GET_SONG_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(state.songs.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SONG_NAME_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= state.songs.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(state.songs[*index]);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_SONG_INDEX:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*state.current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_SONG_NAME:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(state.songs[*state.current]);
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
         // §02/&32: every program, multi and sample is deleted, and the memory they held is free again — what
         // the Wave memory and MPKS memory Gets then report (the spec says nothing of it; a modelling choice).
         // [RQ-AKM-056]
@@ -1930,6 +2028,7 @@ namespace akm::harness
             std::vector<std::size_t>& currentFolderPath;
             FrontPanelState& frontPanel;
             MidiConfigState& midiConfig;
+            SongState& songs;
         };
 
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerState& state)
@@ -1957,6 +2056,8 @@ namespace akm::harness
                 return executeKeygroup(item, data, state.programs, state.currentProgram, state.currentKeygroup);
             if (section == SECTION_SAMPLE)
                 return executeSample(item, data, state.samples, state.currentSample);
+            if (section == SECTION_SONG_FILES)
+                return executeSongFiles(item, data, state.songs);
             if (section == SECTION_DISK)
                 return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples);
             if (section != SECTION_SYSEX_CONFIG)
@@ -2027,6 +2128,19 @@ namespace akm::harness
             _samples.push_back(std::move(record));
         }
         _currentSample.reset();
+    }
+
+    void SimulatedSampler::setSongNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _songs.songs = std::move(names);
+        _songs.current.reset();
+    }
+
+    std::vector<std::string> SimulatedSampler::songNames() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _songs.songs;
     }
 
     void SimulatedSampler::setMultiNames(std::vector<std::string> names)
@@ -2275,7 +2389,8 @@ namespace akm::harness
                                           });
         SamplerState state{_settings,      _config.osVersion, _system,      _programs,         _currentProgram,
                            _currentKeygroup, _samples,         _currentSample, _multis,       _disks,
-                           _currentDisk,     _currentFolderPath, _frontPanel,  _midiConfig};
+                           _currentDisk,     _currentFolderPath, _frontPanel,  _midiConfig,
+                           _songs};
         const Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
                                                                         : execute(section, item, data, state);
         // An item the sampler is deaf to ran, and says nothing, the OK included.

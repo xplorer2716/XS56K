@@ -63,6 +63,13 @@
       "complete": true,
       "spec": "Table 8, p. 12",
       "note": "FTR-AKM-009 (PLAN-AKM-009), 7 command rows and no REPLY format. The five switches (RQ-AKM-078, TASK-AKM-077: &01 program change enable 0-1, &02 multi select 0-2, &03 multi select channel 0-31, &04 external APM controller 0-127, &05 aftertouch 0-1) are catalogued first, one byte each; the two MIDI filters (RQ-AKM-079, TASK-AKM-078: &06 allow, &07 ignore) take an event type 0-3 and a channel 0-31, two bytes each, which completes the section's seven command rows: `complete` was set by TASK-AKM-080 after `--coverage` reported 7 of 7 spec rows covered with no unaccounted item. The section has no REPLY row and no erratum; what it sets is stored configuration the sampler cannot read back, so its real-sampler check (RQ-AKM-080) is guided by the owner."
+    },
+    {
+      "section": "16",
+      "name": "MIDI Song Files",
+      "complete": false,
+      "spec": "Tables 28 and 29, p. 40",
+      "note": "FTR-AKM-010 (PLAN-AKM-010), 12 command rows and 6 REPLY formats. Song file selection, renaming, deletion and general information (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084: &05, &06, &08, &09, &10, &11, &13, &14) are catalogued first, the same shape as section 0E's lifecycle: a sampler-wide current song file, an index carried as two Byte values (MSB, LSB) and a name as a String."
     }
   ],
   "items": [
@@ -2079,6 +2086,70 @@
         {"name": "channel", "format": "byte", "min": 0, "max": 31}
       ],
       "requirements": ["RQ-AKM-079"]
+    },
+    {
+      "id": "SongSelectByName", "section": "16", "item": "05", "name": "Select Songfile by name", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongSelectByIndex", "section": "16", "item": "06", "name": "Select Songfile by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongDeleteCurrent", "section": "16", "item": "08", "name": "Delete the currently selected Songfile", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongRenameCurrent", "section": "16", "item": "09", "name": "Rename the currently selected Songfile", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongGetCount", "section": "16", "item": "10", "name": "Get the Number of Songfiles loaded into memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SongGetNameByIndex", "section": "16", "item": "11", "name": "Get the name of Songfile by index", "kind": "get",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SongGetCurrentIndex", "section": "16", "item": "13", "name": "Get Current Songfile's Index", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SongGetCurrentName", "section": "16", "item": "14", "name": "Get Current Songfile's Name", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-083"]
     }
   ]
 }

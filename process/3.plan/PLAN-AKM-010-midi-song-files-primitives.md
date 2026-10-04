@@ -45,7 +45,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-084: Song file selection, renaming, deletion and general information
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue and implement `&05`, `&06`, `&08`, `&09`, `&10`, `&11`, `&13`, `&14` as primitives
   in `SongPrimitives`, and model them in the simulated sampler (seeded by `setSongNames`).
 - **Requirement refs**: RQ-AKM-082, RQ-AKM-083
@@ -53,8 +53,20 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-082 and RQ-AKM-083.
 - **Dependencies**: TASK-AKM-083
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 624/624
+  passed after a full re-run in this session (617 before, 7 new in `SongPrimitivesTests.cpp`, written before the
+  code, `ctest -R "RQ-AKM-08[23]"` 7/7): select by name then rename round-trips through `&14` with the frame bytes
+  checked (`53 4F 4E 47 31 00`); a name or an index with no song file fails ERROR 04; select by index (frame
+  `00 00`), delete, then the count is one less, no song is current and index 0 names what was `B`; delete, rename
+  and the two current Gets fail ERROR 04 with none current; count and name by index read `A`, `B`, `C` in order,
+  an index past the end fails ERROR 04, and reading by index leaves the selection alone; an empty memory counts 0
+  on a REPLY; both name Gets are refused `ChecksumModeUnknown` with nothing sent. `generate_akm_items.py --check`:
+  up to date (314 items); `--coverage`: `unaccounted: none`. `ItemCatalogueTests.cpp`'s total-item-count formula
+  extended by the 8 new records, as every lot before it did. Not verified: the real sampler (TASK-AKM-086).
+- **Assumptions**: The spec is silent on what §16 answers with no song file current or an unknown name or index:
+  the simulated sampler answers ERROR `04` as §0E does (a modelling choice, `SimulatedSampler.cpp`
+  `executeSongFiles`); the real sampler's answer is for TASK-AKM-086 to observe. Name bound `0-255` as §0E's.
+  Section `16` was added to `items.json` with `complete: false` until TASK-AKM-087.
 
 ---
 

@@ -54,6 +54,7 @@ add_executable(xs56k_akm_tests
     akm/SessionTests.cpp
     akm/SessionThreadingTests.cpp
     akm/SimulatedSamplerTests.cpp
+    akm/SongPrimitivesTests.cpp
     akm/SysExConfigTests.cpp
     akm/SystemClearMemoryGuardTests.cpp
     akm/SystemSetupTests.cpp

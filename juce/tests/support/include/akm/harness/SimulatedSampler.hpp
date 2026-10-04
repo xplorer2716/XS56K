@@ -394,6 +394,15 @@ namespace akm::harness
         std::uint32_t rate = 0;
     };
 
+    /// The sampler's MIDI song files (§16, spec Tables 28-29): names only, in memory order, with the current
+    /// selection the way §0E keeps its own. Like a sample, a song file cannot be created through §16, so
+    /// `setSongNames` is the only way to give the model one. [RQ-AKM-082]
+    struct SongState
+    {
+        std::vector<std::string> songs;
+        std::optional<std::size_t> current;
+    };
+
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
     /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. §00, the two version items of §02
@@ -422,6 +431,13 @@ namespace akm::harness
         /// and use it for both zone assignment and the sample lifecycle. Empty by default: a test that
         /// wants a successful assignment or selection must call this first, like `setBehaviour`.
         void setSampleNames(std::vector<std::string> names);
+
+        /// Seeds the sampler's MIDI song files (§16) by name, current selection reset. Empty by default, as the
+        /// samples are: no §16 item creates a song file. [RQ-AKM-082]
+        void setSongNames(std::vector<std::string> names);
+
+        /// The names of the song files the sampler holds now, in memory order (RQ-AKM-082).
+        [[nodiscard]] std::vector<std::string> songNames() const;
 
         /// Seeds the sampler's multis (§0C) by name. No §0C item is modelled — the section is not implemented —
         /// so a multi can neither be read nor changed but through here; it exists so that Clear Sampler Memory
@@ -519,6 +535,8 @@ namespace akm::harness
         // §0A's current program, §0E's current sample has no dependent selection to reset alongside it.
         std::vector<SampleRecord> _samples;
         std::optional<std::size_t> _currentSample;
+        // §16 MIDI song files (RQ-AKM-082), seeded by `setSongNames`: not touched by powerCycle().
+        SongState _songs;
         // §0C multis (RQ-AKM-056): names only, seeded by `setMultiNames` and emptied by §02/&32; not touched by
         // powerCycle().
         std::vector<std::string> _multis;
