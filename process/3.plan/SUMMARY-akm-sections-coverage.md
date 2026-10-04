@@ -20,12 +20,12 @@
 | §0C | Multi | 60 | 100 % | `████████████████████` |
 | §0E | Sample tools | 53 | 100 % | `████████████████████` |
 | §10 | Disk tools | 51 | 100 % | `████████████████████` |
-| §12 | Multi FX | 18 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
+| §12 | Multi FX | 18 | 100 % | `████████████████████` |
 | §14 | Scenelist | 12 | 100 % | `████████████████████` |
 | §16 | MIDI song files | 18 | 100 % | `████████████████████` |
 | §20 | Front panel | 4 | 100 % | `████████████████████` |
 
-542 of 560 spec lines covered overall (97 %); every implemented section's commands are fully catalogued
+560 of 560 spec lines covered overall (100 %); every implemented section's commands are fully catalogued
 (no section is partially done right now — §02 was the last partial one before §10, closed by
 `TASK-AKM-053`/`TASK-AKM-055`). Coverage confirmed by `generate_akm_items.py --coverage`
 (`unaccounted: none`) for §00/§02/§06/§08/§0A/§0E/§10 — §10's own `35 of 35 spec rows covered` reached by
@@ -80,7 +80,16 @@ and `&07`, by design.
 erratum. The real S5000 (OS 2.14) supports the section but held no scenelist: `--scenelists` read the count (0) and saw
 ERROR 4 for every item naming something, nothing more (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`).
 Renaming, selection and the REPLYs of the Gets for a scenelist that exists have not been run on a real sampler yet.
-Section still at 0 %: §12 Multi FX (18 lines).
+
+§12's own `complete` flag was flipped to `true` by `TASK-AKM-105` (`PLAN-AKM-013`, 2026-10-04), which re-ran `--coverage`
+(11/11, no unaccounted item): eleven command rows (the three discovery Gets, the channel mute, the module type and state,
+the parameter values) and seven REPLY rows, no erratum, but §12 &30's spec row has its description merged into its second
+data column by the PDF's text flow, which the coverage tool now cuts. The real S5000 (OS 2.14) has no EB20 board, so only
+the answers of a sampler with no board were observed (`--multi-fx`: `&01`, `&10`, `&11` answer 0, ERROR 2 for the Gets that
+name a channel and a module, `process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`); every Set of the section is
+tested on the simulated sampler only, the owner having no board to test them on.
+
+Every section of the protocol the spec gives rows to is now catalogued: no section is at 0 % any more.
 
 ### §10 on the real S5000 (2026-10-03)
 

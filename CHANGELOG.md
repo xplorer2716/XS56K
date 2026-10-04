@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- This section may be incomplete. for full history, please check git history.
 - Initial project structure.
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
@@ -31,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   count the scenelists and read their names, the current one's index and name. `xs56k_akm_probe --suite --scenelists`
   reads what the sampler holds, renames the first scenelist and puts the name and the selection back; it never deletes
   anything.
+- AKM: Multi FX primitives (SysEx section 12): whether an FX board is installed, the number of channels and of the modules
+  of a channel, the mute of a channel, the type and the enabled state of a module (the Table 24 module types are
+  named) and the value of a module's parameter as a signed number. `xs56k_akm_probe --suite --multi-fx` creates a test
+  multi, reads the board and, with an EB20 installed, changes a few values on the test multi and puts them back; with no
+  board it only reads, and deletes the test multi again. Every Set is untested on a real sampler for want of a board.
 
 <!--
 Sections to use under each version (only those that apply):

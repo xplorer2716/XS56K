@@ -154,6 +154,15 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   so it works on what the sampler holds, never deletes, and is skipped when there is none. Observed once on an S5000
   (OS 2.14) that held none: the section is supported, the count is 0, ERROR 4 for every item naming something
   (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`); run it again once a scenelist is loaded.
+  `--multi-fx` adds two checks on the multis' effects (section 12, RQ-AKM-102): it creates a test multi under the reserved
+  name `XS56K_MULTI_TEST` (and stops without touching anything if a multi already bears it), reads whether an FX board is
+  installed (`&01`) and, with none, logs the answers of the other Gets and sends no Set (the check is then skipped); with
+  an EB20 it changes the mute of channel 0, the enabled state of its module 3, its first parameter of module 2 and the
+  type of module 2, putting each back, then deletes the test multi and selects again the multi that was current, even when
+  a check fails half way. Observed once on an S5000 (OS 2.14) with no board
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`): `&01`, `&10` and `&11` answer 0, and the Gets that name a
+  channel and a module answer ERROR 2. The owner has no EB20, so the round trip with a board is tested on the simulated
+  sampler only.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

@@ -182,7 +182,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-105: Coverage of section §12
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `12`, list any exclusion with its reason,
   flip the section's `complete` flag in `items.json`, and update `SUMMARY-akm-sections-coverage.md`, `AGENTS.md`
   (the new probe option) and `CHANGELOG.md`.
@@ -191,5 +191,14 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-103.
 - **Dependencies**: TASK-AKM-101 to TASK-AKM-104
 - **Assignee**: AI
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: `generate_akm_items.py --coverage` re-run this session after the flag flip: `section 12: 11 of 11
+  spec rows covered (Multi FX, complete)`, `unaccounted: none` — no row excluded, nothing left to give a reason for;
+  `--check`: up to date (384 items); full `ctest` after the flip: 711/711 passed. `items.json`'s section-12 `complete`
+  flipped `false` → `true`, its note closed out. No erratum in the spec's text and tables; §12 &30's row, whose
+  description the PDF's text flow merged into its second data column, is the one irregularity met (handled in
+  `generate_akm_items.py` by TASK-AKM-102). `SUMMARY-akm-sections-coverage.md`: §12's bar to 100 %, the total to 560/560
+  (100 %) and a note of what the real sampler did and did not show; `AGENTS.md`: `--multi-fx` documented;
+  `CHANGELOG.md`: one `[Unreleased]` entry.
+- **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, not on a real-sampler
+  run that exercised everything: the owner's sampler has no EB20 board, so no Set was ever sent to hardware (see
+  TASK-AKM-104). The spec's eighteen rows are 11 commands and 7 REPLYs; `--coverage` counts the 11 command rows.

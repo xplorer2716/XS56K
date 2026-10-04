@@ -74,9 +74,9 @@
     {
       "section": "12",
       "name": "Multi FX",
-      "complete": false,
+      "complete": true,
       "spec": "Tables 22 to 25 and Figure 2, pp. 35-38",
-      "note": "FTR-AKM-013 (PLAN-AKM-013), 11 command rows and 7 REPLY formats. The discovery Gets (RQ-AKM-099, TASK-AKM-101: &01 card installed, &10 number of channels, &11 number of modules of a channel) are catalogued first, one byte each way. Effects belong to the current multi: the section's items act on it. `complete` is set by TASK-AKM-105."
+      "note": "FTR-AKM-013 (PLAN-AKM-013), 11 command rows and 7 REPLY formats. The discovery Gets (RQ-AKM-099, TASK-AKM-101: &01 card installed, &10 number of channels, &11 number of modules of a channel) are catalogued first, one byte each way. Effects belong to the current multi: the section's items act on it. The channel mute (RQ-AKM-100, TASK-AKM-102: &20 Set, &21 Get, 0 = ON, 1 = MUTE), the type of a module (&30, &31, a Table 24 code, range 0-127 as the spec's) and its enabled state (&40, &41) take a channel then a module as zero-based Byte values. The parameter values (RQ-AKM-101, TASK-AKM-103: &50, &51) take a channel, a module and a parameter index, then the value as a sign byte and a two-byte magnitude, three Byte values as the spec's row lists them and as every signed value of the earlier sections is, the primitive composing the signed int. `complete` was set by TASK-AKM-105 after `--coverage` reported 11 of 11 spec rows covered with no unaccounted item; no erratum, but §12 &30's spec row has its description merged into its second data column by the PDF's text flow, which `generate_akm_items.py` now cuts (TASK-AKM-102). The real S5000 (OS 2.14) has no EB20 board: with a test multi current it answered `&01` 0, `&10` 0, `&11` 0 and ERROR 2 to the Gets that name a channel and a module (TASK-AKM-104); every Set is tested on the simulated sampler only."
     },
     {
       "section": "14",
