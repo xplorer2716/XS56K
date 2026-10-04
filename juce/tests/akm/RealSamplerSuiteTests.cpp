@@ -38,6 +38,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "TestBytes.hpp"
 #include "akm/Command.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/SamplerError.hpp"
 #include "akm/SystemSetup.hpp"
 #include "akm/harness/ClockArithmetic.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
@@ -1828,6 +1829,115 @@ TEST_CASE("Given the default options, When the suite runs, Then no section 16 it
     CHECK(result.checks.size() == AUTOMATIC_CHECKS);
     for (const auto& command : rig.sampler.acceptedCommands())
         CHECK(command.section != SECTION_SONG_FILES);
+}
+
+namespace
+{
+    constexpr std::size_t SCENE_LISTS_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_SCENE_LIST = 0x14;
+    constexpr std::uint8_t ITEM_DELETE_CURRENT_SCENE_LIST = 0x08;
+    constexpr std::uint8_t ITEM_RENAME_CURRENT_SCENE_LIST = 0x09;
+
+    // A sampler that holds scenelists, one of them being the current one, as an owner's would.
+    void seedSceneLists(SimulatedSampler& sampler)
+    {
+        sampler.setSceneListNames({"INTRO", "LIVE SET", "ENCORE"});
+        sampler.setCurrentSceneList(2);
+    }
+}
+
+TEST_CASE("Given a sampler holding scenelists, When the suite runs with the scenelists check, Then every read and selection agrees, the name and the selection are put back, and nothing is deleted [TASK-AKM-098, RQ-AKM-095, RQ-AKM-096, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    seedSceneLists(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "read the scenelists").detail, ContainsSubstring("3 scenelist(s)"));
+    CHECK_THAT(log.str(), ContainsSubstring("the scenelists are back to what they were"));
+    CHECK(rig.sampler.sceneListNames() == std::vector<std::string>{"INTRO", "LIVE SET", "ENCORE"});
+    CHECK(rig.sampler.currentSceneList() == std::optional<std::size_t>{2});
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SCENE_LIST && command.item == ITEM_DELETE_CURRENT_SCENE_LIST));
+}
+
+TEST_CASE("Given a sampler that holds no scenelist, When the suite runs with the scenelists check, Then both checks are skipped, nothing is renamed or deleted, and what the sampler answers to a read or a selection of nothing is logged [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    CHECK(reportOf(result, "read the scenelists").outcome == CheckOutcome::Skipped);
+    CHECK(reportOf(result, "scenelists check that fails half way").outcome == CheckOutcome::Skipped);
+    CHECK(result.knownStateRestored);
+    CHECK_THAT(log.str(), ContainsSubstring("select scenelist 0, none held"));
+    for (const auto& command : rig.sampler.acceptedCommands())
+        if (command.section == SECTION_SCENE_LIST)
+            CHECK_FALSE((command.item == ITEM_DELETE_CURRENT_SCENE_LIST || command.item == ITEM_RENAME_CURRENT_SCENE_LIST));
+}
+
+TEST_CASE("Given a check made to fail after a scenelist was renamed, When the suite runs with the scenelists check, Then the scenelist has its name back and the selection is the one found [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    seedSceneLists(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    CHECK(reportOf(result, "scenelists check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with a scenelist renamed"));
+    CHECK(rig.sampler.sceneListNames().front() == "INTRO");
+    CHECK(rig.sampler.currentSceneList() == std::optional<std::size_t>{2});
+}
+
+TEST_CASE("Given a sampler that refuses every section 14 item as not supported, When the suite runs with the scenelists check, Then the check fails naming the refusal and the other checks are unaffected [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    akm::harness::SamplerBehaviour behaviour = rig.sampler.behaviour();
+    behaviour.itemErrors.push_back({SECTION_SCENE_LIST, 0x10, akm::error_number::NOT_SUPPORTED});
+    rig.sampler.setBehaviour(behaviour);
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    const CheckReport& report = reportOf(result, "read the scenelists");
+    CHECK(report.outcome == CheckOutcome::Failed);
+    CHECK_THAT(report.detail, ContainsSubstring("could not read the number of scenelists (&10)"));
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 14 item is sent [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    seedSceneLists(rig.sampler);
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_SCENE_LIST);
 }
 
 namespace

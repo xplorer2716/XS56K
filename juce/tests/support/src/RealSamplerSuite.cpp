@@ -45,6 +45,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/MultiPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
+#include "akm/SceneListPrimitives.hpp"
 #include "akm/SongPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
 #include "akm/SystemSetup.hpp"
@@ -1011,6 +1012,145 @@ namespace akm::harness
             std::optional<int> _renamedSetList{};
         };
 
+        // The name the check gives a scenelist for the length of a round trip: inside the 20 characters the other names
+        // allow, and nothing an owner would keep. How many names it reads: a sampler may hold far more than a log needs to
+        // show. [RQ-AKM-097]
+        constexpr std::string_view TEST_SCENE_LIST_NAME = "XS56K TEST";
+        constexpr int SCENE_LIST_NAME_READ_LIMIT = 16;
+
+        // What the sampler holds in section 14, as read before a check changes anything: the count, the first names and the
+        // current scenelist. `currentProblem` says why no scenelist is current (the sampler answers an ERROR when none is).
+        // [RQ-AKM-096, RQ-AKM-097]
+        struct SceneListsSnapshot
+        {
+            int count = 0;
+            std::vector<std::string> names;
+            std::optional<int> current{};
+            std::string currentProblem;
+        };
+
+        std::string sceneListsText(const SceneListsSnapshot& snapshot)
+        {
+            std::string list;
+            for (const std::string& name : snapshot.names)
+                list += (list.empty() ? "\"" : ", \"") + name + "\"";
+            return std::to_string(snapshot.count) + " scenelist(s): " + (list.empty() ? std::string("none") : list)
+                   + "; current scenelist "
+                   + (snapshot.current ? std::to_string(*snapshot.current) : "none (" + snapshot.currentProblem + ")");
+        }
+
+        // Reads the count, the first names and the current scenelist. It changes nothing; `problem` says which read failed.
+        // [RQ-AKM-096]
+        std::optional<SceneListsSnapshot> readSceneLists(Rig& rig, Session& session, std::string& problem)
+        {
+            SceneListsSnapshot snapshot;
+            const auto count = awaitCompletion<SceneListCountResult>(
+                rig.driver, rig.commandPatience(), [&session](SceneListCountCompletion done) { getSceneListCount(session, std::move(done)); });
+            if (!count || !count->result.count)
+            {
+                problem = "could not read the number of scenelists (&10): " + (count ? outcomeText(count->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.count = *count->result.count;
+
+            for (int index = 0; index < std::min(snapshot.count, SCENE_LIST_NAME_READ_LIMIT); ++index)
+            {
+                const auto name = awaitCompletion<SceneListNameResult>(rig.driver, rig.commandPatience(), [&session, index](SceneListNameCompletion done) {
+                    getSceneListNameByIndex(session, index, std::move(done));
+                });
+                if (!name || !name->result.name)
+                {
+                    problem = "could not read the name of scenelist " + std::to_string(index) + " (&11): "
+                              + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                    return std::nullopt;
+                }
+                snapshot.names.push_back(*name->result.name);
+            }
+
+            const auto current = awaitCompletion<SceneListIndexResult>(
+                rig.driver, rig.commandPatience(), [&session](SceneListIndexCompletion done) { getCurrentSceneListIndex(session, std::move(done)); });
+            if (!current)
+            {
+                problem = "could not read the current scenelist's index (&13): no completion";
+                return std::nullopt;
+            }
+            if (current->result.index)
+                snapshot.current = *current->result.index;
+            else
+                snapshot.currentProblem = outcomeText(current->result.outcome);
+            return snapshot;
+        }
+
+        // Wraps the sampler's scenelists for the life of one check (RQ-AKM-097): the check says which scenelist it is about to
+        // rename, before it renames it, and on destruction, even when the check throws half way, the guard puts the name back
+        // and selects again the scenelist that was current. Logged, best effort, nothing let out of the destructor, as
+        // GuardedSongFiles. It never sends a deletion: nothing in this class can. A sampler that had no scenelist current
+        // cannot be put back to that: the selection has no "none".
+        class GuardedSceneLists
+        {
+        public:
+            GuardedSceneLists(Rig& rig, Session& session, SceneListsSnapshot original)
+                : _rig(rig), _session(session), _original(std::move(original))
+            {
+            }
+
+            ~GuardedSceneLists()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the scenelists guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedSceneLists(const GuardedSceneLists&) = delete;
+            GuardedSceneLists& operator=(const GuardedSceneLists&) = delete;
+
+            /// To call before the rename of scenelist `index` is sent: its name is put back whatever happens next.
+            void noteRenamed(int index) { _renamed = index; }
+
+        private:
+            template <typename Launch>
+            void restoreStep(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  restore " + title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+            }
+
+            void restore()
+            {
+                if (_renamed)
+                {
+                    const int index = *_renamed;
+                    const std::string name = _original.names.at(static_cast<std::size_t>(index));
+                    restoreStep("the selection of scenelist " + std::to_string(index),
+                                [this, index](CommandCompletion done) { selectSceneListByIndex(_session, index, std::move(done)); });
+                    restoreStep("the name of scenelist " + std::to_string(index) + " (\"" + name + "\")",
+                                [this, &name](CommandCompletion done) { renameCurrentSceneList(_session, name, std::move(done)); });
+                }
+                if (_original.current)
+                {
+                    const int index = *_original.current;
+                    restoreStep("the current scenelist (" + std::to_string(index) + ")",
+                                [this, index](CommandCompletion done) { selectSceneListByIndex(_session, index, std::move(done)); });
+                }
+                else if (_renamed)
+                {
+                    _rig.log.note("  no scenelist was current before the check, and a selection cannot be cleared: scenelist "
+                                  + std::to_string(*_renamed) + " stays current");
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            SceneListsSnapshot _original;
+            std::optional<int> _renamed{};
+        };
+
         // The reserved names the multi check creates its multi and renames it under (RQ-AKM-093), and the two parts it works
         // on: the part the shared parameter cases act on, and one more for the assignment by index. Inside the 20
         // characters the other names allow, and nothing an owner would keep.
@@ -1514,6 +1654,14 @@ namespace akm::harness
                           &Suite::songFilesRoundTrips);
                     check("a song files check that fails half way and still puts back what it changed",
                           &Suite::failedSongFilesCheckPutsBack);
+                }
+                if (_rig.options.sceneLists)
+                {
+                    check("read the scenelists, select each by index and by name, rename the first and put the name and the "
+                          "selection back",
+                          &Suite::sceneListsRoundTrips);
+                    check("a scenelists check that fails half way and still puts back what it changed",
+                          &Suite::failedSceneListsCheckPutsBack);
                 }
             }
 
@@ -4089,6 +4237,178 @@ namespace akm::harness
                            "the current song file is back to " + std::to_string(*before.currentSong));
                 else
                     finding("no song file was current before the check, so the selection is left on the one the check chose");
+            }
+
+            // RQ-AKM-095, RQ-AKM-096, RQ-AKM-097: reads the scenelists, selects each by index and by name, renames the first
+            // and reads the new name back, under the guard that puts the name back (and selects again the scenelist that was
+            // current), and verifies, once the guard is gone, that every name and the selection are what they were. Nothing
+            // is deleted. Skipped when the sampler holds no scenelist: §14 cannot create one.
+            void sceneListsRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSceneLists(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("scenelists before: " + sceneListsText(*before));
+                if (before->count == 0)
+                {
+                    observeEmptySceneLists(guarded);
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no scenelist: §14 cannot create one, so there is nothing to select or rename");
+                }
+                {
+                    GuardedSceneLists guard(_rig, guarded.session(), *before);
+                    sceneListRoundTrips(guarded, *before, guard);
+                }
+                expectSceneListsRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-097: a check that fails with a scenelist renamed still puts its name back, and the selection, and
+            // leaves nothing changed. Skipped when the sampler holds no scenelist.
+            void failedSceneListsCheckPutsBack()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSceneLists(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                if (before->count == 0)
+                {
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no scenelist to rename");
+                }
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedSceneLists guard(_rig, guarded.session(), *before);
+                    expectCommand(guarded, "select scenelist 0", [](Session& session, CommandCompletion done) {
+                        selectSceneListByIndex(session, 0, std::move(done));
+                    });
+                    guard.noteRenamed(0);
+                    expectCommand(guarded, "rename the current scenelist", [](Session& session, CommandCompletion done) {
+                        renameCurrentSceneList(session, TEST_SCENE_LIST_NAME, std::move(done));
+                    });
+                    throw CheckFailure("this check fails on purpose, with a scenelist renamed");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectSceneListsRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            int currentSceneListIndexOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SceneListIndexResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SceneListIndexCompletion done) { getCurrentSceneListIndex(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.index)
+                    throw CheckFailure("could not read the current scenelist's index (&13): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.index;
+            }
+
+            std::string currentSceneListNameOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SceneListNameResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SceneListNameCompletion done) { getCurrentSceneListName(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the current scenelist's name (&14): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            std::string sceneListNameAt(GuardedSession& guarded, int index)
+            {
+                const auto timed = awaitCompletion<SceneListNameResult>(_rig.driver, _rig.commandPatience(), [&guarded, index](SceneListNameCompletion done) {
+                    getSceneListNameByIndex(guarded.session(), index, std::move(done));
+                });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the name of scenelist " + std::to_string(index) + " (&11): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            // What an empty sampler answers to the read and select items that name something: observations for the open
+            // points of FTR-AKM-012, none of them a failure. Nothing is renamed or deleted, and a selection that finds nothing
+            // changes nothing. [RQ-AKM-097]
+            void observeEmptySceneLists(GuardedSession& guarded)
+            {
+                observeIndexPastTheEnd("read the name of scenelist 0, none held", [&guarded](CommandCompletion done) {
+                    getSceneListNameByIndex(guarded.session(), 0, [done = std::move(done)](const SceneListNameResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("select scenelist 0, none held", [&guarded](CommandCompletion done) {
+                    selectSceneListByIndex(guarded.session(), 0, std::move(done));
+                });
+                observeIndexPastTheEnd("select the scenelist named \"" + std::string(TEST_SCENE_LIST_NAME) + "\", none held",
+                                       [&guarded](CommandCompletion done) { selectSceneListByName(guarded.session(), TEST_SCENE_LIST_NAME, std::move(done)); });
+            }
+
+            void sceneListRoundTrips(GuardedSession& guarded, const SceneListsSnapshot& before, GuardedSceneLists& guard)
+            {
+                const std::string first = before.names.front();
+                expectCommand(guarded, "select scenelist 0 by index", [](Session& session, CommandCompletion done) {
+                    selectSceneListByIndex(session, 0, std::move(done));
+                });
+                expect(currentSceneListIndexOf(guarded) == 0, "the current scenelist's index reads 0 after selecting index 0");
+                expect(currentSceneListNameOf(guarded) == first, "the current scenelist's name reads \"" + first + "\", the name &11 gave for index 0");
+
+                expectCommand(guarded, "select the scenelist named \"" + first + "\"", [first](Session& session, CommandCompletion done) {
+                    selectSceneListByName(session, first, std::move(done));
+                });
+                const int expectedIndex = firstIndexNamed(before.names, first);
+                expect(currentSceneListIndexOf(guarded) == expectedIndex,
+                       "the current scenelist's index reads " + std::to_string(expectedIndex) + " after selecting it by name");
+
+                if (before.count > 1)
+                {
+                    const int last = std::min(before.count, SCENE_LIST_NAME_READ_LIMIT) - 1;
+                    expectCommand(guarded, "select scenelist " + std::to_string(last) + " by index", [last](Session& session, CommandCompletion done) {
+                        selectSceneListByIndex(session, last, std::move(done));
+                    });
+                    expect(currentSceneListIndexOf(guarded) == last, "the current scenelist's index reads " + std::to_string(last));
+                    expect(currentSceneListNameOf(guarded) == before.names[static_cast<std::size_t>(last)],
+                           "its name reads \"" + before.names[static_cast<std::size_t>(last)] + "\"");
+                }
+
+                const int pastTheEnd = before.count;
+                observeIndexPastTheEnd("select scenelist " + std::to_string(pastTheEnd) + ", past the last",
+                                       [&guarded, pastTheEnd](CommandCompletion done) { selectSceneListByIndex(guarded.session(), pastTheEnd, std::move(done)); });
+
+                expectCommand(guarded, "select scenelist 0 again", [](Session& session, CommandCompletion done) {
+                    selectSceneListByIndex(session, 0, std::move(done));
+                });
+                guard.noteRenamed(0);
+                expectCommand(guarded, "rename the current scenelist to \"" + std::string(TEST_SCENE_LIST_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { renameCurrentSceneList(session, TEST_SCENE_LIST_NAME, std::move(done)); });
+                expect(currentSceneListNameOf(guarded) == TEST_SCENE_LIST_NAME, "the current scenelist's name reads the new name");
+                expect(sceneListNameAt(guarded, 0) == TEST_SCENE_LIST_NAME, "the name of scenelist 0 reads the new name");
+            }
+
+            void expectSceneListsRestored(GuardedSession& guarded, const SceneListsSnapshot& before)
+            {
+                std::string problem;
+                const auto after = readSceneLists(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the scenelists back to verify they were restored: " + problem);
+                expect(after->count == before.count && after->names == before.names,
+                       "the scenelists are back to what they were (" + sceneListsText(*after) + ")");
+                if (before.current)
+                    expect(after->current == before.current,
+                           "the current scenelist is back to " + std::to_string(*before.current));
+                else
+                    finding("no scenelist was current before the check, so the selection is left on the one the check chose");
             }
 
             // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory

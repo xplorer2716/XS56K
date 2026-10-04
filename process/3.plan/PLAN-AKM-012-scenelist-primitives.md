@@ -75,7 +75,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-098: Real-sampler check of the scenelists
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add `--scenelists` to `xs56k_akm_probe --suite`: a check that reads the count and names,
   round-trips selection by index and by name, renames the first scenelist and puts the name and the selection
   back, on every exit path; run it on the real sampler.
@@ -85,8 +85,23 @@ This plan implements the tasks in the format specified below.
   on the real sampler.
 - **Dependencies**: TASK-AKM-097
 - **Assignee**: AI, running the real-sampler check under the owner's standing authorization
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest -R "RQ-AKM-09[5-7]"` 13/13 (8 of TASK-AKM-097
+  and 5 new in `RealSamplerSuiteTests.cpp`, written before the code): with scenelists seeded (the third current) both
+  checks pass, the name and the selection are back and no `&08` is sent; with none, both are skipped, nothing is
+  renamed or deleted and the empty-memory answers are logged (`select scenelist 0, none held`); the check made to
+  fail after a rename has the name and the selection back; a sampler refusing `&10` as not supported fails the first
+  check naming `could not read the number of scenelists (&10)` with the known state restored; without `--scenelists`
+  no section 14 item is sent. Real sampler (S5000, OS 2.14), `xs56k_akm_probe --suite --scenelists --yes --in "MIDIIN2
+  (ESI M8U eX)" --out "MIDIOUT15 (ESI M8U eX)"` (`akm-suite-20261004-165127.log`): 7 automatic checks passed, the
+  sampler left in the known state; the two checks skipped because the sampler holds no scenelist; `&10` answered REPLY
+  `00 00`, and `&13`, `&11`, `&06`, `&05` answered ERROR 4 (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`).
+  Full `ctest` re-run in this session: 687/687 passed (682 + 5). Not verified on hardware: anything on a scenelist that exists.
+- **Assumptions**: As for §16 (TASK-AKM-086): a real-sampler run holding nothing was accepted as the closure of the
+  harness itself, and reading the count and the current index is not "nothing sent". The check renames only a scenelist
+  whose name it has just read, reads at most 16 names (`SCENE_LIST_NAME_READ_LIMIT`), and cannot clear a selection: with
+  no scenelist current before the check, the one it chose stays current, which the log says. The check was written
+  beside the song file one rather than generalising it, the two having different types and an unproven second user
+  being less valuable than leaving the shipped check untouched.
 
 ---
 

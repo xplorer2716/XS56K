@@ -121,6 +121,13 @@ namespace akm::harness
         /// sends a deletion, and is skipped when the sampler holds neither. Off by default: it renames the owner's items for
         /// an instant, which only matters if the run is interrupted. Needs nothing from the owner.
         bool songFiles = false;
+        /// The optional checks of the scenelists (§14, RQ-AKM-097): read the number of scenelists and the name of each, select
+        /// each scenelist by index and by name, rename the first scenelist and read the new name back, then put back the name
+        /// and the selection found, even when a check fails half way. §14 cannot create a scenelist, so the check works on
+        /// what the sampler holds, never sends a deletion, and is skipped when the sampler holds none. Off by default: it
+        /// renames the owner's scenelist for an instant, which only matters if the run is interrupted. Needs nothing from
+        /// the owner.
+        bool sceneLists = false;
         /// The optional checks of the multis (§0C, RQ-AKM-093): create one multi and one program under reserved test names,
         /// round-trip every §0C item on them (the part parameters, the Gets of general information, the program number, the
         /// part assignment by name and by index, the renaming, the selection), then put back the multi that was current and

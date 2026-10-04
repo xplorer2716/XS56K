@@ -83,7 +83,7 @@ namespace
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
         "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--front-panel] [--midi-config]\n"
-        "                  [--song-files] [--multi-lifecycle]\n"
+        "                  [--song-files] [--scenelists] [--multi-lifecycle]\n"
         "                  [--sample-name NAME]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
@@ -170,6 +170,11 @@ namespace
         "                     index and by name, renames the first song file and the first set list, reads the new names back and\n"
         "                     puts every name and the selection back, even if a check fails half way. Section 16 cannot create\n"
         "                     one, so it works on what the sampler holds and is skipped when there is none. It never deletes.\n"
+        "  --scenelists       with --suite, two extra checks on the sampler's scenelists (section 14, RQ-AKM-095 to RQ-AKM-097).\n"
+        "                     It reads the number of scenelists and every name, selects each by index and by name, renames the\n"
+        "                     first, reads the new name back and puts the name and the selection back, even if a check fails half\n"
+        "                     way. Section 14 cannot create one, so it works on what the sampler holds and is skipped when there\n"
+        "                     is none. It never deletes.\n"
         "  --multi-lifecycle  with --suite, two extra checks on the multis (section 0C, RQ-AKM-087 to RQ-AKM-093). It creates one\n"
         "                     program and one multi under reserved names (XS56K_SUITE_TEST, XS56K_MULTI_TEST) and stops without\n"
         "                     touching anything if a multi already bears one, round-trips every item of the section on them (part\n"
@@ -285,6 +290,7 @@ namespace
         bool frontPanel = false;
         bool midiConfig = false;
         bool songFiles = false;
+        bool sceneLists = false;
         bool multiLifecycle = false;
         bool noLcd = false;
         std::string diskToolsSlow;
@@ -393,6 +399,8 @@ namespace
                 parsed.midiConfig = true;
             else if (option == "--song-files")
                 parsed.songFiles = true;
+            else if (option == "--scenelists")
+                parsed.sceneLists = true;
             else if (option == "--multi-lifecycle")
                 parsed.multiLifecycle = true;
             else if (option == "--disk-tools-slow")
@@ -437,11 +445,11 @@ namespace
             && !parsed.suite
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
                 || parsed.diskTools || parsed.diskToolsFiles || parsed.diskToolsAudition || !parsed.diskToolsSlow.empty()
-                || parsed.frontPanel || parsed.midiConfig || parsed.songFiles || parsed.multiLifecycle
+                || parsed.frontPanel || parsed.midiConfig || parsed.songFiles || parsed.sceneLists || parsed.multiLifecycle
                 || !parsed.sampleName.empty()))
             parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
                            "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel, --midi-config, --song-files, "
-                           "--multi-lifecycle and --sample-name need --suite";
+                           "--scenelists, --multi-lifecycle and --sample-name need --suite";
         if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
             parsed.error = "--disk-tools-files needs --disk-tools";
         if (parsed.error.empty() && parsed.diskToolsAudition && !parsed.diskTools)
@@ -573,6 +581,9 @@ namespace
         if (arguments.songFiles)
             std::cout << "It will also read the sampler's MIDI song files and set lists, select each song file, rename the first\n"
                       << "song file and the first set list and put every name and the selection back. It never deletes anything.\n";
+        if (arguments.sceneLists)
+            std::cout << "It will also read the sampler's scenelists, select each one, rename the first and put the name and the\n"
+                      << "selection back. It never deletes anything.\n";
         if (!arguments.diskToolsSlow.empty())
             std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
                       << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
@@ -675,6 +686,7 @@ int main(int argc, char** argv)
         options.frontPanel = arguments.frontPanel;
         options.midiConfig = arguments.midiConfig;
         options.songFiles = arguments.songFiles;
+        options.sceneLists = arguments.sceneLists;
         options.multiLifecycle = arguments.multiLifecycle;
 #ifdef _WIN32
         if (consoleKeysAvailable())
