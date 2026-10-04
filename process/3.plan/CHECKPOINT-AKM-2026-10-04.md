@@ -20,15 +20,13 @@ tasks. Read it first when resuming.
 
 `ctest` 661/661 on Windows/MSVC Debug at the last commit; `generate_akm_items.py --check` up to date (360 items).
 
-## Open (PLAN-AKM-011)
+## Open
 
-- TASK-AKM-093: `&30` rename, `&31` program number (flag then number, hand-built), `&32` part by index and `&33` part
-  by name (hand-built), `&34` delete part; model them in the simulated sampler (`setMultiProgramNumber` and
-  `setMultiPartProgram` already exist there as test seeds, `MultiRecord` holds the state).
-- TASK-AKM-094: `--multi-lifecycle` real-sampler check on a test multi and a test program (RQ-AKM-093: never `&07`,
-  never `&01`; put back the current multi; delete both on every exit path). `MultiPartParameterCases` is the shared table.
-- TASK-AKM-095: coverage of §0C (`--coverage` says 42 of 47 rows today, 5 to come with TASK-AKM-093), flip `complete`,
-  `SUMMARY-akm-sections-coverage.md`, `AGENTS.md`, `CHANGELOG.md`.
+Nothing is open in PLAN-AKM-010 and PLAN-AKM-011: TASK-AKM-093 (`b331278`), TASK-AKM-094 (`83a5870`) and TASK-AKM-095
+(`404393e`) were done after the checkpoint was first written, §16 and §0C are complete in the catalogue (`ctest` 674/674,
+530 of 560 spec lines covered). Sections still at 0 %: §12 Multi FX (18 lines) and §14 Scenelist (12). Still to run on the
+real sampler: `--song-files` once a MIDI song file is loaded, `--multi-lifecycle` with the owner's own multis in memory,
+`--front-panel` (§20, the owner judged it good, no log).
 
 ## Key decisions and facts to keep
 
@@ -38,6 +36,7 @@ tasks. Read it first when resuming.
 - The sampler held no MIDI song file and no set list: §16's `--song-files` check read the counts (0) and saw ERROR 4 for
   every item that names something (`OBSERVATIONS-RQ-AKM-085-song-files.md`). Renaming and the REPLYs of the Gets for items
   that exist are still to observe once a song file is loaded.
+- Hardware observations of §0C: setting a part's solo clears its mute; `&31` off needs `00 00` (`OBSERVATIONS-RQ-AKM-093-multi.md`).
 - No new decision (DEC) was needed so far: §16 and §0C reuse DEC-AKM-003, -011, -012, -013, -014, -015.
 - Hand-built request shapes live in the primitives (`renameSetList`, as `loadFile` and `setZoneSample` before it).
 - The shell here rewrites heredocs badly: write multi-line scripts to the scratchpad with the Write tool and run them.
