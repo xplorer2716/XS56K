@@ -197,6 +197,7 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_INDEX = 0x42;
         constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_NAME = 0x43;
         constexpr std::uint8_t NEW_MULTI_PART_COUNT_LAST_CODE = 2;
+        // The twelve part parameters of TASK-AKM-091 (RQ-AKM-089): Set &10-&1B, Get &20-&2B, the part number first.
         constexpr int DEFAULT_MULTI_PART_COUNT = 32;
         constexpr int MULTI_PART_COUNT_CODE_FIRST = 32;
 
@@ -1206,6 +1207,10 @@ namespace akm::harness
         // the current multi's index and name. A multi named like an existing one cannot be created (ERROR 05, as for
         // a program); a name or an index with no multi, and any "current" item with none current, fail with ERROR
         // 04, as §0A does (the spec is silent, so this is a modelling choice). [TASK-AKM-089]
+        constexpr std::array<ParameterGroupRange, 1> MULTI_PART_PARAMETER_GROUP_RANGES{{
+            {0x10, 0x1B, 0x10},  // Part MIDI Channel .. Part High Note
+        }};
+
         Outcome executeMulti(std::uint8_t item, const Bytes& data, MultiState& state)
         {
             switch (item)
@@ -1285,7 +1290,14 @@ namespace akm::harness
                     return reply(writer.bytes());
                 }
                 default:
-                    return failure(error_number::NOT_SUPPORTED);
+                {
+                    const ParameterMatch match = matchParameterItem(MULTI_PART_PARAMETER_GROUP_RANGES, item);
+                    if (match.access == ParameterAccess::None)
+                        return failure(error_number::NOT_SUPPORTED);
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    return executeStoredParameter(SECTION_MULTI, match, data, state.multis[*state.current].parameters);
+                }
             }
         }
 

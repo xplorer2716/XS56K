@@ -76,7 +76,7 @@
       "name": "Multi",
       "complete": false,
       "spec": "Tables 16 and 17, pp. 26-28",
-      "note": "FTR-AKM-011 (PLAN-AKM-011), 49 command rows and 11 REPLY formats. Multi creation, selection and deletion (RQ-AKM-087, TASK-AKM-089: &01, &02, &05, &06, &08, plus &42 and &43 pulled in early, as TASK-AKM-015 did for Program's &10/&13) are catalogued first: the same shape as section 0A's lifecycle, a sampler-wide current multi, an index carried as two Byte values (MSB, LSB) and a name as a String. The guarded &07 (RQ-AKM-088, TASK-AKM-090), mirroring Program's and Sample's."
+      "note": "FTR-AKM-011 (PLAN-AKM-011), 49 command rows and 11 REPLY formats. Multi creation, selection and deletion (RQ-AKM-087, TASK-AKM-089: &01, &02, &05, &06, &08, plus &42 and &43 pulled in early, as TASK-AKM-015 did for Program's &10/&13) are catalogued first: the same shape as section 0A's lifecycle, a sampler-wide current multi, an index carried as two Byte values (MSB, LSB) and a name as a String. The guarded &07 (RQ-AKM-088, TASK-AKM-090), mirroring Program's and Sample's. The twelve part parameters (RQ-AKM-089, TASK-AKM-091: Set &10-&1B, Get &20-&2B) take a part number (0-127) first, like section 06's zone number, then one value in the range of the item."
     }
   ],
   "items": [
@@ -2250,6 +2250,138 @@
         {"name": "name", "format": "string", "min": 0, "max": 255}
       ],
       "requirements": ["RQ-AKM-087", "RQ-AKM-091"]
+    },
+    {
+      "id": "MultiSetMidiChannel", "section": "0C", "item": "10", "name": "Set Part MIDI Channel", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 31}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetMute", "section": "0C", "item": "11", "name": "Set Part Mute", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetSolo", "section": "0C", "item": "12", "name": "Set Part Solo", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetLevel", "section": "0C", "item": "13", "name": "Set Part Level", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetOutput", "section": "0C", "item": "14", "name": "Set Part Output", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 23}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetPanBalance", "section": "0C", "item": "15", "name": "Set Part Pan/Balance", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 14, "max": 114}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetEffectsChannel", "section": "0C", "item": "16", "name": "Set Part Effects Channel", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 4}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetFxSendLevel", "section": "0C", "item": "17", "name": "Set Part FX Send Level", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetFineTune", "section": "0C", "item": "18", "name": "Set Part Fine Tune", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetTranspose", "section": "0C", "item": "19", "name": "Set Part Transpose", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 72}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetLowNote", "section": "0C", "item": "1A", "name": "Set Part Low Note", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetHighNote", "section": "0C", "item": "1B", "name": "Set Part High Note", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetMidiChannel", "section": "0C", "item": "20", "name": "Get Part MIDI Channel", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 31}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetMute", "section": "0C", "item": "21", "name": "Get Part Mute", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetSolo", "section": "0C", "item": "22", "name": "Get Part Solo", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetLevel", "section": "0C", "item": "23", "name": "Get Part Level", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetOutput", "section": "0C", "item": "24", "name": "Get Part Output", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 23}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetPanBalance", "section": "0C", "item": "25", "name": "Get Part Pan/Balance", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 14, "max": 114}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetEffectsChannel", "section": "0C", "item": "26", "name": "Get Part Effects Channel", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 4}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetFxSendLevel", "section": "0C", "item": "27", "name": "Get Part FX Send Level", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetFineTune", "section": "0C", "item": "28", "name": "Get Part Fine Tune", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetTranspose", "section": "0C", "item": "29", "name": "Get Part Transpose", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 72}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetLowNote", "section": "0C", "item": "2A", "name": "Get Part Low Note", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetHighNote", "section": "0C", "item": "2B", "name": "Get Part High Note", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
     }
   ]
 }

@@ -8,6 +8,7 @@ add_library(xs56k_akm_test_support STATIC
     src/FirstContactProbe.cpp
     src/FrontPanelRemote.cpp
     src/KeygroupParameterCases.cpp
+    src/MultiPartParameterCases.cpp
     src/ProgramParameterCases.cpp
     src/RealSamplerSuite.cpp
     src/SampleParameterCases.cpp

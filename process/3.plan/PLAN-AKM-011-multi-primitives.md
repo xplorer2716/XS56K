@@ -98,7 +98,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-091: Multi part parameters (Set and Get)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue the twelve Set/Get pairs `&10`-`&1B` / `&20`-`&2B` (part number first, one value) and
   model them in the simulated sampler; a table of cases shared with the real-sampler check.
 - **Requirement refs**: RQ-AKM-089
@@ -106,8 +106,19 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-089.
 - **Dependencies**: TASK-AKM-089
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 652/652 passed
+  after a full re-run in this session (647 before, 5 new in `MultiPartParametersTests.cpp`, written before the code,
+  `ctest -R RQ-AKM-089` 5/5): every one of the twelve items is set on part 2 then read back and equals the value set
+  (one table, values chosen across each range); the shared table `MultiPartParameterCases` (12 rows, part 3, values
+  independent of the first table's) does the same; a Level set on part 2 leaves parts 1, 3 and 127 at 0; set and get
+  with no current multi fail ERROR 04; part 128, a level of 101 and a pan of 13 are refused `ArgumentOutOfRange`
+  with only the Create Multi sent. `generate_akm_items.py --check`: up to date (350 items); `--coverage`:
+  `unaccounted: none`, all 24 items covered. `ItemCatalogueTests.cpp`'s count formula extended by the 24 records.
+  Not verified: the real sampler (TASK-AKM-094).
+- **Assumptions**: The simulated sampler accepts any part number 0-127 whatever the multi's number of parts (the spec
+  says nothing of a part beyond the multi's size) and does not range-check values (the client does, as for §06).
+  Value ranges are the spec's own: output 0-23, pan 14-114, fine tune 0-100, transpose 0-72, notes 21-127, MIDI
+  channel 0-31; the real sampler's refusals are observations for TASK-AKM-094.
 
 ---
 
