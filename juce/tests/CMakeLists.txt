@@ -31,6 +31,7 @@ add_executable(xs56k_akm_tests
     akm/KeygroupPrimitivesTests.cpp
     akm/LfoParametersTests.cpp
     akm/LibraryInfoTests.cpp
+    akm/MidiConfigTests.cpp
     akm/MidiTuneParametersTests.cpp
     akm/OutputParametersTests.cpp
     akm/PitchBendParametersTests.cpp

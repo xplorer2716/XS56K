@@ -201,6 +201,19 @@ namespace akm::harness
         constexpr std::uint8_t WHEEL_CLICKS_LAST = 8;
         constexpr std::uint8_t KEYCODE_FIRST = 64;
         constexpr std::uint8_t KEYCODE_LAST = 107;
+        // Section §04 (MIDI configuration), spec Table 8: the five switches of TASK-AKM-077 (RQ-AKM-078), each one
+        // data byte in the range its item gives.
+        constexpr std::uint8_t SECTION_MIDI_CONFIG = 0x04;
+        constexpr std::uint8_t ITEM_PROGRAM_CHANGE_ENABLE = 0x01;
+        constexpr std::uint8_t ITEM_MULTI_SELECT = 0x02;
+        constexpr std::uint8_t ITEM_MULTI_SELECT_CHANNEL = 0x03;
+        constexpr std::uint8_t ITEM_EXTERNAL_APM_CONTROLLER = 0x04;
+        constexpr std::uint8_t ITEM_AFTERTOUCH = 0x05;
+        constexpr std::uint8_t PROGRAM_CHANGE_ENABLE_LAST = 1;
+        constexpr std::uint8_t MULTI_SELECT_LAST = 2;
+        constexpr std::uint8_t MIDI_CHANNEL_LAST = 31;
+        constexpr std::uint8_t EXTERNAL_APM_CONTROLLER_LAST = 127;
+        constexpr std::uint8_t AFTERTOUCH_LAST = 1;
         constexpr std::uint8_t SECTION_DISK = 0x10;
         constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
         constexpr std::uint8_t ITEM_SELECT_DISK = 0x02;
@@ -1837,6 +1850,46 @@ namespace akm::harness
             return done();
         }
 
+        // §04: the five switches (RQ-AKM-078). Each takes one data byte, refused out of range; the value is kept and
+        // the item recorded in order of arrival. The sampler has no Get for them.
+        Outcome executeMidiConfig(std::uint8_t item, const Bytes& data, MidiConfigState& midiConfig)
+        {
+            std::uint8_t* target = nullptr;
+            std::uint8_t last = 0;
+            switch (item)
+            {
+                case ITEM_PROGRAM_CHANGE_ENABLE:
+                    target = &midiConfig.programChangeEnable;
+                    last = PROGRAM_CHANGE_ENABLE_LAST;
+                    break;
+                case ITEM_MULTI_SELECT:
+                    target = &midiConfig.multiSelect;
+                    last = MULTI_SELECT_LAST;
+                    break;
+                case ITEM_MULTI_SELECT_CHANNEL:
+                    target = &midiConfig.multiSelectChannel;
+                    last = MIDI_CHANNEL_LAST;
+                    break;
+                case ITEM_EXTERNAL_APM_CONTROLLER:
+                    target = &midiConfig.externalApmController;
+                    last = EXTERNAL_APM_CONTROLLER_LAST;
+                    break;
+                case ITEM_AFTERTOUCH:
+                    target = &midiConfig.aftertouch;
+                    last = AFTERTOUCH_LAST;
+                    break;
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+            if (data.empty())
+                return failure(error_number::INVALID_FORMAT);
+            if (data.front() > last)
+                return failure(error_number::OUT_OF_RANGE);
+            *target = data.front();
+            midiConfig.events.push_back({item, data.front(), 0});
+            return done();
+        }
+
         // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
         // parameters (RQ-AKM-034, RQ-AKM-035), §0E's lifecycle (RQ-AKM-045) and §10's disk discovery
         // and selection (RQ-AKM-060, RQ-AKM-061) are modelled. A byte after the data an item expects is
@@ -1857,12 +1910,15 @@ namespace akm::harness
             std::optional<std::size_t>& currentDisk;
             std::vector<std::size_t>& currentFolderPath;
             FrontPanelState& frontPanel;
+            MidiConfigState& midiConfig;
         };
 
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerState& state)
         {
             if (section == SECTION_FRONT_PANEL)
                 return executeFrontPanel(item, data, state.frontPanel);
+            if (section == SECTION_MIDI_CONFIG)
+                return executeMidiConfig(item, data, state.midiConfig);
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(state.system, state.programs, state.currentProgram, state.currentKeygroup,
                                           state.samples, state.currentSample, state.multis);
@@ -2006,6 +2062,12 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         return _frontPanel;
+    }
+
+    MidiConfigState SimulatedSampler::midiConfig() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _midiConfig;
     }
 
     void SimulatedSampler::setModel(std::uint8_t model)
@@ -2194,7 +2256,7 @@ namespace akm::harness
                                           });
         SamplerState state{_settings,      _config.osVersion, _system,      _programs,         _currentProgram,
                            _currentKeygroup, _samples,         _currentSample, _multis,       _disks,
-                           _currentDisk,     _currentFolderPath, _frontPanel};
+                           _currentDisk,     _currentFolderPath, _frontPanel,  _midiConfig};
         const Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
                                                                         : execute(section, item, data, state);
         // An item the sampler is deaf to ran, and says nothing, the OK included.

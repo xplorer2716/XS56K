@@ -253,12 +253,12 @@ TASK-AKM-073|169-212|Done|Real-sampler check driven from the PC keyboard
 TASK-AKM-074|213-240|Done|Coverage of section §20
 TASK-AKM-075|241-294|Done|Corrections found by the code review of the front panel lot
 @process/3.plan/PLAN-AKM-009-midi-config-primitives.md
-PLAN-AKM-009|1-130||MIDI Configuration Primitives (Phase A, new lot, §04)
+PLAN-AKM-009|1-148||MIDI Configuration Primitives (Phase A, new lot, §04)
 TASK-AKM-076|39-64|Done|Author FTR-AKM-009 and PLAN-AKM-009
-TASK-AKM-077|65-80|Not Started|MIDI setup switches
-TASK-AKM-078|81-96|Not Started|MIDI filters
-TASK-AKM-079|97-116|Not Started|Real-sampler check guided by the owner
-TASK-AKM-080|117-130|Not Started|Coverage of section §04
+TASK-AKM-077|65-98|Done|MIDI setup switches
+TASK-AKM-078|99-114|Not Started|MIDI filters
+TASK-AKM-079|115-134|Not Started|Real-sampler check guided by the owner
+TASK-AKM-080|135-148|Not Started|Coverage of section §04
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

@@ -269,6 +269,32 @@ namespace akm::harness
         std::vector<FrontPanelEvent> events{};
     };
 
+    /// One §04 item the sampler accepted, in order of arrival: its item code and its data bytes (`second` is 0 for
+    /// the one-byte switches). Section §04 has no Get, so this record and `MidiConfigState`'s values are how a test
+    /// sees what the sampler received. [RQ-AKM-078]
+    struct MidiConfigEvent
+    {
+        std::uint8_t item = 0;
+        std::uint8_t first = 0;
+        std::uint8_t second = 0;
+
+        friend bool operator==(const MidiConfigEvent&, const MidiConfigEvent&) = default;
+    };
+
+    /// The MIDI setup as this model holds it (§04, RQ-AKM-078): the five switches at the values a Set left them —
+    /// the spec gives no defaults, so these are program change on, multi select off on channel 1A, controller 0,
+    /// channel aftertouch — and what the sampler was sent. Like the §02 setup it is stored configuration and
+    /// survives `powerCycle()`.
+    struct MidiConfigState
+    {
+        std::uint8_t programChangeEnable = 1;
+        std::uint8_t multiSelect = 0;
+        std::uint8_t multiSelectChannel = 0;
+        std::uint8_t externalApmController = 0;
+        std::uint8_t aftertouch = 0;
+        std::vector<MidiConfigEvent> events{};
+    };
+
     /// One folder of a disk's hierarchy (§10/&10-&14, &16, &18, RQ-AKM-063): a name (ignored for the
     /// root, which is reached with an empty path from `DiskRecord::rootFolder`, not a `FolderRecord` of
     /// its own) and its sub-folders, in creation order (the spec's own order for &12, since nothing
@@ -431,6 +457,9 @@ namespace akm::harness
         /// held down.
         [[nodiscard]] FrontPanelState frontPanel() const;
 
+        /// The MIDI setup as it is now (§04, RQ-AKM-078): the switches' values and every item the sampler accepted.
+        [[nodiscard]] MidiConfigState midiConfig() const;
+
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.
         void powerCycle();
@@ -458,6 +487,8 @@ namespace akm::harness
         SystemSetupState _system;
         // §20 front panel (RQ-AKM-073): not touched by powerCycle().
         FrontPanelState _frontPanel;
+        // §04 MIDI setup (RQ-AKM-078): stored configuration, not touched by powerCycle().
+        MidiConfigState _midiConfig;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
 

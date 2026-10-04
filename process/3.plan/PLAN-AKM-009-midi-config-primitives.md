@@ -64,7 +64,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-077: MIDI setup switches
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue `&01` to `&05` (Set, one byte argument, complete on DONE) and expose one typed
   primitive each, refusing a value outside the spec's range without sending. Extend the simulated sampler to
   record the five settings.
@@ -73,8 +73,26 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-078 on the simulated sampler.
 - **Dependencies**: TASK-AKM-076
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: Windows/MSVC Debug: build with no warning or error (`/W4 /WX`), `ctest` 607/607 after a
+  re-run in this session (602 before, 5 new, `ctest -R RQ-AKM-078`). New `MidiConfigTests.cpp` (5 cases,
+  `[akm][midi-config]`, written before the primitives): multi select BANK sends `04 02 02`, completes on DONE and
+  the sampler records multi select 2 and one event; each switch at both ends of its range goes out as its own
+  item and byte (program change 0/1, multi select 0/1/2, channel 0/31, controller 0/127, aftertouch 0/1) and
+  the sampler ends holding the last values; multi select 3, channel 32 and -1, controller 128 and -1 and
+  aftertouch 2 are refused `ArgumentOutOfRange` with nothing sent and no event; a program change enable of 2
+  built through `makeRequest` is refused by the catalogue; with multi select answered ERROR the error is
+  reported and the sampler keeps its value. `generate_akm_items.py` regenerated the table (304 items), `--check`
+  up to date, `--coverage`: section `04` 5 of 7 spec rows covered (partial, as declared), `unaccounted: none`.
+  Collateral edits reflecting the new expected state, no assertion weakened: `ItemCatalogueTests.cpp`'s total
+  count gained 5, and `test_generate_akm_items.py`'s "undeclared section" example moved from `04` (now
+  declared) to `12`. Not verified: real sampler (TASK-AKM-079); mutation testing. The tests were written first
+  but not run red: the code they target did not compile until it existed.
+- **Assumptions**: `setProgramChangeEnabled` takes a bool, like the §00 toggles, so the refusal of a 2 is the
+  catalogue's (tested through `makeRequest`); the channel and controller are `int`, so that an out-of-range
+  value is refusable rather than truncated, as for the wheel (TASK-AKM-071). The simulated sampler's defaults
+  (program change on, multi select off on channel 1A, controller 0, channel aftertouch) are modelling choices —
+  the spec gives none — and, like §02, the setup survives `powerCycle()`; it does not model the sampler taking a
+  channel away from program selection when multi select is on (manual p223).
 
 ---
 
