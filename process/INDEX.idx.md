@@ -223,6 +223,7 @@ DEC-MCP-009|137-144||Tested bottom-up on in-memory streams and the simulated sam
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
+@process/3.plan/CHECKPOINT-MCP-2026-10-04.md
 @process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md
 PLAN-AKM-001|1-210||Transport and SysEx Configuration (Phase A, lots A0+A1)
 TASK-AKM-001|30-43|Done|Author the Phase A feature files
@@ -384,5 +385,5 @@ TASK-MCP-005|80-91|Done|The six tools
 TASK-MCP-006|92-103|Done|The executable `xs56k_mcp_server` — arguments, real ports, loop, shutdown
 TASK-MCP-007|104-115|Done|Simulated-sampler twin and the scripted conversation in ctest
 TASK-MCP-008|116-127|Done|Lot 2 — the rest of the filter, envelope and LFO items
-TASK-MCP-009|128-138|Not Started|Real-sampler run, observations and documentation
+TASK-MCP-009|128-138|Blocked|Real-sampler run, observations and documentation
 @process/3.plan/SUMMARY-akm-sections-coverage.md

@@ -127,12 +127,12 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-009: Real-sampler run, observations and documentation
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Blocked
 - **Description**: With the owner, run the server on the real S5000 against a scratch program the owner has prepared (a scripted conversation, then, if the owner wishes, an MCP client): every lot 1 parameter read, set and put back; the observations recorded in `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md` and the simulated sampler corrected for what it had wrong; the "all keygroups" Set and the current-keygroup open points of the FTR settled; `AGENTS.md` (commands, a server configuration example that is not committed as `.mcp.json`) and `CHANGELOG.md` updated.
 - **Requirement refs**: RQ-MCP-012, RQ-MCP-002, RQ-MCP-003
 - **ADR refs**: ADR-MCP-001 (DEC-MCP-004, DEC-MCP-006, DEC-MCP-009)
 - **Acceptance Criteria** (Gherkin): *Given* the real sampler and the scratch program, *When* each lot 1 parameter is read, set to another value, read back and put back, *Then* each read-back equals the value set and the program ends with the values it began with. *Given* the run's end, *When* the server's input closes, *Then* the sampler's section 00 settings are in the known state. *Given* every answer the real sampler gave that the simulated one did not, *When* the task closes, *Then* it is in the observations file and the simulator matches it.
 - **Dependencies**: TASK-MCP-007 (and TASK-MCP-008 if it is done)
 - **Assignee**: Human and AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: (to be filled at closure)
+- **Verification**: Documentation part done and verified: AGENTS.md (overview and the MCP server command bullet), CHANGELOG.md (Unreleased) and juce/mcp/README.md written, line endings LF; the procedure of the run, what to look for and the decisions to remember are in process/3.plan/CHECKPOINT-MCP-2026-10-04.md. NOT DONE: the run on the real S5000, its observations file and the simulated sampler corrections. Blocked on the owner, who runs it in a dedicated session on a scratch program.
+- **Assumptions**: The owner asked, for this session, to implement the tasks and test them on the simulated sampler; the real run is therefore left for a dedicated session, as for the AKM sections. No claim about the real S5000 is made in the documentation beyond what the AKM observations already established.
