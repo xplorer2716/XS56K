@@ -60,9 +60,9 @@
     {
       "section": "04",
       "name": "MIDI Configuration",
-      "complete": false,
+      "complete": true,
       "spec": "Table 8, p. 12",
-      "note": "FTR-AKM-009 (PLAN-AKM-009), 7 command rows and no REPLY format. The five switches (RQ-AKM-078, TASK-AKM-077: &01 program change enable 0-1, &02 multi select 0-2, &03 multi select channel 0-31, &04 external APM controller 0-127, &05 aftertouch 0-1) are catalogued first, one byte each; the two MIDI filters (RQ-AKM-079, TASK-AKM-078: &06 allow, &07 ignore) take an event type 0-3 and a channel 0-31, two bytes each, which completes the section's seven command rows; `complete` is set by TASK-AKM-080 once `--coverage` reports 7 of 7."
+      "note": "FTR-AKM-009 (PLAN-AKM-009), 7 command rows and no REPLY format. The five switches (RQ-AKM-078, TASK-AKM-077: &01 program change enable 0-1, &02 multi select 0-2, &03 multi select channel 0-31, &04 external APM controller 0-127, &05 aftertouch 0-1) are catalogued first, one byte each; the two MIDI filters (RQ-AKM-079, TASK-AKM-078: &06 allow, &07 ignore) take an event type 0-3 and a channel 0-31, two bytes each, which completes the section's seven command rows: `complete` was set by TASK-AKM-080 after `--coverage` reported 7 of 7 spec rows covered with no unaccounted item. The section has no REPLY row and no erratum; what it sets is stored configuration the sampler cannot read back, so its real-sampler check (RQ-AKM-080) is guided by the owner."
     }
   ],
   "items": [

@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
   closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard
   (Windows console).
+- AKM: MIDI configuration primitives (SysEx section 04): program change enable, multi select and its channel, external
+  APM controller, aftertouch type, and allow or ignore a MIDI filter by event type and channel. The sampler cannot read
+  these back, so `xs56k_akm_probe --suite --midi-config` asks you what its MIDI SETUP and MIDI FILTER pages show, changes
+  each setting, has you confirm it on the sampler's screen, and puts back the values you declared.
 
 <!--
 Sections to use under each version (only those that apply):

@@ -13,7 +13,7 @@
 |---|---|---:|---:|---|
 | §00 | SysEx config | 7 | 100 % | `████████████████████` |
 | §02 | System setup | 27 | 100 % | `████████████████████` |
-| §04 | MIDI config | 7 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
+| §04 | MIDI config | 7 | 100 % | `████████████████████` |
 | §06 | Keygroup zone | 42 | 100 % | `████████████████████` |
 | §08 | Keygroup | 120 | 100 % | `████████████████████` |
 | §0A | Program | 141 | 100 % | `████████████████████` |
@@ -25,7 +25,7 @@
 | §16 | MIDI song files | 18 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
 | §20 | Front panel | 4 | 100 % | `████████████████████` |
 
-445 of 560 spec lines covered overall (79 %); every implemented section's commands are fully catalogued
+452 of 560 spec lines covered overall (81 %); every implemented section's commands are fully catalogued
 (no section is partially done right now — §02 was the last partial one before §10, closed by
 `TASK-AKM-053`/`TASK-AKM-055`). Coverage confirmed by `generate_akm_items.py --coverage`
 (`unaccounted: none`) for §00/§02/§06/§08/§0A/§0E/§10 — §10's own `35 of 35 spec rows covered` reached by
@@ -45,6 +45,12 @@ needed none beyond confirming `TASK-AKM-053`'s own resolution.
 keycodes of `&40`-`&6B`, `&66` unlisted, which the primitives refuse). §20 has not been run on a real sampler yet:
 the owner-driven `--front-panel` check is the way to do it, and the owner's own eyes are the read-back, the section
 having no Get.
+
+§04's own `complete` flag was flipped to `true` by `TASK-AKM-080` (`PLAN-AKM-009`, 2026-10-04), which re-ran `--coverage`
+(7/7, no unaccounted item): seven command rows, no REPLY row, no erratum. §04 has not been run on a real sampler yet.
+Unlike §20 it sets stored configuration (UTILITIES > MIDI SETUP and MIDI FILTER) that cannot be read back, so the
+owner-guided `--midi-config` check asks the owner for the values to put back (`RQ-AKM-080`); the owner's eyes on the
+sampler's screen are its read-back.
 
 ### §10 on the real S5000 (2026-10-03)
 

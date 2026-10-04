@@ -169,7 +169,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-080: Coverage of section §04
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `04`, list any exclusion with its reason,
   flip the section's `complete` flag in `items.json` if all seven rows are covered, and update
   `SUMMARY-akm-sections-coverage.md`, `AGENTS.md` (the new probe option), `CHANGELOG.md` and
@@ -179,5 +179,17 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-081.
 - **Dependencies**: TASK-AKM-077 to TASK-AKM-079
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None yet.
+- **Verification**: `generate_akm_items.py --coverage` re-run this session, after the flag flip:
+  `section 04: 7 of 7 spec rows covered (MIDI Configuration, complete)`, `unaccounted: none`, exit 0 — no row
+  excluded, nothing left to give a reason for. `items.json`'s section-04 `complete` flag flipped `false` → `true`,
+  its note closed out; `generate_akm_items.py` (no args) regenerated `ItemTable.generated.hpp` with no diff,
+  `--check`: up to date (306 items). Windows/MSVC Debug: clean build, no warning or error (`/W4 /WX`); `ctest
+  --test-dir juce/build -C Debug` 615/615 passed, re-run after the flip. No erratum found in §04: the seven rows
+  of Table 8 (spec lines 547-570) match the catalogue's ranges; the "Port A & B" wording of `&06`/`&07` is
+  recorded as an open observation (FTR-AKM-009, `sysex_spec.kb.md`), not as an erratum, nothing there
+  contradicting the spec. `AGENTS.md`: the `--midi-config` option and its warnings documented; `CHANGELOG.md`:
+  one `[Unreleased]` entry; `SUMMARY-akm-sections-coverage.md`: §04's bar to 100 %, the total to 452/560
+  (81 %), and a note that §04 has not run on a real sampler yet; `sysex_spec.kb.md`: a §04 state-model line.
+- **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §02,
+  §10 and §20 before it, not on a real-sampler run: §04 has no Get, and its hardware proof is the owner's
+  `--midi-config` run, still to come. One `CHANGELOG.md` entry covers the whole lot rather than one per task.

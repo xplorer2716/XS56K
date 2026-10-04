@@ -113,6 +113,16 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   screen with care. Every key still held is released at the end, and by the session's close if the check fails (DEC-AKM-019).
   Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run it on the real sampler once:
   whether the S5000 obeys each key, takes Backspace/Enter as ASCII 8/13, or counts Holds of one key, is not yet observed.
+  `--midi-config` adds two owner-guided checks on the sampler's MIDI setup (section 04, RQ-AKM-080). Section 04 has no Get,
+  so the check cannot read what the sampler holds: before anything is sent it asks you what UTILITIES > MIDI SETUP shows
+  (PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH) and, on MIDI FILTER, one filter you pick (event
+  type, channel, on or off). It then changes each of those to another value, one at a time, asks you to confirm on the
+  sampler's screen that it shows the new value, and puts each back to the value you declared — also when a check fails
+  half way, which the second check provokes on purpose with MULTI SELECT — before asking you to confirm the original
+  screens are back. A "no" on a screen fails the check; declining a question skips it. It changes your stored MIDI setup for a
+  moment: a filter that ignores NoteOn silences that channel while it lasts. The values you declare are not verified,
+  and a wrong declaration is put back as given (the log records it). Whether the S5000 obeys each of the seven items, and
+  whether the channel code of `&06`/`&07` carries the port ("Port A & B", FTR-AKM-009 open points), is not yet observed.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

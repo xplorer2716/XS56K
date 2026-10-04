@@ -105,6 +105,13 @@ Blocked (multi-request): 38 KG zone · 3A keygroup · 3C program · 3E multi.
   param values always signed word `sign MSB LSB`. Discover layout first (&01, &10, &11).
 - Disk (§10): refresh list (&01) → pick handle (14-bit, from &05 list) → select (&02); SysEx disk selection ≠ front panel.
   File/folder indices shift when disk changes.
+- §04 (T8): Set only — no Get, no REPLY, 7 items, all `RT`. They write the sampler's stored MIDI SETUP / MIDI FILTER
+  pages, so nothing can read them back or restore them: `&01` program change 0/1 · `&02` multi select 0 off/1 prog
+  change/2 bank · `&03` multi select channel 0–31 (1A…16B; no effect while multi select is off) · `&04` external APM
+  controller 0–127 · `&05` aftertouch 0 channel/1 polyphonic · `&06`/`&07` allow/ignore a filter: d1 0 NoteOn/1 Aftertouch/
+  2 Wheels/3 Volume, d2 channel 0–31 (the item says "for Port A & B"; whether the sampler reads the port from the channel
+  code or from the port a frame arrives on is not stated and not yet observed). Not an erratum: nothing there contradicts
+  the spec (TASK-AKM-080). The real-sampler check is owner-guided (`--midi-config`, RQ-AKM-080).
 - §0E: `&2A` (Set Loop End) moves `&29`'s value (Loop Start) on the real S5000 — confirmed 2026-09-30 on
   two samples, one with memory cleared and the sample freshly reloaded (`akm-suite-20260930-202853.log`,
   TASK-AKM-045, `process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`): Set Loop End
