@@ -22,7 +22,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <utility>
 #include <variant>
 
+#include "akm/ByteReader.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/SamplerError.hpp"
 
 namespace akm
 {
@@ -32,6 +34,31 @@ namespace akm
         // A zero-based index is split into two 7-bit data bytes, most significant first (spec pp. 8-9's compound
         // word), the same convention SamplePrimitives.cpp and SongPrimitives.cpp use.
         constexpr std::int64_t DATA_BYTE_BASE = 128;
+        // The wire carries a part count as the count minus one (31, 63, 127), and a program number as the
+        // front-panel number minus one (spec Table 17, notes a).
+        constexpr int WIRE_OFFSET = 1;
+
+        CommandOptions variableLengthReply()
+        {
+            CommandOptions options;
+            options.expectedReply = ExpectedReply::NeedsKnownChecksumMode;
+            return options;
+        }
+
+        // The "all the multis" Gets answer ERROR 4 (not found) rather than an empty REPLY when there is none,
+        // as §0A's "all programs" Gets do (observed on the real S5000 for programs): an empty list, not a failure.
+        bool answersEmptyMemory(const CommandResult& outcome)
+        {
+            const auto* error = std::get_if<Error>(&outcome);
+            return error != nullptr && error->number == error_number::NOT_FOUND;
+        }
+
+        // A flag then a number, as `&41` and each record of `&50` carry: the front-panel number, or nothing
+        // when the flag says the number is off.
+        std::optional<int> frontPanelNumberOf(const std::vector<std::int64_t>& record)
+        {
+            return record[0] != 0 ? std::optional<int>{static_cast<int>(record[1]) + WIRE_OFFSET} : std::nullopt;
+        }
     }
 
     void setNewMultiPartCount(Session& session, MultiPartCount partCount, CommandCompletion completion)
@@ -101,6 +128,171 @@ namespace akm
                            MultiNameResult result{std::nullopt, outcome};
                            if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
                                result.name = decodeStringReply(ItemId::MultiGetCurrentName, rep->data);
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getMultiCount(Session& session, MultiCountCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MultiGetCount, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           MultiCountResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::MultiGetCount, rep->data);
+                               if (values && values->size() == 2)
+                                   result.count = static_cast<int>((*values)[0] * DATA_BYTE_BASE + (*values)[1]);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getMultiProgramNumber(Session& session, MultiProgramNumberCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MultiGetProgramNumber, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           MultiProgramNumberResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::MultiGetProgramNumber, rep->data);
+                               if (values && values->size() == 2)
+                                   result.frontPanelNumber = frontPanelNumberOf(*values);
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getCurrentMultiPartCount(Session& session, MultiPartCountCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MultiGetPartCount, NO_VALUES),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           MultiPartCountResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               const auto values = decodeReply(ItemId::MultiGetPartCount, rep->data);
+                               if (values && values->size() == 1)
+                                   result.partCount = static_cast<int>((*values)[0]) + WIRE_OFFSET;
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getMultiPartName(Session& session, int part, MultiNameCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MultiGetPartName, {static_cast<std::int64_t>(part)}, variableLengthReply()),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           MultiNameResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               result.name = decodeStringReply(ItemId::MultiGetPartName, rep->data);
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    namespace
+    {
+        void submitNameList(Session& session, ItemId id, MultiNameListCompletion completion)
+        {
+            session.submit(makeRequest(id, NO_VALUES, variableLengthReply()),
+                           [completion = std::move(completion)](const CommandResult& outcome) {
+                               MultiNameListResult result{std::nullopt, outcome};
+                               if (answersEmptyMemory(outcome))
+                                   result.names = std::vector<std::string>{};
+                               else if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               {
+                                   ByteReader reader(rep->data);
+                                   result.names = reader.readStringList();
+                               }
+                               if (completion)
+                                   completion(result);
+                           });
+        }
+
+        // One value per record of a REPLY that repeats a one-byte record, plus `offset`.
+        void submitRepeatedByte(Session& session, ItemId id, int offset, MultiValueListCompletion completion)
+        {
+            session.submit(makeRequest(id, NO_VALUES, variableLengthReply()),
+                           [id, offset, completion = std::move(completion)](const CommandResult& outcome) {
+                               MultiValueListResult result{std::nullopt, outcome};
+                               if (answersEmptyMemory(outcome))
+                                   result.values = std::vector<int>{};
+                               else if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                               {
+                                   if (const auto records = decodeRepeatedReply(id, rep->data))
+                                   {
+                                       std::vector<int> values;
+                                       for (const auto& record : *records)
+                                           values.push_back(static_cast<int>(record[0]) + offset);
+                                       result.values = std::move(values);
+                                   }
+                               }
+                               if (completion)
+                                   completion(result);
+                           });
+        }
+    }
+
+    void getAllMultiPartNames(Session& session, MultiNameListCompletion completion)
+    {
+        submitNameList(session, ItemId::MultiGetAllPartNames, std::move(completion));
+    }
+
+    void getAllMultiNames(Session& session, MultiNameListCompletion completion)
+    {
+        submitNameList(session, ItemId::MultiGetAllNames, std::move(completion));
+    }
+
+    void getAllMultiPartParameters(Session& session, int part, MultiValueListCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MultiGetAllPartParameters, {static_cast<std::int64_t>(part)}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           MultiValueListResult result{std::nullopt, outcome};
+                           if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               if (const auto values = decodeReply(ItemId::MultiGetAllPartParameters, rep->data))
+                               {
+                                   std::vector<int> parameters;
+                                   for (const std::int64_t value : *values)
+                                       parameters.push_back(static_cast<int>(value));
+                                   result.values = std::move(parameters);
+                               }
+                           }
+                           if (completion)
+                               completion(result);
+                       });
+    }
+
+    void getMultiMuteSoloStatus(Session& session, MultiValueListCompletion completion)
+    {
+        submitRepeatedByte(session, ItemId::MultiGetMuteSolo, 0, std::move(completion));
+    }
+
+    void getAllMultiPartCounts(Session& session, MultiValueListCompletion completion)
+    {
+        submitRepeatedByte(session, ItemId::MultiGetAllPartCounts, WIRE_OFFSET, std::move(completion));
+    }
+
+    void getAllMultiProgramNumbers(Session& session, MultiProgramNumbersCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::MultiGetAllProgramNumbers, NO_VALUES, variableLengthReply()),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           MultiProgramNumbersResult result{std::nullopt, outcome};
+                           if (answersEmptyMemory(outcome))
+                               result.numbers = std::vector<std::optional<int>>{};
+                           else if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+                           {
+                               if (const auto records = decodeRepeatedReply(ItemId::MultiGetAllProgramNumbers, rep->data))
+                               {
+                                   std::vector<std::optional<int>> numbers;
+                                   for (const auto& record : *records)
+                                       numbers.push_back(frontPanelNumberOf(record));
+                                   result.numbers = std::move(numbers);
+                               }
+                           }
                            if (completion)
                                completion(result);
                        });

@@ -124,7 +124,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-092: General information about the current multi and about all the multis
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Implement `&40`, `&41`, `&44`, `&45`, `&46`, `&47`, `&48` and `&50`, `&51`, `&52` as primitives
   (`&42`/`&43` are TASK-AKM-089's) and model them in the simulated sampler.
 - **Requirement refs**: RQ-AKM-090, RQ-AKM-091
@@ -132,8 +132,26 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-090 and RQ-AKM-091.
 - **Dependencies**: TASK-AKM-089, TASK-AKM-091
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`, after one conversion warning in the first build was
+  fixed at its cause), `ctest --test-dir juce/build -C Debug` 661/661 passed after a full re-run in this session (652
+  before, 9 new in `MultiInformationTests.cpp`, written before the code, `ctest -R "RQ-AKM-09[01]"` 9/9): with `A` (32
+  parts) and `B` (64 parts, created after `&01`) the count is 2, the names `A`, `B`, the numbers of parts 32 and 64
+  and the current multi's 64; a program number of 4 reads as front-panel 5 on `&41` and `&50` (the other multi's
+  empty, the flag off), and off again when cleared; a part with no program reads an empty name on `&45`, `LEAD` on the
+  part given it, and `&46` gives 64 names in part order; `&47` on part 3 gives the twelve values the twelve Sets of the
+  shared table wrote, in the order of `&20`-`&2B`; with part 1 muted and part 2 soloed `&48` gives 32 values, 1 at
+  index 1, 2 at index 2, 0 elsewhere; with no multi current the six current-multi Gets fail ERROR 04; with no multi in
+  memory the count is 0 and the three all-multis Gets give empty lists; with the checksum mode unknown the six
+  variable-length Gets are refused `ChecksumModeUnknown` with nothing sent; a part of 128 is refused
+  `ArgumentOutOfRange`. `generate_akm_items.py --check`: up to date (360 items); `--coverage`: `unaccounted: none`
+  (section `0C` 42 of 47 rows covered so far). `ItemCatalogueTests.cpp`'s count formula extended by the 10 records.
+  Not verified: the real sampler (TASK-AKM-094).
+- **Assumptions**: The three all-multis Gets read ERROR 04 as an empty list and the simulated sampler answers it with
+  no multi in memory, mirroring §0A's `&18`/`&19` as observed on the real S5000 for programs (FTR-AKM-011 open
+  point amended): a modelling choice for multis until TASK-AKM-094. The part-count REPLY range is 31-127, the spec's
+  "31, 63, 127" (the coverage check compares it). A part beyond the multi's size reads as one with no program and zero
+  parameters; a part with both mute and solo reads as muted on `&48` (the spec says nothing of both). The `&47`
+  values come back as the twelve parameters in the order of `&20`-`&2B`, the spec's "12 data bytes".
 
 ---
 

@@ -194,7 +194,25 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_SELECT_MULTI_BY_INDEX = 0x06;
         constexpr std::uint8_t ITEM_DELETE_ALL_MULTIS = 0x07;
         constexpr std::uint8_t ITEM_DELETE_CURRENT_MULTI = 0x08;
+        constexpr std::uint8_t ITEM_GET_MULTI_COUNT = 0x40;
+        constexpr std::uint8_t ITEM_GET_MULTI_PROGRAM_NUMBER = 0x41;
         constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_INDEX = 0x42;
+        constexpr std::uint8_t ITEM_GET_MULTI_PART_COUNT = 0x44;
+        constexpr std::uint8_t ITEM_GET_MULTI_PART_NAME = 0x45;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PART_NAMES = 0x46;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PART_PARAMETERS = 0x47;
+        constexpr std::uint8_t ITEM_GET_MULTI_MUTE_SOLO = 0x48;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PROGRAM_NUMBERS = 0x50;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_NAMES = 0x51;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PART_COUNTS = 0x52;
+        // The part parameter Set items a part's mute and solo are stored under (§0C/&11, &12), and the Get items of
+        // &47's twelve values, in order (&20-&2B).
+        constexpr std::uint8_t MULTI_PART_MUTE_ITEM = 0x11;
+        constexpr std::uint8_t MULTI_PART_SOLO_ITEM = 0x12;
+        constexpr std::uint8_t MULTI_PART_FIRST_SET_ITEM = 0x10;
+        constexpr std::uint8_t MULTI_PART_PARAMETER_COUNT = 12;
+        constexpr std::uint8_t MULTI_STATUS_MUTE = 1;
+        constexpr std::uint8_t MULTI_STATUS_SOLO = 2;
         constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_NAME = 0x43;
         constexpr std::uint8_t NEW_MULTI_PART_COUNT_LAST_CODE = 2;
         // The twelve part parameters of TASK-AKM-091 (RQ-AKM-089): Set &10-&1B, Get &20-&2B, the part number first.
@@ -1207,9 +1225,74 @@ namespace akm::harness
         // the current multi's index and name. A multi named like an existing one cannot be created (ERROR 05, as for
         // a program); a name or an index with no multi, and any "current" item with none current, fail with ERROR
         // 04, as §0A does (the spec is silent, so this is a modelling choice). [TASK-AKM-089]
+        // The value stored for a part parameter of `multi` (the Set item code, the part number), or zero.
+        std::uint8_t storedPartValue(const MultiRecord& multi, std::uint8_t setItem, std::uint8_t part)
+        {
+            const auto found = multi.parameters.find({setItem, Bytes{part}});
+            return found != multi.parameters.end() && !found->second.empty() ? found->second.front() : std::uint8_t{0};
+        }
+
+        // A multi's number of parts as the wire says it: one less (31, 63, 127). [RQ-AKM-091]
+        std::uint8_t wirePartCount(const MultiRecord& multi)
+        {
+            return static_cast<std::uint8_t>(multi.partCount - 1);
+        }
+
+        // The flag and number §0C/&41 and each record of &50 carry: on with the number, or off with a zero.
+        void appendProgramNumber(akm::ByteWriter& writer, const MultiRecord& multi)
+        {
+            writer.appendByte(multi.programNumberOn ? 1 : 0);
+            writer.appendByte(multi.programNumberOn ? multi.programNumber : 0);
+        }
+
         constexpr std::array<ParameterGroupRange, 1> MULTI_PART_PARAMETER_GROUP_RANGES{{
             {0x10, 0x1B, 0x10},  // Part MIDI Channel .. Part High Note
         }};
+
+        // The §0C Gets that read the current multi: its program number, number of parts, the name of a part, all the
+        // part names, every parameter of a part, and the mute and solo status of every part. A part the multi does
+        // not have reads as one with no program and zero parameters (the spec says nothing of it). [TASK-AKM-092]
+        Outcome executeCurrentMultiGet(std::uint8_t item, const Bytes& data, const MultiRecord& multi)
+        {
+            akm::ByteWriter writer;
+            switch (item)
+            {
+                case ITEM_GET_MULTI_PROGRAM_NUMBER:
+                    appendProgramNumber(writer, multi);
+                    return reply(writer.bytes());
+                case ITEM_GET_MULTI_PART_COUNT:
+                    return reply(Bytes{wirePartCount(multi)});
+                case ITEM_GET_MULTI_PART_NAME:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto part = static_cast<std::size_t>(data.front());
+                    writer.appendString(part < multi.partPrograms.size() ? multi.partPrograms[part] : std::string{});
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_MULTI_PART_NAMES:
+                    for (const std::string& program : multi.partPrograms)
+                        writer.appendString(program);
+                    return reply(writer.bytes());
+                case ITEM_GET_ALL_MULTI_PART_PARAMETERS:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    for (std::uint8_t offset = 0; offset < MULTI_PART_PARAMETER_COUNT; ++offset)
+                        writer.appendByte(storedPartValue(multi, static_cast<std::uint8_t>(MULTI_PART_FIRST_SET_ITEM + offset), data.front()));
+                    return reply(writer.bytes());
+                }
+                default:  // ITEM_GET_MULTI_MUTE_SOLO
+                    for (int part = 0; part < multi.partCount; ++part)
+                    {
+                        const auto number = static_cast<std::uint8_t>(part);
+                        const bool muted = storedPartValue(multi, MULTI_PART_MUTE_ITEM, number) != 0;
+                        const bool soloed = storedPartValue(multi, MULTI_PART_SOLO_ITEM, number) != 0;
+                        writer.appendByte(muted ? MULTI_STATUS_MUTE : (soloed ? MULTI_STATUS_SOLO : 0));
+                    }
+                    return reply(writer.bytes());
+            }
+        }
 
         Outcome executeMulti(std::uint8_t item, const Bytes& data, MultiState& state)
         {
@@ -1288,6 +1371,42 @@ namespace akm::harness
                     akm::ByteWriter writer;
                     writer.appendString(state.multis[*state.current].name);
                     return reply(writer.bytes());
+                }
+                case ITEM_GET_MULTI_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(state.multis.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_MULTI_PROGRAM_NUMBERS:
+                case ITEM_GET_ALL_MULTI_NAMES:
+                case ITEM_GET_ALL_MULTI_PART_COUNTS:
+                {
+                    // Nothing in memory answers ERROR 4, as §0A's "all programs" Gets do on the real sampler.
+                    if (state.multis.empty())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    for (const MultiRecord& multi : state.multis)
+                    {
+                        if (item == ITEM_GET_ALL_MULTI_PROGRAM_NUMBERS)
+                            appendProgramNumber(writer, multi);
+                        else if (item == ITEM_GET_ALL_MULTI_NAMES)
+                            writer.appendString(multi.name);
+                        else
+                            writer.appendByte(wirePartCount(multi));
+                    }
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_MULTI_PROGRAM_NUMBER:
+                case ITEM_GET_MULTI_PART_COUNT:
+                case ITEM_GET_MULTI_PART_NAME:
+                case ITEM_GET_ALL_MULTI_PART_NAMES:
+                case ITEM_GET_ALL_MULTI_PART_PARAMETERS:
+                case ITEM_GET_MULTI_MUTE_SOLO:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    return executeCurrentMultiGet(item, data, state.multis[*state.current]);
                 }
                 default:
                 {
@@ -2365,6 +2484,23 @@ namespace akm::harness
         if (index >= _multis.multis.size())
             return std::nullopt;
         return _multis.multis[index].partCount;
+    }
+
+    void SimulatedSampler::setMultiProgramNumber(std::size_t index, std::optional<std::uint8_t> number)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _multis.multis.size())
+            return;
+        _multis.multis[index].programNumberOn = number.has_value();
+        _multis.multis[index].programNumber = number.value_or(0);
+    }
+
+    void SimulatedSampler::setMultiPartProgram(std::size_t index, std::size_t part, std::string program)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _multis.multis.size() || part >= _multis.multis[index].partPrograms.size())
+            return;
+        _multis.multis[index].partPrograms[part] = std::move(program);
     }
 
     std::optional<std::size_t> SimulatedSampler::currentMulti() const

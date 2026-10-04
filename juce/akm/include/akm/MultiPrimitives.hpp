@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 #include "akm/CommandResult.hpp"
 #include "akm/Session.hpp"
@@ -97,4 +98,103 @@ namespace akm
     /// is unknown, since a String REPLY has no fixed length to delimit it by (ADR-AKM-001, DEC-AKM-013).
     /// [RQ-AKM-087, RQ-AKM-091, RQ-AKM-041]
     void getCurrentMultiName(Session& session, MultiNameCompletion completion);
+
+    // General information about the multis (§0C/&40-&48, &50-&52, Table 17). The Gets that return a name, a
+    // list or a count that depends on the multi are refused as `ChecksumModeUnknown` while the port's checksum
+    // mode is unknown: their REPLY has no fixed length to delimit it by (ADR-AKM-001, DEC-AKM-013,
+    // DEC-AKM-014, DEC-AKM-015). The three "all the multis" Gets read ERROR 04 as an empty list, as §0A's
+    // "all programs" Gets do (observed on the real S5000 for programs). [RQ-AKM-090, RQ-AKM-091, RQ-AKM-041]
+
+    /// `count` is empty when the command did not complete on a REPLY of the length the catalogue gives it.
+    /// [RQ-AKM-091]
+    struct MultiCountResult
+    {
+        std::optional<int> count{};
+        CommandResult outcome{};
+    };
+    using MultiCountCompletion = std::function<void(const MultiCountResult&)>;
+
+    /// Gets the number of multis in memory (§0C/&40). [RQ-AKM-091]
+    void getMultiCount(Session& session, MultiCountCompletion completion);
+
+    /// `frontPanelNumber` is empty when the multi's program number is off (or the command did not complete on a
+    /// REPLY of the length the catalogue gives it): 0-127 on the wire is 1-128 on the front panel.
+    /// [RQ-AKM-091]
+    struct MultiProgramNumberResult
+    {
+        std::optional<int> frontPanelNumber{};
+        CommandResult outcome{};
+    };
+    using MultiProgramNumberCompletion = std::function<void(const MultiProgramNumberResult&)>;
+
+    /// Gets the current multi's program number (§0C/&41), converted to the front-panel number. [RQ-AKM-091]
+    void getMultiProgramNumber(Session& session, MultiProgramNumberCompletion completion);
+
+    /// `partCount` is 32, 64 or 128 (the REPLY byte plus one); empty when the REPLY does not decode.
+    /// [RQ-AKM-091]
+    struct MultiPartCountResult
+    {
+        std::optional<int> partCount{};
+        CommandResult outcome{};
+    };
+    using MultiPartCountCompletion = std::function<void(const MultiPartCountResult&)>;
+
+    /// Gets the number of parts of the current multi (§0C/&44). [RQ-AKM-091]
+    void getCurrentMultiPartCount(Session& session, MultiPartCountCompletion completion);
+
+    /// Gets the name of part `part` (0-127) of the current multi (§0C/&45); the name is empty (not absent) when
+    /// no program is assigned to the part, the REPLY being the single byte `00`. A part outside 0-127 is refused
+    /// without sending. [RQ-AKM-091]
+    void getMultiPartName(Session& session, int part, MultiNameCompletion completion);
+
+    /// A list of names in the order the sampler sent them; empty (`nullopt`) when the command did not
+    /// complete on a decodable REPLY. [RQ-AKM-091]
+    struct MultiNameListResult
+    {
+        std::optional<std::vector<std::string>> names{};
+        CommandResult outcome{};
+    };
+    using MultiNameListCompletion = std::function<void(const MultiNameListResult&)>;
+
+    /// Gets the names of all the parts of the current multi (§0C/&46), 32, 64 or 128 of them, an empty name for a
+    /// part with no program. [RQ-AKM-091]
+    void getAllMultiPartNames(Session& session, MultiNameListCompletion completion);
+
+    /// Gets the names of all the multis in memory (§0C/&51), in memory order. [RQ-AKM-091]
+    void getAllMultiNames(Session& session, MultiNameListCompletion completion);
+
+    /// A list of numbers; empty (`nullopt`) when the command did not complete on a decodable REPLY.
+    /// [RQ-AKM-090, RQ-AKM-091]
+    struct MultiValueListResult
+    {
+        std::optional<std::vector<int>> values{};
+        CommandResult outcome{};
+    };
+    using MultiValueListCompletion = std::function<void(const MultiValueListResult&)>;
+
+    /// Gets all the parameters of part `part` (0-127) of the current multi in one message (§0C/&47): twelve
+    /// values, in the order of items &20-&2B (MIDI channel, mute, solo, level, output, pan/balance, effects
+    /// channel, FX send level, fine tune, transpose, low note, high note). [RQ-AKM-090]
+    void getAllMultiPartParameters(Session& session, int part, MultiValueListCompletion completion);
+
+    /// Gets the mute and solo status of every part of the current multi (§0C/&48): one value per part, 0 = mute
+    /// and solo off, 1 = mute on, 2 = solo on. [RQ-AKM-090]
+    void getMultiMuteSoloStatus(Session& session, MultiValueListCompletion completion);
+
+    /// Gets the number of parts of every multi in memory (§0C/&52), 32, 64 or 128 each, in memory order.
+    /// [RQ-AKM-091]
+    void getAllMultiPartCounts(Session& session, MultiValueListCompletion completion);
+
+    /// One entry per multi, in memory order; an empty entry means that multi's program number is off.
+    /// [RQ-AKM-091]
+    struct MultiProgramNumbersResult
+    {
+        std::optional<std::vector<std::optional<int>>> numbers{};
+        CommandResult outcome{};
+    };
+    using MultiProgramNumbersCompletion = std::function<void(const MultiProgramNumbersResult&)>;
+
+    /// Gets the program numbers of every multi in memory (§0C/&50), converted to front-panel numbers like
+    /// `getMultiProgramNumber`. [RQ-AKM-091]
+    void getAllMultiProgramNumbers(Session& session, MultiProgramNumbersCompletion completion);
 }

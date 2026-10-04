@@ -123,5 +123,5 @@ pp. 26-28 (Tables 16 and 17).
 
 - **Part count of new multis.** `&01` is stored configuration with no Get; the real-sampler check leaves it alone and reads the part count of the test multi with `&44` (observation: 32, 64 or 128 according to the owner's setting).
 - **Unlisted ranges.** Part MIDI channel is `0-31`; the output item's range `0-23`; the spec gives the pan centre as 64 and the fine-tune centre as 50. The catalogue uses the spec's ranges; the real sampler's refusals are observations.
-- **What `&48`, `&52` and `&50`/`&51` return with no multi current or no multi in memory** is not stated; the model answers ERROR `04` for the current-multi Gets and an empty REPLY for the all-multis Gets, as §0A does for `&18`/`&19`, to be observed.
+- **What `&48`, `&52` and `&50`/`&51` return with no multi current or no multi in memory** is not stated; the model answers ERROR `04` for the current-multi Gets and ERROR `04` (read as an empty list by the primitives) for the three all-multis Gets, as the real S5000 does for §0A's `&18`/`&19`, to be observed for multis.
 - **Section 0C and Clear Sampler Memory.** `&32` of §02 deletes the multis too (`RQ-AKM-056`); the simulated sampler's multi list moves from names to full records, `setMultiNames` keeping its signature.

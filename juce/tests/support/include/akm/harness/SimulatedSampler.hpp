@@ -493,6 +493,14 @@ namespace akm::harness
         /// The current multi's index, or nothing when none is current (RQ-AKM-087).
         [[nodiscard]] std::optional<std::size_t> currentMulti() const;
 
+        /// Gives the multi at `index` a program number (the wire value 0-127), or turns it off with nothing, as
+        /// §0C/&31 would; a no-op when `index` names no multi. [RQ-AKM-091]
+        void setMultiProgramNumber(std::size_t index, std::optional<std::uint8_t> number);
+
+        /// Assigns the program named `program` to part `part` of the multi at `index` ("" for none), as §0C/&32-&34
+        /// would; a no-op when either names nothing. [RQ-AKM-091]
+        void setMultiPartProgram(std::size_t index, std::size_t part, std::string program);
+
         /// Seeds the read-only attributes of the sample at `index` (§0E/&30-&33, RQ-AKM-049) — no Set
         /// item exists for them, so a test sets them directly, like `setSampleNames` itself. A no-op
         /// when `index` names no sample.
