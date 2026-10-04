@@ -3075,13 +3075,16 @@ namespace akm::harness
             // tried and the report names every one that was not seen. [RQ-AKM-080]
             void ownerSeesOrNotes(const std::string& what, std::vector<std::string>& notSeen)
             {
-                const std::size_t answer = ownerChooses("NOW LOOK AT THE SAMPLER: " + what + ". Does it?", {"Yes", "No, it shows something else"});
+                // "Nothing changed" says the sampler took no notice of a command it answered DONE; "another value" says it
+                // did something else: two different findings, kept apart in the log and in the report.
+                const std::vector<std::string> choices{"Yes", "No, nothing changed on the screen", "No, the screen shows another value"};
+                const std::size_t answer = ownerChooses("NOW LOOK AT THE SAMPLER: " + what + ". Does it?", choices);
                 if (answer == 0)
                     _rig.log.note("  as expected: the owner sees on the sampler: " + what);
                 else
                 {
-                    _rig.log.note("  NOT MET: the owner sees on the sampler: " + what);
-                    notSeen.push_back(what);
+                    _rig.log.note("  NOT MET: the owner sees on the sampler: " + what + " (" + choices[answer] + ")");
+                    notSeen.push_back(what + " (" + choices[answer] + ")");
                 }
             }
 

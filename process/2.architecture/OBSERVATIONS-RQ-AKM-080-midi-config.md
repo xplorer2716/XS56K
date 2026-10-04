@@ -13,7 +13,7 @@ of channel 1A allowing its messages.
 | Item | Sent | Sampler's answer | Owner on the screen |
 |---|---|---|---|
 | `&01` Program Change Enable | `04 01 00` (OFF) | OK then DONE, 10 ms | **seen**: MIDI SETUP showed PROGRAM CHANGE OFF |
-| `&02` Multi Select | `04 02 01` (PROG CHANGE), PROGRAM CHANGE still OFF | OK then DONE, 10 ms | **not seen**: the screen did not show PROG CHANGE |
+| `&02` Multi Select | `04 02 01` (PROG CHANGE), PROGRAM CHANGE still OFF | OK then DONE, 10 ms | **not seen**: nothing changed on the screen (MULTI SELECT stayed OFF; the owner's own words, after the run — the prompt only offered "No, it shows something else") |
 | `&03` to `&07` | — | — | not reached: the check stopped at the first "no" |
 
 Both restores (`&02` back to OFF, `&01` back to ON) were answered DONE. The second check (a failure on purpose after
@@ -23,8 +23,10 @@ about whether `&02` took effect.
 
 ## What is established and what is not
 
-- **Established:** `&01` is obeyed by the S5000 and the screen follows it at once. DONE is no proof of effect for
-  `&02`: the sampler answered DONE to a command whose effect the owner could not see.
+- **Established:** `&01` is obeyed by the S5000 and the screen follows it at once. For `&02`, the sampler answered
+  DONE and **ignored** the command: the screen did not change (it did not show another value either). DONE is no
+  proof of effect in section 04. The prompt now tells the two cases apart ("nothing changed" / "another value",
+  `TASK-AKM-081`).
 - **Not established:** why `&02` was not seen. The owner's hypothesis: MULTI SELECT cannot take PROG CHANGE while
   PROGRAM CHANGE is OFF. The operator's manual (pp. 57-58 and 223) states no such dependence, but does not rule it out.
   Other explanations — the page not redrawn for that field, the item numbering of the S5000 — cannot be excluded

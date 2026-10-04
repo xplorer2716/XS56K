@@ -218,7 +218,9 @@ This plan implements the tasks in the format specified below.
   sampler ending in the seeded state; the second (owner answering "no" everywhere) expects the same 14 items, the first
   check Failed with its detail naming MULTI SELECT and MIDI FILTER, and the seeded state back. The first run's own
   facts are in `OBSERVATIONS-RQ-AKM-080-midi-config.md`. Not verified: the second run on the real sampler, which only
-  the owner can make; nothing here sent a frame to hardware.
+  the owner can make; nothing here sent a frame to hardware. After the owner's comment that the screen had not changed
+  where "no" was answered, the "no" answer was split in two ("nothing changed on the screen" / "the screen shows another
+  value"), the answer being named in the log and in the report; `ctest` 615/615 re-run after that edit.
 - **Assumptions**: The two edited tests describe a corrected expectation (a check that stopped at the first "no" and
   stacked its changes), not a failing test forced to pass. The final confirmation (the original screens are back) is
   noted like the others and listed with them. Whether MULTI SELECT depends on PROGRAM CHANGE is not decided here:
