@@ -29,6 +29,14 @@ namespace akm
     namespace
     {
         constexpr std::span<const std::int64_t> NO_VALUES{};
+        // The data bytes are 7-bit: a magnitude is split into two of them, most significant first (spec pp. 8-9).
+        constexpr std::int64_t DATA_BYTE_BASE = 128;
+        constexpr std::int64_t NEGATIVE = 1;
+        constexpr std::int64_t POSITIVE = 0;
+        constexpr std::int64_t MUTED = 1;
+        constexpr std::int64_t NOT_MUTED = 0;
+        constexpr std::int64_t ENABLED = 1;
+        constexpr std::int64_t DISABLED = 0;
 
         // A REPLY of one data byte, or empty when the outcome is not such a REPLY.
         std::optional<std::int64_t> decodeByteReply(ItemId id, const CommandResult& outcome)
@@ -73,10 +81,21 @@ namespace akm
             return static_cast<FxModuleType>(*value);
         }
 
-        constexpr std::int64_t MUTED = 1;
-        constexpr std::int64_t NOT_MUTED = 0;
-        constexpr std::int64_t ENABLED = 1;
-        constexpr std::int64_t DISABLED = 0;
+        // A REPLY of the sign byte and the two magnitude bytes of a parameter value, read as one signed number, or empty
+        // when the outcome is not such a REPLY.
+        std::optional<int> decodeParameterReply(const CommandResult& outcome)
+        {
+            if (const auto* rep = std::get_if<Reply>(&outcome); rep != nullptr)
+            {
+                const auto values = decodeReply(ItemId::FxGetParameter, rep->data);
+                if (values && values->size() == 3)
+                {
+                    const auto magnitude = static_cast<int>((*values)[1] * DATA_BYTE_BASE + (*values)[2]);
+                    return (*values)[0] != 0 ? -magnitude : magnitude;
+                }
+            }
+            return std::nullopt;
+        }
     }
 
     void getFxCard(Session& session, FxCardCompletion completion)
@@ -147,6 +166,25 @@ namespace akm
                        [completion = std::move(completion)](const CommandResult& outcome) {
                            if (completion)
                                completion({flagFromReply(decodeByteReply(ItemId::FxGetModuleEnabled, outcome)), outcome});
+                       });
+    }
+
+    void setFxParameter(Session& session, int channel, int module, int parameter, int value, CommandCompletion completion)
+    {
+        const std::int64_t magnitude = value < 0 ? -static_cast<std::int64_t>(value) : static_cast<std::int64_t>(value);
+        // A magnitude above 16383 gives a most significant byte above 127, which the catalogue's range refuses.
+        session.submit(makeRequest(ItemId::FxSetParameter,
+                                   {channel, module, parameter, value < 0 ? NEGATIVE : POSITIVE, magnitude / DATA_BYTE_BASE,
+                                    magnitude % DATA_BYTE_BASE}),
+                       std::move(completion));
+    }
+
+    void getFxParameter(Session& session, int channel, int module, int parameter, FxParameterCompletion completion)
+    {
+        session.submit(makeRequest(ItemId::FxGetParameter, {channel, module, parameter}),
+                       [completion = std::move(completion)](const CommandResult& outcome) {
+                           if (completion)
+                               completion({decodeParameterReply(outcome), outcome});
                        });
     }
 }

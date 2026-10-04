@@ -7,9 +7,10 @@ rows), and a real-sampler check that creates a test multi, reads what the sample
 when a board is installed, round-trips the items and puts every value back.
 
 Section `12` acts on the current multi (§0C). Its shapes need nothing new in the codec: channel, module, parameter
-index and flags are `Byte` values, a REPLY is one data byte (three for `&51`), and a parameter value is the
-`signed_word` format, already in the catalogue's value formats and the codec, used here by an item for the first
-time. The module type takes the codes of Table 24, named by an enumeration as the number of parts of new multis is.
+index and flags are `Byte` values, a REPLY is one data byte (three for `&51`), and a parameter value is a sign byte
+and a two-byte magnitude, catalogued as three `Byte` values as every signed value of the earlier sections is (the
+coverage check compares the spec's rows byte by byte); the primitive composes and decomposes the signed `int`. The
+module type takes the codes of Table 24, named by an enumeration as the number of parts of new multis is.
 
 **Safety note.** The owner's sampler has no FX board, so the Sets can only be tested on the simulated sampler; the
 real-sampler check sends none when `&01` says "none". With a board it changes only the FX of a test multi the check
@@ -109,16 +110,32 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-103: FX parameter values
 - **Tier**: M
-- **Status**: Not Started
-- **Description**: Catalogue and implement `&50`, `&51` (the first items to use the `signed_word` value format) and
+- **Status**: Done
+- **Description**: Catalogue and implement `&50`, `&51` (a signed value of a sign byte and a two-byte magnitude) and
   model them in the simulated sampler.
 - **Requirement refs**: RQ-AKM-101
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-101.
 - **Dependencies**: TASK-AKM-101
 - **Assignee**: AI
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 706/706
+  passed after a full re-run in this session (700 before, 6 new in `MultiFxParametersTests.cpp`, written before the
+  code, `ctest -R RQ-AKM-101` 6/6): setting parameter 1 of module 2 of channel 0 to -25 sends section `12`, item `50`
+  and `00 02 01 01 00 19`, and `&51` (`00 02 01`) reads -25; 4000 sends `00 1F 20` as sign and magnitude and reads 4000;
+  16383 and -16383 send `7F 7F` with sign 0 and 1 and round-trip, 0 is a positive zero; a parameter set changes
+  neither another parameter of the module nor the same one of another module or channel (the unset ones read 0); a
+  magnitude of 16384 or -16384, and a channel, module or parameter of 128, are refused `ArgumentOutOfRange` with
+  nothing sent; a channel or module the board lacks, and no current multi, fail ERROR 04 with no value.
+  `generate_akm_items.py --check`: up to date (384 items); `--coverage`: `section 12: 11 of 11 spec rows covered`,
+  `unaccounted: none`. `ItemCatalogueTests.cpp`'s count formula extended by the 2 records. Not verified: the real
+  sampler (TASK-AKM-104).
+- **Assumptions**: The value is catalogued as three `Byte` values (sign, magnitude MSB, magnitude LSB), as the spec's
+  rows list them and as every signed value of the earlier sections is, and not as one `signed_word`: the coverage check
+  compares rows byte by byte (it reads six values for `&50`, one `signed_word` would be four). FTR-AKM-013 and this plan
+  were reworded accordingly. A parameter never set reads 0 in the model; the sampler's answer for a parameter that does
+  not exist on the module's type is unknown (Table 25's ranges are not enforced), and out of reach of a sampler with no
+  board. The first Python text-mode rewrite of two files in this lot (TASK-AKM-102) changed their line endings; they were
+  put back to LF before the commit, and later scripted edits write with `newline=''`.
 
 ---
 

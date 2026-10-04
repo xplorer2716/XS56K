@@ -142,4 +142,28 @@ namespace akm
 
     /// Gets whether module `module` of channel `channel` is enabled (§12/&41). [RQ-AKM-100]
     void getFxModuleEnabled(Session& session, int channel, int module, FxEnabledCompletion completion);
+
+    // The parameter values (§12/&50, &51, Table 25). Whatever the parameter, a value travels as a signed compound word:
+    // a sign byte (0 positive, 1 negative) then the magnitude as a most- and a least-significant 7-bit byte, magnitude =
+    // LSB + 128 x MSB, so -16383 to 16383. The primitive takes and gives the signed `int`. [RQ-AKM-101]
+
+    /// The largest magnitude the wire carries: two 7-bit bytes. [RQ-AKM-101]
+    inline constexpr int FX_PARAMETER_MAX_MAGNITUDE = 128 * 128 - 1;
+
+    /// Sets parameter `parameter` (zero-based, 0-127) of module `module` of channel `channel` to `value` (§12/&50); the
+    /// parameter's own range is for the sampler to judge (Table 25). A channel, module or parameter outside 0-127 and
+    /// a value of a magnitude above 16383 are refused as `ArgumentOutOfRange` without sending. [RQ-AKM-101]
+    void setFxParameter(Session& session, int channel, int module, int parameter, int value, CommandCompletion completion);
+
+    /// `value` is empty when the command did not complete on a REPLY of the length the catalogue gives it.
+    /// [RQ-AKM-101]
+    struct FxParameterResult
+    {
+        std::optional<int> value{};
+        CommandResult outcome{};
+    };
+    using FxParameterCompletion = std::function<void(const FxParameterResult&)>;
+
+    /// Gets the value of parameter `parameter` of module `module` of channel `channel` (§12/&51). [RQ-AKM-101]
+    void getFxParameter(Session& session, int channel, int module, int parameter, FxParameterCompletion completion);
 }

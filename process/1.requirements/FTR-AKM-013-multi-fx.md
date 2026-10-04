@@ -21,9 +21,10 @@ concern, since which parameters exist depends on the module type the editor show
 
 **Depends on** FTR-AKM-001 (transport) and FTR-AKM-011 (a multi must be current, `RQ-AKM-087`). Shapes: a channel and
 a module are zero-based `Byte` indices, a Get's REPLY is one or three data bytes, and a parameter value is a **signed
-compound word** (a sign byte, then the magnitude as a most-significant and a least-significant byte), the
-`signed_word` value format the catalogue has had since `RQ-AKM-002` and no item has yet used. No hand-built request
-is needed.
+compound word** (a sign byte, then the magnitude as a most-significant and a least-significant byte). The catalogue
+lists those three bytes as three `Byte` values, as it lists every signed value of the earlier sections and as the
+spec's own rows do (the coverage check compares them one by one), and the primitive turns an `int` into them and back;
+the `signed_word` value format stays unused. No hand-built request is needed.
 
 **No board on the owner's sampler.** The owner's S5000 has no EB20 effects board installed, so every Set of this
 section is untestable on that sampler: its real-sampler check reads, with a test multi current, the answer to `&01` and,
@@ -99,5 +100,5 @@ printed pp. 35-38 (Figure 2 and Tables 22 to 25).
 - **What a sampler with no board answers.** The spec does not say what `&10`, `&11` and the others answer when `&01` is 0, nor what any item answers with no multi current; the model answers 0 channels and ERROR `04` and the real answers are observations, not errata. Observed on the owner's S5000 (no board): recorded by TASK-AKM-105.
 - **Which modules may change type.** The spec says that with the EB20 "only modules 2 and 3, of channels 0 and 1 may be changed" (p. 35); what the sampler answers to a type change of another module is not stated and cannot be observed without a board. The simulated sampler does not enforce it; the check tries only module 2 of channel 0.
 - **The reverb column of Figure 2.** The extracted text of the figure lists, for channel 0, six columns (ring-mod/distortion, EQ, modulation, delay, reverb, output control) while channels 2 and 3 carry the reverb input and the reverb; the layout of the simulated EB20 follows the kb (`sysex_spec.kb.md` line 157-159) and is a test fixture, not a claim about the hardware.
-- **Ranges of the parameters** (Table 25) and the way an out-of-range value is answered are not stated; the catalogue uses the signed-word ceiling (`-16383` to `16383`).
+- **Ranges of the parameters** (Table 25) and the way an out-of-range value is answered are not stated; the layer accepts the largest value the wire carries, a magnitude of 16383 (`-16383` to `16383`).
 - **"0 = ON, 1 = MUTE"** (`&20`, `&21`): read literally, the value 0 means the channel is on (not muted); the primitives expose a boolean `muted`.

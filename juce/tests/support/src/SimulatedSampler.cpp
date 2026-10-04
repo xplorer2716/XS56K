@@ -243,6 +243,10 @@ namespace akm::harness
         constexpr std::uint8_t ITEM_FX_GET_MODULE_TYPE = 0x31;
         constexpr std::uint8_t ITEM_FX_SET_MODULE_ENABLED = 0x40;
         constexpr std::uint8_t ITEM_FX_GET_MODULE_ENABLED = 0x41;
+        // The parameter values of TASK-AKM-103 (RQ-AKM-101): a sign byte then a magnitude as two 7-bit bytes.
+        constexpr std::uint8_t ITEM_FX_SET_PARAMETER = 0x50;
+        constexpr std::uint8_t ITEM_FX_GET_PARAMETER = 0x51;
+        constexpr int FX_DATA_BYTE_BASE = 128;
         constexpr std::uint8_t ITEM_LIST_SELECT_BY_NAME = 0x05;
         constexpr std::uint8_t ITEM_LIST_SELECT_BY_INDEX = 0x06;
         constexpr std::uint8_t ITEM_LIST_DELETE_CURRENT = 0x08;
@@ -1663,11 +1667,11 @@ namespace akm::harness
             }
         }
 
-        // §12 Multi FX (RQ-AKM-099, RQ-AKM-100): the card, the number of channels and of the modules of a channel, which
+        // §12 Multi FX (RQ-AKM-099 to RQ-AKM-101): the card, the number of channels and of the modules of a channel, which
         // describe the hardware and need no multi, then the mute of a channel, the type and the enabled state of a module,
-        // which are the current multi's effects and so need one. With no board, the channel count is 0 and a channel has
+        // which are the current multi's effects and so need one, as do the parameter values. With no board, the channel count is 0 and a channel has
         // no modules, so ERROR 04, as it is for a channel or a module the board does not have and for no current multi
-        // (the spec is silent on all three, so this is a modelling choice). [TASK-AKM-101, TASK-AKM-102]
+        // (the spec is silent on all three, so this is a modelling choice). [TASK-AKM-101 to TASK-AKM-103]
         Outcome executeMultiFx(std::uint8_t item, const Bytes& data, FxState& fx, bool multiIsCurrent)
         {
             switch (item)
@@ -1729,6 +1733,30 @@ namespace akm::harness
                 }
                 case ITEM_FX_GET_MODULE_ENABLED:
                     return reply(Bytes{static_cast<std::uint8_t>(module.enabled ? 1 : 0)});
+                case ITEM_FX_SET_PARAMETER:
+                {
+                    const auto parameter = reader.readByte();
+                    const auto sign = reader.readByte();
+                    const auto msb = reader.readByte();
+                    const auto lsb = reader.readByte();
+                    if (!parameter || !sign || !msb || !lsb)
+                        return failure(error_number::INVALID_FORMAT);
+                    const int magnitude = static_cast<int>(*msb) * FX_DATA_BYTE_BASE + static_cast<int>(*lsb);
+                    module.parameters[static_cast<std::uint8_t>(*parameter)] = *sign != 0 ? -magnitude : magnitude;
+                    return done();
+                }
+                case ITEM_FX_GET_PARAMETER:
+                {
+                    const auto parameter = reader.readByte();
+                    if (!parameter)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = module.parameters.find(static_cast<std::uint8_t>(*parameter));
+                    const int value = found == module.parameters.end() ? 0 : found->second;
+                    const int magnitude = value < 0 ? -value : value;
+                    return reply(Bytes{static_cast<std::uint8_t>(value < 0 ? 1 : 0),
+                                       static_cast<std::uint8_t>(magnitude / FX_DATA_BYTE_BASE),
+                                       static_cast<std::uint8_t>(magnitude % FX_DATA_BYTE_BASE)});
+                }
                 default:
                     return failure(error_number::NOT_SUPPORTED);
             }

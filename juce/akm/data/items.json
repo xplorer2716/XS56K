@@ -2294,6 +2294,32 @@
       "requirements": ["RQ-AKM-100"]
     },
     {
+      "id": "FxSetParameter", "section": "12", "item": "50", "name": "Set parameter value of given module in given channel", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "parameter", "format": "byte", "min": 0, "max": 127},
+        {"name": "sign", "format": "byte", "min": 0, "max": 1},
+        {"name": "magnitudeMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "magnitudeLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-101"]
+    },
+    {
+      "id": "FxGetParameter", "section": "12", "item": "51", "name": "Get parameter value of given module in given channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "parameter", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "sign", "format": "byte", "min": 0, "max": 1},
+        {"name": "magnitudeMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "magnitudeLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-101"]
+    },
+    {
       "id": "SceneListSelectByName", "section": "14", "item": "05", "name": "Select Scenelist by name", "kind": "set",
       "args": [
         {"name": "name", "format": "string", "min": 0, "max": 255}

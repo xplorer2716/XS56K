@@ -125,12 +125,12 @@ RQ-AKM-096|49-57||General information about the scenelists in memory
 RQ-AKM-097|58-66||Real-sampler check puts back what it changes
 RQ-AKM-098|67-77||Coverage of section §14
 @process/1.requirements/FTR-AKM-013-multi-fx.md
-FTR-AKM-013|1-103||Multi FX Primitives (§12)
-RQ-AKM-099|50-58||FX board and layout discovery
-RQ-AKM-100|59-67||Channel mute and module type and state
-RQ-AKM-101|68-76||FX parameter values as signed compound words
-RQ-AKM-102|77-85||Real-sampler check reads, and round-trips only with a board
-RQ-AKM-103|86-96||Coverage of section §12
+FTR-AKM-013|1-104||Multi FX Primitives (§12)
+RQ-AKM-099|51-59||FX board and layout discovery
+RQ-AKM-100|60-68||Channel mute and module type and state
+RQ-AKM-101|69-77||FX parameter values as signed compound words
+RQ-AKM-102|78-86||Real-sampler check reads, and round-trips only with a board
+RQ-AKM-103|87-97||Coverage of section §12
 @process/1.requirements/RQ-BLD-build-tooling.md
 RQ-BLD-001|24-32||CMake build fetching a pinned JUCE
 RQ-BLD-002|33-41||Headless layered libraries, GUI application deferred
@@ -321,13 +321,13 @@ TASK-AKM-097|45-75|Done|Scenelist selection, renaming, deletion and general info
 TASK-AKM-098|76-107|Done|Real-sampler check of the scenelists
 TASK-AKM-099|108-128|Done|Coverage of section §14
 @process/3.plan/PLAN-AKM-013-multi-fx-primitives.md
-PLAN-AKM-013|1-155||Multi FX Primitives (Phase A, new lot, §12)
-TASK-AKM-100|32-45|Done|Author FTR-AKM-013 and PLAN-AKM-013
-TASK-AKM-101|46-76|Done|FX board and layout discovery, and the section in the simulated sampler
-TASK-AKM-102|77-109|Done|Channel mute, module type and module state
-TASK-AKM-103|110-124|Not Started|FX parameter values
-TASK-AKM-104|125-142|Not Started|Real-sampler check of the Multi FX
-TASK-AKM-105|143-155|Not Started|Coverage of section §12
+PLAN-AKM-013|1-172||Multi FX Primitives (Phase A, new lot, §12)
+TASK-AKM-100|33-46|Done|Author FTR-AKM-013 and PLAN-AKM-013
+TASK-AKM-101|47-77|Done|FX board and layout discovery, and the section in the simulated sampler
+TASK-AKM-102|78-110|Done|Channel mute, module type and module state
+TASK-AKM-103|111-141|Done|FX parameter values
+TASK-AKM-104|142-159|Not Started|Real-sampler check of the Multi FX
+TASK-AKM-105|160-172|Not Started|Coverage of section §12
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

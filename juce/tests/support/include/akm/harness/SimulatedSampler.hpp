@@ -443,6 +443,8 @@ namespace akm::harness
         std::uint8_t type = 0;
         /// Whether the module is enabled (§12/&40, &41); a module starts enabled. [RQ-AKM-100]
         bool enabled = true;
+        /// The parameter values by index (§12/&50, &51): a parameter never set reads 0. [RQ-AKM-101]
+        std::map<std::uint8_t, int> parameters;
     };
 
     /// One FX channel of the simulated board. [RQ-AKM-099]

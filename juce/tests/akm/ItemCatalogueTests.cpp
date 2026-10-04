@@ -188,13 +188,13 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // (RQ-AKM-090, RQ-AKM-091: &40, &41, &44-&48, &50-&52) and TASK-AKM-093 the 5 Sets of general information
     // (RQ-AKM-092: &30-&34) and TASK-AKM-097 the 8 of section 14, the scenelists (RQ-AKM-095, RQ-AKM-096: &05, &06,
     // &08, &09, &10, &11, &13, &14) and TASK-AKM-101 the first 3 of section 12, the discovery Gets of the Multi FX
-    // (RQ-AKM-099: &01, &10, &11) and TASK-AKM-102 the 6 configuration items (RQ-AKM-100: &20, &21, &30, &31, &40, &41)
+    // (RQ-AKM-099: &01, &10, &11) and TASK-AKM-102 the 6 configuration items (RQ-AKM-100: &20, &21, &30, &31, &40, &41) and TASK-AKM-103 the 2 parameter items (RQ-AKM-101: &50, &51)
     // — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
     // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp,
     // FrontPanelTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4 + 7 + 1 + 24 + 10 + 5 + 8 + 3 + 6;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4 + 7 + 1 + 24 + 10 + 5 + 8 + 3 + 6 + 2;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 
