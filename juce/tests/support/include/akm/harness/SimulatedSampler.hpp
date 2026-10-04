@@ -522,6 +522,10 @@ namespace akm::harness
         /// Makes §12/&01 answer `code`, whatever the layout: for a test that wants a REPLY the layer cannot name.
         void setFxCardCode(std::uint8_t code);
 
+        /// The FX board as the sampler holds it now: the card code and the channels with their modules, mutes, enabled
+        /// states and parameter values (RQ-AKM-102: the real-sampler check puts back what it changes).
+        [[nodiscard]] FxState fxState() const;
+
         /// Seeds the sampler's scenelists (§14) by name, current selection reset. Empty by default: no §14 item
         /// creates a scenelist. [RQ-AKM-095]
         void setSceneListNames(std::vector<std::string> names);

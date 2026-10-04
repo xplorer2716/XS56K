@@ -194,6 +194,7 @@ DEC-BLD-028|24-36||The generator passes `run-tests: true` to `build-app` in ever
 @process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md
+@process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
@@ -321,13 +322,13 @@ TASK-AKM-097|45-75|Done|Scenelist selection, renaming, deletion and general info
 TASK-AKM-098|76-107|Done|Real-sampler check of the scenelists
 TASK-AKM-099|108-128|Done|Coverage of section §14
 @process/3.plan/PLAN-AKM-013-multi-fx-primitives.md
-PLAN-AKM-013|1-172||Multi FX Primitives (Phase A, new lot, §12)
+PLAN-AKM-013|1-195||Multi FX Primitives (Phase A, new lot, §12)
 TASK-AKM-100|33-46|Done|Author FTR-AKM-013 and PLAN-AKM-013
 TASK-AKM-101|47-77|Done|FX board and layout discovery, and the section in the simulated sampler
 TASK-AKM-102|78-110|Done|Channel mute, module type and module state
 TASK-AKM-103|111-141|Done|FX parameter values
-TASK-AKM-104|142-159|Not Started|Real-sampler check of the Multi FX
-TASK-AKM-105|160-172|Not Started|Coverage of section §12
+TASK-AKM-104|142-182|Done|Real-sampler check of the Multi FX
+TASK-AKM-105|183-195|Not Started|Coverage of section §12
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

@@ -2055,3 +2055,136 @@ TEST_CASE("Given the default options, When the suite runs, Then no section 0C it
     for (const auto& command : rig.sampler.acceptedCommands())
         CHECK(command.section != SECTION_MULTI);
 }
+
+namespace
+{
+    constexpr std::size_t MULTI_FX_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_MULTI_FX = 0x12;
+    constexpr std::uint8_t ITEM_FX_SET_CHANNEL_MUTE = 0x20;
+    constexpr std::uint8_t ITEM_FX_SET_MODULE_TYPE = 0x30;
+    constexpr std::uint8_t ITEM_FX_SET_MODULE_ENABLED = 0x40;
+    constexpr std::uint8_t ITEM_FX_SET_PARAMETER = 0x50;
+
+    bool sentFxItem(const SimulatedSampler& sampler, std::uint8_t item)
+    {
+        const auto commands = sampler.acceptedCommands();
+        return std::any_of(commands.begin(), commands.end(),
+                           [item](const auto& command) { return command.section == SECTION_MULTI_FX && command.item == item; });
+    }
+
+    bool sentAnyFxSet(const SimulatedSampler& sampler)
+    {
+        return sentFxItem(sampler, ITEM_FX_SET_CHANNEL_MUTE) || sentFxItem(sampler, ITEM_FX_SET_MODULE_TYPE)
+               || sentFxItem(sampler, ITEM_FX_SET_MODULE_ENABLED) || sentFxItem(sampler, ITEM_FX_SET_PARAMETER);
+    }
+}
+
+TEST_CASE("Given a sampler with an EB20 and two multis of the owner's, When the suite runs with the Multi FX checks, Then a mute, a module state, a module type and a parameter are changed on a test multi and put back, and the test multi is deleted [TASK-AKM-104, RQ-AKM-099, RQ-AKM-100, RQ-AKM-101, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "create a test multi, read the FX board").detail, ContainsSubstring("an EB20 is installed"));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_CHANNEL_MUTE));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_MODULE_ENABLED));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_MODULE_TYPE));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_PARAMETER));
+    const akm::harness::FxState fx = rig.sampler.fxState();
+    CHECK_FALSE(fx.channels.at(0).muted);
+    CHECK(fx.channels.at(0).modules.at(3).enabled);
+    CHECK(fx.channels.at(0).modules.at(2).type == 0x02);
+    CHECK(fx.channels.at(0).modules.at(2).parameters.at(0) == 0);
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_DELETE_ALL_MULTIS));
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_SET_NEW_MULTI_PART_COUNT));
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given a sampler with no FX board, When the suite runs with the Multi FX checks, Then the first check is skipped after logging what the Gets answer, no section 12 Set is sent and the test multi is deleted [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    CHECK(reportOf(result, "create a test multi, read the FX board").outcome == CheckOutcome::Skipped);
+    CHECK(reportOf(result, "multi FX check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("no FX card installed"));
+    CHECK_THAT(log.str(), ContainsSubstring("read the number of FX channels"));
+    CHECK_THAT(log.str(), ContainsSubstring("read the mute status of channel 0"));
+    CHECK_FALSE(sentAnyFxSet(rig.sampler));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given a check made to fail with the test multi current, When the suite runs with the Multi FX checks, Then the test multi is deleted and the selection is the one found [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    CHECK(reportOf(result, "multi FX check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with the test multi current"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given a multi that already bears the reserved test name, When the suite runs with the Multi FX checks, Then the check stops without creating or touching anything [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    rig.sampler.setMultiNames({"XS56K_MULTI_TEST"});
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    const CheckReport& first = reportOf(result, "create a test multi, read the FX board");
+    CHECK(first.outcome == CheckOutcome::Failed);
+    CHECK_THAT(first.detail, ContainsSubstring("already exists in the sampler: the check stops without touching it"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"XS56K_MULTI_TEST"});
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_CREATE_MULTI));
+    CHECK_FALSE(sentAnyFxSet(rig.sampler));
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 12 item is sent [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_MULTI_FX);
+}

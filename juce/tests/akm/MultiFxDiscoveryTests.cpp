@@ -29,8 +29,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/MultiFxPrimitives.hpp"
 #include "akm/SamplerError.hpp"
 
-using akm::CommandResult;
-using akm::Error;
 using akm::FxCard;
 using akm::FxCardResult;
 using akm::FxCountResult;
@@ -67,12 +65,6 @@ namespace
         akm::getFxModuleCount(harness.session(), channel, [latched](const FxCountResult& r) { latched->set(r); });
         REQUIRE(harness.waitUntil([latched] { return latched->isSet(); }));
         return *latched->value();
-    }
-
-    void requireNotFound(const CommandResult& result)
-    {
-        REQUIRE(std::holds_alternative<Error>(result));
-        CHECK(std::get<Error>(result).number == akm::error_number::NOT_FOUND);
     }
 }
 
@@ -130,9 +122,14 @@ TEST_CASE("Given a simulated sampler with no board, When the card is read, Then 
     const FxCountResult channels = getChannelCount(harness);
     REQUIRE(std::holds_alternative<akm::Reply>(channels.outcome));
     CHECK(channels.count == 0);
+
+    // Observed on a real S5000 with no board (TASK-AKM-104): the modules of channel 0 are counted as 0.
+    const FxCountResult modules = getModuleCount(harness, 0);
+    REQUIRE(std::holds_alternative<akm::Reply>(modules.outcome));
+    CHECK(modules.count == 0);
 }
 
-TEST_CASE("Given a channel the board does not have, When its modules are counted, Then the ERROR 04 is reported and no count is given [RQ-AKM-099]",
+TEST_CASE("Given a channel the board does not have, When its modules are counted, Then the sampler answers a REPLY of 0, as the real S5000 does with no board [RQ-AKM-099]",
           "[akm][multifx]")
 {
     ManualScenarioDriver driver;
@@ -141,8 +138,8 @@ TEST_CASE("Given a channel the board does not have, When its modules are counted
     harness.sampler().setFxBoard(eb20Layout());
 
     const FxCountResult result = getModuleCount(harness, 4);
-    requireNotFound(result.outcome);
-    CHECK_FALSE(result.count.has_value());
+    REQUIRE(std::holds_alternative<akm::Reply>(result.outcome));
+    CHECK(result.count == 0);
 }
 
 TEST_CASE("Given a channel of 128, When its modules are counted, Then the request is refused as ArgumentOutOfRange without sending [RQ-AKM-099]",

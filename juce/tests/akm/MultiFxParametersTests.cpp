@@ -84,6 +84,14 @@ namespace
         CHECK(std::get<Error>(result).number == akm::error_number::NOT_FOUND);
     }
 
+    // What a real S5000 answers to an item naming a channel or a module it does not have (observed with no board,
+    // TASK-AKM-104).
+    void requireOutOfRange(const CommandResult& result)
+    {
+        REQUIRE(std::holds_alternative<Error>(result));
+        CHECK(std::get<Error>(result).number == akm::error_number::OUT_OF_RANGE);
+    }
+
     void requireRefused(const CommandResult& result, RefusalReason reason)
     {
         REQUIRE(std::holds_alternative<Refused>(result));
@@ -182,7 +190,7 @@ TEST_CASE("Given a magnitude of 16384, or an index of 128, When a parameter is s
     CHECK(harness.sentCount() == sentBefore);
 }
 
-TEST_CASE("Given a channel or a module the board does not have, or no current multi, When a parameter is set or read, Then the sampler's ERROR 04 is reported and nothing changes [RQ-AKM-101]",
+TEST_CASE("Given a channel or a module the board does not have, or no current multi, When a parameter is set or read, Then the sampler's ERROR 02 (out of range) is reported for the first and ERROR 04 for the second, and nothing changes [RQ-AKM-101]",
           "[akm][multifx]")
 {
     ManualScenarioDriver driver;
@@ -194,9 +202,9 @@ TEST_CASE("Given a channel or a module the board does not have, or no current mu
     akm::setFxParameter(harness.session(), 2, 2, PARAMETER, 5, harness.recorder().completion());
     REQUIRE(harness.waitForCompletions(2));
     for (const CommandResult& result : harness.recorder().results())
-        requireNotFound(result);
+        requireOutOfRange(result);
     const FxParameterResult missing = getParameter(harness, 0, 6, PARAMETER);
-    requireNotFound(missing.outcome);
+    requireOutOfRange(missing.outcome);
     CHECK_FALSE(missing.value.has_value());
     CHECK(getParameter(harness, 3, 1, PARAMETER).value == 0);
 

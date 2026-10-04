@@ -45,6 +45,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/MultiPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
+#include "akm/MultiFxPrimitives.hpp"
 #include "akm/SceneListPrimitives.hpp"
 #include "akm/SongPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
@@ -1012,6 +1013,19 @@ namespace akm::harness
             std::optional<int> _renamedSetList{};
         };
 
+        // Where the Multi FX check works (RQ-AKM-102): channel 0 of an EB20 holds, from module 0, the ring modulator and
+        // distortion, the EQ, the modulation (the one module of the channel whose type may change, spec p. 35) and the delay.
+        // The check changes the enabled state of the delay and the type and the first parameter of the modulation.
+        constexpr int FX_TEST_CHANNEL = 0;
+        constexpr int FX_TEST_STATE_MODULE = 3;
+        constexpr int FX_TEST_TYPE_MODULE = 2;
+        constexpr int FX_TEST_PARAMETER = 0;
+        // The first and second Table 24 codes the type is changed to: another one than the module has now.
+        constexpr FxModuleType FX_TEST_TYPE_A = FxModuleType::Flange;
+        constexpr FxModuleType FX_TEST_TYPE_B = FxModuleType::Phase;
+        // The largest value the parameter is tried at: the modulation's first parameter is a rate of 0-99 (Table 25).
+        constexpr int FX_TEST_PARAMETER_CEILING = 99;
+
         // The name the check gives a scenelist for the length of a round trip: inside the 20 characters the other names
         // allow, and nothing an owner would keep. How many names it reads: a sampler may hold far more than a log needs to
         // show. [RQ-AKM-097]
@@ -1662,6 +1676,14 @@ namespace akm::harness
                           &Suite::sceneListsRoundTrips);
                     check("a scenelists check that fails half way and still puts back what it changed",
                           &Suite::failedSceneListsCheckPutsBack);
+                }
+                if (_rig.options.multiFx)
+                {
+                    check("create a test multi, read the FX board and, with one installed, round-trip a channel mute, a module "
+                          "state, a parameter and a module type on it",
+                          &Suite::multiFxOnTestMulti);
+                    check("a multi FX check that fails half way still deletes the test multi and restores the selection",
+                          &Suite::failedMultiFxCheckLeavesTheKnownState);
                 }
             }
 
@@ -4409,6 +4431,217 @@ namespace akm::harness
                            "the current scenelist is back to " + std::to_string(*before.current));
                 else
                     finding("no scenelist was current before the check, so the selection is left on the one the check chose");
+            }
+
+            // RQ-AKM-099 to RQ-AKM-102: creates a test multi (the guard that deletes it and selects again the multi that was
+            // current), reads whether an FX board is installed and, with one, round-trips the mute status of a channel, the
+            // enabled state of a module, a parameter and the type of a module, each put back and read back. With none it logs
+            // what the other Gets answer and sends no Set. The effects belong to the multi, so only the test multi's are
+            // touched. Skipped when no board is installed, once the test multi is gone and the multis have been verified.
+            void multiFxOnTestMulti()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("multis before: " + multisText(*before));
+                bool boardInstalled = false;
+                {
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test multi \"" + std::string(TEST_MULTI_NAME) + "\" created and current, at index " + std::to_string(multi.testIndex()));
+                    boardInstalled = multiFxChecks(guarded);
+                }
+                expectMultisRestored(guarded, *before);
+                closeAndVerify(guarded);
+                if (!boardInstalled)
+                    throw CheckSkipped("no FX board is installed: only Gets were sent, and what they answered is in the log");
+            }
+
+            // RQ-AKM-102: a check that fails with the test multi current still deletes it and selects again the multi that was
+            // current, and leaves nothing changed.
+            void failedMultiFxCheckLeavesTheKnownState()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test multi created for a check that fails on purpose");
+                    throw CheckFailure("this check fails on purpose, with the test multi current");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its cleanup already run, by the time the exception reaches
+                    // this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectMultisRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // Whether an FX board is installed (&01), and the round trips when one is. Returns whether one is.
+            bool multiFxChecks(GuardedSession& guarded)
+            {
+                const auto card = awaitCompletion<FxCardResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](FxCardCompletion done) { getFxCard(guarded.session(), std::move(done)); });
+                if (!card || !card->result.card)
+                    throw CheckFailure("could not read whether an FX card is installed (&01): "
+                                       + (card ? outcomeText(card->result.outcome) : std::string("no completion")));
+                if (*card->result.card == FxCard::None)
+                {
+                    finding("&01: no FX card installed");
+                    observeFxWithoutBoard(guarded);
+                    return false;
+                }
+                finding("&01: an EB20 is installed");
+                multiFxRoundTrips(guarded);
+                return true;
+            }
+
+            // What a sampler with no board answers to the other Gets, with the test multi current: observations for the open
+            // points of FTR-AKM-013, none of them a failure, and no Set. [RQ-AKM-102]
+            void observeFxWithoutBoard(GuardedSession& guarded)
+            {
+                observeIndexPastTheEnd("read the number of FX channels (&10)", [&guarded](CommandCompletion done) {
+                    getFxChannelCount(guarded.session(), [done = std::move(done)](const FxCountResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the number of modules of channel 0 (&11)", [&guarded](CommandCompletion done) {
+                    getFxModuleCount(guarded.session(), FX_TEST_CHANNEL, [done = std::move(done)](const FxCountResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the mute status of channel 0 (&21)", [&guarded](CommandCompletion done) {
+                    getFxChannelMute(guarded.session(), FX_TEST_CHANNEL, [done = std::move(done)](const FxMuteResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the type of module 0 of channel 0 (&31)", [&guarded](CommandCompletion done) {
+                    getFxModuleType(guarded.session(), FX_TEST_CHANNEL, 0, [done = std::move(done)](const FxModuleTypeResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the enabled state of module 0 of channel 0 (&41)", [&guarded](CommandCompletion done) {
+                    getFxModuleEnabled(guarded.session(), FX_TEST_CHANNEL, 0, [done = std::move(done)](const FxEnabledResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read parameter 0 of module 0 of channel 0 (&51)", [&guarded](CommandCompletion done) {
+                    getFxParameter(guarded.session(), FX_TEST_CHANNEL, 0, 0, [done = std::move(done)](const FxParameterResult& result) { done(result.outcome); });
+                });
+            }
+
+            int fxCountOf(GuardedSession& guarded, const std::string& what, const std::function<void(Session&, FxCountCompletion)>& launch)
+            {
+                const auto timed = awaitCompletion<FxCountResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &launch](FxCountCompletion done) { launch(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.count)
+                    throw CheckFailure("could not read " + what + ": " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.count;
+            }
+
+            bool fxMuteOf(GuardedSession& guarded, int channel)
+            {
+                const auto timed = awaitCompletion<FxMuteResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel](FxMuteCompletion done) {
+                    getFxChannelMute(guarded.session(), channel, std::move(done));
+                });
+                if (!timed || !timed->result.muted)
+                    throw CheckFailure("could not read the mute status of channel " + std::to_string(channel) + " (&21): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.muted;
+            }
+
+            bool fxEnabledOf(GuardedSession& guarded, int channel, int module)
+            {
+                const auto timed = awaitCompletion<FxEnabledResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel, module](FxEnabledCompletion done) {
+                    getFxModuleEnabled(guarded.session(), channel, module, std::move(done));
+                });
+                if (!timed || !timed->result.enabled)
+                    throw CheckFailure("could not read the enabled state of module " + std::to_string(module) + " of channel " + std::to_string(channel)
+                                       + " (&41): " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.enabled;
+            }
+
+            FxModuleType fxTypeOf(GuardedSession& guarded, int channel, int module)
+            {
+                const auto timed = awaitCompletion<FxModuleTypeResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel, module](FxModuleTypeCompletion done) {
+                    getFxModuleType(guarded.session(), channel, module, std::move(done));
+                });
+                if (!timed || !timed->result.type)
+                    throw CheckFailure("could not read the type of module " + std::to_string(module) + " of channel " + std::to_string(channel)
+                                       + " (&31): " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.type;
+            }
+
+            int fxParameterOf(GuardedSession& guarded, int channel, int module, int parameter)
+            {
+                const auto timed = awaitCompletion<FxParameterResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel, module, parameter](FxParameterCompletion done) {
+                    getFxParameter(guarded.session(), channel, module, parameter, std::move(done));
+                });
+                if (!timed || !timed->result.value)
+                    throw CheckFailure("could not read parameter " + std::to_string(parameter) + " of module " + std::to_string(module) + " of channel "
+                                       + std::to_string(channel) + " (&51): " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.value;
+            }
+
+            // One value changed and put back: read, set another value, read it back, set the first value, read it back.
+            template <typename Value, typename Read, typename Write, typename Other>
+            void fxRoundTrip(GuardedSession& guarded, const std::string& what, Read read, Write write, Other other)
+            {
+                const Value original = read();
+                const Value changed = other(original);
+                expectCommand(guarded, "set " + what + " to another value", [write, changed](Session& session, CommandCompletion done) {
+                    write(session, changed, std::move(done));
+                });
+                expect(read() == changed, what + " reads the new value");
+                expectCommand(guarded, "put " + what + " back", [write, original](Session& session, CommandCompletion done) {
+                    write(session, original, std::move(done));
+                });
+                expect(read() == original, what + " reads the value it had");
+            }
+
+            // RQ-AKM-099 to RQ-AKM-102 with a board installed: the layout is read, then four values are changed on the test
+            // multi and put back, the type last since changing it may reset the module's parameters.
+            void multiFxRoundTrips(GuardedSession& guarded)
+            {
+                const int channels = fxCountOf(guarded, "the number of FX channels (&10)", [](Session& session, FxCountCompletion done) {
+                    getFxChannelCount(session, std::move(done));
+                });
+                const int modules = fxCountOf(guarded, "the number of modules of channel 0 (&11)", [](Session& session, FxCountCompletion done) {
+                    getFxModuleCount(session, FX_TEST_CHANNEL, std::move(done));
+                });
+                finding("the board has " + std::to_string(channels) + " channel(s), and " + std::to_string(modules) + " module(s) on channel 0");
+                expect(channels > FX_TEST_CHANNEL, "channel 0 exists");
+                expect(modules > FX_TEST_STATE_MODULE && modules > FX_TEST_TYPE_MODULE, "channel 0 has the modules the check works on");
+
+                fxRoundTrip<bool>(
+                    guarded, "the mute status of channel 0", [this, &guarded] { return fxMuteOf(guarded, FX_TEST_CHANNEL); },
+                    [](Session& session, bool muted, CommandCompletion done) { setFxChannelMute(session, FX_TEST_CHANNEL, muted, std::move(done)); },
+                    [](bool muted) { return !muted; });
+                fxRoundTrip<bool>(
+                    guarded, "the enabled state of module 3 of channel 0",
+                    [this, &guarded] { return fxEnabledOf(guarded, FX_TEST_CHANNEL, FX_TEST_STATE_MODULE); },
+                    [](Session& session, bool enabled, CommandCompletion done) {
+                        setFxModuleEnabled(session, FX_TEST_CHANNEL, FX_TEST_STATE_MODULE, enabled, std::move(done));
+                    },
+                    [](bool enabled) { return !enabled; });
+                fxRoundTrip<int>(
+                    guarded, "parameter 0 of module 2 of channel 0",
+                    [this, &guarded] { return fxParameterOf(guarded, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE, FX_TEST_PARAMETER); },
+                    [](Session& session, int value, CommandCompletion done) {
+                        setFxParameter(session, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE, FX_TEST_PARAMETER, value, std::move(done));
+                    },
+                    [](int value) { return value < FX_TEST_PARAMETER_CEILING ? value + 1 : value - 1; });
+                fxRoundTrip<FxModuleType>(
+                    guarded, "the type of module 2 of channel 0",
+                    [this, &guarded] { return fxTypeOf(guarded, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE); },
+                    [](Session& session, FxModuleType type, CommandCompletion done) {
+                        setFxModuleType(session, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE, type, std::move(done));
+                    },
+                    [](FxModuleType type) { return type == FX_TEST_TYPE_A ? FX_TEST_TYPE_B : FX_TEST_TYPE_A; });
             }
 
             // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory

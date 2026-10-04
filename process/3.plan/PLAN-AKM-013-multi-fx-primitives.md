@@ -71,7 +71,7 @@ This plan implements the tasks in the format specified below.
   model, not one per multi. A card code other than 0 or 1 is not given as a card (the spec names two). Section `12` was
   added to `items.json` with `complete: false` until TASK-AKM-105. The Python test that used §12 as its example of an
   undeclared section now uses `2A`: the expectation (an undeclared section is refused) is unchanged, only the example
-  section was no longer undeclared, as when section 04 was declared.
+  section was no longer undeclared, as when section 04 was declared. The model's ERROR `04` for a channel the board lacks was replaced in TASK-AKM-104, after the real sampler answered otherwise: a REPLY of 0 for `&11`, ERROR `02` for the items that act on a channel or a module.
 
 ---
 
@@ -104,7 +104,7 @@ This plan implements the tasks in the format specified below.
   discovery items, the model answers ERROR 04 for what it does not have (channel, module, current multi). `--coverage`
   found §12 &30's spec row malformed by the PDF's text flow (its description is merged into the second data column, so the
   row seemed to describe 5 values, not 3): `spec_domains` now cuts a merged description that follows the last domain,
-  and leaves a mid-column one (§10 &2C) as it was; `test_generate_akm_items.py` gained a test of the new rule.
+  and leaves a mid-column one (§10 &2C) as it was; `test_generate_akm_items.py` gained a test of the new rule. The model's ERROR `04` for a channel the board lacks was replaced in TASK-AKM-104, after the real sampler answered otherwise: a REPLY of 0 for `&11`, ERROR `02` for the items that act on a channel or a module.
 
 ---
 
@@ -135,13 +135,13 @@ This plan implements the tasks in the format specified below.
   were reworded accordingly. A parameter never set reads 0 in the model; the sampler's answer for a parameter that does
   not exist on the module's type is unknown (Table 25's ranges are not enforced), and out of reach of a sampler with no
   board. The first Python text-mode rewrite of two files in this lot (TASK-AKM-102) changed their line endings; they were
-  put back to LF before the commit, and later scripted edits write with `newline=''`.
+  put back to LF before the commit, and later scripted edits write with `newline=''`. The model's ERROR `04` for a channel the board lacks was replaced in TASK-AKM-104, after the real sampler answered otherwise: a REPLY of 0 for `&11`, ERROR `02` for the items that act on a channel or a module.
 
 ---
 
 ### TASK-AKM-104: Real-sampler check of the Multi FX
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add `--multi-fx` to `xs56k_akm_probe --suite`: a check that creates a test multi, reads the board
   and, with none, logs what the other Gets answer and is skipped; with one, round-trips the mute of a channel, the
   state of a module, the type of a changeable module and a parameter, putting each back; on every exit path the test
@@ -152,8 +152,31 @@ This plan implements the tasks in the format specified below.
   real sampler (the empty-board answers only).
 - **Dependencies**: TASK-AKM-101, TASK-AKM-102, TASK-AKM-103
 - **Assignee**: AI, running the real-sampler check under the owner's standing authorization
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 711/711 passed
+  after a full re-run in this session (706 before, 5 new in `RealSamplerSuiteTests.cpp`, written before the code,
+  `ctest -R "TASK-AKM-104"` 5/5): with an EB20 and two multis of the owner's both checks pass, a mute, the state of
+  module 3, parameter 0 and the type of module 2 of channel 0 are set and read back, and the simulated board holds the
+  values it held (unmuted, module 3 enabled, type `02`, parameter 0); the test multi is deleted and the owner's two multis
+  and the selection are as they were, with neither `&07` nor `&01` sent; with no board the first check is skipped after
+  logging `no FX card installed` and the answers of the six Gets, no section 12 Set is sent (`0x20`, `0x30`, `0x40`, `0x50`)
+  and the multis are as they were; the check made to fail with the test multi current leaves the multis and the selection
+  as found; a multi already bearing `XS56K_MULTI_TEST` stops the check with nothing created or touched; without
+  `--multi-fx` no section 12 item is sent. Real sampler (S5000, OS 2.14, no EB20), `xs56k_akm_probe --suite --multi-fx
+  --yes --in "MIDIIN2 (ESI M8U eX)" --out "MIDIOUT15 (ESI M8U eX)"` (`akm-suite-20261004-173211.log`): 7 automatic checks
+  passed, the Multi FX check skipped (no board), the check made to fail passed, the test multi created and deleted twice
+  and the multis verified back to none, the sampler left in the known state; `&01` REPLY `00`, `&10` REPLY `00`, `&11`
+  REPLY `00`, `&21`/`&31`/`&41`/`&51` ERROR 2 (`process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`). The
+  simulated sampler was corrected to those answers (it modelled ERROR 4), and the three Multi FX test files updated:
+  the expectations changed because they were first a modelling choice, and the hardware answered otherwise. Not
+  verified on hardware: anything with a board, since the owner has no EB20.
+- **Assumptions**: The check observes the empty-board answers with the test multi current (so that they are the board's
+  and not "no multi current"), at the price of creating and deleting a multi in the owner's memory, as `--multi-lifecycle`
+  does; it never creates a program. The round trip uses channel 0 of an EB20 as the kb gives Figure 2 (module 2 the
+  modulation, module 3 the delay) and a rate-like first parameter of at most 99; whether a real EB20 accepts them is
+  unknown, and the owner cannot test it. The FX board is one for the whole sampler in the model while the real effects are
+  the multi's, so the check puts back nothing but explicit values on the test multi, which is deleted anyway. The suite
+  file `RealSamplerSuite.cpp` passed MSVC's section limit (C1128): `/bigobj` was added for that file in
+  `juce/tests/support/CMakeLists.txt`.
 
 ---
 

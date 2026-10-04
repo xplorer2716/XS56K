@@ -128,6 +128,13 @@ namespace akm::harness
         /// renames the owner's scenelist for an instant, which only matters if the run is interrupted. Needs nothing from
         /// the owner.
         bool sceneLists = false;
+        /// The optional checks of the Multi FX (§12, RQ-AKM-102): create a test multi under the reserved name of the multi
+        /// checks, read whether an FX board is installed and, with none, log what the other Gets answer and send no Set; with
+        /// a board, change the mute status of a channel, the enabled state of a module, the type of a module and one
+        /// parameter, each put back and read back; then delete the test multi and select again the multi that was current,
+        /// even when a check fails half way. Off by default: it creates and deletes a multi in the sampler's memory, which is
+        /// always the suite's own. Needs nothing from the owner.
+        bool multiFx = false;
         /// The optional checks of the multis (§0C, RQ-AKM-093): create one multi and one program under reserved test names,
         /// round-trip every §0C item on them (the part parameters, the Gets of general information, the program number, the
         /// part assignment by name and by index, the renaming, the selection), then put back the multi that was current and

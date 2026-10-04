@@ -94,6 +94,14 @@ namespace
         CHECK(std::get<Error>(result).number == akm::error_number::NOT_FOUND);
     }
 
+    // What a real S5000 answers to an item naming a channel or a module it does not have (observed with no board,
+    // TASK-AKM-104).
+    void requireOutOfRange(const CommandResult& result)
+    {
+        REQUIRE(std::holds_alternative<Error>(result));
+        CHECK(std::get<Error>(result).number == akm::error_number::OUT_OF_RANGE);
+    }
+
     void requireRefused(const CommandResult& result, RefusalReason reason)
     {
         REQUIRE(std::holds_alternative<Refused>(result));
@@ -188,7 +196,7 @@ TEST_CASE("Given module 3 of channel 0, When it is disabled then read, Then it i
     CHECK(getEnabled(harness, 0, 3).enabled == true);
 }
 
-TEST_CASE("Given a channel or a module the board does not have, When any configuration item is sent, Then the sampler's ERROR 04 is reported unchanged and nothing changes [RQ-AKM-100]",
+TEST_CASE("Given a channel or a module the board does not have, When any configuration item is sent, Then the sampler's ERROR 02 (out of range) is reported unchanged and nothing changes [RQ-AKM-100]",
           "[akm][multifx]")
 {
     ManualScenarioDriver driver;
@@ -201,12 +209,12 @@ TEST_CASE("Given a channel or a module the board does not have, When any configu
     akm::setFxModuleEnabled(harness.session(), 2, 2, false, harness.recorder().completion());
     REQUIRE(harness.waitForCompletions(3));
     for (const CommandResult& result : harness.recorder().results())
-        requireNotFound(result);
+        requireOutOfRange(result);
 
-    requireNotFound(getMute(harness, 4).outcome);
+    requireOutOfRange(getMute(harness, 4).outcome);
     CHECK_FALSE(getMute(harness, 4).muted.has_value());
-    requireNotFound(getType(harness, 0, 6).outcome);
-    requireNotFound(getEnabled(harness, 3, 2).outcome);
+    requireOutOfRange(getType(harness, 0, 6).outcome);
+    requireOutOfRange(getEnabled(harness, 3, 2).outcome);
     CHECK(getEnabled(harness, 2, 1).enabled == true);
 }
 

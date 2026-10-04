@@ -83,7 +83,7 @@ namespace
         "  xs56k_akm_probe --suite --in <input port> --out <output port> [--device-id N] [--no-lcd]\n"
         "                  [--power-cycle] [--slow-operation] [--program-lifecycle] [--sample-lifecycle]\n"
         "                  [--system-setup] [--disk-tools] [--disk-tools-slow OP] [--front-panel] [--midi-config]\n"
-        "                  [--song-files] [--scenelists] [--multi-lifecycle]\n"
+        "                  [--song-files] [--scenelists] [--multi-lifecycle] [--multi-fx]\n"
         "                  [--sample-name NAME]\n"
         "                  [--timeout-ms N] [--log <file>] [--yes]\n"
         "\n"
@@ -175,6 +175,12 @@ namespace
         "                     first, reads the new name back and puts the name and the selection back, even if a check fails half\n"
         "                     way. Section 14 cannot create one, so it works on what the sampler holds and is skipped when there\n"
         "                     is none. It never deletes.\n"
+        "  --multi-fx         with --suite, two extra checks on the multis' effects (section 12, RQ-AKM-099 to RQ-AKM-102). It\n"
+        "                     creates a test multi (XS56K_MULTI_TEST, and stops without touching anything if a multi already bears\n"
+        "                     it), reads whether an FX board is installed and, with none, logs what the other Gets answer and sends\n"
+        "                     no Set; with an EB20 it changes a channel's mute, a module's state, its type and a parameter on the\n"
+        "                     test multi and puts each back. It then deletes the test multi and selects again the multi that was\n"
+        "                     current, even if a check fails half way.\n"
         "  --multi-lifecycle  with --suite, two extra checks on the multis (section 0C, RQ-AKM-087 to RQ-AKM-093). It creates one\n"
         "                     program and one multi under reserved names (XS56K_SUITE_TEST, XS56K_MULTI_TEST) and stops without\n"
         "                     touching anything if a multi already bears one, round-trips every item of the section on them (part\n"
@@ -292,6 +298,7 @@ namespace
         bool songFiles = false;
         bool sceneLists = false;
         bool multiLifecycle = false;
+        bool multiFx = false;
         bool noLcd = false;
         std::string diskToolsSlow;
         std::string input;
@@ -403,6 +410,8 @@ namespace
                 parsed.sceneLists = true;
             else if (option == "--multi-lifecycle")
                 parsed.multiLifecycle = true;
+            else if (option == "--multi-fx")
+                parsed.multiFx = true;
             else if (option == "--disk-tools-slow")
             {
                 parsed.diskToolsSlow = valueOf(args, index++, parsed);
@@ -446,10 +455,11 @@ namespace
             && (parsed.powerCycle || parsed.slowOperation || parsed.programLifecycle || parsed.sampleLifecycle || parsed.systemSetup
                 || parsed.diskTools || parsed.diskToolsFiles || parsed.diskToolsAudition || !parsed.diskToolsSlow.empty()
                 || parsed.frontPanel || parsed.midiConfig || parsed.songFiles || parsed.sceneLists || parsed.multiLifecycle
+                || parsed.multiFx
                 || !parsed.sampleName.empty()))
             parsed.error = "--power-cycle, --slow-operation, --program-lifecycle, --sample-lifecycle, --system-setup, --disk-tools, "
                            "--disk-tools-files, --disk-tools-audition, --disk-tools-slow, --front-panel, --midi-config, --song-files, "
-                           "--scenelists, --multi-lifecycle and --sample-name need --suite";
+                           "--scenelists, --multi-lifecycle, --multi-fx and --sample-name need --suite";
         if (parsed.error.empty() && parsed.diskToolsFiles && !parsed.diskTools)
             parsed.error = "--disk-tools-files needs --disk-tools";
         if (parsed.error.empty() && parsed.diskToolsAudition && !parsed.diskTools)
@@ -581,6 +591,10 @@ namespace
         if (arguments.songFiles)
             std::cout << "It will also read the sampler's MIDI song files and set lists, select each song file, rename the first\n"
                       << "song file and the first set list and put every name and the selection back. It never deletes anything.\n";
+        if (arguments.multiFx)
+            std::cout << "It will also create a test multi (XS56K_MULTI_TEST), read whether an FX board is installed and, with one,\n"
+                      << "change and put back a few of its effects values on the test multi, then delete the test multi. It never\n"
+                      << "deletes anything else. Without a board it sends nothing but Gets.\n";
         if (arguments.sceneLists)
             std::cout << "It will also read the sampler's scenelists, select each one, rename the first and put the name and the\n"
                       << "selection back. It never deletes anything.\n";
@@ -687,6 +701,7 @@ int main(int argc, char** argv)
         options.midiConfig = arguments.midiConfig;
         options.songFiles = arguments.songFiles;
         options.sceneLists = arguments.sceneLists;
+        options.multiFx = arguments.multiFx;
         options.multiLifecycle = arguments.multiLifecycle;
 #ifdef _WIN32
         if (consoleKeysAvailable())

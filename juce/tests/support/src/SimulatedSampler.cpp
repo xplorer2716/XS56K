@@ -1668,10 +1668,12 @@ namespace akm::harness
         }
 
         // §12 Multi FX (RQ-AKM-099 to RQ-AKM-101): the card, the number of channels and of the modules of a channel, which
-        // describe the hardware and need no multi, then the mute of a channel, the type and the enabled state of a module,
-        // which are the current multi's effects and so need one, as do the parameter values. With no board, the channel count is 0 and a channel has
-        // no modules, so ERROR 04, as it is for a channel or a module the board does not have and for no current multi
-        // (the spec is silent on all three, so this is a modelling choice). [TASK-AKM-101 to TASK-AKM-103]
+        // describe the hardware and need no multi, then the mute of a channel, the type and the enabled state of a module
+        // and the parameters, which are the current multi's effects and so need one. Observed on a real S5000 (OS 2.14,
+        // no board, a test multi current, TASK-AKM-104): the card is 0, the channel count 0, the module count of any
+        // channel 0, and every Get that names a channel and a module answers ERROR 02 (out of range). The model keeps those
+        // answers for a channel or a module the board does not have, and answers ERROR 04 when no multi is current, which
+        // no run has observed. [TASK-AKM-101 to TASK-AKM-104]
         Outcome executeMultiFx(std::uint8_t item, const Bytes& data, FxState& fx, bool multiIsCurrent)
         {
             switch (item)
@@ -1687,13 +1689,13 @@ namespace akm::harness
             const auto channelIndex = reader.readByte();
             if (!channelIndex.has_value())
                 return failure(error_number::INVALID_FORMAT);
-            if (*channelIndex >= fx.channels.size())
-                return failure(error_number::NOT_FOUND);
-            FxChannelRecord& channel = fx.channels[*channelIndex];
             if (item == ITEM_FX_GET_MODULE_COUNT)
-                return reply(Bytes{static_cast<std::uint8_t>(channel.modules.size())});
+                return reply(Bytes{static_cast<std::uint8_t>(*channelIndex < fx.channels.size() ? fx.channels[*channelIndex].modules.size() : 0)});
             if (!multiIsCurrent)
                 return failure(error_number::NOT_FOUND);
+            if (*channelIndex >= fx.channels.size())
+                return failure(error_number::OUT_OF_RANGE);
+            FxChannelRecord& channel = fx.channels[*channelIndex];
             if (item == ITEM_FX_SET_CHANNEL_MUTE)
             {
                 const auto muted = reader.readByte();
@@ -1709,7 +1711,7 @@ namespace akm::harness
             if (!moduleIndex.has_value())
                 return failure(error_number::INVALID_FORMAT);
             if (*moduleIndex >= channel.modules.size())
-                return failure(error_number::NOT_FOUND);
+                return failure(error_number::OUT_OF_RANGE);
             FxModuleRecord& module = channel.modules[*moduleIndex];
             switch (item)
             {
@@ -2681,6 +2683,12 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         _fx.cardCode = code;
+    }
+
+    FxState SimulatedSampler::fxState() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _fx;
     }
 
     void SimulatedSampler::setSceneListNames(std::vector<std::string> names)
