@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   current one, count the song files and read their names, and count, name, rename and delete the set lists by index.
   `xs56k_akm_probe --suite --song-files` reads what the sampler holds, renames the first song file and the first set
   list and puts every name and the selection back; it never deletes anything.
+- AKM: multi primitives (SysEx section 0C): create, select, rename and delete a multi, set the number of parts of new
+  multis, the twelve part parameters (MIDI channel, mute, solo, level, output, pan, effects channel and send, fine tune,
+  transpose, low and high note), the program number, a part's program by index or by name, and every Get of general
+  information; "Delete ALL Multis" needs an explicit confirmation. `xs56k_akm_probe --suite --multi-lifecycle` round-trips all
+  of it on a test multi and a test program it creates and deletes again.
 
 <!--
 Sections to use under each version (only those that apply):

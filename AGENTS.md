@@ -131,6 +131,14 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   off (the first two runs) only `&01` and `&07` showed, so §00/&05 must be on for the sampler's pages to follow SysEx. Not
   observed: the channel code of `&06`/`&07` for port B (1B to 16B, "Port A & B", FTR-AKM-009 open points), the other filter
   event types and the effect on real MIDI input.
+  `--multi-lifecycle` adds two checks on the multis (section 0C, RQ-AKM-093): it creates one program and one multi under
+  the reserved names `XS56K_SUITE_TEST` and `XS56K_MULTI_TEST` (and stops without touching anything if a multi already
+  bears the second), round-trips every item of the section on them (the twelve part parameters, the Gets of general
+  information, the program number, the part assignment by name and by index, the renaming, the selection), then deletes both
+  and selects again the multi that was current, even when a check fails half way. It never sends Delete ALL Multis (`&07`)
+  and never `&01` (the number of parts of new multis, which no item reads back). Observed on an S5000 (OS 2.14) holding no
+  multi, three runs (`process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`); with the owner's own multis in memory the
+  selection of an existing one is the only part not yet run on hardware.
   `--song-files` adds two checks on the sampler's MIDI song files and set lists (section 16, RQ-AKM-085): it reads the number of
   each and every name (16 at most), selects each song file by index and by name, renames the first song file and the
   first set list and reads the new names back, then puts every name and the selection back, even when a check fails

@@ -222,7 +222,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-095: Coverage of section §0C
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `0C`, list any exclusion with its reason, flip
   the section's `complete` flag in `items.json`, and update `SUMMARY-akm-sections-coverage.md`, `AGENTS.md` (the new
   probe option) and `CHANGELOG.md`.
@@ -231,5 +231,13 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-094.
 - **Dependencies**: TASK-AKM-089 to TASK-AKM-094
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: `generate_akm_items.py --coverage` re-run this session after the flag flip: `section 0C: 47 of 47
+  spec rows covered (Multi, complete)`, `unaccounted: none`, exit 0 — no row excluded, nothing left to give a reason for;
+  `--check`: up to date (365 items); the four catalogue `ctest` entries pass after the flip; the full `ctest` was
+  674/674 just before it, with `items.json`'s flag the only change of code since. `items.json`'s section-0C `complete`
+  flipped `false` → `true`, its note closed out. No erratum beyond the two behaviours the spec leaves open and the real
+  S5000 settled (TASK-AKM-094: solo clears mute; `&31` off needs `00 00`), recorded in
+  `OBSERVATIONS-RQ-AKM-093-multi.md`. `SUMMARY-akm-sections-coverage.md`: §0C's bar to 100 %, the total to 530/560
+  (95 %); `AGENTS.md`: `--multi-lifecycle` documented; `CHANGELOG.md`: one `[Unreleased]` entry for the whole lot.
+- **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §20, §04 and
+  §16 before it; `&01` and `&07` were never sent to the real sampler, by design.
