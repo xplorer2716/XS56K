@@ -27,6 +27,7 @@ add_library(xs56k_akm STATIC
     src/SamplerError.cpp
     src/SamplePrimitives.cpp
     src/SceneListPrimitives.cpp
+    src/MultiFxPrimitives.cpp
     src/MultiPrimitives.cpp
     src/SongPrimitives.cpp
     src/Session.cpp

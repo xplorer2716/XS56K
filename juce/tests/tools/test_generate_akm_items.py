@@ -154,8 +154,9 @@ class DataFileIsValidated(ScriptTest):
         self.assert_refused(variant, "SystemGetClock")
 
     def test_given_a_record_in_an_undeclared_section_when_read_then_it_is_refused(self):
-        # Section 04 was the example until TASK-AKM-077 declared it; 12 (Multi FX) is undeclared still.
-        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(section="12"))
+        # Section 04 was the example until TASK-AKM-077 declared it, then 12 (Multi FX) until TASK-AKM-101 did; 2A (the
+        # alternative addressing of a program by index) is a valid section code no catalogue section declares.
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(section="2A"))
 
         self.assert_refused(variant, "SysExQuery")
 

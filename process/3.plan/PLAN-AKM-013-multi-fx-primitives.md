@@ -45,17 +45,32 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-101: FX board and layout discovery, and the section in the simulated sampler
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Catalogue and implement `&01`, `&10`, `&11` as primitives in `MultiFxPrimitives`, and model section
-  `12` in the simulated sampler: the card, the layout of channels and modules (seeded by `setFxLayout`, an EB20 laid out
-  as Figure 2 by default of the tests that want one) and the answers of a sampler with no board.
+  `12` in the simulated sampler: the card, the layout of channels and modules (seeded by `setFxBoard`, with `eb20Layout`
+  for the tests that want an EB20 as Figure 2) and the answers of a sampler with no board.
 - **Requirement refs**: RQ-AKM-099
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-099.
 - **Dependencies**: TASK-AKM-100
 - **Assignee**: AI
-- **Verification**: (to fill at closure)
-- **Assumptions**: (to fill at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 693/693
+  passed after a full re-run in this session (687 before, 6 new in `MultiFxDiscoveryTests.cpp`, written before the
+  code, `ctest -R RQ-AKM-099` 6/6): with an EB20 the card reads `Eb20` (frame section `12`, item `01`, no data), the
+  channel count 4 (item `10`) and the module counts 6, 6, 2, 2 (item `11`, the channel as its one data byte); with no
+  board the card is none and the channel count a REPLY of 0, not a failure; a channel the board lacks fails ERROR 04
+  with no count; channels 128 and -1 are refused `ArgumentOutOfRange` with nothing sent; a card code the layer cannot
+  name (5) is a REPLY with no card. `generate_akm_items.py --check`: up to date (376 items); `--coverage`: `section 12:
+  3 of 11 spec rows covered (Multi FX, partial)`, `unaccounted: none`. `ItemCatalogueTests.cpp`'s count formula
+  extended by the 3 records. Not verified: the real sampler (TASK-AKM-104).
+- **Assumptions**: The spec is silent on what a sampler with no board answers to `&10` and `&11`: the simulated sampler
+  answers a count of 0 and ERROR `04` (a modelling choice, `SimulatedSampler.cpp` `executeMultiFx`), the real answers
+  being for TASK-AKM-104 to observe. The three discovery items need no current multi in the model (they describe the
+  hardware); the items of TASK-AKM-102/103, which act on a multi's effects, will. One board for the whole sampler in the
+  model, not one per multi. A card code other than 0 or 1 is not given as a card (the spec names two). Section `12` was
+  added to `items.json` with `complete: false` until TASK-AKM-105. The Python test that used §12 as its example of an
+  undeclared section now uses `2A`: the expectation (an undeclared section is refused) is unchanged, only the example
+  section was no longer undeclared, as when section 04 was declared.
 
 ---
 

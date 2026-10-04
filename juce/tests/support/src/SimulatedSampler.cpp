@@ -230,6 +230,12 @@ namespace akm::harness
         // codes, so the ITEM_LIST_* codes below serve both.
         constexpr std::uint8_t SECTION_SONG_FILES = 0x16;
         constexpr std::uint8_t SECTION_SCENE_LIST = 0x14;
+
+        // Section §12 (Multi FX), spec Tables 22-23: the discovery Gets of TASK-AKM-101 (RQ-AKM-099).
+        constexpr std::uint8_t SECTION_MULTI_FX = 0x12;
+        constexpr std::uint8_t ITEM_FX_GET_CARD = 0x01;
+        constexpr std::uint8_t ITEM_FX_GET_CHANNEL_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_FX_GET_MODULE_COUNT = 0x11;
         constexpr std::uint8_t ITEM_LIST_SELECT_BY_NAME = 0x05;
         constexpr std::uint8_t ITEM_LIST_SELECT_BY_INDEX = 0x06;
         constexpr std::uint8_t ITEM_LIST_DELETE_CURRENT = 0x08;
@@ -1650,6 +1656,32 @@ namespace akm::harness
             }
         }
 
+        // §12 Multi FX (RQ-AKM-099): the card, the number of channels and of the modules of a channel, which describe
+        // the hardware and need no multi. With no board, the channel count is 0 and a channel has no modules, so ERROR 04
+        // (the spec is silent on a sampler with no board, so this is a modelling choice). [TASK-AKM-101]
+        Outcome executeMultiFx(std::uint8_t item, const Bytes& data, const FxState& fx)
+        {
+            switch (item)
+            {
+                case ITEM_FX_GET_CARD:
+                    return reply(Bytes{fx.cardCode});
+                case ITEM_FX_GET_CHANNEL_COUNT:
+                    return reply(Bytes{static_cast<std::uint8_t>(fx.channels.size())});
+                case ITEM_FX_GET_MODULE_COUNT:
+                {
+                    akm::ByteReader reader(data);
+                    const auto channel = reader.readByte();
+                    if (!channel.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*channel >= fx.channels.size())
+                        return failure(error_number::NOT_FOUND);
+                    return reply(Bytes{static_cast<std::uint8_t>(fx.channels[*channel].modules.size())});
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
         // §02/&32: every program, multi and sample is deleted, and the memory they held is free again — what
         // the Wave memory and MPKS memory Gets then report (the spec says nothing of it; a modelling choice).
         // [RQ-AKM-056]
@@ -2414,6 +2446,7 @@ namespace akm::harness
             MidiConfigState& midiConfig;
             SongState& songs;
             SceneListState& sceneLists;
+            FxState& fx;
         };
 
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerState& state)
@@ -2447,6 +2480,8 @@ namespace akm::harness
                 return executeSongFiles(item, data, state.songs);
             if (section == SECTION_SCENE_LIST)
                 return executeCurrentNamedList(item, data, state.sceneLists.scenes, state.sceneLists.current);
+            if (section == SECTION_MULTI_FX)
+                return executeMultiFx(item, data, state.fx);
             if (section == SECTION_DISK)
                 return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples);
             if (section != SECTION_SYSEX_CONFIG)
@@ -2537,6 +2572,35 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         return _songs.current;
+    }
+
+    FxLayout eb20Layout()
+    {
+        // Module type codes of the spec's Table 24: 01 RingMod/Distortion, 09 EQ, 02 Chorus, 0A Mono Delay, 00 none,
+        // 0F Output Mix; 10 Reverb Input, 0E Reverb.
+        const std::vector<std::uint8_t> modulationAndDelayChannel{0x01, 0x09, 0x02, 0x0A, 0x00, 0x0F};
+        const std::vector<std::uint8_t> reverbChannel{0x10, 0x0E};
+        return {modulationAndDelayChannel, modulationAndDelayChannel, reverbChannel, reverbChannel};
+    }
+
+    void SimulatedSampler::setFxBoard(FxLayout layout)
+    {
+        const std::lock_guard lock(_mutex);
+        _fx.channels.clear();
+        for (const std::vector<std::uint8_t>& moduleTypes : layout)
+        {
+            FxChannelRecord channel;
+            for (const std::uint8_t type : moduleTypes)
+                channel.modules.push_back({type});
+            _fx.channels.push_back(std::move(channel));
+        }
+        _fx.cardCode = _fx.channels.empty() ? 0 : 1;
+    }
+
+    void SimulatedSampler::setFxCardCode(std::uint8_t code)
+    {
+        const std::lock_guard lock(_mutex);
+        _fx.cardCode = code;
     }
 
     void SimulatedSampler::setSceneListNames(std::vector<std::string> names)
@@ -2886,7 +2950,7 @@ namespace akm::harness
         SamplerState state{_settings,      _config.osVersion, _system,      _programs,         _currentProgram,
                            _currentKeygroup, _samples,         _currentSample, _multis,       _disks,
                            _currentDisk,     _currentFolderPath, _frontPanel,  _midiConfig,
-                           _songs,           _sceneLists};
+                           _songs,           _sceneLists,        _fx};
         const Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
                                                                         : execute(section, item, data, state);
         // An item the sampler is deaf to ran, and says nothing, the OK included.

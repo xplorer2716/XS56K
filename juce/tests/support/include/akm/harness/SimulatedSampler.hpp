@@ -437,6 +437,35 @@ namespace akm::harness
         std::optional<std::size_t> current;
     };
 
+    /// One FX module of the simulated board: its type code (spec Table 24). [RQ-AKM-099]
+    struct FxModuleRecord
+    {
+        std::uint8_t type = 0;
+    };
+
+    /// One FX channel of the simulated board. [RQ-AKM-099]
+    struct FxChannelRecord
+    {
+        std::vector<FxModuleRecord> modules;
+    };
+
+    /// The sampler's FX board (§12, spec Tables 22-25): the code §12/&01 answers (0 none, 1 EB20) and the channels of
+    /// modules it has. The model keeps one board for the whole sampler, not one per multi; the effects of a multi are
+    /// the current multi's, so every item that acts on them needs one to be current. [RQ-AKM-099]
+    struct FxState
+    {
+        std::uint8_t cardCode = 0;
+        std::vector<FxChannelRecord> channels;
+    };
+
+    /// The module types of each channel of an FX board, channel by channel. [RQ-AKM-099]
+    using FxLayout = std::vector<std::vector<std::uint8_t>>;
+
+    /// An EB20 laid out as the kb gives the spec's Figure 2 (`sysex_spec.kb.md` lines 157-159): channels 0 and 1 of six
+    /// modules (ring modulator/distortion, EQ, chorus, mono delay, none, output mix), channels 2 and 3 of two (reverb
+    /// input, reverb). A fixture for tests, not a claim about the hardware. [RQ-AKM-099]
+    FxLayout eb20Layout();
+
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
     /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. §00, the two version items of §02
@@ -479,6 +508,13 @@ namespace akm::harness
 
         /// The current song file's index, or nothing when none is current (RQ-AKM-085).
         [[nodiscard]] std::optional<std::size_t> currentSong() const;
+
+        /// Installs an FX board of the given layout (§12), every module at the type the layout gives it; an empty layout
+        /// removes the board. The sampler has none by default, as the owner's has none. [RQ-AKM-099]
+        void setFxBoard(FxLayout layout);
+
+        /// Makes §12/&01 answer `code`, whatever the layout: for a test that wants a REPLY the layer cannot name.
+        void setFxCardCode(std::uint8_t code);
 
         /// Seeds the sampler's scenelists (§14) by name, current selection reset. Empty by default: no §14 item
         /// creates a scenelist. [RQ-AKM-095]
@@ -620,6 +656,8 @@ namespace akm::harness
         SongState _songs;
         // §14 scenelists (RQ-AKM-095), seeded by `setSceneListNames`: not touched by powerCycle().
         SceneListState _sceneLists;
+        // §12 Multi FX (RQ-AKM-099), seeded by `setFxBoard`: not touched by powerCycle().
+        FxState _fx;
         // §0C multis (RQ-AKM-056, RQ-AKM-087): seeded by `setMultiNames` or created through §0C, emptied by
         // §02/&32; not touched by powerCycle().
         MultiState _multis;

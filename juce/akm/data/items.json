@@ -72,6 +72,13 @@
       "note": "FTR-AKM-010 (PLAN-AKM-010), 12 command rows and 6 REPLY formats. Song file selection, renaming, deletion and general information (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084: &05, &06, &08, &09, &10, &11, &13, &14) are catalogued first, the same shape as section 0E's lifecycle: a sampler-wide current song file, an index carried as two Byte values (MSB, LSB) and a name as a String. The four set list items (RQ-AKM-084, TASK-AKM-085: &20, &21, &22, &23) have no current selection: each takes its index, and &23 (Rename) carries the index then a String, a shape built by hand like §10's &2A. `complete` was set by TASK-AKM-087 after `--coverage` reported 12 of 12 spec rows covered with no unaccounted item; the section has no erratum beyond the two cosmetic ones of the kb (Table 29's title, Table 28's sub-group header)."
     },
     {
+      "section": "12",
+      "name": "Multi FX",
+      "complete": false,
+      "spec": "Tables 22 to 25 and Figure 2, pp. 35-38",
+      "note": "FTR-AKM-013 (PLAN-AKM-013), 11 command rows and 7 REPLY formats. The discovery Gets (RQ-AKM-099, TASK-AKM-101: &01 card installed, &10 number of channels, &11 number of modules of a channel) are catalogued first, one byte each way. Effects belong to the current multi: the section's items act on it. `complete` is set by TASK-AKM-105."
+    },
+    {
       "section": "14",
       "name": "Scenelist",
       "complete": true,
@@ -2201,6 +2208,32 @@
         {"name": "name", "format": "string", "min": 0, "max": 255}
       ],
       "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "FxGetCard", "section": "12", "item": "01", "name": "Get FX card installed", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "card", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-099"]
+    },
+    {
+      "id": "FxGetChannelCount", "section": "12", "item": "10", "name": "Get Number of FX channels", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "channelCount", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-099"]
+    },
+    {
+      "id": "FxGetModuleCount", "section": "12", "item": "11", "name": "Get Number of FX modules on given channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "moduleCount", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-099"]
     },
     {
       "id": "SceneListSelectByName", "section": "14", "item": "05", "name": "Select Scenelist by name", "kind": "set",
