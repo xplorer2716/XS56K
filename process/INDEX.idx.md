@@ -271,12 +271,12 @@ TASK-AKM-080|170-198|Done|Coverage of section §04
 TASK-AKM-081|199-230|Done|Correct the MIDI configuration check after its first real-sampler run
 TASK-AKM-082|231-263|Done|Make the screen redraw, and look again, in the MIDI configuration check
 @process/3.plan/PLAN-AKM-010-midi-song-files-primitives.md
-PLAN-AKM-010|1-148||MIDI Song File Primitives (Phase A, new lot, §16)
+PLAN-AKM-010|1-159||MIDI Song File Primitives (Phase A, new lot, §16)
 TASK-AKM-083|32-45|Done|Author FTR-AKM-010 and PLAN-AKM-010
 TASK-AKM-084|46-72|Done|Song file selection, renaming, deletion and general information
 TASK-AKM-085|73-100|Done|Set lists
 TASK-AKM-086|101-135|Done|Real-sampler check of the song files and set lists
-TASK-AKM-087|136-148|Not Started|Coverage of section §16
+TASK-AKM-087|136-159|Done|Coverage of section §16
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

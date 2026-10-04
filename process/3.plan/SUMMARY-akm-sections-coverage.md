@@ -22,10 +22,10 @@
 | §10 | Disk tools | 51 | 100 % | `████████████████████` |
 | §12 | Multi FX | 18 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
 | §14 | Scenelist | 12 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
-| §16 | MIDI song files | 18 | 0 % | `░░░░░░░░░░░░░░░░░░░░` |
+| §16 | MIDI song files | 18 | 100 % | `████████████████████` |
 | §20 | Front panel | 4 | 100 % | `████████████████████` |
 
-452 of 560 spec lines covered overall (81 %); every implemented section's commands are fully catalogued
+470 of 560 spec lines covered overall (84 %); every implemented section's commands are fully catalogued
 (no section is partially done right now — §02 was the last partial one before §10, closed by
 `TASK-AKM-053`/`TASK-AKM-055`). Coverage confirmed by `generate_akm_items.py --coverage`
 (`unaccounted: none`) for §00/§02/§06/§08/§0A/§0E/§10 — §10's own `35 of 35 spec rows covered` reached by
@@ -57,6 +57,13 @@ sampler's screen are its read-back.
 the sampler's screen. The sampler redraws those pages after a SysEx message only while §00/&05 (automatic screen updating)
 is on; with it off, as in the first two runs, only `&01` and `&07` showed. Not observed: the channel code of `&06`/`&07`
 for port B (codes 16-31), the three other filter event types, and the effect on real MIDI input.
+
+§16's own `complete` flag was flipped to `true` by `TASK-AKM-087` (`PLAN-AKM-010`, 2026-10-04), which re-ran `--coverage`
+(12/12, no unaccounted item): twelve command rows (the eight of the song files, the four of the set lists) and six REPLY
+rows, no erratum beyond the two cosmetic ones of the kb. The real S5000 (OS 2.14) answered §16 on 2026-10-04 but held no
+song file and no set list: `--song-files` could read the counts (both 0) and see ERROR 4 for every item naming something,
+nothing more (`process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`). Renaming, selection and the REPLYs of the
+Gets for items that exist have not been run on a real sampler yet.
 
 ### §10 on the real S5000 (2026-10-03)
 

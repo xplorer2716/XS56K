@@ -135,7 +135,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-087: Coverage of section §16
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `generate_akm_items.py --coverage` for section `16`, list any exclusion with its reason,
   flip the section's `complete` flag in `items.json`, and update `SUMMARY-akm-sections-coverage.md`, `AGENTS.md`
   (the new probe option) and `CHANGELOG.md`.
@@ -144,5 +144,16 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the Gherkin criteria of RQ-AKM-086.
 - **Dependencies**: TASK-AKM-084 to TASK-AKM-086
 - **Assignee**: AI
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: `generate_akm_items.py --coverage` re-run this session after the flag flip: `section 16: 12 of 12
+  spec rows covered (MIDI Song Files, complete)`, `unaccounted: none`, exit 0 — no row excluded, nothing left to give a
+  reason for; `--check`: up to date (318 items); the three catalogue `ctest` entries (`akm_item_*`,
+  `akm_public_headers_have_no_juce_include`) pass after the flip; the full `ctest` was 636/636 just before it, with the
+  flag the only change of code since. `items.json`'s section-16 `complete` flipped `false` → `true`, its note closed
+  out. No erratum beyond the two cosmetic ones already in `sysex_spec.kb.md` (lines 192-193: Table 29's title says
+  `§&14{20}`, Table 28's sub-group header is a leftover): both recorded, neither affects the wire.
+  `SUMMARY-akm-sections-coverage.md`: §16's bar to 100 %, the total to 470/560 (84 %) and a note of what the real
+  sampler did and did not show; `AGENTS.md`: `--song-files` documented; `CHANGELOG.md`: one `[Unreleased]` entry for
+  the whole lot.
+- **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §20 and §04
+  before it, not on a real-sampler run that exercised everything: the sampler held no song file or set list (see
+  TASK-AKM-086).
