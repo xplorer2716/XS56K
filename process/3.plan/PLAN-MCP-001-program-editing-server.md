@@ -103,15 +103,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-007: Simulated-sampler twin and the scripted conversation in ctest
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Under `juce/tests`, an executable `xs56k_mcp_server_simulated` that wires the library to the simulated sampler (a program with several keygroups) instead of the JUCE backend, and a `ctest` entry that pipes a scripted JSON-RPC conversation into it (initialize, tools/list, list and select a program, read and set each lot 1 parameter, an out-of-range value, an unknown parameter, the end of input) and compares the answers with the expected file. It lets a person try the server from an MCP client with no sampler.
 - **Requirement refs**: RQ-MCP-012
 - **ADR refs**: ADR-MCP-001 (DEC-MCP-009)
 - **Acceptance Criteria** (Gherkin): *Given* the scripted conversation, *When* it runs in `ctest`, *Then* every answer matches the expected one and the process exits 0. *Given* the shipped `xs56k_mcp_server`, *When* its link line is read, *Then* it does not link the test support library.
 - **Dependencies**: TASK-MCP-006
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: (to be filled at closure)
+- **Verification**: mcp_simulated_server_scripted_conversation passes: xs56k_mcp_server_simulated (the same library and tools over the simulated sampler holding PAD 1 keygroup, BASS 3, LEAD 2, BASS current) answers the 48-line scripted conversation (legacy initialize, a notification, tools/list, get_status, list_programs, select_program, list_parameters, a read of the four groups, all 24 lot 1 parameters set then read back, the four groups read again, an out-of-range value, an unknown parameter, an unknown choice, keygroup 4, an unknown program, a program switch to LEAD, a modern server/discover) with exactly the 47 lines of simulated_session.expected.jsonl, exit 0. I read all 47 answers before saving them as the reference: the 24 sets each read back the value set (including -12 keyboard tracking, 12 dB attenuation, -40 filter envelope depth for keygroup 2 only, TRIANGLE, SQUARE-, LFO 1 sync on, LFO 2 re-trigger off), the errors name the range, propose filter cutoff, list the 26 filter types, give the keygroup count and the missing program. A changed answer (80 to 81 in a copy of the expected file) makes the script fail. The configure-time guard on the link lines of xs56k_mcp_server and xs56k_mcp (no test_support) is in tests/CMakeLists.txt; no test_support in juce/mcp/CMakeLists.txt. Full ctest (Debug, MSVC /W4 /WX): 795 of 795 (794 before, 1 new); xs56k_mcp_tests 78 cases pass after the seeding helper was moved into SimulatedPrograms.hpp.
+- **Assumptions**: The 'shipped server does not link the test support' criterion is a configure-time check (CMake FATAL_ERROR), not a ctest entry: it fails the configure of a tree with BUILD_TESTS on, not a test run. The expected file is a snapshot of the whole output, tool descriptions included: a deliberate change to a description or to an answer's wording means regenerating it (the command is in tests/CMakeLists.txt) and reading the diff. The simulated sampler's initial values (all zero but the cutoffs) are the simulator's, not the real S5000's. The twin uses a fixed version string so that the expected output does not change with VERSION_FULL. The seeding helper shared by the gateway tests, the tools tests and the twin was extracted into tests/mcp/SimulatedPrograms.hpp (the tests' assertions were not changed).
 
 ### TASK-MCP-008: Lot 2 — the rest of the filter, envelope and LFO items
 - **Tier**: M

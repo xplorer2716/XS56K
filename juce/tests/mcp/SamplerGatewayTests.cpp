@@ -28,9 +28,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <utility>
 #include <vector>
 
-#include "HostProbe.hpp"
+#include "SimulatedPrograms.hpp"
 #include "TestBytes.hpp"
-#include "akm/Command.hpp"
 #include "akm/ItemRequest.hpp"
 #include "akm/RealScheduler.hpp"
 #include "akm/harness/SimulatedMidiBackend.hpp"
@@ -48,15 +47,6 @@ using mcp::ParameterValue;
 namespace
 {
     constexpr std::chrono::milliseconds COMMAND_TIMEOUT{300};
-    constexpr std::uint8_t FIRST_USER_REF = 1;
-    constexpr std::uint8_t LAST_USER_REF = 100;
-
-    struct SeededProgram
-    {
-        std::string name;
-        int keygroups = 1;
-        std::vector<int> cutoffs{};  ///< the filter cutoff of each keygroup, when it is to start with one
-    };
 
     /// A simulated sampler on a bus of its own, and the scheduler it is timed by.
     struct Rig
@@ -72,37 +62,15 @@ namespace
         SimulatedSampler* sampler = nullptr;
     };
 
-    /// Loads programs as a real sampler would hold them before the server starts: raw §0A and §08 frames from a host
-    /// of the test's own, checksums off, the program at `current` selected at the end.
-    void seed(Rig& rig, const std::vector<SeededProgram>& programs, std::size_t current)
+    void seed(Rig& rig, const std::vector<mcp::test::SeededProgram>& programs, std::size_t current)
     {
-        akm::test::HostProbe host(rig.backend, rig.backend.inputName(), rig.backend.outputName());
-        std::uint8_t userRef = FIRST_USER_REF;
-        const auto send = [&](const akm::CommandRequest& request) {
-            const akm::EncodeResult frame =
-                akm::encodeCommand(0, akm::test::Bytes{userRef}, request.command, akm::ChecksumMode::Off);
-            host.send(frame.bytes);
-            userRef = userRef >= LAST_USER_REF ? FIRST_USER_REF : static_cast<std::uint8_t>(userRef + 1);
-        };
-        for (const SeededProgram& program : programs)
-        {
-            send(akm::makeStringRequest(akm::ItemId::ProgramCreate, program.name));
-            if (program.keygroups > 1)
-                send(akm::makeRequest(akm::ItemId::ProgramAddKeygroups, {program.keygroups - 1}));
-            for (std::size_t i = 0; i < program.cutoffs.size(); ++i)
-            {
-                send(akm::makeRequest(akm::ItemId::KeygroupSelect, {static_cast<std::int64_t>(i) + 1}));
-                send(akm::makeRequest(akm::ItemId::KeygroupSetFilterCutoff, {program.cutoffs[i]}));
-            }
-        }
-        send(akm::makeRequest(akm::ItemId::ProgramSelectByIndex, {static_cast<std::int64_t>(current) / 128,
-                                                                  static_cast<std::int64_t>(current) % 128}));
+        mcp::test::seedSimulatedPrograms(rig.backend, programs, current);
     }
 
     /// PAD (1 keygroup), BASS (3, cutoffs 30, 60, 90) and LEAD (2); BASS is current.
     void seedThreePrograms(Rig& rig)
     {
-        seed(rig, {{"PAD", 1, {10}}, {"BASS", 3, {30, 60, 90}}, {"LEAD", 2, {50, 70}}}, 1);
+        mcp::test::seedThreePrograms(rig.backend);
     }
 
     mcp::GatewayConfig configFor(const Rig& rig)

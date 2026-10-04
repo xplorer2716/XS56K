@@ -126,6 +126,33 @@ add_test(NAME mcp_server_executable_refuses_a_missing_port
         -DEXPECT_STATUS=2
         "-DERROR_PATTERN=--out is required"
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+# The server wired to the simulated sampler (test tooling, never shipped): the same library, the same tools, three
+# programs in the sampler. A scripted conversation piped into it must give the output in
+# mcp/conversations/simulated_session.expected.jsonl; to regenerate it after a deliberate change, run
+#   xs56k_mcp_server_simulated < mcp/conversations/simulated_session.jsonl > mcp/conversations/simulated_session.expected.jsonl
+# and read the diff. [TASK-MCP-007, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
+add_executable(xs56k_mcp_server_simulated mcp/SimulatedServer.cpp)
+target_include_directories(xs56k_mcp_server_simulated PRIVATE akm mcp)
+target_link_libraries(xs56k_mcp_server_simulated PRIVATE
+    xs56k_mcp
+    xs56k_akm_test_support
+    xs56k::warnings)
+add_test(NAME mcp_simulated_server_scripted_conversation
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
+        -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.jsonl
+        -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
+        -DEXPECT_LINES=47
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+# The shipped server must not link the simulated sampler or anything else of the test support: checked when CMake
+# configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
+get_target_property(shipped_server_libraries xs56k_mcp_server LINK_LIBRARIES)
+get_target_property(shipped_library_libraries xs56k_mcp LINK_LIBRARIES)
+foreach(library IN LISTS shipped_server_libraries shipped_library_libraries)
+    if(library MATCHES "test_support")
+        message(FATAL_ERROR "The shipped MCP server links the test support (${library}): it must not")
+    endif()
+endforeach()
 # The server edits and never creates, renames, deletes or saves. [RQ-MCP-008, ADR-MCP-001 (DEC-MCP-007)]
 add_test(NAME mcp_sources_call_no_destructive_primitive
     COMMAND ${CMAKE_COMMAND}
