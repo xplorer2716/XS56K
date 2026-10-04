@@ -100,7 +100,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-AKM-086: Real-sampler check of the song files and set lists
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add `--song-files` to `xs56k_akm_probe --suite`: a check that reads the counts and names,
   round-trips selection by index and by name, renames the first song file and the first set list and puts every
   name and the selection back, on every exit path; run it on the real sampler.
@@ -110,8 +110,26 @@ This plan implements the tasks in the format specified below.
   on the real sampler.
 - **Dependencies**: TASK-AKM-084, TASK-AKM-085
 - **Assignee**: AI, running the real-sampler check under the owner's standing authorization
-- **Verification**: (filled at closure)
-- **Assumptions**: (filled at closure)
+- **Verification**: Windows/MSVC Debug: clean build (`/W4 /WX`), `ctest --test-dir juce/build -C Debug` 636/636
+  passed after a full re-run in this session (631 before, 5 new in `RealSamplerSuiteTests.cpp`, `ctest -R
+  RQ-AKM-085` 5/5): with song files and set lists seeded (one song file current) both checks pass, every name and the
+  selection are back, and no `&08`/`&22` is sent; with none, both checks are skipped, nothing is renamed or deleted
+  and the empty-memory answers are logged; the check made to fail after a rename has the name and the selection back;
+  a set list alone is renamed and put back with the song file check skipped; without `--song-files` no section 16 item
+  is sent. Real sampler (S5000, OS 2.14), `xs56k_akm_probe --suite --song-files --in "MIDIIN2 (ESI M8U eX)" --out
+  "MIDIOUT15 (ESI M8U eX)"`, run twice this session (`akm-suite-20261004-130744.log`, `-130836.log`): 7 automatic checks
+  passed, the sampler left in the known state; the two checks skipped because the sampler holds no song file and no set
+  list; `&10` and `&20` answered REPLY `00 00`, and `&13`, `&11`, `&21`, `&06`, `&05` answered ERROR 4 with nothing in
+  memory (`process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`). Not verified on hardware: the REPLYs of the
+  Gets for items that exist, selection, renaming and the restoration — the sampler held nothing, and §16 cannot create
+  a song file; the owner is to run `--song-files` again once one is loaded. `AGENTS.md`, `CHANGELOG.md` for TASK-AKM-087.
+- **Assumptions**: Reading the counts is not "nothing sent": a skipped check has read `&10`, `&20` and `&13` to know it is
+  skipped, and (empty memory only) tried the four read and select items above for the observations; RQ-AKM-085's
+  wording was adjusted accordingly. The check renames only a song file or set list whose name it has just read
+  and puts it back; it reads at most 16 names of each kind (`SONG_FILES_NAME_READ_LIMIT`). A selection cannot be cleared:
+  with no song file current before the check, the one the check chose stays current, which the log says. The two checks
+  need nothing from the owner. A real-sampler run holding nothing was accepted as the closure of the harness itself,
+  the same way `--front-panel` was closed on the simulated sampler before its owner run (TASK-AKM-073).
 
 ---
 

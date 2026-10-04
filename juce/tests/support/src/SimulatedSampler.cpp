@@ -2180,6 +2180,19 @@ namespace akm::harness
         _songs.current.reset();
     }
 
+    void SimulatedSampler::setCurrentSong(std::size_t index)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index < _songs.songs.size())
+            _songs.current = index;
+    }
+
+    std::optional<std::size_t> SimulatedSampler::currentSong() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _songs.current;
+    }
+
     void SimulatedSampler::setSetListNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);

@@ -1715,3 +1715,117 @@ TEST_CASE("Given a run that must leave the LCD settings alone, When the suite ru
     for (const bool on : owner.autoScreenUpdateAtLook)
         CHECK_FALSE(on);
 }
+
+namespace
+{
+    constexpr std::size_t SONG_FILES_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_SONG_FILES = 0x16;
+    constexpr std::uint8_t ITEM_DELETE_CURRENT_SONG = 0x08;
+    constexpr std::uint8_t ITEM_RENAME_CURRENT_SONG = 0x09;
+    constexpr std::uint8_t ITEM_RENAME_SET_LIST = 0x23;
+    constexpr std::uint8_t ITEM_DELETE_SET_LIST = 0x22;
+
+    // A sampler that holds song files and set lists, one of the song files being the current one, as an owner's would.
+    void seedSongFiles(SimulatedSampler& sampler)
+    {
+        sampler.setSongNames({"VERSE", "CHORUS", "BRIDGE"});
+        sampler.setCurrentSong(1);
+        sampler.setSetListNames({"GIG A", "GIG B"});
+    }
+}
+
+TEST_CASE("Given a sampler holding song files and set lists, When the suite runs with the song files checks, Then every read and selection agrees, the names and the selection are put back, and nothing is deleted [TASK-AKM-086, RQ-AKM-082, RQ-AKM-083, RQ-AKM-084, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    seedSongFiles(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    checkAllPassed(result);
+    const std::string& detail = reportOf(result, "read the song files and set lists").detail;
+    CHECK_THAT(detail, ContainsSubstring("3 song file(s)"));
+    CHECK_THAT(detail, ContainsSubstring("2 set list(s)"));
+    CHECK_THAT(log.str(), ContainsSubstring("the set lists are back to what they were"));
+    CHECK(rig.sampler.songNames() == std::vector<std::string>{"VERSE", "CHORUS", "BRIDGE"});
+    CHECK(rig.sampler.setListNames() == std::vector<std::string>{"GIG A", "GIG B"});
+    CHECK(rig.sampler.currentSong() == std::optional<std::size_t>{1});
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SONG_FILES
+                     && (command.item == ITEM_DELETE_CURRENT_SONG || command.item == ITEM_DELETE_SET_LIST)));
+}
+
+TEST_CASE("Given a sampler that holds no song file and no set list, When the suite runs with the song files checks, Then both checks are skipped, nothing is renamed or deleted, and what the sampler answers to a read or a selection of nothing is logged [TASK-AKM-086, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    CHECK(reportOf(result, "read the song files and set lists").outcome == CheckOutcome::Skipped);
+    CHECK(reportOf(result, "song files check that fails half way").outcome == CheckOutcome::Skipped);
+    CHECK(result.knownStateRestored);
+    CHECK_THAT(log.str(), ContainsSubstring("select song file 0, none held"));
+    for (const auto& command : rig.sampler.acceptedCommands())
+        if (command.section == SECTION_SONG_FILES)
+            CHECK_FALSE((command.item == ITEM_DELETE_CURRENT_SONG || command.item == ITEM_RENAME_CURRENT_SONG
+                         || command.item == ITEM_DELETE_SET_LIST || command.item == ITEM_RENAME_SET_LIST));
+}
+
+TEST_CASE("Given a check made to fail after a song file was renamed, When the suite runs with the song files checks, Then the song file has its name back and the selection is the one found [TASK-AKM-086, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    seedSongFiles(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    CHECK(reportOf(result, "song files check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with a song file renamed"));
+    CHECK(rig.sampler.songNames().front() == "VERSE");
+    CHECK(rig.sampler.currentSong() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given a sampler with a set list but no song file, When the suite runs with the song files checks, Then the set list is renamed and put back and the song file check is skipped [TASK-AKM-086, RQ-AKM-084, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    rig.sampler.setSetListNames({"ONLY SET"});
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    CHECK(reportOf(result, "read the song files and set lists").outcome == CheckOutcome::Passed);
+    CHECK(reportOf(result, "song files check that fails half way").outcome == CheckOutcome::Skipped);
+    CHECK(rig.sampler.setListNames() == std::vector<std::string>{"ONLY SET"});
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 16 item is sent [TASK-AKM-086, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    seedSongFiles(rig.sampler);
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_SONG_FILES);
+}

@@ -44,6 +44,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/MidiConfig.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
+#include "akm/SongPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
 #include "akm/SystemSetup.hpp"
 #include "akm/ZonePrimitives.hpp"
@@ -830,6 +831,184 @@ namespace akm::harness
             SystemSetupSnapshot _original;
         };
 
+        // The name the check gives a song file or a set list for the length of a round trip: inside the 20 characters
+        // the other names allow, and nothing an owner would keep. [RQ-AKM-085]
+        constexpr std::string_view TEST_SONG_FILES_NAME = "XS56K TEST";
+
+        // How many names of each kind the check reads: a sampler may hold far more than a log needs to show.
+        // [RQ-AKM-085]
+        constexpr int SONG_FILES_NAME_READ_LIMIT = 16;
+
+        // What the sampler holds in section 16, as read before a check changes anything: the two counts, the first names
+        // of each kind and the current song file. `currentProblem` says why no song file is current (the sampler answers an
+        // ERROR when none is). [RQ-AKM-083, RQ-AKM-084, RQ-AKM-085]
+        struct SongFilesSnapshot
+        {
+            int songCount = 0;
+            int setListCount = 0;
+            std::vector<std::string> songNames;
+            std::vector<std::string> setListNames;
+            std::optional<int> currentSong{};
+            std::string currentProblem;
+        };
+
+        std::string songFilesText(const SongFilesSnapshot& snapshot)
+        {
+            const auto list = [](const std::vector<std::string>& names) {
+                std::string text;
+                for (const std::string& name : names)
+                    text += (text.empty() ? "\"" : ", \"") + name + "\"";
+                return text.empty() ? std::string("none") : text;
+            };
+            return std::to_string(snapshot.songCount) + " song file(s): " + list(snapshot.songNames) + "; "
+                   + std::to_string(snapshot.setListCount) + " set list(s): " + list(snapshot.setListNames) + "; current song file "
+                   + (snapshot.currentSong ? std::to_string(*snapshot.currentSong) : "none (" + snapshot.currentProblem + ")");
+        }
+
+        // Reads the counts, the first names and the current song file. It changes nothing; `problem` says which read failed.
+        // [RQ-AKM-083, RQ-AKM-084]
+        std::optional<SongFilesSnapshot> readSongFiles(Rig& rig, Session& session, std::string& problem)
+        {
+            SongFilesSnapshot snapshot;
+            const auto songs = awaitCompletion<SongCountResult>(
+                rig.driver, rig.commandPatience(), [&session](SongCountCompletion done) { getSongCount(session, std::move(done)); });
+            if (!songs || !songs->result.count)
+            {
+                problem = "could not read the number of song files (&10): " + (songs ? outcomeText(songs->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.songCount = *songs->result.count;
+
+            const auto setLists = awaitCompletion<SetListCountResult>(
+                rig.driver, rig.commandPatience(), [&session](SetListCountCompletion done) { getSetListCount(session, std::move(done)); });
+            if (!setLists || !setLists->result.count)
+            {
+                problem = "could not read the number of set lists (&20): " + (setLists ? outcomeText(setLists->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.setListCount = *setLists->result.count;
+
+            for (int index = 0; index < std::min(snapshot.songCount, SONG_FILES_NAME_READ_LIMIT); ++index)
+            {
+                const auto name = awaitCompletion<SongNameResult>(rig.driver, rig.commandPatience(), [&session, index](SongNameCompletion done) {
+                    getSongNameByIndex(session, index, std::move(done));
+                });
+                if (!name || !name->result.name)
+                {
+                    problem = "could not read the name of song file " + std::to_string(index) + " (&11): "
+                              + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                    return std::nullopt;
+                }
+                snapshot.songNames.push_back(*name->result.name);
+            }
+            for (int index = 0; index < std::min(snapshot.setListCount, SONG_FILES_NAME_READ_LIMIT); ++index)
+            {
+                const auto name = awaitCompletion<SetListNameResult>(rig.driver, rig.commandPatience(), [&session, index](SetListNameCompletion done) {
+                    getSetListNameByIndex(session, index, std::move(done));
+                });
+                if (!name || !name->result.name)
+                {
+                    problem = "could not read the name of set list " + std::to_string(index) + " (&21): "
+                              + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                    return std::nullopt;
+                }
+                snapshot.setListNames.push_back(*name->result.name);
+            }
+
+            const auto current = awaitCompletion<SongIndexResult>(
+                rig.driver, rig.commandPatience(), [&session](SongIndexCompletion done) { getCurrentSongIndex(session, std::move(done)); });
+            if (!current)
+            {
+                problem = "could not read the current song file's index (&13): no completion";
+                return std::nullopt;
+            }
+            if (current->result.index)
+                snapshot.currentSong = *current->result.index;
+            else
+                snapshot.currentProblem = outcomeText(current->result.outcome);
+            return snapshot;
+        }
+
+        // Wraps the sampler's song files and set lists for the life of one check (RQ-AKM-085): the check says which name it
+        // is about to change, before it changes it, and on destruction, even when the check throws half way, the guard puts
+        // each such name back and selects again the song file that was current. Logged, best effort, nothing let out of the
+        // destructor, mirroring GuardedSystemSetup. It never sends a deletion: nothing in this class can, there is no method
+        // that does. A sampler that had no song file current cannot be put back to that: the selection has no "none".
+        class GuardedSongFiles
+        {
+        public:
+            GuardedSongFiles(Rig& rig, Session& session, SongFilesSnapshot original)
+                : _rig(rig), _session(session), _original(std::move(original))
+            {
+            }
+
+            ~GuardedSongFiles()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the song files guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedSongFiles(const GuardedSongFiles&) = delete;
+            GuardedSongFiles& operator=(const GuardedSongFiles&) = delete;
+
+            /// To call before the rename of song file `index` is sent: its name is put back whatever happens next.
+            void noteSongRenamed(int index) { _renamedSong = index; }
+            /// To call before the rename of set list `index` is sent.
+            void noteSetListRenamed(int index) { _renamedSetList = index; }
+
+        private:
+            template <typename Launch>
+            void restoreStep(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  restore " + title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+            }
+
+            void restore()
+            {
+                if (_renamedSetList)
+                {
+                    const int index = *_renamedSetList;
+                    const std::string name = _original.setListNames.at(static_cast<std::size_t>(index));
+                    restoreStep("the name of set list " + std::to_string(index) + " (\"" + name + "\")",
+                                [this, index, &name](CommandCompletion done) { renameSetList(_session, index, name, std::move(done)); });
+                }
+                if (_renamedSong)
+                {
+                    const int index = *_renamedSong;
+                    const std::string name = _original.songNames.at(static_cast<std::size_t>(index));
+                    restoreStep("the selection of song file " + std::to_string(index),
+                                [this, index](CommandCompletion done) { selectSongByIndex(_session, index, std::move(done)); });
+                    restoreStep("the name of song file " + std::to_string(index) + " (\"" + name + "\")",
+                                [this, &name](CommandCompletion done) { renameCurrentSong(_session, name, std::move(done)); });
+                }
+                if (_original.currentSong)
+                {
+                    const int index = *_original.currentSong;
+                    restoreStep("the current song file (" + std::to_string(index) + ")",
+                                [this, index](CommandCompletion done) { selectSongByIndex(_session, index, std::move(done)); });
+                }
+                else if (_renamedSong)
+                {
+                    _rig.log.note("  no song file was current before the check, and a selection cannot be cleared: song file "
+                                  + std::to_string(*_renamedSong) + " stays current");
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            SongFilesSnapshot _original;
+            std::optional<int> _renamedSong{};
+            std::optional<int> _renamedSetList{};
+        };
+
         // What the owner says the sampler's MIDI setup holds, in terms of the sampler's own MIDI SETUP and MIDI FILTER
         // pages (RQ-AKM-080). Section 04 has no Get, so this declaration is the only source of the values to put back.
         // `filterEvent` and `filterChannel` name the one filter the check exercises, `filterAllows` what it does now.
@@ -1170,6 +1349,14 @@ namespace akm::harness
                           &Suite::midiConfigRoundTrips);
                     check("a MIDI setup check that fails half way and still puts back what it changed",
                           &Suite::failedMidiConfigCheckPutsBack);
+                }
+                if (_rig.options.songFiles)
+                {
+                    check("read the song files and set lists, select each song file by index and by name, rename the first of each "
+                          "and put every name and the selection back",
+                          &Suite::songFilesRoundTrips);
+                    check("a song files check that fails half way and still puts back what it changed",
+                          &Suite::failedSongFilesCheckPutsBack);
                 }
             }
 
@@ -3221,6 +3408,226 @@ namespace akm::harness
                 closeAndVerify(guarded);
                 if (!notSeen.empty())
                     throw CheckFailure("not met: the owner did not see on the sampler: " + notSeen.front());
+            }
+
+            // RQ-AKM-082, RQ-AKM-083, RQ-AKM-084, RQ-AKM-085: reads the song files and the set lists, selects each song file
+            // by index and by name, renames the first song file and the first set list and reads the new names back, each
+            // under the guard that puts them back (and selects again the song file that was current), and verifies, once the
+            // guard is gone, that every name and the selection are what they were. Nothing is deleted. Skipped when the
+            // sampler holds neither a song file nor a set list: §16 cannot create one.
+            void songFilesRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSongFiles(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("song files before: " + songFilesText(*before));
+                if (before->songCount == 0 && before->setListCount == 0)
+                {
+                    observeEmptySongFiles(guarded);
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no song file and no set list: §16 cannot create one, so there is nothing to select or rename");
+                }
+                {
+                    GuardedSongFiles guard(_rig, guarded.session(), *before);
+                    if (before->songCount > 0)
+                        songFileRoundTrips(guarded, *before, guard);
+                    if (before->setListCount > 0)
+                        setListRoundTrips(guarded, *before, guard);
+                }
+                expectSongFilesRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-085: a check that fails with a song file renamed still puts its name back, and the selection, and
+            // leaves nothing changed. Skipped when the sampler holds no song file.
+            void failedSongFilesCheckPutsBack()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSongFiles(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                if (before->songCount == 0)
+                {
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no song file to rename");
+                }
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedSongFiles guard(_rig, guarded.session(), *before);
+                    expectCommand(guarded, "select song file 0", [](Session& session, CommandCompletion done) {
+                        selectSongByIndex(session, 0, std::move(done));
+                    });
+                    guard.noteSongRenamed(0);
+                    expectCommand(guarded, "rename the current song file", [](Session& session, CommandCompletion done) {
+                        renameCurrentSong(session, TEST_SONG_FILES_NAME, std::move(done));
+                    });
+                    throw CheckFailure("this check fails on purpose, with a song file renamed");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectSongFilesRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            [[nodiscard]] int firstIndexNamed(const std::vector<std::string>& names, const std::string& name) const
+            {
+                return static_cast<int>(std::find(names.begin(), names.end(), name) - names.begin());
+            }
+
+            int currentSongIndexOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SongIndexResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SongIndexCompletion done) { getCurrentSongIndex(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.index)
+                    throw CheckFailure("could not read the current song file's index (&13): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.index;
+            }
+
+            std::string currentSongNameOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SongNameResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SongNameCompletion done) { getCurrentSongName(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the current song file's name (&14): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            std::string songNameAt(GuardedSession& guarded, int index)
+            {
+                const auto timed = awaitCompletion<SongNameResult>(_rig.driver, _rig.commandPatience(), [&guarded, index](SongNameCompletion done) {
+                    getSongNameByIndex(guarded.session(), index, std::move(done));
+                });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the name of song file " + std::to_string(index) + " (&11): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            std::string setListNameAt(GuardedSession& guarded, int index)
+            {
+                const auto timed = awaitCompletion<SetListNameResult>(_rig.driver, _rig.commandPatience(), [&guarded, index](SetListNameCompletion done) {
+                    getSetListNameByIndex(guarded.session(), index, std::move(done));
+                });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the name of set list " + std::to_string(index) + " (&21): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            // What the sampler answers for an index one past the last: an observation (the spec says nothing of it), never a failure.
+            template <typename Launch>
+            void observeIndexPastTheEnd(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                finding(title + ": " + (timed ? outcomeText(timed->result) : std::string("no completion")));
+            }
+
+            // What an empty sampler answers to the read and select items that name something: observations for the open
+            // points of FTR-AKM-010, none of them a failure. Nothing is renamed or deleted, and a selection that finds nothing
+            // changes nothing. [RQ-AKM-085]
+            void observeEmptySongFiles(GuardedSession& guarded)
+            {
+                observeIndexPastTheEnd("read the name of song file 0, none held", [&guarded](CommandCompletion done) {
+                    getSongNameByIndex(guarded.session(), 0, [done = std::move(done)](const SongNameResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the name of set list 0, none held", [&guarded](CommandCompletion done) {
+                    getSetListNameByIndex(guarded.session(), 0, [done = std::move(done)](const SetListNameResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("select song file 0, none held", [&guarded](CommandCompletion done) {
+                    selectSongByIndex(guarded.session(), 0, std::move(done));
+                });
+                observeIndexPastTheEnd("select the song file named \"" + std::string(TEST_SONG_FILES_NAME) + "\", none held",
+                                       [&guarded](CommandCompletion done) { selectSongByName(guarded.session(), TEST_SONG_FILES_NAME, std::move(done)); });
+            }
+
+            void songFileRoundTrips(GuardedSession& guarded, const SongFilesSnapshot& before, GuardedSongFiles& guard)
+            {
+                const std::string first = before.songNames.front();
+                expectCommand(guarded, "select song file 0 by index", [](Session& session, CommandCompletion done) {
+                    selectSongByIndex(session, 0, std::move(done));
+                });
+                expect(currentSongIndexOf(guarded) == 0, "the current song file's index reads 0 after selecting index 0");
+                expect(currentSongNameOf(guarded) == first, "the current song file's name reads \"" + first + "\", the name &11 gave for index 0");
+
+                expectCommand(guarded, "select the song file named \"" + first + "\"", [first](Session& session, CommandCompletion done) {
+                    selectSongByName(session, first, std::move(done));
+                });
+                const int expectedIndex = firstIndexNamed(before.songNames, first);
+                expect(currentSongIndexOf(guarded) == expectedIndex,
+                       "the current song file's index reads " + std::to_string(expectedIndex) + " after selecting it by name");
+
+                if (before.songCount > 1)
+                {
+                    const int last = std::min(before.songCount, SONG_FILES_NAME_READ_LIMIT) - 1;
+                    expectCommand(guarded, "select song file " + std::to_string(last) + " by index", [last](Session& session, CommandCompletion done) {
+                        selectSongByIndex(session, last, std::move(done));
+                    });
+                    expect(currentSongIndexOf(guarded) == last, "the current song file's index reads " + std::to_string(last));
+                    expect(currentSongNameOf(guarded) == before.songNames[static_cast<std::size_t>(last)],
+                           "its name reads \"" + before.songNames[static_cast<std::size_t>(last)] + "\"");
+                }
+
+                const int pastTheEnd = before.songCount;
+                observeIndexPastTheEnd("select song file " + std::to_string(pastTheEnd) + ", past the last",
+                                       [&guarded, pastTheEnd](CommandCompletion done) { selectSongByIndex(guarded.session(), pastTheEnd, std::move(done)); });
+
+                expectCommand(guarded, "select song file 0 again", [](Session& session, CommandCompletion done) {
+                    selectSongByIndex(session, 0, std::move(done));
+                });
+                guard.noteSongRenamed(0);
+                expectCommand(guarded, "rename the current song file to \"" + std::string(TEST_SONG_FILES_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { renameCurrentSong(session, TEST_SONG_FILES_NAME, std::move(done)); });
+                expect(currentSongNameOf(guarded) == TEST_SONG_FILES_NAME, "the current song file's name reads the new name");
+                expect(songNameAt(guarded, 0) == TEST_SONG_FILES_NAME, "the name of song file 0 reads the new name");
+            }
+
+            void setListRoundTrips(GuardedSession& guarded, const SongFilesSnapshot& before, GuardedSongFiles& guard)
+            {
+                expect(setListNameAt(guarded, 0) == before.setListNames.front(),
+                       "the name of set list 0 reads \"" + before.setListNames.front() + "\" again");
+                const int pastTheEnd = before.setListCount;
+                observeIndexPastTheEnd("read the name of set list " + std::to_string(pastTheEnd) + ", past the last",
+                                       [&guarded, pastTheEnd](CommandCompletion done) {
+                                           getSetListNameByIndex(guarded.session(), pastTheEnd, [done = std::move(done)](const SetListNameResult& result) { done(result.outcome); });
+                                       });
+                guard.noteSetListRenamed(0);
+                expectCommand(guarded, "rename set list 0 to \"" + std::string(TEST_SONG_FILES_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { renameSetList(session, 0, TEST_SONG_FILES_NAME, std::move(done)); });
+                expect(setListNameAt(guarded, 0) == TEST_SONG_FILES_NAME, "the name of set list 0 reads the new name");
+            }
+
+            void expectSongFilesRestored(GuardedSession& guarded, const SongFilesSnapshot& before)
+            {
+                std::string problem;
+                const auto after = readSongFiles(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the song files back to verify they were restored: " + problem);
+                expect(after->songCount == before.songCount && after->songNames == before.songNames,
+                       "the song files are back to what they were (" + songFilesText(*after) + ")");
+                expect(after->setListCount == before.setListCount && after->setListNames == before.setListNames,
+                       "the set lists are back to what they were");
+                if (before.currentSong)
+                    expect(after->currentSong == before.currentSong,
+                           "the current song file is back to " + std::to_string(*before.currentSong));
+                else
+                    finding("no song file was current before the check, so the selection is left on the one the check chose");
             }
 
             // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory

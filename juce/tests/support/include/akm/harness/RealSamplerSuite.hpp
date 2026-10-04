@@ -114,6 +114,13 @@ namespace akm::harness
         /// stored MIDI setup for an instant. Needs `askOwner`, `askOwnerChoice` and `askOwnerNumber`, and is skipped without
         /// one of them or when the owner declines.
         bool midiConfig = false;
+        /// The optional checks of the MIDI song files and set lists (§16, RQ-AKM-085): read the number of song files and of
+        /// set lists and the name of each, select each song file by index and by name, rename the first song file and the
+        /// first set list and read the new name back, then put back every name and the selection found, even when a check
+        /// fails half way. §16 cannot create a song file or a set list, so the check works on what the sampler holds, never
+        /// sends a deletion, and is skipped when the sampler holds neither. Off by default: it renames the owner's items for
+        /// an instant, which only matters if the run is interrupted. Needs nothing from the owner.
+        bool songFiles = false;
         /// Returns the next PC key the owner presses (`pc_key` codes of `FrontPanelRemote.hpp`), waiting for it, or nothing
         /// when the owner's input has ended. `textMode` says whether the check is in its text mode: there the reader reports
         /// the character typed; in the normal mode it reports the number row's keys as the digits printed on them wherever

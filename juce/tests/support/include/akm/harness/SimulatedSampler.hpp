@@ -441,6 +441,13 @@ namespace akm::harness
         /// The names of the song files the sampler holds now, in memory order (RQ-AKM-082).
         [[nodiscard]] std::vector<std::string> songNames() const;
 
+        /// Makes the song file at `index` current, as &06 would; a no-op when `index` names none (RQ-AKM-085: the
+        /// real-sampler check puts back the selection it found).
+        void setCurrentSong(std::size_t index);
+
+        /// The current song file's index, or nothing when none is current (RQ-AKM-085).
+        [[nodiscard]] std::optional<std::size_t> currentSong() const;
+
         /// Seeds the sampler's set lists (§16/&20-&23) by name; no §16 item creates one. [RQ-AKM-084]
         void setSetListNames(std::vector<std::string> names);
 
