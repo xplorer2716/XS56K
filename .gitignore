@@ -75,3 +75,5 @@ Testing/
 .grepai/
 # Python bytecode of the tools' unit tests (juce/tests/tools)
 __pycache__/
+.mcp.json
+.claude/settings.json

@@ -11,7 +11,9 @@
       "PowerShell(Set-Location C:\\\\dev\\\\repos\\\\xplorer2716\\\\public\\\\XS56K; powershell -NoProfile -File .github/skills/agnos-index/scripts/build-index.ps1; \"exit=$LASTEXITCODE\"; Select-String -Path process\\\\INDEX.idx.md -Pattern '\\(xpl|Xpl|XPL\\)\\(_|::|[A-Z]\\)|\\\\b\\(xpl|Xpl|XPL\\)\\\\b' | ForEach-Object { $_.LineNumber.ToString\\(\\) + \": \" + $_.Line.Substring\\(0, [Math]::Min\\(90, $_.Line.Length\\)\\) })",
       "PowerShell(Set-Location C:\\\\dev\\\\repos\\\\xplorer2716\\\\public\\\\XS56K; Remove-Item -Recurse -Force juce\\\\build-verify-rename; Test-Path juce\\\\build-verify-rename; git ls-files -co --exclude-standard | Where-Object { $_ -notmatch '^documents/' } | ForEach-Object { Select-String -Path $_ -Pattern '\\(xpl|Xpl|XPL\\)\\(_|::|[A-Z]\\)|\\\\b\\(xpl|Xpl|XPL\\)\\\\b' -CaseSensitive -List } | ForEach-Object { $_.Path.Replace\\(\\(Get-Location\\).Path + '\\\\',''\\) })",
       "PowerShell(Set-Location C:\\\\dev\\\\repos\\\\xplorer2716\\\\public\\\\XS56K; powershell -NoProfile -File .github/skills/agnos-index/scripts/build-index.ps1; \"exit=$LASTEXITCODE\"; git status --short)",
-      "PowerShell(Set-Location C:\\\\dev\\\\repos\\\\xplorer2716\\\\public\\\\XS56K; powershell -NoProfile -File .github/skills/agnos-git-workflow/scripts/validate-ids.ps1 -Type TRI -Value AKM; \"validate exit=$LASTEXITCODE\"; git show-ref --quiet refs/heads/feature/AKM; \"exists exit=$LASTEXITCODE\")"
+      "PowerShell(Set-Location C:\\\\dev\\\\repos\\\\xplorer2716\\\\public\\\\XS56K; powershell -NoProfile -File .github/skills/agnos-git-workflow/scripts/validate-ids.ps1 -Type TRI -Value AKM; \"validate exit=$LASTEXITCODE\"; git show-ref --quiet refs/heads/feature/AKM; \"exists exit=$LASTEXITCODE\")",
+      "mcp__xs56k__get_status",
+      "mcp__xs56k__set_parameter"
     ]
   }
 }
