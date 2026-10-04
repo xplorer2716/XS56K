@@ -1,0 +1,138 @@
+# PLAN-MCP-001: MCP Server for Program Editing (proof of concept)
+
+## Overview
+
+Implements `FTR-MCP-001`: an MCP server in `juce/mcp` that exposes the AKM layer to an MCP client, limited to the editing
+of a program (filter, amplitude envelope, filter envelope, the two LFOs) in the musician's vocabulary. The work is cut
+bottom-up along the four units of `ADR-MCP-001` (protocol, parameter catalogue, sampler gateway, tools), then the
+executable, a simulated-sampler twin of it for `ctest` and for trying it without a sampler, the second lot of parameters,
+and the owner's run on the real S5000.
+
+**Safety note.** The server only edits the current program in the sampler's memory (`RQ-MCP-008`): it has no tool that
+creates, renames, deletes or saves. Every `ctest` run is against the simulated sampler. The real run (`TASK-MCP-009`) is
+the owner's, on a scratch program the owner prepares, and puts every value back.
+
+## References
+- **Requirements**: RQ-MCP-001 to RQ-MCP-012 (`FTR-MCP-001`)
+- **ADRs**: ADR-MCP-001 (Proposed): DEC-MCP-001 to DEC-MCP-009; ADR-AKM-001 (Accepted): DEC-AKM-001, DEC-AKM-002,
+  DEC-AKM-003, DEC-AKM-004, DEC-AKM-010, DEC-AKM-012.
+
+The plan has 9 tasks (TASK-MCP-001 to TASK-MCP-009). 001 authors the artifacts; 002 builds the module, the JSON dependency
+and the protocol; 003 the parameter catalogue of lot 1 (independent of 002); 004 the sampler gateway (after 003); 005 the
+six tools (after 002 to 004); 006 the executable (after 005); 007 the simulated twin and the scripted conversation (after
+006); 008 lot 2 of the catalogue (after 005); 009 the real-sampler run and the documentation (after 007; after 008 if it is
+done). Tier L for 002 (new module, new third-party dependency, new public API), M for the others, S for 001.
+
+This plan implements the tasks in the format specified below.
+
+---
+
+## Tasks
+
+### TASK-MCP-001: Author FTR-MCP-001, ADR-MCP-001 and PLAN-MCP-001
+- **Tier**: S
+- **Status**: Done
+- **Description**: Write the feature file, the architecture decision record and this plan for the MCP server, from the owner's brief (scope, `juce/mcp`, ports as configuration, musician's vocabulary, nlohmann/json) and the AKM sources.
+- **Requirement refs**: RQ-MCP-001 to RQ-MCP-012
+- **ADR refs**: ADR-MCP-001
+- **Acceptance Criteria** (Gherkin): *Given* the owner's brief, *When* the artifacts are read, *Then* each requirement has Gherkin criteria, each decision of the ADR is a `DEC-MCP-` heading, and every task below names its requirements.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: N/A (Tier S)
+- **Assumptions**: None
+
+### TASK-MCP-002: Module skeleton, nlohmann/json and the protocol (JSON-RPC lines, initialize, ping, tools/list, tools/call dispatch)
+- **Tier**: L
+- **Status**: Not Started
+- **Description**: Add `juce/mcp` (library `xs56k_mcp`), fetch nlohmann/json pinned by version and hash, and deliver the protocol unit on `std::istream`/`std::ostream`: one JSON message per line, `initialize` with revision negotiation, `notifications/initialized`, `ping`, `tools/list`, `tools/call` routed to registered tools, the JSON-RPC errors (-32700, -32600, -32601, -32602), a tool result with `isError`. First, read the MCP specification text and pin the supported revisions as a named constant.
+- **Requirement refs**: RQ-MCP-001, RQ-MCP-009, RQ-MCP-011
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-001, DEC-MCP-002)
+- **Acceptance Criteria** (Gherkin): *Given* a server on string streams, *When* `initialize` carries a supported revision, *Then* the answer carries it, the `tools` capability and the server name, and nothing else is written. *Given* an unknown revision, *When* `initialize` is sent, *Then* the answer carries the latest supported one. *Given* a line that is not JSON, *When* read, *Then* the answer is -32700 and the next line is still served. *Given* an unknown method, *Then* -32601. *Given* a registered fake tool, *When* `tools/list` then `tools/call` run, *Then* the tool is listed with its schema and annotations and the call returns its result. *Given* a call to a tool that is not registered, *Then* the error is -32602. *Given* the public headers of `juce/mcp`, *When* compiled with no JUCE include path, *Then* they compile. *Given* a CI configure, *When* it runs, *Then* nlohmann/json is fetched from the pinned archive and the build is warning-clean.
+- **Dependencies**: TASK-MCP-001 (and the owner's acceptance of ADR-MCP-001)
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
+
+### TASK-MCP-003: Parameter catalogue, lot 1 (24 parameters), name and value resolution
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Deliver the table of musician-named parameters for the filter (type, cutoff, resonance, keyboard tracking, attenuation), the amplitude envelope (attack, decay, sustain, release), the filter envelope (attack, decay, sustain, release, depth) and the LFOs 1 and 2 (rate, delay, depth, waveform, and sync for LFO 1 or re-trigger for LFO 2), with their value kinds, labels, ranges and aliases; the tolerant resolution of a name and of a choice label or code; the conversion of a signed value to and from the sign and magnitude pair; and the suggestions for an unknown name.
+- **Requirement refs**: RQ-MCP-004, RQ-MCP-005, RQ-MCP-006, RQ-MCP-011
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-005)
+- **Acceptance Criteria** (Gherkin): *Given* the catalogue, *When* every row is compared with `descriptor(ItemId)`, *Then* its Set and Get items exist, take the arguments the row gives, and its range equals the item's. *Given* "Filter-Cutoff", "filter cutoff" and the alias "cutoff", *When* resolved, *Then* each is the same parameter. *Given* "filter cutof", *When* resolved, *Then* it is refused and "filter cutoff" is proposed. *Given* the label "2-pole lp+" and the code 2, *When* resolved for "filter type", *Then* both give code 2, and the code 26 is refused. *Given* -40 for a signed value, *When* converted, *Then* the sign is 1 and the magnitude 40, and back. *Given* the lot 1 catalogue, *When* counted, *Then* it holds 24 parameters.
+- **Dependencies**: TASK-MCP-001
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
+
+### TASK-MCP-004: Sampler gateway — blocking calls over a Session
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Deliver the gateway: it opens the session when first needed and again after a failed opening, selects a program by name or index, reads the program names, count and keygroup count, selects a keygroup (a number or all), sets a catalogue parameter and reads it back (keygroup parameters as one sequence: select, set, get), reads a parameter for one keygroup or for all (one value per keygroup), maps each AKM outcome (ERROR, refusal, timeout, a decode failure) to a message in plain words, and closes the session. It waits on a `std::future` with a deadline and never from the session's thread; it calls no create, delete, rename or save primitive.
+- **Requirement refs**: RQ-MCP-003, RQ-MCP-005, RQ-MCP-006, RQ-MCP-007, RQ-MCP-008, RQ-MCP-009
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-003, DEC-MCP-004, DEC-MCP-006, DEC-MCP-007)
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler holding a program of three keygroups with cutoffs 30, 60 and 90, *When* the cutoff is read for all, *Then* the values are 30, 60, 90; for keygroup 2, 60. *Given* the same program, *When* the cutoff is set to 80 for all, *Then* the read-back is 80, 80, 80. *Given* a program of 2 keygroups, *When* keygroup 3 is asked for, *Then* nothing is sent and the message says the program has 2. *Given* a simulated sampler that answers nothing, *When* a parameter is set, *Then* the message says so within the command timeout and the next call opens the session again. *Given* a name that is not a program, *When* selected, *Then* the message says it was not found. *Given* a session that opened, *When* the gateway is closed, *Then* the section 00 settings are back to their defaults. *Given* the library's sources, *When* searched for the create, delete, rename and save primitives, *Then* there is no call.
+- **Dependencies**: TASK-MCP-003
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
+
+### TASK-MCP-005: The six tools
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Deliver `get_status`, `list_programs`, `select_program`, `list_parameters`, `get_parameters` and `set_parameter` on the protocol, the catalogue and the gateway: input schemas, descriptions that say a change acts on memory not disk, the read-only, destructive and idempotent annotations, result content in plain text with the values in the catalogue's units, and `isError` results for every refusal and failure.
+- **Requirement refs**: RQ-MCP-004, RQ-MCP-005, RQ-MCP-006, RQ-MCP-007, RQ-MCP-008, RQ-MCP-009
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-006, DEC-MCP-007)
+- **Acceptance Criteria** (Gherkin): *Given* the server over a simulated sampler, *When* `tools/list` is called, *Then* exactly the six tools are listed and the three that only read carry `readOnlyHint` true. *Given* `list_parameters`, *Then* 24 parameters and, for "filter type", its 26 labels. *Given* `set_parameter` "filter cutoff" 80, *Then* every keygroup reads 80 and the answer says 80. *Given* "filter type" with "2-pole LP+", *Then* the sampler holds code 2. *Given* "filter envelope depth" -40, *Then* the sampler holds sign 1, magnitude 40 and the answer says -40. *Given* a value out of range, *Then* nothing is sent and the error names the range. *Given* `select_program` `BASS`, *Then* `get_status` reports `BASS`. *Given* a `tools/call` without its required argument, *Then* an error names it and the next call succeeds.
+- **Dependencies**: TASK-MCP-002, TASK-MCP-003, TASK-MCP-004
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
+
+### TASK-MCP-006: The executable `xs56k_mcp_server` — arguments, real ports, loop, shutdown
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Deliver the argument parser (`--in`, `--out`, `--device-id`, `--timeout-ms`, `--no-lcd`, `--list-ports`, `--help`) as a pure function with usage errors, and `main`: the JUCE MIDI backend, the session's executor and scheduler, the protocol loop on standard input and output with diagnostics on standard error, and the close of the session when the input ends.
+- **Requirement refs**: RQ-MCP-001, RQ-MCP-002, RQ-MCP-003, RQ-MCP-009
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-001, DEC-MCP-004, DEC-MCP-008)
+- **Acceptance Criteria** (Gherkin): *Given* `--in A --out B --device-id 2 --timeout-ms 3000`, *When* parsed, *Then* the configuration carries them. *Given* no `--out`, *Then* a usage error names `--out`. *Given* `--device-id 99`, *Then* a usage error. *Given* `--list-ports`, *Then* the ports are printed and the process exits 0. *Given* the built executable started with no sampler and `initialize` then `tools/list` piped in, *Then* both are answered and nothing but protocol is on standard output.
+- **Dependencies**: TASK-MCP-005
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
+
+### TASK-MCP-007: Simulated-sampler twin and the scripted conversation in ctest
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Under `juce/tests`, an executable `xs56k_mcp_server_simulated` that wires the library to the simulated sampler (a program with several keygroups) instead of the JUCE backend, and a `ctest` entry that pipes a scripted JSON-RPC conversation into it (initialize, tools/list, list and select a program, read and set each lot 1 parameter, an out-of-range value, an unknown parameter, the end of input) and compares the answers with the expected file. It lets a person try the server from an MCP client with no sampler.
+- **Requirement refs**: RQ-MCP-012
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-009)
+- **Acceptance Criteria** (Gherkin): *Given* the scripted conversation, *When* it runs in `ctest`, *Then* every answer matches the expected one and the process exits 0. *Given* the shipped `xs56k_mcp_server`, *When* its link line is read, *Then* it does not link the test support library.
+- **Dependencies**: TASK-MCP-006
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
+
+### TASK-MCP-008: Lot 2 — the rest of the filter, envelope and LFO items
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Add the rows for the remaining Set and Get pairs of the four groups (the filter's modulation inputs, the envelopes' velocity, key scale and release items, the LFOs' modulation sources and amounts, modwheel, aftertouch, MIDI clock sync), reading the names of the modulation sources (spec Table 15) from the spec, and list any item left out with its reason. No new code beyond rows and the choice labels.
+- **Requirement refs**: RQ-MCP-010
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-005)
+- **Acceptance Criteria** (Gherkin): *Given* the lot 2 catalogue, *When* compared with the item catalogue, *Then* no filter, amplitude envelope, filter envelope or LFO item of §08 and §0A is unaccounted for, or each one left out is listed with its reason. *Given* "LFO 1 rate modulation source" and a label of Table 15, *When* set on the simulated sampler, *Then* it holds the label's code. *Given* the consistency test of TASK-MCP-003, *When* run, *Then* it passes for every new row.
+- **Dependencies**: TASK-MCP-005
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
+
+### TASK-MCP-009: Real-sampler run, observations and documentation
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: With the owner, run the server on the real S5000 against a scratch program the owner has prepared (a scripted conversation, then, if the owner wishes, an MCP client): every lot 1 parameter read, set and put back; the observations recorded in `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md` and the simulated sampler corrected for what it had wrong; the "all keygroups" Set and the current-keygroup open points of the FTR settled; `AGENTS.md` (commands, a server configuration example that is not committed as `.mcp.json`) and `CHANGELOG.md` updated.
+- **Requirement refs**: RQ-MCP-012, RQ-MCP-002, RQ-MCP-003
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-004, DEC-MCP-006, DEC-MCP-009)
+- **Acceptance Criteria** (Gherkin): *Given* the real sampler and the scratch program, *When* each lot 1 parameter is read, set to another value, read back and put back, *Then* each read-back equals the value set and the program ends with the values it began with. *Given* the run's end, *When* the server's input closes, *Then* the sampler's section 00 settings are in the known state. *Given* every answer the real sampler gave that the simulated one did not, *When* the task closes, *Then* it is in the observations file and the simulator matches it.
+- **Dependencies**: TASK-MCP-007 (and TASK-MCP-008 if it is done)
+- **Assignee**: Human and AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: (to be filled at closure)
