@@ -1,0 +1,187 @@
+/*
+XS56K - a realtime editor for the AKAI S5000/S6000 samplers
+Copyright (C) 2026 https://github.com/xplorer2716
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+// The launch arguments of the MCP server: the MIDI ports, the DeviceID, the command timeout and the LCD switch, as a
+// pure function from the arguments to the configuration or a usage error. [TASK-MCP-006, RQ-MCP-002,
+// ADR-MCP-001 (DEC-MCP-008)]
+#include <catch2/catch_test_macros.hpp>
+
+#include <chrono>
+#include <string>
+#include <vector>
+
+#include "mcp/ServerOptions.hpp"
+
+using mcp::ParsedArguments;
+using mcp::parseArguments;
+
+namespace
+{
+    bool contains(const std::string& text, const char* part)
+    {
+        return text.find(part) != std::string::npos;
+    }
+}
+
+TEST_CASE("Given the arguments --in A --out B --device-id 2 --timeout-ms 3000, When they are parsed, Then the configuration carries port A, port B, DeviceID 2 and 3000 ms [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--device-id", "2", "--timeout-ms", "3000"});
+
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.inputPort == "A");
+    CHECK(parsed.options.outputPort == "B");
+    CHECK(parsed.options.deviceId == 2);
+    CHECK(parsed.options.commandTimeout == std::chrono::milliseconds(3000));
+    CHECK(parsed.options.touchLcdSettings);
+    CHECK_FALSE(parsed.options.listPorts);
+    CHECK_FALSE(parsed.options.help);
+}
+
+TEST_CASE("Given only the two ports, When they are parsed, Then the DeviceID is 0 and the timeout is the session's default [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "MIDIIN2 (ESI M8U eX)", "--out", "MIDIOUT15 (ESI M8U eX)"});
+
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.inputPort == "MIDIIN2 (ESI M8U eX)");
+    CHECK(parsed.options.outputPort == "MIDIOUT15 (ESI M8U eX)");
+    CHECK(parsed.options.deviceId == 0);
+    CHECK(parsed.options.commandTimeout == std::chrono::milliseconds(2000));
+}
+
+TEST_CASE("Given the option form --in=A, When it is parsed, Then it is the same as --in A [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in=A", "--out=B", "--device-id=3", "--no-lcd"});
+
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.inputPort == "A");
+    CHECK(parsed.options.outputPort == "B");
+    CHECK(parsed.options.deviceId == 3);
+    CHECK_FALSE(parsed.options.touchLcdSettings);
+}
+
+TEST_CASE("Given no --out or no --in, When parsed, Then the result is a usage error naming it [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments noOut = parseArguments({"--in", "A"});
+    CHECK_FALSE(noOut.ok());
+    CHECK(contains(noOut.error, "--out"));
+
+    const ParsedArguments noIn = parseArguments({"--out", "B"});
+    CHECK_FALSE(noIn.ok());
+    CHECK(contains(noIn.error, "--in"));
+
+    CHECK_FALSE(parseArguments({}).ok());
+}
+
+TEST_CASE("Given a DeviceID that is not 0 to 31, When parsed, Then the result is a usage error [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    for (const char* bad : {"99", "32", "-1", "abc", "", "1.5", "2x"})
+    {
+        CAPTURE(bad);
+        const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--device-id", bad});
+        CHECK_FALSE(parsed.ok());
+        CHECK(contains(parsed.error, "--device-id"));
+    }
+    CHECK(parseArguments({"--in", "A", "--out", "B", "--device-id", "31"}).ok());
+    CHECK(parseArguments({"--in", "A", "--out", "B", "--device-id", "0"}).ok());
+}
+
+TEST_CASE("Given a timeout that is not a positive number of milliseconds up to a minute, When parsed, Then the result is a usage error [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    for (const char* bad : {"0", "-5", "abc", "60001", ""})
+    {
+        CAPTURE(bad);
+        const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--timeout-ms", bad});
+        CHECK_FALSE(parsed.ok());
+        CHECK(contains(parsed.error, "--timeout-ms"));
+    }
+    CHECK(parseArguments({"--in", "A", "--out", "B", "--timeout-ms", "60000"}).ok());
+}
+
+TEST_CASE("Given --no-lcd, When parsed, Then the sampler's screen settings are left alone [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--no-lcd"});
+
+    REQUIRE(parsed.ok());
+    CHECK_FALSE(parsed.options.touchLcdSettings);
+    CHECK_FALSE(mcp::gatewayConfigFrom(parsed.options).touchLcdSettings);
+}
+
+TEST_CASE("Given --list-ports or --help alone, When parsed, Then the ports are not required [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments list = parseArguments({"--list-ports"});
+    REQUIRE(list.ok());
+    CHECK(list.options.listPorts);
+
+    const ParsedArguments help = parseArguments({"--help"});
+    REQUIRE(help.ok());
+    CHECK(help.options.help);
+    CHECK(parseArguments({"-h"}).options.help);
+}
+
+TEST_CASE("Given an unknown option, a value that is missing or a stray word, When parsed, Then the result is a usage error naming it [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments unknown = parseArguments({"--in", "A", "--out", "B", "--loud"});
+    CHECK_FALSE(unknown.ok());
+    CHECK(contains(unknown.error, "--loud"));
+
+    const ParsedArguments missing = parseArguments({"--out", "B", "--in"});
+    CHECK_FALSE(missing.ok());
+    CHECK(contains(missing.error, "--in"));
+
+    const ParsedArguments stray = parseArguments({"--in", "A", "--out", "B", "extra"});
+    CHECK_FALSE(stray.ok());
+    CHECK(contains(stray.error, "extra"));
+
+    CHECK_FALSE(parseArguments({"--in", "", "--out", "B"}).ok());
+}
+
+TEST_CASE("Given parsed options, When the gateway configuration is built, Then it carries the ports, the DeviceID and the timeout [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--device-id", "4", "--timeout-ms", "1500"});
+    REQUIRE(parsed.ok());
+
+    const mcp::GatewayConfig config = mcp::gatewayConfigFrom(parsed.options);
+
+    CHECK(config.inputPort == "A");
+    CHECK(config.outputPort == "B");
+    CHECK(config.deviceId == 4);
+    CHECK(config.commandTimeout == std::chrono::milliseconds(1500));
+    CHECK(config.touchLcdSettings);
+}
+
+TEST_CASE("Given the usage text, When it is read, Then it names every option and says that the ports are the configuration [RQ-MCP-002]",
+          "[mcp][options]")
+{
+    const std::string usage = mcp::usageText();
+
+    for (const char* option : {"--in", "--out", "--device-id", "--timeout-ms", "--no-lcd", "--list-ports", "--help"})
+    {
+        CAPTURE(option);
+        CHECK(contains(usage, option));
+    }
+}

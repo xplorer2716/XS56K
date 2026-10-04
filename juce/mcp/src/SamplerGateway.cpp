@@ -216,23 +216,24 @@ namespace mcp
         return std::nullopt;
     }
 
-    void SamplerGateway::disconnect()
+    std::optional<akm::CloseResult> SamplerGateway::disconnect()
     {
         if (!_connection)
-            return;
+            return std::nullopt;
         const auto deadline = _config.commandTimeout * CLOSING_COMMAND_BUDGET + WAIT_MARGIN;
-        (void)await<akm::CloseResult>(deadline, [&](std::function<void(const akm::CloseResult&)> done) {
+        const auto closed = await<akm::CloseResult>(deadline, [&](std::function<void(const akm::CloseResult&)> done) {
             const auto refusedCompletion = done;
             // A close that is refused (already closing) calls nothing: the wait must not run to its deadline.
             if (!_connection->session.close(std::move(done)))
                 refusedCompletion(akm::CloseResult{});
         });
         _connection.reset();
+        return closed;
     }
 
-    void SamplerGateway::close()
+    std::optional<akm::CloseResult> SamplerGateway::close()
     {
-        disconnect();
+        return disconnect();
     }
 
     std::chrono::milliseconds SamplerGateway::waitFor(int commands) const

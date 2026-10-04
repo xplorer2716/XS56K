@@ -87,6 +87,7 @@ add_executable(xs56k_mcp_tests
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueTests.cpp
     mcp/SamplerGatewayTests.cpp
+    mcp/ServerOptionsTests.cpp
     mcp/ToolsTests.cpp)
 # The gateway tests seed the simulated sampler with the raw-frame helpers of the AKM tests.
 target_include_directories(xs56k_mcp_tests PRIVATE akm)
@@ -100,6 +101,31 @@ add_test(NAME mcp_public_headers_have_no_juce_include
     COMMAND ${CMAKE_COMMAND}
         -DHEADER_DIR=${PROJECT_SOURCE_DIR}/mcp/include
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoJuceIncludes.cmake)
+# The built executable, run as an MCP client runs it: a scripted conversation on its standard input, with no
+# sampler (the ports it is given do not exist). [RQ-MCP-001, RQ-MCP-003, ADR-MCP-001 (DEC-MCP-009), TASK-MCP-006]
+add_test(NAME mcp_server_executable_answers_without_a_sampler
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server>
+        "-DSERVER_ARGS=--in;XS56K No Such Input;--out;XS56K No Such Output"
+        -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/no_sampler.jsonl
+        -DPATTERNS_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/no_sampler.patterns
+        -DEXPECT_LINES=4
+        "-DERROR_PATTERN=input closed"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+# --list-ports prints the ports and exits 0; a missing port is a usage error: status 2, the reason on standard error.
+add_test(NAME mcp_server_executable_lists_ports
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server>
+        -DSERVER_ARGS=--list-ports
+        "-DOUTPUT_PATTERN=MIDI input ports.*MIDI output ports"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+add_test(NAME mcp_server_executable_refuses_a_missing_port
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server>
+        "-DSERVER_ARGS=--in;Somewhere"
+        -DEXPECT_STATUS=2
+        "-DERROR_PATTERN=--out is required"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The server edits and never creates, renames, deletes or saves. [RQ-MCP-008, ADR-MCP-001 (DEC-MCP-007)]
 add_test(NAME mcp_sources_call_no_destructive_primitive
     COMMAND ${CMAKE_COMMAND}

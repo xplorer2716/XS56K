@@ -129,16 +129,17 @@ namespace mcp
         [[nodiscard]] Outcome<std::vector<ParameterValue>> writeParameter(const ParameterDefinition& parameter,
                                                                           std::int64_t value, KeygroupSelection selection);
 
-        /// Closes the session, if one is open: the sampler's section 00 settings are put back. Safe to call twice; the
-        /// next call that needs the sampler opens a new session. [RQ-MCP-003]
-        void close();
+        /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
+        /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the
+        /// sampler opens a new session. [RQ-MCP-003]
+        std::optional<akm::CloseResult> close();
 
     private:
         struct Connection;
 
         /// Opens the session if there is none; the reason when it cannot be.
         [[nodiscard]] std::optional<std::string> connect();
-        void disconnect();
+        std::optional<akm::CloseResult> disconnect();
 
         /// How long to wait for the completion of `commands` commands before giving up on a lost one.
         [[nodiscard]] std::chrono::milliseconds waitFor(int commands) const;

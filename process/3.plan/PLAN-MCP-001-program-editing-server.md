@@ -91,15 +91,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-006: The executable `xs56k_mcp_server` — arguments, real ports, loop, shutdown
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Deliver the argument parser (`--in`, `--out`, `--device-id`, `--timeout-ms`, `--no-lcd`, `--list-ports`, `--help`) as a pure function with usage errors, and `main`: the JUCE MIDI backend, the session's executor and scheduler, the protocol loop on standard input and output with diagnostics on standard error, and the close of the session when the input ends.
 - **Requirement refs**: RQ-MCP-001, RQ-MCP-002, RQ-MCP-003, RQ-MCP-009
 - **ADR refs**: ADR-MCP-001 (DEC-MCP-001, DEC-MCP-004, DEC-MCP-008)
 - **Acceptance Criteria** (Gherkin): *Given* `--in A --out B --device-id 2 --timeout-ms 3000`, *When* parsed, *Then* the configuration carries them. *Given* no `--out`, *Then* a usage error names `--out`. *Given* `--device-id 99`, *Then* a usage error. *Given* `--list-ports`, *Then* the ports are printed and the process exits 0. *Given* the built executable started with no sampler and `initialize` then `tools/list` piped in, *Then* both are answered and nothing but protocol is on standard output.
 - **Dependencies**: TASK-MCP-005
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: (to be filled at closure)
+- **Verification**: xs56k_mcp_tests: 11 option cases / 78 assertions pass (the full set of arguments gives port A, port B, DeviceID 2 and 3000 ms; defaults DeviceID 0 and 2000 ms; --in=A form; missing --out and missing --in named; DeviceID 99, 32, -1, abc, empty, 1.5, 2x refused and 31 and 0 accepted; timeouts 0, -5, abc, 60001 refused and 60000 accepted; --no-lcd; --list-ports and --help need no port; unknown option, missing value, stray word and empty port named; gatewayConfigFrom; usage names every option). Three process tests pass on the built xs56k_mcp_server.exe: mcp_server_executable_answers_without_a_sampler (initialize legacy 2025-11-25, a notification, tools/list, get_status with ports that do not exist, then a modern server/discover: exactly 4 lines on standard output, each valid JSON, no carriage return, the six tools in order, the missing port named in the get_status error, exit 0, 'input closed' on standard error), mcp_server_executable_lists_ports (exit 0, both lists) and mcp_server_executable_refuses_a_missing_port (exit 2, '--out is required' on standard error). Full ctest (Debug, MSVC /W4 /WX): 794 of 794 (780 before, 14 new).
+- **Assumptions**: The executable is built in every configuration (not only with BUILD_TESTS) and links xs56k_midi_juce like the probe does; the generated CI workflows build with BUILD_TESTS on, so the link is already exercised on all three platforms by the probe. Exit codes: 0, 2 for a usage error, 3 for an unexpected exception. The version is VERSION_FULL, passed as XS56K_MCP_VERSION. The 'closing the session on end of input' path is covered at the library level (gateway close puts the section 00 settings back, TASK-MCP-004) and by the process test only up to the log line, since a process test has no sampler; the real close is for TASK-MCP-009. A server killed rather than closed leaves the sampler's section 00 settings changed (ADR-MCP-001 Risk). The tests were written before the code for the options; the process tests were written with the executable. The first process-test run failed on my own regex (nlohmann/json sorts object keys, so id comes before jsonrpc), fixed in the test pattern.
 
 ### TASK-MCP-007: Simulated-sampler twin and the scripted conversation in ctest
 - **Tier**: M
