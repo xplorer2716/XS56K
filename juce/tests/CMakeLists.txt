@@ -85,9 +85,13 @@ catch_discover_tests(xs56k_akm_tests)
 # hold no JUCE include. [RQ-MCP-011, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
 add_executable(xs56k_mcp_tests
     mcp/McpServerTests.cpp
-    mcp/ParameterCatalogueTests.cpp)
+    mcp/ParameterCatalogueTests.cpp
+    mcp/SamplerGatewayTests.cpp)
+# The gateway tests seed the simulated sampler with the raw-frame helpers of the AKM tests.
+target_include_directories(xs56k_mcp_tests PRIVATE akm)
 target_link_libraries(xs56k_mcp_tests PRIVATE
     xs56k_mcp
+    xs56k_akm_test_support
     Catch2::Catch2WithMain
     xs56k::warnings)
 catch_discover_tests(xs56k_mcp_tests)
@@ -95,6 +99,11 @@ add_test(NAME mcp_public_headers_have_no_juce_include
     COMMAND ${CMAKE_COMMAND}
         -DHEADER_DIR=${PROJECT_SOURCE_DIR}/mcp/include
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoJuceIncludes.cmake)
+# The server edits and never creates, renames, deletes or saves. [RQ-MCP-008, ADR-MCP-001 (DEC-MCP-007)]
+add_test(NAME mcp_sources_call_no_destructive_primitive
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/mcp
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
 
 # No JUCE include in the public headers of the AKM layer. [RQ-AKM-019]
 add_test(NAME akm_public_headers_have_no_juce_include

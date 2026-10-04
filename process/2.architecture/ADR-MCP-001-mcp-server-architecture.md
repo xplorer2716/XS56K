@@ -83,8 +83,8 @@ are serial, the server needs no lock of its own. [RQ-MCP-009, RQ-MCP-006]
 
 ### DEC-MCP-004: The connection is opened when first needed, retried when it failed, closed with the input
 The server does not open the session at start: `initialize` and `tools/list` work with the sampler off. The first tool that
-needs the sampler runs `Session::open` with the configuration the launch arguments gave (DEC-MCP-008; Sync LCD and Auto
-screen update are left to the session's defaults unless `--no-lcd`); if the opening fails (no sampler, ambiguous, a setting
+needs the sampler runs `Session::open` with the configuration the launch arguments gave (DEC-MCP-008; Sync LCD is switched off and Auto
+screen update on, so that the sampler's screen follows the edits, unless `--no-lcd` leaves both alone); if the opening fails (no sampler, ambiguous, a setting
 refused) the tool's result is an error with the reason, the session is discarded and the next such call tries again. A
 session that opened stays open. When the input ends, or on the MCP shutdown, the server calls `Session::close` and waits for
 `onClosed` (the §00 settings are put back, RQ-AKM-042) before exiting, with the same bounded wait as the probe. A MIDI port
@@ -128,7 +128,7 @@ nothing) and `idempotentHint` true; every description says that a change acts on
 the program is lost if the sampler is switched off without saving it from the front panel. [RQ-MCP-008]
 
 ### DEC-MCP-008: Configuration is the launch arguments, nothing else
-`--in <port>`, `--out <port>` (required), `--device-id <0-127>` (default: the session's), `--timeout-ms <n>` (default: the
+`--in <port>`, `--out <port>` (required), `--device-id <0-31>` (default 0, the sampler's own), `--timeout-ms <n>` (default: the
 session's) and `--no-lcd`, plus `--list-ports` and `--help`. No file, no environment variable and no tool sets the ports: a
 client's server configuration (for Claude Code, the `command` and `args` of the server entry) is the one place they are
 written. The argument parser is a pure function returning the configuration or a usage error, tested without a process.

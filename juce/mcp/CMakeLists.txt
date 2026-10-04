@@ -5,6 +5,7 @@
 add_library(xs56k_mcp STATIC
     src/McpServer.cpp
     src/ParameterCatalogue.cpp
+    src/SamplerGateway.cpp
     src/StandardParameters.cpp)
 target_include_directories(xs56k_mcp PUBLIC include)
 target_link_libraries(xs56k_mcp PUBLIC xs56k_akm nlohmann_json::nlohmann_json PRIVATE xs56k::warnings)
