@@ -20,8 +20,9 @@ CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. `ju
 plumbing has a real GUI target to exercise. `juce/akm` is the S5000 SysEx layer (namespace `akm`,
 library `xs56k_akm`), written for this repository, not ported: it depends on `xs56k_midi` only and
 exposes no JUCE type in its public headers (`ADR-AKM-001`, `FTR-AKM-001`). `juce/mcp` is an MCP (Model Context
-Protocol) server that exposes the AKM layer to an MCP client, limited for now to the editing of a program (library
-`xs56k_mcp`, executable `xs56k_mcp_server`; `ADR-MCP-001`, `FTR-MCP-001`). Reference documentation
+Protocol) server that exposes the AKM layer to an MCP client, to edit programs, zones, samples and multis in the sampler's
+memory, never on disk (library `xs56k_mcp`, executable `xs56k_mcp_server`; `ADR-MCP-001`, `ADR-MCP-002`, `FTR-MCP-001`,
+`FTR-MCP-002`). Reference documentation
 lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
@@ -182,22 +183,34 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   server's configuration**: they are the arguments of the server entry in the client's MCP configuration (for Claude Code,
   `claude mcp add xs56k -- <path>/xs56k_mcp_server --in "..." --out "..."`; that file is the user's own, not committed). It
   speaks MCP on standard input and output, one JSON message per line, in both eras of the protocol (the stateless revision
-  `2026-07-28`, and `initialize` for `2025-11-25` and earlier), and logs on standard error. Six tools, in the musician's
-  vocabulary (`ADR-MCP-001` DEC-MCP-006): `get_status`, `list_programs`, `select_program`, `list_parameters`, `get_parameters`
-  and `set_parameter`, over 54 parameters of the filter (type, cutoff, resonance, keyboard tracking, attenuation, the three
-  modulation inputs), the amplitude envelope, the filter envelope and the two LFOs; values are in the sampler's own units
-  (0 to 100 for most), signed values are plain signed numbers, choices are named as on the screen ("2-POLE LP+", "TRIANGLE"),
-  and `set_parameter` reads each value back from the sampler. It edits the sampler's **memory**, never the disk, and has no tool
-  that creates, renames, deletes or saves anything (`ctest` entry `mcp_sources_call_no_destructive_primitive`). The session is
-  opened at the first call that needs the sampler (so the list of tools works with the sampler off), switches Still Alive on,
-  Sync LCD off and Auto screen update on (`--no-lcd` leaves the last two alone), and is closed, the settings put back, when the
-  client closes standard input; a server that is killed instead leaves them changed until the sampler is switched off.
-  `xs56k_mcp_server_simulated` (built with the tests, never shipped) is the same server over the simulated sampler holding three
-  programs: a scripted conversation piped into it is a `ctest` entry, and it lets you try the server from a client with no
-  sampler. Tests: `xs56k_mcp_tests` and the `mcp_*` entries of `ctest`, all against the simulated sampler. **Not yet run on a
-  real S5000** (TASK-MCP-009): the owner's run on a scratch program is the next step; open points are in `FTR-MCP-001`
-  (whether a Set with "all keygroups" selected reaches every keygroup on the hardware, what the second MODWHEEL, BEND and
-  EXTERNAL sources are). [RQ-MCP-001 to RQ-MCP-012, TASK-MCP-002 to TASK-MCP-008, ADR-MCP-001]
+  `2026-07-28`, and `initialize` for `2025-11-25` and earlier), and logs on standard error. Seventeen tools, in the musician's
+  vocabulary (`ADR-MCP-001` DEC-MCP-006, `ADR-MCP-002` DEC-MCP-010 and DEC-MCP-013), each in one of three tiers that its MCP
+  annotations declare: **read** (`get_status`, `list_programs`, `list_parameters`, `list_samples`, `get_sample_parameters`,
+  `list_multis`, `get_multi_parameters`), **edit** a value or a selection in memory (`select_program`, `get_parameters`, which
+  moves the keygroup selection, `set_parameter`, `select_sample`, `set_sample_parameter`, `select_multi`, `set_multi_parameter`)
+  and **structure** (`create_program`, `rename_program`, and `delete_program`, which deletes only the current program and only
+  when `confirm` is its exact name). `list_parameters` takes a `domain` (program, sample, multi). The parameters: 119 of a
+  program (the filter, the amplitude, filter and aux envelopes, the two LFOs, pitch and amplitude, the keygroup's options,
+  output, tuning, pitch bend, and 13 per zone through a `zone` argument), 12 of a sample (positions of four 7-bit bytes, pitch,
+  tunes, playback mode, and four read-only: type, channels, length, rate) and 12 of a multi's part (parts numbered from 1);
+  values are in the sampler's own units (0 to 100 for most), signed values are plain signed numbers, choices are named as on the
+  screen ("2-POLE LP+", "10B"), and every Set is read back from the sampler. It edits the sampler's **memory**, never the disk:
+  no tool saves, loads, touches the disk, deletes all programs or multis or clears the sampler's memory, and no tool creates,
+  deletes, renames or loads a sample or a multi (`ctest` entry `mcp_sources_call_no_destructive_primitive`, an allow list: only
+  the gateway creates, renames or deletes a program). The session is opened at the first call that needs the sampler (so the
+  list of tools works with the sampler off), switches Still Alive on, Sync LCD off and Auto screen update on (`--no-lcd` leaves
+  the last two alone), and is closed, the settings put back, when the client closes standard input; a server that is killed
+  instead leaves them changed until the sampler is switched off. `xs56k_mcp_server_simulated` (built with the tests, never
+  shipped) is the same server over the simulated sampler holding three programs, three samples and two multis: a scripted
+  conversation piped into it is a `ctest` entry, and it lets you try the server from a client with no sampler. Tests:
+  `xs56k_mcp_tests` and the `mcp_*` entries of `ctest`, all against the simulated sampler. **Run on a real S5000** on
+  2026-10-05 (`process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the program tools and the 119 program
+  parameters were set, read back and put back, on a program the server created itself, then deleted. **The sample and multi tools
+  were run on the real sampler only against an empty memory** (their error messages): it held no sample or multi and no tool
+  creates one, so their parameters are verified on the simulated sampler only. Open points: the numbering of a multi's parts
+  against the front panel (the tools send the part minus one), what codes 12 to 14 of the modulation sources show on the screen,
+  and whether a program name of more than 12 characters is kept. [RQ-MCP-001 to RQ-MCP-022, TASK-MCP-002 to TASK-MCP-017,
+  ADR-MCP-001, ADR-MCP-002]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

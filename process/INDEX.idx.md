@@ -244,6 +244,7 @@ DEC-MCP-014|68-73||The simulated sampler is corrected before it is trusted, and 
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-04.md
+@process/3.plan/CHECKPOINT-MCP-2026-10-05.md
 @process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md
 PLAN-AKM-001|1-210||Transport and SysEx Configuration (Phase A, lots A0+A1)
 TASK-AKM-001|30-43|Done|Author the Phase A feature files
@@ -415,5 +416,5 @@ TASK-MCP-013|68-79|Done|Catalogue lot 3 — the rest of the keygroup and of the 
 TASK-MCP-014|80-91|Done|Zone parameters
 TASK-MCP-015|92-103|Done|Samples — list, select, get and set parameters
 TASK-MCP-016|104-115|Done|Multis — list, select, get and set parameters
-TASK-MCP-017|116-126|Not Started|Documentation and closure
+TASK-MCP-017|116-126|Done|Documentation and closure
 @process/3.plan/SUMMARY-akm-sections-coverage.md

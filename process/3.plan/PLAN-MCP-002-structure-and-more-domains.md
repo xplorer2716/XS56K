@@ -115,7 +115,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-017: Documentation and closure
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Update `AGENTS.md`, `CHANGELOG.md`, `juce/mcp/README.md` and the checkpoint for what was delivered and what was run on the real sampler.
 - **Requirement refs**: RQ-MCP-022
 - **ADR refs**: ADR-MCP-002

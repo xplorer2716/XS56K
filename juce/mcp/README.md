@@ -1,10 +1,10 @@
 # juce/mcp — MCP server for the AKAI S5000/S6000
 
-An [MCP](https://modelcontextprotocol.io) server that lets an MCP client (Claude Code or another) edit a program of the
-sampler by talking to it: "set the filter cutoff to 80", "change the filter type to 2-POLE LP+", "set the amplitude
-envelope attack to 55". It is a proof of concept limited to the filter, the amplitude envelope, the filter envelope and the
-two LFOs of a program already in the sampler's memory. Requirements: `process/1.requirements/FTR-MCP-001-program-editing-server.md`;
-decisions: `process/2.architecture/ADR-MCP-001-mcp-server-architecture.md`.
+An [MCP](https://modelcontextprotocol.io) server that lets an MCP client (Claude Code or another) edit the sampler's memory by
+talking to it: "set the filter cutoff to 80", "change the filter type to 2-POLE LP+", "create a program with 4 keygroups",
+"set the loop end of the sample to 1500", "put part 3 of the multi on channel 10B". Requirements:
+`process/1.requirements/FTR-MCP-001-program-editing-server.md` and `FTR-MCP-002-structure-and-more-domains.md`; decisions:
+`process/2.architecture/ADR-MCP-001-mcp-server-architecture.md` and `ADR-MCP-002-safety-tiers-and-domain-targets.md`.
 
 ## Run it
 
@@ -31,17 +31,33 @@ simulated sampler holding three programs (PAD, BASS and LEAD, BASS current).
 
 ## What it does
 
-| Tool | What it does |
-|---|---|
-| `get_status` | whether the sampler answers, how many programs, the current one and its keygroups |
-| `list_programs` | the programs in memory, with their positions |
-| `select_program` | makes a program current, by name or by position |
-| `list_parameters` | the 54 parameters, their names, what they accept and what they do (optionally one group) |
-| `get_parameters` | reads a group or a list of parameters, for one keygroup or all |
-| `set_parameter` | sets one parameter (a number, a choice such as `2-POLE LP+`, or on/off), then reads it back |
+Seventeen tools. Each declares a tier in its MCP annotations: **read** changes nothing, **edit** overwrites a value or a
+selection in memory, **structure** creates, renames or deletes a program in memory.
 
-Everything acts on the sampler's **memory**, not on disk, and nothing is created, renamed, deleted or saved. The program is
-lost if the sampler is switched off without saving it from the front panel.
+| Tool | Tier | What it does |
+|---|---|---|
+| `get_status` | read | whether the sampler answers, how many programs, the current one and its keygroups |
+| `list_programs` | read | the programs in memory, with their positions (the sampler keeps them in alphabetical order) |
+| `list_parameters` | read | the parameters, their names, what they accept and do (optionally one group, and a `domain`: program, sample or multi) |
+| `select_program` | edit | makes a program current, by name or by position |
+| `get_parameters` | edit | reads a group or a list of parameters of the current program, for one keygroup or all, and for one zone or all (it moves the sampler's keygroup selection) |
+| `set_parameter` | edit | sets one parameter (a number, a choice such as `2-POLE LP+`, or on/off) for a keygroup and a zone, then reads it back |
+| `create_program` | structure | creates a program with a name (up to 12 characters) and 1 to 99 keygroups, and makes it current |
+| `rename_program` | structure | renames the current program |
+| `delete_program` | structure | deletes the **current** program, only when `confirm` is its exact name |
+| `list_samples`, `select_sample` | read, edit | the samples in memory with their positions; makes one current |
+| `get_sample_parameters`, `set_sample_parameter` | read, edit | the current sample's 12 parameters (four of them read-only: type, channels, length, rate) |
+| `list_multis`, `select_multi` | read, edit | the multis in memory with their positions and the current one's part count; makes one current |
+| `get_multi_parameters`, `set_multi_parameter` | read, edit | the 12 parameters of a part of the current multi (parts numbered from 1; a Set needs its `part`, a number or `all`) |
+
+Everything acts on the sampler's **memory**, not on disk: nothing is saved or loaded, nothing deletes all programs or multis or
+clears the memory, and no tool creates, deletes, renames or loads a sample or a multi. A program is lost if the sampler is
+switched off without saving it from the front panel.
+
+**What was run on a real S5000** (2026-10-05, `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the program tools
+and all 119 program parameters, on a program the server created and deleted. The sample and multi tools were run against an empty
+memory only (their messages); their parameters are verified on the simulated sampler, not on hardware, until a sample and a multi
+are in memory.
 
 When a client closes the server's standard input, the server closes its session and puts the sampler's section 00 settings
 back (checksums, Still Alive, Notification, Sync LCD, Auto screen update). A server that is killed instead leaves Still Alive
@@ -51,6 +67,6 @@ on, Sync LCD off and Auto screen update on until the sampler is switched off.
 
 `src/McpServer.cpp` (JSON-RPC lines, both eras of MCP), `src/ParameterCatalogue.cpp` and `src/StandardParameters.cpp` (the
 parameters as a table of rows, checked against the AKM item catalogue by the tests), `src/SamplerGateway.cpp` (blocking calls
-over an AKM session), `src/Tools.cpp` (the six tools), `src/ServerOptions.cpp` (the launch arguments) and `server/main.cpp`
+over an AKM session), `src/Tools.cpp` (the tools), `src/ServerOptions.cpp` (the launch arguments) and `server/main.cpp`
 (the executable, the only file that knows the JUCE MIDI backend). To add a parameter, add a row to `StandardParameters.cpp`.
 Tests are in `juce/tests/mcp/`.
