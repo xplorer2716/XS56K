@@ -31,6 +31,7 @@ namespace mcp
         constexpr const char* OPTION_TIMEOUT = "--timeout-ms";
         constexpr const char* OPTION_NO_LCD = "--no-lcd";
         constexpr const char* OPTION_ALLOW_DISK = "--allow-disk";
+        constexpr const char* OPTION_ALLOW_DISK_REFRESH = "--allow-disk-refresh";
         constexpr const char* OPTION_DISK_TIMEOUT = "--disk-timeout-ms";
         constexpr const char* OPTION_LIST_PORTS = "--list-ports";
         constexpr const char* OPTION_HELP = "--help";
@@ -89,8 +90,8 @@ namespace mcp
                 return true;
             };
 
-            if (name == OPTION_NO_LCD || name == OPTION_ALLOW_DISK || name == OPTION_LIST_PORTS || name == OPTION_HELP ||
-                name == OPTION_HELP_SHORT)
+            if (name == OPTION_NO_LCD || name == OPTION_ALLOW_DISK || name == OPTION_ALLOW_DISK_REFRESH || name == OPTION_LIST_PORTS ||
+                name == OPTION_HELP || name == OPTION_HELP_SHORT)
             {
                 if (inlineValue)
                     return usageError(name + " takes no value.");
@@ -98,6 +99,8 @@ namespace mcp
                     options.touchLcdSettings = false;
                 else if (name == OPTION_ALLOW_DISK)
                     options.allowDisk = true;
+                else if (name == OPTION_ALLOW_DISK_REFRESH)
+                    options.allowDiskRefresh = true;
                 else if (name == OPTION_LIST_PORTS)
                     options.listPorts = true;
                 else
@@ -147,6 +150,9 @@ namespace mcp
 
         if (options.help || options.listPorts)
             return result;
+        if (options.allowDiskRefresh && !options.allowDisk)
+            return usageError(std::string(OPTION_ALLOW_DISK_REFRESH) + " needs " + OPTION_ALLOW_DISK +
+                              ": the refresh is a part of the disk tools.");
         if (options.inputPort.empty())
             return usageError(std::string(OPTION_IN) + " is required: the MIDI input port the sampler sends on (see " +
                               OPTION_LIST_PORTS + ").");
@@ -176,7 +182,7 @@ namespace mcp
                "its configuration.\n"
                "\n"
                "Usage: xs56k_mcp_server --in <port> --out <port> [--device-id <0-31>] [--timeout-ms <ms>] [--no-lcd]\n"
-               "                        [--allow-disk [--disk-timeout-ms <ms>]]\n"
+               "                        [--allow-disk [--allow-disk-refresh] [--disk-timeout-ms <ms>]]\n"
                "       xs56k_mcp_server --list-ports\n"
                "\n"
                "  --in <port>         the MIDI input port the sampler sends on (required)\n"
@@ -186,6 +192,8 @@ namespace mcp
                "  --no-lcd            leave the sampler's Sync LCD and Auto screen update settings alone\n"
                "  --allow-disk        offer the disk tools (browse, load, save). A slow disk command can leave the sampler\n"
                "                      answering nothing until it is switched off and on: off unless you ask for it\n"
+               "  --allow-disk-refresh  let list_disks send the sampler's refresh of its disk list (needs --allow-disk). Off\n"
+               "                      unless you ask: it hung a real S5000 whose disk is a SCSI2SD, until it was switched off and on\n"
                "  --disk-timeout-ms <n>  how long a slow disk command waits, 1 to 1800000 (default 120000)\n"
                "  --list-ports        print the MIDI ports and exit\n"
                "  --help              print this text and exit\n"

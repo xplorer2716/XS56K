@@ -20,7 +20,7 @@ into the sampler".
 
 **Guards (ADR-MCP-003).** The disk tools exist only when the server is launched with `--allow-disk` (the owner's explicit choice,
 written in the client's server configuration); the slow commands have a long, configurable timeout and a message that says what
-a silent sampler means; the disk refresh is never sent unless asked; saves refuse to overwrite by default; and delete, eject,
+a silent sampler means; the disk refresh is never sent unless asked, and asked for by a launch option of its own (`--allow-disk-refresh`, RQ-MCP-031); saves refuse to overwrite by default; and delete, eject,
 format, create-folder and rename-file stay never offered.
 
 **Vocabulary** is unchanged: names as the sampler's screen shows them, sizes in bytes, no invented file format.
@@ -125,11 +125,22 @@ the front panel's), `documents/_index/sysex_spec.items.tsv` (section 10), the AK
 - **Acceptance Criteria** (Gherkin): *Given* the extended scripted conversation, *When* it runs against the simulated sampler in `ctest`, *Then* every answer matches. *Given* a disk plugged into the sampler, *When* the owner is present, *Then* the real run is made one slow command at a time and written up.
 - **Dependencies**: RQ-MCP-012, RQ-MCP-022, all functional requirements of this feature
 
+### RQ-MCP-031: The refresh of the disk list is a launch option of its own
+- **Category**: Non-Functional
+- **NFR Type**: Safety
+- **EARS Type**: Unwanted behaviour
+- **Statement**: IF the server is launched with `--allow-disk` but without `--allow-disk-refresh`, THEN the server SHALL NOT send the sampler's refresh of its disk list (section 10, item 01): `list_disks` SHALL not offer a `refresh` argument and SHALL refuse `refresh: true` with an answer that names `--allow-disk-refresh`, with nothing sent to the sampler; `--allow-disk-refresh` without `--allow-disk` SHALL be a usage error.
+- **Metric**: number of `&01` frames accepted by the simulated sampler when the option is absent: 0, whatever the arguments of `list_disks`.
+- **Measurement Method**: `ctest` cases on the tool list, on `list_disks` with and without the option, and on the argument parser.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* a server launched with `--allow-disk` only, *When* `list_disks` is called with `refresh` true, *Then* the answer is an error that names `--allow-disk-refresh` and the sampler received no section 10 item 01. *Given* a server launched with both options, *When* `list_disks` is called with `refresh` true, *Then* the refresh is sent once.
+- **Dependencies**: RQ-MCP-023, RQ-MCP-024, RQ-MCP-029; ADR-MCP-003 (DEC-MCP-020)
+
 ---
 
 ## Open points
 
 - **The file name a save gives** (the item's name plus its extension): not assumed; the verification after a save looks for the item's name in the listing, and the real run settles the rule (the S5000 appended a second extension on a rename).
-- **Whether the refresh (`&01`) is needed** with a disk that is already connected: the spec says the count and the list may be stale until it has run once in a session; the observed hang was on a sampler with no disk at all.
+- **Whether the refresh (`&01`) is needed** with a disk that is already connected: the spec says the count and the list may be stale until it has run once in a session; the first observed hang was on a sampler with no disk at all. **Answered on 2026-10-05 for the owner's S5000**: with its SCSI2SD disk (S5K, FAT32) already connected, the refresh was not needed (the list, the selection, the browsing and the loads all worked without it) and, sent, it hung the sampler until a power cycle (RQ-MCP-031, DEC-MCP-020).
 - **Which of `&15`, `&2A`, `&2B`, `&2C`, `&2D` can hang with a disk plugged in**: unknown; the real run goes one at a time.
 - **How a program's samples are named when loaded with their dependents**, and what happens to a name already in memory.

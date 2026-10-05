@@ -370,11 +370,16 @@ namespace mcp
                "memory, not on disk; nothing is saved by this server.";
     }
 
-    std::string diskInstructions()
+    std::string diskInstructions(bool refreshOffered)
     {
-        return " The disk tools (list_disks, select_disk, list_disk_contents, open_folder, close_folder) browse the sampler's own "
-               "disks, not the computer's files; list_disks refreshes the sampler's disk list only with refresh true, which is slow and "
-               "has left a real S5000 answering nothing until it was switched off and on.";
+        const std::string browse =
+            " The disk tools (list_disks, select_disk, list_disk_contents, open_folder, close_folder) browse the sampler's own "
+            "disks, not the computer's files; ";
+        if (refreshOffered)
+            return browse +
+                   "list_disks refreshes the sampler's disk list only with refresh true, which is slow and "
+                   "has left a real S5000 answering nothing until it was switched off and on.";
+        return browse + "this server never asks the sampler to refresh its disk list (it has left a real S5000 answering nothing).";
     }
 
     std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ExtraCatalogues extra)
@@ -1255,23 +1260,29 @@ namespace mcp
         }
     }
 
-    std::vector<Tool> makeDiskTools(SamplerGateway& gateway)
+    std::vector<Tool> makeDiskTools(SamplerGateway& gateway, bool offerRefresh)
     {
         std::vector<Tool> tools;
 
-        // list_disks
+        // list_disks: the `refresh` argument exists only with --allow-disk-refresh (DEC-MCP-020)
+        const std::string refreshDescription =
+            offerRefresh ? "The sampler's refresh of its disk list is sent only with refresh "
+                           "true: it is the one command that has left a real S5000 answering nothing until it was switched off and "
+                           "on, and it can take long. "
+                         : "This server never sends the sampler's refresh of its disk list: it has left a real S5000 answering "
+                           "nothing until it was switched off and on. ";
+        json listDisksSchema = objectSchema(json::object());
+        if (offerRefresh)
+            listDisksSchema = objectSchema(json{{"refresh",
+                                                 {{"type", "boolean"},
+                                                  {"description", "Ask the sampler to refresh its list of disks first (slow, and the risky call). Default false."}}}});
         tools.push_back(Tool{
             definition("list_disks", "List disks",
                        std::string("Lists the disks connected to the sampler with their handle, type, format and whether they can be "
-                                   "written, and marks the current one. The sampler's refresh of its disk list is sent only with refresh "
-                                   "true: it is the one command that has left a real S5000 answering nothing until it was switched off and "
-                                   "on, and it can take long. ") +
-                           DISK_NOTICE,
-                       objectSchema(json{{"refresh",
-                                          {{"type", "boolean"},
-                                           {"description", "Ask the sampler to refresh its list of disks first (slow, and the risky call). Default false."}}}}),
-                       true, true),
-            [&gateway](const json& arguments) {
+                                   "written, and marks the current one. ") +
+                           refreshDescription + DISK_NOTICE,
+                       listDisksSchema, true, true),
+            [&gateway, offerRefresh](const json& arguments) {
                 if (const auto refused = unknownArguments(arguments, {"refresh"}))
                     return *refused;
                 bool refresh = false;
@@ -1281,12 +1292,17 @@ namespace mcp
                         return failure("The argument 'refresh' must be true or false.");
                     refresh = arguments.at("refresh").get<bool>();
                 }
+                if (refresh && !offerRefresh)
+                    return failure("This server does not send the sampler's refresh of its disk list: it has left a real S5000 "
+                                   "answering nothing until it was switched off and on. The owner can allow it by launching the "
+                                   "server with --allow-disk-refresh. Nothing was sent.");
                 const auto disks = gateway.listDisks(refresh);
                 if (!disks.ok())
                     return failure(disks.problem);
                 if (disks.value->empty())
                     return ok("No disk is connected to the sampler." +
-                              std::string(refresh ? "" : " (The sampler's list was not refreshed: if a disk was just plugged in, call list_disks with refresh true.)"));
+                              std::string(refresh ? "" : offerRefresh ? " (The sampler's list was not refreshed: if a disk was just plugged in, call list_disks with refresh true.)"
+                                                                      : " (This server does not refresh the sampler's list of disks: if a disk was just plugged in, the sampler may have to be told on its front panel.)"));
                 std::string text = "Disks connected (" + std::to_string(disks.value->size()) + "):\n";
                 for (const DiskEntry& disk : *disks.value)
                     text += std::to_string(disk.handle) + ": " + disk.name + " (" + diskType(disk.type) + ", " + diskFormat(disk.format) + ", " +
@@ -1559,7 +1575,7 @@ namespace mcp
             tools.push_back(std::move(tool));
         if (options.allowDisk)
         {
-            for (Tool& tool : makeDiskTools(gateway))
+            for (Tool& tool : makeDiskTools(gateway, options.allowDiskRefresh))
                 tools.push_back(std::move(tool));
         }
         return tools;

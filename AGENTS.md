@@ -61,8 +61,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
   ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
 - **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
-  `juce/mcp/README.md` (launch, tools, safety rules, tests). The disk tools exist only with `--allow-disk` and have not been run on
-  the sampler yet; no tool deletes or renames a file or folder, formats or ejects a disk, or clears the sampler's memory.
+  `juce/mcp/README.md` (launch, tools, safety rules, tests). The disk tools exist only with `--allow-disk` (browsing and loads run on the sampler, saves not yet);
+  the disk refresh needs `--allow-disk-refresh` too and **hung the sampler**, never send it without asking the owner; no tool deletes or renames a file or folder, formats or ejects a disk, or clears the sampler's memory.
   [RQ-MCP-001 to RQ-MCP-030, ADR-MCP-001 to ADR-MCP-003]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the

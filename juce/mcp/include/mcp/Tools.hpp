@@ -61,12 +61,15 @@ namespace mcp
     // The disk tools: `list_disks`, `select_disk`, `list_disk_contents`, `open_folder` and `close_folder` (browsing the
     // sampler's own disks), offered only when the server is launched with `--allow-disk`. The gateway must outlive the
     // tools. [RQ-MCP-023, RQ-MCP-024, ADR-MCP-003 (DEC-MCP-015, DEC-MCP-016)]
-    [[nodiscard]] std::vector<Tool> makeDiskTools(SamplerGateway& gateway);
+    // `offerRefresh` (`--allow-disk-refresh`) puts a `refresh` argument in `list_disks`; without it the refresh of the disk list,
+    // which hung a real S5000, is never sent. [RQ-MCP-031, ADR-MCP-003 (DEC-MCP-020)]
+    [[nodiscard]] std::vector<Tool> makeDiskTools(SamplerGateway& gateway, bool offerRefresh = false);
 
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions
     {
         bool allowDisk = false;  ///< `--allow-disk`: the disk tools are offered
+        bool allowDiskRefresh = false;  ///< `--allow-disk-refresh`: `list_disks` may send the refresh of the disk list
     };
 
     /// Every tool the server offers: the editing tools, the structure tools, the sample and multi tools, and the disk tools
@@ -77,5 +80,5 @@ namespace mcp
     [[nodiscard]] std::string programEditingInstructions();
 
     /// What the server adds to its guidance when the disk tools are offered (`--allow-disk`). [ADR-MCP-003 (DEC-MCP-015)]
-    [[nodiscard]] std::string diskInstructions();
+    [[nodiscard]] std::string diskInstructions(bool refreshOffered = false);
 }

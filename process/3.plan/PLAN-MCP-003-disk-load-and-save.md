@@ -15,8 +15,8 @@ folder, ejects or formats (`RQ-MCP-028`). Every commit carries "(HOL -Human on t
 skill computes.
 
 ## References
-- **Requirements**: RQ-MCP-023 to RQ-MCP-030 (`FTR-MCP-003`); RQ-MCP-014, RQ-MCP-022 (`FTR-MCP-002`)
-- **ADRs**: ADR-MCP-003 (Proposed): DEC-MCP-015 to DEC-MCP-019; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
+- **Requirements**: RQ-MCP-023 to RQ-MCP-031 (`FTR-MCP-003`); RQ-MCP-014, RQ-MCP-022 (`FTR-MCP-002`)
+- **ADRs**: ADR-MCP-003 (Proposed): DEC-MCP-015 to DEC-MCP-020; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
   DEC-MCP-003, DEC-MCP-004, DEC-MCP-008.
 
 The plan has 7 tasks (TASK-MCP-018 to TASK-MCP-024). 018 authors the artifacts; 019 the options and the browsing tools (after 018);
@@ -93,14 +93,14 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-023: Real-sampler run with the owner's disk
 - **Tier**: M
-- **Status**: Blocked
+- **Status**: In Progress
 - **Description**: With the owner present and a disk with a test file plugged into the S5000, run the disk tools one slow command at a time (browse without the refresh, then the refresh, a load, a save without and with `overwrite`), write up what the sampler did in `OBSERVATIONS-RQ-MCP-012-real-sampler.md` and correct the simulated sampler for what it had wrong.
 - **Requirement refs**: RQ-MCP-030, RQ-MCP-024, RQ-MCP-025, RQ-MCP-026
 - **ADR refs**: ADR-MCP-003 (DEC-MCP-017, DEC-MCP-018); ADR-MCP-002 (DEC-MCP-014)
 - **Acceptance Criteria** (Gherkin): *Given* a disk plugged into the sampler and the owner present, *When* each disk tool is run alone, *Then* its answer and what the sampler did are in the observations file, the objects created for the run are removed or listed, and the simulated sampler matches what was seen.
 - **Dependencies**: TASK-MCP-022 (and the owner's disk)
 - **Assignee**: Human and AI
-- **Verification**: NOT DONE: blocked on the owner plugging a disk with a test file into the sampler.
+- **Verification**: PARTLY DONE on 2026-10-05, the owner present with a SCSI2SD disk: browsing, `select_disk`, `load_file` of a program (0.3 s) and of a 40 MB sample (60.4 s) and the sample tools on the loaded sample were run and are written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`; **the refresh hung the sampler** (power cycle; DEC-MCP-020, TASK-MCP-025). Still to run: the saves (without and with `overwrite`; the test file they leave on the owner's disk is deleted by the owner), `load_folder`, `load_file` with dependents, a multi; then to correct the simulated sampler.
 - **Assumptions**: The run is made at the end of the work, as the owner chose; a hang needs a power cycle by hand. The owner asked (2026-10-05) for the simulated sampler to be completed once the real tests are done: everything the run shows that the simulator did differently (the order of loaded programs, the file names and sizes of a save, the path format, what a refresh and a load answer, what a save does with an existing file and with its children) is corrected in the simulator, with its tests, as part of this task.
 
 ### TASK-MCP-024: Documentation and closure
@@ -114,3 +114,15 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
 - **Assumptions**: The documents say the disk tools are not run on the hardware; they say so until TASK-MCP-023 is done and must be changed then.
+
+### TASK-MCP-025: The disk refresh behind its own launch option
+- **Tier**: S
+- **Status**: Done
+- **Description**: Add the launch option `--allow-disk-refresh` (needs `--allow-disk`); without it `list_disks` has no `refresh` argument and refuses `refresh: true` without sending anything; the simulated server takes the option, the tests that send the refresh pass it, and the documents say why (the real S5000 with the owner's SCSI2SD hangs on it).
+- **Requirement refs**: RQ-MCP-031, RQ-MCP-024, RQ-MCP-029
+- **ADR refs**: ADR-MCP-003 (DEC-MCP-020, DEC-MCP-017)
+- **Acceptance Criteria** (Gherkin): *Given* a server launched with `--allow-disk` only, *When* `list_disks` is called with `refresh` true, *Then* the answer is an error that names `--allow-disk-refresh` and the sampler received no section 10 item 01. *Given* both options, *When* it is called with `refresh` true, *Then* the refresh is sent once. *Given* `--allow-disk-refresh` alone, *When* the arguments are parsed, *Then* the error names both options.
+- **Dependencies**: TASK-MCP-019, TASK-MCP-022
+- **Assignee**: AI (decided by the owner on 2026-10-05, after the refresh hung the real sampler)
+- **Verification**: tests written first and run red (the option did not exist: `allowDiskRefresh` is not a member of `ToolOptions` or `ServerOptions`), then green. `juce/tests/mcp/ServerOptionsTests.cpp`: the option is off by default, `--allow-disk --allow-disk-refresh` turns both on (either order), `--allow-disk-refresh` without `--allow-disk` is an error that names both, a value given to it is an error, the usage text names it and says SCSI2SD. `DiskBrowseTests.cpp`: without the option `list_disks` has no `refresh` property, `refresh: true` is refused with an answer naming `--allow-disk-refresh` and nothing at all is sent to the sampler (no `&01`, no `&04`), `refresh: false` lists the disks and a non-boolean is refused, an empty list does not suggest the refresh; with the option the property exists, the refresh is sent once and a silent refresh takes the disk timeout (the two existing refresh tests now pass the option). The simulated server takes `--allow-disk-refresh`, and the disk conversation is launched with both flags (its expected output unchanged: 31 answers). Full `ctest` (Debug, MSVC `/W4 /WX`): 900 of 900 pass (893 before, 7 new). The refresh itself was NOT run again on the real sampler (it hung it).
+- **Assumptions**: `refresh: false` is accepted when the option is off (a no-op) and the answer about an empty list says the sampler's list is not refreshed by this server; the instructions the server gives the model change with the option (`diskInstructions(refreshOffered)`). The sampler's list was current without any refresh in the real run, so the refresh is not needed for a disk plugged in before the server starts; for a disk plugged in later the owner can use the front panel or allow the refresh at their own risk.

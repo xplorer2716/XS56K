@@ -193,6 +193,7 @@ TEST_CASE("Given no disk argument, When the arguments are parsed, Then the disk 
 
     REQUIRE(parsed.ok());
     CHECK_FALSE(parsed.options.allowDisk);
+    CHECK_FALSE(parsed.options.allowDiskRefresh);
     CHECK(parsed.options.diskTimeout == std::chrono::milliseconds(120000));
     CHECK(mcp::gatewayConfigFrom(parsed.options).diskTimeout == std::chrono::milliseconds(120000));
 }
@@ -224,6 +225,39 @@ TEST_CASE("Given a bad disk timeout or a value given to --allow-disk, When the a
     CHECK_FALSE(value.ok());
     CHECK(contains(value.error, "--allow-disk"));
     CHECK_FALSE(parseArguments({"--in", "A", "--out", "B", "--disk-timeout-ms"}).ok());
+}
+
+TEST_CASE("Given --allow-disk and --allow-disk-refresh, When the arguments are parsed, Then both are on [RQ-MCP-031]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--allow-disk", "--allow-disk-refresh"});
+
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.allowDisk);
+    CHECK(parsed.options.allowDiskRefresh);
+    // either order
+    CHECK(parseArguments({"--in", "A", "--out", "B", "--allow-disk-refresh", "--allow-disk"}).options.allowDiskRefresh);
+}
+
+TEST_CASE("Given --allow-disk-refresh without --allow-disk or with a value, When the arguments are parsed, Then the error names the options [RQ-MCP-031]",
+          "[mcp][options]")
+{
+    const ParsedArguments alone = parseArguments({"--in", "A", "--out", "B", "--allow-disk-refresh"});
+    CHECK_FALSE(alone.ok());
+    CHECK(contains(alone.error, "--allow-disk-refresh"));
+    CHECK(contains(alone.error, "--allow-disk"));
+
+    const ParsedArguments value = parseArguments({"--in", "A", "--out", "B", "--allow-disk", "--allow-disk-refresh=yes"});
+    CHECK_FALSE(value.ok());
+    CHECK(contains(value.error, "--allow-disk-refresh"));
+}
+
+TEST_CASE("Given the usage text, When it is read, Then it names --allow-disk-refresh and says what the refresh did to a real sampler [RQ-MCP-031]",
+          "[mcp][options]")
+{
+    const std::string usage = mcp::usageText();
+    CHECK(contains(usage, "--allow-disk-refresh"));
+    CHECK(contains(usage, "SCSI2SD"));
 }
 
 TEST_CASE("Given the usage text, When it is read, Then it names --allow-disk and --disk-timeout-ms and warns about the hang [RQ-MCP-023, RQ-MCP-029]",

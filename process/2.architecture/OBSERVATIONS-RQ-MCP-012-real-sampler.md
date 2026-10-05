@@ -138,6 +138,38 @@ part's solo clears its mute, `&44` answers 31 for 32 parts).
   over 0 to 100, transpose over 0 to 72, notes), a Set on all parts (one command per part), and the quirk that a part's solo
   clears its mute through the tools.
 
+## The disk tools (TASK-MCP-023), run on 2026-10-05 with the owner present — partly
+
+The owner's S5000 holds a SCSI2SD as its hard disk. Memory empty at the start (no program, sample or multi). Server built from the
+branch and launched with `--allow-disk`; one slow command per call, the owner watching. Calls sent through a scripted client
+(one session per run).
+
+| Tool | What the sampler did |
+|---|---|
+| `list_disks` (no refresh) | two disks at once, in 0.0 s: handle 128 "No disk" (floppy, format 8, writable) and handle 129 "S5K" (hard disk, FAT32, writable). The refresh was not needed to see the SCSI2SD |
+| `list_disk_contents` with no disk selected | an error: "selected disk is invalid (error 257)" (the simulated sampler answered error 4) |
+| `select_disk` (by name `S5K`) | accepted in 0.8 s; the current folder is the root |
+| `list_disk_contents` at the root | 0.2 s: 8 folders (`System Volume Information`, `DrumsLoops`, `Soul - Funky - Acid jazz`, `Rap`, `DiscoLoops`, `MoogBass`, `AKWF`, `Rhodes Attacks By Ueberschall`) and 4 files (`New Program  1.AKP` 516 bytes, `X01.AKP` 516 bytes, `S1.WAV` 40264748 bytes, a 35555372-byte `.wav`). File names keep their case and their extension; a name can hold spaces and parentheses |
+| `load_file` `X01.AKP` | 0.3 s. The memory went from no program to one, `X01` (one keygroup), made current; the program is named without its extension |
+| `load_file` `S1.WAV`, `sample_mode` ram | **60.4 s** for 40 MB (well inside the 120 s disk timeout), then one sample `S1` (the name without `.WAV`), current: stereo, 44100 Hz, 10066176 points, type RAM |
+| **`list_disks` with `refresh: true`** | **no reply within 120 s, and the next command got none within 2 s: the sampler answered nothing until the owner switched it off and on.** The server could not put its session settings back (checksum, Still Alive, Sync LCD, Auto screen update) and said so. The owner says this is linked to the SCSI2SD and had said it before; the refresh was sent by this session against that knowledge (the plan listed it), which is why the refresh now needs its own launch option (DEC-MCP-020, TASK-MCP-025) |
+
+After the power cycle the memory was empty again (the program and the RAM sample are gone, as expected) and the disk list, the
+selection and the browsing worked as before.
+
+**The sample tools on a real sample** (the first time: S1 loaded from the disk). The defaults of a loaded stereo sample: start 0,
+end = length (10066176), loop start 1, loop end 10066161 (length minus 15), playback mode NO LOOPING, original pitch 60, semitone
+tune 0, fine tune 0. All eight editable parameters were set to another value, read back as set, and set back (start, end, loop
+start, loop end, playback mode, original pitch, semitone tune, fine tune); a Set of a read-only row (`sample length`) is refused
+with nothing sent. One quirk, as the catalogue already says: setting the loop end to 10000000 left the loop start at **16**, not 1,
+and putting the loop end back and the loop start to 1 restored both. Nothing was saved to the disk, S1.WAV is unchanged.
+
+**Established:** browsing the SCSI2SD, selecting it, loading a program and a very large sample, reading and setting every
+parameter of a real sample. **Not run:** `load_folder`, `load_file` with dependents, `save_memory_item`, `save_all_memory_items`
+(no overwrite, then overwrite), the multi tools (no multi on the disk), and the refresh, which must not be run again on this
+sampler. Things the simulated sampler does differently and that are still to correct after the saves: the error code with no disk
+selected (257), the file names kept as on the disk, and the time of a load of a large file.
+
 ## Not established
 
 - What the sampler's screen shows (modulation source and clock division labels, the effect of Auto screen update during edits).

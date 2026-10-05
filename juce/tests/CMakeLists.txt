@@ -153,14 +153,14 @@ add_test(NAME mcp_simulated_server_scripted_conversation
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
         -DEXPECT_LINES=96
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
-# The same server launched with --allow-disk, and a scripted conversation over the disk tools: browsing, loading, saving, what
+# The same server launched with --allow-disk and --allow-disk-refresh (the conversation sends a refresh), and a scripted conversation over the disk tools: browsing, loading, saving, what
 # a save refuses and a read-only disk. To regenerate the expected output after a deliberate change, run
-#   xs56k_mcp_server_simulated --allow-disk < mcp/conversations/simulated_disk_session.jsonl > mcp/conversations/simulated_disk_session.expected.jsonl
+#   xs56k_mcp_server_simulated --allow-disk --allow-disk-refresh < mcp/conversations/simulated_disk_session.jsonl > mcp/conversations/simulated_disk_session.expected.jsonl
 # [TASK-MCP-022, RQ-MCP-023, RQ-MCP-030, ADR-MCP-003 (DEC-MCP-015)]
 add_test(NAME mcp_simulated_server_disk_conversation
     COMMAND ${CMAKE_COMMAND}
         -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
-        -DSERVER_ARGS=--allow-disk
+        "-DSERVER_ARGS=--allow-disk;--allow-disk-refresh"
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_disk_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_disk_session.expected.jsonl
         -DEXPECT_LINES=31

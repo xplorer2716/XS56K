@@ -51,7 +51,10 @@ int main(int argc, char** argv)
     // holds its two disks; only the tools are opt-in.
     mcp::ToolOptions toolOptions;
     for (int i = 1; i < argc; ++i)
+    {
         toolOptions.allowDisk = toolOptions.allowDisk || std::string(argv[i]) == "--allow-disk";
+        toolOptions.allowDiskRefresh = toolOptions.allowDiskRefresh || std::string(argv[i]) == "--allow-disk-refresh";
+    }
 
 #ifdef _WIN32
     _setmode(_fileno(stdin), _O_BINARY);
@@ -107,7 +110,7 @@ int main(int argc, char** argv)
     identity.version = SERVER_VERSION;
     identity.instructions = mcp::programEditingInstructions();
     if (toolOptions.allowDisk)
-        identity.instructions += mcp::diskInstructions();
+        identity.instructions += mcp::diskInstructions(toolOptions.allowDiskRefresh);
     mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
     std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current), the samples KICK, SNARE and PAD and the multis LIVE and STUDIO\n";

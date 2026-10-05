@@ -59,7 +59,7 @@ namespace
     /// INIT.AKP and KICK.WAV at its root, one file in DRUMS) and CD1 (a CD-ROM, ISO9660, read-only).
     struct Rig
     {
-        explicit Rig(bool allowDisk = true, bool withDisks = true)
+        explicit Rig(bool allowDisk = true, bool withDisks = true, bool allowRefresh = false)
         {
             sampler = &backend.addSampler();
             mcp::test::seedThreePrograms(backend);
@@ -90,6 +90,7 @@ namespace
             }
             mcp::ToolOptions options;
             options.allowDisk = allowDisk;
+            options.allowDiskRefresh = allowRefresh;
             server = std::make_unique<mcp::McpServer>(mcp::ServerIdentity{"xs56k-mcp", "XS56K", "0.0.1", ""},
                                                       mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), options));
         }
@@ -215,14 +216,65 @@ TEST_CASE("Given two disks, When list_disks runs, Then both are listed with thei
     CHECK(rig.accepted(akm::ItemId::DiskUpdateList) == 0);
 }
 
-TEST_CASE("Given list_disks with refresh true, When it runs, Then the sampler is sent the refresh of its disk list once [RQ-MCP-024]",
+TEST_CASE("Given the refresh option and list_disks with refresh true, When it runs, Then the sampler is sent the refresh of its disk list once [RQ-MCP-024, RQ-MCP-031]",
           "[mcp][disk]")
 {
-    Rig rig;
+    Rig rig(true, true, true);
     const json answer = rig.call("list_disks", {{"refresh", true}});
     CHECK_FALSE(isError(answer));
     CHECK(contains(textOf(answer), "Disks connected (2):"));
     CHECK(rig.accepted(akm::ItemId::DiskUpdateList) == 1);
+}
+
+TEST_CASE("Given --allow-disk without --allow-disk-refresh, When the tools are listed, Then list_disks has no refresh argument; with the option it has one [RQ-MCP-031]",
+          "[mcp][disk]")
+{
+    const auto listDisksSchema = [](Rig& rig) {
+        const json list = rig.request("tools/list", json::object());
+        for (const json& tool : list["result"]["tools"])
+            if (tool["name"] == "list_disks")
+                return tool["inputSchema"]["properties"];
+        return json{{"list_disks_is_not_listed", true}};
+    };
+    Rig without;
+    const json withoutProperties = listDisksSchema(without);
+    CHECK_FALSE(withoutProperties.contains("list_disks_is_not_listed"));
+    CHECK_FALSE(withoutProperties.contains("refresh"));
+    Rig with(true, true, true);
+    CHECK(listDisksSchema(with).contains("refresh"));
+}
+
+TEST_CASE("Given --allow-disk without --allow-disk-refresh, When list_disks is called with refresh true, Then the answer is an error that names --allow-disk-refresh and the sampler is sent nothing [RQ-MCP-031]",
+          "[mcp][disk]")
+{
+    Rig rig;
+    const json answer = rig.call("list_disks", {{"refresh", true}});
+    CHECK(isError(answer));
+    CHECK(contains(textOf(answer), "--allow-disk-refresh"));
+    CHECK(rig.accepted(akm::ItemId::DiskUpdateList) == 0);
+    CHECK(rig.accepted(akm::ItemId::DiskGetList) == 0);
+}
+
+TEST_CASE("Given --allow-disk without --allow-disk-refresh, When list_disks is called with refresh false or a non-boolean, Then false lists the disks without the refresh and a non-boolean is refused [RQ-MCP-031]",
+          "[mcp][disk]")
+{
+    Rig rig;
+    const json plain = rig.call("list_disks", {{"refresh", false}});
+    CHECK_FALSE(isError(plain));
+    CHECK(contains(textOf(plain), "Disks connected (2):"));
+    CHECK(isError(rig.call("list_disks", {{"refresh", "yes"}})));
+    CHECK(rig.accepted(akm::ItemId::DiskUpdateList) == 0);
+}
+
+TEST_CASE("Given the refresh option and no disk listed, When list_disks runs, Then the answer offers the refresh; without the option it does not [RQ-MCP-031]",
+          "[mcp][disk]")
+{
+    Rig with(true, false, true);
+    CHECK(contains(textOf(with.call("list_disks")), "refresh true"));
+    Rig without(true, false);
+    const std::string text = textOf(without.call("list_disks"));
+    CHECK(contains(text, "No disk is connected to the sampler."));
+    CHECK_FALSE(contains(text, "refresh true"));
 }
 
 TEST_CASE("Given a sampler with no disk, When list_disks runs, Then it says no disk is connected [RQ-MCP-024]",
@@ -314,7 +366,7 @@ TEST_CASE("Given the root of a disk, When a folder is opened and closed, Then th
 TEST_CASE("Given a refresh the sampler never answers, When list_disks refresh runs, Then it waits for the disk timeout, not the command timeout, and the answer mentions the power cycle and no retry [RQ-MCP-029]",
           "[mcp][disk]")
 {
-    Rig rig;
+    Rig rig(true, true, true);
     akm::harness::SamplerBehaviour behaviour;
     behaviour.silentItems.push_back(akm::harness::SilentItem{SECTION_DISK, ITEM_UPDATE_DISK_LIST});
     rig.sampler->setBehaviour(behaviour);

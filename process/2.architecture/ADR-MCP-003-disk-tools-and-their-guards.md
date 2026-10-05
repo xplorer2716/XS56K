@@ -5,7 +5,7 @@ Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-003 (RQ-MCP-023 to 
 on the loop), after the owner asked for loading and saving through the server. It amends ADR-MCP-002 DEC-MCP-010 (section 10 was
 "never offered"): browsing, loading and saving become offered behind the guards below, and delete, rename, create-folder, eject
 and format stay never offered. The other decisions of ADR-MCP-001 and ADR-MCP-002 stand. No independent review by a second model
-was run.
+was run. **DEC-MCP-020 (2026-10-05)** narrows DEC-MCP-017 for the refresh: it needs `--allow-disk-refresh` as well.
 
 ## Context
 
@@ -74,6 +74,17 @@ there, and nowhere else, `selectDisk`, `updateDiskList`, `openFolder`, `closeFol
 `loadFolder`, `saveMemoryItem`, `saveAllMemoryItems` (the names that carry a forbidden verb); the delete, rename, create-folder, eject
 and format primitives, `deleteAllPrograms`, `deleteAllMultis`, `deleteAllSamples` and Clear Sampler Memory stay forbidden in every
 file. A test of the tool list also checks that no tool is named after them. [RQ-MCP-028]
+
+### DEC-MCP-020: The refresh of the disk list is offered only with a launch option of its own, `--allow-disk-refresh`
+Decided on 2026-10-05, after the real run (TASK-MCP-023): on the owner's S5000 with its SCSI2SD disk plugged in (S5K, FAT32), the
+refresh of the disk list (`&01`) was sent by `list_disks` with `refresh: true`, got no reply in the 120000 ms of the disk timeout, and
+the next command got none either: the sampler answered nothing until the owner switched it off and on. The owner says the hang is
+linked to the SCSI2SD. The same run showed the refresh is not needed for a connected disk: listing, selecting, browsing and loading
+a program (0.3 s) and a 40 MB sample (60 s) all worked without it. So the refresh stops being a per-call choice of the model:
+`--allow-disk-refresh` (which needs `--allow-disk`, otherwise a usage error) puts a `refresh` argument in `list_disks`; without it
+the schema has no `refresh`, `refresh: true` is refused with an answer that names the option and nothing is sent, and the answer
+about an empty list says that the sampler's list is not refreshed by this server. `refresh: false` is accepted as a no-op. The
+simulated server takes the option too. [RQ-MCP-031, RQ-MCP-024, RQ-MCP-029]
 
 ## Consequences
 
