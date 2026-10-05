@@ -5,6 +5,19 @@ The probe (`main.cpp`) is built by the test command of `AGENTS.md` as `xs56k_akm
 `xs56k_akm_probe --help` lists every option. The text below is the full description of each mode, what it sends and what was
 observed on the owner's S5000. Requirements: `RQ-AKM-017` and the RQ ids cited inline.
 
+Modes: `--list` (the MIDI ports), `--in/--out` (first contact), `--session` (a real `Session`), `--suite` (seven checks) and the opt-in
+checks of the suite (`--program-lifecycle`, `--sample-lifecycle`, `--multi-lifecycle`, `--system-setup`, `--disk-tools` and its
+variants, `--front-panel`, `--midi-config`, `--song-files`, `--scenelists`, `--multi-fx`).
+
+Rules that hold for every run:
+- It never sends section 02's Clear Sampler Memory (`&32`), which no real-sampler test may call.
+- A slow section 10 command (`--slow-operation`, `--disk-tools-slow`) once left the S5000 answering nothing until it was switched off
+  and on: run one only with the owner present and ready for a power cycle
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, F4 to F7).
+- The settings a check changes are put back, even when the check fails half way.
+- Exit status 0 when every check passed or was skipped, 2 when no sampler answered at the DeviceID, 3 otherwise.
+- The same suite runs against the simulated sampler in `ctest` (tag `[suite]`).
+
 - **First-contact probe** (needs the sampler; run by the owner): built by the test command above as
   `xs56k_akm_probe` (`juce/<build dir>/tests/probe/`, with a `<config>` folder on Visual Studio). `xs56k_akm_probe --list`
   shows the MIDI ports; `xs56k_akm_probe --in "<port the sampler sends on>" --out "<port it receives on>"`

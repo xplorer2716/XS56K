@@ -51,17 +51,9 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `-C <cfg>` to `ctest`. Test sources live under `juce/tests/`, mirroring the library they exercise.
   The linux-headless canary and preprod workflows run exactly this, and every generated workflow runs
   the suite in its own configuration. [RQ-AKM-016, RQ-BLD-014, TASK-AKM-003]
-- **Probe, session smoke test and real-sampler suite** (need the sampler; run by the owner, never by CI against hardware):
-  `xs56k_akm_probe` (built by the test command, in `<build dir>/tests/probe/`) with `--list` (the MIDI ports), `--in "<port the
-  sampler sends on>" --out "<port it receives on>"` (first contact, fifteen SysEx frames), `--session` (a real `Session`) and
-  `--suite` (seven checks, plus opt-in ones such as `--program-lifecycle`, `--multi-lifecycle`, `--disk-tools`,
-  `--front-panel`, `--midi-config`). `--help` lists the options; what each one sends and what was observed on the owner's S5000 is
-  in `juce/tests/probe/README.md`. Rules that hold for every run: it never sends section 02's Clear Sampler Memory (`&32`); a
-  slow section 10 command (`--slow-operation`, `--disk-tools-slow`) once left the S5000 answering nothing until it was switched
-  off and on, so run one only with the owner ready (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`,
-  F4 to F7); the settings it changes are put back, even when a check fails. Exit status 0 when every check passed or was
-  skipped, 2 when no sampler answered at the DeviceID, 3 otherwise. The same suite runs against the simulated sampler in `ctest`
-  (tag `[suite]`). [RQ-AKM-016 to RQ-AKM-018, RQ-AKM-044, TASK-AKM-010, TASK-AKM-012, TASK-AKM-013]
+- **Probe and real-sampler suite** (`xs56k_akm_probe`, needs the sampler, run by the owner, never by CI against hardware): see
+  `juce/tests/probe/README.md` (modes, options, rules, observations). Never run a slow section 10 command on the sampler without the
+  owner present, and never send `&32` (Clear Sampler Memory). [RQ-AKM-016 to RQ-AKM-018, RQ-AKM-044]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`
   (`python` on Windows) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
   table is out of date, `--coverage` compares the data file with the spec's item list
