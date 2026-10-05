@@ -84,4 +84,14 @@
 {"jsonrpc":"2.0","id":83,"method":"tools/call","params":{"name":"set_sample_parameter","arguments":{"parameter":"sample length","value":10}}}
 {"jsonrpc":"2.0","id":84,"method":"tools/call","params":{"name":"select_sample","arguments":{"name":"NOPE"}}}
 {"jsonrpc":"2.0","id":85,"method":"tools/call","params":{"name":"list_parameters","arguments":{"domain":"sample","group":"pitch"}}}
-{"jsonrpc":"2.0","id":86,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":86,"method":"tools/call","params":{"name":"list_multis","arguments":{}}}
+{"jsonrpc":"2.0","id":87,"method":"tools/call","params":{"name":"select_multi","arguments":{"name":"LIVE"}}}
+{"jsonrpc":"2.0","id":88,"method":"tools/call","params":{"name":"set_multi_parameter","arguments":{"parameter":"part level","value":80,"part":3}}}
+{"jsonrpc":"2.0","id":89,"method":"tools/call","params":{"name":"set_multi_parameter","arguments":{"parameter":"part pan","value":-20,"part":3}}}
+{"jsonrpc":"2.0","id":90,"method":"tools/call","params":{"name":"set_multi_parameter","arguments":{"parameter":"part midi channel","value":"10B","part":3}}}
+{"jsonrpc":"2.0","id":91,"method":"tools/call","params":{"name":"get_multi_parameters","arguments":{"group":"mix","part":3}}}
+{"jsonrpc":"2.0","id":92,"method":"tools/call","params":{"name":"set_multi_parameter","arguments":{"parameter":"part level","value":80}}}
+{"jsonrpc":"2.0","id":93,"method":"tools/call","params":{"name":"set_multi_parameter","arguments":{"parameter":"part level","value":80,"part":33}}}
+{"jsonrpc":"2.0","id":94,"method":"tools/call","params":{"name":"select_multi","arguments":{"name":"NOPE"}}}
+{"jsonrpc":"2.0","id":95,"method":"tools/call","params":{"name":"list_parameters","arguments":{"domain":"multi","group":"setup"}}}
+{"jsonrpc":"2.0","id":96,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

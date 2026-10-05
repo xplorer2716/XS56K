@@ -182,6 +182,8 @@ namespace mcp
                 return "program";
             if (parameter.scope == ParameterScope::Sample)
                 return "current sample";
+            if (parameter.scope == ParameterScope::MultiPart)
+                return "current multi";
             std::string target = selection.keygroup ? "keygroup " + std::to_string(*selection.keygroup)
                                                     : "all " + plural(static_cast<std::int64_t>(distinctKeygroups(values)), "keygroup");
             if (parameter.scope == ParameterScope::Zone)
@@ -232,6 +234,9 @@ namespace mcp
                     break;
                 case ParameterScope::Sample:
                     text += " Of the current sample.";
+                    break;
+                case ParameterScope::MultiPart:
+                    text += " Per part of the current multi.";
                     break;
             }
             if (parameter.readOnly)
@@ -353,7 +358,9 @@ namespace mcp
                "list of programs: delete_program deletes only the current program and only when its name is given as "
                "'confirm'. list_samples, select_sample, get_sample_parameters and set_sample_parameter edit the samples in the "
                "same way (list_parameters with the domain \"sample\" names their parameters); no tool creates, deletes or "
-               "loads a sample. Changes act on the sampler's memory, not on disk; nothing is saved by this server.";
+               "loads a sample. list_multis, select_multi, get_multi_parameters and set_multi_parameter edit the parts of a "
+               "multi (parts are numbered from 1; no tool creates, deletes or renames a multi). Changes act on the sampler's "
+               "memory, not on disk; nothing is saved by this server.";
     }
 
     std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ExtraCatalogues extra)
@@ -455,7 +462,8 @@ namespace mcp
                                          {"domain",
                                           {{"type", "string"},
                                            {"description", std::string("What the parameters belong to: \"program\" (the default)") +
-                                                               (extra.sample != nullptr ? ", \"sample\" (the current sample's)" : "") + "."}}}}),
+                                                               (extra.sample != nullptr ? ", \"sample\" (the current sample's)" : "") +
+                                                               (extra.multi != nullptr ? ", \"multi\" (a part of the current multi)" : "") + "."}}}}),
                        true, true),
             [&catalogue, extra](const json& arguments) {
                 if (const auto refused = unknownArguments(arguments, {"group", "domain"}))
@@ -470,9 +478,11 @@ namespace mcp
                         chosen = &catalogue;
                     else if (domain == "sample" && extra.sample != nullptr)
                         chosen = extra.sample;
+                    else if (domain == "multi" && extra.multi != nullptr)
+                        chosen = extra.multi;
                     else
                         return failure("Unknown domain '" + arguments.at("domain").get<std::string>() + "'. The domains are: program" +
-                                       (extra.sample != nullptr ? ", sample" : "") + ".");
+                                       (extra.sample != nullptr ? ", sample" : "") + (extra.multi != nullptr ? ", multi" : "") + ".");
                 }
                 std::vector<const GroupDefinition*> groups;
                 if (arguments.contains("group"))
@@ -885,14 +895,245 @@ namespace mcp
         return tools;
     }
 
+    namespace
+    {
+        constexpr int MAX_PARTS = 128;
+
+        // The `part` argument of the multi tools: a number from 1, or "all".
+        struct PartArgument
+        {
+            std::optional<PartSelection> selection;
+            bool given = false;
+            std::string problem;
+        };
+
+        PartArgument partArgument(const json& arguments)
+        {
+            const auto given = arguments.find("part");
+            if (given == arguments.end() || given->is_null())
+                return {PartSelection::all(), false, {}};
+            const std::string rule = "part must be a number from 1 to " + std::to_string(MAX_PARTS) + " or \"all\" (got " + given->dump() + ").";
+            if (given->is_string())
+            {
+                if (normalizeText(given->get<std::string>()) == KEYGROUP_ALL)
+                    return {PartSelection::all(), true, {}};
+                return {std::nullopt, true, rule};
+            }
+            const auto number = wholeNumber(*given);
+            if (!number || *number < 1 || *number > MAX_PARTS)
+                return {std::nullopt, true, rule};
+            return {PartSelection::of(static_cast<int>(*number)), true, {}};
+        }
+
+        /// "part level = 80 (part 3)", "part mute = on (all 32 parts)", or one value per part when they differ.
+        std::string describePartReading(const ParameterDefinition& parameter, const std::vector<PartValue>& values, PartSelection parts)
+        {
+            const bool allEqual = std::all_of(values.begin(), values.end(), [&values](const PartValue& value) {
+                return value.value == values.front().value;
+            });
+            if (allEqual)
+                return parameter.name + " = " + describeValue(parameter, values.front().value) + " (" +
+                       (parts.part ? "part " + std::to_string(*parts.part) : "all " + plural(static_cast<std::int64_t>(values.size()), "part")) + ")";
+            std::vector<std::string> perPart;
+            for (const PartValue& value : values)
+                perPart.push_back("part " + std::to_string(value.part) + " = " + describeValue(parameter, value.value));
+            return parameter.name + ": " + joined(perPart, ", ");
+        }
+    }
+
+    std::vector<Tool> makeMultiTools(SamplerGateway& gateway, const ParameterCatalogue& multiCatalogue)
+    {
+        std::vector<Tool> tools;
+
+        // list_multis
+        tools.push_back(Tool{
+            definition("list_multis", "List multis",
+                       "Lists the multis in the sampler's memory with their positions (from 0), says which one is current and how many parts "
+                       "it has.",
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto listing = gateway.listMultis();
+                if (!listing.ok())
+                    return failure(listing.problem);
+                if (listing.value->multis.empty())
+                    return ok("The sampler holds no multi.");
+                std::string text = "Multis in memory (" + std::to_string(listing.value->multis.size()) + "):\n";
+                for (const MultiEntry& multi : listing.value->multis)
+                {
+                    const bool current = listing.value->current && *listing.value->current == multi.index;
+                    text += std::to_string(multi.index) + ": " + multi.name;
+                    if (current)
+                        text += " (current, " + plural(listing.value->currentPartCount.value_or(0), "part") + ")";
+                    text += "\n";
+                }
+                if (!listing.value->current)
+                    text += "No multi is selected: use select_multi.\n";
+                return ok(std::move(text));
+            }});
+
+        // select_multi
+        tools.push_back(Tool{
+            definition("select_multi", "Select a multi",
+                       std::string("Makes a multi of the sampler's memory the current one, by its name or its position (from 0, see "
+                                   "list_multis). get_multi_parameters and set_multi_parameter act on it. Give exactly one of name and "
+                                   "index. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The multi's name."}}},
+                                         {"index", {{"type", "integer"}, {"minimum", 0}, {"description", "The multi's position, from 0."}}}}),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name", "index"}))
+                    return *refused;
+                const bool hasName = arguments.contains("name");
+                const bool hasIndex = arguments.contains("index");
+                if (hasName == hasIndex)
+                    return failure(hasName ? "Give either 'name' or 'index', not both." : "Give either 'name' or 'index'.");
+                Outcome<MultiEntry> selected;
+                if (hasName)
+                {
+                    if (!arguments.at("name").is_string())
+                        return failure("The argument 'name' must be a string.");
+                    selected = gateway.selectMultiByName(arguments.at("name").get<std::string>());
+                }
+                else
+                {
+                    const auto index = wholeNumber(arguments.at("index"));
+                    if (!index || *index < 0 || *index > MAX_PROGRAM_INDEX)
+                        return failure("The argument 'index' must be a whole number from 0 to " + std::to_string(MAX_PROGRAM_INDEX) + ".");
+                    selected = gateway.selectMultiByIndex(static_cast<int>(*index));
+                }
+                if (!selected.ok())
+                    return failure(selected.problem);
+                return ok("Selected the multi \"" + selected.value->name + "\" (position " + std::to_string(selected.value->index) + ", " +
+                          plural(selected.value->partCount, "part") + ").");
+            }});
+
+        const json partSchema{{"type", json::array({"integer", "string"})},
+                              {"description", "Which part of the current multi: a number from 1, or \"all\"."}};
+
+        // get_multi_parameters
+        tools.push_back(Tool{
+            definition("get_multi_parameters", "Read multi part parameters",
+                       "Reads the parameters of the parts of the current multi (see list_parameters with the domain \"multi\"): a whole "
+                       "group, or a list of parameter names, for one part or for every part (the default). Give exactly one of group and "
+                       "parameters. Select a multi first.",
+                       objectSchema(json{{"group", {{"type", "string"}, {"description", "A group: " + groupNames(multiCatalogue) + "."}}},
+                                         {"parameters",
+                                          {{"type", "array"},
+                                           {"items", {{"type", "string"}}},
+                                           {"description", "Parameter names, for example [\"part level\", \"part pan\"]."}}},
+                                         {"part", partSchema}}),
+                       true, true),
+            [&gateway, &multiCatalogue](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"group", "parameters", "part"}))
+                    return *refused;
+                const bool hasGroup = arguments.contains("group");
+                const bool hasList = arguments.contains("parameters");
+                if (hasGroup == hasList)
+                    return failure(hasGroup ? "Give either 'group' or 'parameters', not both." : "Give either 'group' or 'parameters'.");
+                const PartArgument part = partArgument(arguments);
+                if (!part.selection)
+                    return failure(part.problem);
+
+                std::vector<const ParameterDefinition*> wanted;
+                if (hasGroup)
+                {
+                    if (!arguments.at("group").is_string())
+                        return failure("The argument 'group' must be a string.");
+                    const auto groups = multiCatalogue.findGroups(arguments.at("group").get<std::string>());
+                    if (groups.empty())
+                        return failure("Unknown group '" + arguments.at("group").get<std::string>() + "'. The groups are: " +
+                                       groupNames(multiCatalogue) + ".");
+                    for (const GroupDefinition* group : groups)
+                    {
+                        const auto members = multiCatalogue.parametersInGroup(*group);
+                        wanted.insert(wanted.end(), members.begin(), members.end());
+                    }
+                }
+                else
+                {
+                    const json& names = arguments.at("parameters");
+                    if (!names.is_array() || names.empty() ||
+                        !std::all_of(names.begin(), names.end(), [](const json& name) { return name.is_string(); }))
+                        return failure("The argument 'parameters' must be a list of parameter names.");
+                    std::vector<std::string> problems;
+                    for (const json& name : names)
+                    {
+                        const auto resolution = multiCatalogue.resolveName(name.get<std::string>());
+                        if (resolution.parameter == nullptr)
+                            problems.push_back(unknownParameterProblem(name.get<std::string>(), resolution));
+                        else
+                            wanted.push_back(resolution.parameter);
+                    }
+                    if (!problems.empty())
+                        return failure(joined(problems, "\n"));
+                }
+
+                std::string text;
+                for (const ParameterDefinition* parameter : wanted)
+                {
+                    const auto read = gateway.readMultiParameter(*parameter, *part.selection);
+                    if (!read.ok())
+                        return failure(text + read.problem);
+                    text += describePartReading(*parameter, *read.value, *part.selection) + "\n";
+                }
+                return ok(std::move(text));
+            }});
+
+        // set_multi_parameter
+        tools.push_back(Tool{
+            definition("set_multi_parameter", "Set a multi part parameter",
+                       std::string("Sets one parameter of one part of the current multi (see list_parameters with the domain \"multi\"), or "
+                                   "of every part with part \"all\", then reads it back from the sampler and reports what it holds. The part "
+                                   "is required. Select a multi first. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"parameter", {{"type", "string"}, {"description", "The parameter's name, for example \"part level\"."}}},
+                                         {"value",
+                                          {{"type", json::array({"number", "string", "boolean"})},
+                                           {"description", "A number, a choice label such as \"10B\" or \"RV3\", or on/off (true/false)."}}},
+                                         {"part", partSchema}},
+                                    json::array({"parameter", "value", "part"})),
+                       false, true),
+            [&gateway, &multiCatalogue](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"parameter", "value", "part"}))
+                    return *refused;
+                if (!arguments.contains("part"))
+                    return failure("Give the 'part' to set: a number from 1, or \"all\".");
+                if (!arguments.at("parameter").is_string())
+                    return failure("The argument 'parameter' must be a string.");
+                const std::string said = arguments.at("parameter").get<std::string>();
+                const NameResolution resolution = multiCatalogue.resolveName(said);
+                if (resolution.parameter == nullptr)
+                    return failure(unknownParameterProblem(said, resolution));
+                const ParameterDefinition& parameter = *resolution.parameter;
+                const PartArgument part = partArgument(arguments);
+                if (!part.selection)
+                    return failure(part.problem);
+                const ValueResolution resolved = resolveJsonValue(parameter, arguments.at("value"));
+                if (!resolved.value)
+                    return failure(resolved.problem);
+                const auto written = gateway.writeMultiParameter(parameter, *resolved.value, *part.selection);
+                if (!written.ok())
+                    return failure(written.problem);
+                return ok(describePartReading(parameter, *written.value, *part.selection) + ", as read back from the sampler's memory.");
+            }});
+
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue)
     {
         ExtraCatalogues extra;
         extra.sample = &ParameterCatalogue::samples();
+        extra.multi = &ParameterCatalogue::multis();
         std::vector<Tool> tools = makeProgramEditingTools(gateway, catalogue, extra);
         for (Tool& tool : makeProgramStructureTools(gateway))
             tools.push_back(std::move(tool));
         for (Tool& tool : makeSampleTools(gateway, ParameterCatalogue::samples()))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeMultiTools(gateway, ParameterCatalogue::multis()))
             tools.push_back(std::move(tool));
         return tools;
     }

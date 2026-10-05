@@ -31,4 +31,8 @@ namespace mcp
     // The rows of the sample catalogue (section 0E). [RQ-MCP-020, ADR-MCP-002 (DEC-MCP-012)]
     [[nodiscard]] std::vector<GroupDefinition> sampleGroups();
     [[nodiscard]] std::vector<ParameterDefinition> sampleParameters();
+
+    // The rows of the multi catalogue (the parameters of a part, section 0C). [RQ-MCP-021, ADR-MCP-002 (DEC-MCP-012)]
+    [[nodiscard]] std::vector<GroupDefinition> multiGroups();
+    [[nodiscard]] std::vector<ParameterDefinition> multiParameters();
 }

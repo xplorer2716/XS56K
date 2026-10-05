@@ -113,6 +113,39 @@ namespace mcp
         std::optional<int> current;
     };
 
+    /// One multi of the sampler's memory: its position (from 0) and its name.
+    struct MultiEntry
+    {
+        int index = 0;
+        std::string name;
+        int partCount = 0;  ///< of the current multi, as reported when it is selected
+    };
+
+    /// The multis in memory, in memory order, the position of the current one when there is one, and its number of parts.
+    struct MultiListing
+    {
+        std::vector<MultiEntry> multis;
+        std::optional<int> current;
+        std::optional<int> currentPartCount;
+    };
+
+    /// Which part (1 to the multi's part count) of the current multi an edit or a reading is about, or every part.
+    struct PartSelection
+    {
+        std::optional<int> part;  ///< empty: all parts
+
+        [[nodiscard]] static PartSelection all() { return {}; }
+        [[nodiscard]] static PartSelection of(int part) { return PartSelection{part}; }
+    };
+
+    /// One value of a part parameter: the part is numbered from 1, as on the front panel (the wire's part number is one
+    /// less).
+    struct PartValue
+    {
+        int part = 1;
+        std::int64_t value = 0;
+    };
+
     /// Which keygroup an edit or a reading is about: one (1 to the program's count), or all of them.
     struct KeygroupSelection
     {
@@ -180,6 +213,24 @@ namespace mcp
         [[nodiscard]] Outcome<SampleEntry> selectSampleByName(std::string_view name);
         [[nodiscard]] Outcome<SampleEntry> selectSampleByIndex(int index);
 
+        /// The multis in memory and the current one with its number of parts. [RQ-MCP-021]
+        [[nodiscard]] Outcome<MultiListing> listMultis();
+
+        /// Makes a multi current, by name or by position, and answers it with its number of parts. A name or a position
+        /// that no multi has is a problem that says so. [RQ-MCP-021]
+        [[nodiscard]] Outcome<MultiEntry> selectMultiByName(std::string_view name);
+        [[nodiscard]] Outcome<MultiEntry> selectMultiByIndex(int index);
+
+        /// The value of a part parameter (a row of the multi catalogue) for one part of the current multi or for each
+        /// part. A part beyond the multi's count is a problem that gives the count, and nothing is sent but the question
+        /// that says so. With no current multi the problem says to select one. [RQ-MCP-021]
+        [[nodiscard]] Outcome<std::vector<PartValue>> readMultiParameter(const ParameterDefinition& parameter, PartSelection parts);
+
+        /// Sets a part parameter for one part or for every part (one Set per part) and reads it back; the answer is what
+        /// the sampler reports for each. [RQ-MCP-021]
+        [[nodiscard]] Outcome<std::vector<PartValue>> writeMultiParameter(const ParameterDefinition& parameter, std::int64_t value,
+                                                                          PartSelection parts);
+
         /// The value of a parameter of the current sample (a row of the sample catalogue), or the problem. With no
         /// current sample the problem says to select one. [RQ-MCP-020]
         [[nodiscard]] Outcome<std::int64_t> readSampleParameter(const ParameterDefinition& parameter);
@@ -225,6 +276,9 @@ namespace mcp
                                                                                   bool needsCurrentProgram,
                                                                                   const char* currentObject = "program");
         [[nodiscard]] Outcome<SampleEntry> currentSampleEntry();
+        [[nodiscard]] Outcome<MultiEntry> currentMultiEntry();
+        [[nodiscard]] Outcome<std::vector<PartValue>> editMultiParameter(const ParameterDefinition& parameter,
+                                                                         std::optional<std::int64_t> valueToSet, PartSelection parts);
         [[nodiscard]] Outcome<int> keygroupCount();
         [[nodiscard]] Outcome<std::string> currentProgramName();
         [[nodiscard]] Outcome<ProgramInfo> currentProgramInfo();

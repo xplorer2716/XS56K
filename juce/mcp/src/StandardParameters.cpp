@@ -834,4 +834,108 @@ namespace mcp
         rows.push_back(readOnlyRow(std::move(rate)));
         return rows;
     }
+
+    namespace
+    {
+        constexpr const char* GROUP_MULTI_MIX = "mix";
+        constexpr const char* GROUP_MULTI_SETUP = "setup";
+
+        constexpr int MIDI_CHANNELS_PER_PORT = 16;
+        constexpr int MULTI_OUTPUT_PAIRS = 8;
+        constexpr int MULTI_OUTPUTS = 16;
+        constexpr std::int64_t PART_TRANSPOSE_MAX = 36;
+        constexpr std::int64_t PART_FINE_TUNE_MAX = 50;
+        constexpr std::int64_t PART_PAN_MAX = 50;
+        constexpr std::int64_t PART_PAN_CENTRE_CODE = 64;
+
+        // Table 16, item &10: 1A to 16A are codes 0 to 15, 1B to 16B codes 16 to 31 (the sampler's two MIDI ports).
+        const std::vector<std::string>& partMidiChannelLabels()
+        {
+            static const std::vector<std::string> labels = [] {
+                std::vector<std::string> made;
+                for (const char port : {'A', 'B'})
+                {
+                    for (int channel = 1; channel <= MIDI_CHANNELS_PER_PORT; ++channel)
+                        made.push_back(std::to_string(channel) + port);
+                }
+                return made;
+            }();
+            return labels;
+        }
+
+        // Table 16, item &14: 0 to 7 the stereo pairs op1/2 to op15/16, 8 to 23 the outputs op1 to op16.
+        const std::vector<std::string>& partOutputLabels()
+        {
+            static const std::vector<std::string> labels = [] {
+                std::vector<std::string> made;
+                for (int pair = 0; pair < MULTI_OUTPUT_PAIRS; ++pair)
+                    made.push_back("OP" + std::to_string(2 * pair + 1) + "/" + std::to_string(2 * pair + 2));
+                for (int output = 1; output <= MULTI_OUTPUTS; ++output)
+                    made.push_back("OP" + std::to_string(output));
+                return made;
+            }();
+            return labels;
+        }
+
+        // A part value that is a centred code: -max to max over the codes 0 to 2 * max (the pan's codes 14 to 114).
+        ParameterDefinition centred(ParameterDefinition row, std::int64_t max, std::int64_t offset)
+        {
+            row.min = -max;
+            row.offset = offset;
+            return row;
+        }
+    }
+
+    std::vector<GroupDefinition> multiGroups()
+    {
+        return {
+            {GROUP_MULTI_MIX, {"levels"}, "How a part sounds in the mix: mute, solo, level, output, pan, effects channel and FX send level."},
+            {GROUP_MULTI_SETUP, {"range"}, "A part's MIDI channel, tuning and key range."},
+        };
+    }
+
+    std::vector<ParameterDefinition> multiParameters()
+    {
+        const ParameterScope part = ParameterScope::MultiPart;
+        std::vector<ParameterDefinition> rows;
+        rows.push_back(onOff("part mute", {}, GROUP_MULTI_MIX, "Whether the part is muted.", part, akm::ItemId::MultiSetMute,
+                             akm::ItemId::MultiGetMute, {}));
+        rows.push_back(onOff("part solo", {}, GROUP_MULTI_MIX, "Whether the part is soloed.", part, akm::ItemId::MultiSetSolo,
+                             akm::ItemId::MultiGetSolo, {}));
+        rows.push_back(number("part level", {}, GROUP_MULTI_MIX, "The part's level.", part, akm::ItemId::MultiSetLevel,
+                              akm::ItemId::MultiGetLevel, LEVEL_MAX));
+        rows.push_back(choice("part output", {}, GROUP_MULTI_MIX,
+                              "Where the part is sent: a stereo pair of outputs (OP1/2 to OP15/16) or one output (OP1 to OP16).", part,
+                              akm::ItemId::MultiSetOutput, akm::ItemId::MultiGetOutput, partOutputLabels()));
+        rows.push_back(centred(number("part pan", {"part balance", "part pan balance"}, GROUP_MULTI_MIX,
+                                      "The part's pan, or balance for a stereo part: -50 is fully left, 0 the centre, 50 fully right.",
+                                      part, akm::ItemId::MultiSetPanBalance, akm::ItemId::MultiGetPanBalance, PART_PAN_MAX),
+                               PART_PAN_MAX, -PART_PAN_CENTRE_CODE));
+        rows.push_back(choice("part effects channel", {"part fx channel"}, GROUP_MULTI_MIX,
+                              "The effects bus the part is sent to: OFF, FX1, FX2, RV3 or RV4.", part, akm::ItemId::MultiSetEffectsChannel,
+                              akm::ItemId::MultiGetEffectsChannel, fxOverrideLabels()));
+        rows.push_back(number("part fx send level", {"part fx send"}, GROUP_MULTI_MIX, "How much of the part is sent to the effects.", part,
+                              akm::ItemId::MultiSetFxSendLevel, akm::ItemId::MultiGetFxSendLevel, LEVEL_MAX));
+
+        rows.push_back(choice("part midi channel", {"part channel"}, GROUP_MULTI_SETUP,
+                              "The MIDI channel the part listens on: 1A to 16A (the first MIDI port) or 1B to 16B (the second).", part,
+                              akm::ItemId::MultiSetMidiChannel, akm::ItemId::MultiGetMidiChannel, partMidiChannelLabels()));
+        rows.push_back(centred(number("part fine tune", {}, GROUP_MULTI_SETUP, "A fine tuning of the part, in cents: -50 to 50.", part,
+                                      akm::ItemId::MultiSetFineTune, akm::ItemId::MultiGetFineTune, PART_FINE_TUNE_MAX),
+                               PART_FINE_TUNE_MAX, -PART_FINE_TUNE_MAX));
+        rows.push_back(centred(number("part transpose", {}, GROUP_MULTI_SETUP, "How far the part is transposed, in semitones: -36 to 36.",
+                                      part, akm::ItemId::MultiSetTranspose, akm::ItemId::MultiGetTranspose, PART_TRANSPOSE_MAX),
+                               PART_TRANSPOSE_MAX, -PART_TRANSPOSE_MAX));
+        ParameterDefinition low = number("part low note", {}, GROUP_MULTI_SETUP,
+                                         "The lowest note the part plays, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.", part,
+                                         akm::ItemId::MultiSetLowNote, akm::ItemId::MultiGetLowNote, LAST_NOTE);
+        low.min = FIRST_NOTE;
+        rows.push_back(std::move(low));
+        ParameterDefinition high = number("part high note", {}, GROUP_MULTI_SETUP,
+                                          "The highest note the part plays, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.", part,
+                                          akm::ItemId::MultiSetHighNote, akm::ItemId::MultiGetHighNote, LAST_NOTE);
+        high.min = FIRST_NOTE;
+        rows.push_back(std::move(high));
+        return rows;
+    }
 }

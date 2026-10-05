@@ -30,6 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/ItemRequest.hpp"
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
+#include "akm/MultiPrimitives.hpp"
 #include "akm/RealScheduler.hpp"
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SamplerError.hpp"
@@ -764,5 +765,192 @@ namespace mcp
             return Outcome<std::int64_t>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
                                                   describeValue(parameter, value) + " but reads " + describeValue(parameter, *read) + ".");
         return Outcome<std::int64_t>::success(*read);
+    }
+
+    // ---- Multis (section 0C): the sampler's own "current multi", and the parts of it. [RQ-MCP-021] ----
+
+    Outcome<MultiEntry> SamplerGateway::currentMultiEntry()
+    {
+        const auto index = await<akm::MultiIndexResult>(waitFor(1), [&](std::function<void(const akm::MultiIndexResult&)> done) {
+            akm::getCurrentMultiIndex(_connection->session, std::move(done));
+        });
+        if (!index)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        if (!index->index)
+            return Outcome<MultiEntry>::failure(explain(index->outcome, "reading the position of the current multi", _config, true, "multi"));
+        const auto name = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getCurrentMultiName(_connection->session, std::move(done));
+        });
+        if (!name)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        if (!name->name)
+            return Outcome<MultiEntry>::failure(explain(name->outcome, "reading the name of the current multi", _config, true, "multi"));
+        const auto parts = await<akm::MultiPartCountResult>(waitFor(1), [&](std::function<void(const akm::MultiPartCountResult&)> done) {
+            akm::getCurrentMultiPartCount(_connection->session, std::move(done));
+        });
+        if (!parts)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        if (!parts->partCount)
+            return Outcome<MultiEntry>::failure(explain(parts->outcome, "counting the parts of the current multi", _config, true, "multi"));
+        return Outcome<MultiEntry>::success(MultiEntry{*index->index, *name->name, *parts->partCount});
+    }
+
+    Outcome<MultiListing> SamplerGateway::listMultis()
+    {
+        if (const auto problem = connect())
+            return Outcome<MultiListing>::failure(*problem);
+
+        // The count first, as for the samples: an empty memory is then "no multi", whatever the Get of the names answers.
+        const auto count = await<akm::MultiCountResult>(waitFor(1), [&](std::function<void(const akm::MultiCountResult&)> done) {
+            akm::getMultiCount(_connection->session, std::move(done));
+        });
+        if (!count)
+            return Outcome<MultiListing>::failure("The sampler session did not complete the command in time.");
+        if (!count->count)
+            return Outcome<MultiListing>::failure(explain(count->outcome, "counting the multis", _config, false));
+        MultiListing listing;
+        if (*count->count == 0)
+            return Outcome<MultiListing>::success(std::move(listing));
+
+        const auto names = await<akm::MultiNameListResult>(waitFor(1), [&](std::function<void(const akm::MultiNameListResult&)> done) {
+            akm::getAllMultiNames(_connection->session, std::move(done));
+        });
+        if (!names)
+            return Outcome<MultiListing>::failure("The sampler session did not complete the command in time.");
+        if (!names->names)
+            return Outcome<MultiListing>::failure(explain(names->outcome, "reading the multi names", _config, false));
+        for (std::size_t i = 0; i < names->names->size(); ++i)
+            listing.multis.push_back(MultiEntry{static_cast<int>(i), (*names->names)[i], 0});
+        if (listing.multis.empty())
+            return Outcome<MultiListing>::success(std::move(listing));
+
+        const auto current = currentMultiEntry();
+        if (current.ok())
+        {
+            listing.current = current.value->index;
+            listing.currentPartCount = current.value->partCount;
+        }
+        return Outcome<MultiListing>::success(std::move(listing));
+    }
+
+    Outcome<MultiEntry> SamplerGateway::selectMultiByName(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<MultiEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectMultiByName(_connection->session, name, std::move(done));
+        });
+        if (!selected)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<MultiEntry>::failure("No multi is named \"" + std::string(name) + "\". Use list_multis to see the names.");
+        if (!akm::succeeded(*selected))
+            return Outcome<MultiEntry>::failure(explain(*selected, "selecting the multi \"" + std::string(name) + "\"", _config, false));
+        return currentMultiEntry();
+    }
+
+    Outcome<MultiEntry> SamplerGateway::selectMultiByIndex(int index)
+    {
+        if (const auto problem = connect())
+            return Outcome<MultiEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectMultiByIndex(_connection->session, index, std::move(done));
+        });
+        if (!selected)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<MultiEntry>::failure("No multi is at index " + numberText(index) + ". Use list_multis to see the positions.");
+        if (!akm::succeeded(*selected))
+            return Outcome<MultiEntry>::failure(explain(*selected, "selecting the multi at index " + numberText(index), _config, false));
+        return currentMultiEntry();
+    }
+
+    Outcome<std::vector<PartValue>> SamplerGateway::editMultiParameter(const ParameterDefinition& parameter,
+                                                                       std::optional<std::int64_t> valueToSet, PartSelection parts)
+    {
+        using Values = std::vector<PartValue>;
+        if (const auto problem = connect())
+            return Outcome<Values>::failure(*problem);
+
+        const auto count = await<akm::MultiPartCountResult>(waitFor(1), [&](std::function<void(const akm::MultiPartCountResult&)> done) {
+            akm::getCurrentMultiPartCount(_connection->session, std::move(done));
+        });
+        if (!count)
+            return Outcome<Values>::failure("The sampler session did not complete the command in time.");
+        if (!count->partCount)
+            return Outcome<Values>::failure(explain(count->outcome, "counting the parts of the current multi", _config, true, "multi"));
+        const int partCount = *count->partCount;
+        if (parts.part && (*parts.part < 1 || *parts.part > partCount))
+            return Outcome<Values>::failure("The current multi has " + numberText(partCount) + " parts: parts 1 to " + numberText(partCount) +
+                                            " exist, part " + numberText(*parts.part) + " does not.");
+
+        std::vector<int> wanted;
+        if (parts.part)
+            wanted.push_back(*parts.part);
+        else
+        {
+            for (int part = 1; part <= partCount; ++part)
+                wanted.push_back(part);
+        }
+
+        // The wire's part number starts at 0 where the front panel's starts at 1 (an assumption, see the tests).
+        std::vector<akm::CommandRequest> requests;
+        std::vector<std::string> steps;
+        for (const int part : wanted)
+        {
+            const std::int64_t wirePart = part - 1;
+            if (valueToSet)
+            {
+                std::vector<std::int64_t> values{wirePart};
+                const std::vector<std::int64_t> wire = toItemValues(parameter, *valueToSet);
+                values.insert(values.end(), wire.begin(), wire.end());
+                requests.push_back(akm::makeRequest(parameter.setItem, values));
+                steps.push_back("setting " + parameter.name + " of part " + numberText(part));
+            }
+            requests.push_back(akm::makeRequest(parameter.getItem, {wirePart}));
+            steps.push_back("reading " + parameter.name + " of part " + numberText(part));
+        }
+
+        const auto replies = runSequence(std::move(requests), steps, true, "multi");
+        if (!replies.ok())
+            return Outcome<Values>::failure(replies.problem);
+
+        Values values;
+        const std::size_t stride = valueToSet ? 2 : 1;
+        for (std::size_t i = 0; i < wanted.size(); ++i)
+        {
+            const auto set = akm::decodeReply(parameter.getItem, (*replies.value)[i * stride + stride - 1]);
+            const auto value = set ? fromItemValues(parameter, *set) : std::nullopt;
+            if (!value)
+                return Outcome<Values>::failure("The sampler's answer for " + parameter.name + " of part " + numberText(wanted[i]) +
+                                                " could not be read.");
+            values.push_back(PartValue{wanted[i], *value});
+        }
+        if (valueToSet)
+        {
+            for (const PartValue& read : values)
+            {
+                if (read.value != *valueToSet)
+                    return Outcome<Values>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
+                                                    describeValue(parameter, *valueToSet) + " but reads " + describeValue(parameter, read.value) +
+                                                    " for part " + numberText(read.part) + ".");
+            }
+        }
+        return Outcome<Values>::success(std::move(values));
+    }
+
+    Outcome<std::vector<PartValue>> SamplerGateway::readMultiParameter(const ParameterDefinition& parameter, PartSelection parts)
+    {
+        return editMultiParameter(parameter, std::nullopt, parts);
+    }
+
+    Outcome<std::vector<PartValue>> SamplerGateway::writeMultiParameter(const ParameterDefinition& parameter, std::int64_t value,
+                                                                        PartSelection parts)
+    {
+        return editMultiParameter(parameter, value, parts);
     }
 }

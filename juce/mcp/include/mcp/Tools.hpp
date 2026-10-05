@@ -30,6 +30,7 @@ namespace mcp
     struct ExtraCatalogues
     {
         const ParameterCatalogue* sample = nullptr;
+        const ParameterCatalogue* multi = nullptr;
     };
 
     // The six tools of the program editing server: `get_status`, `list_programs`, `select_program`,
@@ -44,6 +45,12 @@ namespace mcp
     // sampler's current sample in memory; none creates, deletes, renames or loads a sample. The gateway and the catalogue
     // must outlive the tools. [RQ-MCP-013, RQ-MCP-020, ADR-MCP-002 (DEC-MCP-010, DEC-MCP-013)]
     [[nodiscard]] std::vector<Tool> makeSampleTools(SamplerGateway& gateway, const ParameterCatalogue& sampleCatalogue);
+
+    // The multi tools: `list_multis`, `select_multi`, `get_multi_parameters` and `set_multi_parameter`. They act on the
+    // sampler's current multi in memory, part by part (parts are numbered from 1); none creates, deletes, renames or
+    // assigns a multi, and Delete ALL Multis is never sent. The gateway and the catalogue must outlive the tools.
+    // [RQ-MCP-013, RQ-MCP-014, RQ-MCP-021, ADR-MCP-002 (DEC-MCP-010, DEC-MCP-013)]
+    [[nodiscard]] std::vector<Tool> makeMultiTools(SamplerGateway& gateway, const ParameterCatalogue& multiCatalogue);
 
     // The structure tools of a program, in the sampler's memory: `create_program`, `rename_program` and `delete_program`
     // (which deletes the current program only when `confirm` is its name). They never save, load or touch the disk.

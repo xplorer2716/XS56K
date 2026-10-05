@@ -120,6 +120,24 @@ sample's parameters is tested on the simulated sampler only.
   type, channels, length, rate), the `domain` argument beyond its text, and the loop-end-moves-loop-start quirk of
   `OBSERVATIONS-RQ-AKM-051-sample-loop-points.md` through the tools. They need a sample in memory (the owner's memory held none).
 
+## Multis (TASK-MCP-016), run on 2026-10-05 on an empty memory
+
+The sampler held **no multi**, and no MCP tool creates one, so the multi tools could only be run for what they say about an empty
+memory; every read and write of a part's parameters is tested on the simulated sampler only. What stands on the real S5000 is the
+AKM layer's own run of the same items (`OBSERVATIONS-RQ-AKM-093-multi.md`: every §0C item obeyed on part **3 sent as 3**, setting a
+part's solo clears its mute, `&44` answers 31 for 32 parts).
+
+- **With no multi**: `list_multis` says "The sampler holds no multi." (the count `&40` is asked first; `&51` also reads as an empty
+  list per the AKM run), `select_multi` of a name or a position reads as "not found" (ERROR 4), and reading or setting a part
+  parameter with no current multi answers ERROR 4 while the tools count the multi's parts, with "Is a multi selected? Use
+  select_multi first."
+- **Assumption not observed: the part numbering.** The tools number parts from 1 and send the part minus one (spec Table 16: the
+  part number is 0 to 127); whether the S5000's front panel calls the wire's part 0 "part 1" is not known (the AKM run only
+  used wire part 3). To observe with a multi in memory.
+- **Not run**: every part parameter (MIDI channel 1A to 16B as codes 0 to 31, output, pan over the codes 14 to 114, fine tune
+  over 0 to 100, transpose over 0 to 72, notes), a Set on all parts (one command per part), and the quirk that a part's solo
+  clears its mute through the tools.
+
 ## Not established
 
 - What the sampler's screen shows (modulation source and clock division labels, the effect of Auto screen update during edits).

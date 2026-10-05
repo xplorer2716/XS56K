@@ -58,6 +58,7 @@ int main()
     mcp::test::seedThreePrograms(backend);
     sampler.setSampleNames({"KICK", "SNARE", "PAD"});
     sampler.setSampleAttributes(0, 0, 2, 143169, 22050);
+    sampler.setMultiNames({"LIVE", "STUDIO"});
 
     mcp::GatewayConfig config;
     config.inputPort = backend.inputName();
@@ -72,7 +73,7 @@ int main()
     identity.instructions = mcp::programEditingInstructions();
     mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard()));
 
-    std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current) and the samples KICK, SNARE and PAD\n";
+    std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current), the samples KICK, SNARE and PAD and the multis LIVE and STUDIO\n";
     server.serve(std::cin, std::cout);
     gateway.close();
     return 0;

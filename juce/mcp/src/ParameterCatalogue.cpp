@@ -236,6 +236,12 @@ namespace mcp
         return catalogue;
     }
 
+    const ParameterCatalogue& ParameterCatalogue::multis()
+    {
+        static const ParameterCatalogue catalogue(multiGroups(), multiParameters());
+        return catalogue;
+    }
+
     const ParameterCatalogue& ParameterCatalogue::samples()
     {
         static const ParameterCatalogue catalogue(sampleGroups(), sampleParameters());
