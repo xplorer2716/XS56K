@@ -20,8 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   browse the sampler's own disks, load a file or a folder into memory and save a program, a sample or a multi (one, or every
   one of a kind) to a writable disk, never replacing a file unless `overwrite` is true; `--disk-timeout-ms` sets how long those
   slow commands wait. It never deletes or renames a file or a folder, never deletes everything and never creates or deletes a
-  sample or a multi. It speaks both eras of MCP over standard input and output. The program tools and parameters were run on a real S5000; the sample tools were also run on a real sample, and the disk browsing and loads on a real disk; the saves and the
-  multi tools are tested against the simulated sampler only (the refresh of the disk list has left a real S5000 answering nothing
+  sample or a multi. It speaks both eras of MCP over standard input and output. The program tools and parameters were run on a real S5000; the sample tools were also run on a real sample, and the disk browsing, loads and the save of a program on a real disk; the bulk save, the load of a
+  folder and the multi tools are tested against the simulated sampler only (the refresh of the disk list has left a real S5000 answering nothing
   until it was switched off and on, hence its own launch option) (`xs56k_mcp_server_simulated` lets you try it with no sampler).
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it

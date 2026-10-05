@@ -154,6 +154,19 @@ branch and launched with `--allow-disk`; one slow command per call, the owner wa
 | `load_file` `S1.WAV`, `sample_mode` ram | **60.4 s** for 40 MB (well inside the 120 s disk timeout), then one sample `S1` (the name without `.WAV`), current: stereo, 44100 Hz, 10066176 points, type RAM |
 | **`list_disks` with `refresh: true`** | **no reply within 120 s, and the next command got none within 2 s: the sampler answered nothing until the owner switched it off and on.** The server could not put its session settings back (checksum, Still Alive, Sync LCD, Auto screen update) and said so. The owner says this is linked to the SCSI2SD and had said it before; the refresh was sent by this session against that knowledge (the plan listed it), which is why the refresh now needs its own launch option (DEC-MCP-020, TASK-MCP-025) |
 
+The saves and the loads with dependents (second part of the run, after the power cycle, same disk, the owner present):
+
+| Tool | What the sampler did |
+|---|---|
+| `save_memory_item` program `MCPSAVETEST` (created for the run, 1 keygroup), no `overwrite` | 1.9 s. The file `MCPSAVETEST.AKP` appeared at the root, **516 bytes** (the same size as the owner's `X01.AKP`; the simulated sampler gives 4096), found by the listing the tool makes afterwards. The name is the program's name plus `.AKP`, in the program's case |
+| the same save again, no `overwrite` | refused by the tool before anything was sent (0.3 s): the folder already holds `MCPSAVETEST.AKP`, "Pass overwrite true to replace it" |
+| the same save with `overwrite: true` | 0.7 s, the file replaced, still 516 bytes, one file of that name in the folder, the other files untouched |
+| `load_file` `X01.AKP` with `with_dependents` | 0.4 s: program X01 added to the two in memory (programs 2, was 1); X01 depends on no sample, so none was added. Programs in memory are listed in alphabetical order whatever the order they were loaded (MCPSAVETEST, X01) |
+
+The listing of a folder is **not alphabetical** (the order of the FAT directory: `New Program  1.AKP`, `MCPSAVETEST.AKP`, `X01.AKP`,
+`S1.WAV`, the `.wav` of 35 MB): the tools give it as the sampler does. The two test programs were then deleted from memory with
+`delete_program`. **`MCPSAVETEST.AKP` is still on the owner's disk (root of S5K): the owner deletes it by hand**, no tool deletes a file.
+
 After the power cycle the memory was empty again (the program and the RAM sample are gone, as expected) and the disk list, the
 selection and the browsing worked as before.
 
@@ -164,11 +177,12 @@ start, loop end, playback mode, original pitch, semitone tune, fine tune); a Set
 with nothing sent. One quirk, as the catalogue already says: setting the loop end to 10000000 left the loop start at **16**, not 1,
 and putting the loop end back and the loop start to 1 restored both. Nothing was saved to the disk, S1.WAV is unchanged.
 
-**Established:** browsing the SCSI2SD, selecting it, loading a program and a very large sample, reading and setting every
-parameter of a real sample. **Not run:** `load_folder`, `load_file` with dependents, `save_memory_item`, `save_all_memory_items`
-(no overwrite, then overwrite), the multi tools (no multi on the disk), and the refresh, which must not be run again on this
-sampler. Things the simulated sampler does differently and that are still to correct after the saves: the error code with no disk
-selected (257), the file names kept as on the disk, and the time of a load of a large file.
+**Established:** browsing the SCSI2SD, selecting it, loading a program (with and without dependents) and a very large sample,
+saving a program (refused without `overwrite` when the file exists, replaced with it) and reading and setting every parameter of a
+real sample. **Not run:** `load_folder`, `save_all_memory_items`, saving a sample or a multi, `save_children`, the multi tools (no
+multi on the disk), and the refresh, which must not be run again on this sampler. Things the simulated sampler does differently
+and that are still to correct: the error code with no disk selected (257 against 4), the size of a saved program (516 bytes against
+4096), the order of a folder listing (the sampler's, not alphabetical), and the time of a load of a large file.
 
 ## Not established
 
