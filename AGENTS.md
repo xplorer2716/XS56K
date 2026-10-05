@@ -60,23 +60,10 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   (`documents/_index/sysex_spec.items.tsv`). Never edit the generated header by hand, and no script runs during the
   build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
   ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
-- **MCP server** (`juce/mcp`, executable `xs56k_mcp_server` in `<build dir>/mcp/`): an MCP client launches it and edits the
-  sampler's programs, zones, samples and multis in memory by talking to it ("set the filter cutoff to 80").
-  `xs56k_mcp_server --list-ports` prints the MIDI ports; `xs56k_mcp_server --in "<port the sampler sends on>" --out "<port it
-  receives on>"` is the server, with `--device-id`, `--timeout-ms`, `--no-lcd`, `--allow-disk` and `--disk-timeout-ms` optional.
-  **The ports are the server's configuration**: they are the arguments of the server entry in the client's MCP configuration
-  (that file is the user's own, never committed). It speaks MCP on standard input and output, both eras of the protocol.
-  Seventeen tools, twenty-six with `--allow-disk`, in three tiers declared in their annotations (read, edit, structure) plus the
-  disk tools; the list, the parameters and how each tool behaves are in `juce/mcp/README.md`. Safety rules: no tool deletes or
-  renames a file or folder, creates a folder, ejects or formats a disk, deletes all programs or multis or clears the sampler's
-  memory (`ctest` entry `mcp_sources_call_no_destructive_primitive`, an allow list per file); the disk tools exist only with
-  `--allow-disk`, never replace a file unless `overwrite` is true, and have been run on the simulated sampler only (a slow section
-  10 command has hung the owner's S5000 once; TASK-MCP-023 runs them with the owner present). The program tools and parameters
-  were run on a real S5000 (`process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`). On Windows a running
-  `xs56k_mcp_server.exe` (the client's own) locks the file: build into another folder with `-- /p:OutDir=<dir>\`.
-  `xs56k_mcp_server_simulated` (built with the tests, never shipped) is the same server over a simulated sampler, to try it with
-  no sampler; its scripted conversations and the `mcp_*` entries of `ctest` are the tests (`xs56k_mcp_tests`).
-  [RQ-MCP-001 to RQ-MCP-030, TASK-MCP-002 to TASK-MCP-024, ADR-MCP-001 to ADR-MCP-003]
+- **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
+  `juce/mcp/README.md` (launch, tools, safety rules, tests). The disk tools exist only with `--allow-disk` and have not been run on
+  the sampler yet; no tool deletes or renames a file or folder, formats or ejects a disk, or clears the sampler's memory.
+  [RQ-MCP-001 to RQ-MCP-030, ADR-MCP-001 to ADR-MCP-003]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

@@ -92,6 +92,23 @@ When a client closes the server's standard input, the server closes its session 
 back (checksums, Still Alive, Notification, Sync LCD, Auto screen update). A server that is killed instead leaves Still Alive
 on, Sync LCD off and Auto screen update on until the sampler is switched off.
 
+## Safety rules
+
+- No tool deletes or renames a file or a folder, creates a folder, ejects or formats a disk, deletes all programs or multis, clears
+  the sampler's memory, or creates, deletes or renames a sample or a multi. The `ctest` entry `mcp_sources_call_no_destructive_primitive`
+  searches the sources and allows each primitive in one file only: the gateway creates, renames and deletes a program, its disk unit
+  (`SamplerGatewayDisk.cpp`) loads and saves.
+- The disk tools exist only with `--allow-disk`, never replace a file unless `overwrite` is true, and have been run on the simulated
+  sampler only (see above).
+- The ports are the server's configuration, in the client's own MCP settings file, which is never committed.
+- Requirements `RQ-MCP-001` to `RQ-MCP-030`, tasks `TASK-MCP-002` to `TASK-MCP-024`.
+
+## Tests
+
+`xs56k_mcp_tests` and the `mcp_*` entries of `ctest`, all against the simulated sampler. `xs56k_mcp_server_simulated` (built with the
+tests, never shipped) is the same server over a simulated sampler holding three programs, three samples and two multis; a scripted
+conversation piped into it is a `ctest` entry (`--allow-disk` adds two disks and a second conversation).
+
 ## Layout
 
 `src/McpServer.cpp` (JSON-RPC lines, both eras of MCP), `src/ParameterCatalogue.cpp` and `src/StandardParameters.cpp` (the
