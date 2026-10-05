@@ -1971,9 +1971,8 @@ namespace akm::harness
         // which is what this model follows); &06/&08/&09 act on the current selection, answering
         // ERROR 4 (not found) when there is none, like a current program or sample with nothing
         // selected; &10-&14/&16/&18 (TASK-AKM-060, RQ-AKM-063) act on the current disk's current folder,
-        // answering ERROR 4 with no disk selected like &06/&08 do; &09 still always answers the root
-        // folder's empty path rather than reading `currentFolderPath` — no item of this lot reports a
-        // full path, only names and counts, so building one is left for whichever later lot needs it.
+        // answering ERROR 4 with no disk selected like &06/&08 do; &09 answers the empty path at the root and, below
+        // it, the names of the folders opened joined by '/' (the MCP disk tools needed a path: TASK-MCP-019).
         Outcome executeDisk(std::uint8_t item, const Bytes& data, std::vector<DiskRecord>& disks,
                             std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
                             std::vector<ProgramRecord>& programs, std::vector<SampleRecord>& samples)
@@ -2046,8 +2045,17 @@ namespace akm::harness
                 {
                     if (!currentDisk.has_value())
                         return failure(error_number::NOT_FOUND);
+                    // The root is the empty path (the spec's "a single byte = 0"). Below it the names of the folders opened,
+                    // joined by '/': the real format is not known (to be observed with a disk plugged into the S5000).
+                    std::string path;
+                    const FolderRecord* folder = &disks[*currentDisk].rootFolder;
+                    for (const std::size_t index : currentFolderPath)
+                    {
+                        folder = &folder->subFolders[index];
+                        path += (path.empty() ? "" : "/") + folder->name;
+                    }
                     akm::ByteWriter writer;
-                    writer.appendString("");
+                    writer.appendString(path);
                     return reply(writer.bytes());
                 }
                 case ITEM_GET_CURRENT_DISK_FORMAT:

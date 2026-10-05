@@ -437,7 +437,7 @@ TASK-MCP-017|116-126|Done|Documentation and closure
 @process/3.plan/PLAN-MCP-003-disk-load-and-save.md
 PLAN-MCP-003|1-116||MCP Server — Loading and Saving through the Sampler's Disks
 TASK-MCP-018|34-45|Done|Author FTR-MCP-003, ADR-MCP-003 and PLAN-MCP-003
-TASK-MCP-019|46-57|Not Started|Disk options, gateway disk unit and browsing tools
+TASK-MCP-019|46-57|Done|Disk options, gateway disk unit and browsing tools
 TASK-MCP-020|58-69|Not Started|Load a file or a folder
 TASK-MCP-021|70-81|Not Started|Save a memory item, save every item of a kind
 TASK-MCP-022|82-93|Not Started|Simulated conversation, fidelity and the hang test

@@ -363,6 +363,13 @@ namespace mcp
                "memory, not on disk; nothing is saved by this server.";
     }
 
+    std::string diskInstructions()
+    {
+        return " The disk tools (list_disks, select_disk, list_disk_contents, open_folder, close_folder) browse the sampler's own "
+               "disks, not the computer's files; list_disks refreshes the sampler's disk list only with refresh true, which is slow and "
+               "has left a real S5000 answering nothing until it was switched off and on.";
+    }
+
     std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ExtraCatalogues extra)
     {
         std::vector<Tool> tools;
@@ -1123,7 +1130,178 @@ namespace mcp
         return tools;
     }
 
-    std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue)
+    namespace
+    {
+        constexpr const char* DISK_TYPES[] = {"floppy", "hard disk", "CD-ROM", "removable"};
+        constexpr int DISK_TYPE_COUNT = 4;
+        constexpr const char* DISK_FORMATS[] = {"other", "MSDOS", "FAT32", "ISO9660", "S1000", "S3000", "EMU", "ROLAND"};
+        constexpr int DISK_FORMAT_COUNT = 8;
+
+        constexpr const char* DISK_NOTICE =
+            "It acts on the sampler's own disks, not on the computer's files, and changes nothing in the sampler's memory.";
+
+        std::string diskType(int type)
+        {
+            return type >= 0 && type < DISK_TYPE_COUNT ? DISK_TYPES[type] : "type " + std::to_string(type);
+        }
+
+        std::string diskFormat(int format)
+        {
+            return format >= 0 && format < DISK_FORMAT_COUNT ? DISK_FORMATS[format] : "format " + std::to_string(format);
+        }
+
+        std::string describeContents(const DiskContents& contents)
+        {
+            std::string text = "Current folder of the disk \"" + contents.diskName + "\": " + (contents.path.empty() ? "(root)" : contents.path) + "\n";
+            if (contents.folders.empty())
+                text += "Folders: none\n";
+            else
+            {
+                text += "Folders (" + std::to_string(contents.folders.size()) + "):\n";
+                for (const std::string& folder : contents.folders)
+                    text += "  " + folder + "\n";
+            }
+            if (contents.files.empty())
+                text += "Files: none\n";
+            else
+            {
+                text += "Files (" + std::to_string(contents.files.size()) + "):\n";
+                for (const DiskFileEntry& file : contents.files)
+                    text += "  " + file.name + " (" + std::to_string(file.sizeBytes) + " bytes)\n";
+            }
+            return text;
+        }
+    }
+
+    std::vector<Tool> makeDiskTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+
+        // list_disks
+        tools.push_back(Tool{
+            definition("list_disks", "List disks",
+                       std::string("Lists the disks connected to the sampler with their handle, type, format and whether they can be "
+                                   "written, and marks the current one. The sampler's refresh of its disk list is sent only with refresh "
+                                   "true: it is the one command that has left a real S5000 answering nothing until it was switched off and "
+                                   "on, and it can take long. ") +
+                           DISK_NOTICE,
+                       objectSchema(json{{"refresh",
+                                          {{"type", "boolean"},
+                                           {"description", "Ask the sampler to refresh its list of disks first (slow, and the risky call). Default false."}}}}),
+                       true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"refresh"}))
+                    return *refused;
+                bool refresh = false;
+                if (arguments.contains("refresh"))
+                {
+                    if (!arguments.at("refresh").is_boolean())
+                        return failure("The argument 'refresh' must be true or false.");
+                    refresh = arguments.at("refresh").get<bool>();
+                }
+                const auto disks = gateway.listDisks(refresh);
+                if (!disks.ok())
+                    return failure(disks.problem);
+                if (disks.value->empty())
+                    return ok("No disk is connected to the sampler." +
+                              std::string(refresh ? "" : " (The sampler's list was not refreshed: if a disk was just plugged in, call list_disks with refresh true.)"));
+                std::string text = "Disks connected (" + std::to_string(disks.value->size()) + "):\n";
+                for (const DiskEntry& disk : *disks.value)
+                    text += std::to_string(disk.handle) + ": " + disk.name + " (" + diskType(disk.type) + ", " + diskFormat(disk.format) + ", " +
+                            (disk.writable ? "writable" : "read-only") + (disk.current ? ", current" : "") + ")\n";
+                return ok(std::move(text));
+            }});
+
+        // select_disk
+        tools.push_back(Tool{
+            definition("select_disk", "Select a disk",
+                       std::string("Makes a disk the current one, by its name or its handle (see list_disks); list_disk_contents, "
+                                   "open_folder and close_folder act on it, at the root of the disk. Give exactly one of name and handle. ") +
+                           DISK_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The disk's name."}}},
+                                         {"handle", {{"type", "integer"}, {"minimum", 0}, {"description", "The disk's handle, from list_disks."}}}}),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name", "handle"}))
+                    return *refused;
+                const bool hasName = arguments.contains("name");
+                const bool hasHandle = arguments.contains("handle");
+                if (hasName == hasHandle)
+                    return failure(hasName ? "Give either 'name' or 'handle', not both." : "Give either 'name' or 'handle'.");
+                Outcome<DiskEntry> selected;
+                if (hasName)
+                {
+                    if (!arguments.at("name").is_string())
+                        return failure("The argument 'name' must be a string.");
+                    selected = gateway.selectDiskByName(arguments.at("name").get<std::string>());
+                }
+                else
+                {
+                    const auto handle = wholeNumber(arguments.at("handle"));
+                    if (!handle || *handle < 0 || *handle > MAX_PROGRAM_INDEX)
+                        return failure("The argument 'handle' must be a whole number from 0 to " + std::to_string(MAX_PROGRAM_INDEX) + ".");
+                    selected = gateway.selectDiskByHandle(static_cast<int>(*handle));
+                }
+                if (!selected.ok())
+                    return failure(selected.problem);
+                return ok("Selected the disk \"" + selected.value->name + "\" (" + diskType(selected.value->type) + ", " +
+                          (selected.value->writable ? "writable" : "read-only") + "); its current folder is the root of the disk.");
+            }});
+
+        // list_disk_contents
+        tools.push_back(Tool{
+            definition("list_disk_contents", "List a disk's current folder",
+                       std::string("Lists the sub-folders and the files, with their sizes in bytes, of the current folder of the current "
+                                   "disk (see select_disk), and says which folder that is. ") +
+                           DISK_NOTICE,
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto contents = gateway.listDiskContents();
+                if (!contents.ok())
+                    return failure(contents.problem);
+                return ok(describeContents(*contents.value));
+            }});
+
+        // open_folder
+        tools.push_back(Tool{
+            definition("open_folder", "Open a folder",
+                       std::string("Descends into a sub-folder of the current folder of the current disk, and lists what it holds. ") + DISK_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The sub-folder's name, from list_disk_contents."}}}},
+                                    json::array({"name"})),
+                       false, false),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name"}))
+                    return *refused;
+                if (!arguments.contains("name") || !arguments.at("name").is_string())
+                    return failure("Give the 'name' of the sub-folder to open.");
+                const auto contents = gateway.openFolder(arguments.at("name").get<std::string>());
+                if (!contents.ok())
+                    return failure(contents.problem);
+                return ok(describeContents(*contents.value));
+            }});
+
+        // close_folder
+        tools.push_back(Tool{
+            definition("close_folder", "Go up one folder",
+                       std::string("Goes back up from the current folder to its parent on the current disk, and lists what the parent "
+                                   "holds. It does nothing at the root. ") +
+                           DISK_NOTICE,
+                       objectSchema(), false, false),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto contents = gateway.closeFolder();
+                if (!contents.ok())
+                    return failure(contents.problem);
+                return ok(describeContents(*contents.value));
+            }});
+
+        return tools;
+    }
+
+    std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
         extra.sample = &ParameterCatalogue::samples();
@@ -1135,6 +1313,11 @@ namespace mcp
             tools.push_back(std::move(tool));
         for (Tool& tool : makeMultiTools(gateway, ParameterCatalogue::multis()))
             tools.push_back(std::move(tool));
+        if (options.allowDisk)
+        {
+            for (Tool& tool : makeDiskTools(gateway))
+                tools.push_back(std::move(tool));
+        }
         return tools;
     }
 }

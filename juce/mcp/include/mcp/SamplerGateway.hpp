@@ -49,6 +49,10 @@ namespace mcp
         /// Whether the session switches Sync LCD off and Auto screen update on, so that the sampler's screen follows
         /// the edits (both are put back at the close); false leaves both alone.
         bool touchLcdSettings = true;
+        /// How long a slow section 10 command (the refresh of the disk list, a load, a save) waits for the sampler: much
+        /// longer than an ordinary command, and its silence is answered with a message about the power cycle.
+        /// [ADR-MCP-003 (DEC-MCP-017)]
+        std::chrono::milliseconds diskTimeout{120000};
     };
 
     /// A value, or the reason there is none.
@@ -111,6 +115,32 @@ namespace mcp
     {
         std::vector<SampleEntry> samples;
         std::optional<int> current;
+    };
+
+    /// One disk connected to the sampler, as section 10 lists it. [RQ-MCP-024]
+    struct DiskEntry
+    {
+        int handle = 0;
+        std::string name;
+        int type = 0;    ///< 0 floppy, 1 hard disk, 2 CD-ROM, 3 removable
+        int format = 0;  ///< 0 other, 1 MSDOS, 2 FAT32, 3 ISO9660, 4 S1000, 5 S3000, 6 EMU, 7 ROLAND
+        bool writable = false;
+        bool current = false;
+    };
+
+    struct DiskFileEntry
+    {
+        std::string name;
+        std::uint32_t sizeBytes = 0;
+    };
+
+    /// The current folder of the current disk: its path (empty at the root), its sub-folders and its files.
+    struct DiskContents
+    {
+        std::string diskName;
+        std::string path;
+        std::vector<std::string> folders;
+        std::vector<DiskFileEntry> files;
     };
 
     /// One multi of the sampler's memory: its position (from 0) and its name.
@@ -213,6 +243,24 @@ namespace mcp
         [[nodiscard]] Outcome<SampleEntry> selectSampleByName(std::string_view name);
         [[nodiscard]] Outcome<SampleEntry> selectSampleByIndex(int index);
 
+        /// The disks connected to the sampler, the current one marked. The sampler's refresh of its disk list is sent only
+        /// when `refresh` is true: it is the command that hung a real S5000, and it waits for the disk timeout. [RQ-MCP-024]
+        [[nodiscard]] Outcome<std::vector<DiskEntry>> listDisks(bool refresh);
+
+        /// Makes a disk current, by name or by handle. A name or a handle that no disk has is a problem that lists the disks.
+        /// [RQ-MCP-024]
+        [[nodiscard]] Outcome<DiskEntry> selectDiskByName(std::string_view name);
+        [[nodiscard]] Outcome<DiskEntry> selectDiskByHandle(int handle);
+
+        /// What the current folder of the current disk holds. With no disk selected the problem says to select one.
+        /// [RQ-MCP-024]
+        [[nodiscard]] Outcome<DiskContents> listDiskContents();
+
+        /// Descends into a sub-folder of the current folder, or goes back up one level, and answers the new contents; a
+        /// folder that is not there, or the root, is a problem and nothing is sent. [RQ-MCP-024]
+        [[nodiscard]] Outcome<DiskContents> openFolder(std::string_view name);
+        [[nodiscard]] Outcome<DiskContents> closeFolder();
+
         /// The multis in memory and the current one with its number of parts. [RQ-MCP-021]
         [[nodiscard]] Outcome<MultiListing> listMultis();
 
@@ -277,6 +325,17 @@ namespace mcp
                                                                                   const char* currentObject = "program");
         [[nodiscard]] Outcome<SampleEntry> currentSampleEntry();
         [[nodiscard]] Outcome<MultiEntry> currentMultiEntry();
+
+        /// The open session, for the units of the gateway; only called while a connection is open.
+        [[nodiscard]] akm::Session& session();
+
+        // The disk unit (SamplerGatewayDisk.cpp).
+        /// How long to wait for a slow disk command, and what its options carry so that the session waits as long.
+        [[nodiscard]] std::chrono::milliseconds waitForDisk() const;
+        [[nodiscard]] akm::CommandOptions diskOptions() const;
+        /// As `explain`, for a slow disk command: a timeout says the sampler may have to be switched off and on.
+        [[nodiscard]] std::string explainDisk(const akm::CommandResult& outcome, const std::string& doing) const;
+        [[nodiscard]] Outcome<std::vector<std::string>> folderNames();
         [[nodiscard]] Outcome<std::vector<PartValue>> editMultiParameter(const ParameterDefinition& parameter,
                                                                          std::optional<std::int64_t> valueToSet, PartSelection parts);
         [[nodiscard]] Outcome<int> keygroupCount();

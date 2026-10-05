@@ -36,9 +36,9 @@ namespace akm
         constexpr std::int64_t DATA_BYTE_BASE = 128;
     }
 
-    void updateDiskList(Session& session, CommandCompletion completion)
+    void updateDiskList(Session& session, CommandCompletion completion, CommandOptions options)
     {
-        session.submit(makeRequest(ItemId::DiskUpdateList, NO_VALUES), std::move(completion));
+        session.submit(makeRequest(ItemId::DiskUpdateList, NO_VALUES, std::move(options)), std::move(completion));
     }
 
     void getDiskCount(Session& session, DiskCountCompletion completion)
@@ -298,9 +298,9 @@ namespace akm
         session.submit(makeTwoStringRequest(ItemId::DiskRenameFolder, oldName, newName), std::move(completion));
     }
 
-    void loadFolder(Session& session, std::string_view name, CommandCompletion completion)
+    void loadFolder(Session& session, std::string_view name, CommandCompletion completion, CommandOptions options)
     {
-        session.submit(makeStringRequest(ItemId::DiskLoadFolder, name), std::move(completion));
+        session.submit(makeStringRequest(ItemId::DiskLoadFolder, name, std::move(options)), std::move(completion));
     }
 
     void getFileCount(Session& session, DiskFileCountCompletion completion)
@@ -390,7 +390,8 @@ namespace akm
         session.submit(makeTwoStringRequest(ItemId::DiskRenameFile, oldName, newName), std::move(completion));
     }
 
-    void loadFile(Session& session, std::string_view name, SampleLoadOption sampleLoadOption, CommandCompletion completion)
+    void loadFile(Session& session, std::string_view name, SampleLoadOption sampleLoadOption, CommandCompletion completion,
+                  CommandOptions options)
     {
         // &2A's shape (a String then a Byte) fits neither makeStringRequest (exactly one String) nor the
         // generic int64_t path (no String support), so it is written by hand, the same way
@@ -399,6 +400,7 @@ namespace akm
         CommandRequest request;
         request.command.section = item.section;
         request.command.item = item.item;
+        request.options = std::move(options);
 
         const auto length = static_cast<std::int64_t>(name.size());
         if (length < item.args[0].min || length > item.args[0].max)
@@ -420,26 +422,28 @@ namespace akm
         session.submit(std::move(request), std::move(completion));
     }
 
-    void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion)
+    void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion, CommandOptions options)
     {
-        session.submit(makeStringRequest(ItemId::DiskLoadFileWithDependents, name), std::move(completion));
+        session.submit(makeStringRequest(ItemId::DiskLoadFileWithDependents, name, std::move(options)), std::move(completion));
     }
 
     void saveMemoryItem(Session& session, int index, SaveableMemoryType type, bool overwriteExisting,
-                        bool saveChildren, CommandCompletion completion)
+                        bool saveChildren, CommandCompletion completion, CommandOptions options)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
         const auto lsb = static_cast<std::int64_t>(index) % DATA_BYTE_BASE;
-        session.submit(makeRequest(ItemId::DiskSaveMemoryItem, {msb, lsb, static_cast<std::int64_t>(type),
-                                                                overwriteExisting ? 1 : 0, saveChildren ? 1 : 0}),
+        session.submit(makeRequest(ItemId::DiskSaveMemoryItem,
+                                   {msb, lsb, static_cast<std::int64_t>(type), overwriteExisting ? 1 : 0, saveChildren ? 1 : 0},
+                                   std::move(options)),
                        std::move(completion));
     }
 
     void saveAllMemoryItems(Session& session, SaveableMemoryType type, bool overwriteExisting, bool saveChildren,
-                           CommandCompletion completion)
+                           CommandCompletion completion, CommandOptions options)
     {
         session.submit(makeRequest(ItemId::DiskSaveAllMemoryItems,
-                                   {static_cast<std::int64_t>(type), overwriteExisting ? 1 : 0, saveChildren ? 1 : 0}),
+                                   {static_cast<std::int64_t>(type), overwriteExisting ? 1 : 0, saveChildren ? 1 : 0},
+                                   std::move(options)),
                        std::move(completion));
     }
 

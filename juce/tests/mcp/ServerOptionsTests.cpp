@@ -185,3 +185,52 @@ TEST_CASE("Given the usage text, When it is read, Then it names every option and
         CHECK(contains(usage, option));
     }
 }
+
+TEST_CASE("Given no disk argument, When the arguments are parsed, Then the disk tools are off and the disk timeout is 120000 ms [RQ-MCP-023, RQ-MCP-029]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B"});
+
+    REQUIRE(parsed.ok());
+    CHECK_FALSE(parsed.options.allowDisk);
+    CHECK(parsed.options.diskTimeout == std::chrono::milliseconds(120000));
+    CHECK(mcp::gatewayConfigFrom(parsed.options).diskTimeout == std::chrono::milliseconds(120000));
+}
+
+TEST_CASE("Given --allow-disk and --disk-timeout-ms 500, When the arguments are parsed, Then the disk tools are on, with a 500 ms disk timeout the gateway carries [RQ-MCP-023, RQ-MCP-029]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--allow-disk", "--disk-timeout-ms", "500"});
+
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.allowDisk);
+    CHECK(parsed.options.diskTimeout == std::chrono::milliseconds(500));
+    CHECK(mcp::gatewayConfigFrom(parsed.options).diskTimeout == std::chrono::milliseconds(500));
+    CHECK(parseArguments({"--in=A", "--out=B", "--allow-disk", "--disk-timeout-ms=900000"}).options.diskTimeout ==
+          std::chrono::milliseconds(900000));
+}
+
+TEST_CASE("Given a bad disk timeout or a value given to --allow-disk, When the arguments are parsed, Then the error names the argument [RQ-MCP-029]",
+          "[mcp][options]")
+{
+    for (const char* bad : {"0", "-5", "abc", "1800001", ""})
+    {
+        const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--disk-timeout-ms", bad});
+        INFO(bad);
+        CHECK_FALSE(parsed.ok());
+        CHECK(contains(parsed.error, "--disk-timeout-ms"));
+    }
+    const ParsedArguments value = parseArguments({"--in", "A", "--out", "B", "--allow-disk=yes"});
+    CHECK_FALSE(value.ok());
+    CHECK(contains(value.error, "--allow-disk"));
+    CHECK_FALSE(parseArguments({"--in", "A", "--out", "B", "--disk-timeout-ms"}).ok());
+}
+
+TEST_CASE("Given the usage text, When it is read, Then it names --allow-disk and --disk-timeout-ms and warns about the hang [RQ-MCP-023, RQ-MCP-029]",
+          "[mcp][options]")
+{
+    const std::string usage = mcp::usageText();
+    CHECK(contains(usage, "--allow-disk"));
+    CHECK(contains(usage, "--disk-timeout-ms"));
+    CHECK(contains(usage, "switched off and on"));
+}

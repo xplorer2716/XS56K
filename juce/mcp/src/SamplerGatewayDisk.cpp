@@ -1,0 +1,301 @@
+/*
+XS56K - a realtime editor for the AKAI S5000/S6000 samplers
+Copyright (C) 2026 https://github.com/xplorer2716
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+// The disk unit of the sampler gateway: browsing the sampler's disks (section 10) with the long timeout of the slow commands.
+// It is the only unit of the library that may call the disk primitives of browsing, loading and saving; the delete, rename,
+// create-folder, eject and format primitives are called nowhere (checked by `CheckNoDestructiveCalls.cmake`). [RQ-MCP-024,
+// RQ-MCP-028, RQ-MCP-029, ADR-MCP-003 (DEC-MCP-015, DEC-MCP-016, DEC-MCP-017, DEC-MCP-019)]
+#include <algorithm>
+#include <functional>
+#include <utility>
+#include <variant>
+
+#include "GatewayDetail.hpp"
+#include "akm/CommandOptions.hpp"
+#include "akm/DiskPrimitives.hpp"
+#include "akm/SamplerError.hpp"
+#include "mcp/ParameterCatalogue.hpp"
+#include "mcp/SamplerGateway.hpp"
+
+namespace mcp
+{
+    using detail::await;
+    using detail::explain;
+    using detail::numberText;
+
+    namespace
+    {
+        constexpr const char* DISK = "disk";
+
+        std::string diskList(const std::vector<DiskEntry>& disks)
+        {
+            std::string text;
+            for (std::size_t i = 0; i < disks.size(); ++i)
+                text += (i == 0 ? "" : ", ") + std::string("\"") + disks[i].name + "\"";
+            return text;
+        }
+    }
+
+    std::chrono::milliseconds SamplerGateway::waitForDisk() const
+    {
+        return _config.diskTimeout + detail::WAIT_MARGIN;
+    }
+
+    akm::CommandOptions SamplerGateway::diskOptions() const
+    {
+        akm::CommandOptions options;
+        options.timeout = _config.diskTimeout;
+        options.maxTotalWait = _config.diskTimeout;
+        return options;
+    }
+
+    std::string SamplerGateway::explainDisk(const akm::CommandResult& outcome, const std::string& doing) const
+    {
+        if (std::holds_alternative<akm::Timeout>(outcome))
+            return "The sampler did not answer while " + doing + " (no reply within " + numberText(_config.diskTimeout.count()) +
+                   " ms). A slow disk command can leave the sampler answering nothing: it may have to be switched off and on. "
+                   "The command was not retried.";
+        return explain(outcome, doing, _config, true, DISK);
+    }
+
+    Outcome<std::vector<DiskEntry>> SamplerGateway::listDisks(bool refresh)
+    {
+        using Disks = std::vector<DiskEntry>;
+        if (const auto problem = connect())
+            return Outcome<Disks>::failure(*problem);
+
+        if (refresh)
+        {
+            const auto refreshed = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+                akm::updateDiskList(session(), std::move(done), diskOptions());
+            });
+            if (!refreshed)
+                return Outcome<Disks>::failure("The sampler session did not complete the refresh of the disk list in time.");
+            if (!akm::succeeded(*refreshed))
+                return Outcome<Disks>::failure(explainDisk(*refreshed, "refreshing the list of disks"));
+        }
+
+        const auto disks = await<akm::DiskListResult>(waitFor(1), [&](std::function<void(const akm::DiskListResult&)> done) {
+            akm::getConnectedDisks(session(), std::move(done));
+        });
+        if (!disks)
+            return Outcome<Disks>::failure("The sampler session did not complete the command in time.");
+        if (!disks->disks)
+            return Outcome<Disks>::failure(explain(disks->outcome, "listing the disks", _config, false));
+
+        Disks entries;
+        for (const akm::DiskInfo& info : *disks->disks)
+            entries.push_back(DiskEntry{info.handle, info.name, info.type, info.format, info.writable, false});
+
+        // Which one is current: a disk not selected yet is not an error, only "none".
+        const auto current = await<akm::DiskHandleResult>(waitFor(1), [&](std::function<void(const akm::DiskHandleResult&)> done) {
+            akm::getCurrentDiskHandle(session(), std::move(done));
+        });
+        if (current && current->handle)
+        {
+            for (DiskEntry& entry : entries)
+                entry.current = entry.handle == *current->handle;
+        }
+        return Outcome<Disks>::success(std::move(entries));
+    }
+
+    Outcome<DiskEntry> SamplerGateway::selectDiskByHandle(int handle)
+    {
+        const auto disks = listDisks(false);
+        if (!disks.ok())
+            return Outcome<DiskEntry>::failure(disks.problem);
+        if (disks.value->empty())
+            return Outcome<DiskEntry>::failure("No disk is connected to the sampler.");
+        const auto found = std::find_if(disks.value->begin(), disks.value->end(), [handle](const DiskEntry& disk) { return disk.handle == handle; });
+        if (found == disks.value->end())
+            return Outcome<DiskEntry>::failure("No disk has the handle " + numberText(handle) + ". The disks are: " + diskList(*disks.value) + ".");
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectDisk(session(), handle, std::move(done));
+        });
+        if (!selected)
+            return Outcome<DiskEntry>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*selected))
+            return Outcome<DiskEntry>::failure(explain(*selected, "selecting the disk \"" + found->name + "\"", _config, false));
+        DiskEntry entry = *found;
+        entry.current = true;
+        return Outcome<DiskEntry>::success(std::move(entry));
+    }
+
+    Outcome<DiskEntry> SamplerGateway::selectDiskByName(std::string_view name)
+    {
+        const auto disks = listDisks(false);
+        if (!disks.ok())
+            return Outcome<DiskEntry>::failure(disks.problem);
+        if (disks.value->empty())
+            return Outcome<DiskEntry>::failure("No disk is connected to the sampler.");
+        const std::string wanted = normalizeText(name);
+        const auto found = std::find_if(disks.value->begin(), disks.value->end(),
+                                        [&wanted](const DiskEntry& disk) { return normalizeText(disk.name) == wanted; });
+        if (found == disks.value->end())
+            return Outcome<DiskEntry>::failure("No disk is named \"" + std::string(name) + "\". The disks are: " + diskList(*disks.value) + ".");
+        return selectDiskByHandle(found->handle);
+    }
+
+    Outcome<std::vector<std::string>> SamplerGateway::folderNames()
+    {
+        using Names = std::vector<std::string>;
+        const auto count = await<akm::DiskFolderCountResult>(waitFor(1), [&](std::function<void(const akm::DiskFolderCountResult&)> done) {
+            akm::getFolderCount(session(), std::move(done));
+        });
+        if (!count)
+            return Outcome<Names>::failure("The sampler session did not complete the command in time.");
+        if (!count->count)
+            return Outcome<Names>::failure(explain(count->outcome, "counting the folders", _config, true, DISK));
+        if (*count->count == 0)
+            return Outcome<Names>::success({});
+        const auto names = await<akm::DiskFolderNamesResult>(waitFor(1), [&](std::function<void(const akm::DiskFolderNamesResult&)> done) {
+            akm::getAllFolderNames(session(), std::move(done));
+        });
+        if (!names)
+            return Outcome<Names>::failure("The sampler session did not complete the command in time.");
+        if (!names->names)
+            return Outcome<Names>::failure(explain(names->outcome, "reading the folder names", _config, true, DISK));
+        return Outcome<Names>::success(*names->names);
+    }
+
+    Outcome<DiskContents> SamplerGateway::listDiskContents()
+    {
+        if (const auto problem = connect())
+            return Outcome<DiskContents>::failure(*problem);
+
+        const auto handle = await<akm::DiskHandleResult>(waitFor(1), [&](std::function<void(const akm::DiskHandleResult&)> done) {
+            akm::getCurrentDiskHandle(session(), std::move(done));
+        });
+        if (!handle)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!handle->handle)
+            return Outcome<DiskContents>::failure(explain(handle->outcome, "reading the current disk", _config, true, DISK));
+
+        DiskContents contents;
+        const auto name = await<akm::DiskNameResult>(waitFor(1), [&](std::function<void(const akm::DiskNameResult&)> done) {
+            akm::getDiskName(session(), *handle->handle, std::move(done));
+        });
+        if (!name)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!name->name)
+            return Outcome<DiskContents>::failure(explain(name->outcome, "reading the name of the current disk", _config, true, DISK));
+        contents.diskName = *name->name;
+
+        const auto path = await<akm::DiskPathResult>(waitFor(1), [&](std::function<void(const akm::DiskPathResult&)> done) {
+            akm::getCurrentDiskPath(session(), std::move(done));
+        });
+        if (!path)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!path->path)
+            return Outcome<DiskContents>::failure(explain(path->outcome, "reading the current folder", _config, true, DISK));
+        contents.path = *path->path;
+
+        const auto folders = folderNames();
+        if (!folders.ok())
+            return Outcome<DiskContents>::failure(folders.problem);
+        contents.folders = *folders.value;
+
+        const auto fileCount = await<akm::DiskFileCountResult>(waitFor(1), [&](std::function<void(const akm::DiskFileCountResult&)> done) {
+            akm::getFileCount(session(), std::move(done));
+        });
+        if (!fileCount)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!fileCount->count)
+            return Outcome<DiskContents>::failure(explain(fileCount->outcome, "counting the files", _config, true, DISK));
+        if (*fileCount->count > 0)
+        {
+            const auto names = await<akm::DiskFileNamesResult>(waitFor(1), [&](std::function<void(const akm::DiskFileNamesResult&)> done) {
+                akm::getAllFileNames(session(), std::move(done));
+            });
+            if (!names)
+                return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+            if (!names->names)
+                return Outcome<DiskContents>::failure(explain(names->outcome, "reading the file names", _config, true, DISK));
+            for (std::size_t i = 0; i < names->names->size(); ++i)
+            {
+                const auto size = await<akm::DiskFileSizeResult>(waitFor(1), [&](std::function<void(const akm::DiskFileSizeResult&)> done) {
+                    akm::getFileSize(session(), static_cast<int>(i), std::move(done));
+                });
+                if (!size)
+                    return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+                if (!size->sizeBytes)
+                    return Outcome<DiskContents>::failure(explain(size->outcome, "reading the size of \"" + (*names->names)[i] + "\"", _config, true, DISK));
+                contents.files.push_back(DiskFileEntry{(*names->names)[i], *size->sizeBytes});
+            }
+        }
+        return Outcome<DiskContents>::success(std::move(contents));
+    }
+
+    Outcome<DiskContents> SamplerGateway::openFolder(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<DiskContents>::failure(*problem);
+
+        const auto folders = folderNames();
+        if (!folders.ok())
+            return Outcome<DiskContents>::failure(folders.problem);
+        const std::string wanted = normalizeText(name);
+        const auto found = std::find_if(folders.value->begin(), folders.value->end(),
+                                        [&wanted](const std::string& folder) { return normalizeText(folder) == wanted; });
+        if (found == folders.value->end())
+        {
+            std::string text = "There is no folder named \"" + std::string(name) + "\" here.";
+            if (folders.value->empty())
+                return Outcome<DiskContents>::failure(text + " The current folder has no sub-folder.");
+            text += " Its folders are: ";
+            for (std::size_t i = 0; i < folders.value->size(); ++i)
+                text += (i == 0 ? "" : ", ") + std::string("\"") + (*folders.value)[i] + "\"";
+            return Outcome<DiskContents>::failure(text + ".");
+        }
+
+        const auto opened = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::openFolder(session(), *found, std::move(done));
+        });
+        if (!opened)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*opened))
+            return Outcome<DiskContents>::failure(explain(*opened, "opening the folder \"" + *found + "\"", _config, true, DISK));
+        return listDiskContents();
+    }
+
+    Outcome<DiskContents> SamplerGateway::closeFolder()
+    {
+        if (const auto problem = connect())
+            return Outcome<DiskContents>::failure(*problem);
+
+        const auto path = await<akm::DiskPathResult>(waitFor(1), [&](std::function<void(const akm::DiskPathResult&)> done) {
+            akm::getCurrentDiskPath(session(), std::move(done));
+        });
+        if (!path)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!path->path)
+            return Outcome<DiskContents>::failure(explain(path->outcome, "reading the current folder", _config, true, DISK));
+        if (path->path->empty())
+            return Outcome<DiskContents>::failure("The current folder is already the root of the disk: there is no folder above it.");
+
+        const auto closed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::closeFolder(session(), std::move(done));
+        });
+        if (!closed)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*closed))
+            return Outcome<DiskContents>::failure(explain(*closed, "closing the current folder", _config, true, DISK));
+        return listDiskContents();
+    }
+}

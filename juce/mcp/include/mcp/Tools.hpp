@@ -58,9 +58,24 @@ namespace mcp
     // DEC-MCP-011)]
     [[nodiscard]] std::vector<Tool> makeProgramStructureTools(SamplerGateway& gateway);
 
-    /// Every tool the server offers: the editing tools then the structure tools. [ADR-MCP-002 (DEC-MCP-010)]
-    [[nodiscard]] std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue);
+    // The disk tools: `list_disks`, `select_disk`, `list_disk_contents`, `open_folder` and `close_folder` (browsing the
+    // sampler's own disks), offered only when the server is launched with `--allow-disk`. The gateway must outlive the
+    // tools. [RQ-MCP-023, RQ-MCP-024, ADR-MCP-003 (DEC-MCP-015, DEC-MCP-016)]
+    [[nodiscard]] std::vector<Tool> makeDiskTools(SamplerGateway& gateway);
+
+    /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
+    struct ToolOptions
+    {
+        bool allowDisk = false;  ///< `--allow-disk`: the disk tools are offered
+    };
+
+    /// Every tool the server offers: the editing tools, the structure tools, the sample and multi tools, and the disk tools
+    /// when `options.allowDisk`. [ADR-MCP-002 (DEC-MCP-010), ADR-MCP-003 (DEC-MCP-015)]
+    [[nodiscard]] std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options = {});
 
     /// The guidance the server gives the model with its first answer: what the server is for and how to use the tools.
     [[nodiscard]] std::string programEditingInstructions();
+
+    /// What the server adds to its guidance when the disk tools are offered (`--allow-disk`). [ADR-MCP-003 (DEC-MCP-015)]
+    [[nodiscard]] std::string diskInstructions();
 }
