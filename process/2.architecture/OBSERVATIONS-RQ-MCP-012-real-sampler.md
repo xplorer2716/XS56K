@@ -164,6 +164,16 @@ The saves and the loads with dependents (second part of the run, after the power
 | `load_file` `X01.AKP` with `with_dependents` | 0.4 s, accepted: program X01 added to the one in memory (programs 2, was 1) and no sample added. **This showed nothing about the dependents**: whether X01 refers to any sample is not known (516 bytes). Programs in memory are listed in alphabetical order whatever the order they were loaded (MCPSAVETEST, X01) |
 | `load_file` `MCPSAVETEST.AKP` with `with_dependents`, memory empty (2026-10-06) | **1.0 s: programs 1 (was 0, added MCPSAVETEST) and samples 1 (was 0, added Al_Jarreau-Flame)**, the sample being the one the owner had associated to the program on the sampler and saved with it (the owner cleared the memory before the run; `Al_Jarreau-Flame.WAV`, 368084 bytes, is at the root of the disk). The dependents are loaded, the sample named as its file without the extension. Not run: the same file without `with_dependents` (the control that shows the flag is what loads the sample) |
 
+Browsing and loading a folder (2026-10-06, the owner present; after a first browse of seven folders at once, piped into `head` and
+killed half way, the sampler stopped answering until the owner switched it off and on, cause not established):
+
+| Tool | What the sampler did |
+|---|---|
+| `open_folder` `AKWF` | 0.6 s: 65 sub-folders (`AKWF_0001` ... `AKWF_violin`, in the disk's order) and no file |
+| `open_folder` of a sub-folder of `AKWF` | 0.8 to 1.2 s; `AKWF_theremin` 26 files, `AKWF_oboe` 13, `AKWF_clarinett` 25. **The current path below the root is written with a backslash: `AKWF\AKWF_theremin`** (the simulated sampler joined the names with `/`) |
+| `close_folder` | 0.5 s, back in `AKWF` with its listing |
+| `load_folder` `AKWF_oboe` (from `AKWF`) | **1.4 s: samples 14 (was 1), the 13 files added as `AKWF_oboe_0001` to `AKWF_oboe_0013`** (the names of the files without `.WAV`); the memory lists them in alphabetical order with `Al_Jarreau-Flame` after them, and the first of the folder is the current sample. Programs unchanged (1 was 1) |
+
 The listing of a folder is **not alphabetical** (the order of the FAT directory: `New Program  1.AKP`, `MCPSAVETEST.AKP`, `X01.AKP`,
 `S1.WAV`, the `.wav` of 35 MB): the tools give it as the sampler does. The two test programs were then deleted from memory with
 `delete_program`. **`MCPSAVETEST.AKP` is still on the owner's disk (root of S5K): the owner deletes it by hand**, no tool deletes a file.
@@ -179,10 +189,10 @@ with nothing sent. One quirk, as the catalogue already says: setting the loop en
 and putting the loop end back and the loop start to 1 restored both. Nothing was saved to the disk, S1.WAV is unchanged.
 
 **Established:** browsing the SCSI2SD, selecting it, loading a program (with and without dependents) and a very large sample,
-saving a program (refused without `overwrite` when the file exists, replaced with it), the load with dependents of a program that refers to a sample (the sample is loaded too) and reading and setting every parameter of a
-real sample. **Not run:** the same load without `with_dependents` as a control, `load_folder`, `save_all_memory_items`, saving a sample or a multi, `save_children`, the multi tools (no
+loading a folder (13 samples in 1.4 s), saving a program (refused without `overwrite` when the file exists, replaced with it), the load with dependents of a program that refers to a sample (the sample is loaded too) and reading and setting every parameter of a
+real sample. **Not run:** the same load without `with_dependents` as a control, `save_all_memory_items`, saving a sample or a multi, `save_children`, the multi tools (no
 multi on the disk), and the refresh, which must not be run again on this sampler. Things the simulated sampler does differently
-and that are still to correct: the error code with no disk selected (257 against 4), the size of a saved program (516 bytes against
+and that are still to correct: the error code with no disk selected (257 against 4), the path format below the root (`AKWF\AKWF_oboe` against `AKWF/AKWF_oboe`), the size of a saved program (516 bytes against
 4096), the order of a folder listing (the sampler's, not alphabetical), and the time of a load of a large file.
 
 ## Not established

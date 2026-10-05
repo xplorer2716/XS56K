@@ -80,8 +80,8 @@ load or a save waits. After it the answer says the sampler may have to
 be switched off and on, and nothing is retried. No tool deletes or renames a file or a folder, creates a folder, ejects or formats a
 disk. **Run on the real sampler (2026-10-05, owner present, SCSI2SD disk)**: browsing, `select_disk`, `load_file` of a program (0.3 s)
 and of a 40 MB sample (60 s) work, a program with its sample was loaded with `with_dependents` (both added), and a program was saved (refused when its file exists, replaced with `overwrite`); the refresh hung the
-sampler; `load_folder`, `save_all_memory_items`, saving a sample or a multi and the multi tools are tested against the simulated
-sampler only so far (`PLAN-MCP-003` TASK-MCP-023).
+sampler; `save_all_memory_items`, saving a sample or a multi and the multi tools are tested against the simulated
+sampler only so far; `load_folder` of a 13-sample folder worked (1.4 s) (`PLAN-MCP-003` TASK-MCP-023).
 
 **What was run on a real S5000** (2026-10-05, `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the program tools
 and all 119 program parameters, on a program the server created and deleted. The sample tools were then run on a real sample (S1, loaded from the
@@ -105,7 +105,7 @@ on, Sync LCD off and Auto screen update on until the sampler is switched off.
   searches the sources and allows each primitive in one file only: the gateway creates, renames and deletes a program, its disk unit
   (`SamplerGatewayDisk.cpp`) loads and saves.
 - The disk tools exist only with `--allow-disk`, and the refresh of the disk list only with `--allow-disk-refresh` as well (it hung the
-  owner's S5000); they never replace a file unless `overwrite` is true. Browsing, loading and the save of a program have been run on the real
+  owner's S5000); they never replace a file unless `overwrite` is true. Browsing, loading (a file, with dependents, a folder) and the save of a program have been run on the real
   sampler, the bulk save and the save of a sample or a multi not yet (see above).
 - The ports are the server's configuration, in the client's own MCP settings file, which is never committed.
 - Requirements `RQ-MCP-001` to `RQ-MCP-030`, tasks `TASK-MCP-002` to `TASK-MCP-024`.
