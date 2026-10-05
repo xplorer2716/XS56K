@@ -85,6 +85,7 @@ catch_discover_tests(xs56k_akm_tests)
 # hold no JUCE include. [RQ-MCP-011, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
 add_executable(xs56k_mcp_tests
     mcp/DiskBrowseTests.cpp
+    mcp/DiskLoadTests.cpp
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueLot2Tests.cpp
     mcp/ParameterCatalogueLot3Tests.cpp

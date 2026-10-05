@@ -298,4 +298,106 @@ namespace mcp
             return Outcome<DiskContents>::failure(explain(*closed, "closing the current folder", _config, true, DISK));
         return listDiskContents();
     }
+
+    Outcome<MemoryNames> SamplerGateway::memoryNames()
+    {
+        MemoryNames names;
+        const auto programs = listPrograms();
+        if (!programs.ok())
+            return Outcome<MemoryNames>::failure(programs.problem);
+        for (const ProgramEntry& program : *programs.value)
+            names.programs.push_back(program.name);
+        const auto samples = listSamples();
+        if (!samples.ok())
+            return Outcome<MemoryNames>::failure(samples.problem);
+        for (const SampleEntry& sample : samples.value->samples)
+            names.samples.push_back(sample.name);
+        const auto multis = listMultis();
+        if (!multis.ok())
+            return Outcome<MemoryNames>::failure(multis.problem);
+        for (const MultiEntry& multi : multis.value->multis)
+            names.multis.push_back(multi.name);
+        return Outcome<MemoryNames>::success(std::move(names));
+    }
+
+    Outcome<LoadOutcome> SamplerGateway::loadFile(std::string_view name, bool withDependents, SampleLoadMode mode)
+    {
+        const auto contents = listDiskContents();
+        if (!contents.ok())
+            return Outcome<LoadOutcome>::failure(contents.problem);
+        const std::string wanted = normalizeText(name);
+        const auto found = std::find_if(contents.value->files.begin(), contents.value->files.end(),
+                                        [&wanted](const DiskFileEntry& file) { return normalizeText(file.name) == wanted; });
+        if (found == contents.value->files.end())
+        {
+            std::string text = "There is no file named \"" + std::string(name) + "\" in the current folder of the disk \"" +
+                               contents.value->diskName + "\".";
+            if (contents.value->files.empty())
+                return Outcome<LoadOutcome>::failure(text + " The folder holds no file.");
+            text += " Its files are: ";
+            for (std::size_t i = 0; i < contents.value->files.size(); ++i)
+                text += (i == 0 ? "" : ", ") + std::string("\"") + contents.value->files[i].name + "\"";
+            return Outcome<LoadOutcome>::failure(text + ".");
+        }
+
+        const auto before = memoryNames();
+        if (!before.ok())
+            return Outcome<LoadOutcome>::failure(before.problem);
+
+        const akm::SampleLoadOption option = mode == SampleLoadMode::Ram       ? akm::SampleLoadOption::Ram
+                                             : mode == SampleLoadMode::Virtual ? akm::SampleLoadOption::Virtual
+                                                                               : akm::SampleLoadOption::Normal;
+        const auto loaded = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+            if (withDependents)
+                akm::loadFileWithDependents(session(), found->name, std::move(done), diskOptions());
+            else
+                akm::loadFile(session(), found->name, option, std::move(done), diskOptions());
+        });
+        if (!loaded)
+            return Outcome<LoadOutcome>::failure("The sampler session did not complete the load in time.");
+        if (!akm::succeeded(*loaded))
+            return Outcome<LoadOutcome>::failure(explainDisk(*loaded, "loading the file \"" + found->name + "\""));
+
+        const auto after = memoryNames();
+        if (!after.ok())
+            return Outcome<LoadOutcome>::failure("The file was loaded but the memory could not be read afterwards: " + after.problem);
+        return Outcome<LoadOutcome>::success(LoadOutcome{contents.value->diskName, contents.value->path, *before.value, *after.value});
+    }
+
+    Outcome<LoadOutcome> SamplerGateway::loadFolder(std::string_view name)
+    {
+        const auto contents = listDiskContents();
+        if (!contents.ok())
+            return Outcome<LoadOutcome>::failure(contents.problem);
+        const std::string wanted = normalizeText(name);
+        const auto found = std::find_if(contents.value->folders.begin(), contents.value->folders.end(),
+                                        [&wanted](const std::string& folder) { return normalizeText(folder) == wanted; });
+        if (found == contents.value->folders.end())
+        {
+            std::string text = "There is no folder named \"" + std::string(name) + "\" in the current folder of the disk \"" +
+                               contents.value->diskName + "\".";
+            if (contents.value->folders.empty())
+                return Outcome<LoadOutcome>::failure(text + " The current folder has no sub-folder.");
+            text += " Its folders are: ";
+            for (std::size_t i = 0; i < contents.value->folders.size(); ++i)
+                text += (i == 0 ? "" : ", ") + std::string("\"") + contents.value->folders[i] + "\"";
+            return Outcome<LoadOutcome>::failure(text + ".");
+        }
+
+        const auto before = memoryNames();
+        if (!before.ok())
+            return Outcome<LoadOutcome>::failure(before.problem);
+        const auto loaded = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::loadFolder(session(), *found, std::move(done), diskOptions());
+        });
+        if (!loaded)
+            return Outcome<LoadOutcome>::failure("The sampler session did not complete the load in time.");
+        if (!akm::succeeded(*loaded))
+            return Outcome<LoadOutcome>::failure(explainDisk(*loaded, "loading the folder \"" + *found + "\""));
+
+        const auto after = memoryNames();
+        if (!after.ok())
+            return Outcome<LoadOutcome>::failure("The folder was loaded but the memory could not be read afterwards: " + after.problem);
+        return Outcome<LoadOutcome>::success(LoadOutcome{contents.value->diskName, contents.value->path, *before.value, *after.value});
+    }
 }

@@ -1140,6 +1140,8 @@ namespace mcp
         constexpr const char* DISK_NOTICE =
             "It acts on the sampler's own disks, not on the computer's files, and changes nothing in the sampler's memory.";
 
+        constexpr const char* DISK_FILES_NOTICE = "It acts on the sampler's own disks, not on the computer's files.";
+
         std::string diskType(int type)
         {
             return type >= 0 && type < DISK_TYPE_COUNT ? DISK_TYPES[type] : "type " + std::to_string(type);
@@ -1148,6 +1150,32 @@ namespace mcp
         std::string diskFormat(int format)
         {
             return format >= 0 && format < DISK_FORMAT_COUNT ? DISK_FORMATS[format] : "format " + std::to_string(format);
+        }
+
+        /// "programs 4 (was 3, added INIT)" or "samples 0 (was 0)".
+        std::string describeKind(const char* kind, const std::vector<std::string>& before, const std::vector<std::string>& after)
+        {
+            std::vector<std::string> remaining = before;
+            std::vector<std::string> added;
+            for (const std::string& name : after)
+            {
+                const auto known = std::find(remaining.begin(), remaining.end(), name);
+                if (known != remaining.end())
+                    remaining.erase(known);
+                else
+                    added.push_back(name);
+            }
+            std::string text = std::string(kind) + " " + std::to_string(after.size()) + " (was " + std::to_string(before.size());
+            if (!added.empty())
+                text += ", added " + joined(added, ", ");
+            return text + ")";
+        }
+
+        std::string describeMemory(const LoadOutcome& outcome)
+        {
+            return "Memory now: " + describeKind("programs", outcome.before.programs, outcome.after.programs) + ", " +
+                   describeKind("samples", outcome.before.samples, outcome.after.samples) + ", " +
+                   describeKind("multis", outcome.before.multis, outcome.after.multis) + ".";
         }
 
         std::string describeContents(const DiskContents& contents)
@@ -1280,6 +1308,78 @@ namespace mcp
                 if (!contents.ok())
                     return failure(contents.problem);
                 return ok(describeContents(*contents.value));
+            }});
+
+        // load_file
+        tools.push_back(Tool{
+            definition("load_file", "Load a file",
+                       std::string("Loads a file of the current folder of the current disk into the sampler's memory (see list_disk_contents; "
+                                   "its extension decides whether it is a program, a sample or a multi) and says what the memory holds "
+                                   "before and after. With with_dependents the files it depends on are loaded too (a program and its samples). "
+                                   "sample_mode says how a sample is loaded: normal, ram or virtual. It can take long, and a sampler that stops "
+                                   "answering may have to be switched off and on; nothing is retried. ") +
+                           DISK_FILES_NOTICE + std::string(" It adds to the sampler's memory, which is lost if the sampler is switched off without saving."),
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The file's name, from list_disk_contents."}}},
+                                         {"with_dependents", {{"type", "boolean"}, {"description", "Also load the files it depends on. Default false."}}},
+                                         {"sample_mode",
+                                          {{"type", "string"},
+                                           {"description", "For a sample: \"normal\" (the default), \"ram\" or \"virtual\"."}}}},
+                                    json::array({"name"})),
+                       false, false),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name", "with_dependents", "sample_mode"}))
+                    return *refused;
+                if (!arguments.contains("name") || !arguments.at("name").is_string())
+                    return failure("Give the 'name' of the file to load.");
+                bool withDependents = false;
+                if (arguments.contains("with_dependents"))
+                {
+                    if (!arguments.at("with_dependents").is_boolean())
+                        return failure("The argument 'with_dependents' must be true or false.");
+                    withDependents = arguments.at("with_dependents").get<bool>();
+                }
+                SampleLoadMode mode = SampleLoadMode::Normal;
+                if (arguments.contains("sample_mode"))
+                {
+                    const std::string said = arguments.at("sample_mode").is_string() ? normalizeText(arguments.at("sample_mode").get<std::string>()) : "";
+                    if (said == "normal")
+                        mode = SampleLoadMode::Normal;
+                    else if (said == "ram")
+                        mode = SampleLoadMode::Ram;
+                    else if (said == "virtual")
+                        mode = SampleLoadMode::Virtual;
+                    else
+                        return failure("The argument 'sample_mode' must be \"normal\", \"ram\" or \"virtual\".");
+                }
+                const std::string name = arguments.at("name").get<std::string>();
+                const auto loaded = gateway.loadFile(name, withDependents, mode);
+                if (!loaded.ok())
+                    return failure(loaded.problem);
+                return ok("Loaded \"" + name + "\" from the disk \"" + loaded.value->diskName + "\" (folder " +
+                          (loaded.value->path.empty() ? "(root)" : loaded.value->path) + (withDependents ? ", with the files it depends on" : "") +
+                          "). " + describeMemory(*loaded.value));
+            }});
+
+        // load_folder
+        tools.push_back(Tool{
+            definition("load_folder", "Load a folder",
+                       std::string("Loads a sub-folder of the current folder of the current disk, and everything it holds, into the "
+                                   "sampler's memory, and says what the memory holds before and after. It can take long, and a sampler that stops "
+                                   "answering may have to be switched off and on; nothing is retried. ") +
+                           DISK_FILES_NOTICE + std::string(" It adds to the sampler's memory, which is lost if the sampler is switched off without saving."),
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The sub-folder's name, from list_disk_contents."}}}},
+                                    json::array({"name"})),
+                       false, false),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name"}))
+                    return *refused;
+                if (!arguments.contains("name") || !arguments.at("name").is_string())
+                    return failure("Give the 'name' of the sub-folder to load.");
+                const std::string name = arguments.at("name").get<std::string>();
+                const auto loaded = gateway.loadFolder(name);
+                if (!loaded.ok())
+                    return failure(loaded.problem);
+                return ok("Loaded the folder \"" + name + "\" from the disk \"" + loaded.value->diskName + "\". " + describeMemory(*loaded.value));
             }});
 
         // close_folder

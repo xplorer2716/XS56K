@@ -143,6 +143,31 @@ namespace mcp
         std::vector<DiskFileEntry> files;
     };
 
+    /// How a sample file is loaded (section 10, `&2A`): as the sampler decides, into RAM, or as a virtual sample.
+    enum class SampleLoadMode
+    {
+        Normal,
+        Ram,
+        Virtual,
+    };
+
+    /// The names of what the sampler holds in memory, by kind.
+    struct MemoryNames
+    {
+        std::vector<std::string> programs;
+        std::vector<std::string> samples;
+        std::vector<std::string> multis;
+    };
+
+    /// What a load did: the disk and folder it acted on and the memory before and after.
+    struct LoadOutcome
+    {
+        std::string diskName;
+        std::string path;
+        MemoryNames before;
+        MemoryNames after;
+    };
+
     /// One multi of the sampler's memory: its position (from 0) and its name.
     struct MultiEntry
     {
@@ -261,6 +286,15 @@ namespace mcp
         [[nodiscard]] Outcome<DiskContents> openFolder(std::string_view name);
         [[nodiscard]] Outcome<DiskContents> closeFolder();
 
+        /// Loads a file of the current folder of the current disk (its extension decides whether it is a program, a sample, a
+        /// multi...), with the files it depends on when `withDependents`, and answers the memory before and after. The name
+        /// must be one the folder lists, or nothing is sent. The command waits for the disk timeout; a silent sampler is
+        /// answered with the message about the power cycle and nothing is retried. [RQ-MCP-025]
+        [[nodiscard]] Outcome<LoadOutcome> loadFile(std::string_view name, bool withDependents, SampleLoadMode mode);
+
+        /// Loads a sub-folder of the current folder and everything it holds, as `loadFile` does. [RQ-MCP-025]
+        [[nodiscard]] Outcome<LoadOutcome> loadFolder(std::string_view name);
+
         /// The multis in memory and the current one with its number of parts. [RQ-MCP-021]
         [[nodiscard]] Outcome<MultiListing> listMultis();
 
@@ -336,6 +370,7 @@ namespace mcp
         /// As `explain`, for a slow disk command: a timeout says the sampler may have to be switched off and on.
         [[nodiscard]] std::string explainDisk(const akm::CommandResult& outcome, const std::string& doing) const;
         [[nodiscard]] Outcome<std::vector<std::string>> folderNames();
+        [[nodiscard]] Outcome<MemoryNames> memoryNames();
         [[nodiscard]] Outcome<std::vector<PartValue>> editMultiParameter(const ParameterDefinition& parameter,
                                                                          std::optional<std::int64_t> valueToSet, PartSelection parts);
         [[nodiscard]] Outcome<int> keygroupCount();
