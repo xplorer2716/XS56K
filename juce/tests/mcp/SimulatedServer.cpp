@@ -45,8 +45,14 @@ namespace
     constexpr std::chrono::milliseconds COMMAND_TIMEOUT{2000};
 }
 
-int main()
+int main(int argc, char** argv)
 {
+    // --allow-disk offers the disk tools, as the shipped server does (ADR-MCP-003 DEC-MCP-015). The simulated sampler always
+    // holds its two disks; only the tools are opt-in.
+    mcp::ToolOptions toolOptions;
+    for (int i = 1; i < argc; ++i)
+        toolOptions.allowDisk = toolOptions.allowDisk || std::string(argv[i]) == "--allow-disk";
+
 #ifdef _WIN32
     _setmode(_fileno(stdin), _O_BINARY);
     _setmode(_fileno(stdout), _O_BINARY);
@@ -60,6 +66,35 @@ int main()
     sampler.setSampleAttributes(0, 0, 2, 143169, 22050);
     sampler.setMultiNames({"LIVE", "STUDIO"});
 
+    // Two disks: HD1, a writable hard disk (MSDOS) whose root holds the program file INIT.AKP, the sample file KICK2.WAV, a
+    // program BIG.AKP that depends on a sample file BIGSAMPLE.WAV, and the folders SYNTH (a program LEAD2 and a sample WAVE)
+    // and DRUMS; and CD1, a read-only CD-ROM (ISO9660).
+    akm::harness::FolderRecord synth;
+    synth.name = "SYNTH";
+    synth.programFiles = {"LEAD2"};
+    synth.sampleFiles = {"WAVE"};
+    akm::harness::FolderRecord drums;
+    drums.name = "DRUMS";
+    akm::harness::DiskRecord hardDisk;
+    hardDisk.handle = 0;
+    hardDisk.type = 1;
+    hardDisk.format = 1;
+    hardDisk.writable = true;
+    hardDisk.name = "HD1";
+    hardDisk.freeBytes = 1000000;
+    hardDisk.rootFolder.subFolders = {drums, synth};
+    hardDisk.rootFolder.files = {akm::harness::FileRecord{"INIT.AKP", 3000, std::string("INIT"), std::nullopt, {}},
+                                 akm::harness::FileRecord{"KICK2.WAV", 143000, std::nullopt, std::string("KICK2"), {}},
+                                 akm::harness::FileRecord{"BIG.AKP", 9000, std::string("BIGPROG"), std::nullopt, {"BIGSAMPLE.WAV"}},
+                                 akm::harness::FileRecord{"BIGSAMPLE.WAV", 90000, std::nullopt, std::string("BIGSAMPLE"), {}}};
+    akm::harness::DiskRecord cdRom;
+    cdRom.handle = 1;
+    cdRom.type = 2;
+    cdRom.format = 3;
+    cdRom.writable = false;
+    cdRom.name = "CD1";
+    sampler.setDisks({hardDisk, cdRom});
+
     mcp::GatewayConfig config;
     config.inputPort = backend.inputName();
     config.outputPort = backend.outputName();
@@ -71,7 +106,9 @@ int main()
     identity.title = SERVER_TITLE;
     identity.version = SERVER_VERSION;
     identity.instructions = mcp::programEditingInstructions();
-    mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard()));
+    if (toolOptions.allowDisk)
+        identity.instructions += mcp::diskInstructions();
+    mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
     std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current), the samples KICK, SNARE and PAD and the multis LIVE and STUDIO\n";
     server.serve(std::cin, std::cout);

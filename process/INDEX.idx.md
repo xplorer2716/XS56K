@@ -440,7 +440,7 @@ TASK-MCP-018|34-45|Done|Author FTR-MCP-003, ADR-MCP-003 and PLAN-MCP-003
 TASK-MCP-019|46-57|Done|Disk options, gateway disk unit and browsing tools
 TASK-MCP-020|58-69|Done|Load a file or a folder
 TASK-MCP-021|70-81|Done|Save a memory item, save every item of a kind
-TASK-MCP-022|82-93|Not Started|Simulated conversation, fidelity and the hang test
+TASK-MCP-022|82-93|Done|Simulated conversation, fidelity and the hang test
 TASK-MCP-023|94-105|Blocked|Real-sampler run with the owner's disk
 TASK-MCP-024|106-116|Not Started|Documentation and closure
 @process/3.plan/SUMMARY-akm-sections-coverage.md

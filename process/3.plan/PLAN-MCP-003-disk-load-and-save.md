@@ -81,15 +81,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-022: Simulated conversation, fidelity and the hang test
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Give `xs56k_mcp_server_simulated` a disk (folders, files, a program and a sample to load), extend the scripted conversation to the disk tools (the executable of the test is launched with the flag), and add the test of the silent sampler with a short disk timeout.
 - **Requirement refs**: RQ-MCP-029, RQ-MCP-030, RQ-MCP-023
 - **ADR refs**: ADR-MCP-003 (DEC-MCP-015, DEC-MCP-017); ADR-MCP-002 (DEC-MCP-014)
 - **Acceptance Criteria** (Gherkin): *Given* the extended conversation, *When* it runs against the simulated sampler in `ctest`, *Then* every answer matches the expected one. *Given* a disk timeout of 500 ms and a sampler that does not answer a load, *Then* the answer arrives in about 500 ms and mentions the power cycle.
 - **Dependencies**: TASK-MCP-020, TASK-MCP-021
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: `xs56k_mcp_server_simulated` takes `--allow-disk` (the tools are opt-in as in the shipped server; the simulated sampler always holds its two disks: HD1, a writable hard disk with INIT.AKP, KICK2.WAV, BIG.AKP depending on BIGSAMPLE.WAV and the folders SYNTH and DRUMS, and CD1, a read-only CD-ROM). The scripted conversation `simulated_disk_session.jsonl` (31 answers) runs as the `ctest` entry `mcp_simulated_server_disk_conversation` against `simulated_disk_session.expected.jsonl`, which was generated and its answers read one by one: the tool list with the disk tools; `list_disks` with and without `refresh`; `list_disk_contents` with no disk (ERROR 4, "Is a disk selected? Use select_disk first."), after `select_disk`, in SYNTH and back at the root, `close_folder` at the root refused; `load_file` of a program (programs 4, was 3, added INIT), of a sample as RAM, of a program with its dependents (BIGPROG and BIGSAMPLE added), an unknown file (the files listed); `load_folder` SYNTH (LEAD2 and WAVE added); the saves: BASS saved (BASS.AKP), BASS again refused ("overwrite"), BASS with `overwrite` ("replacing the file of that name"), the sample KICK2 refused because KICK2.WAV is there, the sample WAVE saved, the multi LIVE saved, a bulk save with the wrong count refused, with the right count refused for LIVE.AKM, the 6 programs with `overwrite` (the folder gained 4 files); then CD1 selected and a save refused as read-only, and an unknown disk. The existing conversation (no flag) is unchanged: no disk tool in it. The silent-sampler tests (a refresh, a load and a save the simulated sampler never answers, each taking the disk timeout and answering with the power-cycle message) are in `DiskBrowseTests.cpp`, `DiskLoadTests.cpp` and `DiskSaveTests.cpp`. Full `ctest` (Debug, MSVC `/W4 /WX`): 893 of 893 pass (892 before, 1 new). NOT run on the real sampler.
+- **Assumptions**: the simulated sampler's behaviour that the conversation shows and that is not known for the real one, to be corrected after TASK-MCP-023: programs and samples loaded from a disk are appended, not placed in alphabetical order as created ones are; saved files are named the item's name plus `.AKP`, `.AKS` or `.AKM` and all have the size 4096; the current disk path below the root is the folders' names joined by '/'; the refresh is a no-op. The owner asked for the simulator to be completed once the real tests are done: that is the second half of TASK-MCP-023.
 
 ### TASK-MCP-023: Real-sampler run with the owner's disk
 - **Tier**: M
@@ -101,7 +101,7 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-MCP-022 (and the owner's disk)
 - **Assignee**: Human and AI
 - **Verification**: NOT DONE: blocked on the owner plugging a disk with a test file into the sampler.
-- **Assumptions**: The run is made at the end of the work, as the owner chose; a hang needs a power cycle by hand.
+- **Assumptions**: The run is made at the end of the work, as the owner chose; a hang needs a power cycle by hand. The owner asked (2026-10-05) for the simulated sampler to be completed once the real tests are done: everything the run shows that the simulator did differently (the order of loaded programs, the file names and sizes of a save, the path format, what a refresh and a load answer, what a save does with an existing file and with its children) is corrected in the simulator, with its tests, as part of this task.
 
 ### TASK-MCP-024: Documentation and closure
 - **Tier**: S
