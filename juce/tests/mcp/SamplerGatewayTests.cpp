@@ -145,7 +145,7 @@ TEST_CASE("Given a sampler with no program, When the status is asked, Then the c
     CHECK(programs.value->empty());
 }
 
-TEST_CASE("Given three programs, When they are listed, Then the names come in memory order with their positions [RQ-MCP-007]",
+TEST_CASE("Given three programs, When they are listed, Then the names come in the sampler's alphabetical order with their positions [RQ-MCP-007]",
           "[mcp][gateway]")
 {
     Rig rig;
@@ -157,10 +157,10 @@ TEST_CASE("Given three programs, When they are listed, Then the names come in me
     REQUIRE(programs.ok());
     REQUIRE(programs.value->size() == 3);
     CHECK(programs.value->at(0).index == 0);
-    CHECK(programs.value->at(0).name == "PAD");
-    CHECK(programs.value->at(1).name == "BASS");
+    CHECK(programs.value->at(0).name == "BASS");
+    CHECK(programs.value->at(1).name == "LEAD");
     CHECK(programs.value->at(2).index == 2);
-    CHECK(programs.value->at(2).name == "LEAD");
+    CHECK(programs.value->at(2).name == "PAD");
 }
 
 TEST_CASE("Given three programs, When LEAD is selected by name and PAD by index, Then each answers its name and keygroup count; a name or an index that no program has is a problem that says so [RQ-MCP-007]",
@@ -176,7 +176,7 @@ TEST_CASE("Given three programs, When LEAD is selected by name and PAD by index,
     CHECK(lead.value->keygroupCount == 2);
     CHECK(gateway.status().value->currentProgram == "LEAD");
 
-    const auto pad = gateway.selectProgramByIndex(0);
+    const auto pad = gateway.selectProgramByIndex(2);
     REQUIRE(pad.ok());
     CHECK(pad.value->name == "PAD");
     CHECK(pad.value->keygroupCount == 1);

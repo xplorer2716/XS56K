@@ -55,15 +55,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-012: Real-sampler run of the server (closes TASK-MCP-009)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: With the sampler connected on `MIDIIN2 (ESI M8U eX)` / `MIDIOUT15 (ESI M8U eX)`, run the server by hand (a copy of the executable), create a scratch program with `create_program`, read, set and put back the 54 parameters (all keygroups, and one keygroup for a few), try rename and delete, settle the open points of FTR-MCP-001, write `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`, correct the simulated sampler for what it had wrong and regenerate the expected conversation.
 - **Requirement refs**: RQ-MCP-012, RQ-MCP-022, RQ-MCP-002, RQ-MCP-003
 - **ADR refs**: ADR-MCP-001 (DEC-MCP-004, DEC-MCP-006, DEC-MCP-009); ADR-MCP-002 (DEC-MCP-014)
 - **Acceptance Criteria** (Gherkin): *Given* the real sampler and a program created by the server, *When* each parameter is read, set to another value, read back and put back, *Then* each read-back equals the value set. *Given* the run's end, *Then* the created program is deleted and the section 00 settings are in the known state. *Given* every answer the real sampler gave that the simulated one did not, *When* the task closes, *Then* it is in the observations file and the simulator matches it.
 - **Dependencies**: TASK-MCP-011
 - **Assignee**: AI (the owner's sampler, with the owner's authorisation)
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: five scripted conversations on the real S5000 (OS 2.14, empty memory), logged in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`. The server (a build of this tree, `xs56k_mcp_server.exe`) created MCPSCRATCH (3 keygroups) with `create_program`; the 54 parameters were each set to another value on all keygroups, read back for each keygroup and set back: 116 steps, 0 failures, final values identical to the starting ones (script compares), and a Set on keygroup 2 alone changed only keygroup 2. Rename, wrong-name and wrong-case delete (refused, nothing deleted), delete and the "no current program" ERROR 4 were run. Every run ended with "settings put back: checksum mode, Still Alive, Sync LCD, Auto screen update; not put back: none" and the sampler was left with no program (`get_status` at the end). Differences found and the simulated sampler corrected: programs sorted case-insensitively on create and rename, and the program before the deleted one becoming current (`SimulatedSampler.cpp`); three new tests state them (`ProgramStructureTests.cpp`, 2 cases), four tests of positions and the seed helper of `juce/tests/mcp` were changed to the observed order, the expected conversation regenerated (`git diff`: only the two `list_programs` answers changed). Full `ctest` (Debug, MSVC): 816 of 816 pass (803 before the session, 13 new).
+- **Assumptions**: the run was made with the owner's standing authorization given in this session ("tu peux tester toi même avec la probe, le sampleur est connecté"); the probe program was not used, the server's own tools were, since the server is what is under test. A first run (C) left two scratch programs (AAA2, b first) that the next step deleted after listing them (the sampler was back to empty). The screen was not watched, so labels, the effect of Auto screen update and codes 12 to 14's meaning are not established (listed in the observations file). The shipped `xs56k_mcp_server.exe` in `juce/build/mcp/Debug` was not relinked (a server of the owner's session held it); the run used a build of the same sources in a scratch folder.
 
 ### TASK-MCP-013: Catalogue lot 3 — the rest of the keygroup and of the program
 - **Tier**: M

@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/harness/SimulatedSampler.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstddef>
 #include <utility>
 
@@ -500,6 +501,33 @@ namespace akm::harness
             }
         }
 
+        // Observed on a real S5000 (OS 2.14, 2026-10-05, OBSERVATIONS-RQ-MCP-012-real-sampler.md): the programs are
+        // kept in alphabetical order, upper and lower case alike ("aaa", "BBB", "mmm", "zzz"), a program created
+        // or renamed takes its place in that order, and the current program keeps being the same program.
+        bool sortsBefore(const std::string& left, const std::string& right)
+        {
+            const auto fold = [](unsigned char c) { return static_cast<unsigned char>(std::tolower(c)); };
+            return std::lexicographical_compare(left.begin(), left.end(), right.begin(), right.end(),
+                                                [&](char a, char b) { return fold(static_cast<unsigned char>(a)) < fold(static_cast<unsigned char>(b)); });
+        }
+
+        // Puts `programs` in the sampler's order, and `current` on the program it designated.
+        void keepProgramsSorted(std::vector<ProgramRecord>& programs, std::optional<std::size_t>& current)
+        {
+            std::vector<std::pair<ProgramRecord, bool>> tagged;
+            for (std::size_t i = 0; i < programs.size(); ++i)
+                tagged.emplace_back(std::move(programs[i]), current.has_value() && *current == i);
+            std::stable_sort(tagged.begin(), tagged.end(),
+                             [](const auto& left, const auto& right) { return sortsBefore(left.first.name, right.first.name); });
+            programs.clear();
+            for (std::size_t i = 0; i < tagged.size(); ++i)
+            {
+                if (tagged[i].second)
+                    current = i;
+                programs.push_back(std::move(tagged[i].first));
+            }
+        }
+
         // A name with no terminator is an invalid format; a byte after it (a checksum sent while checksums
         // are off) is ignored, as elsewhere in this model. One already held by another program cannot be
         // created again (the spec's own COULD_NOT_CREATE, undated by it).
@@ -520,6 +548,7 @@ namespace akm::harness
             record.keygroups.assign(static_cast<std::size_t>(keygroupCount), KeygroupRecord{});
             programs.push_back(std::move(record));
             current = programs.size() - 1;
+            keepProgramsSorted(programs, current);
             currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
             return done();
         }
@@ -691,9 +720,20 @@ namespace akm::harness
         {
             if (!current.has_value())
                 return failure(error_number::NOT_FOUND);
-            programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(*current));
-            current.reset();
-            currentKeygroup.reset();
+            const std::size_t deleted = *current;
+            programs.erase(programs.begin() + static_cast<std::ptrdiff_t>(deleted));
+            // Observed on a real S5000 (2026-10-05): the program before the deleted one becomes current, or the first
+            // when there was none before it, and no program is current once memory is empty.
+            if (programs.empty())
+            {
+                current.reset();
+                currentKeygroup.reset();
+            }
+            else
+            {
+                current = deleted > 0 ? deleted - 1 : 0;
+                currentKeygroup = DEFAULT_CURRENT_KEYGROUP;
+            }
             return done();
         }
 
@@ -726,15 +766,6 @@ namespace akm::harness
         {
             switch (item)
             {
-                case ITEM_RENAME_CURRENT_PROGRAM:
-                {
-                    akm::ByteReader reader(data);
-                    const auto name = reader.readString();
-                    if (!name)
-                        return failure(error_number::INVALID_FORMAT);
-                    program.name = *name;
-                    return done();
-                }
                 case ITEM_SET_PROGRAM_NUMBER:
                 {
                     if (data.empty())
@@ -841,6 +872,17 @@ namespace akm::harness
                 case ITEM_GET_ALL_NAMES:
                     return programNames(programs);
                 case ITEM_RENAME_CURRENT_PROGRAM:
+                {
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    programs[*current].name = *name;
+                    keepProgramsSorted(programs, current);
+                    return done();
+                }
                 case ITEM_SET_PROGRAM_NUMBER:
                 case ITEM_ADD_KEYGROUPS:
                 case ITEM_DELETE_KEYGROUP:

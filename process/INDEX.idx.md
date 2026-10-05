@@ -239,6 +239,7 @@ DEC-MCP-014|68-73||The simulated sampler is corrected before it is trusted, and 
 @process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md
+@process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
@@ -404,12 +405,12 @@ TASK-MCP-005|80-91|Done|The six tools
 TASK-MCP-006|92-103|Done|The executable `xs56k_mcp_server` — arguments, real ports, loop, shutdown
 TASK-MCP-007|104-115|Done|Simulated-sampler twin and the scripted conversation in ctest
 TASK-MCP-008|116-127|Done|Lot 2 — the rest of the filter, envelope and LFO items
-TASK-MCP-009|128-138|Blocked|Real-sampler run, observations and documentation
+TASK-MCP-009|128-138|Done|Real-sampler run, observations and documentation
 @process/3.plan/PLAN-MCP-002-structure-and-more-domains.md
 PLAN-MCP-002|1-126||MCP Server — Program Structure in Memory, the Rest of the Keygroup and the Program, Zones, Samples and Multis
 TASK-MCP-010|32-43|Done|Author FTR-MCP-002, ADR-MCP-002 and PLAN-MCP-002
 TASK-MCP-011|44-55|Done|Program structure tools — create_program, rename_program, delete_program
-TASK-MCP-012|56-67|Not Started|Real-sampler run of the server (closes TASK-MCP-009)
+TASK-MCP-012|56-67|Done|Real-sampler run of the server (closes TASK-MCP-009)
 TASK-MCP-013|68-79|Not Started|Catalogue lot 3 — the rest of the keygroup and of the program
 TASK-MCP-014|80-91|Not Started|Zone parameters
 TASK-MCP-015|92-103|Not Started|Samples — list, select, get and set parameters

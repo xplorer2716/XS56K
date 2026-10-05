@@ -327,3 +327,44 @@ TEST_CASE("Given the server, When a tool that deletes everything is called, Then
     CHECK(acceptedCount(rig, akm::ItemId::ProgramDeleteAll) == 0);
     CHECK(contains(textOf(rig.call("list_programs")), "Programs in memory (3)"));
 }
+
+TEST_CASE("Given an empty sampler, When programs are created as mmm, aaa, zzz and BBB, Then the sampler lists them alphabetically without regard to case, and a renamed program takes its new place [RQ-MCP-015, RQ-MCP-016, RQ-MCP-022]",
+          "[mcp][structure]")
+{
+    // Observed on a real S5000 (2026-10-05, OBSERVATIONS-RQ-MCP-012-real-sampler.md): the order is the alphabet's, not the
+    // order of creation, and it follows a renaming.
+    Rig rig(false);
+    for (const char* name : {"mmm", "aaa", "zzz", "BBB"})
+        CHECK_FALSE(isError(rig.call("create_program", {{"name", name}, {"keygroups", 1}})));
+    CHECK(textOf(rig.call("list_programs")) == "Programs in memory (4):\n0: aaa\n1: BBB\n2: mmm\n3: zzz\n");
+    CHECK(contains(textOf(rig.call("get_status")), "Current program: BBB"));
+
+    CHECK_FALSE(isError(rig.call("select_program", {{"name", "zzz"}})));
+    CHECK_FALSE(isError(rig.call("rename_program", {{"name", "b first"}})));
+    CHECK(textOf(rig.call("list_programs")) == "Programs in memory (4):\n0: aaa\n1: b first\n2: BBB\n3: mmm\n");
+    CHECK(contains(textOf(rig.call("get_status")), "Current program: b first"));
+}
+
+TEST_CASE("Given four programs, When the current one is deleted, Then the program before it becomes current, or the first when none is before it, and none once memory is empty [RQ-MCP-017, RQ-MCP-022]",
+          "[mcp][structure]")
+{
+    // Observed on a real S5000 (2026-10-05): deleting BBB (second of aaa, BBB, mmm, zzz) left aaa current; deleting aaa
+    // (first) left mmm current; deleting the last program left the one before it current.
+    Rig rig(false);
+    for (const char* name : {"aaa", "BBB", "mmm", "zzz"})
+        CHECK_FALSE(isError(rig.call("create_program", {{"name", name}, {"keygroups", 1}})));
+
+    CHECK_FALSE(isError(rig.call("select_program", {{"name", "BBB"}})));
+    CHECK_FALSE(isError(rig.call("delete_program", {{"confirm", "BBB"}})));
+    CHECK(contains(textOf(rig.call("get_status")), "Current program: aaa"));
+
+    CHECK_FALSE(isError(rig.call("delete_program", {{"confirm", "aaa"}})));
+    CHECK(contains(textOf(rig.call("get_status")), "Current program: mmm"));
+
+    CHECK_FALSE(isError(rig.call("select_program", {{"name", "zzz"}})));
+    CHECK_FALSE(isError(rig.call("delete_program", {{"confirm", "zzz"}})));
+    CHECK(contains(textOf(rig.call("get_status")), "Current program: mmm"));
+
+    CHECK_FALSE(isError(rig.call("delete_program", {{"confirm", "mmm"}})));
+    CHECK(contains(textOf(rig.call("get_status")), "The sampler holds no program."));
+}
