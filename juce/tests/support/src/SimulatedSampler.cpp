@@ -1975,7 +1975,8 @@ namespace akm::harness
         // it, the names of the folders opened joined by '/' (the MCP disk tools needed a path: TASK-MCP-019).
         Outcome executeDisk(std::uint8_t item, const Bytes& data, std::vector<DiskRecord>& disks,
                             std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
-                            std::vector<ProgramRecord>& programs, std::vector<SampleRecord>& samples)
+                            std::vector<ProgramRecord>& programs, std::vector<SampleRecord>& samples,
+                            const std::vector<MultiRecord>& multis)
         {
             switch (item)
             {
@@ -2351,6 +2352,12 @@ namespace akm::harness
                             return failure(error_number::NOT_FOUND);
                         itemName = samples[*index].name;
                     }
+                    else if (*type == SAVE_TYPE_MULTI)
+                    {
+                        if (*index >= multis.size())
+                            return failure(error_number::NOT_FOUND);
+                        itemName = multis[*index].name;
+                    }
                     else
                     {
                         return done();  // other memory types are not modelled; nothing to save or fail
@@ -2385,6 +2392,15 @@ namespace akm::harness
                         for (const SampleRecord& sample : samples)
                         {
                             const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, sample.name);
+                            if (outcome.replyId == REPLY_ERROR)
+                                return outcome;
+                        }
+                    }
+                    else if (*type == SAVE_TYPE_MULTI)
+                    {
+                        for (const MultiRecord& multi : multis)
+                        {
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, multi.name);
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
@@ -2630,7 +2646,7 @@ namespace akm::harness
             if (section == SECTION_MULTI_FX)
                 return executeMultiFx(item, data, state.fx, state.multis.current.has_value());
             if (section == SECTION_DISK)
-                return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples);
+                return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples, state.multis.multis);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)

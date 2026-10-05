@@ -86,6 +86,7 @@ catch_discover_tests(xs56k_akm_tests)
 add_executable(xs56k_mcp_tests
     mcp/DiskBrowseTests.cpp
     mcp/DiskLoadTests.cpp
+    mcp/DiskSaveTests.cpp
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueLot2Tests.cpp
     mcp/ParameterCatalogueLot3Tests.cpp

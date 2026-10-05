@@ -400,4 +400,189 @@ namespace mcp
             return Outcome<LoadOutcome>::failure("The folder was loaded but the memory could not be read afterwards: " + after.problem);
         return Outcome<LoadOutcome>::success(LoadOutcome{contents.value->diskName, contents.value->path, *before.value, *after.value});
     }
+
+    namespace
+    {
+        const char* kindName(SaveKind kind)
+        {
+            switch (kind)
+            {
+                case SaveKind::Program:
+                    return "program";
+                case SaveKind::Sample:
+                    return "sample";
+                case SaveKind::Multi:
+                    return "multi";
+            }
+            return "item";
+        }
+
+        akm::SaveableMemoryType saveType(SaveKind kind)
+        {
+            switch (kind)
+            {
+                case SaveKind::Program:
+                    return akm::SaveableMemoryType::Program;
+                case SaveKind::Sample:
+                    return akm::SaveableMemoryType::Sample;
+                case SaveKind::Multi:
+                    return akm::SaveableMemoryType::Multi;
+            }
+            return akm::SaveableMemoryType::Program;
+        }
+
+        const std::vector<std::string>& namesOfKind(const MemoryNames& memory, SaveKind kind)
+        {
+            switch (kind)
+            {
+                case SaveKind::Program:
+                    return memory.programs;
+                case SaveKind::Sample:
+                    return memory.samples;
+                case SaveKind::Multi:
+                    return memory.multis;
+            }
+            return memory.programs;
+        }
+
+        /// A file's name without its extension.
+        std::string baseName(const std::string& fileName)
+        {
+            const auto dot = fileName.rfind('.');
+            return dot == std::string::npos ? fileName : fileName.substr(0, dot);
+        }
+
+        const DiskFileEntry* fileBearing(const std::vector<DiskFileEntry>& files, const std::string& itemName)
+        {
+            const std::string wanted = normalizeText(itemName);
+            for (const DiskFileEntry& file : files)
+            {
+                if (normalizeText(baseName(file.name)) == wanted)
+                    return &file;
+            }
+            return nullptr;
+        }
+
+        std::string quotedList(const std::vector<std::string>& names)
+        {
+            std::string text;
+            for (std::size_t i = 0; i < names.size(); ++i)
+                text += (i == 0 ? "" : ", ") + std::string("\"") + names[i] + "\"";
+            return text;
+        }
+    }
+
+    Outcome<SaveOutcome> SamplerGateway::saveMemoryItem(SaveKind kind, std::string_view name, bool overwrite, bool saveChildren)
+    {
+        const auto target = writableFolder();
+        if (!target.ok())
+            return Outcome<SaveOutcome>::failure(target.problem);
+
+        const auto memory = memoryNames();
+        if (!memory.ok())
+            return Outcome<SaveOutcome>::failure(memory.problem);
+        const std::vector<std::string>& names = namesOfKind(*memory.value, kind);
+        const std::string wanted = normalizeText(name);
+        const auto found = std::find_if(names.begin(), names.end(), [&wanted](const std::string& item) { return normalizeText(item) == wanted; });
+        if (found == names.end())
+        {
+            std::string text = "No " + std::string(kindName(kind)) + " is named \"" + std::string(name) + "\" in the sampler's memory.";
+            if (names.empty())
+                return Outcome<SaveOutcome>::failure(text + " The memory holds none.");
+            return Outcome<SaveOutcome>::failure(text + " It holds: " + quotedList(names) + ".");
+        }
+        const int index = static_cast<int>(found - names.begin());
+
+        if (const DiskFileEntry* existing = fileBearing(target.value->files, *found); existing != nullptr && !overwrite)
+            return Outcome<SaveOutcome>::failure("The current folder of the disk \"" + target.value->diskName + "\" already holds the file \"" +
+                                                 existing->name + "\": nothing was saved. Pass overwrite true to replace it.");
+
+        const auto saved = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::saveMemoryItem(session(), index, saveType(kind), overwrite, saveChildren, std::move(done), diskOptions());
+        });
+        if (!saved)
+            return Outcome<SaveOutcome>::failure("The sampler session did not complete the save in time.");
+        if (!akm::succeeded(*saved))
+            return Outcome<SaveOutcome>::failure(explainDisk(*saved, "saving the " + std::string(kindName(kind)) + " \"" + *found + "\""));
+
+        const auto after = listDiskContents();
+        if (!after.ok())
+            return Outcome<SaveOutcome>::failure("The save was sent but the folder could not be read afterwards: " + after.problem);
+        SaveOutcome outcome;
+        outcome.diskName = target.value->diskName;
+        outcome.path = target.value->path;
+        outcome.itemName = *found;
+        outcome.filesBefore = target.value->files;
+        outcome.filesAfter = after.value->files;
+        if (const DiskFileEntry* file = fileBearing(after.value->files, *found))
+            outcome.savedFile = *file;
+        return Outcome<SaveOutcome>::success(std::move(outcome));
+    }
+
+    Outcome<SaveOutcome> SamplerGateway::saveAllMemoryItems(SaveKind kind, int confirm, bool overwrite, bool saveChildren)
+    {
+        const auto target = writableFolder();
+        if (!target.ok())
+            return Outcome<SaveOutcome>::failure(target.problem);
+
+        const auto memory = memoryNames();
+        if (!memory.ok())
+            return Outcome<SaveOutcome>::failure(memory.problem);
+        const std::vector<std::string>& names = namesOfKind(*memory.value, kind);
+        if (static_cast<int>(names.size()) != confirm)
+            return Outcome<SaveOutcome>::failure("There are " + numberText(static_cast<std::int64_t>(names.size())) + " " + kindName(kind) +
+                                                 (names.size() == 1 ? "" : "s") + " in the sampler's memory, not " + numberText(confirm) +
+                                                 ": nothing was saved. Give the number there are as confirm.");
+        if (names.empty())
+            return Outcome<SaveOutcome>::failure("The sampler's memory holds no " + std::string(kindName(kind)) + ": nothing to save.");
+
+        if (!overwrite)
+        {
+            std::vector<std::string> conflicts;
+            for (const std::string& item : names)
+            {
+                if (const DiskFileEntry* existing = fileBearing(target.value->files, item))
+                    conflicts.push_back(existing->name);
+            }
+            if (!conflicts.empty())
+                return Outcome<SaveOutcome>::failure("The current folder of the disk \"" + target.value->diskName + "\" already holds " +
+                                                     quotedList(conflicts) + ": nothing was saved. Pass overwrite true to replace them, or save "
+                                                     "the items one by one.");
+        }
+
+        const auto saved = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::saveAllMemoryItems(session(), saveType(kind), overwrite, saveChildren, std::move(done), diskOptions());
+        });
+        if (!saved)
+            return Outcome<SaveOutcome>::failure("The sampler session did not complete the save in time.");
+        if (!akm::succeeded(*saved))
+            return Outcome<SaveOutcome>::failure(explainDisk(*saved, "saving every " + std::string(kindName(kind))));
+
+        const auto after = listDiskContents();
+        if (!after.ok())
+            return Outcome<SaveOutcome>::failure("The save was sent but the folder could not be read afterwards: " + after.problem);
+        SaveOutcome outcome;
+        outcome.diskName = target.value->diskName;
+        outcome.path = target.value->path;
+        outcome.itemCount = confirm;
+        outcome.filesBefore = target.value->files;
+        outcome.filesAfter = after.value->files;
+        return Outcome<SaveOutcome>::success(std::move(outcome));
+    }
+
+    Outcome<DiskContents> SamplerGateway::writableFolder()
+    {
+        const auto contents = listDiskContents();
+        if (!contents.ok())
+            return Outcome<DiskContents>::failure(contents.problem);
+        const auto disks = listDisks(false);
+        if (!disks.ok())
+            return Outcome<DiskContents>::failure(disks.problem);
+        const auto current = std::find_if(disks.value->begin(), disks.value->end(), [](const DiskEntry& disk) { return disk.current; });
+        if (current == disks.value->end())
+            return Outcome<DiskContents>::failure("No disk is selected: use select_disk first.");
+        if (!current->writable)
+            return Outcome<DiskContents>::failure("The disk \"" + current->name + "\" is read-only: nothing can be saved to it. Select a writable disk.");
+        return contents;
+    }
 }

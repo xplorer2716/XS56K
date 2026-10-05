@@ -293,6 +293,13 @@ namespace mcp
             return {std::nullopt, "The argument 'value' must be a number, a text or true/false."};
         }
 
+        /// A tool that can lose data (a save that replaces a file) says so in its annotations.
+        ToolDefinition markDestructive(ToolDefinition tool)
+        {
+            tool.annotations.destructive = true;
+            return tool;
+        }
+
         ToolDefinition definition(const char* name, const char* title, std::string description, json schema, bool readOnly,
                                   bool idempotent)
         {
@@ -1171,6 +1178,53 @@ namespace mcp
             return text + ")";
         }
 
+        /// "program", "sample" or "multi" as a client says it, and its name for a message.
+        std::optional<SaveKind> saveKindArgument(const json& arguments)
+        {
+            const auto given = arguments.find("kind");
+            if (given == arguments.end() || !given->is_string())
+                return std::nullopt;
+            const std::string said = normalizeText(given->get<std::string>());
+            if (said == "program")
+                return SaveKind::Program;
+            if (said == "sample")
+                return SaveKind::Sample;
+            if (said == "multi")
+                return SaveKind::Multi;
+            return std::nullopt;
+        }
+
+        const char* saveKindName(SaveKind kind)
+        {
+            return kind == SaveKind::Program ? "program" : kind == SaveKind::Sample ? "sample" : "multi";
+        }
+
+        /// A boolean argument that defaults to false, or the reason it is not one.
+        std::optional<std::string> flagArgument(const json& arguments, const char* name, bool& value)
+        {
+            value = false;
+            const auto given = arguments.find(name);
+            if (given == arguments.end())
+                return std::nullopt;
+            if (!given->is_boolean())
+                return "The argument '" + std::string(name) + "' must be true or false.";
+            value = given->get<bool>();
+            return std::nullopt;
+        }
+
+        std::vector<std::string> gainedFiles(const SaveOutcome& outcome)
+        {
+            std::vector<std::string> gained;
+            for (const DiskFileEntry& file : outcome.filesAfter)
+            {
+                const bool known = std::any_of(outcome.filesBefore.begin(), outcome.filesBefore.end(),
+                                               [&file](const DiskFileEntry& before) { return before.name == file.name; });
+                if (!known)
+                    gained.push_back(file.name);
+            }
+            return gained;
+        }
+
         std::string describeMemory(const LoadOutcome& outcome)
         {
             return "Memory now: " + describeKind("programs", outcome.before.programs, outcome.after.programs) + ", " +
@@ -1380,6 +1434,96 @@ namespace mcp
                 if (!loaded.ok())
                     return failure(loaded.problem);
                 return ok("Loaded the folder \"" + name + "\" from the disk \"" + loaded.value->diskName + "\". " + describeMemory(*loaded.value));
+            }});
+
+        // save_memory_item
+        tools.push_back(Tool{
+            markDestructive(definition("save_memory_item", "Save a program, sample or multi to the disk",
+                       std::string("Saves one item of the sampler's memory, found by its name, to the current folder of the current disk "
+                                   "(see select_disk and open_folder), which must be writable, and says whether a file of its name is there "
+                                   "afterwards. A file of the item's name that is already in the folder is NOT replaced unless overwrite is true: "
+                                   "overwrite true loses the old file. save_children also saves what the item uses (a program's samples). It can "
+                                   "take long, and a sampler that stops answering may have to be switched off and on; nothing is retried. ") +
+                           DISK_FILES_NOTICE,
+                       objectSchema(json{{"kind", {{"type", "string"}, {"description", "\"program\", \"sample\" or \"multi\"."}}},
+                                         {"name", {{"type", "string"}, {"description", "The item's name, from list_programs, list_samples or list_multis."}}},
+                                         {"overwrite", {{"type", "boolean"}, {"description", "Replace a file of that name already in the folder. Default false."}}},
+                                         {"save_children", {{"type", "boolean"}, {"description", "Also save what the item depends on. Default false."}}}},
+                                    json::array({"kind", "name"})),
+                       false, false)),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"kind", "name", "overwrite", "save_children"}))
+                    return *refused;
+                const auto kind = saveKindArgument(arguments);
+                if (!kind)
+                    return failure("Give the 'kind' of the item: \"program\", \"sample\" or \"multi\".");
+                if (!arguments.contains("name") || !arguments.at("name").is_string())
+                    return failure("Give the 'name' of the item to save.");
+                bool overwrite = false;
+                bool children = false;
+                if (const auto problem = flagArgument(arguments, "overwrite", overwrite))
+                    return failure(*problem);
+                if (const auto problem = flagArgument(arguments, "save_children", children))
+                    return failure(*problem);
+                const auto saved = gateway.saveMemoryItem(*kind, arguments.at("name").get<std::string>(), overwrite, children);
+                if (!saved.ok())
+                    return failure(saved.problem);
+                const SaveOutcome& outcome = *saved.value;
+                const std::string where = "the disk \"" + outcome.diskName + "\" (folder " + (outcome.path.empty() ? "(root)" : outcome.path) + ")";
+                if (!outcome.savedFile)
+                    return failure("The sampler accepted the save of the " + std::string(saveKindName(*kind)) + " \"" + outcome.itemName +
+                                   "\" to " + where + " but no file bearing that name appears in the folder (files added: " +
+                                   (gainedFiles(outcome).empty() ? "none" : joined(gainedFiles(outcome), ", ")) +
+                                   "). It may have saved it under another name, or not at all.");
+                const bool replaced = std::any_of(outcome.filesBefore.begin(), outcome.filesBefore.end(),
+                                                  [&outcome](const DiskFileEntry& file) { return file.name == outcome.savedFile->name; });
+                return ok("Saved the " + std::string(saveKindName(*kind)) + " \"" + outcome.itemName + "\" to " + where + ": the file " +
+                          outcome.savedFile->name + " (" + std::to_string(outcome.savedFile->sizeBytes) + " bytes) is in the folder" +
+                          (replaced ? ", replacing the file of that name" : "") + ".");
+            }});
+
+        // save_all_memory_items
+        tools.push_back(Tool{
+            markDestructive(definition("save_all_memory_items", "Save every program, sample or multi to the disk",
+                       std::string("Saves every item of a kind of the sampler's memory to the current folder of the current disk, which must be "
+                                   "writable, and says how many files the folder gained. It is sent only when confirm is exactly the number of items "
+                                   "of that kind in memory (see list_programs, list_samples, list_multis). Files of the items' names already in the "
+                                   "folder are NOT replaced unless overwrite is true: overwrite true loses the old files. It can take long, and a "
+                                   "sampler that stops answering may have to be switched off and on; nothing is retried. ") +
+                           DISK_FILES_NOTICE,
+                       objectSchema(json{{"kind", {{"type", "string"}, {"description", "\"program\", \"sample\" or \"multi\"."}}},
+                                         {"confirm", {{"type", "integer"}, {"minimum", 1}, {"description", "How many items of that kind are in memory."}}},
+                                         {"overwrite", {{"type", "boolean"}, {"description", "Replace files of the same names already in the folder. Default false."}}},
+                                         {"save_children", {{"type", "boolean"}, {"description", "Also save what the items depend on. Default false."}}}},
+                                    json::array({"kind", "confirm"})),
+                       false, false)),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"kind", "confirm", "overwrite", "save_children"}))
+                    return *refused;
+                const auto kind = saveKindArgument(arguments);
+                if (!kind)
+                    return failure("Give the 'kind' of the items: \"program\", \"sample\" or \"multi\".");
+                if (!arguments.contains("confirm"))
+                    return failure("Give 'confirm', the number of items of that kind in the sampler's memory.");
+                const auto confirm = arguments.at("confirm").is_number() ? wholeNumber(arguments.at("confirm")) : std::nullopt;
+                if (!confirm || *confirm < 1 || *confirm > MAX_PROGRAM_INDEX)
+                    return failure("The argument 'confirm' must be a whole number: how many items of that kind are in memory.");
+                bool overwrite = false;
+                bool children = false;
+                if (const auto problem = flagArgument(arguments, "overwrite", overwrite))
+                    return failure(*problem);
+                if (const auto problem = flagArgument(arguments, "save_children", children))
+                    return failure(*problem);
+                const auto saved = gateway.saveAllMemoryItems(*kind, static_cast<int>(*confirm), overwrite, children);
+                if (!saved.ok())
+                    return failure(saved.problem);
+                const SaveOutcome& outcome = *saved.value;
+                const std::vector<std::string> gained = gainedFiles(outcome);
+                return ok("Saved the " + plural(outcome.itemCount, saveKindName(*kind)) + " to the disk \"" + outcome.diskName + "\" (folder " +
+                          (outcome.path.empty() ? "(root)" : outcome.path) + "): the folder gained " +
+                          (gained.empty() ? std::string("no new file (files of the same names may have been replaced)")
+                                          : plural(static_cast<std::int64_t>(gained.size()), "file") + " (" + joined(gained, ", ") + ")") +
+                          ".");
             }});
 
         // close_folder

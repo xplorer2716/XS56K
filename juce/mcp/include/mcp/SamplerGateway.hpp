@@ -168,6 +168,27 @@ namespace mcp
         MemoryNames after;
     };
 
+    /// The kind of memory item a save writes to the disk.
+    enum class SaveKind
+    {
+        Program,
+        Sample,
+        Multi,
+    };
+
+    /// What a save did: the disk and folder it acted on, the kind and name (one item) or the number of items (all), and the
+    /// files of the folder before and after.
+    struct SaveOutcome
+    {
+        std::string diskName;
+        std::string path;
+        std::string itemName;  ///< empty for a save of every item
+        int itemCount = 1;
+        std::vector<DiskFileEntry> filesBefore;
+        std::vector<DiskFileEntry> filesAfter;
+        std::optional<DiskFileEntry> savedFile;  ///< one item: the file that bears its name afterwards
+    };
+
     /// One multi of the sampler's memory: its position (from 0) and its name.
     struct MultiEntry
     {
@@ -295,6 +316,16 @@ namespace mcp
         /// Loads a sub-folder of the current folder and everything it holds, as `loadFile` does. [RQ-MCP-025]
         [[nodiscard]] Outcome<LoadOutcome> loadFolder(std::string_view name);
 
+        /// Saves one item of the sampler's memory (found by its name) to the current folder of the current disk, which must
+        /// be writable. Unless `overwrite`, a file bearing the item's name in the folder refuses the save and nothing is
+        /// sent. The answer holds the folder's files before and after, and the file that bears the item's name. The command
+        /// waits for the disk timeout, as a load does. [RQ-MCP-026]
+        [[nodiscard]] Outcome<SaveOutcome> saveMemoryItem(SaveKind kind, std::string_view name, bool overwrite, bool saveChildren);
+
+        /// Saves every item of a kind, only when `confirm` is the number of such items in memory; unless `overwrite`, files
+        /// bearing their names refuse the save. [RQ-MCP-027]
+        [[nodiscard]] Outcome<SaveOutcome> saveAllMemoryItems(SaveKind kind, int confirm, bool overwrite, bool saveChildren);
+
         /// The multis in memory and the current one with its number of parts. [RQ-MCP-021]
         [[nodiscard]] Outcome<MultiListing> listMultis();
 
@@ -371,6 +402,8 @@ namespace mcp
         [[nodiscard]] std::string explainDisk(const akm::CommandResult& outcome, const std::string& doing) const;
         [[nodiscard]] Outcome<std::vector<std::string>> folderNames();
         [[nodiscard]] Outcome<MemoryNames> memoryNames();
+        /// The current folder when its disk is selected and writable, or the problem that says why a save cannot start.
+        [[nodiscard]] Outcome<DiskContents> writableFolder();
         [[nodiscard]] Outcome<std::vector<PartValue>> editMultiParameter(const ParameterDefinition& parameter,
                                                                          std::optional<std::int64_t> valueToSet, PartSelection parts);
         [[nodiscard]] Outcome<int> keygroupCount();
