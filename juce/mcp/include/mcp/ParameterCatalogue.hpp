@@ -68,8 +68,10 @@ namespace mcp
         /// `-max` to `max`. `Choice`: 0 to the number of labels less one, the code. `Switch`: 0 to 1.
         std::int64_t min = 0;
         std::int64_t max = 0;
-        /// `Number` only: the value is the item's value times `step` (the filter attenuation is a code 0-5 for 0-30 dB).
+        /// `Number` only: the value is the item's value times `step`, plus `offset` (the filter attenuation is a code 0-5
+        /// for 0-30 dB; the keygroup level is a code 0-10 for -30 to 30 dB, `offset` -30).
         std::int64_t step = 1;
+        std::int64_t offset = 0;
         std::string unit;                   ///< "dB", or empty
         std::vector<std::string> labels;    ///< `Choice`: the label of code i; `Switch`: off, on
         /// `Choice` only: other ways to say a choice, each with its code ("pitch bend" for BEND).

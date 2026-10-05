@@ -358,7 +358,7 @@ namespace mcp
         switch (parameter.kind)
         {
             case ParameterKind::Number:
-                return {value / parameter.step};
+                return {(value - parameter.offset) / parameter.step};
             case ParameterKind::Signed:
                 return {value < 0 ? 1 : 0, std::abs(value)};
             case ParameterKind::Choice:
@@ -375,7 +375,7 @@ namespace mcp
             case ParameterKind::Number:
                 if (reply.size() != 1)
                     return std::nullopt;
-                return reply[0] * parameter.step;
+                return reply[0] * parameter.step + parameter.offset;
             case ParameterKind::Signed:
                 if (reply.size() != 2)
                     return std::nullopt;

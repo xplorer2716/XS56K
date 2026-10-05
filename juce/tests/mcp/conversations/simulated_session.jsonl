@@ -61,4 +61,13 @@
 {"jsonrpc":"2.0","id":60,"method":"tools/call","params":{"name":"delete_program","arguments":{"confirm":"SCRATCH2"}}}
 {"jsonrpc":"2.0","id":61,"method":"tools/call","params":{"name":"create_program","arguments":{"name":"THIRTEENCHARS","keygroups":2}}}
 {"jsonrpc":"2.0","id":62,"method":"tools/call","params":{"name":"list_programs","arguments":{}}}
-{"jsonrpc":"2.0","id":63,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":63,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"BASS"}}}
+{"jsonrpc":"2.0","id":64,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"aux envelope rate 2","value":40}}}
+{"jsonrpc":"2.0","id":65,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"keygroup level","value":"-6 dB","keygroup":2}}}
+{"jsonrpc":"2.0","id":66,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"keygroup low note","value":36,"keygroup":1}}}
+{"jsonrpc":"2.0","id":67,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"pitch bend up","value":12}}}
+{"jsonrpc":"2.0","id":68,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"tune template","value":"just"}}}
+{"jsonrpc":"2.0","id":69,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"program loudness","value":80}}}
+{"jsonrpc":"2.0","id":70,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"aux envelope","keygroup":1}}}
+{"jsonrpc":"2.0","id":71,"method":"tools/call","params":{"name":"list_parameters","arguments":{"group":"tuning"}}}
+{"jsonrpc":"2.0","id":72,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

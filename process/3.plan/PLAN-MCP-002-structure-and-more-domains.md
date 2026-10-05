@@ -67,15 +67,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-013: Catalogue lot 3 — the rest of the keygroup and of the program
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the rows for the auxiliary envelope, the keygroup pitch and amplitude items and the general options of §08, and the output, MIDI/tune, pitch bend and keygroup modulation source items of §0A, each in a group of its own, listing every item left out with its reason.
 - **Requirement refs**: RQ-MCP-018
 - **ADR refs**: ADR-MCP-002 (DEC-MCP-012)
 - **Acceptance Criteria** (Gherkin): *Given* the catalogue, *When* compared with the item catalogue, *Then* every Set and Get item of those groups is a row or is listed with its reason. *Given* each new row, *When* set through `set_parameter` on the simulated sampler, *Then* it reads back. *Given* the consistency test, *Then* it passes for every new row.
 - **Dependencies**: TASK-MCP-012
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: tests written first (`juce/tests/mcp/ParameterCatalogueLot3Tests.cpp`, 7 cases) and run red (106 rows did not exist), then green. `xs56k_mcp_tests` 106 cases / 4195 assertions pass. The catalogue holds 106 parameters (54 + 52) in 11 groups: keygroup 7, pitch and amplitude 9, aux envelope 12, output 12, tuning 4, pitch bend 8 (the six new ones) and filter 11, amplitude envelope 8, filter envelope 9, LFO 1 13, LFO 2 13. The comparison with the item catalogue covers every item of sections 08 and 0A: each is a row or one of 21 left-out items listed with its reason (selection, lifecycle and information items of programs and keygroups, the program number, and the user tune template, which sets all twelve notes at once); the consistency test of TASK-MCP-003 passes for every row. The keygroup level is -30 to 30 dB in steps of 6 over a code 0 to 10 (new `offset` of `ParameterDefinition`; tested at -30, 0, 30, a step of 4 and 36 refused, and the wire values 0, 5, 10); the notes are 21 to 127 sent as they are; the choices carry the spec's labels in code order and resolve by name. Every one of the 106 rows is set to another value and back on the simulated sampler through the gateway and reads back. The scripted conversation gained 9 calls (72 answers; `git diff` of the expected file: only the `tools/list` line and the new tail). Full `ctest` (Debug, MSVC `/W4 /WX`): 823 of 823 pass (816 before, 7 new). On the real S5000: 106 parameters, 223 steps, 0 failures, state restored, program deleted (`OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "Lot 3").
+- **Assumptions**: three tests of earlier lots that counted the catalogue (5 groups, 54 parameters, 54 lines of `list_parameters`) were changed to the intended new counts, and the consistency test's formula for a `Number` range gained the `offset`, because lot 3 adds to the catalogue by design (the exact counts are now asserted by the lot 3 tests); no failing test was changed to pass. The descriptions of the rows are written from the spec's words and the manual's vocabulary: the effect of the bend mode HELD, of legato and of the FX override on the sound is described only by the spec's names (not heard). The note names follow the spec (21 = A-1, 127 = G8), so 60 = C3 is derived, not read. The aux envelope's rates and levels are called R1 to R4 and L1 to L4 as the sampler's own envelope is; the spec lists "velocity to rate" for rates 1 and 4 only and the off-velocity item for rate 4 only. The keygroup crossfade (a program value of §0A) sits in the group "keygroup" with the keygroup's own options.
 
 ### TASK-MCP-014: Zone parameters
 - **Tier**: M

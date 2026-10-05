@@ -239,7 +239,7 @@ TEST_CASE("Given select_program with the name LEAD, When get_status runs, Then t
     CHECK(isError(rig.call("select_program", {{"name", 7}})));
 }
 
-TEST_CASE("Given the catalogue, When list_parameters runs, Then it lists its 54 parameters and, for filter type, its 26 labels; a group narrows it and an unknown group is an error naming the groups [RQ-MCP-004]",
+TEST_CASE("Given the catalogue, When list_parameters runs, Then it lists its 106 parameters and, for filter type, its 26 labels; a group narrows it and an unknown group is an error naming the groups [RQ-MCP-004]",
           "[mcp][tools]")
 {
     Rig rig;
@@ -248,7 +248,7 @@ TEST_CASE("Given the catalogue, When list_parameters runs, Then it lists its 54 
     std::size_t parameterLines = 0;
     for (std::size_t at = all.find("\n- "); at != std::string::npos; at = all.find("\n- ", at + 1))
         ++parameterLines;
-    CHECK(parameterLines == 54);
+    CHECK(parameterLines == 106);
     CHECK(contains(all, "filter cutoff"));
     CHECK(contains(all, "0 to 100"));
     CHECK(contains(all, "2-POLE LP+ (2)"));

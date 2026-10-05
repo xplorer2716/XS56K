@@ -60,6 +60,29 @@ and the sampler was left as it was found: **no program in memory** (checked by `
   that was not the current program's, and a name differing only in case; the program count after the deletion is read).
 - **The server's session** opened and closed cleanly in every run (Still Alive, Sync LCD, Auto screen update put back).
 
+## Lot 3 of the catalogue (TASK-MCP-013), run on 2026-10-05
+
+A program MCPSCRATCH (3 keygroups) created by `create_program`; every one of the **106** parameters of the catalogue (the 54 of
+lots 1 and 2, the 52 of lot 3) read for all keygroups, then each set to another value on all keygroups, read back and set
+back: **223 steps, 0 failures**, the final values equal to the starting ones. The program was then deleted and memory was
+empty again.
+
+- **Starting values of a new program, lot 3** (as the sampler gave them, not as the simulated sampler holds them): keygroup
+  low note 21, high note 127 (every keygroup covers the whole keyboard), mute group 0, FX override OFF, FX send level 0, zone
+  crossfade off, program keygroup crossfade **on**, keygroup semitone tune 0, fine tune 0, level 0 dB, pitch modulation 1
+  source LFO1 with amount 100, pitch modulation 2 source AUX ENV with amount 0, keygroup amp modulation source VELOCITY
+  with amount 0, aux envelope rates 0, 50, 50, 15 and levels 100, 100, 100, 0 (velocity and keyboard amounts 0), program
+  loudness 85, velocity sensitivity 25, program amp modulation sources KEYBOARD and AFTERTOUCH, pan modulation sources LFO2,
+  KEYBOARD and MODWHEEL (all amounts 0), program tuning 0 and 0 cents, tune template USER, tune key C, pitch bend up 2 and
+  down 2, bend mode NORMAL, aftertouch pitch 0, legato off, portamento off, mode TIME, time 0. The simulated sampler starts a
+  new keygroup with zeros for these (a note of 0 is outside the note range): a difference of state, not of behaviour, left as
+  it is; the lot 3 test copes with it.
+- **The keygroup level** (a code 0 to 10 for -30 to +30 dB in steps of 6) was set to -24 and back to 0 dB and read back as
+  set: the catalogue's `offset` (code = (dB + 30) / 6) is right.
+- **Low and high note** were set to 28 and 120 and back, accepted; setting a low note above the high one was not tried.
+- **The tuning, pitch bend, portamento, aftertouch and modulation rows** all read back as set; what each does to the sound was
+  not heard.
+
 ## Not established
 
 - What the sampler's screen shows (modulation source and clock division labels, the effect of Auto screen update during edits).

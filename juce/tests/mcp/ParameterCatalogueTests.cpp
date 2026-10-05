@@ -68,7 +68,7 @@ TEST_CASE("Given the catalogue in five groups, When the 24 parameters of lot 1 a
         {"lfo 1", {"lfo 1 rate", "lfo 1 delay", "lfo 1 depth", "lfo 1 waveform", "lfo 1 sync"}},
         {"lfo 2", {"lfo 2 rate", "lfo 2 delay", "lfo 2 depth", "lfo 2 waveform", "lfo 2 retrigger"}}};
 
-    REQUIRE(catalogue.groups().size() == 5);
+    REQUIRE(catalogue.groups().size() >= 5);  // lot 3 adds six groups
     std::size_t found = 0;
     for (const auto& [group, names] : lot1)
     {
@@ -118,8 +118,8 @@ TEST_CASE("Given every row of the catalogue, When it is compared with the AKM it
         switch (parameter.kind)
         {
             case ParameterKind::Number:
-                CHECK(parameter.min == wireMagnitude.min * parameter.step);
-                CHECK(parameter.max == wireMagnitude.max * parameter.step);
+                CHECK(parameter.min == wireMagnitude.min * parameter.step + parameter.offset);
+                CHECK(parameter.max == wireMagnitude.max * parameter.step + parameter.offset);
                 break;
             case ParameterKind::Signed:
                 CHECK(setValue[0].min == 0);
