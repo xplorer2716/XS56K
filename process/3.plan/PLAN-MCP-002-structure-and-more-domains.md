@@ -79,15 +79,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-014: Zone parameters
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the `Zone` scope, the `zone` argument of `get_parameters` and `set_parameter`, the zone rows and their gateway selection steps.
 - **Requirement refs**: RQ-MCP-019
 - **ADR refs**: ADR-MCP-002 (DEC-MCP-012)
 - **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* a zone parameter is set for keygroup 1, zone 2, *Then* it reads back for that zone and not for zone 1. *Given* "filter cutoff" with `zone` 2, *Then* `isError` is true.
 - **Dependencies**: TASK-MCP-013
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: tests written first (`juce/tests/mcp/ZoneParameterTests.cpp`, 9 cases) and run red (no zone scope, no `zone` argument), then green. `xs56k_mcp_tests` 115 cases / 4932 assertions pass (106 before the task, 9 new). The catalogue holds 119 parameters (106 + 13) in 12 groups; the group "zone" has the 13 zone parameters of section 06 (level, pan, output, filter, fine tune, semitone tune, keyboard tracking, playback, velocity to start, high and low velocity, mute, solo), and every item of the section is a row or the sample assignment (`&01`, `&21`), left out as a text item. Pan is -50 to 50 over the codes 14 to 114 (centre 64, `offset` -64; tested at -50, 0, 50 and 51 refused); the velocity to start is +-9999 as a sign and two 7-bit bytes (tested: -9999 is sign 1, 78, 15; 128 is 0, 1, 0; a reply of two values refused; 10000 refused); output has 25 labels (MULTI, OP1/2 to OP15/16, OP1 to OP16) and playback 7. Through the gateway: zone level 25 on keygroup 2 zone 3 changes that zone alone; the 12 values read keygroup-major, zone-minor; keygroup 2 gives its four zones; zone 2 of every keygroup gives three; all keygroups and all zones is one Set with zone 0 and reads back 12 equal values; a zone of 0, 5 or -1 sends nothing and the problem says "zones 1 to 4". Through the tools: `zone` is 1 to 4 or "all", the answer names "keygroup 1, zone 2", a non-zone parameter given a zone (filter cutoff, LFO 1 rate) is an error, and so are 0, 5, 1.5, "two" and -1. Every one of the 119 rows still reads back through the gateway (the lot 3 test). The scripted conversation gained 6 calls (78 answers; `git diff` of the expected file: the `tools/list` line and the new tail only). Full `ctest` (Debug, MSVC `/W4 /WX`): 832 of 832 pass (823 before, 9 new). On the real S5000: 119 parameters, 250 steps, 0 failures, state restored, plus a one-zone write on keygroup 2 zone 3, keygroup 3 zone 4 and keygroup 1 zones 1 and 2 (`OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "Zones"); program deleted.
+- **Assumptions**: three tests changed because the catalogue grew by design (the lot 3 test's totals now 119 parameters and 12 groups, the `list_parameters` line count 119) and the consistency test learned that a zone row's items take the zone first and that a magnitude can be two bytes; no failing test was changed to pass. The zone sample assignment is not offered (it is a text value, and the sampler held no sample to try it on); it can be added with the sample tools of TASK-MCP-015. The simulated sampler's default zone pan was changed from 0 to the centre (64) after the real sampler gave 64. The pan's -50 to 50 mapping is derived from the spec's "14 to 114 = L50 to R50, centre 64". The tools' `keygroup` default stays "all", so an unqualified zone edit reaches every zone of every keygroup, as an unqualified keygroup edit reaches every keygroup.
 
 ### TASK-MCP-015: Samples — list, select, get and set parameters
 - **Tier**: M

@@ -1005,6 +1005,10 @@ namespace akm::harness
             {0x02, 0x0E, 0x20},  // Level .. Solo
         }};
         constexpr std::array<std::uint8_t, 4> EVERY_ZONE{{1, 2, 3, 4}};
+        // A zone not yet given a pan is at the centre, 64 (spec Table 9, item &03: 14 to 114, centre 64), not at 0, which is
+        // outside the range the sampler holds.
+        constexpr std::uint8_t ITEM_SET_ZONE_PAN = 0x03;
+        constexpr std::uint8_t ZONE_PAN_CENTRE = 64;
 
         // Zone 0 ("all four") fans out over zones 1-4; any other zone is itself.
         std::vector<std::uint8_t> zonesOf(std::uint8_t zone)
@@ -1036,8 +1040,15 @@ namespace akm::harness
                 for (const KeygroupRecord& keygroup : targets)
                 {
                     for (const std::uint8_t zone : zones)
-                        appendBytes(concatenated,
-                                    storedValue(keygroup.zoneParameters, match.setItem, Bytes{zone}, widths->value));
+                    {
+                        const bool unsetPan = match.setItem == ITEM_SET_ZONE_PAN &&
+                                              keygroup.zoneParameters.find({match.setItem, Bytes{zone}}) == keygroup.zoneParameters.end();
+                        if (unsetPan)
+                            concatenated.push_back(ZONE_PAN_CENTRE);
+                        else
+                            appendBytes(concatenated,
+                                        storedValue(keygroup.zoneParameters, match.setItem, Bytes{zone}, widths->value));
+                    }
                 }
                 return reply(std::move(concatenated));
             }

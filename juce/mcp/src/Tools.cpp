@@ -31,6 +31,8 @@ namespace mcp
     {
         constexpr const char* KEYGROUP_ALL = "all";
         constexpr std::int64_t FIRST_KEYGROUP = 1;
+        constexpr std::int64_t FIRST_ZONE = 1;
+        constexpr std::int64_t LAST_ZONE = 4;
         constexpr std::int64_t MAX_PROGRAM_INDEX = 16383;
         // The sampler's program names are 12 characters on its screen; the wire takes up to 20 (the AKM item), and
         // whether the sampler keeps more is observed on the real sampler. [ADR-MCP-002 (DEC-MCP-011)]
@@ -46,7 +48,10 @@ namespace mcp
 
         constexpr const char* KEYGROUP_ARGUMENT_DESCRIPTION =
             "Which keygroup of the current program: a number from 1, or \"all\" (the default). It applies to the "
-            "keygroup parameters (filter, envelopes); the LFO parameters belong to the program.";
+            "keygroup and zone parameters (filter, envelopes, zones); the LFO parameters belong to the program.";
+
+        constexpr const char* ZONE_ARGUMENT_DESCRIPTION =
+            "Which zone of the keygroup(s), 1 to 4, or \"all\" (the default). Only for the zone parameters (group \"zone\").";
 
         std::string plural(std::int64_t count, const std::string& noun)
         {
@@ -127,32 +132,84 @@ namespace mcp
             return {KeygroupSelection::of(static_cast<int>(*number)), {}};
         }
 
+        // The `zone` argument: absent or "all" is every zone, a number from 1 to 4 is one.
+        struct ZoneArgument
+        {
+            std::optional<ZoneSelection> selection;
+            bool given = false;
+            std::string problem;
+        };
+
+        ZoneArgument zoneArgument(const json& arguments)
+        {
+            const auto given = arguments.find("zone");
+            if (given == arguments.end() || given->is_null())
+                return {ZoneSelection::all(), false, {}};
+            const std::string rule = "zone must be a number from " + std::to_string(FIRST_ZONE) + " to " + std::to_string(LAST_ZONE) +
+                                     " or \"all\" (got " + given->dump() + ").";
+            if (given->is_string())
+            {
+                if (normalizeText(given->get<std::string>()) == KEYGROUP_ALL)
+                    return {ZoneSelection::all(), true, {}};
+                return {std::nullopt, true, rule};
+            }
+            const auto number = wholeNumber(*given);
+            if (!number || *number < FIRST_ZONE || *number > LAST_ZONE)
+                return {std::nullopt, true, rule};
+            return {ZoneSelection::of(static_cast<int>(*number)), true, {}};
+        }
+
+        std::size_t distinctKeygroups(const std::vector<ParameterValue>& values)
+        {
+            std::set<int> keygroups;
+            for (const ParameterValue& value : values)
+                keygroups.insert(value.keygroup.value_or(0));
+            return keygroups.size();
+        }
+
+        std::size_t distinctZones(const std::vector<ParameterValue>& values)
+        {
+            std::set<int> zones;
+            for (const ParameterValue& value : values)
+                zones.insert(value.zone.value_or(0));
+            return zones.size();
+        }
+
         std::string describeTarget(const ParameterDefinition& parameter, const std::vector<ParameterValue>& values,
-                                   KeygroupSelection selection)
+                                   KeygroupSelection selection, ZoneSelection zones)
         {
             if (parameter.scope == ParameterScope::Program)
                 return "program";
-            if (selection.keygroup)
-                return "keygroup " + std::to_string(*selection.keygroup);
-            return "all " + plural(static_cast<std::int64_t>(values.size()), "keygroup");
+            std::string target = selection.keygroup ? "keygroup " + std::to_string(*selection.keygroup)
+                                                    : "all " + plural(static_cast<std::int64_t>(distinctKeygroups(values)), "keygroup");
+            if (parameter.scope == ParameterScope::Zone)
+                target += zones.zone ? ", zone " + std::to_string(*zones.zone)
+                                     : ", all " + plural(static_cast<std::int64_t>(distinctZones(values)), "zone");
+            return target;
         }
 
         /// One line for one parameter: "filter cutoff = 80 (all 3 keygroups)", or one value per keygroup when they differ.
         std::string describeReading(const ParameterDefinition& parameter, const std::vector<ParameterValue>& values,
-                                    KeygroupSelection selection)
+                                    KeygroupSelection selection, ZoneSelection zones)
         {
             const bool allEqual = std::all_of(values.begin(), values.end(), [&values](const ParameterValue& value) {
                 return value.value == values.front().value;
             });
             if (allEqual)
                 return parameter.name + " = " + describeValue(parameter, values.front().value) + " (" +
-                       describeTarget(parameter, values, selection) + ")";
+                       describeTarget(parameter, values, selection, zones) + ")";
 
-            std::vector<std::string> perKeygroup;
+            std::vector<std::string> perValue;
             for (const ParameterValue& value : values)
-                perKeygroup.push_back("keygroup " + std::to_string(value.keygroup.value_or(0)) + " = " +
-                                      describeValue(parameter, value.value));
-            return parameter.name + ": " + joined(perKeygroup, ", ");
+            {
+                std::string place;
+                if (!selection.keygroup)
+                    place = "keygroup " + std::to_string(value.keygroup.value_or(0));
+                if (value.zone && !zones.zone)
+                    place += std::string(place.empty() ? "" : " ") + "zone " + std::to_string(*value.zone);
+                perValue.push_back(place + " = " + describeValue(parameter, value.value));
+            }
+            return parameter.name + ": " + joined(perValue, ", ");
         }
 
         std::string describeParameter(const ParameterDefinition& parameter)
@@ -160,7 +217,18 @@ namespace mcp
             std::string text = "- " + parameter.name + ": ";
             text += parameter.kind == ParameterKind::Choice ? "one of: " + describeRange(parameter) : describeRange(parameter);
             text += ". " + parameter.description;
-            text += parameter.scope == ParameterScope::Keygroup ? " Per keygroup." : " Per program.";
+            switch (parameter.scope)
+            {
+                case ParameterScope::Keygroup:
+                    text += " Per keygroup.";
+                    break;
+                case ParameterScope::Zone:
+                    text += " Per zone (and keygroup).";
+                    break;
+                case ParameterScope::Program:
+                    text += " Per program.";
+                    break;
+            }
             if (!parameter.aliases.empty())
                 text += " Also called: " + joined(parameter.aliases, ", ") + ".";
             return text;
@@ -235,6 +303,16 @@ namespace mcp
         json keygroupSchema()
         {
             return json{{"type", json::array({"integer", "string"})}, {"description", KEYGROUP_ARGUMENT_DESCRIPTION}};
+        }
+
+        json zoneSchema()
+        {
+            return json{{"type", json::array({"integer", "string"})}, {"description", ZONE_ARGUMENT_DESCRIPTION}};
+        }
+
+        std::string notAZoneParameter(const ParameterDefinition& parameter)
+        {
+            return parameter.name + " is not a zone parameter: leave 'zone' out (the zone parameters are in the group \"zone\").";
         }
     }
 
@@ -378,10 +456,11 @@ namespace mcp
                                           {{"type", "array"},
                                            {"items", {{"type", "string"}}},
                                            {"description", "Parameter names, for example [\"filter cutoff\", \"filter resonance\"]."}}},
-                                         {"keygroup", keygroupSchema()}}),
+                                         {"keygroup", keygroupSchema()},
+                                         {"zone", zoneSchema()}}),
                        false, true),
             [&gateway, &catalogue](const json& arguments) {
-                if (const auto refused = unknownArguments(arguments, {"group", "parameters", "keygroup"}))
+                if (const auto refused = unknownArguments(arguments, {"group", "parameters", "keygroup", "zone"}))
                     return *refused;
                 const bool hasGroup = arguments.contains("group");
                 const bool hasList = arguments.contains("parameters");
@@ -391,6 +470,9 @@ namespace mcp
                 const KeygroupArgument keygroup = keygroupArgument(arguments);
                 if (!keygroup.selection)
                     return failure(keygroup.problem);
+                const ZoneArgument zone = zoneArgument(arguments);
+                if (!zone.selection)
+                    return failure(zone.problem);
 
                 std::vector<const ParameterDefinition*> wanted;
                 if (hasGroup)
@@ -426,13 +508,21 @@ namespace mcp
                         return failure(joined(problems, "\n"));
                 }
 
+                if (zone.given)
+                {
+                    for (const ParameterDefinition* parameter : wanted)
+                    {
+                        if (parameter->scope != ParameterScope::Zone)
+                            return failure(notAZoneParameter(*parameter));
+                    }
+                }
                 std::string text;
                 for (const ParameterDefinition* parameter : wanted)
                 {
-                    const auto read = gateway.readParameter(*parameter, *keygroup.selection);
+                    const auto read = gateway.readParameter(*parameter, *keygroup.selection, *zone.selection);
                     if (!read.ok())
                         return failure(text + read.problem);
-                    text += describeReading(*parameter, *read.value, *keygroup.selection) + "\n";
+                    text += describeReading(*parameter, *read.value, *keygroup.selection, *zone.selection) + "\n";
                 }
                 return ok(std::move(text));
             }});
@@ -449,11 +539,12 @@ namespace mcp
                                          {"value",
                                           {{"type", json::array({"number", "string", "boolean"})},
                                            {"description", "A number, a choice label, or on/off (true/false)."}}},
-                                         {"keygroup", keygroupSchema()}},
+                                         {"keygroup", keygroupSchema()},
+                                         {"zone", zoneSchema()}},
                                     json::array({"parameter", "value"})),
                        false, true),
             [&gateway, &catalogue](const json& arguments) {
-                if (const auto refused = unknownArguments(arguments, {"parameter", "value", "keygroup"}))
+                if (const auto refused = unknownArguments(arguments, {"parameter", "value", "keygroup", "zone"}))
                     return *refused;
                 if (!arguments.at("parameter").is_string())
                     return failure("The argument 'parameter' must be a string.");
@@ -469,6 +560,11 @@ namespace mcp
                 if (parameter.scope == ParameterScope::Program && keygroup.selection->keygroup)
                     return failure(parameter.name + " belongs to the program, not to a keygroup: leave 'keygroup' out (or use \"" +
                                    KEYGROUP_ALL + "\").");
+                const ZoneArgument zone = zoneArgument(arguments);
+                if (!zone.selection)
+                    return failure(zone.problem);
+                if (zone.given && parameter.scope != ParameterScope::Zone)
+                    return failure(notAZoneParameter(parameter));
 
                 const json& value = arguments.at("value");
                 ValueResolution resolved;
@@ -490,10 +586,10 @@ namespace mcp
                 if (!resolved.value)
                     return failure(resolved.problem);
 
-                const auto written = gateway.writeParameter(parameter, *resolved.value, *keygroup.selection);
+                const auto written = gateway.writeParameter(parameter, *resolved.value, *keygroup.selection, *zone.selection);
                 if (!written.ok())
                     return failure(written.problem);
-                return ok(describeReading(parameter, *written.value, *keygroup.selection) +
+                return ok(describeReading(parameter, *written.value, *keygroup.selection, *zone.selection) +
                           ", as read back from the sampler's memory.");
             }});
 

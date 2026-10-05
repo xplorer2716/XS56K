@@ -124,12 +124,12 @@ namespace
     }
 }
 
-TEST_CASE("Given the lot 3 catalogue, When it is counted, Then it holds 106 parameters and the six new groups have 7, 9, 12, 12, 4 and 8 [RQ-MCP-018]",
+TEST_CASE("Given the lot 3 catalogue, When it is counted, Then the six lot 3 groups have 7, 9, 12, 12, 4 and 8 parameters (106 with lots 1 and 2; the zone group adds 13, see ZoneParameterTests) [RQ-MCP-018]",
           "[mcp][catalogue][lot3]")
 {
     const ParameterCatalogue& catalogue = ParameterCatalogue::standard();
-    CHECK(catalogue.parameters().size() == 106);
-    CHECK(catalogue.groups().size() == 11);
+    CHECK(catalogue.parameters().size() == 106 + 13);
+    CHECK(catalogue.groups().size() == 11 + 1);
     const std::vector<std::pair<const char*, std::size_t>> expected{{"keygroup", 7},   {"pitch and amplitude", 9}, {"aux envelope", 12},
                                                                     {"output", 12},    {"tuning", 4},              {"pitch bend", 8},
                                                                     {"filter", 11},    {"amplitude envelope", 8},  {"filter envelope", 9}};

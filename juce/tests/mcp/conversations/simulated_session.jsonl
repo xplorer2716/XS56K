@@ -70,4 +70,10 @@
 {"jsonrpc":"2.0","id":69,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"program loudness","value":80}}}
 {"jsonrpc":"2.0","id":70,"method":"tools/call","params":{"name":"get_parameters","arguments":{"group":"aux envelope","keygroup":1}}}
 {"jsonrpc":"2.0","id":71,"method":"tools/call","params":{"name":"list_parameters","arguments":{"group":"tuning"}}}
-{"jsonrpc":"2.0","id":72,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":72,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"zone level","value":10,"keygroup":1,"zone":2}}}
+{"jsonrpc":"2.0","id":73,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"zone pan","value":-20,"keygroup":2}}}
+{"jsonrpc":"2.0","id":74,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"zone velocity to start","value":-1234,"keygroup":3,"zone":4}}}
+{"jsonrpc":"2.0","id":75,"method":"tools/call","params":{"name":"get_parameters","arguments":{"parameters":["zone level","zone pan"],"keygroup":1}}}
+{"jsonrpc":"2.0","id":76,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutoff","value":50,"zone":2}}}
+{"jsonrpc":"2.0","id":77,"method":"tools/call","params":{"name":"list_parameters","arguments":{"group":"zone"}}}
+{"jsonrpc":"2.0","id":78,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

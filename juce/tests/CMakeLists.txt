@@ -91,7 +91,8 @@ add_executable(xs56k_mcp_tests
     mcp/ProgramStructureTests.cpp
     mcp/SamplerGatewayTests.cpp
     mcp/ServerOptionsTests.cpp
-    mcp/ToolsTests.cpp)
+    mcp/ToolsTests.cpp
+    mcp/ZoneParameterTests.cpp)
 # The gateway tests seed the simulated sampler with the raw-frame helpers of the AKM tests.
 target_include_directories(xs56k_mcp_tests PRIVATE akm)
 target_link_libraries(xs56k_mcp_tests PRIVATE
@@ -145,7 +146,7 @@ add_test(NAME mcp_simulated_server_scripted_conversation
         -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
-        -DEXPECT_LINES=72
+        -DEXPECT_LINES=78
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The shipped server must not link the simulated sampler or anything else of the test support: checked when CMake
 # configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]

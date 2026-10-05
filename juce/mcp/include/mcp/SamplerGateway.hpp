@@ -107,10 +107,21 @@ namespace mcp
         [[nodiscard]] static KeygroupSelection of(int keygroup) { return KeygroupSelection{keygroup}; }
     };
 
-    /// One value of a parameter: of a keygroup (1-based) for a keygroup parameter, or of the program.
+    /// Which zone (1 to 4) of a keygroup an edit or a reading is about, or all four of them.
+    struct ZoneSelection
+    {
+        std::optional<int> zone;  ///< empty: all zones
+
+        [[nodiscard]] static ZoneSelection all() { return {}; }
+        [[nodiscard]] static ZoneSelection of(int zone) { return ZoneSelection{zone}; }
+    };
+
+    /// One value of a parameter: of a zone (1-based) of a keygroup (1-based) for a zone parameter, of a keygroup for a
+    /// keygroup parameter, or of the program.
     struct ParameterValue
     {
         std::optional<int> keygroup;
+        std::optional<int> zone;
         std::int64_t value = 0;
     };
 
@@ -150,13 +161,15 @@ namespace mcp
         /// program's is a problem that gives the count, and nothing is sent to the sampler but the questions that
         /// say so. A program parameter has no keygroup: its one value carries none. [RQ-MCP-005, RQ-MCP-007]
         [[nodiscard]] Outcome<std::vector<ParameterValue>> readParameter(const ParameterDefinition& parameter,
-                                                                         KeygroupSelection selection);
+                                                                         KeygroupSelection selection,
+                                                                         ZoneSelection zones = ZoneSelection::all());
 
         /// Sets a parameter of the current program (the value must have been resolved by the catalogue) and reads it
         /// back; the answer is what the sampler reports. A reading that differs from the value set is a problem that
         /// says so. The keygroup the sampler has selected is left as the edit set it. [RQ-MCP-006]
         [[nodiscard]] Outcome<std::vector<ParameterValue>> writeParameter(const ParameterDefinition& parameter,
-                                                                          std::int64_t value, KeygroupSelection selection);
+                                                                          std::int64_t value, KeygroupSelection selection,
+                                                                          ZoneSelection zones = ZoneSelection::all());
 
         /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
         /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the
@@ -183,7 +196,7 @@ namespace mcp
         [[nodiscard]] Outcome<ProgramInfo> currentProgramInfo();
         [[nodiscard]] Outcome<std::vector<ParameterValue>> editParameter(const ParameterDefinition& parameter,
                                                                          std::optional<std::int64_t> valueToSet,
-                                                                         KeygroupSelection selection);
+                                                                         KeygroupSelection selection, ZoneSelection zones);
 
         GatewayConfig _config;
         common::midi::MidiBackend& _backend;

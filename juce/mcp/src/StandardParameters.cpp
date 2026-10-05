@@ -34,6 +34,7 @@ namespace mcp
         constexpr const char* GROUP_OUTPUT = "output";
         constexpr const char* GROUP_TUNING = "tuning";
         constexpr const char* GROUP_PITCH_BEND = "pitch bend";
+        constexpr const char* GROUP_ZONE = "zone";
 
         // The sampler's own ranges (spec Tables 11 and 13), as the item catalogue gives them.
         constexpr std::int64_t LEVEL_MAX = 100;
@@ -44,6 +45,38 @@ namespace mcp
         constexpr const char* UNIT_DB = "dB";
         constexpr std::int64_t FIRST_LFO = 1;
         constexpr std::int64_t SECOND_LFO = 2;
+
+
+        // Zone ranges (spec Table 9). The pan is a code 14 to 114 with 64 at the centre.
+        constexpr std::int64_t ZONE_PAN_MAX = 50;
+        constexpr std::int64_t ZONE_PAN_CENTRE_CODE = 64;
+        constexpr std::int64_t VELOCITY_MAX = 127;
+        constexpr std::int64_t VELOCITY_TO_START_MAX = 9999;
+        constexpr std::int64_t ZONE_FILTER_MAX = 100;
+
+        // Table 9, item &04: 0 MULTI, 1 to 8 the stereo pairs op1/2 to op15/16, 9 to 24 the outputs op1 to op16.
+        const std::vector<std::string>& zoneOutputLabels()
+        {
+            static const std::vector<std::string> labels = [] {
+                constexpr int OUTPUT_PAIRS = 8;
+                constexpr int OUTPUTS = 16;
+                std::vector<std::string> made{"MULTI"};
+                for (int pair = 0; pair < OUTPUT_PAIRS; ++pair)
+                    made.push_back("OP" + std::to_string(2 * pair + 1) + "/" + std::to_string(2 * pair + 2));
+                for (int output = 1; output <= OUTPUTS; ++output)
+                    made.push_back("OP" + std::to_string(output));
+                return made;
+            }();
+            return labels;
+        }
+
+        // Table 9, item &09.
+        const std::vector<std::string>& zonePlaybackLabels()
+        {
+            static const std::vector<std::string> labels{"NO LOOPING",   "ONE SHOT",     "LOOP IN REL", "LOOP UNTIL REL",
+                                                         "LIR->RETRIG", "PLAY->RETRIG", "AS SAMPLE"};
+            return labels;
+        }
 
         // Lot 3 ranges (spec Tables 11 and 13).
         constexpr std::int64_t FIRST_NOTE = 21;  // A-1
@@ -334,6 +367,52 @@ namespace mcp
                                         amountScope, setAmount, getAmount, LEVEL_MAX, {input}));
         }
 
+        // Section 06: the parameters of a zone of the current keygroup. The zone is not a leading argument of the row:
+        // it is said at each call (1 to 4, or all), and goes first in the item's arguments.
+        void addZoneRows(std::vector<ParameterDefinition>& rows)
+        {
+            rows.push_back(signedNumber("zone level", {}, GROUP_ZONE, "The zone's level; negative values lower it.", ParameterScope::Zone,
+                                        akm::ItemId::ZoneSetLevel, akm::ItemId::ZoneGetLevel, LEVEL_MAX));
+            ParameterDefinition pan = number("zone pan", {"zone balance", "zone pan balance"}, GROUP_ZONE,
+                                             "The zone's pan, or balance for a stereo sample: -50 is fully left, 0 the centre, 50 fully right.",
+                                             ParameterScope::Zone, akm::ItemId::ZoneSetPanBalance, akm::ItemId::ZoneGetPanBalance, ZONE_PAN_MAX);
+            pan.min = -ZONE_PAN_MAX;
+            pan.offset = -ZONE_PAN_CENTRE_CODE;
+            rows.push_back(std::move(pan));
+            rows.push_back(choice("zone output", {}, GROUP_ZONE,
+                                  "Where the zone is sent: MULTI, a stereo pair of outputs (OP1/2 to OP15/16) or one output (OP1 to OP16).",
+                                  ParameterScope::Zone, akm::ItemId::ZoneSetOutput, akm::ItemId::ZoneGetOutput, zoneOutputLabels()));
+            rows.push_back(signedNumber("zone filter", {}, GROUP_ZONE, "How much the zone moves the filter's cutoff, as a signed amount.",
+                                        ParameterScope::Zone, akm::ItemId::ZoneSetFilter, akm::ItemId::ZoneGetFilter, ZONE_FILTER_MAX));
+            rows.push_back(signedNumber("zone fine tune", {}, GROUP_ZONE, "A finer tuning of the zone, up or down (cents of a semitone).",
+                                        ParameterScope::Zone, akm::ItemId::ZoneSetFineTune, akm::ItemId::ZoneGetFineTune, FINE_TUNE_MAX));
+            rows.push_back(signedNumber("zone semitone tune", {}, GROUP_ZONE, "How far the zone is tuned, in semitones, up or down.",
+                                        ParameterScope::Zone, akm::ItemId::ZoneSetSemitoneTune, akm::ItemId::ZoneGetSemitoneTune,
+                                        SEMITONE_TUNE_MAX));
+            rows.push_back(onOff("zone keyboard tracking", {"zone keyboard track"}, GROUP_ZONE,
+                                 "Whether the zone's pitch follows the keyboard.", ParameterScope::Zone, akm::ItemId::ZoneSetKeyboardTrack,
+                                 akm::ItemId::ZoneGetKeyboardTrack, {}));
+            rows.push_back(choice("zone playback", {"zone loop mode"}, GROUP_ZONE,
+                                  "How the zone's sample plays: NO LOOPING, ONE SHOT, LOOP IN REL, LOOP UNTIL REL, LIR->RETRIG, "
+                                  "PLAY->RETRIG or AS SAMPLE (the sample's own setting).",
+                                  ParameterScope::Zone, akm::ItemId::ZoneSetPlayback, akm::ItemId::ZoneGetPlayback, zonePlaybackLabels()));
+            ParameterDefinition start = signedNumber("zone velocity to start", {}, GROUP_ZONE,
+                                                     "How the note-on velocity moves the start of the zone's sample, as a signed amount "
+                                                     "up to 9999.",
+                                                     ParameterScope::Zone, akm::ItemId::ZoneSetVelocityToStart,
+                                                     akm::ItemId::ZoneGetVelocityToStart, VELOCITY_TO_START_MAX);
+            start.magnitudeBytes = 2;
+            rows.push_back(std::move(start));
+            rows.push_back(number("zone high velocity", {}, GROUP_ZONE, "The highest note-on velocity the zone plays.", ParameterScope::Zone,
+                                  akm::ItemId::ZoneSetHighVelocity, akm::ItemId::ZoneGetHighVelocity, VELOCITY_MAX));
+            rows.push_back(number("zone low velocity", {}, GROUP_ZONE, "The lowest note-on velocity the zone plays.", ParameterScope::Zone,
+                                  akm::ItemId::ZoneSetLowVelocity, akm::ItemId::ZoneGetLowVelocity, VELOCITY_MAX));
+            rows.push_back(onOff("zone mute", {}, GROUP_ZONE, "Whether the zone is muted.", ParameterScope::Zone, akm::ItemId::ZoneSetMute,
+                                 akm::ItemId::ZoneGetMute, {}));
+            rows.push_back(onOff("zone solo", {}, GROUP_ZONE, "Whether the zone is soloed.", ParameterScope::Zone, akm::ItemId::ZoneSetSolo,
+                                 akm::ItemId::ZoneGetSolo, {}));
+        }
+
         // Lot 3: the rest of the keygroup (section 08, Table 11) and of the program (section 0A, Table 13).
         void addLot3(std::vector<ParameterDefinition>& rows)
         {
@@ -496,6 +575,7 @@ namespace mcp
             {GROUP_OUTPUT, {}, "The program's loudness, velocity sensitivity and the inputs that modulate its amplitude and pan."},
             {GROUP_TUNING, {"tune"}, "The program's tuning: semitones, cents, tuning template and key."},
             {GROUP_PITCH_BEND, {"bend", "portamento"}, "The program's pitch bend, aftertouch, legato and portamento."},
+            {GROUP_ZONE, {"zones"}, "The keygroup's zones: level, pan, output, tuning, playback and velocity range, per zone."},
         };
     }
 
@@ -650,6 +730,7 @@ namespace mcp
                               akm::ItemId::ProgramGetLfoMidiClockSyncDivision, clockDivisionLabels(), {SECOND_LFO}));
 
         addLot3(rows);
+        addZoneRows(rows);
         return rows;
     }
 }

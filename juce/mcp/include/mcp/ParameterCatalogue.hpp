@@ -34,11 +34,13 @@ namespace mcp
     // takes and back. Adding a parameter is adding a row, not code. [RQ-MCP-004, RQ-MCP-005, RQ-MCP-006,
     // RQ-MCP-010, ADR-MCP-001 (DEC-MCP-005)]
 
-    /// Where the sampler keeps the value: on the current keygroup (§08) or on the current program (§0A).
+    /// Where the sampler keeps the value: on the current keygroup (§08), on the current program (§0A) or on a zone of
+    /// the current keygroup (§06: the zone number is the first argument of every item, 0 meaning all four zones).
     enum class ParameterScope
     {
         Keygroup,
         Program,
+        Zone,
     };
 
     /// How a value is said: `Number` (a whole number in the sampler's own units, in steps of `step`), `Signed`
@@ -72,6 +74,9 @@ namespace mcp
         /// for 0-30 dB; the keygroup level is a code 0-10 for -30 to 30 dB, `offset` -30).
         std::int64_t step = 1;
         std::int64_t offset = 0;
+        /// `Signed` only: how many 7-bit bytes hold the magnitude after the sign byte, most significant first (the zone's
+        /// velocity to start is two, +-9999).
+        std::int64_t magnitudeBytes = 1;
         std::string unit;                   ///< "dB", or empty
         std::vector<std::string> labels;    ///< `Choice`: the label of code i; `Switch`: off, on
         /// `Choice` only: other ways to say a choice, each with its code ("pitch bend" for BEND).

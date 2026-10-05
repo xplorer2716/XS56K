@@ -29,6 +29,7 @@ namespace mcp
     namespace
     {
         constexpr std::size_t MAX_SUGGESTIONS = 3;
+        constexpr std::int64_t WORD_BASE = 128;  // a 14-bit value is MSB * 128 + LSB (spec, data encodings)
         constexpr std::size_t MIN_SUBSTRING_QUERY = 3;
         constexpr std::size_t MIN_EDIT_BUDGET = 2;
         constexpr std::size_t EDIT_BUDGET_DIVISOR = 3;
@@ -360,6 +361,8 @@ namespace mcp
             case ParameterKind::Number:
                 return {(value - parameter.offset) / parameter.step};
             case ParameterKind::Signed:
+                if (parameter.magnitudeBytes == 2)
+                    return {value < 0 ? 1 : 0, std::abs(value) / WORD_BASE, std::abs(value) % WORD_BASE};
                 return {value < 0 ? 1 : 0, std::abs(value)};
             case ParameterKind::Choice:
             case ParameterKind::Switch:
@@ -377,9 +380,13 @@ namespace mcp
                     return std::nullopt;
                 return reply[0] * parameter.step + parameter.offset;
             case ParameterKind::Signed:
-                if (reply.size() != 2)
+            {
+                const bool word = parameter.magnitudeBytes == 2;
+                if (reply.size() != (word ? 3u : 2u))
                     return std::nullopt;
-                return reply[0] != 0 ? -reply[1] : reply[1];
+                const std::int64_t magnitude = word ? reply[1] * WORD_BASE + reply[2] : reply[1];
+                return reply[0] != 0 ? -magnitude : magnitude;
+            }
             case ParameterKind::Choice:
             case ParameterKind::Switch:
                 if (reply.size() != 1)

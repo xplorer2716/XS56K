@@ -412,7 +412,7 @@ TASK-MCP-010|32-43|Done|Author FTR-MCP-002, ADR-MCP-002 and PLAN-MCP-002
 TASK-MCP-011|44-55|Done|Program structure tools — create_program, rename_program, delete_program
 TASK-MCP-012|56-67|Done|Real-sampler run of the server (closes TASK-MCP-009)
 TASK-MCP-013|68-79|Done|Catalogue lot 3 — the rest of the keygroup and of the program
-TASK-MCP-014|80-91|Not Started|Zone parameters
+TASK-MCP-014|80-91|Done|Zone parameters
 TASK-MCP-015|92-103|Not Started|Samples — list, select, get and set parameters
 TASK-MCP-016|104-115|Not Started|Multis — list, select, get and set parameters
 TASK-MCP-017|116-126|Not Started|Documentation and closure

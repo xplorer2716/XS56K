@@ -45,6 +45,8 @@ namespace mcp
         constexpr int OPENING_COMMAND_BUDGET = 8;
         constexpr int CLOSING_COMMAND_BUDGET = 8;
         constexpr std::int64_t ALL_KEYGROUPS = 0;
+        constexpr std::int64_t ALL_ZONES = 0;
+        constexpr int ZONES_PER_KEYGROUP = 4;
         constexpr std::uint32_t MAX_DEVICE_ID = 31;
 
         constexpr std::span<const std::int64_t> NO_VALUES{};
@@ -483,19 +485,29 @@ namespace mcp
             return akm::makeRequest(akm::ItemId::KeygroupSelect, {keygroup});
         }
 
-        // A Get while "all keygroups" is selected answers one record per keygroup, which only a session that knows its
-        // checksum mode can delimit (DEC-AKM-014, RQ-AKM-031).
-        akm::CommandRequest getRequest(const ParameterDefinition& parameter, bool answersPerKeygroup)
+        // The arguments that come before the value: for a zone parameter the zone first (0 is all four), then the row's own.
+        std::vector<std::int64_t> leadingArguments(const ParameterDefinition& parameter, ZoneSelection zones)
         {
-            akm::CommandOptions options;
-            if (answersPerKeygroup)
-                options.expectedReply = akm::ExpectedReply::NeedsKnownChecksumMode;
-            return akm::makeRequest(parameter.getItem, parameter.leadingArguments, options);
+            std::vector<std::int64_t> leading;
+            if (parameter.scope == ParameterScope::Zone)
+                leading.push_back(zones.zone.value_or(static_cast<int>(ALL_ZONES)));
+            leading.insert(leading.end(), parameter.leadingArguments.begin(), parameter.leadingArguments.end());
+            return leading;
         }
 
-        akm::CommandRequest setRequest(const ParameterDefinition& parameter, std::int64_t value)
+        // A Get that answers several records (one per keygroup while "all keygroups" is selected, one per zone for zone 0)
+        // can only be delimited by a session that knows its checksum mode (DEC-AKM-014, RQ-AKM-031, RQ-AKM-036).
+        akm::CommandRequest getRequest(const ParameterDefinition& parameter, ZoneSelection zones, bool answersSeveralRecords)
         {
-            std::vector<std::int64_t> values = parameter.leadingArguments;
+            akm::CommandOptions options;
+            if (answersSeveralRecords)
+                options.expectedReply = akm::ExpectedReply::NeedsKnownChecksumMode;
+            return akm::makeRequest(parameter.getItem, leadingArguments(parameter, zones), options);
+        }
+
+        akm::CommandRequest setRequest(const ParameterDefinition& parameter, std::int64_t value, ZoneSelection zones)
+        {
+            std::vector<std::int64_t> values = leadingArguments(parameter, zones);
             const std::vector<std::int64_t> wire = toItemValues(parameter, value);
             values.insert(values.end(), wire.begin(), wire.end());
             return akm::makeRequest(parameter.setItem, values);
@@ -509,11 +521,16 @@ namespace mcp
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::editParameter(const ParameterDefinition& parameter,
                                                                        std::optional<std::int64_t> valueToSet,
-                                                                       KeygroupSelection selection)
+                                                                       KeygroupSelection selection, ZoneSelection zones)
     {
         using Values = std::vector<ParameterValue>;
-        const bool onKeygroups = parameter.scope == ParameterScope::Keygroup;
+        const bool onZones = parameter.scope == ParameterScope::Zone;
+        const bool onKeygroups = parameter.scope == ParameterScope::Keygroup || onZones;
         int keygroups = 0;
+
+        if (onZones && zones.zone && (*zones.zone < 1 || *zones.zone > ZONES_PER_KEYGROUP))
+            return Outcome<Values>::failure("Zone " + numberText(*zones.zone) + " does not exist: a keygroup has zones 1 to " +
+                                            numberText(ZONES_PER_KEYGROUP) + " (or all of them).");
 
         if (onKeygroups)
         {
@@ -537,11 +554,15 @@ namespace mcp
         }
         if (valueToSet)
         {
-            requests.push_back(setRequest(parameter, *valueToSet));
+            requests.push_back(setRequest(parameter, *valueToSet, zones));
             steps.push_back("setting " + parameter.name);
         }
-        const bool repeated = onKeygroups && !selection.keygroup.has_value();
-        requests.push_back(getRequest(parameter, repeated));
+        // How many records the Get answers: one per keygroup while "all keygroups" is selected, times one per zone for
+        // zone 0 (keygroup-major, zone-minor, RQ-MCP-019).
+        const int keygroupRecords = onKeygroups && !selection.keygroup ? keygroups : 1;
+        const int zoneRecords = onZones && !zones.zone ? ZONES_PER_KEYGROUP : 1;
+        const int records = keygroupRecords * zoneRecords;
+        requests.push_back(getRequest(parameter, zones, records > 1));
         steps.push_back("reading " + parameter.name);
 
         const auto replies = runSequence(std::move(requests), steps, true);
@@ -550,17 +571,23 @@ namespace mcp
 
         Values values;
         const std::vector<std::uint8_t>& answer = replies.value->back();
-        if (repeated)
+        if (records > 1)
         {
             const auto sets = akm::decodeRepeatedReply(parameter.getItem, answer);
-            if (!sets || static_cast<int>(sets->size()) != keygroups)
+            if (!sets || static_cast<int>(sets->size()) != records)
                 return Outcome<Values>::failure(unreadable(parameter));
             for (std::size_t i = 0; i < sets->size(); ++i)
             {
                 const auto value = fromItemValues(parameter, (*sets)[i]);
                 if (!value)
                     return Outcome<Values>::failure(unreadable(parameter));
-                values.push_back(ParameterValue{static_cast<int>(i) + 1, *value});
+                ParameterValue read;
+                read.value = *value;
+                if (onKeygroups)
+                    read.keygroup = selection.keygroup ? selection.keygroup : std::optional<int>(static_cast<int>(i) / zoneRecords + 1);
+                if (onZones)
+                    read.zone = zones.zone ? zones.zone : std::optional<int>(static_cast<int>(i) % zoneRecords + 1);
+                values.push_back(read);
             }
         }
         else
@@ -569,7 +596,13 @@ namespace mcp
             const auto value = set ? fromItemValues(parameter, *set) : std::nullopt;
             if (!value)
                 return Outcome<Values>::failure(unreadable(parameter));
-            values.push_back(ParameterValue{onKeygroups ? selection.keygroup : std::nullopt, *value});
+            ParameterValue read;
+            read.value = *value;
+            if (onKeygroups)
+                read.keygroup = selection.keygroup;
+            if (onZones)
+                read.zone = zones.zone;
+            values.push_back(read);
         }
 
         if (valueToSet)
@@ -580,21 +613,22 @@ namespace mcp
                     return Outcome<Values>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
                                                     describeValue(parameter, *valueToSet) + " but reads " +
                                                     describeValue(parameter, read.value) +
-                                                    (read.keygroup ? " for keygroup " + numberText(*read.keygroup) : "") + ".");
+                                                    (read.keygroup ? " for keygroup " + numberText(*read.keygroup) : "") +
+                                                    (read.zone ? " zone " + numberText(*read.zone) : "") + ".");
             }
         }
         return Outcome<Values>::success(std::move(values));
     }
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::readParameter(const ParameterDefinition& parameter,
-                                                                       KeygroupSelection selection)
+                                                                       KeygroupSelection selection, ZoneSelection zones)
     {
-        return editParameter(parameter, std::nullopt, selection);
+        return editParameter(parameter, std::nullopt, selection, zones);
     }
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::writeParameter(const ParameterDefinition& parameter, std::int64_t value,
-                                                                        KeygroupSelection selection)
+                                                                        KeygroupSelection selection, ZoneSelection zones)
     {
-        return editParameter(parameter, value, selection);
+        return editParameter(parameter, value, selection, zones);
     }
 }

@@ -83,6 +83,27 @@ empty again.
 - **The tuning, pitch bend, portamento, aftertouch and modulation rows** all read back as set; what each does to the sound was
   not heard.
 
+## Zones (TASK-MCP-014), run on 2026-10-05
+
+On a new program MCPSCRATCH (3 keygroups) created by the server, the 13 zone parameters were read for every zone of every
+keygroup (12 records per Get), each set to another value (all keygroups, all zones: one Set with zone 0 while keygroup 0 is
+selected), read back and set back: with the other 106 parameters, **250 steps, 0 failures**, the final values equal to the
+starting ones. A write on one zone of one keygroup was then checked: zone level 25 on keygroup 2 zone 3 changed that zone alone
+(the 12 values read keygroup-major, zone-minor; keygroup 2 alone gave its four zones; zone 3 alone gave the three keygroups);
+the velocity to start -1234 on keygroup 3 zone 4 and the pan -50 and 50 on keygroup 1 zones 1 and 2 read back as set, then every
+value was put back with a Set on all zones. The program was deleted and memory was empty again.
+
+- **Starting values of a new program's zones**: level 0, pan 0 (code 64, the centre), output MULTI, filter 0, fine tune 0,
+  semitone tune 0, keyboard tracking on, playback AS SAMPLE, velocity to start 0, high velocity 127, low velocity 0, mute off,
+  solo off. The simulated sampler started a zone's pan at 0 (code 0, outside the 14 to 114 range): it now starts it at the
+  centre. Its other zone values (zeros) differ from the real ones above where they are not zero (keyboard tracking, playback,
+  high velocity): a difference of state, left as it is.
+- **The zone number goes first in every item and zone 0 means all four**, as the spec says: a Set with zone 0 reached the four
+  zones of the selected keygroups, and a Get with zone 0 answered four records per keygroup (12 with all keygroups selected),
+  keygroup-major, as the simulated sampler models it.
+- **The velocity to start** (a sign and a magnitude of two 7-bit bytes, up to 9999) accepted -1234 and 0.
+- **No sample was in memory**, so the zone sample assignment (`&01`, `&21`) was not run; it is not a parameter of the table.
+
 ## Not established
 
 - What the sampler's screen shows (modulation source and clock division labels, the effect of Auto screen update during edits).
