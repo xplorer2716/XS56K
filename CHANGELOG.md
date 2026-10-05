@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - This section may be incomplete. for full history, please check git history.
 - Initial project structure.
+- MCP server (`juce/mcp`, `xs56k_mcp_server`): an MCP client such as Claude Code can edit a program of the sampler by
+  talking to it. Six tools (`get_status`, `list_programs`, `select_program`, `list_parameters`, `get_parameters`,
+  `set_parameter`) over 54 parameters of the filter, the amplitude envelope, the filter envelope and the two LFOs, named
+  in the musician's vocabulary and set in the sampler's own units, each Set read back from the sampler. The MIDI ports are
+  launch arguments of the server (`--in`, `--out`, `--list-ports` shows them). It edits the sampler's memory only; nothing is
+  created, renamed, deleted or saved. It speaks both eras of MCP over standard input and output. Tested against the
+  simulated sampler (`xs56k_mcp_server_simulated` lets you try it with no sampler); not yet run on a real S5000.
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
   closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard

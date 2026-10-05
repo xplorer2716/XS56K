@@ -81,6 +81,85 @@ target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k::warnings)
 catch_discover_tests(xs56k_akm_tests)
 
+# The MCP server's library: its units are tested without a sampler and without a process, and its public headers
+# hold no JUCE include. [RQ-MCP-011, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
+add_executable(xs56k_mcp_tests
+    mcp/McpServerTests.cpp
+    mcp/ParameterCatalogueLot2Tests.cpp
+    mcp/ParameterCatalogueTests.cpp
+    mcp/SamplerGatewayTests.cpp
+    mcp/ServerOptionsTests.cpp
+    mcp/ToolsTests.cpp)
+# The gateway tests seed the simulated sampler with the raw-frame helpers of the AKM tests.
+target_include_directories(xs56k_mcp_tests PRIVATE akm)
+target_link_libraries(xs56k_mcp_tests PRIVATE
+    xs56k_mcp
+    xs56k_akm_test_support
+    Catch2::Catch2WithMain
+    xs56k::warnings)
+catch_discover_tests(xs56k_mcp_tests)
+add_test(NAME mcp_public_headers_have_no_juce_include
+    COMMAND ${CMAKE_COMMAND}
+        -DHEADER_DIR=${PROJECT_SOURCE_DIR}/mcp/include
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoJuceIncludes.cmake)
+# The built executable, run as an MCP client runs it: a scripted conversation on its standard input, with no
+# sampler (the ports it is given do not exist). [RQ-MCP-001, RQ-MCP-003, ADR-MCP-001 (DEC-MCP-009), TASK-MCP-006]
+add_test(NAME mcp_server_executable_answers_without_a_sampler
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server>
+        "-DSERVER_ARGS=--in;XS56K No Such Input;--out;XS56K No Such Output"
+        -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/no_sampler.jsonl
+        -DPATTERNS_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/no_sampler.patterns
+        -DEXPECT_LINES=4
+        "-DERROR_PATTERN=input closed"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+# --list-ports prints the ports and exits 0; a missing port is a usage error: status 2, the reason on standard error.
+add_test(NAME mcp_server_executable_lists_ports
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server>
+        -DSERVER_ARGS=--list-ports
+        "-DOUTPUT_PATTERN=MIDI input ports.*MIDI output ports"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+add_test(NAME mcp_server_executable_refuses_a_missing_port
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server>
+        "-DSERVER_ARGS=--in;Somewhere"
+        -DEXPECT_STATUS=2
+        "-DERROR_PATTERN=--out is required"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+# The server wired to the simulated sampler (test tooling, never shipped): the same library, the same tools, three
+# programs in the sampler. A scripted conversation piped into it must give the output in
+# mcp/conversations/simulated_session.expected.jsonl; to regenerate it after a deliberate change, run
+#   xs56k_mcp_server_simulated < mcp/conversations/simulated_session.jsonl > mcp/conversations/simulated_session.expected.jsonl
+# and read the diff. [TASK-MCP-007, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
+add_executable(xs56k_mcp_server_simulated mcp/SimulatedServer.cpp)
+target_include_directories(xs56k_mcp_server_simulated PRIVATE akm mcp)
+target_link_libraries(xs56k_mcp_server_simulated PRIVATE
+    xs56k_mcp
+    xs56k_akm_test_support
+    xs56k::warnings)
+add_test(NAME mcp_simulated_server_scripted_conversation
+    COMMAND ${CMAKE_COMMAND}
+        -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
+        -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.jsonl
+        -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
+        -DEXPECT_LINES=57
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
+# The shipped server must not link the simulated sampler or anything else of the test support: checked when CMake
+# configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
+get_target_property(shipped_server_libraries xs56k_mcp_server LINK_LIBRARIES)
+get_target_property(shipped_library_libraries xs56k_mcp LINK_LIBRARIES)
+foreach(library IN LISTS shipped_server_libraries shipped_library_libraries)
+    if(library MATCHES "test_support")
+        message(FATAL_ERROR "The shipped MCP server links the test support (${library}): it must not")
+    endif()
+endforeach()
+# The server edits and never creates, renames, deletes or saves. [RQ-MCP-008, ADR-MCP-001 (DEC-MCP-007)]
+add_test(NAME mcp_sources_call_no_destructive_primitive
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/mcp
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
+
 # No JUCE include in the public headers of the AKM layer. [RQ-AKM-019]
 add_test(NAME akm_public_headers_have_no_juce_include
     COMMAND ${CMAKE_COMMAND}

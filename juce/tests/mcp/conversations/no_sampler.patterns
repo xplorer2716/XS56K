@@ -1,0 +1,6 @@
+"id":1,"jsonrpc":"2.0","result":\{.*"protocolVersion":"2025-11-25"
+"name":"xs56k-mcp"
+"name":"get_status".*"name":"list_programs".*"name":"select_program".*"name":"list_parameters".*"name":"get_parameters".*"name":"set_parameter"
+"id":3,"jsonrpc":"2.0","result":\{.*"isError":true
+The MIDI input port \\"XS56K No Such Input\\" was not found
+"id":4,"jsonrpc":"2.0","result":\{.*"supportedVersions":\["2026-07-28"\]
