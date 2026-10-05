@@ -56,6 +56,41 @@
       "complete": true,
       "spec": "Tables 30 and 31, p. 41",
       "note": "FTR-AKM-008 (PLAN-AKM-008), 4 command rows and no REPLY format. Key Hold and Key Release (RQ-AKM-073, TASK-AKM-070: &01, &02) are catalogued first: the keycode is a byte of 64-107, the range Table 30 gives, of which only the 43 codes of Table 31 are valid (`&66` is inside the range and listed by no row, note b), so the primitives, not the catalogue, refuse an unlisted code. The data wheel (RQ-AKM-074, TASK-AKM-071: &03, a direction byte 0-1 and 1-8 clicks) and the ASCII keyboard (&04, one byte 0-127) complete the four command rows: `complete` was set by TASK-AKM-074 after `--coverage` reported 4 of 4 spec rows covered with no unaccounted item. The section has no REPLY row and no erratum: Table 31 lists 43 of the 44 keycodes of `&40`-`&6B`, `&66` being listed by no row, which the primitives (not the catalogue) refuse."
+    },
+    {
+      "section": "04",
+      "name": "MIDI Configuration",
+      "complete": true,
+      "spec": "Table 8, p. 12",
+      "note": "FTR-AKM-009 (PLAN-AKM-009), 7 command rows and no REPLY format. The five switches (RQ-AKM-078, TASK-AKM-077: &01 program change enable 0-1, &02 multi select 0-2, &03 multi select channel 0-31, &04 external APM controller 0-127, &05 aftertouch 0-1) are catalogued first, one byte each; the two MIDI filters (RQ-AKM-079, TASK-AKM-078: &06 allow, &07 ignore) take an event type 0-3 and a channel 0-31, two bytes each, which completes the section's seven command rows: `complete` was set by TASK-AKM-080 after `--coverage` reported 7 of 7 spec rows covered with no unaccounted item. The section has no REPLY row and no erratum; what it sets is stored configuration the sampler cannot read back, so its real-sampler check (RQ-AKM-080) is guided by the owner."
+    },
+    {
+      "section": "16",
+      "name": "MIDI Song Files",
+      "complete": true,
+      "spec": "Tables 28 and 29, p. 40",
+      "note": "FTR-AKM-010 (PLAN-AKM-010), 12 command rows and 6 REPLY formats. Song file selection, renaming, deletion and general information (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084: &05, &06, &08, &09, &10, &11, &13, &14) are catalogued first, the same shape as section 0E's lifecycle: a sampler-wide current song file, an index carried as two Byte values (MSB, LSB) and a name as a String. The four set list items (RQ-AKM-084, TASK-AKM-085: &20, &21, &22, &23) have no current selection: each takes its index, and &23 (Rename) carries the index then a String, a shape built by hand like §10's &2A. `complete` was set by TASK-AKM-087 after `--coverage` reported 12 of 12 spec rows covered with no unaccounted item; the section has no erratum beyond the two cosmetic ones of the kb (Table 29's title, Table 28's sub-group header)."
+    },
+    {
+      "section": "12",
+      "name": "Multi FX",
+      "complete": true,
+      "spec": "Tables 22 to 25 and Figure 2, pp. 35-38",
+      "note": "FTR-AKM-013 (PLAN-AKM-013), 11 command rows and 7 REPLY formats. The discovery Gets (RQ-AKM-099, TASK-AKM-101: &01 card installed, &10 number of channels, &11 number of modules of a channel) are catalogued first, one byte each way. Effects belong to the current multi: the section's items act on it. The channel mute (RQ-AKM-100, TASK-AKM-102: &20 Set, &21 Get, 0 = ON, 1 = MUTE), the type of a module (&30, &31, a Table 24 code, range 0-127 as the spec's) and its enabled state (&40, &41) take a channel then a module as zero-based Byte values. The parameter values (RQ-AKM-101, TASK-AKM-103: &50, &51) take a channel, a module and a parameter index, then the value as a sign byte and a two-byte magnitude, three Byte values as the spec's row lists them and as every signed value of the earlier sections is, the primitive composing the signed int. `complete` was set by TASK-AKM-105 after `--coverage` reported 11 of 11 spec rows covered with no unaccounted item; no erratum, but §12 &30's spec row has its description merged into its second data column by the PDF's text flow, which `generate_akm_items.py` now cuts (TASK-AKM-102). The real S5000 (OS 2.14) has no EB20 board: with a test multi current it answered `&01` 0, `&10` 0, `&11` 0 and ERROR 2 to the Gets that name a channel and a module (TASK-AKM-104); every Set is tested on the simulated sampler only."
+    },
+    {
+      "section": "14",
+      "name": "Scenelist",
+      "complete": true,
+      "spec": "Tables 26 and 27, p. 39",
+      "note": "FTR-AKM-012 (PLAN-AKM-012), 8 command rows and 4 REPLY formats. Scenelist selection, renaming, deletion and general information (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097: &05, &06, &08, &09, &10, &11, &13, &14) have the shape of the song file half of section 16: a sampler-wide current scenelist, an index carried as two Byte values (MSB, LSB) and a name as a String. `complete` was set by TASK-AKM-099 after `--coverage` reported 8 of 8 spec rows covered with no unaccounted item; the section has no erratum. The real S5000 (OS 2.14) supports the section but held no scenelist: only the empty-memory answers are observed (TASK-AKM-098)."
+    },
+    {
+      "section": "0C",
+      "name": "Multi",
+      "complete": true,
+      "spec": "Tables 16 and 17, pp. 26-28",
+      "note": "FTR-AKM-011 (PLAN-AKM-011), 49 command rows and 11 REPLY formats. Multi creation, selection and deletion (RQ-AKM-087, TASK-AKM-089: &01, &02, &05, &06, &08, plus &42 and &43 pulled in early, as TASK-AKM-015 did for Program's &10/&13) are catalogued first: the same shape as section 0A's lifecycle, a sampler-wide current multi, an index carried as two Byte values (MSB, LSB) and a name as a String. The guarded &07 (RQ-AKM-088, TASK-AKM-090), mirroring Program's and Sample's. The twelve part parameters (RQ-AKM-089, TASK-AKM-091: Set &10-&1B, Get &20-&2B) take a part number (0-127) first, like section 06's zone number, then one value in the range of the item. The Gets of general information (RQ-AKM-090, RQ-AKM-091, TASK-AKM-092: &40, &41, &44-&48, &50-&52) complete the section's Gets: &41 and &50 carry a flag then a number like Program's &11/&18, &45/&46/&51 names with a single 00 for none, &47 twelve values (the twelve parameters, in the order of items &20-&2B), &48/&52 one byte per part or per multi. The five Sets of general information (RQ-AKM-092, TASK-AKM-093: &30 rename, &31 program number, &32 and &33 a part's program by index or by name, &34 delete a part's program) complete the section's command rows: &31's shape is conditional (a flag, then a number only when it is 1) and &33's is a part then a String, both built by hand like section 0A's &0A and section 06's &01. `complete` was set by TASK-AKM-095 after `--coverage` reported 47 of 47 spec rows covered with no unaccounted item; no erratum. Two behaviours the spec leaves open were observed on the real S5000 (TASK-AKM-094): setting a part's solo clears its mute, and &31 with the flag off needs its number byte (00 00)."
     }
   ],
   "items": [
@@ -2031,6 +2066,629 @@
       "id": "FrontPanelAsciiKey", "section": "20", "item": "04", "name": "ASCII keyboard data", "kind": "set",
       "args": [{"name": "ascii", "format": "byte", "min": 0, "max": 127}],
       "requirements": ["RQ-AKM-074"]
+    },
+    {
+      "id": "MidiProgramChangeEnable", "section": "04", "item": "01", "name": "Program Change Enable", "kind": "set",
+      "args": [{"name": "enable", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-078"]
+    },
+    {
+      "id": "MidiMultiSelect", "section": "04", "item": "02", "name": "Multi Select", "kind": "set",
+      "args": [{"name": "mode", "format": "byte", "min": 0, "max": 2}],
+      "requirements": ["RQ-AKM-078"]
+    },
+    {
+      "id": "MidiMultiSelectChannel", "section": "04", "item": "03", "name": "Multi Select Channel", "kind": "set",
+      "args": [{"name": "channel", "format": "byte", "min": 0, "max": 31}],
+      "requirements": ["RQ-AKM-078"]
+    },
+    {
+      "id": "MidiExternalApmController", "section": "04", "item": "04", "name": "External APM Controller", "kind": "set",
+      "args": [{"name": "controller", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-078"]
+    },
+    {
+      "id": "MidiAftertouch", "section": "04", "item": "05", "name": "Aftertouch", "kind": "set",
+      "args": [{"name": "type", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-078"]
+    },
+    {
+      "id": "MidiFilterAllow", "section": "04", "item": "06", "name": "Enable MIDI filter (allow messages)", "kind": "set",
+      "args": [
+        {"name": "eventType", "format": "byte", "min": 0, "max": 3},
+        {"name": "channel", "format": "byte", "min": 0, "max": 31}
+      ],
+      "requirements": ["RQ-AKM-079"]
+    },
+    {
+      "id": "MidiFilterIgnore", "section": "04", "item": "07", "name": "Disable MIDI filter (ignore messages)", "kind": "set",
+      "args": [
+        {"name": "eventType", "format": "byte", "min": 0, "max": 3},
+        {"name": "channel", "format": "byte", "min": 0, "max": 31}
+      ],
+      "requirements": ["RQ-AKM-079"]
+    },
+    {
+      "id": "SongSelectByName", "section": "16", "item": "05", "name": "Select Songfile by name", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongSelectByIndex", "section": "16", "item": "06", "name": "Select Songfile by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongDeleteCurrent", "section": "16", "item": "08", "name": "Delete the currently selected Songfile", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongRenameCurrent", "section": "16", "item": "09", "name": "Rename the currently selected Songfile", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-082"]
+    },
+    {
+      "id": "SongGetCount", "section": "16", "item": "10", "name": "Get the Number of Songfiles loaded into memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SongGetNameByIndex", "section": "16", "item": "11", "name": "Get the name of Songfile by index", "kind": "get",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SongGetCurrentIndex", "section": "16", "item": "13", "name": "Get Current Songfile's Index", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SongGetCurrentName", "section": "16", "item": "14", "name": "Get Current Songfile's Name", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-083"]
+    },
+    {
+      "id": "SetListGetCount", "section": "16", "item": "20", "name": "Get the Number of Set Lists loaded into memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "SetListGetNameByIndex", "section": "16", "item": "21", "name": "Get the name of Set List by index", "kind": "get",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "SetListDelete", "section": "16", "item": "22", "name": "Delete the Set List by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "SetListRename", "section": "16", "item": "23", "name": "Rename the Set List by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-084"]
+    },
+    {
+      "id": "FxGetCard", "section": "12", "item": "01", "name": "Get FX card installed", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "card", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-099"]
+    },
+    {
+      "id": "FxGetChannelCount", "section": "12", "item": "10", "name": "Get Number of FX channels", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "channelCount", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-099"]
+    },
+    {
+      "id": "FxGetModuleCount", "section": "12", "item": "11", "name": "Get Number of FX modules on given channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "moduleCount", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-099"]
+    },
+    {
+      "id": "FxSetChannelMute", "section": "12", "item": "20", "name": "Set Mute Status of Channel", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "mute", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxGetChannelMute", "section": "12", "item": "21", "name": "Get Mute Status of Channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "mute", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxSetModuleType", "section": "12", "item": "30", "name": "Set Type of FX module on given channel", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "moduleType", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxGetModuleType", "section": "12", "item": "31", "name": "Get Type of FX module on given channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "moduleType", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxSetModuleEnabled", "section": "12", "item": "40", "name": "Set Enabled/Disabled State of FX module", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "enabled", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxGetModuleEnabled", "section": "12", "item": "41", "name": "Get Enabled/Disabled State of FX module", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "enabled", "format": "byte", "min": 0, "max": 1}
+      ],
+      "requirements": ["RQ-AKM-100"]
+    },
+    {
+      "id": "FxSetParameter", "section": "12", "item": "50", "name": "Set parameter value of given module in given channel", "kind": "set",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "parameter", "format": "byte", "min": 0, "max": 127},
+        {"name": "sign", "format": "byte", "min": 0, "max": 1},
+        {"name": "magnitudeMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "magnitudeLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-101"]
+    },
+    {
+      "id": "FxGetParameter", "section": "12", "item": "51", "name": "Get parameter value of given module in given channel", "kind": "get",
+      "args": [
+        {"name": "channel", "format": "byte", "min": 0, "max": 127},
+        {"name": "module", "format": "byte", "min": 0, "max": 127},
+        {"name": "parameter", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "sign", "format": "byte", "min": 0, "max": 1},
+        {"name": "magnitudeMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "magnitudeLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-101"]
+    },
+    {
+      "id": "SceneListSelectByName", "section": "14", "item": "05", "name": "Select Scenelist by name", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListSelectByIndex", "section": "14", "item": "06", "name": "Select Scenelist by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListDeleteCurrent", "section": "14", "item": "08", "name": "Delete the currently selected Scenelist", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListRenameCurrent", "section": "14", "item": "09", "name": "Rename the currently selected Scenelist", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-095"]
+    },
+    {
+      "id": "SceneListGetCount", "section": "14", "item": "10", "name": "Get the Number of Scenelists loaded into memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-096"]
+    },
+    {
+      "id": "SceneListGetNameByIndex", "section": "14", "item": "11", "name": "Get the name of Scenelist by index", "kind": "get",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-096"]
+    },
+    {
+      "id": "SceneListGetCurrentIndex", "section": "14", "item": "13", "name": "Get Current Scenelist's Index", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-096"]
+    },
+    {
+      "id": "SceneListGetCurrentName", "section": "14", "item": "14", "name": "Get Current Scenelist's Name", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-096"]
+    },
+    {
+      "id": "MultiSetPartCount", "section": "0C", "item": "01", "name": "Set the number of parts for new multis", "kind": "set",
+      "args": [
+        {"name": "partCountCode", "format": "byte", "min": 0, "max": 2}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiCreate", "section": "0C", "item": "02", "name": "Create Multi", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiSelectByName", "section": "0C", "item": "05", "name": "Select Multi by name", "kind": "set",
+      "args": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiSelectByIndex", "section": "0C", "item": "06", "name": "Select Multi by index", "kind": "set",
+      "args": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiDeleteAll", "section": "0C", "item": "07", "name": "Delete ALL Multis from memory", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-088"]
+    },
+    {
+      "id": "MultiDeleteCurrent", "section": "0C", "item": "08", "name": "Delete the currently selected Multi", "kind": "set",
+      "args": [],
+      "requirements": ["RQ-AKM-087"]
+    },
+    {
+      "id": "MultiGetCurrentIndex", "section": "0C", "item": "42", "name": "Get Current Multi Index", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "indexMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-087", "RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetCurrentName", "section": "0C", "item": "43", "name": "Get Current Multi Name", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-087", "RQ-AKM-091"]
+    },
+    {
+      "id": "MultiSetMidiChannel", "section": "0C", "item": "10", "name": "Set Part MIDI Channel", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 31}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetMute", "section": "0C", "item": "11", "name": "Set Part Mute", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetSolo", "section": "0C", "item": "12", "name": "Set Part Solo", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetLevel", "section": "0C", "item": "13", "name": "Set Part Level", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetOutput", "section": "0C", "item": "14", "name": "Set Part Output", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 23}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetPanBalance", "section": "0C", "item": "15", "name": "Set Part Pan/Balance", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 14, "max": 114}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetEffectsChannel", "section": "0C", "item": "16", "name": "Set Part Effects Channel", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 4}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetFxSendLevel", "section": "0C", "item": "17", "name": "Set Part FX Send Level", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetFineTune", "section": "0C", "item": "18", "name": "Set Part Fine Tune", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetTranspose", "section": "0C", "item": "19", "name": "Set Part Transpose", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 0, "max": 72}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetLowNote", "section": "0C", "item": "1A", "name": "Set Part Low Note", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiSetHighNote", "section": "0C", "item": "1B", "name": "Set Part High Note", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetMidiChannel", "section": "0C", "item": "20", "name": "Get Part MIDI Channel", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 31}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetMute", "section": "0C", "item": "21", "name": "Get Part Mute", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetSolo", "section": "0C", "item": "22", "name": "Get Part Solo", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 1}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetLevel", "section": "0C", "item": "23", "name": "Get Part Level", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetOutput", "section": "0C", "item": "24", "name": "Get Part Output", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 23}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetPanBalance", "section": "0C", "item": "25", "name": "Get Part Pan/Balance", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 14, "max": 114}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetEffectsChannel", "section": "0C", "item": "26", "name": "Get Part Effects Channel", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 4}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetFxSendLevel", "section": "0C", "item": "27", "name": "Get Part FX Send Level", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetFineTune", "section": "0C", "item": "28", "name": "Get Part Fine Tune", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 100}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetTranspose", "section": "0C", "item": "29", "name": "Get Part Transpose", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 0, "max": 72}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetLowNote", "section": "0C", "item": "2A", "name": "Get Part Low Note", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetHighNote", "section": "0C", "item": "2B", "name": "Get Part High Note", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [{"name": "value", "format": "byte", "min": 21, "max": 127}],
+      "requirements": ["RQ-AKM-089"]
+    },
+    {
+      "id": "MultiGetCount", "section": "0C", "item": "40", "name": "Get Number of Multis in Memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "countMsb", "format": "byte", "min": 0, "max": 127},
+        {"name": "countLsb", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetProgramNumber", "section": "0C", "item": "41", "name": "Get Current Multi's Program Number", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "on", "format": "byte", "min": 0, "max": 1},
+        {"name": "number", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetPartCount", "section": "0C", "item": "44", "name": "Get the Number of Parts in the Current Multi", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "partCountCode", "format": "byte", "min": 31, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetPartName", "section": "0C", "item": "45", "name": "Get the Name of Part", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetAllPartNames", "section": "0C", "item": "46", "name": "Get the Names of all of the Parts in the multi", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetAllPartParameters", "section": "0C", "item": "47", "name": "Get all of the params of a Part in a single message", "kind": "get",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "reply": [
+        {"name": "midiChannel", "format": "byte", "min": 0, "max": 31},
+        {"name": "mute", "format": "byte", "min": 0, "max": 1},
+        {"name": "solo", "format": "byte", "min": 0, "max": 1},
+        {"name": "level", "format": "byte", "min": 0, "max": 100},
+        {"name": "output", "format": "byte", "min": 0, "max": 23},
+        {"name": "panBalance", "format": "byte", "min": 14, "max": 114},
+        {"name": "effectsChannel", "format": "byte", "min": 0, "max": 4},
+        {"name": "fxSendLevel", "format": "byte", "min": 0, "max": 100},
+        {"name": "fineTune", "format": "byte", "min": 0, "max": 100},
+        {"name": "transpose", "format": "byte", "min": 0, "max": 72},
+        {"name": "lowNote", "format": "byte", "min": 21, "max": 127},
+        {"name": "highNote", "format": "byte", "min": 21, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-090"]
+    },
+    {
+      "id": "MultiGetMuteSolo", "section": "0C", "item": "48", "name": "Get the Mute and Solo status of all the parts", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "status", "format": "byte", "min": 0, "max": 2}
+      ],
+      "requirements": ["RQ-AKM-090"]
+    },
+    {
+      "id": "MultiGetAllProgramNumbers", "section": "0C", "item": "50", "name": "Get the Multi Numbers of All Multis in memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "on", "format": "byte", "min": 0, "max": 1},
+        {"name": "number", "format": "byte", "min": 0, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetAllNames", "section": "0C", "item": "51", "name": "Get the Names of All Multis in memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "name", "format": "string", "min": 0, "max": 255}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiGetAllPartCounts", "section": "0C", "item": "52", "name": "Get the Number of Parts in All the Multis in memory", "kind": "get",
+      "args": [],
+      "reply": [
+        {"name": "partCountCode", "format": "byte", "min": 31, "max": 127}
+      ],
+      "requirements": ["RQ-AKM-091"]
+    },
+    {
+      "id": "MultiRename", "section": "0C", "item": "30", "name": "Rename Multi", "kind": "set",
+      "args": [{"name": "name", "format": "string", "min": 0, "max": 255}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiSetProgramNumber", "section": "0C", "item": "31", "name": "Set Multi Program Number", "kind": "set",
+      "args": [{"name": "enabled", "format": "byte", "min": 0, "max": 1}, {"name": "number", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiSetPartByIndex", "section": "0C", "item": "32", "name": "Set Multi Part by index", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "indexMsb", "format": "byte", "min": 0, "max": 127}, {"name": "indexLsb", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiSetPartByName", "section": "0C", "item": "33", "name": "Set Multi Part by name", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}, {"name": "name", "format": "string", "min": 0, "max": 255}],
+      "requirements": ["RQ-AKM-092"]
+    },
+    {
+      "id": "MultiDeletePart", "section": "0C", "item": "34", "name": "Delete Selected Part from Multi", "kind": "set",
+      "args": [{"name": "part", "format": "byte", "min": 0, "max": 127}],
+      "requirements": ["RQ-AKM-092"]
     }
   ]
 }

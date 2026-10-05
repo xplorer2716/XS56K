@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <limits>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -36,6 +38,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "TestBytes.hpp"
 #include "akm/Command.hpp"
 #include "akm/ItemRequest.hpp"
+#include "akm/SamplerError.hpp"
 #include "akm/SystemSetup.hpp"
 #include "akm/harness/ClockArithmetic.hpp"
 #include "akm/harness/RealSamplerSuite.hpp"
@@ -1422,4 +1425,766 @@ TEST_CASE("Given Disk Tools and the owner declining to confirm the saved file, W
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_LOAD_FILE) == 0);
     CHECK(sentCount(rig.sampler, SECTION_DISK_ITEMS, ITEM_DISK_DELETE_FOLDER) == 2);
     CHECK(result.knownStateRestored);
+}
+
+// ---- Section §04, the MIDI configuration check guided by the owner (TASK-AKM-079, RQ-AKM-080) ----
+
+namespace
+{
+    // What the owner's sampler holds of its MIDI setup before any session is opened, and what the scripted owner then
+    // declares it holds: §04 has no Get, so the suite can only put back what it is told (RQ-AKM-080).
+    constexpr std::uint8_t ITEM_PROGRAM_CHANGE = 0x01;
+    constexpr std::uint8_t ITEM_MULTI_SELECT = 0x02;
+    constexpr std::uint8_t ITEM_MULTI_SELECT_CHANNEL = 0x03;
+    constexpr std::uint8_t ITEM_EXTERNAL_APM = 0x04;
+    constexpr std::uint8_t ITEM_AFTERTOUCH = 0x05;
+    constexpr std::uint8_t ITEM_FILTER_ALLOW = 0x06;
+    constexpr std::uint8_t ITEM_FILTER_IGNORE = 0x07;
+
+    constexpr int OWNER_PROGRAM_CHANGE = 0;
+    constexpr int OWNER_MULTI_SELECT = 2;
+    constexpr int OWNER_MULTI_SELECT_CHANNEL = 5;
+    constexpr int OWNER_EXTERNAL_APM = 74;
+    constexpr int OWNER_AFTERTOUCH = 1;
+    constexpr int OWNER_FILTER_EVENT = 2;
+    constexpr int OWNER_FILTER_CHANNEL = 17;
+    // The question about program change offers ON then OFF; the seeded sampler has it off.
+    constexpr std::size_t CHOICE_PROGRAM_CHANGE_OFF = 1;
+    // The seeded filter ignores its messages; the question about it offers "allows" then "ignores".
+    constexpr std::size_t CHOICE_FILTER_IGNORES = 1;
+    constexpr std::size_t CHOICE_YES = 0;
+    constexpr std::size_t CHOICE_NO = 1;
+    constexpr std::size_t MIDI_CONFIG_EXTRA_CHECKS = 2;
+
+    using akm::harness::MidiConfigEvent;
+    using akm::harness::MidiConfigState;
+
+    void seedMidiConfig(SimulatedMidiBackend& backend)
+    {
+        akm::test::HostProbe host(backend, backend.inputName(), backend.outputName());
+        std::uint8_t userRef = 0x01;
+        const auto send = [&](const akm::CommandRequest& request) {
+            const akm::EncodeResult frame = akm::encodeCommand(0, akm::test::Bytes{userRef++}, request.command, akm::ChecksumMode::Off);
+            host.send(frame.bytes);
+        };
+        send(akm::makeRequest(akm::ItemId::MidiProgramChangeEnable, {OWNER_PROGRAM_CHANGE}));
+        send(akm::makeRequest(akm::ItemId::MidiMultiSelect, {OWNER_MULTI_SELECT}));
+        send(akm::makeRequest(akm::ItemId::MidiMultiSelectChannel, {OWNER_MULTI_SELECT_CHANNEL}));
+        send(akm::makeRequest(akm::ItemId::MidiExternalApmController, {OWNER_EXTERNAL_APM}));
+        send(akm::makeRequest(akm::ItemId::MidiAftertouch, {OWNER_AFTERTOUCH}));
+        send(akm::makeRequest(akm::ItemId::MidiFilterIgnore, {OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL}));
+    }
+
+    // The owner of the tests: it answers the declaration with the values the sampler was seeded with, and what it
+    // sees on the screen with `seen`. `eventsAtFirstAsk` is how many §04 items the sampler had been sent when the
+    // owner was first asked anything.
+    struct ScriptedOwner
+    {
+        std::size_t seen = CHOICE_YES;
+        // What the owner sees after leaving the page and opening it again, when the first look said no.
+        std::size_t seenAfterReopening = CHOICE_NO;
+        // Whether Auto screen update was on at each look, one entry per "NOW LOOK" question.
+        std::vector<bool> autoScreenUpdateAtLook;
+        std::size_t eventsAtFirstAsk = std::numeric_limits<std::size_t>::max();
+        std::vector<std::string> questions;
+    };
+
+    RealSuiteOptions midiConfigOptions(const Rig& rig, SimulatedSampler& sampler, ScriptedOwner& owner)
+    {
+        RealSuiteOptions options = rig.options();
+        options.midiConfig = true;
+        const auto noteFirstAsk = [&owner, &sampler] {
+            if (owner.eventsAtFirstAsk == std::numeric_limits<std::size_t>::max())
+                owner.eventsAtFirstAsk = sampler.midiConfig().events.size();
+        };
+        options.askOwner = [&owner, noteFirstAsk](const std::string& instruction) {
+            noteFirstAsk();
+            owner.questions.push_back(instruction);
+            return true;
+        };
+        options.askOwnerNumber = [&owner, noteFirstAsk](const std::string& question, int, int) -> std::optional<int> {
+            noteFirstAsk();
+            owner.questions.push_back(question);
+            return OWNER_EXTERNAL_APM;
+        };
+        options.askOwnerChoice = [&owner, &sampler, noteFirstAsk](const std::string& question,
+                                                                  const std::vector<std::string>&) -> std::optional<std::size_t> {
+            noteFirstAsk();
+            owner.questions.push_back(question);
+            const auto asks = [&question](const char* part) { return question.find(part) != std::string::npos; };
+            if (asks("LOOK AGAIN AT THE SAMPLER"))
+                return owner.seenAfterReopening;
+            if (asks("NOW LOOK AT THE SAMPLER"))
+            {
+                owner.autoScreenUpdateAtLook.push_back(sampler.settings().autoScreenUpdate);
+                return owner.seen;
+            }
+            if (asks("PROGRAM CHANGE"))
+                return CHOICE_PROGRAM_CHANGE_OFF;
+            if (asks("MULTI SLCT CH"))
+                return static_cast<std::size_t>(OWNER_MULTI_SELECT_CHANNEL);
+            if (asks("MULTI SELECT"))
+                return static_cast<std::size_t>(OWNER_MULTI_SELECT);
+            if (asks("AFTERTOUCH"))
+                return static_cast<std::size_t>(OWNER_AFTERTOUCH);
+            if (asks("MIDI FILTER, event type"))
+                return static_cast<std::size_t>(OWNER_FILTER_EVENT);
+            if (asks("MIDI FILTER, channel"))
+                return static_cast<std::size_t>(OWNER_FILTER_CHANNEL);
+            if (asks("MIDI FILTER, that filter"))
+                return CHOICE_FILTER_IGNORES;
+            return std::nullopt;
+        };
+        return options;
+    }
+
+    // The §04 state the owner's sampler started in, without the record of what it was sent.
+    void checkSeededState(const MidiConfigState& state)
+    {
+        CHECK(state.programChangeEnable == OWNER_PROGRAM_CHANGE);
+        CHECK(state.multiSelect == OWNER_MULTI_SELECT);
+        CHECK(state.multiSelectChannel == OWNER_MULTI_SELECT_CHANNEL);
+        CHECK(state.externalApmController == OWNER_EXTERNAL_APM);
+        CHECK(state.aftertouch == OWNER_AFTERTOUCH);
+        for (std::size_t type = 0; type < akm::harness::MIDI_FILTER_EVENT_TYPES; ++type)
+            for (std::size_t channel = 0; channel < akm::harness::MIDI_FILTER_CHANNELS; ++channel)
+                CHECK(state.filterAllowed[type][channel]
+                      == !(type == static_cast<std::size_t>(OWNER_FILTER_EVENT)
+                           && channel == static_cast<std::size_t>(OWNER_FILTER_CHANNEL)));
+    }
+}
+
+TEST_CASE("Given an owner who declares the sampler's real MIDI setup, When the suite runs with the MIDI config checks, Then each setting is changed to another value then put back, the failed check restores too, and nothing is sent before the owner has declared [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    const std::size_t seedEvents = rig.sampler.midiConfig().events.size();
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK(result.knownStateRestored);
+    CHECK(owner.eventsAtFirstAsk == seedEvents);
+
+    const MidiConfigState after = rig.sampler.midiConfig();
+    checkSeededState(after);
+    // Each setting on its own: changed to another value, then put back before the next one is touched — a setting may
+    // depend on another (MULTI SELECT while PROGRAM CHANGE was off, on the real S5000) — then the second check's one change
+    // and its restore.
+    const auto event = [](std::uint8_t item, int first, int second) {
+        return MidiConfigEvent{item, static_cast<std::uint8_t>(first), static_cast<std::uint8_t>(second)};
+    };
+    const std::vector<MidiConfigEvent> expected{
+        event(ITEM_PROGRAM_CHANGE, 1, 0),
+        event(ITEM_PROGRAM_CHANGE, OWNER_PROGRAM_CHANGE, 0),
+        event(ITEM_MULTI_SELECT, 0, 0),
+        event(ITEM_MULTI_SELECT, OWNER_MULTI_SELECT, 0),
+        event(ITEM_MULTI_SELECT_CHANNEL, OWNER_MULTI_SELECT_CHANNEL + 1, 0),
+        event(ITEM_MULTI_SELECT_CHANNEL, OWNER_MULTI_SELECT_CHANNEL, 0),
+        event(ITEM_EXTERNAL_APM, OWNER_EXTERNAL_APM + 1, 0),
+        event(ITEM_EXTERNAL_APM, OWNER_EXTERNAL_APM, 0),
+        event(ITEM_AFTERTOUCH, 0, 0),
+        event(ITEM_AFTERTOUCH, OWNER_AFTERTOUCH, 0),
+        event(ITEM_FILTER_ALLOW, OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL),
+        event(ITEM_FILTER_IGNORE, OWNER_FILTER_EVENT, OWNER_FILTER_CHANNEL),
+        event(ITEM_MULTI_SELECT, 0, 0),
+        event(ITEM_MULTI_SELECT, OWNER_MULTI_SELECT, 0),
+    };
+    REQUIRE(after.events.size() == seedEvents + expected.size());
+    const std::vector<MidiConfigEvent> sent(after.events.begin() + static_cast<std::ptrdiff_t>(seedEvents), after.events.end());
+    CHECK(sent == expected);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with MULTI SELECT changed"));
+    // The sampler redraws its pages itself while the owner looks (Auto screen update on, §00/&05); the closing puts it back off.
+    REQUIRE(!owner.autoScreenUpdateAtLook.empty());
+    for (const bool on : owner.autoScreenUpdateAtLook)
+        CHECK(on);
+    CHECK_FALSE(rig.sampler.settings().autoScreenUpdate);
+}
+
+TEST_CASE("Given an owner who declines to declare the sampler's MIDI setup, When the suite runs with the MIDI config checks, Then both checks are skipped and no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    options.askOwnerChoice = [](const std::string&, const std::vector<std::string>&) { return std::optional<std::size_t>{}; };
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    CHECK(result.checks[AUTOMATIC_CHECKS].outcome == CheckOutcome::Skipped);
+    CHECK(result.checks[AUTOMATIC_CHECKS + 1].outcome == CheckOutcome::Skipped);
+    CHECK(rig.sampler.midiConfig().events.empty());
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given no way to ask the owner for a number, When the suite runs with the MIDI config checks, Then both checks are skipped and no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    options.askOwnerNumber = nullptr;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    CHECK(result.checks[AUTOMATIC_CHECKS].outcome == CheckOutcome::Skipped);
+    CHECK(result.checks[AUTOMATIC_CHECKS + 1].outcome == CheckOutcome::Skipped);
+    CHECK(rig.sampler.midiConfig().events.empty());
+}
+
+TEST_CASE("Given an owner who sees that the sampler did not change, When the suite runs with the MIDI config checks, Then every setting is still tried and put back, and the check fails naming them [TASK-AKM-079, TASK-AKM-081, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    const std::size_t seedEvents = rig.sampler.midiConfig().events.size();
+    ScriptedOwner owner;
+    owner.seen = CHOICE_NO;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    CHECK(result.checks[AUTOMATIC_CHECKS].outcome == CheckOutcome::Failed);
+    checkSeededState(rig.sampler.midiConfig());
+    CHECK_THAT(log.str(), ContainsSubstring("NOT MET"));
+    // Not stopped at the first "no": all six settings were changed and put back (twelve items), then the second check's two.
+    constexpr std::size_t ITEMS_SENT = 12 + 2;
+    CHECK(rig.sampler.midiConfig().events.size() == seedEvents + ITEMS_SENT);
+    CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("MULTI SELECT"));
+    CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("MIDI FILTER"));
+    CHECK_THAT(result.checks[AUTOMATIC_CHECKS].detail, ContainsSubstring("still so after opening the page again"));
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 04 item is sent [TASK-AKM-079, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS);
+    CHECK(rig.sampler.midiConfig().events.empty());
+}
+
+TEST_CASE("Given a screen that shows the change only after the page is opened again, When the suite runs with the MIDI config checks, Then the checks pass and say that the screen did not redraw by itself [TASK-AKM-082, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    ScriptedOwner owner;
+    owner.seen = CHOICE_NO;
+    owner.seenAfterReopening = CHOICE_YES;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    checkAllPassed(result);
+    checkSeededState(rig.sampler.midiConfig());
+    CHECK_THAT(log.str(), ContainsSubstring("the screen showed it only after the page was opened again"));
+}
+
+TEST_CASE("Given a run that must leave the LCD settings alone, When the suite runs with the MIDI config checks, Then Auto screen update is never switched [TASK-AKM-082, RQ-AKM-080]",
+          "[akm][suite][midi-config]")
+{
+    Rig rig;
+    seedMidiConfig(rig.backend);
+    ScriptedOwner owner;
+    RealSuiteOptions options = midiConfigOptions(rig, rig.sampler, owner);
+    options.touchLcdSettings = false;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MIDI_CONFIG_EXTRA_CHECKS);
+    checkAllPassed(result);
+    REQUIRE(!owner.autoScreenUpdateAtLook.empty());
+    for (const bool on : owner.autoScreenUpdateAtLook)
+        CHECK_FALSE(on);
+}
+
+namespace
+{
+    constexpr std::size_t SONG_FILES_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_SONG_FILES = 0x16;
+    constexpr std::uint8_t ITEM_DELETE_CURRENT_SONG = 0x08;
+    constexpr std::uint8_t ITEM_RENAME_CURRENT_SONG = 0x09;
+    constexpr std::uint8_t ITEM_RENAME_SET_LIST = 0x23;
+    constexpr std::uint8_t ITEM_DELETE_SET_LIST = 0x22;
+
+    // A sampler that holds song files and set lists, one of the song files being the current one, as an owner's would.
+    void seedSongFiles(SimulatedSampler& sampler)
+    {
+        sampler.setSongNames({"VERSE", "CHORUS", "BRIDGE"});
+        sampler.setCurrentSong(1);
+        sampler.setSetListNames({"GIG A", "GIG B"});
+    }
+}
+
+TEST_CASE("Given a sampler holding song files and set lists, When the suite runs with the song files checks, Then every read and selection agrees, the names and the selection are put back, and nothing is deleted [TASK-AKM-086, RQ-AKM-082, RQ-AKM-083, RQ-AKM-084, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    seedSongFiles(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    checkAllPassed(result);
+    const std::string& detail = reportOf(result, "read the song files and set lists").detail;
+    CHECK_THAT(detail, ContainsSubstring("3 song file(s)"));
+    CHECK_THAT(detail, ContainsSubstring("2 set list(s)"));
+    CHECK_THAT(log.str(), ContainsSubstring("the set lists are back to what they were"));
+    CHECK(rig.sampler.songNames() == std::vector<std::string>{"VERSE", "CHORUS", "BRIDGE"});
+    CHECK(rig.sampler.setListNames() == std::vector<std::string>{"GIG A", "GIG B"});
+    CHECK(rig.sampler.currentSong() == std::optional<std::size_t>{1});
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SONG_FILES
+                     && (command.item == ITEM_DELETE_CURRENT_SONG || command.item == ITEM_DELETE_SET_LIST)));
+}
+
+TEST_CASE("Given a sampler that holds no song file and no set list, When the suite runs with the song files checks, Then both checks are skipped, nothing is renamed or deleted, and what the sampler answers to a read or a selection of nothing is logged [TASK-AKM-086, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    CHECK(reportOf(result, "read the song files and set lists").outcome == CheckOutcome::Skipped);
+    CHECK(reportOf(result, "song files check that fails half way").outcome == CheckOutcome::Skipped);
+    CHECK(result.knownStateRestored);
+    CHECK_THAT(log.str(), ContainsSubstring("select song file 0, none held"));
+    for (const auto& command : rig.sampler.acceptedCommands())
+        if (command.section == SECTION_SONG_FILES)
+            CHECK_FALSE((command.item == ITEM_DELETE_CURRENT_SONG || command.item == ITEM_RENAME_CURRENT_SONG
+                         || command.item == ITEM_DELETE_SET_LIST || command.item == ITEM_RENAME_SET_LIST));
+}
+
+TEST_CASE("Given a check made to fail after a song file was renamed, When the suite runs with the song files checks, Then the song file has its name back and the selection is the one found [TASK-AKM-086, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    seedSongFiles(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    CHECK(reportOf(result, "song files check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with a song file renamed"));
+    CHECK(rig.sampler.songNames().front() == "VERSE");
+    CHECK(rig.sampler.currentSong() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given a sampler with a set list but no song file, When the suite runs with the song files checks, Then the set list is renamed and put back and the song file check is skipped [TASK-AKM-086, RQ-AKM-084, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    rig.sampler.setSetListNames({"ONLY SET"});
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    CHECK(reportOf(result, "read the song files and set lists").outcome == CheckOutcome::Passed);
+    CHECK(reportOf(result, "song files check that fails half way").outcome == CheckOutcome::Skipped);
+    CHECK(rig.sampler.setListNames() == std::vector<std::string>{"ONLY SET"});
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 16 item is sent [TASK-AKM-086, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    seedSongFiles(rig.sampler);
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_SONG_FILES);
+}
+
+namespace
+{
+    constexpr std::size_t SCENE_LISTS_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_SCENE_LIST = 0x14;
+    constexpr std::uint8_t ITEM_DELETE_CURRENT_SCENE_LIST = 0x08;
+    constexpr std::uint8_t ITEM_RENAME_CURRENT_SCENE_LIST = 0x09;
+
+    // A sampler that holds scenelists, one of them being the current one, as an owner's would.
+    void seedSceneLists(SimulatedSampler& sampler)
+    {
+        sampler.setSceneListNames({"INTRO", "LIVE SET", "ENCORE"});
+        sampler.setCurrentSceneList(2);
+    }
+}
+
+TEST_CASE("Given a sampler holding scenelists, When the suite runs with the scenelists check, Then every read and selection agrees, the name and the selection are put back, and nothing is deleted [TASK-AKM-098, RQ-AKM-095, RQ-AKM-096, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    seedSceneLists(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "read the scenelists").detail, ContainsSubstring("3 scenelist(s)"));
+    CHECK_THAT(log.str(), ContainsSubstring("the scenelists are back to what they were"));
+    CHECK(rig.sampler.sceneListNames() == std::vector<std::string>{"INTRO", "LIVE SET", "ENCORE"});
+    CHECK(rig.sampler.currentSceneList() == std::optional<std::size_t>{2});
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SCENE_LIST && command.item == ITEM_DELETE_CURRENT_SCENE_LIST));
+}
+
+TEST_CASE("Given a sampler that holds no scenelist, When the suite runs with the scenelists check, Then both checks are skipped, nothing is renamed or deleted, and what the sampler answers to a read or a selection of nothing is logged [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    CHECK(reportOf(result, "read the scenelists").outcome == CheckOutcome::Skipped);
+    CHECK(reportOf(result, "scenelists check that fails half way").outcome == CheckOutcome::Skipped);
+    CHECK(result.knownStateRestored);
+    CHECK_THAT(log.str(), ContainsSubstring("select scenelist 0, none held"));
+    for (const auto& command : rig.sampler.acceptedCommands())
+        if (command.section == SECTION_SCENE_LIST)
+            CHECK_FALSE((command.item == ITEM_DELETE_CURRENT_SCENE_LIST || command.item == ITEM_RENAME_CURRENT_SCENE_LIST));
+}
+
+TEST_CASE("Given a check made to fail after a scenelist was renamed, When the suite runs with the scenelists check, Then the scenelist has its name back and the selection is the one found [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    seedSceneLists(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    CHECK(reportOf(result, "scenelists check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with a scenelist renamed"));
+    CHECK(rig.sampler.sceneListNames().front() == "INTRO");
+    CHECK(rig.sampler.currentSceneList() == std::optional<std::size_t>{2});
+}
+
+TEST_CASE("Given a sampler that refuses every section 14 item as not supported, When the suite runs with the scenelists check, Then the check fails naming the refusal and the other checks are unaffected [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    akm::harness::SamplerBehaviour behaviour = rig.sampler.behaviour();
+    behaviour.itemErrors.push_back({SECTION_SCENE_LIST, 0x10, akm::error_number::NOT_SUPPORTED});
+    rig.sampler.setBehaviour(behaviour);
+    RealSuiteOptions options = rig.options();
+    options.sceneLists = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SCENE_LISTS_EXTRA_CHECKS);
+    const CheckReport& report = reportOf(result, "read the scenelists");
+    CHECK(report.outcome == CheckOutcome::Failed);
+    CHECK_THAT(report.detail, ContainsSubstring("could not read the number of scenelists (&10)"));
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 14 item is sent [TASK-AKM-098, RQ-AKM-097]",
+          "[akm][suite][scenelist]")
+{
+    Rig rig;
+    seedSceneLists(rig.sampler);
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_SCENE_LIST);
+}
+
+namespace
+{
+    constexpr std::size_t MULTI_LIFECYCLE_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_MULTI = 0x0C;
+    constexpr std::uint8_t ITEM_SET_NEW_MULTI_PART_COUNT = 0x01;
+    constexpr std::uint8_t ITEM_CREATE_MULTI = 0x02;
+    constexpr std::uint8_t ITEM_DELETE_ALL_MULTIS = 0x07;
+
+    // A sampler that holds two multis of the owner's, the second one current, as an owner's would.
+    void seedMultis(SimulatedSampler& sampler)
+    {
+        sampler.setMultiNames({"OWNER A", "OWNER B"});
+        sampler.setCurrentMulti(1);
+    }
+
+    bool sentMultiItem(const SimulatedSampler& sampler, std::uint8_t item)
+    {
+        const auto commands = sampler.acceptedCommands();
+        return std::any_of(commands.begin(), commands.end(),
+                           [item](const auto& command) { return command.section == SECTION_MULTI && command.item == item; });
+    }
+}
+
+TEST_CASE("Given a sampler holding two multis of the owner's, When the suite runs with the multi checks, Then every item is round-tripped on a test multi, both test items are deleted, the multis and the selection are as they were, and neither &07 nor &01 is sent [TASK-AKM-094, RQ-AKM-087, RQ-AKM-089, RQ-AKM-090, RQ-AKM-091, RQ-AKM-092, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    checkAllPassed(result);
+    const std::string& detail = reportOf(result, "create a test program and a test multi").detail;
+    CHECK_THAT(detail, ContainsSubstring("12 part parameter items round-tripped on part 3"));
+    CHECK_THAT(log.str(), ContainsSubstring("&47 returns the twelve values the twelve Sets wrote"));
+    CHECK_THAT(log.str(), ContainsSubstring("delete the test multi \"XS56K_MULTI_TEST\": done"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+    CHECK(sentMultiItem(rig.sampler, ITEM_CREATE_MULTI));
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_DELETE_ALL_MULTIS));
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_SET_NEW_MULTI_PART_COUNT));
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given a sampler holding no multi, When the suite runs with the multi checks, Then the checks pass and no multi is left [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK(rig.sampler.multiCount() == 0);
+    CHECK_THAT(log.str(), ContainsSubstring("no multi was current before the check"));
+}
+
+TEST_CASE("Given a multi that already bears the reserved test name, When the suite runs with the multi checks, Then the check stops without creating or touching anything [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    rig.sampler.setMultiNames({"XS56K_MULTI_TEST"});
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    const CheckReport& first = reportOf(result, "create a test program and a test multi");
+    CHECK(first.outcome == CheckOutcome::Failed);
+    CHECK_THAT(first.detail, ContainsSubstring("already exists in the sampler: the check stops without touching it"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"XS56K_MULTI_TEST"});
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_CREATE_MULTI));
+}
+
+TEST_CASE("Given a check made to fail with the test multi current, When the suite runs with the multi checks, Then the test multi and the test program are deleted and the selection is the one found [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.multiLifecycle = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_LIFECYCLE_EXTRA_CHECKS);
+    CHECK(reportOf(result, "multi check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with the test multi current"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 0C item is sent [TASK-AKM-094, RQ-AKM-093]",
+          "[akm][suite][multi]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_MULTI);
+}
+
+namespace
+{
+    constexpr std::size_t MULTI_FX_EXTRA_CHECKS = 2;
+    constexpr std::uint8_t SECTION_MULTI_FX = 0x12;
+    constexpr std::uint8_t ITEM_FX_SET_CHANNEL_MUTE = 0x20;
+    constexpr std::uint8_t ITEM_FX_SET_MODULE_TYPE = 0x30;
+    constexpr std::uint8_t ITEM_FX_SET_MODULE_ENABLED = 0x40;
+    constexpr std::uint8_t ITEM_FX_SET_PARAMETER = 0x50;
+
+    bool sentFxItem(const SimulatedSampler& sampler, std::uint8_t item)
+    {
+        const auto commands = sampler.acceptedCommands();
+        return std::any_of(commands.begin(), commands.end(),
+                           [item](const auto& command) { return command.section == SECTION_MULTI_FX && command.item == item; });
+    }
+
+    bool sentAnyFxSet(const SimulatedSampler& sampler)
+    {
+        return sentFxItem(sampler, ITEM_FX_SET_CHANNEL_MUTE) || sentFxItem(sampler, ITEM_FX_SET_MODULE_TYPE)
+               || sentFxItem(sampler, ITEM_FX_SET_MODULE_ENABLED) || sentFxItem(sampler, ITEM_FX_SET_PARAMETER);
+    }
+}
+
+TEST_CASE("Given a sampler with an EB20 and two multis of the owner's, When the suite runs with the Multi FX checks, Then a mute, a module state, a module type and a parameter are changed on a test multi and put back, and the test multi is deleted [TASK-AKM-104, RQ-AKM-099, RQ-AKM-100, RQ-AKM-101, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK_THAT(reportOf(result, "create a test multi, read the FX board").detail, ContainsSubstring("an EB20 is installed"));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_CHANNEL_MUTE));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_MODULE_ENABLED));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_MODULE_TYPE));
+    CHECK(sentFxItem(rig.sampler, ITEM_FX_SET_PARAMETER));
+    const akm::harness::FxState fx = rig.sampler.fxState();
+    CHECK_FALSE(fx.channels.at(0).muted);
+    CHECK(fx.channels.at(0).modules.at(3).enabled);
+    CHECK(fx.channels.at(0).modules.at(2).type == 0x02);
+    CHECK(fx.channels.at(0).modules.at(2).parameters.at(0) == 0);
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_DELETE_ALL_MULTIS));
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_SET_NEW_MULTI_PART_COUNT));
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given a sampler with no FX board, When the suite runs with the Multi FX checks, Then the first check is skipped after logging what the Gets answer, no section 12 Set is sent and the test multi is deleted [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    CHECK(reportOf(result, "create a test multi, read the FX board").outcome == CheckOutcome::Skipped);
+    CHECK(reportOf(result, "multi FX check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("no FX card installed"));
+    CHECK_THAT(log.str(), ContainsSubstring("read the number of FX channels"));
+    CHECK_THAT(log.str(), ContainsSubstring("read the mute status of channel 0"));
+    CHECK_FALSE(sentAnyFxSet(rig.sampler));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+    CHECK(result.knownStateRestored);
+}
+
+TEST_CASE("Given a check made to fail with the test multi current, When the suite runs with the Multi FX checks, Then the test multi is deleted and the selection is the one found [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    CHECK(reportOf(result, "multi FX check that fails half way").outcome == CheckOutcome::Passed);
+    CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with the test multi current"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"OWNER A", "OWNER B"});
+    CHECK(rig.sampler.currentMulti() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given a multi that already bears the reserved test name, When the suite runs with the Multi FX checks, Then the check stops without creating or touching anything [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    rig.sampler.setMultiNames({"XS56K_MULTI_TEST"});
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    RealSuiteOptions options = rig.options();
+    options.multiFx = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + MULTI_FX_EXTRA_CHECKS);
+    const CheckReport& first = reportOf(result, "create a test multi, read the FX board");
+    CHECK(first.outcome == CheckOutcome::Failed);
+    CHECK_THAT(first.detail, ContainsSubstring("already exists in the sampler: the check stops without touching it"));
+    CHECK(rig.sampler.multiNames() == std::vector<std::string>{"XS56K_MULTI_TEST"});
+    CHECK_FALSE(sentMultiItem(rig.sampler, ITEM_CREATE_MULTI));
+    CHECK_FALSE(sentAnyFxSet(rig.sampler));
+}
+
+TEST_CASE("Given the default options, When the suite runs, Then no section 12 item is sent [TASK-AKM-104, RQ-AKM-102]",
+          "[akm][suite][multifx]")
+{
+    Rig rig;
+    seedMultis(rig.sampler);
+    rig.sampler.setFxBoard(akm::harness::eb20Layout());
+    const RealSuiteOptions options = rig.options();
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    CHECK(result.checks.size() == AUTOMATIC_CHECKS);
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK(command.section != SECTION_MULTI_FX);
 }

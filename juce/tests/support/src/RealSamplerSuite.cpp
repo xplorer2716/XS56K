@@ -41,14 +41,20 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/DiskPrimitives.hpp"
 #include "akm/FrontPanel.hpp"
 #include "akm/KeygroupPrimitives.hpp"
+#include "akm/MidiConfig.hpp"
+#include "akm/MultiPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
+#include "akm/MultiFxPrimitives.hpp"
+#include "akm/SceneListPrimitives.hpp"
+#include "akm/SongPrimitives.hpp"
 #include "akm/SysExConfig.hpp"
 #include "akm/SystemSetup.hpp"
 #include "akm/ZonePrimitives.hpp"
 #include "akm/harness/ClockArithmetic.hpp"
 #include "akm/harness/FrontPanelRemote.hpp"
 #include "akm/harness/KeygroupParameterCases.hpp"
+#include "akm/harness/MultiPartParameterCases.hpp"
 #include "akm/harness/ProgramParameterCases.hpp"
 #include "akm/harness/SampleParameterCases.hpp"
 #include "akm/harness/WireFormat.hpp"
@@ -829,6 +835,609 @@ namespace akm::harness
             SystemSetupSnapshot _original;
         };
 
+        // The name the check gives a song file or a set list for the length of a round trip: inside the 20 characters
+        // the other names allow, and nothing an owner would keep. [RQ-AKM-085]
+        constexpr std::string_view TEST_SONG_FILES_NAME = "XS56K TEST";
+
+        // How many names of each kind the check reads: a sampler may hold far more than a log needs to show.
+        // [RQ-AKM-085]
+        constexpr int SONG_FILES_NAME_READ_LIMIT = 16;
+
+        // What the sampler holds in section 16, as read before a check changes anything: the two counts, the first names
+        // of each kind and the current song file. `currentProblem` says why no song file is current (the sampler answers an
+        // ERROR when none is). [RQ-AKM-083, RQ-AKM-084, RQ-AKM-085]
+        struct SongFilesSnapshot
+        {
+            int songCount = 0;
+            int setListCount = 0;
+            std::vector<std::string> songNames;
+            std::vector<std::string> setListNames;
+            std::optional<int> currentSong{};
+            std::string currentProblem;
+        };
+
+        std::string songFilesText(const SongFilesSnapshot& snapshot)
+        {
+            const auto list = [](const std::vector<std::string>& names) {
+                std::string text;
+                for (const std::string& name : names)
+                    text += (text.empty() ? "\"" : ", \"") + name + "\"";
+                return text.empty() ? std::string("none") : text;
+            };
+            return std::to_string(snapshot.songCount) + " song file(s): " + list(snapshot.songNames) + "; "
+                   + std::to_string(snapshot.setListCount) + " set list(s): " + list(snapshot.setListNames) + "; current song file "
+                   + (snapshot.currentSong ? std::to_string(*snapshot.currentSong) : "none (" + snapshot.currentProblem + ")");
+        }
+
+        // Reads the counts, the first names and the current song file. It changes nothing; `problem` says which read failed.
+        // [RQ-AKM-083, RQ-AKM-084]
+        std::optional<SongFilesSnapshot> readSongFiles(Rig& rig, Session& session, std::string& problem)
+        {
+            SongFilesSnapshot snapshot;
+            const auto songs = awaitCompletion<SongCountResult>(
+                rig.driver, rig.commandPatience(), [&session](SongCountCompletion done) { getSongCount(session, std::move(done)); });
+            if (!songs || !songs->result.count)
+            {
+                problem = "could not read the number of song files (&10): " + (songs ? outcomeText(songs->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.songCount = *songs->result.count;
+
+            const auto setLists = awaitCompletion<SetListCountResult>(
+                rig.driver, rig.commandPatience(), [&session](SetListCountCompletion done) { getSetListCount(session, std::move(done)); });
+            if (!setLists || !setLists->result.count)
+            {
+                problem = "could not read the number of set lists (&20): " + (setLists ? outcomeText(setLists->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.setListCount = *setLists->result.count;
+
+            for (int index = 0; index < std::min(snapshot.songCount, SONG_FILES_NAME_READ_LIMIT); ++index)
+            {
+                const auto name = awaitCompletion<SongNameResult>(rig.driver, rig.commandPatience(), [&session, index](SongNameCompletion done) {
+                    getSongNameByIndex(session, index, std::move(done));
+                });
+                if (!name || !name->result.name)
+                {
+                    problem = "could not read the name of song file " + std::to_string(index) + " (&11): "
+                              + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                    return std::nullopt;
+                }
+                snapshot.songNames.push_back(*name->result.name);
+            }
+            for (int index = 0; index < std::min(snapshot.setListCount, SONG_FILES_NAME_READ_LIMIT); ++index)
+            {
+                const auto name = awaitCompletion<SetListNameResult>(rig.driver, rig.commandPatience(), [&session, index](SetListNameCompletion done) {
+                    getSetListNameByIndex(session, index, std::move(done));
+                });
+                if (!name || !name->result.name)
+                {
+                    problem = "could not read the name of set list " + std::to_string(index) + " (&21): "
+                              + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                    return std::nullopt;
+                }
+                snapshot.setListNames.push_back(*name->result.name);
+            }
+
+            const auto current = awaitCompletion<SongIndexResult>(
+                rig.driver, rig.commandPatience(), [&session](SongIndexCompletion done) { getCurrentSongIndex(session, std::move(done)); });
+            if (!current)
+            {
+                problem = "could not read the current song file's index (&13): no completion";
+                return std::nullopt;
+            }
+            if (current->result.index)
+                snapshot.currentSong = *current->result.index;
+            else
+                snapshot.currentProblem = outcomeText(current->result.outcome);
+            return snapshot;
+        }
+
+        // Wraps the sampler's song files and set lists for the life of one check (RQ-AKM-085): the check says which name it
+        // is about to change, before it changes it, and on destruction, even when the check throws half way, the guard puts
+        // each such name back and selects again the song file that was current. Logged, best effort, nothing let out of the
+        // destructor, mirroring GuardedSystemSetup. It never sends a deletion: nothing in this class can, there is no method
+        // that does. A sampler that had no song file current cannot be put back to that: the selection has no "none".
+        class GuardedSongFiles
+        {
+        public:
+            GuardedSongFiles(Rig& rig, Session& session, SongFilesSnapshot original)
+                : _rig(rig), _session(session), _original(std::move(original))
+            {
+            }
+
+            ~GuardedSongFiles()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the song files guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedSongFiles(const GuardedSongFiles&) = delete;
+            GuardedSongFiles& operator=(const GuardedSongFiles&) = delete;
+
+            /// To call before the rename of song file `index` is sent: its name is put back whatever happens next.
+            void noteSongRenamed(int index) { _renamedSong = index; }
+            /// To call before the rename of set list `index` is sent.
+            void noteSetListRenamed(int index) { _renamedSetList = index; }
+
+        private:
+            template <typename Launch>
+            void restoreStep(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  restore " + title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+            }
+
+            void restore()
+            {
+                if (_renamedSetList)
+                {
+                    const int index = *_renamedSetList;
+                    const std::string name = _original.setListNames.at(static_cast<std::size_t>(index));
+                    restoreStep("the name of set list " + std::to_string(index) + " (\"" + name + "\")",
+                                [this, index, &name](CommandCompletion done) { renameSetList(_session, index, name, std::move(done)); });
+                }
+                if (_renamedSong)
+                {
+                    const int index = *_renamedSong;
+                    const std::string name = _original.songNames.at(static_cast<std::size_t>(index));
+                    restoreStep("the selection of song file " + std::to_string(index),
+                                [this, index](CommandCompletion done) { selectSongByIndex(_session, index, std::move(done)); });
+                    restoreStep("the name of song file " + std::to_string(index) + " (\"" + name + "\")",
+                                [this, &name](CommandCompletion done) { renameCurrentSong(_session, name, std::move(done)); });
+                }
+                if (_original.currentSong)
+                {
+                    const int index = *_original.currentSong;
+                    restoreStep("the current song file (" + std::to_string(index) + ")",
+                                [this, index](CommandCompletion done) { selectSongByIndex(_session, index, std::move(done)); });
+                }
+                else if (_renamedSong)
+                {
+                    _rig.log.note("  no song file was current before the check, and a selection cannot be cleared: song file "
+                                  + std::to_string(*_renamedSong) + " stays current");
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            SongFilesSnapshot _original;
+            std::optional<int> _renamedSong{};
+            std::optional<int> _renamedSetList{};
+        };
+
+        // Where the Multi FX check works (RQ-AKM-102): channel 0 of an EB20 holds, from module 0, the ring modulator and
+        // distortion, the EQ, the modulation (the one module of the channel whose type may change, spec p. 35) and the delay.
+        // The check changes the enabled state of the delay and the type and the first parameter of the modulation.
+        constexpr int FX_TEST_CHANNEL = 0;
+        constexpr int FX_TEST_STATE_MODULE = 3;
+        constexpr int FX_TEST_TYPE_MODULE = 2;
+        constexpr int FX_TEST_PARAMETER = 0;
+        // The first and second Table 24 codes the type is changed to: another one than the module has now.
+        constexpr FxModuleType FX_TEST_TYPE_A = FxModuleType::Flange;
+        constexpr FxModuleType FX_TEST_TYPE_B = FxModuleType::Phase;
+        // The largest value the parameter is tried at: the modulation's first parameter is a rate of 0-99 (Table 25).
+        constexpr int FX_TEST_PARAMETER_CEILING = 99;
+
+        // The name the check gives a scenelist for the length of a round trip: inside the 20 characters the other names
+        // allow, and nothing an owner would keep. How many names it reads: a sampler may hold far more than a log needs to
+        // show. [RQ-AKM-097]
+        constexpr std::string_view TEST_SCENE_LIST_NAME = "XS56K TEST";
+        constexpr int SCENE_LIST_NAME_READ_LIMIT = 16;
+
+        // What the sampler holds in section 14, as read before a check changes anything: the count, the first names and the
+        // current scenelist. `currentProblem` says why no scenelist is current (the sampler answers an ERROR when none is).
+        // [RQ-AKM-096, RQ-AKM-097]
+        struct SceneListsSnapshot
+        {
+            int count = 0;
+            std::vector<std::string> names;
+            std::optional<int> current{};
+            std::string currentProblem;
+        };
+
+        std::string sceneListsText(const SceneListsSnapshot& snapshot)
+        {
+            std::string list;
+            for (const std::string& name : snapshot.names)
+                list += (list.empty() ? "\"" : ", \"") + name + "\"";
+            return std::to_string(snapshot.count) + " scenelist(s): " + (list.empty() ? std::string("none") : list)
+                   + "; current scenelist "
+                   + (snapshot.current ? std::to_string(*snapshot.current) : "none (" + snapshot.currentProblem + ")");
+        }
+
+        // Reads the count, the first names and the current scenelist. It changes nothing; `problem` says which read failed.
+        // [RQ-AKM-096]
+        std::optional<SceneListsSnapshot> readSceneLists(Rig& rig, Session& session, std::string& problem)
+        {
+            SceneListsSnapshot snapshot;
+            const auto count = awaitCompletion<SceneListCountResult>(
+                rig.driver, rig.commandPatience(), [&session](SceneListCountCompletion done) { getSceneListCount(session, std::move(done)); });
+            if (!count || !count->result.count)
+            {
+                problem = "could not read the number of scenelists (&10): " + (count ? outcomeText(count->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.count = *count->result.count;
+
+            for (int index = 0; index < std::min(snapshot.count, SCENE_LIST_NAME_READ_LIMIT); ++index)
+            {
+                const auto name = awaitCompletion<SceneListNameResult>(rig.driver, rig.commandPatience(), [&session, index](SceneListNameCompletion done) {
+                    getSceneListNameByIndex(session, index, std::move(done));
+                });
+                if (!name || !name->result.name)
+                {
+                    problem = "could not read the name of scenelist " + std::to_string(index) + " (&11): "
+                              + (name ? outcomeText(name->result.outcome) : std::string("no completion"));
+                    return std::nullopt;
+                }
+                snapshot.names.push_back(*name->result.name);
+            }
+
+            const auto current = awaitCompletion<SceneListIndexResult>(
+                rig.driver, rig.commandPatience(), [&session](SceneListIndexCompletion done) { getCurrentSceneListIndex(session, std::move(done)); });
+            if (!current)
+            {
+                problem = "could not read the current scenelist's index (&13): no completion";
+                return std::nullopt;
+            }
+            if (current->result.index)
+                snapshot.current = *current->result.index;
+            else
+                snapshot.currentProblem = outcomeText(current->result.outcome);
+            return snapshot;
+        }
+
+        // Wraps the sampler's scenelists for the life of one check (RQ-AKM-097): the check says which scenelist it is about to
+        // rename, before it renames it, and on destruction, even when the check throws half way, the guard puts the name back
+        // and selects again the scenelist that was current. Logged, best effort, nothing let out of the destructor, as
+        // GuardedSongFiles. It never sends a deletion: nothing in this class can. A sampler that had no scenelist current
+        // cannot be put back to that: the selection has no "none".
+        class GuardedSceneLists
+        {
+        public:
+            GuardedSceneLists(Rig& rig, Session& session, SceneListsSnapshot original)
+                : _rig(rig), _session(session), _original(std::move(original))
+            {
+            }
+
+            ~GuardedSceneLists()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the scenelists guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedSceneLists(const GuardedSceneLists&) = delete;
+            GuardedSceneLists& operator=(const GuardedSceneLists&) = delete;
+
+            /// To call before the rename of scenelist `index` is sent: its name is put back whatever happens next.
+            void noteRenamed(int index) { _renamed = index; }
+
+        private:
+            template <typename Launch>
+            void restoreStep(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  restore " + title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+            }
+
+            void restore()
+            {
+                if (_renamed)
+                {
+                    const int index = *_renamed;
+                    const std::string name = _original.names.at(static_cast<std::size_t>(index));
+                    restoreStep("the selection of scenelist " + std::to_string(index),
+                                [this, index](CommandCompletion done) { selectSceneListByIndex(_session, index, std::move(done)); });
+                    restoreStep("the name of scenelist " + std::to_string(index) + " (\"" + name + "\")",
+                                [this, &name](CommandCompletion done) { renameCurrentSceneList(_session, name, std::move(done)); });
+                }
+                if (_original.current)
+                {
+                    const int index = *_original.current;
+                    restoreStep("the current scenelist (" + std::to_string(index) + ")",
+                                [this, index](CommandCompletion done) { selectSceneListByIndex(_session, index, std::move(done)); });
+                }
+                else if (_renamed)
+                {
+                    _rig.log.note("  no scenelist was current before the check, and a selection cannot be cleared: scenelist "
+                                  + std::to_string(*_renamed) + " stays current");
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            SceneListsSnapshot _original;
+            std::optional<int> _renamed{};
+        };
+
+        // The reserved names the multi check creates its multi and renames it under (RQ-AKM-093), and the two parts it works
+        // on: the part the shared parameter cases act on, and one more for the assignment by index. Inside the 20
+        // characters the other names allow, and nothing an owner would keep.
+        constexpr std::string_view TEST_MULTI_NAME = "XS56K_MULTI_TEST";
+        constexpr std::string_view TEST_MULTI_RENAMED = "XS56K_MULTI_TEST2";
+        constexpr int TEST_MULTI_PART = 3;
+        constexpr int TEST_MULTI_PART_BY_INDEX = 4;
+        constexpr int PROGRAM_NUMBER_FOR_THE_TEST = 5;
+
+        // The sampler's multis as read before a check creates its own: their names in memory order and the current one
+        // (`currentIndex` is empty when none is). [RQ-AKM-091, RQ-AKM-093]
+        struct MultisSnapshot
+        {
+            std::vector<std::string> names;
+            std::optional<int> currentIndex{};
+            std::string currentProblem;
+        };
+
+        std::string multisText(const MultisSnapshot& snapshot)
+        {
+            std::string text = std::to_string(snapshot.names.size()) + " multi(s)";
+            for (const std::string& name : snapshot.names)
+                text += std::string(text.find(':') == std::string::npos ? ": \"" : ", \"") + name + "\"";
+            return text + "; current multi "
+                   + (snapshot.currentIndex ? std::to_string(*snapshot.currentIndex) : "none (" + snapshot.currentProblem + ")");
+        }
+
+        // Reads the names of all the multis (an empty list is a normal answer) and the current one. It changes nothing.
+        std::optional<MultisSnapshot> readMultis(Rig& rig, Session& session, std::string& problem)
+        {
+            MultisSnapshot snapshot;
+            const auto names = awaitCompletion<MultiNameListResult>(
+                rig.driver, rig.commandPatience(), [&session](MultiNameListCompletion done) { getAllMultiNames(session, std::move(done)); });
+            if (!names || !names->result.names)
+            {
+                problem = "could not read the names of all multis (&51): " + (names ? outcomeText(names->result.outcome) : std::string("no completion"));
+                return std::nullopt;
+            }
+            snapshot.names = *names->result.names;
+            const auto current = awaitCompletion<MultiIndexResult>(
+                rig.driver, rig.commandPatience(), [&session](MultiIndexCompletion done) { getCurrentMultiIndex(session, std::move(done)); });
+            if (!current)
+            {
+                problem = "could not read the current multi's index (&42): no completion";
+                return std::nullopt;
+            }
+            if (current->result.index)
+                snapshot.currentIndex = *current->result.index;
+            else
+                snapshot.currentProblem = outcomeText(current->result.outcome);
+            return snapshot;
+        }
+
+        // Wraps one multi created under TEST_MULTI_NAME for the life of one check (RQ-AKM-093): on construction it reads the
+        // sampler's multis, refuses to go on when one already bears a reserved name (it is never touched), then creates the
+        // test multi, which Create makes current and which lands last in memory. On destruction, even when the check throws
+        // half way, it selects the test multi again by its index and deletes it only if it still bears one of the two
+        // reserved names, then selects again the multi that was current. Logged, best effort, nothing let out of the
+        // destructor, mirroring GuardedTestProgram. It never sends §0C/&07 (Delete ALL Multis) or &01: nothing in this
+        // class can, there is no method that does.
+        class GuardedTestMulti
+        {
+        public:
+            GuardedTestMulti(Rig& rig, Session& session) : _rig(rig), _session(session)
+            {
+                std::string problem;
+                const auto before = readMultis(rig, session, problem);
+                if (!before)
+                    throw CheckFailure(problem + " (nothing was created)");
+                _original = *before;
+                for (const std::string& name : _original.names)
+                    if (name == TEST_MULTI_NAME || name == TEST_MULTI_RENAMED)
+                        throw CheckFailure("a multi named \"" + name + "\" already exists in the sampler: the check stops without touching it");
+                _testIndex = static_cast<int>(_original.names.size());
+                const auto created = awaitCompletion<CommandResult>(
+                    rig.driver, rig.commandPatience(), [this](CommandCompletion done) { createMulti(_session, TEST_MULTI_NAME, std::move(done)); });
+                if (!created || !succeeded(created->result))
+                    throw CheckFailure("could not create the test multi \"" + std::string(TEST_MULTI_NAME) + "\": " + timedOutcomeText(created));
+                _created = true;
+            }
+
+            ~GuardedTestMulti()
+            {
+                try
+                {
+                    cleanup();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.log.note("  the test multi guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedTestMulti(const GuardedTestMulti&) = delete;
+            GuardedTestMulti& operator=(const GuardedTestMulti&) = delete;
+
+            /// The multis as they were before the test multi was created.
+            [[nodiscard]] const MultisSnapshot& original() const { return _original; }
+            /// The test multi's position in memory: the number of multis before it.
+            [[nodiscard]] int testIndex() const { return _testIndex; }
+
+        private:
+            template <typename Launch>
+            bool step(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                const bool ok = timed && succeeded(timed->result);
+                _rig.log.note("  " + title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+                return ok;
+            }
+
+            void cleanup()
+            {
+                if (!_created)
+                    return;
+                const int index = _testIndex;
+                if (step("select the test multi again by its index (" + std::to_string(index) + ")",
+                         [this, index](CommandCompletion done) { selectMultiByIndex(_session, index, std::move(done)); }))
+                {
+                    const auto name = awaitCompletion<MultiNameResult>(
+                        _rig.driver, _rig.commandPatience(), [this](MultiNameCompletion done) { getCurrentMultiName(_session, std::move(done)); });
+                    if (name && name->result.name && (*name->result.name == TEST_MULTI_NAME || *name->result.name == TEST_MULTI_RENAMED))
+                        step("delete the test multi \"" + *name->result.name + "\"",
+                             [this](CommandCompletion done) { deleteCurrentMulti(_session, std::move(done)); });
+                    else
+                        _rig.log.note("  the multi at index " + std::to_string(index) + " is not the test one ("
+                                      + (name && name->result.name ? "\"" + *name->result.name + "\"" : std::string("name unreadable"))
+                                      + "): it is NOT deleted");
+                }
+                else
+                    _rig.log.note("  the test multi could not be selected to delete it; it may already be gone");
+                if (_original.currentIndex)
+                {
+                    const int original = *_original.currentIndex;
+                    step("select again the multi that was current (" + std::to_string(original) + ")",
+                         [this, original](CommandCompletion done) { selectMultiByIndex(_session, original, std::move(done)); });
+                }
+            }
+
+            Rig& _rig;
+            Session& _session;
+            MultisSnapshot _original;
+            int _testIndex = 0;
+            bool _created = false;
+        };
+
+        // What the owner says the sampler's MIDI setup holds, in terms of the sampler's own MIDI SETUP and MIDI FILTER
+        // pages (RQ-AKM-080). Section 04 has no Get, so this declaration is the only source of the values to put back.
+        // `filterEvent` and `filterChannel` name the one filter the check exercises, `filterAllows` what it does now.
+        struct MidiConfigDeclaration
+        {
+            bool programChangeEnabled = true;
+            MultiSelectMode multiSelect = MultiSelectMode::Off;
+            int multiSelectChannel = 0;
+            int externalApmController = 0;
+            AftertouchType aftertouch = AftertouchType::Channel;
+            MidiFilterEvent filterEvent = MidiFilterEvent::NoteOn;
+            int filterChannel = 0;
+            bool filterAllows = true;
+        };
+
+        constexpr int MIDI_CHANNELS = 32;
+        constexpr int MIDI_CHANNELS_PER_PORT = 16;
+        constexpr int MULTI_SELECT_MODES = 3;
+        constexpr int EXTERNAL_APM_CONTROLLERS = 128;
+
+        // The channel code 0-31 as the sampler's screen writes it: 1A to 16A, then 1B to 16B.
+        std::string midiChannelName(int channel)
+        {
+            return std::to_string(channel % MIDI_CHANNELS_PER_PORT + 1) + (channel < MIDI_CHANNELS_PER_PORT ? "A" : "B");
+        }
+
+        std::string multiSelectName(MultiSelectMode mode)
+        {
+            switch (mode)
+            {
+                case MultiSelectMode::Off:
+                    return "OFF";
+                case MultiSelectMode::ProgramChange:
+                    return "PROG CHANGE";
+                case MultiSelectMode::Bank:
+                    return "BANK";
+            }
+            return "?";
+        }
+
+        std::string aftertouchName(AftertouchType type)
+        {
+            return type == AftertouchType::Channel ? "CHANNEL" : "POLYPHONIC";
+        }
+
+        std::string midiFilterEventName(MidiFilterEvent event)
+        {
+            switch (event)
+            {
+                case MidiFilterEvent::NoteOn:
+                    return "NOTE ON";
+                case MidiFilterEvent::Aftertouch:
+                    return "AFTERTOUCH";
+                case MidiFilterEvent::Wheels:
+                    return "WHEELS";
+                case MidiFilterEvent::Volume:
+                    return "VOLUME";
+            }
+            return "?";
+        }
+
+        std::string onOffName(bool on)
+        {
+            return on ? "ON" : "OFF";
+        }
+
+        // Puts the owner's MIDI setup back (RQ-AKM-080). The check registers, before sending each change, the command that
+        // undoes it; on destruction — even when the check throws half way — the registered commands run in the opposite
+        // order, each logged, best effort, nothing let out of the destructor, mirroring GuardedSystemSetup. A restore that
+        // fails clears `knownStateRestored`: the owner's MIDI setup is then not what it was declared to be.
+        class GuardedMidiConfig
+        {
+        public:
+            using Launch = std::function<void(Session&, CommandCompletion)>;
+
+            GuardedMidiConfig(Rig& rig, Session& session) : _rig(rig), _session(session) {}
+
+            ~GuardedMidiConfig()
+            {
+                try
+                {
+                    restore();
+                }
+                catch (...)  // NOLINT: a destructor does not throw
+                {
+                    _rig.result.knownStateRestored = false;
+                    _rig.log.note("  the MIDI setup guard could not fully restore the sampler; see the log above");
+                }
+            }
+
+            GuardedMidiConfig(const GuardedMidiConfig&) = delete;
+            GuardedMidiConfig& operator=(const GuardedMidiConfig&) = delete;
+
+            /// Registers how to undo a change that is about to be sent: registered first, so that a change the sampler
+            /// registered without confirming it is put back too.
+            void willRestore(std::string title, Launch launch)
+            {
+                _steps.push_back({std::move(title), std::move(launch)});
+            }
+
+        private:
+            struct Step
+            {
+                std::string title;
+                Launch launch;
+            };
+
+            void restore()
+            {
+                for (auto step = _steps.rbegin(); step != _steps.rend(); ++step)
+                {
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(),
+                        [this, &step](CommandCompletion done) { step->launch(_session, std::move(done)); });
+                    const bool ok = timed && succeeded(timed->result);
+                    _rig.log.note("  restore " + step->title + ": " + (ok ? "done" : "failed (" + timedOutcomeText(timed) + ")"));
+                    if (!ok)
+                        _rig.result.knownStateRestored = false;
+                }
+                _steps.clear();
+            }
+
+            Rig& _rig;
+            Session& _session;
+            std::vector<Step> _steps;
+        };
+
         // The disposable sub-folder the Disk Tools checks work in (RQ-AKM-071): created under the folder that is
         // current when the check starts, entered, and removed on destruction however the check ends. Only what this
         // guard created is removed: a folder already carrying the reserved name makes the create fail, and nothing is
@@ -1035,6 +1644,47 @@ namespace akm::harness
                 if (_rig.options.frontPanel)
                     check("the owner drives the sampler's front panel from the PC keyboard, on a screen the owner chose",
                           &Suite::frontPanelRemote);
+                if (_rig.options.midiConfig)
+                {
+                    check("change every MIDI setup setting and one MIDI filter to another value, the owner confirming each on the "
+                          "sampler's screen, and put them back to the values the owner declared",
+                          &Suite::midiConfigRoundTrips);
+                    check("a MIDI setup check that fails half way and still puts back what it changed",
+                          &Suite::failedMidiConfigCheckPutsBack);
+                }
+                if (_rig.options.multiLifecycle)
+                {
+                    check("create a test program and a test multi, round-trip every §0C item on them, then delete both and "
+                          "put back the multi that was current",
+                          &Suite::multiLifecycleOnTestMulti);
+                    check("a multi check that fails half way still deletes the test multi and the test program and restores the "
+                          "selection",
+                          &Suite::failedMultiCheckLeavesTheKnownState);
+                }
+                if (_rig.options.songFiles)
+                {
+                    check("read the song files and set lists, select each song file by index and by name, rename the first of each "
+                          "and put every name and the selection back",
+                          &Suite::songFilesRoundTrips);
+                    check("a song files check that fails half way and still puts back what it changed",
+                          &Suite::failedSongFilesCheckPutsBack);
+                }
+                if (_rig.options.sceneLists)
+                {
+                    check("read the scenelists, select each by index and by name, rename the first and put the name and the "
+                          "selection back",
+                          &Suite::sceneListsRoundTrips);
+                    check("a scenelists check that fails half way and still puts back what it changed",
+                          &Suite::failedSceneListsCheckPutsBack);
+                }
+                if (_rig.options.multiFx)
+                {
+                    check("create a test multi, read the FX board and, with one installed, round-trip a channel mute, a module "
+                          "state, a parameter and a module type on it",
+                          &Suite::multiFxOnTestMulti);
+                    check("a multi FX check that fails half way still deletes the test multi and restores the selection",
+                          &Suite::failedMultiFxCheckLeavesTheKnownState);
+                }
             }
 
             // The observations block: what each check found, then what RQ-AKM-017 asks to be recorded.
@@ -2820,6 +3470,1180 @@ namespace akm::harness
                 closeAndVerify(guarded);
             }
 
+            // One question to the owner, said in the log with the answer; declined, the check is skipped (the guards put back
+            // what it changed). [RQ-AKM-080]
+            [[nodiscard]] std::size_t ownerChooses(const std::string& question, const std::vector<std::string>& choices)
+            {
+                _rig.log.flush();
+                _rig.log.note("  asking the owner: " + question);
+                _rig.log.flush();
+                const auto picked = _rig.options.askOwnerChoice(question, choices);
+                if (!picked || *picked >= choices.size())
+                    throw CheckSkipped("the owner did not answer: " + question);
+                _rig.log.note("  the owner answers: " + choices[*picked]);
+                return *picked;
+            }
+
+            [[nodiscard]] int ownerNumber(const std::string& question, int minimum, int maximum)
+            {
+                _rig.log.flush();
+                _rig.log.note("  asking the owner: " + question);
+                _rig.log.flush();
+                const auto number = _rig.options.askOwnerNumber(question, minimum, maximum);
+                if (!number || *number < minimum || *number > maximum)
+                    throw CheckSkipped("the owner did not answer: " + question);
+                _rig.log.note("  the owner answers: " + std::to_string(*number));
+                return *number;
+            }
+
+            // The channel labels of the sampler's screen, in the order of the channel codes 0-31.
+            [[nodiscard]] static std::vector<std::string> midiChannelChoices()
+            {
+                std::vector<std::string> names;
+                for (int channel = 0; channel < MIDI_CHANNELS; ++channel)
+                    names.push_back(midiChannelName(channel));
+                return names;
+            }
+
+            // RQ-AKM-080: what the owner says the MIDI SETUP and MIDI FILTER pages show, asked once per run and nothing sent
+            // before it is known. The first decline skips this check and the next one without asking again.
+            [[nodiscard]] MidiConfigDeclaration midiConfigDeclaration()
+            {
+                if (_midiDeclined)
+                    throw CheckSkipped("the owner declined to declare the sampler's MIDI setup");
+                if (_midiDeclaration)
+                    return *_midiDeclaration;
+                if (!_rig.options.askOwner || !_rig.options.askOwnerChoice || !_rig.options.askOwnerNumber)
+                    throw CheckSkipped("section 04 cannot be read back, so this check needs the owner to declare the sampler's MIDI "
+                                       "setup, and there is no way to ask");
+                try
+                {
+                    ownerConfirms("Press UTILITIES, then MIDI SETUP, and note what PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, "
+                                  "EXT APM CONTROL and AFTERTOUCH show; then open MIDI FILTER and choose one filter to look at "
+                                  "(its event type and its channel) and note whether it is on or off. You will be asked for these "
+                                  "values now, and the check puts them back at the end. Nothing is sent before you have answered.");
+                    MidiConfigDeclaration declared;
+                    declared.programChangeEnabled =
+                        ownerChooses("MIDI SETUP, PROGRAM CHANGE: what does the sampler show now?", {"ON", "OFF"}) == 0;
+                    declared.multiSelect = static_cast<MultiSelectMode>(ownerChooses(
+                        "MIDI SETUP, MULTI SELECT: what does the sampler show now?",
+                        {multiSelectName(MultiSelectMode::Off), multiSelectName(MultiSelectMode::ProgramChange),
+                         multiSelectName(MultiSelectMode::Bank)}));
+                    declared.multiSelectChannel = static_cast<int>(
+                        ownerChooses("MIDI SETUP, MULTI SLCT CH: which channel does the sampler show now?", midiChannelChoices()));
+                    declared.externalApmController = ownerNumber(
+                        "MIDI SETUP, EXT APM CONTROL: which controller number does the sampler show now?", 0,
+                        EXTERNAL_APM_CONTROLLERS - 1);
+                    declared.aftertouch = static_cast<AftertouchType>(ownerChooses(
+                        "MIDI SETUP, AFTERTOUCH: what does the sampler show now?",
+                        {aftertouchName(AftertouchType::Channel), aftertouchName(AftertouchType::Polyphonic)}));
+                    declared.filterEvent = static_cast<MidiFilterEvent>(ownerChooses(
+                        "MIDI FILTER, event type: which event type will the check exercise?",
+                        {midiFilterEventName(MidiFilterEvent::NoteOn), midiFilterEventName(MidiFilterEvent::Aftertouch),
+                         midiFilterEventName(MidiFilterEvent::Wheels), midiFilterEventName(MidiFilterEvent::Volume)}));
+                    declared.filterChannel = static_cast<int>(
+                        ownerChooses("MIDI FILTER, channel: on which channel?", midiChannelChoices()));
+                    declared.filterAllows =
+                        ownerChooses("MIDI FILTER, that filter: what does the sampler do with those messages now?",
+                                     {"it allows them (they are received)", "it ignores them (they are filtered out)"}) == 0;
+                    finding("declared by the owner: PROGRAM CHANGE " + onOffName(declared.programChangeEnabled) + ", MULTI SELECT "
+                            + multiSelectName(declared.multiSelect) + ", MULTI SLCT CH " + midiChannelName(declared.multiSelectChannel)
+                            + ", EXT APM CONTROL " + std::to_string(declared.externalApmController) + ", AFTERTOUCH "
+                            + aftertouchName(declared.aftertouch) + ", filter " + midiFilterEventName(declared.filterEvent) + " on "
+                            + midiChannelName(declared.filterChannel) + (declared.filterAllows ? " allows" : " ignores") + " its messages");
+                    _midiDeclaration = declared;
+                    return declared;
+                }
+                catch (const CheckSkipped&)
+                {
+                    _midiDeclined = true;
+                    throw;
+                }
+            }
+
+            // One setting, on its own: how to undo the change is registered, the change is sent, the owner says whether the
+            // screen shows it, and the guard puts the setting back before the next one is touched — so that no setting is
+            // tested while another is still changed (a setting may depend on another one: found on the real S5000 with
+            // MULTI SELECT while PROGRAM CHANGE was off). A "no" is noted in `notSeen` and the check goes on with the other
+            // settings; a declined question skips the check. [RQ-AKM-080]
+            void changeMidiSetting(GuardedSession& guarded, std::vector<std::string>& notSeen, const std::string& setting,
+                                   const std::string& declaredText, const std::string& newText,
+                                   const GuardedMidiConfig::Launch& change, const GuardedMidiConfig::Launch& restore)
+            {
+                GuardedMidiConfig guard(_rig, guarded.session());
+                guard.willRestore(setting + " (back to " + declaredText + ")", restore);
+                expectCommand(guarded, "set " + setting + " to " + newText + " (the owner declared " + declaredText + ")", change);
+                ownerSeesOrNotes(setting + " now shows " + newText, notSeen);
+            }
+
+            // The session of the MIDI checks: Auto screen update on (§00/&05, "automatic screen updating when a SysEx message
+            // is processed"), so that the sampler redraws its MIDI SETUP and MIDI FILTER pages when a §04 item changes
+            // them; the closing puts it back off. Without it the first real run saw only two of the seven items on the
+            // screen. A run that must leave the LCD settings alone (--no-lcd) leaves this one too. [RQ-AKM-080]
+            [[nodiscard]] SessionConfig midiConfigSessionConfig() const
+            {
+                SessionConfig config = baseConfig();
+                if (_rig.options.touchLcdSettings)
+                    config.autoScreenUpdate = SettingChoice::On;
+                return config;
+            }
+
+            // The owner looks at the screen: a "no" is noted in `notSeen`, not thrown, so that the other settings are still
+            // tried and the report names every one that was not seen. [RQ-AKM-080]
+            void ownerSeesOrNotes(const std::string& what, std::vector<std::string>& notSeen)
+            {
+                // "Nothing changed" says the sampler took no notice of a command it answered DONE; "another value" says it
+                // did something else: two different findings, kept apart in the log and in the report.
+                const std::vector<std::string> choices{"Yes", "No, nothing changed on the screen", "No, the screen shows another value"};
+                const std::size_t answer = ownerChooses("NOW LOOK AT THE SAMPLER: " + what + ". Does it?", choices);
+                if (answer == 0)
+                {
+                    _rig.log.note("  as expected: the owner sees on the sampler: " + what);
+                    return;
+                }
+                // A screen that is not redrawn by itself looks like a command that was ignored: the owner leaves the page and
+                // opens it again, which redraws it from the sampler's own values, and looks once more.
+                const std::size_t again = ownerChooses(
+                    "LOOK AGAIN AT THE SAMPLER: press EXIT, open the page again (the screen may not redraw by itself), then look: " + what
+                        + ". Does it now?",
+                    {"Yes, after opening the page again", "No, still not"});
+                if (again == 0)
+                    finding("the screen showed it only after the page was opened again (not redrawn by itself): " + what);
+                else
+                {
+                    _rig.log.note("  NOT MET: the owner sees on the sampler: " + what + " (" + choices[answer] + ", and still so after opening the page again)");
+                    notSeen.push_back(what + " (" + choices[answer] + ", still so after opening the page again)");
+                }
+            }
+
+            // RQ-AKM-078, RQ-AKM-079, RQ-AKM-080: every §04 item sent once, to a value other than the one the owner declared,
+            // each confirmed on the sampler's own screen, then each put back to the declared value by the guard; the owner
+            // confirms the original screens are back. §04 has no Get: the sampler's answer is DONE (queued), the screen is the
+            // read-back.
+            void midiConfigRoundTrips()
+            {
+                const MidiConfigDeclaration declared = midiConfigDeclaration();
+                GuardedSession guarded(_rig);
+                guarded.open(midiConfigSessionConfig());
+                std::vector<std::string> notSeen;
+                {
+                    const bool newProgramChange = !declared.programChangeEnabled;
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, PROGRAM CHANGE", onOffName(declared.programChangeEnabled),
+                                      onOffName(newProgramChange),
+                                      [newProgramChange](Session& session, CommandCompletion done) {
+                                          setProgramChangeEnabled(session, newProgramChange, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setProgramChangeEnabled(session, declared.programChangeEnabled, std::move(done));
+                                      });
+                    const auto newMultiSelect = static_cast<MultiSelectMode>((static_cast<int>(declared.multiSelect) + 1) % MULTI_SELECT_MODES);
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, MULTI SELECT", multiSelectName(declared.multiSelect),
+                                      multiSelectName(newMultiSelect),
+                                      [newMultiSelect](Session& session, CommandCompletion done) {
+                                          setMultiSelect(session, newMultiSelect, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setMultiSelect(session, declared.multiSelect, std::move(done));
+                                      });
+                    const int newChannel = (declared.multiSelectChannel + 1) % MIDI_CHANNELS;
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, MULTI SLCT CH", midiChannelName(declared.multiSelectChannel),
+                                      midiChannelName(newChannel),
+                                      [newChannel](Session& session, CommandCompletion done) {
+                                          setMultiSelectChannel(session, newChannel, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setMultiSelectChannel(session, declared.multiSelectChannel, std::move(done));
+                                      });
+                    const int newController = (declared.externalApmController + 1) % EXTERNAL_APM_CONTROLLERS;
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, EXT APM CONTROL", std::to_string(declared.externalApmController),
+                                      std::to_string(newController),
+                                      [newController](Session& session, CommandCompletion done) {
+                                          setExternalApmController(session, newController, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setExternalApmController(session, declared.externalApmController, std::move(done));
+                                      });
+                    const AftertouchType newAftertouch =
+                        declared.aftertouch == AftertouchType::Channel ? AftertouchType::Polyphonic : AftertouchType::Channel;
+                    changeMidiSetting(guarded, notSeen, "MIDI SETUP, AFTERTOUCH", aftertouchName(declared.aftertouch),
+                                      aftertouchName(newAftertouch),
+                                      [newAftertouch](Session& session, CommandCompletion done) {
+                                          setAftertouch(session, newAftertouch, std::move(done));
+                                      },
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setAftertouch(session, declared.aftertouch, std::move(done));
+                                      });
+                    const auto filterLaunch = [declared](bool allows) {
+                        return [declared, allows](Session& session, CommandCompletion done) {
+                            if (allows)
+                                allowMidiEvents(session, declared.filterEvent, declared.filterChannel, std::move(done));
+                            else
+                                ignoreMidiEvents(session, declared.filterEvent, declared.filterChannel, std::move(done));
+                        };
+                    };
+                    const std::string filterName = "MIDI FILTER, " + midiFilterEventName(declared.filterEvent) + " on "
+                                                   + midiChannelName(declared.filterChannel);
+                    changeMidiSetting(guarded, notSeen, filterName, declared.filterAllows ? "allowing" : "ignoring",
+                                      declared.filterAllows ? "ignoring" : "allowing", filterLaunch(!declared.filterAllows),
+                                      filterLaunch(declared.filterAllows));
+                }
+                ownerSeesOrNotes("the MIDI SETUP and MIDI FILTER pages show the values you declared again (every setting back as it was)",
+                                 notSeen);
+                closeAndVerify(guarded);
+                if (!notSeen.empty())
+                {
+                    std::string list;
+                    for (const std::string& what : notSeen)
+                        list += (list.empty() ? "" : "; ") + what;
+                    throw CheckFailure("not met: the owner did not see on the sampler: " + list);
+                }
+            }
+
+            // RQ-AKM-080: a check that fails with a setting changed still puts it back. MULTI SELECT is changed, then the
+            // check throws on purpose; the guard has restored it by the time the exception is caught, and the owner confirms.
+            void failedMidiConfigCheckPutsBack()
+            {
+                const MidiConfigDeclaration declared = midiConfigDeclaration();
+                GuardedSession guarded(_rig);
+                guarded.open(midiConfigSessionConfig());
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedMidiConfig guard(_rig, guarded.session());
+                    const auto newMultiSelect = static_cast<MultiSelectMode>((static_cast<int>(declared.multiSelect) + 1) % MULTI_SELECT_MODES);
+                    guard.willRestore("MIDI SETUP, MULTI SELECT (back to " + multiSelectName(declared.multiSelect) + ")",
+                                      [declared](Session& session, CommandCompletion done) {
+                                          setMultiSelect(session, declared.multiSelect, std::move(done));
+                                      });
+                    expectCommand(guarded, "set MIDI SETUP, MULTI SELECT to " + multiSelectName(newMultiSelect),
+                                  [newMultiSelect](Session& session, CommandCompletion done) {
+                                      setMultiSelect(session, newMultiSelect, std::move(done));
+                                  });
+                    throw CheckFailure("this check fails on purpose, with MULTI SELECT changed");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                std::vector<std::string> notSeen;
+                ownerSeesOrNotes("MIDI SETUP, MULTI SELECT shows " + multiSelectName(declared.multiSelect) + " again", notSeen);
+                closeAndVerify(guarded);
+                if (!notSeen.empty())
+                    throw CheckFailure("not met: the owner did not see on the sampler: " + notSeen.front());
+            }
+
+            // Reads one value out of a result of the multi check: the member of the result that holds it, or a failure that
+            // names `what`. [RQ-AKM-089, RQ-AKM-091]
+            template <typename Result, typename Member, typename Launch>
+            auto readMultiValue(const std::string& what, Member member, Launch launch)
+            {
+                const auto timed = awaitCompletion<Result>(_rig.driver, _rig.commandPatience(), launch);
+                if (!timed || !(timed->result.*member).has_value())
+                    throw CheckFailure("could not read " + what + ": " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *(timed->result.*member);
+            }
+
+            std::string multiNameNow(GuardedSession& guarded)
+            {
+                return readMultiValue<MultiNameResult>("the current multi's name (&43)", &MultiNameResult::name,
+                                                       [&guarded](MultiNameCompletion done) { getCurrentMultiName(guarded.session(), std::move(done)); });
+            }
+
+            int multiIndexNow(GuardedSession& guarded)
+            {
+                return readMultiValue<MultiIndexResult>("the current multi's index (&42)", &MultiIndexResult::index,
+                                                        [&guarded](MultiIndexCompletion done) { getCurrentMultiIndex(guarded.session(), std::move(done)); });
+            }
+
+            std::string multiPartNameNow(GuardedSession& guarded, int part)
+            {
+                return readMultiValue<MultiNameResult>("the name of part " + std::to_string(part) + " (&45)", &MultiNameResult::name,
+                                                       [&guarded, part](MultiNameCompletion done) { getMultiPartName(guarded.session(), part, std::move(done)); });
+            }
+
+            std::vector<int> multiValuesNow(GuardedSession& guarded, const std::string& what, void (*launch)(Session&, MultiValueListCompletion))
+            {
+                return readMultiValue<MultiValueListResult>(what, &MultiValueListResult::values,
+                                                            [&guarded, launch](MultiValueListCompletion done) { launch(guarded.session(), std::move(done)); });
+            }
+
+            // RQ-AKM-087 to RQ-AKM-093: creates a test program and a test multi under reserved names, round-trips every §0C
+            // item on them, then (the guards) deletes both and selects again the multi that was current, and verifies,
+            // once the guards are gone, that the sampler holds the multis it held and has the same one current. Never
+            // sends &07 or &01; every deletion is of the test multi, selected again by index and named first.
+            void multiLifecycleOnTestMulti()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("multis before: " + multisText(*before));
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    finding("test program \"" + std::string(TEST_PROGRAM_NAME) + "\" created, to be assigned to parts of the test multi");
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test multi \"" + std::string(TEST_MULTI_NAME) + "\" created and current, at index " + std::to_string(multi.testIndex()));
+
+                    const int partCount = multiCreationChecks(guarded, multi);
+                    multiPartParameterChecks(guarded);
+                    multiMuteSoloChecks(guarded, partCount);
+                    multiProgramNumberChecks(guarded);
+                    multiPartAssignmentChecks(guarded, partCount);
+                    multiRenameAndSelectionChecks(guarded, multi);
+                }
+                expectMultisRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-093: a check that fails with the test program and the test multi current still deletes both and
+            // selects again the multi that was current, and leaves nothing changed.
+            void failedMultiCheckLeavesTheKnownState()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                const auto programNamesBefore = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                if (!programNamesBefore || !programNamesBefore->result.names)
+                    throw CheckFailure("could not read the names of all programs before the test program is created");
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedTestProgram program(_rig, guarded.session());
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test program and test multi created for a check that fails on purpose");
+                    throw CheckFailure("this check fails on purpose, with the test multi current");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guards above have already been destroyed, their cleanup already run, by the time the exception
+                    // reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guards' destructors ran when the check failed");
+                expectMultisRestored(guarded, *before);
+                const auto programNamesAfter = awaitCompletion<AllProgramNamesResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](AllProgramNamesCompletion done) { getAllProgramNames(guarded.session(), std::move(done)); });
+                expect(programNamesAfter && programNamesAfter->result.names == programNamesBefore->result.names,
+                       "the sampler holds exactly the programs it held before");
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-087, RQ-AKM-091: what the creation did, read back through the Gets: the number of parts (an observation of
+            // the stored setting for new multis, which no item reads), the count, the index, the name, and the three
+            // all-multis Gets, each ending with the test multi. Returns the number of parts.
+            int multiCreationChecks(GuardedSession& guarded, const GuardedTestMulti& multi)
+            {
+                const std::size_t countBefore = multi.original().names.size();
+                const int partCount = readMultiValue<MultiPartCountResult>("the number of parts (&44)", &MultiPartCountResult::partCount,
+                                                                           [&guarded](MultiPartCountCompletion done) { getCurrentMultiPartCount(guarded.session(), std::move(done)); });
+                finding("the test multi has " + std::to_string(partCount) + " parts (the sampler's own setting for new multis)");
+                expect(partCount == 32 || partCount == 64 || partCount == 128, "the number of parts is 32, 64 or 128");
+
+                const int count = readMultiValue<MultiCountResult>("the number of multis (&40)", &MultiCountResult::count,
+                                                                   [&guarded](MultiCountCompletion done) { getMultiCount(guarded.session(), std::move(done)); });
+                expect(static_cast<std::size_t>(count) == countBefore + 1, "the number of multis is one more (" + std::to_string(count) + ")");
+                expect(multiIndexNow(guarded) == multi.testIndex(), "the current multi's index is " + std::to_string(multi.testIndex()));
+                expect(multiNameNow(guarded) == TEST_MULTI_NAME, "the current multi's name is the reserved one");
+
+                const auto names = readMultiValue<MultiNameListResult>("the names of all multis (&51)", &MultiNameListResult::names,
+                                                                       [&guarded](MultiNameListCompletion done) { getAllMultiNames(guarded.session(), std::move(done)); });
+                expect(names.size() == countBefore + 1 && names.back() == TEST_MULTI_NAME, "the names of all multis end with the test multi");
+                const auto counts = multiValuesNow(guarded, "the number of parts of all multis (&52)", getAllMultiPartCounts);
+                expect(counts.size() == countBefore + 1 && counts.back() == partCount, "the numbers of parts of all multis end with the test multi's");
+                const auto numbers = readMultiValue<MultiProgramNumbersResult>("the program numbers of all multis (&50)", &MultiProgramNumbersResult::numbers,
+                                                                               [&guarded](MultiProgramNumbersCompletion done) { getAllMultiProgramNumbers(guarded.session(), std::move(done)); });
+                expect(numbers.size() == countBefore + 1, "the program numbers of all multis are one per multi");
+                return partCount;
+            }
+
+            // RQ-AKM-089, RQ-AKM-090: every one of the twelve part parameter items is set on part 3 then read back, and
+            // `&47` returns the twelve values in the order of the Gets.
+            void multiPartParameterChecks(GuardedSession& guarded)
+            {
+                std::vector<int> expected;
+                for (const MultiPartParameterCase& parameterCase : allMultiPartParameterCases())
+                {
+                    const std::string title(descriptor(parameterCase.setId).name);
+                    expectCommand(guarded, "set " + title, [&parameterCase](Session& session, CommandCompletion done) {
+                        session.submit(makeRequest(parameterCase.setId, parameterCase.values), std::move(done));
+                    });
+                    const auto timed = awaitCompletion<CommandResult>(
+                        _rig.driver, _rig.commandPatience(), [&guarded, &parameterCase](CommandCompletion done) {
+                            guarded.session().submit(makeRequest(parameterCase.getId, {parameterCase.values.front()}), std::move(done));
+                        });
+                    if (!timed || !succeeded(timed->result))
+                        throw CheckFailure("get " + title + ": " + timedOutcomeText(timed));
+                    const auto* replyData = std::get_if<Reply>(&timed->result);
+                    const auto decoded = replyData ? decodeReply(parameterCase.getId, replyData->data) : std::nullopt;
+                    const std::vector<std::int64_t> expectedValue(parameterCase.values.begin() + 1, parameterCase.values.end());
+                    if (!decoded || *decoded != expectedValue)
+                        throw CheckFailure("get " + title + ": read back " + (decoded ? valuesText(*decoded) : std::string("nothing decodable"))
+                                           + ", expected " + valuesText(expectedValue));
+                    expected.push_back(static_cast<int>(parameterCase.values[1]));
+                }
+                finding(std::to_string(allMultiPartParameterCases().size()) + " part parameter items round-tripped on part " + std::to_string(TEST_MULTI_PART));
+                const auto all = readMultiValue<MultiValueListResult>(
+                    "all the parameters of part " + std::to_string(TEST_MULTI_PART) + " (&47)", &MultiValueListResult::values,
+                    [&guarded](MultiValueListCompletion done) { getAllMultiPartParameters(guarded.session(), TEST_MULTI_PART, std::move(done)); });
+                // Observed on the real S5000 (OS 2.14): setting a part's solo clears its mute, so the cases' own order (mute, then
+                // solo) leaves the mute off. `&47` is therefore compared with the Sets for every value but the mute, whose
+                // reading is a finding.
+                constexpr std::size_t MUTE_POSITION = 1;
+                bool sameButTheMute = all.size() == expected.size();
+                for (std::size_t position = 0; sameButTheMute && position < expected.size(); ++position)
+                    if (position != MUTE_POSITION && all[position] != expected[position])
+                        sameButTheMute = false;
+                expect(sameButTheMute, "&47 returns the twelve values the twelve Sets wrote, in the order of the Gets, but for the mute");
+                finding("&47 reads the mute of part " + std::to_string(TEST_MULTI_PART) + " as " + std::to_string(all[MUTE_POSITION])
+                        + (all[MUTE_POSITION] != expected[MUTE_POSITION] ? " (set to " + std::to_string(expected[MUTE_POSITION]) + " before the solo was set: setting the solo clears it)"
+                                                                         : " (as set)"));
+            }
+
+            // RQ-AKM-090: the mute and solo status of every part. With mute and solo both on (what the parameter cases left
+            // on part 3) the sampler's answer is an observation; then each alone is expected as the spec gives it.
+            void multiMuteSoloChecks(GuardedSession& guarded, int partCount)
+            {
+                const auto both = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(static_cast<int>(both.size()) == partCount, "&48 returns one value per part (" + std::to_string(both.size()) + ")");
+                finding("part " + std::to_string(TEST_MULTI_PART) + " with the mute set, then the solo, reads " + std::to_string(both[TEST_MULTI_PART])
+                        + " (0 none, 1 mute, 2 solo)");
+
+                expectCommand(guarded, "clear the mute of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetMute, {TEST_MULTI_PART, 0}), std::move(done));
+                });
+                const auto soloOnly = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(soloOnly[TEST_MULTI_PART] == 2, "with solo alone on, part 3 reads 2 (solo)");
+                expectCommand(guarded, "clear the solo of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetSolo, {TEST_MULTI_PART, 0}), std::move(done));
+                });
+                expectCommand(guarded, "set the mute of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetMute, {TEST_MULTI_PART, 1}), std::move(done));
+                });
+                const auto muteOnly = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(muteOnly[TEST_MULTI_PART] == 1, "with mute alone on, part 3 reads 1 (mute)");
+                expectCommand(guarded, "clear the mute of part 3", [](Session& session, CommandCompletion done) {
+                    session.submit(makeRequest(ItemId::MultiSetMute, {TEST_MULTI_PART, 0}), std::move(done));
+                });
+                const auto none = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
+                expect(std::all_of(none.begin(), none.end(), [](int value) { return value == 0; }), "with both cleared, every part reads 0");
+            }
+
+            // RQ-AKM-092, RQ-AKM-091: the program number set, read and cleared.
+            void multiProgramNumberChecks(GuardedSession& guarded)
+            {
+                expectCommand(guarded, "set the multi's program number to " + std::to_string(PROGRAM_NUMBER_FOR_THE_TEST),
+                              [](Session& session, CommandCompletion done) { setMultiProgramNumber(session, PROGRAM_NUMBER_FOR_THE_TEST, std::move(done)); });
+                const auto number = awaitCompletion<MultiProgramNumberResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MultiProgramNumberCompletion done) { getMultiProgramNumber(guarded.session(), std::move(done)); });
+                expect(number && number->result.frontPanelNumber == PROGRAM_NUMBER_FOR_THE_TEST,
+                       "the program number reads " + std::to_string(PROGRAM_NUMBER_FOR_THE_TEST));
+                expectCommand(guarded, "clear the multi's program number", [](Session& session, CommandCompletion done) {
+                    setMultiProgramNumber(session, std::nullopt, std::move(done));
+                });
+                const auto off = awaitCompletion<MultiProgramNumberResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](MultiProgramNumberCompletion done) { getMultiProgramNumber(guarded.session(), std::move(done)); });
+                expect(off && std::holds_alternative<Reply>(off->result.outcome) && !off->result.frontPanelNumber.has_value(),
+                       "the program number reads off");
+            }
+
+            // RQ-AKM-092, RQ-AKM-091: the test program assigned to a part by name and to another by index, read back by
+            // `&45` and `&46`, then deleted from both; what the sampler answers for an index and a name that name nothing is
+            // an observation.
+            void multiPartAssignmentChecks(GuardedSession& guarded, int partCount)
+            {
+                expectCommand(guarded, "assign the test program to part " + std::to_string(TEST_MULTI_PART) + " by name",
+                              [](Session& session, CommandCompletion done) { setMultiPartByName(session, TEST_MULTI_PART, TEST_PROGRAM_NAME, std::move(done)); });
+                expect(multiPartNameNow(guarded, TEST_MULTI_PART) == TEST_PROGRAM_NAME, "&45 reads the test program's name on that part");
+                const auto names = readMultiValue<MultiNameListResult>("the names of all parts (&46)", &MultiNameListResult::names,
+                                                                       [&guarded](MultiNameListCompletion done) { getAllMultiPartNames(guarded.session(), std::move(done)); });
+                expect(static_cast<int>(names.size()) == partCount && names[TEST_MULTI_PART] == TEST_PROGRAM_NAME,
+                       "&46 returns one name per part, the test program's on part " + std::to_string(TEST_MULTI_PART));
+                expectCommand(guarded, "delete the program of part " + std::to_string(TEST_MULTI_PART), [](Session& session, CommandCompletion done) {
+                    deleteMultiPart(session, TEST_MULTI_PART, std::move(done));
+                });
+                expect(multiPartNameNow(guarded, TEST_MULTI_PART).empty(), "&45 reads an empty name once the part is deleted");
+
+                const int programIndex = readMultiValue<ProgramIndexResult>("the test program's index (§0A/&12)", &ProgramIndexResult::index,
+                                                                           [&guarded](ProgramIndexCompletion done) { getProgramIndex(guarded.session(), std::move(done)); });
+                expectCommand(guarded, "assign the program at index " + std::to_string(programIndex) + " to part " + std::to_string(TEST_MULTI_PART_BY_INDEX),
+                              [programIndex](Session& session, CommandCompletion done) { setMultiPartByIndex(session, TEST_MULTI_PART_BY_INDEX, programIndex, std::move(done)); });
+                expect(multiPartNameNow(guarded, TEST_MULTI_PART_BY_INDEX) == TEST_PROGRAM_NAME, "&45 reads the test program's name on that part");
+                expectCommand(guarded, "delete the program of part " + std::to_string(TEST_MULTI_PART_BY_INDEX), [](Session& session, CommandCompletion done) {
+                    deleteMultiPart(session, TEST_MULTI_PART_BY_INDEX, std::move(done));
+                });
+
+                observeIndexPastTheEnd("assign a program no memory holds to part 0 by name", [&guarded](CommandCompletion done) {
+                    setMultiPartByName(guarded.session(), 0, "XS56K NO SUCH PROGRAM", std::move(done));
+                });
+            }
+
+            // RQ-AKM-087, RQ-AKM-092: the test multi renamed and renamed back, the selection by index and by name (a multi of
+            // the owner's is selected, never changed), and what the sampler answers to a name and an index that name nothing.
+            void multiRenameAndSelectionChecks(GuardedSession& guarded, const GuardedTestMulti& multi)
+            {
+                expectCommand(guarded, "rename the test multi to \"" + std::string(TEST_MULTI_RENAMED) + "\"", [](Session& session, CommandCompletion done) {
+                    renameCurrentMulti(session, TEST_MULTI_RENAMED, std::move(done));
+                });
+                expect(multiNameNow(guarded) == TEST_MULTI_RENAMED, "the current multi's name reads the new name");
+                expectCommand(guarded, "rename the test multi back", [](Session& session, CommandCompletion done) {
+                    renameCurrentMulti(session, TEST_MULTI_NAME, std::move(done));
+                });
+                expect(multiNameNow(guarded) == TEST_MULTI_NAME, "the current multi's name reads the reserved name again");
+
+                if (!multi.original().names.empty())
+                {
+                    expectCommand(guarded, "select multi 0 by index (the owner's, not changed)", [](Session& session, CommandCompletion done) {
+                        selectMultiByIndex(session, 0, std::move(done));
+                    });
+                    expect(multiIndexNow(guarded) == 0, "the current multi's index reads 0");
+                    expect(multiNameNow(guarded) == multi.original().names.front(), "its name is the owner's first multi's");
+                }
+                expectCommand(guarded, "select the test multi by name", [](Session& session, CommandCompletion done) {
+                    selectMultiByName(session, TEST_MULTI_NAME, std::move(done));
+                });
+                expect(multiIndexNow(guarded) == multi.testIndex(), "the current multi's index is the test multi's");
+
+                const int pastTheEnd = multi.testIndex() + 1;
+                observeIndexPastTheEnd("select multi " + std::to_string(pastTheEnd) + ", past the last", [&guarded, pastTheEnd](CommandCompletion done) {
+                    selectMultiByIndex(guarded.session(), pastTheEnd, std::move(done));
+                });
+                observeIndexPastTheEnd("select a multi no memory holds by name", [&guarded](CommandCompletion done) {
+                    selectMultiByName(guarded.session(), "XS56K NO SUCH MULTI", std::move(done));
+                });
+                expect(multiNameNow(guarded) == TEST_MULTI_NAME, "the test multi is still the current one");
+            }
+
+            void expectMultisRestored(GuardedSession& guarded, const MultisSnapshot& before)
+            {
+                std::string problem;
+                const auto after = readMultis(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the multis back to verify they were restored: " + problem);
+                expect(after->names == before.names, "the sampler holds exactly the multis it held before (" + multisText(*after) + ")");
+                if (before.currentIndex)
+                    expect(after->currentIndex == before.currentIndex, "the current multi is back to " + std::to_string(*before.currentIndex));
+                else
+                    finding("no multi was current before the check, so the selection is left on the one the check chose last");
+            }
+
+            // RQ-AKM-082, RQ-AKM-083, RQ-AKM-084, RQ-AKM-085: reads the song files and the set lists, selects each song file
+            // by index and by name, renames the first song file and the first set list and reads the new names back, each
+            // under the guard that puts them back (and selects again the song file that was current), and verifies, once the
+            // guard is gone, that every name and the selection are what they were. Nothing is deleted. Skipped when the
+            // sampler holds neither a song file nor a set list: §16 cannot create one.
+            void songFilesRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSongFiles(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("song files before: " + songFilesText(*before));
+                if (before->songCount == 0 && before->setListCount == 0)
+                {
+                    observeEmptySongFiles(guarded);
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no song file and no set list: §16 cannot create one, so there is nothing to select or rename");
+                }
+                {
+                    GuardedSongFiles guard(_rig, guarded.session(), *before);
+                    if (before->songCount > 0)
+                        songFileRoundTrips(guarded, *before, guard);
+                    if (before->setListCount > 0)
+                        setListRoundTrips(guarded, *before, guard);
+                }
+                expectSongFilesRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-085: a check that fails with a song file renamed still puts its name back, and the selection, and
+            // leaves nothing changed. Skipped when the sampler holds no song file.
+            void failedSongFilesCheckPutsBack()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSongFiles(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                if (before->songCount == 0)
+                {
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no song file to rename");
+                }
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedSongFiles guard(_rig, guarded.session(), *before);
+                    expectCommand(guarded, "select song file 0", [](Session& session, CommandCompletion done) {
+                        selectSongByIndex(session, 0, std::move(done));
+                    });
+                    guard.noteSongRenamed(0);
+                    expectCommand(guarded, "rename the current song file", [](Session& session, CommandCompletion done) {
+                        renameCurrentSong(session, TEST_SONG_FILES_NAME, std::move(done));
+                    });
+                    throw CheckFailure("this check fails on purpose, with a song file renamed");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectSongFilesRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            [[nodiscard]] int firstIndexNamed(const std::vector<std::string>& names, const std::string& name) const
+            {
+                return static_cast<int>(std::find(names.begin(), names.end(), name) - names.begin());
+            }
+
+            int currentSongIndexOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SongIndexResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SongIndexCompletion done) { getCurrentSongIndex(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.index)
+                    throw CheckFailure("could not read the current song file's index (&13): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.index;
+            }
+
+            std::string currentSongNameOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SongNameResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SongNameCompletion done) { getCurrentSongName(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the current song file's name (&14): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            std::string songNameAt(GuardedSession& guarded, int index)
+            {
+                const auto timed = awaitCompletion<SongNameResult>(_rig.driver, _rig.commandPatience(), [&guarded, index](SongNameCompletion done) {
+                    getSongNameByIndex(guarded.session(), index, std::move(done));
+                });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the name of song file " + std::to_string(index) + " (&11): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            std::string setListNameAt(GuardedSession& guarded, int index)
+            {
+                const auto timed = awaitCompletion<SetListNameResult>(_rig.driver, _rig.commandPatience(), [&guarded, index](SetListNameCompletion done) {
+                    getSetListNameByIndex(guarded.session(), index, std::move(done));
+                });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the name of set list " + std::to_string(index) + " (&21): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            // What the sampler answers for an index one past the last: an observation (the spec says nothing of it), never a failure.
+            template <typename Launch>
+            void observeIndexPastTheEnd(const std::string& title, Launch launch)
+            {
+                const auto timed = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), launch);
+                finding(title + ": " + (timed ? outcomeText(timed->result) : std::string("no completion")));
+            }
+
+            // What an empty sampler answers to the read and select items that name something: observations for the open
+            // points of FTR-AKM-010, none of them a failure. Nothing is renamed or deleted, and a selection that finds nothing
+            // changes nothing. [RQ-AKM-085]
+            void observeEmptySongFiles(GuardedSession& guarded)
+            {
+                observeIndexPastTheEnd("read the name of song file 0, none held", [&guarded](CommandCompletion done) {
+                    getSongNameByIndex(guarded.session(), 0, [done = std::move(done)](const SongNameResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the name of set list 0, none held", [&guarded](CommandCompletion done) {
+                    getSetListNameByIndex(guarded.session(), 0, [done = std::move(done)](const SetListNameResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("select song file 0, none held", [&guarded](CommandCompletion done) {
+                    selectSongByIndex(guarded.session(), 0, std::move(done));
+                });
+                observeIndexPastTheEnd("select the song file named \"" + std::string(TEST_SONG_FILES_NAME) + "\", none held",
+                                       [&guarded](CommandCompletion done) { selectSongByName(guarded.session(), TEST_SONG_FILES_NAME, std::move(done)); });
+            }
+
+            void songFileRoundTrips(GuardedSession& guarded, const SongFilesSnapshot& before, GuardedSongFiles& guard)
+            {
+                const std::string first = before.songNames.front();
+                expectCommand(guarded, "select song file 0 by index", [](Session& session, CommandCompletion done) {
+                    selectSongByIndex(session, 0, std::move(done));
+                });
+                expect(currentSongIndexOf(guarded) == 0, "the current song file's index reads 0 after selecting index 0");
+                expect(currentSongNameOf(guarded) == first, "the current song file's name reads \"" + first + "\", the name &11 gave for index 0");
+
+                expectCommand(guarded, "select the song file named \"" + first + "\"", [first](Session& session, CommandCompletion done) {
+                    selectSongByName(session, first, std::move(done));
+                });
+                const int expectedIndex = firstIndexNamed(before.songNames, first);
+                expect(currentSongIndexOf(guarded) == expectedIndex,
+                       "the current song file's index reads " + std::to_string(expectedIndex) + " after selecting it by name");
+
+                if (before.songCount > 1)
+                {
+                    const int last = std::min(before.songCount, SONG_FILES_NAME_READ_LIMIT) - 1;
+                    expectCommand(guarded, "select song file " + std::to_string(last) + " by index", [last](Session& session, CommandCompletion done) {
+                        selectSongByIndex(session, last, std::move(done));
+                    });
+                    expect(currentSongIndexOf(guarded) == last, "the current song file's index reads " + std::to_string(last));
+                    expect(currentSongNameOf(guarded) == before.songNames[static_cast<std::size_t>(last)],
+                           "its name reads \"" + before.songNames[static_cast<std::size_t>(last)] + "\"");
+                }
+
+                const int pastTheEnd = before.songCount;
+                observeIndexPastTheEnd("select song file " + std::to_string(pastTheEnd) + ", past the last",
+                                       [&guarded, pastTheEnd](CommandCompletion done) { selectSongByIndex(guarded.session(), pastTheEnd, std::move(done)); });
+
+                expectCommand(guarded, "select song file 0 again", [](Session& session, CommandCompletion done) {
+                    selectSongByIndex(session, 0, std::move(done));
+                });
+                guard.noteSongRenamed(0);
+                expectCommand(guarded, "rename the current song file to \"" + std::string(TEST_SONG_FILES_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { renameCurrentSong(session, TEST_SONG_FILES_NAME, std::move(done)); });
+                expect(currentSongNameOf(guarded) == TEST_SONG_FILES_NAME, "the current song file's name reads the new name");
+                expect(songNameAt(guarded, 0) == TEST_SONG_FILES_NAME, "the name of song file 0 reads the new name");
+            }
+
+            void setListRoundTrips(GuardedSession& guarded, const SongFilesSnapshot& before, GuardedSongFiles& guard)
+            {
+                expect(setListNameAt(guarded, 0) == before.setListNames.front(),
+                       "the name of set list 0 reads \"" + before.setListNames.front() + "\" again");
+                const int pastTheEnd = before.setListCount;
+                observeIndexPastTheEnd("read the name of set list " + std::to_string(pastTheEnd) + ", past the last",
+                                       [&guarded, pastTheEnd](CommandCompletion done) {
+                                           getSetListNameByIndex(guarded.session(), pastTheEnd, [done = std::move(done)](const SetListNameResult& result) { done(result.outcome); });
+                                       });
+                guard.noteSetListRenamed(0);
+                expectCommand(guarded, "rename set list 0 to \"" + std::string(TEST_SONG_FILES_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { renameSetList(session, 0, TEST_SONG_FILES_NAME, std::move(done)); });
+                expect(setListNameAt(guarded, 0) == TEST_SONG_FILES_NAME, "the name of set list 0 reads the new name");
+            }
+
+            void expectSongFilesRestored(GuardedSession& guarded, const SongFilesSnapshot& before)
+            {
+                std::string problem;
+                const auto after = readSongFiles(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the song files back to verify they were restored: " + problem);
+                expect(after->songCount == before.songCount && after->songNames == before.songNames,
+                       "the song files are back to what they were (" + songFilesText(*after) + ")");
+                expect(after->setListCount == before.setListCount && after->setListNames == before.setListNames,
+                       "the set lists are back to what they were");
+                if (before.currentSong)
+                    expect(after->currentSong == before.currentSong,
+                           "the current song file is back to " + std::to_string(*before.currentSong));
+                else
+                    finding("no song file was current before the check, so the selection is left on the one the check chose");
+            }
+
+            // RQ-AKM-095, RQ-AKM-096, RQ-AKM-097: reads the scenelists, selects each by index and by name, renames the first
+            // and reads the new name back, under the guard that puts the name back (and selects again the scenelist that was
+            // current), and verifies, once the guard is gone, that every name and the selection are what they were. Nothing
+            // is deleted. Skipped when the sampler holds no scenelist: §14 cannot create one.
+            void sceneListsRoundTrips()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSceneLists(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("scenelists before: " + sceneListsText(*before));
+                if (before->count == 0)
+                {
+                    observeEmptySceneLists(guarded);
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no scenelist: §14 cannot create one, so there is nothing to select or rename");
+                }
+                {
+                    GuardedSceneLists guard(_rig, guarded.session(), *before);
+                    sceneListRoundTrips(guarded, *before, guard);
+                }
+                expectSceneListsRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // RQ-AKM-097: a check that fails with a scenelist renamed still puts its name back, and the selection, and
+            // leaves nothing changed. Skipped when the sampler holds no scenelist.
+            void failedSceneListsCheckPutsBack()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readSceneLists(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                if (before->count == 0)
+                {
+                    static_cast<void>(guarded.close());
+                    throw CheckSkipped("the sampler holds no scenelist to rename");
+                }
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedSceneLists guard(_rig, guarded.session(), *before);
+                    expectCommand(guarded, "select scenelist 0", [](Session& session, CommandCompletion done) {
+                        selectSceneListByIndex(session, 0, std::move(done));
+                    });
+                    guard.noteRenamed(0);
+                    expectCommand(guarded, "rename the current scenelist", [](Session& session, CommandCompletion done) {
+                        renameCurrentSceneList(session, TEST_SCENE_LIST_NAME, std::move(done));
+                    });
+                    throw CheckFailure("this check fails on purpose, with a scenelist renamed");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its restoration already run, by the time the
+                    // exception reaches this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectSceneListsRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            int currentSceneListIndexOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SceneListIndexResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SceneListIndexCompletion done) { getCurrentSceneListIndex(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.index)
+                    throw CheckFailure("could not read the current scenelist's index (&13): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.index;
+            }
+
+            std::string currentSceneListNameOf(GuardedSession& guarded)
+            {
+                const auto timed = awaitCompletion<SceneListNameResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](SceneListNameCompletion done) { getCurrentSceneListName(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the current scenelist's name (&14): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            std::string sceneListNameAt(GuardedSession& guarded, int index)
+            {
+                const auto timed = awaitCompletion<SceneListNameResult>(_rig.driver, _rig.commandPatience(), [&guarded, index](SceneListNameCompletion done) {
+                    getSceneListNameByIndex(guarded.session(), index, std::move(done));
+                });
+                if (!timed || !timed->result.name)
+                    throw CheckFailure("could not read the name of scenelist " + std::to_string(index) + " (&11): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.name;
+            }
+
+            // What an empty sampler answers to the read and select items that name something: observations for the open
+            // points of FTR-AKM-012, none of them a failure. Nothing is renamed or deleted, and a selection that finds nothing
+            // changes nothing. [RQ-AKM-097]
+            void observeEmptySceneLists(GuardedSession& guarded)
+            {
+                observeIndexPastTheEnd("read the name of scenelist 0, none held", [&guarded](CommandCompletion done) {
+                    getSceneListNameByIndex(guarded.session(), 0, [done = std::move(done)](const SceneListNameResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("select scenelist 0, none held", [&guarded](CommandCompletion done) {
+                    selectSceneListByIndex(guarded.session(), 0, std::move(done));
+                });
+                observeIndexPastTheEnd("select the scenelist named \"" + std::string(TEST_SCENE_LIST_NAME) + "\", none held",
+                                       [&guarded](CommandCompletion done) { selectSceneListByName(guarded.session(), TEST_SCENE_LIST_NAME, std::move(done)); });
+            }
+
+            void sceneListRoundTrips(GuardedSession& guarded, const SceneListsSnapshot& before, GuardedSceneLists& guard)
+            {
+                const std::string first = before.names.front();
+                expectCommand(guarded, "select scenelist 0 by index", [](Session& session, CommandCompletion done) {
+                    selectSceneListByIndex(session, 0, std::move(done));
+                });
+                expect(currentSceneListIndexOf(guarded) == 0, "the current scenelist's index reads 0 after selecting index 0");
+                expect(currentSceneListNameOf(guarded) == first, "the current scenelist's name reads \"" + first + "\", the name &11 gave for index 0");
+
+                expectCommand(guarded, "select the scenelist named \"" + first + "\"", [first](Session& session, CommandCompletion done) {
+                    selectSceneListByName(session, first, std::move(done));
+                });
+                const int expectedIndex = firstIndexNamed(before.names, first);
+                expect(currentSceneListIndexOf(guarded) == expectedIndex,
+                       "the current scenelist's index reads " + std::to_string(expectedIndex) + " after selecting it by name");
+
+                if (before.count > 1)
+                {
+                    const int last = std::min(before.count, SCENE_LIST_NAME_READ_LIMIT) - 1;
+                    expectCommand(guarded, "select scenelist " + std::to_string(last) + " by index", [last](Session& session, CommandCompletion done) {
+                        selectSceneListByIndex(session, last, std::move(done));
+                    });
+                    expect(currentSceneListIndexOf(guarded) == last, "the current scenelist's index reads " + std::to_string(last));
+                    expect(currentSceneListNameOf(guarded) == before.names[static_cast<std::size_t>(last)],
+                           "its name reads \"" + before.names[static_cast<std::size_t>(last)] + "\"");
+                }
+
+                const int pastTheEnd = before.count;
+                observeIndexPastTheEnd("select scenelist " + std::to_string(pastTheEnd) + ", past the last",
+                                       [&guarded, pastTheEnd](CommandCompletion done) { selectSceneListByIndex(guarded.session(), pastTheEnd, std::move(done)); });
+
+                expectCommand(guarded, "select scenelist 0 again", [](Session& session, CommandCompletion done) {
+                    selectSceneListByIndex(session, 0, std::move(done));
+                });
+                guard.noteRenamed(0);
+                expectCommand(guarded, "rename the current scenelist to \"" + std::string(TEST_SCENE_LIST_NAME) + "\"",
+                              [](Session& session, CommandCompletion done) { renameCurrentSceneList(session, TEST_SCENE_LIST_NAME, std::move(done)); });
+                expect(currentSceneListNameOf(guarded) == TEST_SCENE_LIST_NAME, "the current scenelist's name reads the new name");
+                expect(sceneListNameAt(guarded, 0) == TEST_SCENE_LIST_NAME, "the name of scenelist 0 reads the new name");
+            }
+
+            void expectSceneListsRestored(GuardedSession& guarded, const SceneListsSnapshot& before)
+            {
+                std::string problem;
+                const auto after = readSceneLists(_rig, guarded.session(), problem);
+                if (!after)
+                    throw CheckFailure("could not read the scenelists back to verify they were restored: " + problem);
+                expect(after->count == before.count && after->names == before.names,
+                       "the scenelists are back to what they were (" + sceneListsText(*after) + ")");
+                if (before.current)
+                    expect(after->current == before.current,
+                           "the current scenelist is back to " + std::to_string(*before.current));
+                else
+                    finding("no scenelist was current before the check, so the selection is left on the one the check chose");
+            }
+
+            // RQ-AKM-099 to RQ-AKM-102: creates a test multi (the guard that deletes it and selects again the multi that was
+            // current), reads whether an FX board is installed and, with one, round-trips the mute status of a channel, the
+            // enabled state of a module, a parameter and the type of a module, each put back and read back. With none it logs
+            // what the other Gets answer and sends no Set. The effects belong to the multi, so only the test multi's are
+            // touched. Skipped when no board is installed, once the test multi is gone and the multis have been verified.
+            void multiFxOnTestMulti()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+                finding("multis before: " + multisText(*before));
+                bool boardInstalled = false;
+                {
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test multi \"" + std::string(TEST_MULTI_NAME) + "\" created and current, at index " + std::to_string(multi.testIndex()));
+                    boardInstalled = multiFxChecks(guarded);
+                }
+                expectMultisRestored(guarded, *before);
+                closeAndVerify(guarded);
+                if (!boardInstalled)
+                    throw CheckSkipped("no FX board is installed: only Gets were sent, and what they answered is in the log");
+            }
+
+            // RQ-AKM-102: a check that fails with the test multi current still deletes it and selects again the multi that was
+            // current, and leaves nothing changed.
+            void failedMultiFxCheckLeavesTheKnownState()
+            {
+                GuardedSession guarded(_rig);
+                guarded.open(baseConfig());
+
+                std::string problem;
+                const auto before = readMultis(_rig, guarded.session(), problem);
+                if (!before)
+                    throw CheckFailure(problem);
+
+                bool cleanedUp = false;
+                try
+                {
+                    GuardedTestMulti multi(_rig, guarded.session());
+                    finding("test multi created for a check that fails on purpose");
+                    throw CheckFailure("this check fails on purpose, with the test multi current");
+                }
+                catch (const CheckFailure& failure)
+                {
+                    // The guard above has already been destroyed, its cleanup already run, by the time the exception reaches
+                    // this catch clause: that is what stack unwinding does.
+                    cleanedUp = true;
+                    _rig.log.note(std::string("  the check failed: ") + failure.what());
+                }
+                expect(cleanedUp, "the guard's destructor ran when the check failed");
+                expectMultisRestored(guarded, *before);
+                closeAndVerify(guarded);
+            }
+
+            // Whether an FX board is installed (&01), and the round trips when one is. Returns whether one is.
+            bool multiFxChecks(GuardedSession& guarded)
+            {
+                const auto card = awaitCompletion<FxCardResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded](FxCardCompletion done) { getFxCard(guarded.session(), std::move(done)); });
+                if (!card || !card->result.card)
+                    throw CheckFailure("could not read whether an FX card is installed (&01): "
+                                       + (card ? outcomeText(card->result.outcome) : std::string("no completion")));
+                if (*card->result.card == FxCard::None)
+                {
+                    finding("&01: no FX card installed");
+                    observeFxWithoutBoard(guarded);
+                    return false;
+                }
+                finding("&01: an EB20 is installed");
+                multiFxRoundTrips(guarded);
+                return true;
+            }
+
+            // What a sampler with no board answers to the other Gets, with the test multi current: observations for the open
+            // points of FTR-AKM-013, none of them a failure, and no Set. [RQ-AKM-102]
+            void observeFxWithoutBoard(GuardedSession& guarded)
+            {
+                observeIndexPastTheEnd("read the number of FX channels (&10)", [&guarded](CommandCompletion done) {
+                    getFxChannelCount(guarded.session(), [done = std::move(done)](const FxCountResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the number of modules of channel 0 (&11)", [&guarded](CommandCompletion done) {
+                    getFxModuleCount(guarded.session(), FX_TEST_CHANNEL, [done = std::move(done)](const FxCountResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the mute status of channel 0 (&21)", [&guarded](CommandCompletion done) {
+                    getFxChannelMute(guarded.session(), FX_TEST_CHANNEL, [done = std::move(done)](const FxMuteResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the type of module 0 of channel 0 (&31)", [&guarded](CommandCompletion done) {
+                    getFxModuleType(guarded.session(), FX_TEST_CHANNEL, 0, [done = std::move(done)](const FxModuleTypeResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read the enabled state of module 0 of channel 0 (&41)", [&guarded](CommandCompletion done) {
+                    getFxModuleEnabled(guarded.session(), FX_TEST_CHANNEL, 0, [done = std::move(done)](const FxEnabledResult& result) { done(result.outcome); });
+                });
+                observeIndexPastTheEnd("read parameter 0 of module 0 of channel 0 (&51)", [&guarded](CommandCompletion done) {
+                    getFxParameter(guarded.session(), FX_TEST_CHANNEL, 0, 0, [done = std::move(done)](const FxParameterResult& result) { done(result.outcome); });
+                });
+            }
+
+            int fxCountOf(GuardedSession& guarded, const std::string& what, const std::function<void(Session&, FxCountCompletion)>& launch)
+            {
+                const auto timed = awaitCompletion<FxCountResult>(
+                    _rig.driver, _rig.commandPatience(), [&guarded, &launch](FxCountCompletion done) { launch(guarded.session(), std::move(done)); });
+                if (!timed || !timed->result.count)
+                    throw CheckFailure("could not read " + what + ": " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.count;
+            }
+
+            bool fxMuteOf(GuardedSession& guarded, int channel)
+            {
+                const auto timed = awaitCompletion<FxMuteResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel](FxMuteCompletion done) {
+                    getFxChannelMute(guarded.session(), channel, std::move(done));
+                });
+                if (!timed || !timed->result.muted)
+                    throw CheckFailure("could not read the mute status of channel " + std::to_string(channel) + " (&21): "
+                                       + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.muted;
+            }
+
+            bool fxEnabledOf(GuardedSession& guarded, int channel, int module)
+            {
+                const auto timed = awaitCompletion<FxEnabledResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel, module](FxEnabledCompletion done) {
+                    getFxModuleEnabled(guarded.session(), channel, module, std::move(done));
+                });
+                if (!timed || !timed->result.enabled)
+                    throw CheckFailure("could not read the enabled state of module " + std::to_string(module) + " of channel " + std::to_string(channel)
+                                       + " (&41): " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.enabled;
+            }
+
+            FxModuleType fxTypeOf(GuardedSession& guarded, int channel, int module)
+            {
+                const auto timed = awaitCompletion<FxModuleTypeResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel, module](FxModuleTypeCompletion done) {
+                    getFxModuleType(guarded.session(), channel, module, std::move(done));
+                });
+                if (!timed || !timed->result.type)
+                    throw CheckFailure("could not read the type of module " + std::to_string(module) + " of channel " + std::to_string(channel)
+                                       + " (&31): " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.type;
+            }
+
+            int fxParameterOf(GuardedSession& guarded, int channel, int module, int parameter)
+            {
+                const auto timed = awaitCompletion<FxParameterResult>(_rig.driver, _rig.commandPatience(), [&guarded, channel, module, parameter](FxParameterCompletion done) {
+                    getFxParameter(guarded.session(), channel, module, parameter, std::move(done));
+                });
+                if (!timed || !timed->result.value)
+                    throw CheckFailure("could not read parameter " + std::to_string(parameter) + " of module " + std::to_string(module) + " of channel "
+                                       + std::to_string(channel) + " (&51): " + (timed ? outcomeText(timed->result.outcome) : std::string("no completion")));
+                return *timed->result.value;
+            }
+
+            // One value changed and put back: read, set another value, read it back, set the first value, read it back.
+            template <typename Value, typename Read, typename Write, typename Other>
+            void fxRoundTrip(GuardedSession& guarded, const std::string& what, Read read, Write write, Other other)
+            {
+                const Value original = read();
+                const Value changed = other(original);
+                expectCommand(guarded, "set " + what + " to another value", [write, changed](Session& session, CommandCompletion done) {
+                    write(session, changed, std::move(done));
+                });
+                expect(read() == changed, what + " reads the new value");
+                expectCommand(guarded, "put " + what + " back", [write, original](Session& session, CommandCompletion done) {
+                    write(session, original, std::move(done));
+                });
+                expect(read() == original, what + " reads the value it had");
+            }
+
+            // RQ-AKM-099 to RQ-AKM-102 with a board installed: the layout is read, then four values are changed on the test
+            // multi and put back, the type last since changing it may reset the module's parameters.
+            void multiFxRoundTrips(GuardedSession& guarded)
+            {
+                const int channels = fxCountOf(guarded, "the number of FX channels (&10)", [](Session& session, FxCountCompletion done) {
+                    getFxChannelCount(session, std::move(done));
+                });
+                const int modules = fxCountOf(guarded, "the number of modules of channel 0 (&11)", [](Session& session, FxCountCompletion done) {
+                    getFxModuleCount(session, FX_TEST_CHANNEL, std::move(done));
+                });
+                finding("the board has " + std::to_string(channels) + " channel(s), and " + std::to_string(modules) + " module(s) on channel 0");
+                expect(channels > FX_TEST_CHANNEL, "channel 0 exists");
+                expect(modules > FX_TEST_STATE_MODULE && modules > FX_TEST_TYPE_MODULE, "channel 0 has the modules the check works on");
+
+                fxRoundTrip<bool>(
+                    guarded, "the mute status of channel 0", [this, &guarded] { return fxMuteOf(guarded, FX_TEST_CHANNEL); },
+                    [](Session& session, bool muted, CommandCompletion done) { setFxChannelMute(session, FX_TEST_CHANNEL, muted, std::move(done)); },
+                    [](bool muted) { return !muted; });
+                fxRoundTrip<bool>(
+                    guarded, "the enabled state of module 3 of channel 0",
+                    [this, &guarded] { return fxEnabledOf(guarded, FX_TEST_CHANNEL, FX_TEST_STATE_MODULE); },
+                    [](Session& session, bool enabled, CommandCompletion done) {
+                        setFxModuleEnabled(session, FX_TEST_CHANNEL, FX_TEST_STATE_MODULE, enabled, std::move(done));
+                    },
+                    [](bool enabled) { return !enabled; });
+                fxRoundTrip<int>(
+                    guarded, "parameter 0 of module 2 of channel 0",
+                    [this, &guarded] { return fxParameterOf(guarded, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE, FX_TEST_PARAMETER); },
+                    [](Session& session, int value, CommandCompletion done) {
+                        setFxParameter(session, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE, FX_TEST_PARAMETER, value, std::move(done));
+                    },
+                    [](int value) { return value < FX_TEST_PARAMETER_CEILING ? value + 1 : value - 1; });
+                fxRoundTrip<FxModuleType>(
+                    guarded, "the type of module 2 of channel 0",
+                    [this, &guarded] { return fxTypeOf(guarded, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE); },
+                    [](Session& session, FxModuleType type, CommandCompletion done) {
+                        setFxModuleType(session, FX_TEST_CHANNEL, FX_TEST_TYPE_MODULE, type, std::move(done));
+                    },
+                    [](FxModuleType type) { return type == FX_TEST_TYPE_A ? FX_TEST_TYPE_B : FX_TEST_TYPE_A; });
+            }
+
             // RQ-AKM-052, RQ-AKM-053, RQ-AKM-054, RQ-AKM-055, RQ-AKM-057, RQ-AKM-058: reads the model and the memory
             // (so that the four data bytes of &33/&34 are decoded on the hardware), then round-trips the name, every Play
             // Mode, the front-panel lock and the clock, each under the guard that puts them back — the Play Mode 3 (Muted)
@@ -3029,6 +4853,9 @@ namespace akm::harness
             Rig& _rig;
             std::vector<std::string> _findings;
             bool _noSampler = false;
+            // What the owner declared of the sampler's MIDI setup (asked once per run), or that they declined (RQ-AKM-080).
+            std::optional<MidiConfigDeclaration> _midiDeclaration;
+            bool _midiDeclined = false;
         };
 
         void writeHeader(WireLog& log, const RealSuiteOptions& options)
@@ -3082,6 +4909,11 @@ namespace akm::harness
                 log.note("It also lets the owner drive the sampler's front panel from the PC keyboard (--front-panel, RQ-AKM-076): the owner "
                          "chooses the screen and confirms it, then every PC key sends only the front-panel item the printed mapping gives it, "
                          "section 20 items only. Every key still held is released at the end, and by the session's close if the check fails.");
+            if (options.midiConfig)
+                log.note("It also changes the sampler's MIDI setup for an instant (--midi-config, RQ-AKM-078 to RQ-AKM-080): PROGRAM CHANGE, "
+                         "MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH and one MIDI filter, each to another value, each "
+                         "confirmed by the owner on the sampler's screen, then put back to the value the owner declared (section 04 has "
+                         "no Get: nothing is sent before the owner has declared them). Section 04 items only.");
             if (options.diskToolsSlow)
             {
                 const char* name = "";

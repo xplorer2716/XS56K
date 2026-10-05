@@ -8,6 +8,7 @@ add_library(xs56k_akm_test_support STATIC
     src/FirstContactProbe.cpp
     src/FrontPanelRemote.cpp
     src/KeygroupParameterCases.cpp
+    src/MultiPartParameterCases.cpp
     src/ProgramParameterCases.cpp
     src/RealSamplerSuite.cpp
     src/SampleParameterCases.cpp
@@ -18,5 +19,10 @@ add_library(xs56k_akm_test_support STATIC
     src/WireFormat.cpp
     src/WireLog.cpp
     src/ZoneParameterCases.cpp)
+# RealSamplerSuite.cpp holds every opt-in check of the real-sampler suite with the lambdas and templates they use: its
+# object file passes MSVC's default limit of 65535 sections (C1128), which /bigobj lifts. [RQ-AKM-102]
+if(MSVC)
+    set_source_files_properties(src/RealSamplerSuite.cpp PROPERTIES COMPILE_OPTIONS /bigobj)
+endif()
 target_include_directories(xs56k_akm_test_support PUBLIC include)
 target_link_libraries(xs56k_akm_test_support PUBLIC xs56k_akm PRIVATE xs56k::warnings)

@@ -31,6 +31,15 @@ add_executable(xs56k_akm_tests
     akm/KeygroupPrimitivesTests.cpp
     akm/LfoParametersTests.cpp
     akm/LibraryInfoTests.cpp
+    akm/MidiConfigTests.cpp
+    akm/MultiDeleteAllGuardTests.cpp
+    akm/MultiEditingTests.cpp
+    akm/MultiFxConfigurationTests.cpp
+    akm/MultiFxDiscoveryTests.cpp
+    akm/MultiFxParametersTests.cpp
+    akm/MultiInformationTests.cpp
+    akm/MultiPartParametersTests.cpp
+    akm/MultiPrimitivesTests.cpp
     akm/MidiTuneParametersTests.cpp
     akm/OutputParametersTests.cpp
     akm/PitchBendParametersTests.cpp
@@ -45,14 +54,17 @@ add_executable(xs56k_akm_tests
     akm/SampleParametersTests.cpp
     akm/SamplePrimitivesTests.cpp
     akm/SampleReadOnlyParametersTests.cpp
+    akm/SceneListPrimitivesTests.cpp
     akm/ScenarioTests.cpp
     akm/SchedulerTests.cpp
     akm/SessionCloseTests.cpp
     akm/SessionOpenTests.cpp
     akm/SessionSmokeTests.cpp
     akm/SessionTests.cpp
+    akm/SetListPrimitivesTests.cpp
     akm/SessionThreadingTests.cpp
     akm/SimulatedSamplerTests.cpp
+    akm/SongPrimitivesTests.cpp
     akm/SysExConfigTests.cpp
     akm/SystemClearMemoryGuardTests.cpp
     akm/SystemSetupTests.cpp

@@ -21,10 +21,15 @@ add_library(xs56k_akm STATIC
     src/LibraryInfo.cpp
     src/ManualExecutor.cpp
     src/ManualScheduler.cpp
+    src/MidiConfig.cpp
     src/ProgramPrimitives.cpp
     src/RealScheduler.cpp
     src/SamplerError.cpp
     src/SamplePrimitives.cpp
+    src/SceneListPrimitives.cpp
+    src/MultiFxPrimitives.cpp
+    src/MultiPrimitives.cpp
+    src/SongPrimitives.cpp
     src/Session.cpp
     src/SessionConfig.cpp
     src/SysExConfig.cpp

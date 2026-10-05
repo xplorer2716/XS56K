@@ -326,6 +326,13 @@ def spec_domains(row):
     # "second" is compared against "N/A" by its own leading segment, not the whole text: a column like
     # "N/A ; {21–127}" (§0E &22/&42, Original Pitch) is a clarifying note attached to an otherwise-N/A
     # second column, not a real second data byte, the same way a bare "N/A" already is not one.
+    # A row's description can be merged into this column by the PDF's text flow. When it comes after the last domain
+    # (§12 &30's is "0-127 ; <Data3>=0-127 <Data1> = channel; <Data2> = module; <Data3> = module type."), the domains
+    # are what comes before the first "<DataN> = word", a description and not a range. When a domain still follows it
+    # (§10 &2C's "... <Data3> = Type.(1=Multi; ...; <Data5> 0, 1"), nothing is cut: the markers are counted as they are.
+    merged = re.search(r"\s+<Data\d+>\s*=\s*[A-Za-z]", second)
+    if merged and not re.search(r";\s*<Data\d+>\s*=?\s*\d", second[merged.start():]):
+        second = second[:merged.start()].strip()
     second_head = re.split(r"\s*;", second, maxsplit=1)[0].strip()
     if second_head != "N/A":
         # "second" itself is a domain only when it carries content of its own before any embedded

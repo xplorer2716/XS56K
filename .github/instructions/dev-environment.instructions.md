@@ -89,3 +89,11 @@ binary asset needed here.
 Ollama must be running (step 1) **and** the `nomic-embed-text` model must exist
 (step 2) before `grepai watch`/`grepai search` will work — grepai calls Ollama's
 `/api/embeddings` endpoint for every indexed chunk and every search query.
+
+## 5. Line endings when a script rewrites a file
+
+- Tracked sources are LF (a few documents and configs are CRLF: `git ls-files --eol`). On Windows a text-mode
+  write (`open(p, "w")`, `Set-Content`, `>`) turns LF into CRLF and a one-line change into a whole-file diff.
+- Prefer the Edit tool. If a script is needed, read and write with `newline=''` (Python) or bytes, never in text mode.
+- After a scripted edit, check `git ls-files --eol <file>` shows `w/lf`, and read `git show --stat` after each
+  commit: a file with thousands of changed lines for a few real ones is a line-ending rewrite.

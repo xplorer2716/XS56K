@@ -184,6 +184,83 @@ namespace akm::harness
         // item codes this lot's &4B concatenates, in the order the spec's own grouped REPLY gives them.
         constexpr std::array<std::uint8_t, 8> SETTABLE_PARAM_SET_ITEMS{{0x20, 0x21, 0x22, 0x23, 0x24, 0x28, 0x29, 0x2A}};
 
+        // Section §0C (Multi), spec Tables 16-17: the lifecycle items of TASK-AKM-089 (RQ-AKM-087) plus &42/&43
+        // pulled in early so that the lifecycle has a Get to verify against. Other §0C items answer ERROR 0 until
+        // their own task.
+        constexpr std::uint8_t SECTION_MULTI = 0x0C;
+        constexpr std::uint8_t ITEM_SET_NEW_MULTI_PART_COUNT = 0x01;
+        constexpr std::uint8_t ITEM_CREATE_MULTI = 0x02;
+        constexpr std::uint8_t ITEM_SELECT_MULTI_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_SELECT_MULTI_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_DELETE_ALL_MULTIS = 0x07;
+        constexpr std::uint8_t ITEM_DELETE_CURRENT_MULTI = 0x08;
+        constexpr std::uint8_t ITEM_RENAME_MULTI = 0x30;
+        constexpr std::uint8_t ITEM_SET_MULTI_PROGRAM_NUMBER = 0x31;
+        constexpr std::uint8_t ITEM_SET_MULTI_PART_BY_INDEX = 0x32;
+        constexpr std::uint8_t ITEM_SET_MULTI_PART_BY_NAME = 0x33;
+        constexpr std::uint8_t ITEM_DELETE_MULTI_PART = 0x34;
+        constexpr std::uint8_t ITEM_GET_MULTI_COUNT = 0x40;
+        constexpr std::uint8_t ITEM_GET_MULTI_PROGRAM_NUMBER = 0x41;
+        constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_INDEX = 0x42;
+        constexpr std::uint8_t ITEM_GET_MULTI_PART_COUNT = 0x44;
+        constexpr std::uint8_t ITEM_GET_MULTI_PART_NAME = 0x45;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PART_NAMES = 0x46;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PART_PARAMETERS = 0x47;
+        constexpr std::uint8_t ITEM_GET_MULTI_MUTE_SOLO = 0x48;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PROGRAM_NUMBERS = 0x50;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_NAMES = 0x51;
+        constexpr std::uint8_t ITEM_GET_ALL_MULTI_PART_COUNTS = 0x52;
+        // The part parameter Set items a part's mute and solo are stored under (§0C/&11, &12), and the Get items of
+        // &47's twelve values, in order (&20-&2B).
+        constexpr std::uint8_t MULTI_PART_MUTE_ITEM = 0x11;
+        constexpr std::uint8_t MULTI_PART_SOLO_ITEM = 0x12;
+        constexpr std::uint8_t MULTI_PART_FIRST_SET_ITEM = 0x10;
+        constexpr std::uint8_t MULTI_PART_PARAMETER_COUNT = 12;
+        constexpr std::uint8_t MULTI_STATUS_MUTE = 1;
+        constexpr std::uint8_t MULTI_STATUS_SOLO = 2;
+        constexpr std::uint8_t ITEM_GET_CURRENT_MULTI_NAME = 0x43;
+        constexpr std::uint8_t NEW_MULTI_PART_COUNT_LAST_CODE = 2;
+        // The twelve part parameters of TASK-AKM-091 (RQ-AKM-089): Set &10-&1B, Get &20-&2B, the part number first.
+        constexpr int DEFAULT_MULTI_PART_COUNT = 32;
+        constexpr int MULTI_PART_COUNT_CODE_FIRST = 32;
+
+        // Section §16 (MIDI song files), spec Tables 28-29: the song file items of TASK-AKM-084 (RQ-AKM-082,
+        // RQ-AKM-083). The same pattern as §0E: a current selection, an index as two 7-bit bytes. Section §14
+        // (scenelists, Tables 26-27, TASK-AKM-097, RQ-AKM-095, RQ-AKM-096) has the same eight items under the same
+        // codes, so the ITEM_LIST_* codes below serve both.
+        constexpr std::uint8_t SECTION_SONG_FILES = 0x16;
+        constexpr std::uint8_t SECTION_SCENE_LIST = 0x14;
+
+        // Section §12 (Multi FX), spec Tables 22-23: the discovery Gets of TASK-AKM-101 (RQ-AKM-099).
+        constexpr std::uint8_t SECTION_MULTI_FX = 0x12;
+        constexpr std::uint8_t ITEM_FX_GET_CARD = 0x01;
+        constexpr std::uint8_t ITEM_FX_GET_CHANNEL_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_FX_GET_MODULE_COUNT = 0x11;
+        // The configuration items of TASK-AKM-102 (RQ-AKM-100).
+        constexpr std::uint8_t ITEM_FX_SET_CHANNEL_MUTE = 0x20;
+        constexpr std::uint8_t ITEM_FX_GET_CHANNEL_MUTE = 0x21;
+        constexpr std::uint8_t ITEM_FX_SET_MODULE_TYPE = 0x30;
+        constexpr std::uint8_t ITEM_FX_GET_MODULE_TYPE = 0x31;
+        constexpr std::uint8_t ITEM_FX_SET_MODULE_ENABLED = 0x40;
+        constexpr std::uint8_t ITEM_FX_GET_MODULE_ENABLED = 0x41;
+        // The parameter values of TASK-AKM-103 (RQ-AKM-101): a sign byte then a magnitude as two 7-bit bytes.
+        constexpr std::uint8_t ITEM_FX_SET_PARAMETER = 0x50;
+        constexpr std::uint8_t ITEM_FX_GET_PARAMETER = 0x51;
+        constexpr int FX_DATA_BYTE_BASE = 128;
+        constexpr std::uint8_t ITEM_LIST_SELECT_BY_NAME = 0x05;
+        constexpr std::uint8_t ITEM_LIST_SELECT_BY_INDEX = 0x06;
+        constexpr std::uint8_t ITEM_LIST_DELETE_CURRENT = 0x08;
+        constexpr std::uint8_t ITEM_LIST_RENAME_CURRENT = 0x09;
+        constexpr std::uint8_t ITEM_LIST_GET_COUNT = 0x10;
+        constexpr std::uint8_t ITEM_LIST_GET_NAME_BY_INDEX = 0x11;
+        constexpr std::uint8_t ITEM_LIST_GET_CURRENT_INDEX = 0x13;
+        constexpr std::uint8_t ITEM_LIST_GET_CURRENT_NAME = 0x14;
+        // The set lists of TASK-AKM-085 (RQ-AKM-084): addressed by index, with no current selection.
+        constexpr std::uint8_t ITEM_GET_SET_LIST_COUNT = 0x20;
+        constexpr std::uint8_t ITEM_GET_SET_LIST_NAME_BY_INDEX = 0x21;
+        constexpr std::uint8_t ITEM_DELETE_SET_LIST = 0x22;
+        constexpr std::uint8_t ITEM_RENAME_SET_LIST = 0x23;
+
         // Section §10 (Disk), spec Tables 20-21: disk discovery of TASK-AKM-057 (RQ-AKM-060). Other §10
         // items answer ERROR 0 until their own lot.
         // Section §20 (front panel), spec Table 30: the key items of TASK-AKM-070 (RQ-AKM-073). The keycode is
@@ -201,6 +278,24 @@ namespace akm::harness
         constexpr std::uint8_t WHEEL_CLICKS_LAST = 8;
         constexpr std::uint8_t KEYCODE_FIRST = 64;
         constexpr std::uint8_t KEYCODE_LAST = 107;
+        // Section §04 (MIDI configuration), spec Table 8: the five switches of TASK-AKM-077 (RQ-AKM-078), each one
+        // data byte in the range its item gives.
+        constexpr std::uint8_t SECTION_MIDI_CONFIG = 0x04;
+        constexpr std::uint8_t ITEM_PROGRAM_CHANGE_ENABLE = 0x01;
+        constexpr std::uint8_t ITEM_MULTI_SELECT = 0x02;
+        constexpr std::uint8_t ITEM_MULTI_SELECT_CHANNEL = 0x03;
+        constexpr std::uint8_t ITEM_EXTERNAL_APM_CONTROLLER = 0x04;
+        constexpr std::uint8_t ITEM_AFTERTOUCH = 0x05;
+        constexpr std::uint8_t PROGRAM_CHANGE_ENABLE_LAST = 1;
+        constexpr std::uint8_t MULTI_SELECT_LAST = 2;
+        constexpr std::uint8_t MIDI_CHANNEL_LAST = 31;
+        constexpr std::uint8_t EXTERNAL_APM_CONTROLLER_LAST = 127;
+        constexpr std::uint8_t AFTERTOUCH_LAST = 1;
+        // The two filter items (RQ-AKM-079, TASK-AKM-078): an event type 0-3 then a channel 0-31.
+        constexpr std::uint8_t ITEM_FILTER_ALLOW = 0x06;
+        constexpr std::uint8_t ITEM_FILTER_IGNORE = 0x07;
+        constexpr std::size_t FILTER_DATA_SIZE = 2;
+        constexpr std::uint8_t FILTER_EVENT_TYPE_LAST = 3;
         constexpr std::uint8_t SECTION_DISK = 0x10;
         constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
         constexpr std::uint8_t ITEM_SELECT_DISK = 0x02;
@@ -1151,20 +1246,539 @@ namespace akm::harness
             }
         }
 
+        // §0C multis (RQ-AKM-087): create (current from then on), select by name/index, delete the current one, and
+        // the current multi's index and name. A multi named like an existing one cannot be created (ERROR 05, as for
+        // a program); a name or an index with no multi, and any "current" item with none current, fail with ERROR
+        // 04, as §0A does (the spec is silent, so this is a modelling choice). [TASK-AKM-089]
+        // The value stored for a part parameter of `multi` (the Set item code, the part number), or zero.
+        std::uint8_t storedPartValue(const MultiRecord& multi, std::uint8_t setItem, std::uint8_t part)
+        {
+            const auto found = multi.parameters.find({setItem, Bytes{part}});
+            return found != multi.parameters.end() && !found->second.empty() ? found->second.front() : std::uint8_t{0};
+        }
+
+        // A multi's number of parts as the wire says it: one less (31, 63, 127). [RQ-AKM-091]
+        std::uint8_t wirePartCount(const MultiRecord& multi)
+        {
+            return static_cast<std::uint8_t>(multi.partCount - 1);
+        }
+
+        // The flag and number §0C/&41 and each record of &50 carry: on with the number, or off with a zero.
+        void appendProgramNumber(akm::ByteWriter& writer, const MultiRecord& multi)
+        {
+            writer.appendByte(multi.programNumberOn ? 1 : 0);
+            writer.appendByte(multi.programNumberOn ? multi.programNumber : 0);
+        }
+
+        constexpr std::array<ParameterGroupRange, 1> MULTI_PART_PARAMETER_GROUP_RANGES{{
+            {0x10, 0x1B, 0x10},  // Part MIDI Channel .. Part High Note
+        }};
+
+        // The §0C Gets that read the current multi: its program number, number of parts, the name of a part, all the
+        // part names, every parameter of a part, and the mute and solo status of every part. A part the multi does
+        // not have reads as one with no program and zero parameters (the spec says nothing of it). [TASK-AKM-092]
+        Outcome executeCurrentMultiGet(std::uint8_t item, const Bytes& data, const MultiRecord& multi)
+        {
+            akm::ByteWriter writer;
+            switch (item)
+            {
+                case ITEM_GET_MULTI_PROGRAM_NUMBER:
+                    appendProgramNumber(writer, multi);
+                    return reply(writer.bytes());
+                case ITEM_GET_MULTI_PART_COUNT:
+                    return reply(Bytes{wirePartCount(multi)});
+                case ITEM_GET_MULTI_PART_NAME:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto part = static_cast<std::size_t>(data.front());
+                    writer.appendString(part < multi.partPrograms.size() ? multi.partPrograms[part] : std::string{});
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_ALL_MULTI_PART_NAMES:
+                    for (const std::string& program : multi.partPrograms)
+                        writer.appendString(program);
+                    return reply(writer.bytes());
+                case ITEM_GET_ALL_MULTI_PART_PARAMETERS:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    for (std::uint8_t offset = 0; offset < MULTI_PART_PARAMETER_COUNT; ++offset)
+                        writer.appendByte(storedPartValue(multi, static_cast<std::uint8_t>(MULTI_PART_FIRST_SET_ITEM + offset), data.front()));
+                    return reply(writer.bytes());
+                }
+                default:  // ITEM_GET_MULTI_MUTE_SOLO
+                    for (int part = 0; part < multi.partCount; ++part)
+                    {
+                        const auto number = static_cast<std::uint8_t>(part);
+                        const bool muted = storedPartValue(multi, MULTI_PART_MUTE_ITEM, number) != 0;
+                        const bool soloed = storedPartValue(multi, MULTI_PART_SOLO_ITEM, number) != 0;
+                        writer.appendByte(muted ? MULTI_STATUS_MUTE : (soloed ? MULTI_STATUS_SOLO : 0));
+                    }
+                    return reply(writer.bytes());
+            }
+        }
+
+        // The §0C Sets that change the current multi's general information: its name, its program number (a flag,
+        // then the number only when the flag is 1) and the program of a part, assigned by index or by name from the
+        // sampler's programs, or deleted. A program with no such index or name fails with ERROR 04, as selecting
+        // one does (the spec is silent). [TASK-AKM-093]
+        Outcome executeCurrentMultiSet(std::uint8_t item, const Bytes& data, MultiRecord& multi,
+                                       const std::vector<ProgramRecord>& programs)
+        {
+            akm::ByteReader reader(data);
+            switch (item)
+            {
+                case ITEM_RENAME_MULTI:
+                {
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    multi.name = *name;
+                    return done();
+                }
+                case ITEM_SET_MULTI_PROGRAM_NUMBER:
+                {
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() == 0)
+                    {
+                        multi.programNumberOn = false;
+                        multi.programNumber = 0;
+                        return done();
+                    }
+                    if (data.size() < 2)
+                        return failure(error_number::INVALID_FORMAT);
+                    multi.programNumberOn = true;
+                    multi.programNumber = data[1];
+                    return done();
+                }
+                default:
+                    break;
+            }
+            const auto part = reader.readByte();
+            if (!part)
+                return failure(error_number::INVALID_FORMAT);
+            if (*part >= multi.partPrograms.size())
+                return failure(error_number::OUT_OF_RANGE);
+            std::string& slot = multi.partPrograms[*part];
+            if (item == ITEM_DELETE_MULTI_PART)
+            {
+                slot.clear();
+                return done();
+            }
+            if (item == ITEM_SET_MULTI_PART_BY_INDEX)
+            {
+                const auto index = reader.readWord();
+                if (!index.has_value())
+                    return failure(error_number::INVALID_FORMAT);
+                if (*index >= programs.size())
+                    return failure(error_number::NOT_FOUND);
+                slot = programs[*index].name;
+                return done();
+            }
+            const auto name = reader.readString();  // ITEM_SET_MULTI_PART_BY_NAME
+            if (!name)
+                return failure(error_number::INVALID_FORMAT);
+            if (std::none_of(programs.begin(), programs.end(), [&](const ProgramRecord& program) { return program.name == *name; }))
+                return failure(error_number::NOT_FOUND);
+            slot = *name;
+            return done();
+        }
+
+        Outcome executeMulti(std::uint8_t item, const Bytes& data, MultiState& state,
+                             const std::vector<ProgramRecord>& programs)
+        {
+            switch (item)
+            {
+                case ITEM_SET_NEW_MULTI_PART_COUNT:
+                    if (data.empty())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (data.front() > NEW_MULTI_PART_COUNT_LAST_CODE)
+                        return failure(error_number::OUT_OF_RANGE);
+                    state.newPartCountCode = data.front();
+                    return done();
+                case ITEM_CREATE_MULTI:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    if (std::any_of(state.multis.begin(), state.multis.end(),
+                                    [&](const MultiRecord& existing) { return existing.name == *name; }))
+                        return failure(error_number::COULD_NOT_CREATE);
+                    MultiRecord record;
+                    record.name = *name;
+                    record.partCount = MULTI_PART_COUNT_CODE_FIRST << state.newPartCountCode;
+                    record.partPrograms.assign(static_cast<std::size_t>(record.partCount), std::string{});
+                    state.multis.push_back(std::move(record));
+                    state.current = state.multis.size() - 1;
+                    return done();
+                }
+                case ITEM_SELECT_MULTI_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find_if(state.multis.begin(), state.multis.end(),
+                                                    [&](const MultiRecord& multi) { return multi.name == *name; });
+                    if (found == state.multis.end())
+                        return failure(error_number::NOT_FOUND);
+                    state.current = static_cast<std::size_t>(found - state.multis.begin());
+                    return done();
+                }
+                case ITEM_SELECT_MULTI_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= state.multis.size())
+                        return failure(error_number::NOT_FOUND);
+                    state.current = *index;
+                    return done();
+                }
+                case ITEM_DELETE_ALL_MULTIS:
+                    state.multis.clear();
+                    state.current.reset();
+                    return done();
+                case ITEM_DELETE_CURRENT_MULTI:
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    state.multis.erase(state.multis.begin() + static_cast<std::ptrdiff_t>(*state.current));
+                    state.current.reset();
+                    return done();
+                case ITEM_GET_CURRENT_MULTI_INDEX:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*state.current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_CURRENT_MULTI_NAME:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(state.multis[*state.current].name);
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_MULTI_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(state.multis.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_RENAME_MULTI:
+                case ITEM_SET_MULTI_PROGRAM_NUMBER:
+                case ITEM_SET_MULTI_PART_BY_INDEX:
+                case ITEM_SET_MULTI_PART_BY_NAME:
+                case ITEM_DELETE_MULTI_PART:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    return executeCurrentMultiSet(item, data, state.multis[*state.current], programs);
+                }
+                case ITEM_GET_ALL_MULTI_PROGRAM_NUMBERS:
+                case ITEM_GET_ALL_MULTI_NAMES:
+                case ITEM_GET_ALL_MULTI_PART_COUNTS:
+                {
+                    // Nothing in memory answers ERROR 4, as §0A's "all programs" Gets do on the real sampler.
+                    if (state.multis.empty())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    for (const MultiRecord& multi : state.multis)
+                    {
+                        if (item == ITEM_GET_ALL_MULTI_PROGRAM_NUMBERS)
+                            appendProgramNumber(writer, multi);
+                        else if (item == ITEM_GET_ALL_MULTI_NAMES)
+                            writer.appendString(multi.name);
+                        else
+                            writer.appendByte(wirePartCount(multi));
+                    }
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_MULTI_PROGRAM_NUMBER:
+                case ITEM_GET_MULTI_PART_COUNT:
+                case ITEM_GET_MULTI_PART_NAME:
+                case ITEM_GET_ALL_MULTI_PART_NAMES:
+                case ITEM_GET_ALL_MULTI_PART_PARAMETERS:
+                case ITEM_GET_MULTI_MUTE_SOLO:
+                {
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    return executeCurrentMultiGet(item, data, state.multis[*state.current]);
+                }
+                default:
+                {
+                    const ParameterMatch match = matchParameterItem(MULTI_PART_PARAMETER_GROUP_RANGES, item);
+                    if (match.access == ParameterAccess::None)
+                        return failure(error_number::NOT_SUPPORTED);
+                    if (!state.current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    MultiRecord& multi = state.multis[*state.current];
+                    const Outcome outcome = executeStoredParameter(SECTION_MULTI, match, data, multi.parameters);
+                    // Observed on the real S5000 (OS 2.14): setting a part's solo on clears its mute (the reverse is not
+                    // known, and not modelled). [TASK-AKM-094]
+                    if (match.access == ParameterAccess::Set && match.setItem == MULTI_PART_SOLO_ITEM && data.size() >= 2 && data[1] != 0)
+                        multi.parameters[{MULTI_PART_MUTE_ITEM, Bytes{data[0]}}] = Bytes{0};
+                    return outcome;
+                }
+            }
+        }
+
+        // §16 set lists (RQ-AKM-084): the name by index, the deletion by index and the renaming (the index, then
+        // the new name). An index with no set list fails with ERROR 04, as a song file does. [TASK-AKM-085]
+        Outcome executeSetListByIndex(std::uint8_t item, const Bytes& data, std::vector<std::string>& setLists)
+        {
+            akm::ByteReader reader(data);
+            const auto index = reader.readWord();
+            if (!index.has_value())
+                return failure(error_number::INVALID_FORMAT);
+            if (*index >= setLists.size())
+                return failure(error_number::NOT_FOUND);
+            if (item == ITEM_DELETE_SET_LIST)
+            {
+                setLists.erase(setLists.begin() + static_cast<std::ptrdiff_t>(*index));
+                return done();
+            }
+            if (item == ITEM_RENAME_SET_LIST)
+            {
+                const auto name = reader.readString();
+                if (!name)
+                    return failure(error_number::INVALID_FORMAT);
+                setLists[*index] = *name;
+                return done();
+            }
+            akm::ByteWriter writer;
+            writer.appendString(setLists[*index]);
+            return reply(writer.bytes());
+        }
+
+        // The eight items a list of named things with a current one has: select by name/index, delete/rename the
+        // current one and the four Gets. It is the song file half of §16 (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084) and
+        // the whole of §14, the scenelists (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097), whose items have the same codes.
+        // A name or an index with none, and any "current" item with none current, fail with ERROR 04, as §0E does
+        // (the spec is silent on both sections, so this is a modelling choice).
+        Outcome executeCurrentNamedList(std::uint8_t item, const Bytes& data, std::vector<std::string>& names,
+                                        std::optional<std::size_t>& current)
+        {
+            switch (item)
+            {
+                case ITEM_LIST_SELECT_BY_NAME:
+                {
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = std::find(names.begin(), names.end(), *name);
+                    if (found == names.end())
+                        return failure(error_number::NOT_FOUND);
+                    current = static_cast<std::size_t>(found - names.begin());
+                    return done();
+                }
+                case ITEM_LIST_SELECT_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= names.size())
+                        return failure(error_number::NOT_FOUND);
+                    current = *index;
+                    return done();
+                }
+                case ITEM_LIST_DELETE_CURRENT:
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    names.erase(names.begin() + static_cast<std::ptrdiff_t>(*current));
+                    current.reset();
+                    return done();
+                case ITEM_LIST_RENAME_CURRENT:
+                {
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteReader reader(data);
+                    const auto name = reader.readString();
+                    if (!name)
+                        return failure(error_number::INVALID_FORMAT);
+                    names[*current] = *name;
+                    return done();
+                }
+                case ITEM_LIST_GET_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(names.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_LIST_GET_NAME_BY_INDEX:
+                {
+                    akm::ByteReader reader(data);
+                    const auto index = reader.readWord();
+                    if (!index.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    if (*index >= names.size())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(names[*index]);
+                    return reply(writer.bytes());
+                }
+                case ITEM_LIST_GET_CURRENT_INDEX:
+                {
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(*current));
+                    return reply(writer.bytes());
+                }
+                case ITEM_LIST_GET_CURRENT_NAME:
+                {
+                    if (!current.has_value())
+                        return failure(error_number::NOT_FOUND);
+                    akm::ByteWriter writer;
+                    writer.appendString(names[*current]);
+                    return reply(writer.bytes());
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
+        // §16 song files and set lists (RQ-AKM-082 to RQ-AKM-084): the song file half is the shared named list, the
+        // set list items (&20-&23) are addressed by index. [TASK-AKM-084, TASK-AKM-085]
+        Outcome executeSongFiles(std::uint8_t item, const Bytes& data, SongState& state)
+        {
+            switch (item)
+            {
+                case ITEM_GET_SET_LIST_COUNT:
+                {
+                    akm::ByteWriter writer;
+                    writer.appendWord(static_cast<std::uint32_t>(state.setLists.size()));
+                    return reply(writer.bytes());
+                }
+                case ITEM_GET_SET_LIST_NAME_BY_INDEX:
+                case ITEM_DELETE_SET_LIST:
+                case ITEM_RENAME_SET_LIST:
+                    return executeSetListByIndex(item, data, state.setLists);
+                default:
+                    return executeCurrentNamedList(item, data, state.songs, state.current);
+            }
+        }
+
+        // §12 Multi FX (RQ-AKM-099 to RQ-AKM-101): the card, the number of channels and of the modules of a channel, which
+        // describe the hardware and need no multi, then the mute of a channel, the type and the enabled state of a module
+        // and the parameters, which are the current multi's effects and so need one. Observed on a real S5000 (OS 2.14,
+        // no board, a test multi current, TASK-AKM-104): the card is 0, the channel count 0, the module count of any
+        // channel 0, and every Get that names a channel and a module answers ERROR 02 (out of range). The model keeps those
+        // answers for a channel or a module the board does not have, and answers ERROR 04 when no multi is current, which
+        // no run has observed. [TASK-AKM-101 to TASK-AKM-104]
+        Outcome executeMultiFx(std::uint8_t item, const Bytes& data, FxState& fx, bool multiIsCurrent)
+        {
+            switch (item)
+            {
+                case ITEM_FX_GET_CARD:
+                    return reply(Bytes{fx.cardCode});
+                case ITEM_FX_GET_CHANNEL_COUNT:
+                    return reply(Bytes{static_cast<std::uint8_t>(fx.channels.size())});
+                default:
+                    break;
+            }
+            akm::ByteReader reader(data);
+            const auto channelIndex = reader.readByte();
+            if (!channelIndex.has_value())
+                return failure(error_number::INVALID_FORMAT);
+            if (item == ITEM_FX_GET_MODULE_COUNT)
+                return reply(Bytes{static_cast<std::uint8_t>(*channelIndex < fx.channels.size() ? fx.channels[*channelIndex].modules.size() : 0)});
+            if (!multiIsCurrent)
+                return failure(error_number::NOT_FOUND);
+            if (*channelIndex >= fx.channels.size())
+                return failure(error_number::OUT_OF_RANGE);
+            FxChannelRecord& channel = fx.channels[*channelIndex];
+            if (item == ITEM_FX_SET_CHANNEL_MUTE)
+            {
+                const auto muted = reader.readByte();
+                if (!muted.has_value())
+                    return failure(error_number::INVALID_FORMAT);
+                channel.muted = *muted != 0;
+                return done();
+            }
+            if (item == ITEM_FX_GET_CHANNEL_MUTE)
+                return reply(Bytes{static_cast<std::uint8_t>(channel.muted ? 1 : 0)});
+
+            const auto moduleIndex = reader.readByte();
+            if (!moduleIndex.has_value())
+                return failure(error_number::INVALID_FORMAT);
+            if (*moduleIndex >= channel.modules.size())
+                return failure(error_number::OUT_OF_RANGE);
+            FxModuleRecord& module = channel.modules[*moduleIndex];
+            switch (item)
+            {
+                case ITEM_FX_SET_MODULE_TYPE:
+                {
+                    const auto type = reader.readByte();
+                    if (!type.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    module.type = static_cast<std::uint8_t>(*type);
+                    return done();
+                }
+                case ITEM_FX_GET_MODULE_TYPE:
+                    return reply(Bytes{module.type});
+                case ITEM_FX_SET_MODULE_ENABLED:
+                {
+                    const auto enabled = reader.readByte();
+                    if (!enabled.has_value())
+                        return failure(error_number::INVALID_FORMAT);
+                    module.enabled = *enabled != 0;
+                    return done();
+                }
+                case ITEM_FX_GET_MODULE_ENABLED:
+                    return reply(Bytes{static_cast<std::uint8_t>(module.enabled ? 1 : 0)});
+                case ITEM_FX_SET_PARAMETER:
+                {
+                    const auto parameter = reader.readByte();
+                    const auto sign = reader.readByte();
+                    const auto msb = reader.readByte();
+                    const auto lsb = reader.readByte();
+                    if (!parameter || !sign || !msb || !lsb)
+                        return failure(error_number::INVALID_FORMAT);
+                    const int magnitude = static_cast<int>(*msb) * FX_DATA_BYTE_BASE + static_cast<int>(*lsb);
+                    module.parameters[static_cast<std::uint8_t>(*parameter)] = *sign != 0 ? -magnitude : magnitude;
+                    return done();
+                }
+                case ITEM_FX_GET_PARAMETER:
+                {
+                    const auto parameter = reader.readByte();
+                    if (!parameter)
+                        return failure(error_number::INVALID_FORMAT);
+                    const auto found = module.parameters.find(static_cast<std::uint8_t>(*parameter));
+                    const int value = found == module.parameters.end() ? 0 : found->second;
+                    const int magnitude = value < 0 ? -value : value;
+                    return reply(Bytes{static_cast<std::uint8_t>(value < 0 ? 1 : 0),
+                                       static_cast<std::uint8_t>(magnitude / FX_DATA_BYTE_BASE),
+                                       static_cast<std::uint8_t>(magnitude % FX_DATA_BYTE_BASE)});
+                }
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+        }
+
         // §02/&32: every program, multi and sample is deleted, and the memory they held is free again — what
         // the Wave memory and MPKS memory Gets then report (the spec says nothing of it; a modelling choice).
         // [RQ-AKM-056]
         Outcome executeClearMemory(SystemSetupState& system, std::vector<ProgramRecord>& programs,
                                  std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                                  std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
-                                 std::vector<std::string>& multis)
+                                 MultiState& multis)
         {
             programs.clear();
             currentProgram.reset();
             currentKeygroup.reset();
             samples.clear();
             currentSample.reset();
-            multis.clear();
+            multis.multis.clear();
+            multis.current.reset();
             system.waveFreeBytes = system.waveTotalBytes;
             system.mpksFreePercent = ALL_MPKS_FREE_PERCENT;
             return done();
@@ -1837,6 +2451,60 @@ namespace akm::harness
             return done();
         }
 
+        // §04 &06/&07: allow or ignore one event type on one channel (RQ-AKM-079), refused out of range.
+        Outcome executeMidiFilter(std::uint8_t item, const Bytes& data, MidiConfigState& midiConfig)
+        {
+            if (data.size() < FILTER_DATA_SIZE)
+                return failure(error_number::INVALID_FORMAT);
+            if (data[0] > FILTER_EVENT_TYPE_LAST || data[1] > MIDI_CHANNEL_LAST)
+                return failure(error_number::OUT_OF_RANGE);
+            midiConfig.filterAllowed[data[0]][data[1]] = item == ITEM_FILTER_ALLOW;
+            midiConfig.events.push_back({item, data[0], data[1]});
+            return done();
+        }
+
+        // §04: the five switches (RQ-AKM-078) and the two filters. A switch takes one data byte, refused out of
+        // range; the value is kept and the item recorded in order of arrival. The sampler has no Get for them.
+        Outcome executeMidiConfig(std::uint8_t item, const Bytes& data, MidiConfigState& midiConfig)
+        {
+            if (item == ITEM_FILTER_ALLOW || item == ITEM_FILTER_IGNORE)
+                return executeMidiFilter(item, data, midiConfig);
+            std::uint8_t* target = nullptr;
+            std::uint8_t last = 0;
+            switch (item)
+            {
+                case ITEM_PROGRAM_CHANGE_ENABLE:
+                    target = &midiConfig.programChangeEnable;
+                    last = PROGRAM_CHANGE_ENABLE_LAST;
+                    break;
+                case ITEM_MULTI_SELECT:
+                    target = &midiConfig.multiSelect;
+                    last = MULTI_SELECT_LAST;
+                    break;
+                case ITEM_MULTI_SELECT_CHANNEL:
+                    target = &midiConfig.multiSelectChannel;
+                    last = MIDI_CHANNEL_LAST;
+                    break;
+                case ITEM_EXTERNAL_APM_CONTROLLER:
+                    target = &midiConfig.externalApmController;
+                    last = EXTERNAL_APM_CONTROLLER_LAST;
+                    break;
+                case ITEM_AFTERTOUCH:
+                    target = &midiConfig.aftertouch;
+                    last = AFTERTOUCH_LAST;
+                    break;
+                default:
+                    return failure(error_number::NOT_SUPPORTED);
+            }
+            if (data.empty())
+                return failure(error_number::INVALID_FORMAT);
+            if (data.front() > last)
+                return failure(error_number::OUT_OF_RANGE);
+            *target = data.front();
+            midiConfig.events.push_back({item, data.front(), 0});
+            return done();
+        }
+
         // Only §00, the two version items of §02, the §0A items above, §08 keygroup selection, §06's
         // parameters (RQ-AKM-034, RQ-AKM-035), §0E's lifecycle (RQ-AKM-045) and §10's disk discovery
         // and selection (RQ-AKM-060, RQ-AKM-061) are modelled. A byte after the data an item expects is
@@ -1852,17 +2520,23 @@ namespace akm::harness
             std::optional<int>& currentKeygroup;
             std::vector<SampleRecord>& samples;
             std::optional<std::size_t>& currentSample;
-            std::vector<std::string>& multis;
+            MultiState& multis;
             std::vector<DiskRecord>& disks;
             std::optional<std::size_t>& currentDisk;
             std::vector<std::size_t>& currentFolderPath;
             FrontPanelState& frontPanel;
+            MidiConfigState& midiConfig;
+            SongState& songs;
+            SceneListState& sceneLists;
+            FxState& fx;
         };
 
         Outcome execute(std::uint8_t section, std::uint8_t item, const Bytes& data, SamplerState& state)
         {
             if (section == SECTION_FRONT_PANEL)
                 return executeFrontPanel(item, data, state.frontPanel);
+            if (section == SECTION_MIDI_CONFIG)
+                return executeMidiConfig(item, data, state.midiConfig);
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(state.system, state.programs, state.currentProgram, state.currentKeygroup,
                                           state.samples, state.currentSample, state.multis);
@@ -1882,6 +2556,14 @@ namespace akm::harness
                 return executeKeygroup(item, data, state.programs, state.currentProgram, state.currentKeygroup);
             if (section == SECTION_SAMPLE)
                 return executeSample(item, data, state.samples, state.currentSample);
+            if (section == SECTION_MULTI)
+                return executeMulti(item, data, state.multis, state.programs);
+            if (section == SECTION_SONG_FILES)
+                return executeSongFiles(item, data, state.songs);
+            if (section == SECTION_SCENE_LIST)
+                return executeCurrentNamedList(item, data, state.sceneLists.scenes, state.sceneLists.current);
+            if (section == SECTION_MULTI_FX)
+                return executeMultiFx(item, data, state.fx, state.multis.current.has_value());
             if (section == SECTION_DISK)
                 return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples);
             if (section != SECTION_SYSEX_CONFIG)
@@ -1954,16 +2636,171 @@ namespace akm::harness
         _currentSample.reset();
     }
 
+    void SimulatedSampler::setSongNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _songs.songs = std::move(names);
+        _songs.current.reset();
+    }
+
+    void SimulatedSampler::setCurrentSong(std::size_t index)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index < _songs.songs.size())
+            _songs.current = index;
+    }
+
+    std::optional<std::size_t> SimulatedSampler::currentSong() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _songs.current;
+    }
+
+    FxLayout eb20Layout()
+    {
+        // Module type codes of the spec's Table 24: 01 RingMod/Distortion, 09 EQ, 02 Chorus, 0A Mono Delay, 00 none,
+        // 0F Output Mix; 10 Reverb Input, 0E Reverb.
+        const std::vector<std::uint8_t> modulationAndDelayChannel{0x01, 0x09, 0x02, 0x0A, 0x00, 0x0F};
+        const std::vector<std::uint8_t> reverbChannel{0x10, 0x0E};
+        return {modulationAndDelayChannel, modulationAndDelayChannel, reverbChannel, reverbChannel};
+    }
+
+    void SimulatedSampler::setFxBoard(FxLayout layout)
+    {
+        const std::lock_guard lock(_mutex);
+        _fx.channels.clear();
+        for (const std::vector<std::uint8_t>& moduleTypes : layout)
+        {
+            FxChannelRecord channel;
+            for (const std::uint8_t type : moduleTypes)
+                channel.modules.push_back(FxModuleRecord{type, true, {}});
+            _fx.channels.push_back(std::move(channel));
+        }
+        _fx.cardCode = _fx.channels.empty() ? 0 : 1;
+    }
+
+    void SimulatedSampler::setFxCardCode(std::uint8_t code)
+    {
+        const std::lock_guard lock(_mutex);
+        _fx.cardCode = code;
+    }
+
+    FxState SimulatedSampler::fxState() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _fx;
+    }
+
+    void SimulatedSampler::setSceneListNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _sceneLists.scenes = std::move(names);
+        _sceneLists.current.reset();
+    }
+
+    void SimulatedSampler::setCurrentSceneList(std::size_t index)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index < _sceneLists.scenes.size())
+            _sceneLists.current = index;
+    }
+
+    std::optional<std::size_t> SimulatedSampler::currentSceneList() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _sceneLists.current;
+    }
+
+    std::vector<std::string> SimulatedSampler::sceneListNames() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _sceneLists.scenes;
+    }
+
+    void SimulatedSampler::setSetListNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _songs.setLists = std::move(names);
+    }
+
+    std::vector<std::string> SimulatedSampler::setListNames() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _songs.setLists;
+    }
+
+    std::vector<std::string> SimulatedSampler::songNames() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _songs.songs;
+    }
+
     void SimulatedSampler::setMultiNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
-        _multis = std::move(names);
+        _multis.multis.clear();
+        for (std::string& name : names)
+        {
+            MultiRecord record;
+            record.name = std::move(name);
+            record.partCount = DEFAULT_MULTI_PART_COUNT;
+            record.partPrograms.assign(static_cast<std::size_t>(record.partCount), std::string{});
+            _multis.multis.push_back(std::move(record));
+        }
+        _multis.current.reset();
     }
 
     std::size_t SimulatedSampler::multiCount() const
     {
         const std::lock_guard lock(_mutex);
-        return _multis.size();
+        return _multis.multis.size();
+    }
+
+    std::vector<std::string> SimulatedSampler::multiNames() const
+    {
+        const std::lock_guard lock(_mutex);
+        std::vector<std::string> names;
+        for (const MultiRecord& multi : _multis.multis)
+            names.push_back(multi.name);
+        return names;
+    }
+
+    std::optional<int> SimulatedSampler::multiPartCount(std::size_t index) const
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _multis.multis.size())
+            return std::nullopt;
+        return _multis.multis[index].partCount;
+    }
+
+    void SimulatedSampler::setMultiProgramNumber(std::size_t index, std::optional<std::uint8_t> number)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _multis.multis.size())
+            return;
+        _multis.multis[index].programNumberOn = number.has_value();
+        _multis.multis[index].programNumber = number.value_or(0);
+    }
+
+    void SimulatedSampler::setMultiPartProgram(std::size_t index, std::size_t part, std::string program)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _multis.multis.size() || part >= _multis.multis[index].partPrograms.size())
+            return;
+        _multis.multis[index].partPrograms[part] = std::move(program);
+    }
+
+    void SimulatedSampler::setCurrentMulti(std::size_t index)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index < _multis.multis.size())
+            _multis.current = index;
+    }
+
+    std::optional<std::size_t> SimulatedSampler::currentMulti() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _multis.current;
     }
 
     void SimulatedSampler::setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
@@ -2006,6 +2843,12 @@ namespace akm::harness
     {
         const std::lock_guard lock(_mutex);
         return _frontPanel;
+    }
+
+    MidiConfigState SimulatedSampler::midiConfig() const
+    {
+        const std::lock_guard lock(_mutex);
+        return _midiConfig;
     }
 
     void SimulatedSampler::setModel(std::uint8_t model)
@@ -2194,7 +3037,8 @@ namespace akm::harness
                                           });
         SamplerState state{_settings,      _config.osVersion, _system,      _programs,         _currentProgram,
                            _currentKeygroup, _samples,         _currentSample, _multis,       _disks,
-                           _currentDisk,     _currentFolderPath, _frontPanel};
+                           _currentDisk,     _currentFolderPath, _frontPanel,  _midiConfig,
+                           _songs,           _sceneLists,        _fx};
         const Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
                                                                         : execute(section, item, data, state);
         // An item the sampler is deaf to ran, and says nothing, the OK included.

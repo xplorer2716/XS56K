@@ -106,6 +106,43 @@ namespace akm::harness
         /// at the end, and by the session's close if the check fails. Off by default: the keys act on whatever the sampler
         /// shows, which only the owner can judge. Needs `askOwner` and `readOwnerKey`, and is skipped without either.
         bool frontPanel = false;
+        /// The owner-guided checks of the MIDI configuration (§04, RQ-AKM-080): section 04 has no Get, so the owner declares
+        /// what the sampler's MIDI SETUP and MIDI FILTER pages show (`askOwnerChoice`, `askOwnerNumber`) before anything is
+        /// sent; the suite then changes each of the settings (program change, multi select, its channel, the external APM
+        /// controller, aftertouch and one filter) to another value, has the owner confirm each change on the sampler's screen,
+        /// and puts each back to the value declared, even when a check fails half way. Off by default: it changes the owner's
+        /// stored MIDI setup for an instant. Needs `askOwner`, `askOwnerChoice` and `askOwnerNumber`, and is skipped without
+        /// one of them or when the owner declines.
+        bool midiConfig = false;
+        /// The optional checks of the MIDI song files and set lists (§16, RQ-AKM-085): read the number of song files and of
+        /// set lists and the name of each, select each song file by index and by name, rename the first song file and the
+        /// first set list and read the new name back, then put back every name and the selection found, even when a check
+        /// fails half way. §16 cannot create a song file or a set list, so the check works on what the sampler holds, never
+        /// sends a deletion, and is skipped when the sampler holds neither. Off by default: it renames the owner's items for
+        /// an instant, which only matters if the run is interrupted. Needs nothing from the owner.
+        bool songFiles = false;
+        /// The optional checks of the scenelists (§14, RQ-AKM-097): read the number of scenelists and the name of each, select
+        /// each scenelist by index and by name, rename the first scenelist and read the new name back, then put back the name
+        /// and the selection found, even when a check fails half way. §14 cannot create a scenelist, so the check works on
+        /// what the sampler holds, never sends a deletion, and is skipped when the sampler holds none. Off by default: it
+        /// renames the owner's scenelist for an instant, which only matters if the run is interrupted. Needs nothing from
+        /// the owner.
+        bool sceneLists = false;
+        /// The optional checks of the Multi FX (§12, RQ-AKM-102): create a test multi under the reserved name of the multi
+        /// checks, read whether an FX board is installed and, with none, log what the other Gets answer and send no Set; with
+        /// a board, change the mute status of a channel, the enabled state of a module, the type of a module and one
+        /// parameter, each put back and read back; then delete the test multi and select again the multi that was current,
+        /// even when a check fails half way. Off by default: it creates and deletes a multi in the sampler's memory, which is
+        /// always the suite's own. Needs nothing from the owner.
+        bool multiFx = false;
+        /// The optional checks of the multis (§0C, RQ-AKM-093): create one multi and one program under reserved test names,
+        /// round-trip every §0C item on them (the part parameters, the Gets of general information, the program number, the
+        /// part assignment by name and by index, the renaming, the selection), then put back the multi that was current and
+        /// delete both, even when a check fails half way. Never sends "Delete ALL Multis" (§0C/&07) and never "Set the
+        /// number of parts for new multis" (§0C/&01), a stored setting no item reads back. Off by default: it creates and
+        /// deletes a multi and a program in the sampler's memory, which are always the suite's own. Needs nothing from the
+        /// owner.
+        bool multiLifecycle = false;
         /// Returns the next PC key the owner presses (`pc_key` codes of `FrontPanelRemote.hpp`), waiting for it, or nothing
         /// when the owner's input has ended. `textMode` says whether the check is in its text mode: there the reader reports
         /// the character typed; in the normal mode it reports the number row's keys as the digits printed on them wherever
@@ -128,6 +165,10 @@ namespace akm::harness
         /// (RQ-AKM-061): nothing is selected without an answer, and without this the check is skipped before it selects.
         /// It runs on the scenario's thread, like `askOwner`.
         std::function<std::optional<std::size_t>(const std::string& question, const std::vector<std::string>& choices)> askOwnerChoice;
+        /// Asks the owner for a whole number from `minimum` to `maximum` inclusive and returns it, or nothing when they
+        /// decline. The MIDI configuration check needs it for the external APM controller (0 to 127), too long a list to
+        /// offer as choices (RQ-AKM-080). It runs on the scenario's thread, like `askOwner`.
+        std::function<std::optional<int>(const std::string& question, int minimum, int maximum)> askOwnerNumber;
         /// Written in the log header when not empty (the scenario itself reads no wall clock).
         std::string startedAt;
     };

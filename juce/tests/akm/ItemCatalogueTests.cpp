@@ -178,12 +178,23 @@ TEST_CASE("Given the catalogue, When counted, Then section 00 holds the seven it
     // destructive command guards for Eject/Delete Sub-Folder/Delete File (RQ-AKM-069: &0D, &17, &29) —
     // completing §10's 35 command rows, and TASK-AKM-070 added 2 of section 20, Key Hold and Key Release
     // (RQ-AKM-073: &01, &02) and TASK-AKM-071 the last 2, the data wheel and the ASCII keyboard
-    // (RQ-AKM-074: &03, &04) — which this count includes without tracking them here too (see
+    // (RQ-AKM-074: &03, &04), and TASK-AKM-077 added 5 of section 04, the MIDI setup switches (RQ-AKM-078:
+    // &01-&05) and TASK-AKM-078 the last 2, the MIDI filters (RQ-AKM-079: &06, &07), and TASK-AKM-084
+    // added 8 of section 16, song file selection, renaming, deletion and information (RQ-AKM-082,
+    // RQ-AKM-083: &05, &06, &08, &09, &10, &11, &13, &14) and TASK-AKM-085 the 4 set list items
+    // (RQ-AKM-084: &20-&23) and TASK-AKM-089 the first 7 of section 0C, the multi lifecycle (RQ-AKM-087: &01, &02,
+    // &05, &06, &08, plus &42, &43 pulled in early) and TASK-AKM-090 the guarded &07 (RQ-AKM-088) and TASK-AKM-091 the 24 part parameter
+    // items (RQ-AKM-089: Set &10-&1B, Get &20-&2B) and TASK-AKM-092 the 10 Gets of general information
+    // (RQ-AKM-090, RQ-AKM-091: &40, &41, &44-&48, &50-&52) and TASK-AKM-093 the 5 Sets of general information
+    // (RQ-AKM-092: &30-&34) and TASK-AKM-097 the 8 of section 14, the scenelists (RQ-AKM-095, RQ-AKM-096: &05, &06,
+    // &08, &09, &10, &11, &13, &14) and TASK-AKM-101 the first 3 of section 12, the discovery Gets of the Multi FX
+    // (RQ-AKM-099: &01, &10, &11) and TASK-AKM-102 the 6 configuration items (RQ-AKM-100: &20, &21, &30, &31, &40, &41) and TASK-AKM-103 the 2 parameter items (RQ-AKM-101: &50, &51)
+    // — which this count includes without tracking them here too (see
     // ProgramPrimitivesTests.cpp, SamplePrimitivesTests.cpp, SampleDeleteAllGuardTests.cpp,
     // SampleParametersTests.cpp, SampleReadOnlyParametersTests.cpp, DiskPrimitivesTests.cpp,
     // FrontPanelTests.cpp and the other test files).
     constexpr std::size_t PROGRAM_ITEM_COUNT =
-        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2;
+        95 + 2 + 12 + 10 + 12 + 18 + 16 + 10 + 28 + 8 + 1 + 3 + 16 + 6 + 3 + 6 + 3 + 7 + 1 + 6 + 2 + 2 + 2 + 3 + 2 + 2 + 5 + 2 + 8 + 4 + 7 + 1 + 24 + 10 + 5 + 8 + 3 + 6 + 2;
     CHECK(akm::ITEM_TABLE.size() == CATALOGUE.size() + PROGRAM_ITEM_COUNT);
 }
 

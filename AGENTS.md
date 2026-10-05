@@ -111,8 +111,58 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   and page keys, Tab for a text mode that sends printable keys as ASCII — and nothing else is sent; `q` ends it. The keys
   act on whatever the sampler shows: SAVE, ENT/PLAY or the wheel can change or delete data on some screens, so choose the
   screen with care. Every key still held is released at the end, and by the session's close if the check fails (DEC-AKM-019).
-  Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run it on the real sampler once:
-  whether the S5000 obeys each key, takes Backspace/Enter as ASCII 8/13, or counts Holds of one key, is not yet observed.
+  Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run on the real sampler by the
+  owner in two runs (2026-10-04, `process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`): every Hold, Release and
+  data wheel step was accepted and the owner reports the shortcuts worked; not yet pressed: Escape, `-`/`+`, the other
+  digits, EDIT SAMPLE, EDIT PROGRAM, RECORD, UTILITIES, and any character in the text mode, so whether the S5000 takes
+  Backspace/Enter as ASCII 8/13, or counts Holds of one key, is still open.
+  `--midi-config` adds two owner-guided checks on the sampler's MIDI setup (section 04, RQ-AKM-080). Section 04 has no Get,
+  so the check cannot read what the sampler holds: before anything is sent it asks you what UTILITIES > MIDI SETUP shows
+  (PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH) and, on MIDI FILTER, one filter you pick (event
+  type, channel, on or off). It then changes each of those to another value, one at a time, asks you to confirm on the
+  sampler's screen that it shows the new value, and puts each back to the value you declared before touching the next
+  (a setting may depend on another). A "no" is noted and the other settings are still tried; the check then asks you to
+  confirm the original screens are back and fails at the end naming every setting you did not see. Declining a question
+  skips it. Each value is also put back when a check fails half way, which the second check provokes on purpose with
+  MULTI SELECT. It changes your stored MIDI setup for a moment: a filter that ignores NoteOn silences that channel while
+  it lasts. The values you declare are not verified, and a wrong declaration is put back as given (the log records it).
+  The check switches Auto screen update on for its session (§00/&05; put back off at the close, left alone with `--no-lcd`)
+  and, after a "no", asks you to leave the page, open it again and look once more: a screen that is not redrawn by itself
+  looks like an item the sampler ignored. Observed (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`, third
+  run, 2026-10-04): the S5000 obeys all seven items and every change was seen at once on its screen. With Auto screen update
+  off (the first two runs) only `&01` and `&07` showed, so §00/&05 must be on for the sampler's pages to follow SysEx. Not
+  observed: the channel code of `&06`/`&07` for port B (1B to 16B, "Port A & B", FTR-AKM-009 open points), the other filter
+  event types and the effect on real MIDI input.
+  `--multi-lifecycle` adds two checks on the multis (section 0C, RQ-AKM-093): it creates one program and one multi under
+  the reserved names `XS56K_SUITE_TEST` and `XS56K_MULTI_TEST` (and stops without touching anything if a multi already
+  bears the second), round-trips every item of the section on them (the twelve part parameters, the Gets of general
+  information, the program number, the part assignment by name and by index, the renaming, the selection), then deletes both
+  and selects again the multi that was current, even when a check fails half way. It never sends Delete ALL Multis (`&07`)
+  and never `&01` (the number of parts of new multis, which no item reads back). Observed on an S5000 (OS 2.14) holding no
+  multi, three runs (`process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`); with the owner's own multis in memory the
+  selection of an existing one is the only part not yet run on hardware.
+  `--song-files` adds two checks on the sampler's MIDI song files and set lists (section 16, RQ-AKM-085): it reads the number of
+  each and every name (16 at most), selects each song file by index and by name, renames the first song file and the
+  first set list and reads the new names back, then puts every name and the selection back, even when a check fails
+  half way. Section 16 cannot create a song file or a set list, so it works on what the sampler holds, never deletes,
+  and is skipped (after logging what an empty memory answers) when there is none. Observed once on an S5000 (OS 2.14)
+  that held none: both counts 0, ERROR 4 for every item naming something
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`); run it again once a MIDI song file is loaded.
+  `--scenelists` adds the same two checks on the sampler's scenelists (section 14, RQ-AKM-097): it reads the number of
+  scenelists and every name (16 at most), selects each by index and by name, renames the first and reads the new name
+  back, then puts the name and the selection back, even when a check fails half way. Section 14 cannot create a scenelist,
+  so it works on what the sampler holds, never deletes, and is skipped when there is none. Observed once on an S5000
+  (OS 2.14) that held none: the section is supported, the count is 0, ERROR 4 for every item naming something
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`); run it again once a scenelist is loaded.
+  `--multi-fx` adds two checks on the multis' effects (section 12, RQ-AKM-102): it creates a test multi under the reserved
+  name `XS56K_MULTI_TEST` (and stops without touching anything if a multi already bears it), reads whether an FX board is
+  installed (`&01`) and, with none, logs the answers of the other Gets and sends no Set (the check is then skipped); with
+  an EB20 it changes the mute of channel 0, the enabled state of its module 3, its first parameter of module 2 and the
+  type of module 2, putting each back, then deletes the test multi and selects again the multi that was current, even when
+  a check fails half way. Observed once on an S5000 (OS 2.14) with no board
+  (`process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`): `&01`, `&10` and `&11` answer 0, and the Gets that name a
+  channel and a module answer ERROR 2. The owner has no EB20, so the round trip with a board is tested on the simulated
+  sampler only.
   Exit status 0 when every check
   passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
   suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]

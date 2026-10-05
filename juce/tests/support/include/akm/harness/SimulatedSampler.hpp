@@ -269,6 +269,47 @@ namespace akm::harness
         std::vector<FrontPanelEvent> events{};
     };
 
+    /// One §04 item the sampler accepted, in order of arrival: its item code and its data bytes (`second` is 0 for
+    /// the one-byte switches; for a filter `first` is the event type and `second` the channel). Section §04 has no
+    /// Get, so this record and `MidiConfigState`'s values are how a test sees what the sampler received.
+    /// [RQ-AKM-078, RQ-AKM-079]
+    struct MidiConfigEvent
+    {
+        std::uint8_t item = 0;
+        std::uint8_t first = 0;
+        std::uint8_t second = 0;
+
+        friend bool operator==(const MidiConfigEvent&, const MidiConfigEvent&) = default;
+    };
+
+    /// Event types (NoteOn, Aftertouch, Wheels, Volume) and channels (1A-16B) a §04 MIDI filter exists for.
+    inline constexpr std::size_t MIDI_FILTER_EVENT_TYPES = 4;
+    inline constexpr std::size_t MIDI_FILTER_CHANNELS = 32;
+
+    /// The MIDI setup as this model holds it (§04, RQ-AKM-078, RQ-AKM-079): the five switches at the values a Set
+    /// left them — the spec gives no defaults, so these are program change on, multi select off on channel 1A,
+    /// controller 0, channel aftertouch — the filters (every event type allowed on every channel until an
+    /// `&07`) and what the sampler was sent. Like the §02 setup it is stored configuration and survives
+    /// `powerCycle()`.
+    struct MidiConfigState
+    {
+        using FilterRow = std::array<bool, MIDI_FILTER_CHANNELS>;
+        /// `filterAllowed[eventType][channel]`: true while the sampler allows those messages (`&06`), false once
+        /// it ignores them (`&07`).
+        std::array<FilterRow, MIDI_FILTER_EVENT_TYPES> filterAllowed = [] {
+            std::array<FilterRow, MIDI_FILTER_EVENT_TYPES> all{};
+            for (FilterRow& row : all)
+                row.fill(true);
+            return all;
+        }();
+        std::uint8_t programChangeEnable = 1;
+        std::uint8_t multiSelect = 0;
+        std::uint8_t multiSelectChannel = 0;
+        std::uint8_t externalApmController = 0;
+        std::uint8_t aftertouch = 0;
+        std::vector<MidiConfigEvent> events{};
+    };
+
     /// One folder of a disk's hierarchy (§10/&10-&14, &16, &18, RQ-AKM-063): a name (ignored for the
     /// root, which is reached with an empty path from `DiskRecord::rootFolder`, not a `FolderRecord` of
     /// its own) and its sub-folders, in creation order (the spec's own order for &12, since nothing
@@ -353,6 +394,84 @@ namespace akm::harness
         std::uint32_t rate = 0;
     };
 
+    /// One multi in the sampler's memory (§0C, spec Tables 16-17): what the lot's primitives set or read. A multi
+    /// has 32, 64 or 128 parts, each with a program assigned by name (empty: none), a program number that is on
+    /// or off, and the part parameters of RQ-AKM-089 keyed by (the Set item code, the part number) like
+    /// `ProgramRecord::parameters`. [RQ-AKM-087]
+    struct MultiRecord
+    {
+        std::string name;
+        int partCount = 32;
+        bool programNumberOn = false;
+        std::uint8_t programNumber = 0;
+        std::vector<std::string> partPrograms;
+        std::map<std::pair<std::uint8_t, std::vector<std::uint8_t>>, std::vector<std::uint8_t>, ParameterKeyLess> parameters;
+    };
+
+    /// The sampler's multis: the list in memory order, the current one, and the code (0, 1, 2) §0C/&01 gave for
+    /// the number of parts of the multis created from now on (32, 64, 128). [RQ-AKM-087]
+    struct MultiState
+    {
+        std::vector<MultiRecord> multis;
+        std::optional<std::size_t> current;
+        std::uint8_t newPartCountCode = 0;
+    };
+
+    /// The sampler's MIDI song files (§16, spec Tables 28-29): names only, in memory order, with the current
+    /// selection the way §0E keeps its own. Like a sample, a song file cannot be created through §16, so
+    /// `setSongNames` is the only way to give the model one. [RQ-AKM-082]
+    struct SongState
+    {
+        std::vector<std::string> songs;
+        std::optional<std::size_t> current;
+        /// The set lists (§16/&20-&23, RQ-AKM-084): names only, addressed by index, with no current selection.
+        std::vector<std::string> setLists;
+    };
+
+    /// The sampler's scenelists (§14, spec Tables 26-27): names only, in memory order, with the current selection
+    /// kept the way a song file's is. §14 builds none (spec p. 39), so `setSceneListNames` is the only way to give
+    /// the model one. [RQ-AKM-095]
+    struct SceneListState
+    {
+        std::vector<std::string> scenes;
+        std::optional<std::size_t> current;
+    };
+
+    /// One FX module of the simulated board: its type code (spec Table 24). [RQ-AKM-099]
+    struct FxModuleRecord
+    {
+        std::uint8_t type = 0;
+        /// Whether the module is enabled (§12/&40, &41); a module starts enabled. [RQ-AKM-100]
+        bool enabled = true;
+        /// The parameter values by index (§12/&50, &51): a parameter never set reads 0. [RQ-AKM-101]
+        std::map<std::uint8_t, int> parameters;
+    };
+
+    /// One FX channel of the simulated board. [RQ-AKM-099]
+    struct FxChannelRecord
+    {
+        std::vector<FxModuleRecord> modules;
+        /// The mute status (§12/&20, &21): a channel starts not muted. [RQ-AKM-100]
+        bool muted = false;
+    };
+
+    /// The sampler's FX board (§12, spec Tables 22-25): the code §12/&01 answers (0 none, 1 EB20) and the channels of
+    /// modules it has. The model keeps one board for the whole sampler, not one per multi; the effects of a multi are
+    /// the current multi's, so every item that acts on them needs one to be current. [RQ-AKM-099]
+    struct FxState
+    {
+        std::uint8_t cardCode = 0;
+        std::vector<FxChannelRecord> channels;
+    };
+
+    /// The module types of each channel of an FX board, channel by channel. [RQ-AKM-099]
+    using FxLayout = std::vector<std::vector<std::uint8_t>>;
+
+    /// An EB20 laid out as the kb gives the spec's Figure 2 (`sysex_spec.kb.md` lines 157-159): channels 0 and 1 of six
+    /// modules (ring modulator/distortion, EQ, chorus, mono delay, none, output mix), channels 2 and 3 of two (reverb
+    /// input, reverb). A fixture for tests, not a claim about the hardware. [RQ-AKM-099]
+    FxLayout eb20Layout();
+
     /// One port of a sampler, modelled on the spec: it decodes the frames it is sent, answers those that are
     /// addressed to it (DeviceID 0 on either side matches everything), keeps its §00 state across sessions,
     /// applies or refuses checksums, and answers OK / DONE / REPLY / ERROR. §00, the two version items of §02
@@ -382,13 +501,78 @@ namespace akm::harness
         /// wants a successful assignment or selection must call this first, like `setBehaviour`.
         void setSampleNames(std::vector<std::string> names);
 
-        /// Seeds the sampler's multis (§0C) by name. No §0C item is modelled — the section is not implemented —
-        /// so a multi can neither be read nor changed but through here; it exists so that Clear Sampler Memory
-        /// (§02/&32, RQ-AKM-056), which deletes "all programs/multis/samples", has all three to delete.
+        /// Seeds the sampler's MIDI song files (§16) by name, current selection reset. Empty by default, as the
+        /// samples are: no §16 item creates a song file. [RQ-AKM-082]
+        void setSongNames(std::vector<std::string> names);
+
+        /// The names of the song files the sampler holds now, in memory order (RQ-AKM-082).
+        [[nodiscard]] std::vector<std::string> songNames() const;
+
+        /// Makes the song file at `index` current, as &06 would; a no-op when `index` names none (RQ-AKM-085: the
+        /// real-sampler check puts back the selection it found).
+        void setCurrentSong(std::size_t index);
+
+        /// The current song file's index, or nothing when none is current (RQ-AKM-085).
+        [[nodiscard]] std::optional<std::size_t> currentSong() const;
+
+        /// Installs an FX board of the given layout (§12), every module at the type the layout gives it; an empty layout
+        /// removes the board. The sampler has none by default, as the owner's has none. [RQ-AKM-099]
+        void setFxBoard(FxLayout layout);
+
+        /// Makes §12/&01 answer `code`, whatever the layout: for a test that wants a REPLY the layer cannot name.
+        void setFxCardCode(std::uint8_t code);
+
+        /// The FX board as the sampler holds it now: the card code and the channels with their modules, mutes, enabled
+        /// states and parameter values (RQ-AKM-102: the real-sampler check puts back what it changes).
+        [[nodiscard]] FxState fxState() const;
+
+        /// Seeds the sampler's scenelists (§14) by name, current selection reset. Empty by default: no §14 item
+        /// creates a scenelist. [RQ-AKM-095]
+        void setSceneListNames(std::vector<std::string> names);
+
+        /// The names of the scenelists the sampler holds now, in memory order (RQ-AKM-095).
+        [[nodiscard]] std::vector<std::string> sceneListNames() const;
+
+        /// Makes the scenelist at `index` current, as &06 would; a no-op when `index` names none (RQ-AKM-097: the
+        /// real-sampler check puts back the selection it found).
+        void setCurrentSceneList(std::size_t index);
+
+        /// The current scenelist's index, or nothing when none is current (RQ-AKM-097).
+        [[nodiscard]] std::optional<std::size_t> currentSceneList() const;
+
+        /// Seeds the sampler's set lists (§16/&20-&23) by name; no §16 item creates one. [RQ-AKM-084]
+        void setSetListNames(std::vector<std::string> names);
+
+        /// The names of the set lists the sampler holds now, in memory order (RQ-AKM-084).
+        [[nodiscard]] std::vector<std::string> setListNames() const;
+
+        /// Seeds the sampler's multis (§0C) by name, 32 parts each, current selection reset. Also what Clear Sampler
+        /// Memory (§02/&32, RQ-AKM-056), which deletes "all programs/multis/samples", has to delete.
         void setMultiNames(std::vector<std::string> names);
 
         /// How many multis the sampler holds (RQ-AKM-056).
         [[nodiscard]] std::size_t multiCount() const;
+
+        /// The names of the multis the sampler holds now, in memory order (RQ-AKM-087).
+        [[nodiscard]] std::vector<std::string> multiNames() const;
+
+        /// The number of parts of the multi at `index`, or nothing when there is none (RQ-AKM-087).
+        [[nodiscard]] std::optional<int> multiPartCount(std::size_t index) const;
+
+        /// Makes the multi at `index` current, as &06 would; a no-op when `index` names none (RQ-AKM-093: the real-sampler
+        /// check puts back the selection it found).
+        void setCurrentMulti(std::size_t index);
+
+        /// The current multi's index, or nothing when none is current (RQ-AKM-087).
+        [[nodiscard]] std::optional<std::size_t> currentMulti() const;
+
+        /// Gives the multi at `index` a program number (the wire value 0-127), or turns it off with nothing, as
+        /// §0C/&31 would; a no-op when `index` names no multi. [RQ-AKM-091]
+        void setMultiProgramNumber(std::size_t index, std::optional<std::uint8_t> number);
+
+        /// Assigns the program named `program` to part `part` of the multi at `index` ("" for none), as §0C/&32-&34
+        /// would; a no-op when either names nothing. [RQ-AKM-091]
+        void setMultiPartProgram(std::size_t index, std::size_t part, std::string program);
 
         /// Seeds the read-only attributes of the sample at `index` (§0E/&30-&33, RQ-AKM-049) — no Set
         /// item exists for them, so a test sets them directly, like `setSampleNames` itself. A no-op
@@ -431,6 +615,9 @@ namespace akm::harness
         /// held down.
         [[nodiscard]] FrontPanelState frontPanel() const;
 
+        /// The MIDI setup as it is now (§04, RQ-AKM-078): the switches' values and every item the sampler accepted.
+        [[nodiscard]] MidiConfigState midiConfig() const;
+
         [[nodiscard]] SamplerSettings settings() const;
         /// Power-off and on: the §00 settings go back to their defaults.
         void powerCycle();
@@ -458,6 +645,8 @@ namespace akm::harness
         SystemSetupState _system;
         // §20 front panel (RQ-AKM-073): not touched by powerCycle().
         FrontPanelState _frontPanel;
+        // §04 MIDI setup (RQ-AKM-078): stored configuration, not touched by powerCycle().
+        MidiConfigState _midiConfig;
         std::vector<std::vector<std::uint8_t>> _received;
         std::vector<AcceptedCommand> _accepted;
 
@@ -473,9 +662,15 @@ namespace akm::harness
         // §0A's current program, §0E's current sample has no dependent selection to reset alongside it.
         std::vector<SampleRecord> _samples;
         std::optional<std::size_t> _currentSample;
-        // §0C multis (RQ-AKM-056): names only, seeded by `setMultiNames` and emptied by §02/&32; not touched by
-        // powerCycle().
-        std::vector<std::string> _multis;
+        // §16 MIDI song files (RQ-AKM-082), seeded by `setSongNames`: not touched by powerCycle().
+        SongState _songs;
+        // §14 scenelists (RQ-AKM-095), seeded by `setSceneListNames`: not touched by powerCycle().
+        SceneListState _sceneLists;
+        // §12 Multi FX (RQ-AKM-099), seeded by `setFxBoard`: not touched by powerCycle().
+        FxState _fx;
+        // §0C multis (RQ-AKM-056, RQ-AKM-087): seeded by `setMultiNames` or created through §0C, emptied by
+        // §02/&32; not touched by powerCycle().
+        MultiState _multis;
         // §10 disks (RQ-AKM-060), seeded by `setDisks`: not touched by powerCycle() or by &01.
         std::vector<DiskRecord> _disks;
         // §10 current disk selection (RQ-AKM-061, &02): an index into `_disks`, reset whenever `setDisks`

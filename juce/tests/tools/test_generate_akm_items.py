@@ -154,7 +154,9 @@ class DataFileIsValidated(ScriptTest):
         self.assert_refused(variant, "SystemGetClock")
 
     def test_given_a_record_in_an_undeclared_section_when_read_then_it_is_refused(self):
-        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(section="04"))
+        # Section 04 was the example until TASK-AKM-077 declared it, then 12 (Multi FX) until TASK-AKM-101 did; 2A (the
+        # alternative addressing of a program by index) is a valid section code no catalogue section declares.
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExQuery").update(section="2A"))
 
         self.assert_refused(variant, "SysExQuery")
 
@@ -211,6 +213,19 @@ class CoverageAgainstTheSpec(ScriptTest):
 
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn("SysExStillAlive", result.stdout + result.stderr)
+
+    def test_given_a_spec_row_whose_data_column_carries_its_own_description_when_coverage_runs_then_its_values_are_still_compared(self):
+        # Section 12 &30's second data column holds "<Data1> = channel; <Data2> = module; ..." after its domains (the
+        # PDF's text flow merged the description into it): the domains before that text are the row's.
+        covered = run_script("--coverage")
+        self.assertEqual(covered.returncode, 0, covered.stdout + covered.stderr)
+        self.assertIn("FxSetModuleType (12 &30): covered", covered.stdout)
+
+        variant = self.write_variant(lambda catalogue: self.record(catalogue, "FxSetModuleType")["args"][2].update(max=16))
+        result = run_script("--coverage", "--data", str(variant))
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("FxSetModuleType", result.stdout + result.stderr)
 
     def test_given_a_wrong_argument_count_when_coverage_runs_then_the_mismatch_is_reported(self):
         variant = self.write_variant(lambda catalogue: self.record(catalogue, "SysExEcho")["args"].pop())
