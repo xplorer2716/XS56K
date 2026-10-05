@@ -79,7 +79,7 @@ started (the list, the selection, the browsing and the loads worked without it).
 load or a save waits. After it the answer says the sampler may have to
 be switched off and on, and nothing is retried. No tool deletes or renames a file or a folder, creates a folder, ejects or formats a
 disk. **Run on the real sampler (2026-10-05, owner present, SCSI2SD disk)**: browsing, `select_disk`, `load_file` of a program (0.3 s)
-and of a 40 MB sample (60 s) work, loading with dependents too, and a program was saved (refused when its file exists, replaced with `overwrite`); the refresh hung the
+and of a 40 MB sample (60 s) work, a program with its sample was loaded with `with_dependents` (both added), and a program was saved (refused when its file exists, replaced with `overwrite`); the refresh hung the
 sampler; `load_folder`, `save_all_memory_items`, saving a sample or a multi and the multi tools are tested against the simulated
 sampler only so far (`PLAN-MCP-003` TASK-MCP-023).
 

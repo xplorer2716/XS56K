@@ -161,7 +161,8 @@ The saves and the loads with dependents (second part of the run, after the power
 | `save_memory_item` program `MCPSAVETEST` (created for the run, 1 keygroup), no `overwrite` | 1.9 s. The file `MCPSAVETEST.AKP` appeared at the root, **516 bytes** (the same size as the owner's `X01.AKP`; the simulated sampler gives 4096), found by the listing the tool makes afterwards. The name is the program's name plus `.AKP`, in the program's case |
 | the same save again, no `overwrite` | refused by the tool before anything was sent (0.3 s): the folder already holds `MCPSAVETEST.AKP`, "Pass overwrite true to replace it" |
 | the same save with `overwrite: true` | 0.7 s, the file replaced, still 516 bytes, one file of that name in the folder, the other files untouched |
-| `load_file` `X01.AKP` with `with_dependents` | 0.4 s: program X01 added to the two in memory (programs 2, was 1); X01 depends on no sample, so none was added. Programs in memory are listed in alphabetical order whatever the order they were loaded (MCPSAVETEST, X01) |
+| `load_file` `X01.AKP` with `with_dependents` | 0.4 s, accepted: program X01 added to the one in memory (programs 2, was 1) and no sample added. **This showed nothing about the dependents**: whether X01 refers to any sample is not known (516 bytes). Programs in memory are listed in alphabetical order whatever the order they were loaded (MCPSAVETEST, X01) |
+| `load_file` `MCPSAVETEST.AKP` with `with_dependents`, memory empty (2026-10-06) | **1.0 s: programs 1 (was 0, added MCPSAVETEST) and samples 1 (was 0, added Al_Jarreau-Flame)**, the sample being the one the owner had associated to the program on the sampler and saved with it (the owner cleared the memory before the run; `Al_Jarreau-Flame.WAV`, 368084 bytes, is at the root of the disk). The dependents are loaded, the sample named as its file without the extension. Not run: the same file without `with_dependents` (the control that shows the flag is what loads the sample) |
 
 The listing of a folder is **not alphabetical** (the order of the FAT directory: `New Program  1.AKP`, `MCPSAVETEST.AKP`, `X01.AKP`,
 `S1.WAV`, the `.wav` of 35 MB): the tools give it as the sampler does. The two test programs were then deleted from memory with
@@ -178,8 +179,8 @@ with nothing sent. One quirk, as the catalogue already says: setting the loop en
 and putting the loop end back and the loop start to 1 restored both. Nothing was saved to the disk, S1.WAV is unchanged.
 
 **Established:** browsing the SCSI2SD, selecting it, loading a program (with and without dependents) and a very large sample,
-saving a program (refused without `overwrite` when the file exists, replaced with it) and reading and setting every parameter of a
-real sample. **Not run:** `load_folder`, `save_all_memory_items`, saving a sample or a multi, `save_children`, the multi tools (no
+saving a program (refused without `overwrite` when the file exists, replaced with it), the load with dependents of a program that refers to a sample (the sample is loaded too) and reading and setting every parameter of a
+real sample. **Not run:** the same load without `with_dependents` as a control, `load_folder`, `save_all_memory_items`, saving a sample or a multi, `save_children`, the multi tools (no
 multi on the disk), and the refresh, which must not be run again on this sampler. Things the simulated sampler does differently
 and that are still to correct: the error code with no disk selected (257 against 4), the size of a saved program (516 bytes against
 4096), the order of a folder listing (the sampler's, not alphabetical), and the time of a load of a large file.
