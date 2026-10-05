@@ -82,6 +82,12 @@ and all 119 program parameters, on a program the server created and deleted. The
 memory only (their messages); their parameters are verified on the simulated sampler, not on hardware, until a sample and a multi
 are in memory.
 
+Open points: the numbering of a multi's parts against the front panel (the tools send the part minus one), what codes 12 to 14 of
+the modulation sources show on the screen, and whether a program name of more than 12 characters is kept.
+
+On Windows a running `xs56k_mcp_server.exe` (the client's own) locks the file: build into another folder with
+`cmake --build <dir> --target xs56k_mcp_server -- "/p:OutDir=<folder>\"` to run a fresh copy by hand.
+
 When a client closes the server's standard input, the server closes its session and puts the sampler's section 00 settings
 back (checksums, Still Alive, Notification, Sync LCD, Auto screen update). A server that is killed instead leaves Still Alive
 on, Sync LCD off and Auto screen update on until the sampler is switched off.
