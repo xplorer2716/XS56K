@@ -28,6 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/DiskPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/SamplePrimitives.hpp"
+#include "akm/SamplerError.hpp"
 
 using akm::CommandResult;
 using akm::DiskCountResult;
@@ -711,8 +712,10 @@ TEST_CASE("Given a simulated program file whose sample is a separate file, When 
     auto latchedSamples = std::make_shared<Latched<akm::AllSampleNamesResult>>();
     akm::getAllSampleNames(harness.session(), [latchedSamples](const akm::AllSampleNamesResult& r) { latchedSamples->set(r); });
     REQUIRE(harness.waitUntil([latchedSamples] { return latchedSamples->isSet(); }));
-    REQUIRE(latchedSamples->value()->names.has_value());
-    CHECK(latchedSamples->value()->names->empty());
+    // No sample is in memory: the sampler answers ERROR 3 to the names of all samples (observed on a real S5000, 2026-10-05).
+    CHECK_FALSE(latchedSamples->value()->names.has_value());
+    REQUIRE(std::holds_alternative<akm::Error>(latchedSamples->value()->outcome));
+    CHECK(std::get<akm::Error>(latchedSamples->value()->outcome).number == akm::error_number::UNKNOWN_ERROR);
 }
 
 TEST_CASE("Given the same file loaded with &2B, Then both the program and its sample appear [RQ-AKM-066]", "[akm][disk]")

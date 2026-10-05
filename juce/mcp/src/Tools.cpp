@@ -180,6 +180,8 @@ namespace mcp
         {
             if (parameter.scope == ParameterScope::Program)
                 return "program";
+            if (parameter.scope == ParameterScope::Sample)
+                return "current sample";
             std::string target = selection.keygroup ? "keygroup " + std::to_string(*selection.keygroup)
                                                     : "all " + plural(static_cast<std::int64_t>(distinctKeygroups(values)), "keygroup");
             if (parameter.scope == ParameterScope::Zone)
@@ -228,7 +230,12 @@ namespace mcp
                 case ParameterScope::Program:
                     text += " Per program.";
                     break;
+                case ParameterScope::Sample:
+                    text += " Of the current sample.";
+                    break;
             }
+            if (parameter.readOnly)
+                text += " This parameter is read-only: it can be read, not set.";
             if (!parameter.aliases.empty())
                 text += " Also called: " + joined(parameter.aliases, ", ") + ".";
             return text;
@@ -260,6 +267,25 @@ namespace mcp
             if (resolution.suggestions.empty())
                 return text + " Call list_parameters to see the names.";
             return text + " Did you mean: " + joined(resolution.suggestions, ", ") + "?";
+        }
+
+        /// A value given to a tool, as the catalogue resolves it: a number, a label, on/off or true/false.
+        ValueResolution resolveJsonValue(const ParameterDefinition& parameter, const json& value)
+        {
+            if (value.is_string())
+                return resolveValue(parameter, value.get<std::string>());
+            if (value.is_boolean())
+            {
+                if (parameter.kind != ParameterKind::Switch)
+                    return {std::nullopt, parameter.name + " takes " + describeRange(parameter) + ", not true or false."};
+                return resolveValue(parameter, std::int64_t{value.get<bool>() ? 1 : 0});
+            }
+            if (value.is_number())
+            {
+                const auto whole = wholeNumber(value);
+                return whole ? resolveValue(parameter, *whole) : resolveValue(parameter, value.dump());
+            }
+            return {std::nullopt, "The argument 'value' must be a number, a text or true/false."};
         }
 
         ToolDefinition definition(const char* name, const char* title, std::string description, json schema, bool readOnly,
@@ -325,10 +351,12 @@ namespace mcp
                "(0 to 100 for most), signed values are plain signed numbers, and choices are named as the sampler's "
                "screen names them (for example \"2-POLE LP+\"). create_program, rename_program and delete_program change the "
                "list of programs: delete_program deletes only the current program and only when its name is given as "
-               "'confirm'. Changes act on the sampler's memory, not on disk; nothing is saved by this server.";
+               "'confirm'. list_samples, select_sample, get_sample_parameters and set_sample_parameter edit the samples in the "
+               "same way (list_parameters with the domain \"sample\" names their parameters); no tool creates, deletes or "
+               "loads a sample. Changes act on the sampler's memory, not on disk; nothing is saved by this server.";
     }
 
-    std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue)
+    std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ExtraCatalogues extra)
     {
         std::vector<Tool> tools;
 
@@ -416,33 +444,52 @@ namespace mcp
         // list_parameters
         tools.push_back(Tool{
             definition("list_parameters", "List parameters",
-                       "Lists the parameters of a program that can be read and set: their names, what they accept and what "
-                       "they do. Call it before get_parameters or set_parameter to learn the names, and optionally give a "
-                       "group to list only that group.",
+                       "Lists the parameters that can be read and set: their names, what they accept and what they do. Call it "
+                       "before get_parameters or set_parameter to learn the names, and optionally give a group to list only that "
+                       "group. The parameters are those of a program (the default) unless a domain is given.",
                        objectSchema(json{{"group",
                                           {{"type", "string"},
                                            {"description",
-                                            "One group: " + groupNames(catalogue) + " (\"lfo\" is both LFOs)."}}}}),
+                                            "One group of the domain: for a program " + groupNames(catalogue) +
+                                                " (\"lfo\" is both LFOs)."}}},
+                                         {"domain",
+                                          {{"type", "string"},
+                                           {"description", std::string("What the parameters belong to: \"program\" (the default)") +
+                                                               (extra.sample != nullptr ? ", \"sample\" (the current sample's)" : "") + "."}}}}),
                        true, true),
-            [&catalogue](const json& arguments) {
-                if (const auto refused = unknownArguments(arguments, {"group"}))
+            [&catalogue, extra](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"group", "domain"}))
                     return *refused;
+                const ParameterCatalogue* chosen = &catalogue;
+                if (arguments.contains("domain"))
+                {
+                    if (!arguments.at("domain").is_string())
+                        return failure("The argument 'domain' must be a string.");
+                    const std::string domain = normalizeText(arguments.at("domain").get<std::string>());
+                    if (domain == "program")
+                        chosen = &catalogue;
+                    else if (domain == "sample" && extra.sample != nullptr)
+                        chosen = extra.sample;
+                    else
+                        return failure("Unknown domain '" + arguments.at("domain").get<std::string>() + "'. The domains are: program" +
+                                       (extra.sample != nullptr ? ", sample" : "") + ".");
+                }
                 std::vector<const GroupDefinition*> groups;
                 if (arguments.contains("group"))
                 {
                     if (!arguments.at("group").is_string())
                         return failure("The argument 'group' must be a string.");
-                    groups = catalogue.findGroups(arguments.at("group").get<std::string>());
+                    groups = chosen->findGroups(arguments.at("group").get<std::string>());
                     if (groups.empty())
                         return failure("Unknown group '" + arguments.at("group").get<std::string>() + "'. The groups are: " +
-                                       groupNames(catalogue) + ".");
+                                       groupNames(*chosen) + ".");
                 }
                 else
                 {
-                    for (const GroupDefinition& group : catalogue.groups())
+                    for (const GroupDefinition& group : chosen->groups())
                         groups.push_back(&group);
                 }
-                return ok("Parameters (values are in the sampler's own units):\n" + parameterListFor(catalogue, groups));
+                return ok("Parameters (values are in the sampler's own units):\n" + parameterListFor(*chosen, groups));
             }});
 
         // get_parameters
@@ -566,23 +613,7 @@ namespace mcp
                 if (zone.given && parameter.scope != ParameterScope::Zone)
                     return failure(notAZoneParameter(parameter));
 
-                const json& value = arguments.at("value");
-                ValueResolution resolved;
-                if (value.is_string())
-                    resolved = resolveValue(parameter, value.get<std::string>());
-                else if (value.is_boolean())
-                {
-                    if (parameter.kind != ParameterKind::Switch)
-                        return failure(parameter.name + " takes " + describeRange(parameter) + ", not true or false.");
-                    resolved = resolveValue(parameter, std::int64_t{value.get<bool>() ? 1 : 0});
-                }
-                else if (value.is_number())
-                {
-                    const auto whole = wholeNumber(value);
-                    resolved = whole ? resolveValue(parameter, *whole) : resolveValue(parameter, value.dump());
-                }
-                else
-                    return failure("The argument 'value' must be a number, a text or true/false.");
+                const ValueResolution resolved = resolveJsonValue(parameter, arguments.at("value"));
                 if (!resolved.value)
                     return failure(resolved.problem);
 
@@ -686,10 +717,182 @@ namespace mcp
         return tools;
     }
 
+    std::vector<Tool> makeSampleTools(SamplerGateway& gateway, const ParameterCatalogue& sampleCatalogue)
+    {
+        std::vector<Tool> tools;
+
+        // list_samples
+        tools.push_back(Tool{
+            definition("list_samples", "List samples",
+                       "Lists the samples in the sampler's memory with their positions (from 0) and says which one is current.",
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto listing = gateway.listSamples();
+                if (!listing.ok())
+                    return failure(listing.problem);
+                if (listing.value->samples.empty())
+                    return ok("The sampler holds no sample.");
+                std::string text = "Samples in memory (" + std::to_string(listing.value->samples.size()) + "):\n";
+                for (const SampleEntry& sample : listing.value->samples)
+                {
+                    const bool current = listing.value->current && *listing.value->current == sample.index;
+                    text += std::to_string(sample.index) + ": " + sample.name + (current ? " (current)" : "") + "\n";
+                }
+                if (!listing.value->current)
+                    text += "No sample is selected: use select_sample.\n";
+                return ok(std::move(text));
+            }});
+
+        // select_sample
+        tools.push_back(Tool{
+            definition("select_sample", "Select a sample",
+                       std::string("Makes a sample of the sampler's memory the current one, by its name or its position (from 0, see "
+                                   "list_samples). get_sample_parameters and set_sample_parameter act on it. Give exactly one of name "
+                                   "and index. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The sample's name."}}},
+                                         {"index", {{"type", "integer"}, {"minimum", 0}, {"description", "The sample's position, from 0."}}}}),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name", "index"}))
+                    return *refused;
+                const bool hasName = arguments.contains("name");
+                const bool hasIndex = arguments.contains("index");
+                if (hasName == hasIndex)
+                    return failure(hasName ? "Give either 'name' or 'index', not both." : "Give either 'name' or 'index'.");
+                Outcome<SampleEntry> selected;
+                if (hasName)
+                {
+                    if (!arguments.at("name").is_string())
+                        return failure("The argument 'name' must be a string.");
+                    selected = gateway.selectSampleByName(arguments.at("name").get<std::string>());
+                }
+                else
+                {
+                    const auto index = wholeNumber(arguments.at("index"));
+                    if (!index || *index < 0 || *index > MAX_PROGRAM_INDEX)
+                        return failure("The argument 'index' must be a whole number from 0 to " + std::to_string(MAX_PROGRAM_INDEX) + ".");
+                    selected = gateway.selectSampleByIndex(static_cast<int>(*index));
+                }
+                if (!selected.ok())
+                    return failure(selected.problem);
+                return ok("Selected the sample \"" + selected.value->name + "\" (position " + std::to_string(selected.value->index) + ").");
+            }});
+
+        // get_sample_parameters
+        tools.push_back(Tool{
+            definition("get_sample_parameters", "Read sample parameters",
+                       "Reads the current sample's parameters (see list_parameters with the domain \"sample\"): a whole group, or "
+                       "a list of parameter names. Give exactly one of group and parameters. Select a sample first.",
+                       objectSchema(json{{"group", {{"type", "string"}, {"description", "A group: " + groupNames(sampleCatalogue) + "."}}},
+                                         {"parameters",
+                                          {{"type", "array"},
+                                           {"items", {{"type", "string"}}},
+                                           {"description", "Parameter names, for example [\"sample loop start\", \"sample loop end\"]."}}}}),
+                       true, true),
+            [&gateway, &sampleCatalogue](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"group", "parameters"}))
+                    return *refused;
+                const bool hasGroup = arguments.contains("group");
+                const bool hasList = arguments.contains("parameters");
+                if (hasGroup == hasList)
+                    return failure(hasGroup ? "Give either 'group' or 'parameters', not both." : "Give either 'group' or 'parameters'.");
+
+                std::vector<const ParameterDefinition*> wanted;
+                if (hasGroup)
+                {
+                    if (!arguments.at("group").is_string())
+                        return failure("The argument 'group' must be a string.");
+                    const auto groups = sampleCatalogue.findGroups(arguments.at("group").get<std::string>());
+                    if (groups.empty())
+                        return failure("Unknown group '" + arguments.at("group").get<std::string>() + "'. The groups are: " +
+                                       groupNames(sampleCatalogue) + ".");
+                    for (const GroupDefinition* group : groups)
+                    {
+                        const auto members = sampleCatalogue.parametersInGroup(*group);
+                        wanted.insert(wanted.end(), members.begin(), members.end());
+                    }
+                }
+                else
+                {
+                    const json& names = arguments.at("parameters");
+                    if (!names.is_array() || names.empty() ||
+                        !std::all_of(names.begin(), names.end(), [](const json& name) { return name.is_string(); }))
+                        return failure("The argument 'parameters' must be a list of parameter names.");
+                    std::vector<std::string> problems;
+                    for (const json& name : names)
+                    {
+                        const auto resolution = sampleCatalogue.resolveName(name.get<std::string>());
+                        if (resolution.parameter == nullptr)
+                            problems.push_back(unknownParameterProblem(name.get<std::string>(), resolution));
+                        else
+                            wanted.push_back(resolution.parameter);
+                    }
+                    if (!problems.empty())
+                        return failure(joined(problems, "\n"));
+                }
+
+                std::string text;
+                for (const ParameterDefinition* parameter : wanted)
+                {
+                    const auto read = gateway.readSampleParameter(*parameter);
+                    if (!read.ok())
+                        return failure(text + read.problem);
+                    text += describeReading(*parameter, {ParameterValue{std::nullopt, std::nullopt, *read.value}}, KeygroupSelection::all(),
+                                            ZoneSelection::all()) + "\n";
+                }
+                return ok(std::move(text));
+            }});
+
+        // set_sample_parameter
+        tools.push_back(Tool{
+            definition("set_sample_parameter", "Set a sample parameter",
+                       std::string("Sets one parameter of the current sample (see list_parameters with the domain \"sample\"), then reads it "
+                                   "back from the sampler and reports what it holds. Positions are in sample points. Parameters of the "
+                                   "group \"info\" are read-only. Select a sample first. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"parameter", {{"type", "string"}, {"description", "The parameter's name, for example \"sample loop end\"."}}},
+                                         {"value",
+                                          {{"type", json::array({"number", "string"})},
+                                           {"description", "A number, or a choice label such as \"loop in rel\"."}}}},
+                                    json::array({"parameter", "value"})),
+                       false, true),
+            [&gateway, &sampleCatalogue](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"parameter", "value"}))
+                    return *refused;
+                if (!arguments.at("parameter").is_string())
+                    return failure("The argument 'parameter' must be a string.");
+                const std::string said = arguments.at("parameter").get<std::string>();
+                const NameResolution resolution = sampleCatalogue.resolveName(said);
+                if (resolution.parameter == nullptr)
+                    return failure(unknownParameterProblem(said, resolution));
+                const ParameterDefinition& parameter = *resolution.parameter;
+                if (parameter.readOnly)
+                    return failure(parameter.name + " is read-only: the sampler reports it and it cannot be set.");
+                const ValueResolution resolved = resolveJsonValue(parameter, arguments.at("value"));
+                if (!resolved.value)
+                    return failure(resolved.problem);
+                const auto written = gateway.writeSampleParameter(parameter, *resolved.value);
+                if (!written.ok())
+                    return failure(written.problem);
+                return ok(describeReading(parameter, {ParameterValue{std::nullopt, std::nullopt, *written.value}}, KeygroupSelection::all(),
+                                          ZoneSelection::all()) +
+                          ", as read back from the sampler's memory.");
+            }});
+
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue)
     {
-        std::vector<Tool> tools = makeProgramEditingTools(gateway, catalogue);
+        ExtraCatalogues extra;
+        extra.sample = &ParameterCatalogue::samples();
+        std::vector<Tool> tools = makeProgramEditingTools(gateway, catalogue, extra);
         for (Tool& tool : makeProgramStructureTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeSampleTools(gateway, ParameterCatalogue::samples()))
             tools.push_back(std::move(tool));
         return tools;
     }

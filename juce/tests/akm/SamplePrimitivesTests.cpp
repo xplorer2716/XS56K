@@ -217,17 +217,20 @@ TEST_CASE("Given a simulated sampler holding samples KICK, SNARE, HAT, When the 
     CHECK(*result.names == std::vector<std::string>{"KICK", "SNARE", "HAT"});
 }
 
-TEST_CASE("Given no sample in memory, When the names of all samples are read, Then an empty list is returned, not a failure [RQ-AKM-047]",
+TEST_CASE("Given no sample in memory, When the names of all samples are read, Then the sampler answers ERROR 3 and there are no names, while the count is 0 [RQ-AKM-047]",
           "[akm][sample]")
 {
+    // Observed on a real S5000 (OS 2.14, 2026-10-05, OBSERVATIONS-RQ-MCP-012-real-sampler.md): with an empty memory &12 answers
+    // ERROR 3, not an empty REPLY (the simulated sampler answered an empty REPLY before). The count says 0.
     ManualScenarioDriver driver;
     SessionHarness harness{driver};
     REQUIRE(harness.establishChecksumMode(false).has_value());
 
     CHECK(getCount(harness).count == 0);
     const AllSampleNamesResult result = getAllNames(harness);
-    REQUIRE(result.names.has_value());
-    CHECK(result.names->empty());
+    CHECK_FALSE(result.names.has_value());
+    REQUIRE(std::holds_alternative<Error>(result.outcome));
+    CHECK(std::get<Error>(result.outcome).number == akm::error_number::UNKNOWN_ERROR);
 }
 
 TEST_CASE("Given a sample selected by index, When its current index and current name are read, and a sample is read by index without selecting it, Then they equal what was seeded and the current selection is unchanged [RQ-AKM-047]",

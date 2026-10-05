@@ -27,4 +27,8 @@ namespace mcp
     // ADR-MCP-001 (DEC-MCP-005)]
     [[nodiscard]] std::vector<GroupDefinition> standardGroups();
     [[nodiscard]] std::vector<ParameterDefinition> standardParameters();
+
+    // The rows of the sample catalogue (section 0E). [RQ-MCP-020, ADR-MCP-002 (DEC-MCP-012)]
+    [[nodiscard]] std::vector<GroupDefinition> sampleGroups();
+    [[nodiscard]] std::vector<ParameterDefinition> sampleParameters();
 }

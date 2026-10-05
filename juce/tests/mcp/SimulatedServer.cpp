@@ -54,8 +54,10 @@ int main()
 
     akm::RealScheduler scheduler;
     akm::harness::SimulatedMidiBackend backend(scheduler);
-    backend.addSampler();
+    akm::harness::SimulatedSampler& sampler = backend.addSampler();
     mcp::test::seedThreePrograms(backend);
+    sampler.setSampleNames({"KICK", "SNARE", "PAD"});
+    sampler.setSampleAttributes(0, 0, 2, 143169, 22050);
 
     mcp::GatewayConfig config;
     config.inputPort = backend.inputName();
@@ -70,7 +72,7 @@ int main()
     identity.instructions = mcp::programEditingInstructions();
     mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard()));
 
-    std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding PAD, BASS and LEAD (BASS current)\n";
+    std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current) and the samples KICK, SNARE and PAD\n";
     server.serve(std::cin, std::cout);
     gateway.close();
     return 0;

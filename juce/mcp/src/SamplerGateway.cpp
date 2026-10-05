@@ -31,6 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/RealScheduler.hpp"
+#include "akm/SamplePrimitives.hpp"
 #include "akm/SamplerError.hpp"
 #include "akm/ThreadExecutor.hpp"
 
@@ -118,7 +119,7 @@ namespace mcp
 
         /// What a command's outcome says when it did not succeed, as one sentence for the person.
         std::string explain(const akm::CommandResult& outcome, const std::string& doing, const GatewayConfig& config,
-                            bool needsCurrentProgram)
+                            bool needsCurrentProgram, const std::string& currentObject = "program")
         {
             if (std::holds_alternative<akm::Timeout>(outcome))
                 return "The sampler did not answer while " + doing + " (no reply within " + numberText(config.commandTimeout.count()) +
@@ -133,7 +134,7 @@ namespace mcp
                 if (error->number == akm::error_number::KEYGROUP_NOT_IN_PROGRAM)
                     text += " The current program does not have that keygroup.";
                 else if (needsCurrentProgram && error->number == akm::error_number::NOT_FOUND)
-                    text += " Is a program selected? Use select_program first.";
+                    text += " Is a " + currentObject + " selected? Use select_" + currentObject + " first.";
                 return text;
             }
             if (std::holds_alternative<akm::Cancelled>(outcome))
@@ -245,7 +246,7 @@ namespace mcp
 
     Outcome<std::vector<std::vector<std::uint8_t>>> SamplerGateway::runSequence(std::vector<akm::CommandRequest> requests,
                                                                                const std::vector<std::string>& steps,
-                                                                               bool needsCurrentProgram)
+                                                                               bool needsCurrentProgram, const char* currentObject)
     {
         using Replies = std::vector<std::vector<std::uint8_t>>;
         if (const auto problem = connect())
@@ -261,7 +262,7 @@ namespace mcp
         {
             const std::size_t failed = *result->failureIndex;
             return Outcome<Replies>::failure(explain(result->results[failed], steps[std::min(failed, steps.size() - 1)], _config,
-                                                     needsCurrentProgram));
+                                                     needsCurrentProgram, currentObject));
         }
 
         Replies replies;
@@ -630,5 +631,138 @@ namespace mcp
                                                                         KeygroupSelection selection, ZoneSelection zones)
     {
         return editParameter(parameter, value, selection, zones);
+    }
+
+    // ---- Samples (section 0E): the sampler's own "current sample", like the current program. [RQ-MCP-020] ----
+
+    Outcome<SampleEntry> SamplerGateway::currentSampleEntry()
+    {
+        const auto index = await<akm::SampleIndexResult>(waitFor(1), [&](std::function<void(const akm::SampleIndexResult&)> done) {
+            akm::getCurrentSampleIndex(_connection->session, std::move(done));
+        });
+        if (!index)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        if (!index->index)
+            return Outcome<SampleEntry>::failure(explain(index->outcome, "reading the position of the current sample", _config, true, "sample"));
+        const auto name = await<akm::SampleNameResult>(waitFor(1), [&](std::function<void(const akm::SampleNameResult&)> done) {
+            akm::getCurrentSampleName(_connection->session, std::move(done));
+        });
+        if (!name)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        if (!name->name)
+            return Outcome<SampleEntry>::failure(explain(name->outcome, "reading the name of the current sample", _config, true, "sample"));
+        return Outcome<SampleEntry>::success(SampleEntry{*index->index, *name->name});
+    }
+
+    Outcome<SampleListing> SamplerGateway::listSamples()
+    {
+        if (const auto problem = connect())
+            return Outcome<SampleListing>::failure(*problem);
+
+        // The count first: with no sample in memory the Get of all the names answers ERROR 3 (seen on a real S5000, not an empty
+        // list), so it is only asked when there is one to name. [OBSERVATIONS-RQ-MCP-012-real-sampler.md]
+        const auto count = await<akm::SampleCountResult>(waitFor(1), [&](std::function<void(const akm::SampleCountResult&)> done) {
+            akm::getSampleCount(_connection->session, std::move(done));
+        });
+        if (!count)
+            return Outcome<SampleListing>::failure("The sampler session did not complete the command in time.");
+        if (!count->count)
+            return Outcome<SampleListing>::failure(explain(count->outcome, "counting the samples", _config, false));
+        SampleListing listing;
+        if (*count->count == 0)
+            return Outcome<SampleListing>::success(std::move(listing));
+
+        const auto names = await<akm::AllSampleNamesResult>(waitFor(1), [&](std::function<void(const akm::AllSampleNamesResult&)> done) {
+            akm::getAllSampleNames(_connection->session, std::move(done));
+        });
+        if (!names)
+            return Outcome<SampleListing>::failure("The sampler session did not complete the command in time.");
+        if (!names->names)
+            return Outcome<SampleListing>::failure(explain(names->outcome, "reading the sample names", _config, false));
+        for (std::size_t i = 0; i < names->names->size(); ++i)
+            listing.samples.push_back(SampleEntry{static_cast<int>(i), (*names->names)[i]});
+        if (listing.samples.empty())
+            return Outcome<SampleListing>::success(std::move(listing));
+
+        const auto index = await<akm::SampleIndexResult>(waitFor(1), [&](std::function<void(const akm::SampleIndexResult&)> done) {
+            akm::getCurrentSampleIndex(_connection->session, std::move(done));
+        });
+        if (!index)
+            return Outcome<SampleListing>::failure("The sampler session did not complete the command in time.");
+        if (index->index)
+            listing.current = *index->index;
+        else
+        {
+            const auto* error = std::get_if<akm::Error>(&index->outcome);
+            if (error == nullptr || error->number != akm::error_number::NOT_FOUND)
+                return Outcome<SampleListing>::failure(explain(index->outcome, "reading the current sample", _config, false));
+        }
+        return Outcome<SampleListing>::success(std::move(listing));
+    }
+
+    Outcome<SampleEntry> SamplerGateway::selectSampleByName(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<SampleEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectSampleByName(_connection->session, name, std::move(done));
+        });
+        if (!selected)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<SampleEntry>::failure("No sample is named \"" + std::string(name) + "\". Use list_samples to see the names.");
+        if (!akm::succeeded(*selected))
+            return Outcome<SampleEntry>::failure(explain(*selected, "selecting the sample \"" + std::string(name) + "\"", _config, false));
+        return currentSampleEntry();
+    }
+
+    Outcome<SampleEntry> SamplerGateway::selectSampleByIndex(int index)
+    {
+        if (const auto problem = connect())
+            return Outcome<SampleEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectSampleByIndex(_connection->session, index, std::move(done));
+        });
+        if (!selected)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<SampleEntry>::failure("No sample is at index " + numberText(index) + ". Use list_samples to see the positions.");
+        if (!akm::succeeded(*selected))
+            return Outcome<SampleEntry>::failure(explain(*selected, "selecting the sample at index " + numberText(index), _config, false));
+        return currentSampleEntry();
+    }
+
+    Outcome<std::int64_t> SamplerGateway::readSampleParameter(const ParameterDefinition& parameter)
+    {
+        const auto replies = runSequence({getRequest(parameter, ZoneSelection::all(), false)}, {"reading " + parameter.name}, true, "sample");
+        if (!replies.ok())
+            return Outcome<std::int64_t>::failure(replies.problem);
+        const auto set = akm::decodeReply(parameter.getItem, replies.value->front());
+        const auto value = set ? fromItemValues(parameter, *set) : std::nullopt;
+        if (!value)
+            return Outcome<std::int64_t>::failure("The sampler's answer for " + parameter.name + " could not be read.");
+        return Outcome<std::int64_t>::success(*value);
+    }
+
+    Outcome<std::int64_t> SamplerGateway::writeSampleParameter(const ParameterDefinition& parameter, std::int64_t value)
+    {
+        if (parameter.readOnly)
+            return Outcome<std::int64_t>::failure(parameter.name + " is read-only: the sampler reports it and it cannot be set.");
+        const auto replies = runSequence({setRequest(parameter, value, ZoneSelection::all()), getRequest(parameter, ZoneSelection::all(), false)},
+                                         {"setting " + parameter.name, "reading " + parameter.name}, true, "sample");
+        if (!replies.ok())
+            return Outcome<std::int64_t>::failure(replies.problem);
+        const auto set = akm::decodeReply(parameter.getItem, replies.value->back());
+        const auto read = set ? fromItemValues(parameter, *set) : std::nullopt;
+        if (!read)
+            return Outcome<std::int64_t>::failure("The sampler's answer for " + parameter.name + " could not be read.");
+        if (*read != value)
+            return Outcome<std::int64_t>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
+                                                  describeValue(parameter, value) + " but reads " + describeValue(parameter, *read) + ".");
+        return Outcome<std::int64_t>::success(*read);
     }
 }

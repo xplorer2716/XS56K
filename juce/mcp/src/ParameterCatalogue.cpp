@@ -29,7 +29,27 @@ namespace mcp
     namespace
     {
         constexpr std::size_t MAX_SUGGESTIONS = 3;
-        constexpr std::int64_t WORD_BASE = 128;  // a 14-bit value is MSB * 128 + LSB (spec, data encodings)
+        constexpr std::int64_t WORD_BASE = 128;  // a value of several 7-bit bytes is MSB * 128^n + ... + LSB (spec, data encodings)
+
+        /// `value` as `bytes` 7-bit digits, most significant first.
+        std::vector<std::int64_t> magnitudeDigits(std::int64_t value, std::int64_t bytes)
+        {
+            std::vector<std::int64_t> digits(static_cast<std::size_t>(bytes), 0);
+            for (std::size_t i = digits.size(); i > 0; --i)
+            {
+                digits[i - 1] = value % WORD_BASE;
+                value /= WORD_BASE;
+            }
+            return digits;
+        }
+
+        std::int64_t magnitudeFromDigits(std::span<const std::int64_t> digits)
+        {
+            std::int64_t value = 0;
+            for (const std::int64_t digit : digits)
+                value = value * WORD_BASE + digit;
+            return value;
+        }
         constexpr std::size_t MIN_SUBSTRING_QUERY = 3;
         constexpr std::size_t MIN_EDIT_BUDGET = 2;
         constexpr std::size_t EDIT_BUDGET_DIVISOR = 3;
@@ -216,6 +236,12 @@ namespace mcp
         return catalogue;
     }
 
+    const ParameterCatalogue& ParameterCatalogue::samples()
+    {
+        static const ParameterCatalogue catalogue(sampleGroups(), sampleParameters());
+        return catalogue;
+    }
+
     ParameterCatalogue::ParameterCatalogue(std::vector<GroupDefinition> groups, std::vector<ParameterDefinition> parameters)
         : _groups(std::move(groups)), _parameters(std::move(parameters))
     {
@@ -359,11 +385,14 @@ namespace mcp
         switch (parameter.kind)
         {
             case ParameterKind::Number:
-                return {(value - parameter.offset) / parameter.step};
+                return magnitudeDigits((value - parameter.offset) / parameter.step, parameter.magnitudeBytes);
             case ParameterKind::Signed:
-                if (parameter.magnitudeBytes == 2)
-                    return {value < 0 ? 1 : 0, std::abs(value) / WORD_BASE, std::abs(value) % WORD_BASE};
-                return {value < 0 ? 1 : 0, std::abs(value)};
+            {
+                std::vector<std::int64_t> values{value < 0 ? 1 : 0};
+                const std::vector<std::int64_t> digits = magnitudeDigits(std::abs(value), parameter.magnitudeBytes);
+                values.insert(values.end(), digits.begin(), digits.end());
+                return values;
+            }
             case ParameterKind::Choice:
             case ParameterKind::Switch:
                 return {value};
@@ -376,15 +405,16 @@ namespace mcp
         switch (parameter.kind)
         {
             case ParameterKind::Number:
-                if (reply.size() != 1)
+            {
+                if (reply.size() != static_cast<std::size_t>(parameter.magnitudeBytes))
                     return std::nullopt;
-                return reply[0] * parameter.step + parameter.offset;
+                return magnitudeFromDigits(reply) * parameter.step + parameter.offset;
+            }
             case ParameterKind::Signed:
             {
-                const bool word = parameter.magnitudeBytes == 2;
-                if (reply.size() != (word ? 3u : 2u))
+                if (reply.size() != static_cast<std::size_t>(parameter.magnitudeBytes) + 1)
                     return std::nullopt;
-                const std::int64_t magnitude = word ? reply[1] * WORD_BASE + reply[2] : reply[1];
+                const std::int64_t magnitude = magnitudeFromDigits(reply.subspan(1));
                 return reply[0] != 0 ? -magnitude : magnitude;
             }
             case ParameterKind::Choice:

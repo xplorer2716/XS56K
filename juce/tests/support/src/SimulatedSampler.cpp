@@ -1236,6 +1236,10 @@ namespace akm::harness
                 }
                 case ITEM_GET_ALL_SAMPLE_NAMES:
                 {
+                    // Observed on a real S5000 (OS 2.14, 2026-10-05): with no sample in memory the sampler answers ERROR 3, not
+                    // an empty REPLY.
+                    if (samples.empty())
+                        return failure(error_number::UNKNOWN_ERROR);
                     akm::ByteWriter writer;
                     for (const SampleRecord& sample : samples)
                         writer.appendString(sample.name);

@@ -26,12 +26,24 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace mcp
 {
+    /// The catalogues of the other domains, for the `domain` argument of `list_parameters`; a null one is not offered.
+    struct ExtraCatalogues
+    {
+        const ParameterCatalogue* sample = nullptr;
+    };
+
     // The six tools of the program editing server: `get_status`, `list_programs`, `select_program`,
     // `list_parameters`, `get_parameters` and `set_parameter`. They map JSON arguments to the gateway and the
     // catalogue and the answers back to plain text in the musician's vocabulary; none of them creates, renames,
     // deletes or saves anything. The gateway and the catalogue must outlive the tools. [RQ-MCP-004, RQ-MCP-005,
     // RQ-MCP-006, RQ-MCP-007, RQ-MCP-008, RQ-MCP-009, ADR-MCP-001 (DEC-MCP-006, DEC-MCP-007)]
-    [[nodiscard]] std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue);
+    [[nodiscard]] std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue,
+                                                            ExtraCatalogues extra = {});
+
+    // The sample tools: `list_samples`, `select_sample`, `get_sample_parameters` and `set_sample_parameter`. They act on the
+    // sampler's current sample in memory; none creates, deletes, renames or loads a sample. The gateway and the catalogue
+    // must outlive the tools. [RQ-MCP-013, RQ-MCP-020, ADR-MCP-002 (DEC-MCP-010, DEC-MCP-013)]
+    [[nodiscard]] std::vector<Tool> makeSampleTools(SamplerGateway& gateway, const ParameterCatalogue& sampleCatalogue);
 
     // The structure tools of a program, in the sampler's memory: `create_program`, `rename_program` and `delete_program`
     // (which deletes the current program only when `confirm` is its name). They never save, load or touch the disk.

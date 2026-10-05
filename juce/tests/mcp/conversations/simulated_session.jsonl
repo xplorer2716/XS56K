@@ -76,4 +76,12 @@
 {"jsonrpc":"2.0","id":75,"method":"tools/call","params":{"name":"get_parameters","arguments":{"parameters":["zone level","zone pan"],"keygroup":1}}}
 {"jsonrpc":"2.0","id":76,"method":"tools/call","params":{"name":"set_parameter","arguments":{"parameter":"filter cutoff","value":50,"zone":2}}}
 {"jsonrpc":"2.0","id":77,"method":"tools/call","params":{"name":"list_parameters","arguments":{"group":"zone"}}}
-{"jsonrpc":"2.0","id":78,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":78,"method":"tools/call","params":{"name":"list_samples","arguments":{}}}
+{"jsonrpc":"2.0","id":79,"method":"tools/call","params":{"name":"select_sample","arguments":{"name":"KICK"}}}
+{"jsonrpc":"2.0","id":80,"method":"tools/call","params":{"name":"set_sample_parameter","arguments":{"parameter":"sample loop end","value":1500}}}
+{"jsonrpc":"2.0","id":81,"method":"tools/call","params":{"name":"set_sample_parameter","arguments":{"parameter":"sample playback mode","value":"loop in rel"}}}
+{"jsonrpc":"2.0","id":82,"method":"tools/call","params":{"name":"get_sample_parameters","arguments":{"group":"info"}}}
+{"jsonrpc":"2.0","id":83,"method":"tools/call","params":{"name":"set_sample_parameter","arguments":{"parameter":"sample length","value":10}}}
+{"jsonrpc":"2.0","id":84,"method":"tools/call","params":{"name":"select_sample","arguments":{"name":"NOPE"}}}
+{"jsonrpc":"2.0","id":85,"method":"tools/call","params":{"name":"list_parameters","arguments":{"domain":"sample","group":"pitch"}}}
+{"jsonrpc":"2.0","id":86,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

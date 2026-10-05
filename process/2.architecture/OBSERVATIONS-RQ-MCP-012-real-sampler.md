@@ -104,6 +104,22 @@ value was put back with a Set on all zones. The program was deleted and memory w
 - **The velocity to start** (a sign and a magnitude of two 7-bit bytes, up to 9999) accepted -1234 and 0.
 - **No sample was in memory**, so the zone sample assignment (`&01`, `&21`) was not run; it is not a parameter of the table.
 
+## Samples (TASK-MCP-015), run on 2026-10-05 on an empty memory
+
+The sampler held **no sample**, so the sample tools could only be run for what they say about an empty memory; every edit of a
+sample's parameters is tested on the simulated sampler only.
+
+- **The names of all samples (`&12`) answer ERROR 3 ("unknown error: the command could not be completed") when no sample is in
+  memory**, not an empty REPLY and not ERROR 4 (the programs' `&19` answers ERROR 4). The count (`&10`) answers 0. The simulated
+  sampler answered an empty REPLY: it now answers ERROR 3, two AKM tests that stated the empty reply were changed to say what
+  the real sampler did, and the gateway asks the count first and the names only when there is a sample.
+- **`select_sample` of a name or of a position with no sample** reads as "not found" (ERROR 4), as for programs.
+- **Reading or setting a parameter of the current sample with none selected** answers ERROR 4 ("requested ... item could not be
+  found"); the tools say "Is a sample selected? Use select_sample first."
+- **Not run**: any read or write of a sample's parameters (positions of four 7-bit bytes, original pitch, tunes, playback mode,
+  type, channels, length, rate), the `domain` argument beyond its text, and the loop-end-moves-loop-start quirk of
+  `OBSERVATIONS-RQ-AKM-051-sample-loop-points.md` through the tools. They need a sample in memory (the owner's memory held none).
+
 ## Not established
 
 - What the sampler's screen shows (modulation source and clock division labels, the effect of Auto screen update during edits).

@@ -98,6 +98,21 @@ namespace mcp
         std::optional<int> remaining;  ///< programs left in memory, when the sampler said
     };
 
+    /// One sample of the sampler's memory: its position (from 0, the sampler's own order, alphabetical like the programs'
+    /// is not assumed) and its name.
+    struct SampleEntry
+    {
+        int index = 0;
+        std::string name;
+    };
+
+    /// The samples in memory, in memory order, and the position of the current one when there is one.
+    struct SampleListing
+    {
+        std::vector<SampleEntry> samples;
+        std::optional<int> current;
+    };
+
     /// Which keygroup an edit or a reading is about: one (1 to the program's count), or all of them.
     struct KeygroupSelection
     {
@@ -157,6 +172,23 @@ namespace mcp
         /// moment; otherwise nothing is sent and the answer says which program is current. [RQ-MCP-017]
         [[nodiscard]] Outcome<ProgramDeletion> deleteCurrentProgram(std::string_view confirm);
 
+        /// The samples in memory and the current one. [RQ-MCP-020]
+        [[nodiscard]] Outcome<SampleListing> listSamples();
+
+        /// Makes a sample current, by name or by position, and answers it. A name or a position that no sample has is a
+        /// problem that says so. [RQ-MCP-020]
+        [[nodiscard]] Outcome<SampleEntry> selectSampleByName(std::string_view name);
+        [[nodiscard]] Outcome<SampleEntry> selectSampleByIndex(int index);
+
+        /// The value of a parameter of the current sample (a row of the sample catalogue), or the problem. With no
+        /// current sample the problem says to select one. [RQ-MCP-020]
+        [[nodiscard]] Outcome<std::int64_t> readSampleParameter(const ParameterDefinition& parameter);
+
+        /// Sets a parameter of the current sample (the value must have been resolved by the catalogue) and reads it back;
+        /// the answer is what the sampler reports. A read-only parameter is a problem that says so and nothing is sent.
+        /// [RQ-MCP-020]
+        [[nodiscard]] Outcome<std::int64_t> writeSampleParameter(const ParameterDefinition& parameter, std::int64_t value);
+
         /// The value of a parameter of the current program, for one keygroup or for each. A keygroup beyond the
         /// program's is a problem that gives the count, and nothing is sent to the sampler but the questions that
         /// say so. A program parameter has no keygroup: its one value carries none. [RQ-MCP-005, RQ-MCP-007]
@@ -190,7 +222,9 @@ namespace mcp
         /// DONE); the first that does not succeed ends it with a sentence naming it by `steps`.
         [[nodiscard]] Outcome<std::vector<std::vector<std::uint8_t>>> runSequence(std::vector<akm::CommandRequest> requests,
                                                                                   const std::vector<std::string>& steps,
-                                                                                  bool needsCurrentProgram);
+                                                                                  bool needsCurrentProgram,
+                                                                                  const char* currentObject = "program");
+        [[nodiscard]] Outcome<SampleEntry> currentSampleEntry();
         [[nodiscard]] Outcome<int> keygroupCount();
         [[nodiscard]] Outcome<std::string> currentProgramName();
         [[nodiscard]] Outcome<ProgramInfo> currentProgramInfo();

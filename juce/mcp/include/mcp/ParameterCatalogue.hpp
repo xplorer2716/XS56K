@@ -34,13 +34,15 @@ namespace mcp
     // takes and back. Adding a parameter is adding a row, not code. [RQ-MCP-004, RQ-MCP-005, RQ-MCP-006,
     // RQ-MCP-010, ADR-MCP-001 (DEC-MCP-005)]
 
-    /// Where the sampler keeps the value: on the current keygroup (§08), on the current program (§0A) or on a zone of
-    /// the current keygroup (§06: the zone number is the first argument of every item, 0 meaning all four zones).
+    /// Where the sampler keeps the value: on the current keygroup (§08), on the current program (§0A), on a zone of
+    /// the current keygroup (§06: the zone number is the first argument of every item, 0 meaning all four zones) or on
+    /// the current sample (§0E).
     enum class ParameterScope
     {
         Keygroup,
         Program,
         Zone,
+        Sample,
     };
 
     /// How a value is said: `Number` (a whole number in the sampler's own units, in steps of `step`), `Signed`
@@ -74,9 +76,12 @@ namespace mcp
         /// for 0-30 dB; the keygroup level is a code 0-10 for -30 to 30 dB, `offset` -30).
         std::int64_t step = 1;
         std::int64_t offset = 0;
-        /// `Signed` only: how many 7-bit bytes hold the magnitude after the sign byte, most significant first (the zone's
-        /// velocity to start is two, +-9999).
+        /// `Number` and `Signed`: how many 7-bit bytes hold the value (the magnitude, after the sign byte, for a `Signed`),
+        /// most significant first: the zone's velocity to start is two (+-9999), a sample position four (up to 2^28 - 1).
         std::int64_t magnitudeBytes = 1;
+        /// A parameter the sampler only reports (the sample's length): it has a Get item and no Set item, and `setItem`
+        /// is not meaningful.
+        bool readOnly = false;
         std::string unit;                   ///< "dB", or empty
         std::vector<std::string> labels;    ///< `Choice`: the label of code i; `Switch`: off, on
         /// `Choice` only: other ways to say a choice, each with its code ("pitch bend" for BEND).
@@ -111,6 +116,9 @@ namespace mcp
     public:
         /// The catalogue of the program parameters the server edits. [RQ-MCP-004, RQ-MCP-010]
         [[nodiscard]] static const ParameterCatalogue& standard();
+
+        /// The catalogue of the parameters of a sample (section 0E). [RQ-MCP-020]
+        [[nodiscard]] static const ParameterCatalogue& samples();
 
         ParameterCatalogue(std::vector<GroupDefinition> groups, std::vector<ParameterDefinition> parameters);
 

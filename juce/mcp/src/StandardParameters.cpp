@@ -733,4 +733,105 @@ namespace mcp
         addZoneRows(rows);
         return rows;
     }
+
+    namespace
+    {
+        constexpr const char* GROUP_SAMPLE_PLAYBACK = "playback";
+        constexpr const char* GROUP_SAMPLE_PITCH = "pitch";
+        constexpr const char* GROUP_SAMPLE_INFO = "info";
+
+        // A position in the sample, or its length, is a compound double word of four 7-bit bytes (spec, data encodings).
+        constexpr std::int64_t SAMPLE_POSITION_BYTES = 4;
+        constexpr std::int64_t SAMPLE_POSITION_MAX = (1LL << (7 * SAMPLE_POSITION_BYTES)) - 1;
+        constexpr std::int64_t SAMPLE_CHANNELS_MIN = 1;
+        constexpr std::int64_t SAMPLE_CHANNELS_MAX = 2;
+        constexpr const char* UNIT_HZ = "Hz";
+
+        // Table 18, item &28: the sample's own modes (the zone adds AS SAMPLE).
+        const std::vector<std::string>& samplePlaybackLabels()
+        {
+            static const std::vector<std::string> labels{"NO LOOPING", "ONE SHOT", "LOOP IN REL", "LOOP UNTIL REL", "LIR->RETRIG", "PLAY->RETRIG"};
+            return labels;
+        }
+
+        // Table 18, item &30.
+        const std::vector<std::string>& sampleTypeLabels()
+        {
+            static const std::vector<std::string> labels{"RAM", "VIRTUAL"};
+            return labels;
+        }
+
+        ParameterDefinition samplePosition(const char* name, const char* description, akm::ItemId setItem, akm::ItemId getItem)
+        {
+            ParameterDefinition row = number(name, {}, GROUP_SAMPLE_PLAYBACK, description, ParameterScope::Sample, setItem, getItem,
+                                             SAMPLE_POSITION_MAX);
+            row.magnitudeBytes = SAMPLE_POSITION_BYTES;
+            row.unit = "sample points";
+            return row;
+        }
+
+        ParameterDefinition readOnlyRow(ParameterDefinition row)
+        {
+            row.readOnly = true;
+            return row;
+        }
+    }
+
+    std::vector<GroupDefinition> sampleGroups()
+    {
+        return {
+            {GROUP_SAMPLE_PLAYBACK, {"loop", "positions"}, "Where the sample starts and ends, where its loop starts and ends, and how it plays."},
+            {GROUP_SAMPLE_PITCH, {"tuning"}, "The sample's original pitch and its tuning."},
+            {GROUP_SAMPLE_INFO, {"information", "attributes"}, "What the sampler reports about the sample and that cannot be changed: its type, channels, length and rate."},
+        };
+    }
+
+    std::vector<ParameterDefinition> sampleParameters()
+    {
+        std::vector<ParameterDefinition> rows;
+        rows.push_back(samplePosition("sample start position", "Where the sample starts playing, in sample points from its beginning.",
+                                      akm::ItemId::SampleSetStartPosition, akm::ItemId::SampleGetStartPosition));
+        rows.push_back(samplePosition("sample end position", "Where the sample stops playing, in sample points from its beginning.",
+                                      akm::ItemId::SampleSetEndPosition, akm::ItemId::SampleGetEndPosition));
+        rows.push_back(samplePosition("sample loop start",
+                                      "Where the sample's loop starts, in sample points. Setting the loop end can move the loop start (seen on "
+                                      "the S5000): read both back.",
+                                      akm::ItemId::SampleSetLoopStart, akm::ItemId::SampleGetLoopStart));
+        rows.push_back(samplePosition("sample loop end", "Where the sample's loop ends, in sample points. Set it before the loop start.",
+                                      akm::ItemId::SampleSetLoopEnd, akm::ItemId::SampleGetLoopEnd));
+        rows.push_back(choice("sample playback mode", {"sample loop mode", "playback mode"}, GROUP_SAMPLE_PLAYBACK,
+                              "How the sample plays: NO LOOPING, ONE SHOT, LOOP IN REL, LOOP UNTIL REL, LIR->RETRIG or PLAY->RETRIG.",
+                              ParameterScope::Sample, akm::ItemId::SampleSetPlaybackMode, akm::ItemId::SampleGetPlaybackMode,
+                              samplePlaybackLabels()));
+
+        ParameterDefinition pitch = number("sample original pitch", {"original pitch", "sample root note"}, GROUP_SAMPLE_PITCH,
+                                           "The note the sample was recorded at, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.",
+                                           ParameterScope::Sample, akm::ItemId::SampleSetOriginalPitch, akm::ItemId::SampleGetOriginalPitch,
+                                           LAST_NOTE);
+        pitch.min = FIRST_NOTE;
+        rows.push_back(std::move(pitch));
+        rows.push_back(signedNumber("sample semitone tune", {}, GROUP_SAMPLE_PITCH, "How far the sample is tuned, in semitones, up or down.",
+                                    ParameterScope::Sample, akm::ItemId::SampleSetSemitoneTune, akm::ItemId::SampleGetSemitoneTune,
+                                    SEMITONE_TUNE_MAX));
+        rows.push_back(signedNumber("sample fine tune", {}, GROUP_SAMPLE_PITCH, "A finer tuning of the sample, up or down (cents of a semitone).",
+                                    ParameterScope::Sample, akm::ItemId::SampleSetFineTune, akm::ItemId::SampleGetFineTune, FINE_TUNE_MAX));
+
+        rows.push_back(readOnlyRow(choice("sample type", {}, GROUP_SAMPLE_INFO, "Whether the sample is RAM or VIRTUAL. Read-only.",
+                                          ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetType, sampleTypeLabels())));
+        ParameterDefinition channels = number("sample channels", {}, GROUP_SAMPLE_INFO, "How many channels the sample has: 1 is mono, 2 is stereo. Read-only.",
+                                              ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetChannels, SAMPLE_CHANNELS_MAX);
+        channels.min = SAMPLE_CHANNELS_MIN;
+        rows.push_back(readOnlyRow(std::move(channels)));
+        ParameterDefinition length = number("sample length", {}, GROUP_SAMPLE_INFO, "The sample's length, in sample points. Read-only.",
+                                            ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetLength, SAMPLE_POSITION_MAX);
+        length.magnitudeBytes = SAMPLE_POSITION_BYTES;
+        length.unit = "sample points";
+        rows.push_back(readOnlyRow(std::move(length)));
+        ParameterDefinition rate = number("sample rate", {"sampling rate"}, GROUP_SAMPLE_INFO, "The sample's sampling rate, in Hz. Read-only.",
+                                          ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetRate, SAMPLE_POSITION_MAX);
+        rate.magnitudeBytes = SAMPLE_POSITION_BYTES;
+        rate.unit = UNIT_HZ;
+        rows.push_back(readOnlyRow(std::move(rate)));
+        return rows;
+    }
 }
