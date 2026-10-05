@@ -114,7 +114,7 @@ int main(int argc, char** argv)
         identity.title = SERVER_TITLE;
         identity.version = XS56K_MCP_VERSION;
         identity.instructions = mcp::programEditingInstructions();
-        mcp::McpServer server(identity, mcp::makeProgramEditingTools(gateway, mcp::ParameterCatalogue::standard()));
+        mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard()));
 
         std::cerr << LOG_PREFIX << "version " << XS56K_MCP_VERSION << ", sampler input \"" << parsed.options.inputPort
                   << "\", output \"" << parsed.options.outputPort << "\", DeviceID " << parsed.options.deviceId << "\n";

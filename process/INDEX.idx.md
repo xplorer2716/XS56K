@@ -408,7 +408,7 @@ TASK-MCP-009|128-138|Blocked|Real-sampler run, observations and documentation
 @process/3.plan/PLAN-MCP-002-structure-and-more-domains.md
 PLAN-MCP-002|1-126||MCP Server — Program Structure in Memory, the Rest of the Keygroup and the Program, Zones, Samples and Multis
 TASK-MCP-010|32-43|Done|Author FTR-MCP-002, ADR-MCP-002 and PLAN-MCP-002
-TASK-MCP-011|44-55|Not Started|Program structure tools — create_program, rename_program, delete_program
+TASK-MCP-011|44-55|Done|Program structure tools — create_program, rename_program, delete_program
 TASK-MCP-012|56-67|Not Started|Real-sampler run of the server (closes TASK-MCP-009)
 TASK-MCP-013|68-79|Not Started|Catalogue lot 3 — the rest of the keygroup and of the program
 TASK-MCP-014|80-91|Not Started|Zone parameters

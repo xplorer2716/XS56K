@@ -87,6 +87,7 @@ add_executable(xs56k_mcp_tests
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueLot2Tests.cpp
     mcp/ParameterCatalogueTests.cpp
+    mcp/ProgramStructureTests.cpp
     mcp/SamplerGatewayTests.cpp
     mcp/ServerOptionsTests.cpp
     mcp/ToolsTests.cpp)
@@ -143,7 +144,7 @@ add_test(NAME mcp_simulated_server_scripted_conversation
         -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
-        -DEXPECT_LINES=57
+        -DEXPECT_LINES=63
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The shipped server must not link the simulated sampler or anything else of the test support: checked when CMake
 # configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
@@ -154,7 +155,8 @@ foreach(library IN LISTS shipped_server_libraries shipped_library_libraries)
         message(FATAL_ERROR "The shipped MCP server links the test support (${library}): it must not")
     endif()
 endforeach()
-# The server edits and never creates, renames, deletes or saves. [RQ-MCP-008, ADR-MCP-001 (DEC-MCP-007)]
+# The server never saves, loads, touches the disk or deletes everything, and only the gateway creates, renames or deletes
+# a program, in memory. [RQ-MCP-008, RQ-MCP-014, ADR-MCP-001 (DEC-MCP-007), ADR-MCP-002 (DEC-MCP-010)]
 add_test(NAME mcp_sources_call_no_destructive_primitive
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/mcp

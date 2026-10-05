@@ -32,6 +32,13 @@ namespace mcp
         constexpr const char* KEYGROUP_ALL = "all";
         constexpr std::int64_t FIRST_KEYGROUP = 1;
         constexpr std::int64_t MAX_PROGRAM_INDEX = 16383;
+        // The sampler's program names are 12 characters on its screen; the wire takes up to 20 (the AKM item), and
+        // whether the sampler keeps more is observed on the real sampler. [ADR-MCP-002 (DEC-MCP-011)]
+        constexpr std::size_t MAX_PROGRAM_NAME_LENGTH = 12;
+        constexpr std::int64_t MIN_NEW_KEYGROUPS = 1;
+        constexpr std::int64_t MAX_NEW_KEYGROUPS = 99;
+        constexpr char FIRST_PRINTABLE = ' ';
+        constexpr char LAST_PRINTABLE = '~';
 
         constexpr const char* MEMORY_NOTICE =
             "It acts on the sampler's memory, not on disk: nothing is saved, and the change is lost if the sampler is "
@@ -210,6 +217,21 @@ namespace mcp
             return schema;
         }
 
+        /// The problem with a program name the sampler would not take, or nothing.
+        std::optional<std::string> programNameProblem(const json& argument, const char* field)
+        {
+            if (!argument.is_string())
+                return "The argument '" + std::string(field) + "' must be a string.";
+            const std::string name = argument.get<std::string>();
+            const std::string accepted = "A program name is 1 to " + std::to_string(MAX_PROGRAM_NAME_LENGTH) +
+                                         " characters, letters, digits, spaces and punctuation of plain ASCII.";
+            if (name.empty() || name.size() > MAX_PROGRAM_NAME_LENGTH)
+                return "The name \"" + name + "\" has " + std::to_string(name.size()) + " characters. " + accepted;
+            if (!std::all_of(name.begin(), name.end(), [](char c) { return c >= FIRST_PRINTABLE && c <= LAST_PRINTABLE; }))
+                return "The name \"" + name + "\" has a character the sampler does not take. " + accepted;
+            return std::nullopt;
+        }
+
         json keygroupSchema()
         {
             return json{{"type", json::array({"integer", "string"})}, {"description", KEYGROUP_ARGUMENT_DESCRIPTION}};
@@ -223,7 +245,9 @@ namespace mcp
                "and what each accepts: the filter, the amplitude envelope, the filter envelope and the two LFOs. Use "
                "get_parameters to read values and set_parameter to change one. Values are in the sampler's own units "
                "(0 to 100 for most), signed values are plain signed numbers, and choices are named as the sampler's "
-               "screen names them (for example \"2-POLE LP+\"). Changes act on the sampler's memory, not on disk.";
+               "screen names them (for example \"2-POLE LP+\"). create_program, rename_program and delete_program change the "
+               "list of programs: delete_program deletes only the current program and only when its name is given as "
+               "'confirm'. Changes act on the sampler's memory, not on disk; nothing is saved by this server.";
     }
 
     std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue)
@@ -473,6 +497,104 @@ namespace mcp
                           ", as read back from the sampler's memory.");
             }});
 
+        return tools;
+    }
+
+    std::vector<Tool> makeProgramStructureTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+
+        // create_program
+        ToolDefinition create =
+            definition("create_program", "Create a program",
+                       std::string("Creates a new program with the given name and number of keygroups (1 to 99) and makes it the "
+                                   "current program, so the next edits act on it. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The new program's name, 1 to 12 characters."}}},
+                                         {"keygroups",
+                                          {{"type", "integer"},
+                                           {"minimum", MIN_NEW_KEYGROUPS},
+                                           {"maximum", MAX_NEW_KEYGROUPS},
+                                           {"description", "How many keygroups the program has, 1 to 99."}}}},
+                                    json::array({"name", "keygroups"})),
+                       false, false);
+        tools.push_back(Tool{std::move(create), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"name", "keygroups"}))
+                                     return *refused;
+                                 if (!arguments.contains("name") || !arguments.contains("keygroups"))
+                                     return failure("Give both 'name' and 'keygroups'.");
+                                 if (const auto problem = programNameProblem(arguments.at("name"), "name"))
+                                     return failure(*problem);
+                                 const auto count = wholeNumber(arguments.at("keygroups"));
+                                 if (!count || *count < MIN_NEW_KEYGROUPS || *count > MAX_NEW_KEYGROUPS)
+                                     return failure("The argument 'keygroups' must be a whole number from " + std::to_string(MIN_NEW_KEYGROUPS) +
+                                                    " to " + std::to_string(MAX_NEW_KEYGROUPS) + ".");
+                                 const auto created = gateway.createProgram(arguments.at("name").get<std::string>(), static_cast<int>(*count));
+                                 if (!created.ok())
+                                     return failure(created.problem);
+                                 return ok("Created the program \"" + created.value->name + "\" with " +
+                                           plural(created.value->keygroupCount, "keygroup") + "; it is now the current program.");
+                             }});
+
+        // rename_program
+        ToolDefinition rename =
+            definition("rename_program", "Rename the current program",
+                       std::string("Renames the current program (see get_status) and reads the new name back. ") + MEMORY_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The new name, 1 to 12 characters."}}}},
+                                    json::array({"name"})),
+                       false, true);
+        tools.push_back(Tool{std::move(rename), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"name"}))
+                                     return *refused;
+                                 if (!arguments.contains("name"))
+                                     return failure("Give the new 'name'.");
+                                 if (const auto problem = programNameProblem(arguments.at("name"), "name"))
+                                     return failure(*problem);
+                                 const auto renamed = gateway.renameCurrentProgram(arguments.at("name").get<std::string>());
+                                 if (!renamed.ok())
+                                     return failure(renamed.problem);
+                                 return ok("Renamed the program \"" + renamed.value->oldName + "\" to \"" + renamed.value->newName +
+                                           "\", as read back from the sampler's memory.");
+                             }});
+
+        // delete_program
+        ToolDefinition remove =
+            definition("delete_program", "Delete the current program",
+                       std::string("Deletes the CURRENT program (see get_status), and only if 'confirm' is exactly its name: "
+                                   "otherwise nothing is deleted and the answer says which program is current. It cannot be "
+                                   "undone from here. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"confirm", {{"type", "string"}, {"description", "The exact name of the current program, to confirm the deletion."}}}},
+                                    json::array({"confirm"})),
+                       false, false);
+        remove.annotations.destructive = true;
+        tools.push_back(Tool{std::move(remove), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"confirm"}))
+                                     return *refused;
+                                 if (!arguments.contains("confirm") || !arguments.at("confirm").is_string())
+                                     return failure("Give 'confirm', the exact name of the current program.");
+                                 const std::string confirm = arguments.at("confirm").get<std::string>();
+                                 const auto deletion = gateway.deleteCurrentProgram(confirm);
+                                 if (!deletion.ok())
+                                     return failure(deletion.problem);
+                                 if (!deletion.value->deleted)
+                                     return failure("The current program is \"" + deletion.value->name + "\", not \"" + confirm +
+                                                    "\": nothing was deleted. Select the program to delete first, then confirm with its name.");
+                                 std::string text = "Deleted the program \"" + deletion.value->name + "\".";
+                                 if (deletion.value->remaining)
+                                     text += " The sampler now holds " + plural(*deletion.value->remaining, "program") +
+                                             "; use select_program to choose the one to edit.";
+                                 return ok(std::move(text));
+                             }});
+
+        return tools;
+    }
+
+    std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue)
+    {
+        std::vector<Tool> tools = makeProgramEditingTools(gateway, catalogue);
+        for (Tool& tool : makeProgramStructureTools(gateway))
+            tools.push_back(std::move(tool));
         return tools;
     }
 }

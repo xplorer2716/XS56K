@@ -286,6 +286,18 @@ namespace mcp
         return Outcome<int>::success(count);
     }
 
+    Outcome<std::string> SamplerGateway::currentProgramName()
+    {
+        const auto name = await<akm::ProgramNameResult>(waitFor(1), [&](std::function<void(const akm::ProgramNameResult&)> done) {
+            akm::getCurrentProgramName(_connection->session, std::move(done));
+        });
+        if (!name)
+            return Outcome<std::string>::failure("The sampler session did not complete the command in time.");
+        if (!name->name)
+            return Outcome<std::string>::failure(explain(name->outcome, "reading the name of the current program", _config, true));
+        return Outcome<std::string>::success(*name->name);
+    }
+
     Outcome<ProgramInfo> SamplerGateway::currentProgramInfo()
     {
         const auto name = await<akm::ProgramNameResult>(waitFor(1), [&](std::function<void(const akm::ProgramNameResult&)> done) {
@@ -396,6 +408,72 @@ namespace mcp
         if (!akm::succeeded(*selected))
             return Outcome<ProgramInfo>::failure(explain(*selected, "selecting the program at index " + numberText(index), _config, false));
         return currentProgramInfo();
+    }
+
+    Outcome<ProgramInfo> SamplerGateway::createProgram(std::string_view name, int keygroups)
+    {
+        if (const auto problem = connect())
+            return Outcome<ProgramInfo>::failure(*problem);
+
+        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::createProgramWithKeygroups(_connection->session, keygroups, name, std::move(done));
+        });
+        if (!created)
+            return Outcome<ProgramInfo>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*created))
+            return Outcome<ProgramInfo>::failure(explain(*created, "creating the program \"" + std::string(name) + "\"", _config, false));
+        return currentProgramInfo();
+    }
+
+    Outcome<ProgramRename> SamplerGateway::renameCurrentProgram(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<ProgramRename>::failure(*problem);
+
+        const auto before = currentProgramName();
+        if (!before.ok())
+            return Outcome<ProgramRename>::failure(before.problem);
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameCurrentProgram(_connection->session, name, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<ProgramRename>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<ProgramRename>::failure(explain(*renamed, "renaming the program \"" + *before.value + "\"", _config, true));
+
+        const auto after = currentProgramName();
+        if (!after.ok())
+            return Outcome<ProgramRename>::failure(after.problem);
+        return Outcome<ProgramRename>::success(ProgramRename{*before.value, *after.value});
+    }
+
+    Outcome<ProgramDeletion> SamplerGateway::deleteCurrentProgram(std::string_view confirm)
+    {
+        if (const auto problem = connect())
+            return Outcome<ProgramDeletion>::failure(*problem);
+
+        const auto current = currentProgramName();
+        if (!current.ok())
+            return Outcome<ProgramDeletion>::failure(current.problem);
+        if (*current.value != confirm)
+            return Outcome<ProgramDeletion>::success(ProgramDeletion{false, *current.value, std::nullopt});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteCurrentProgram(_connection->session, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<ProgramDeletion>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<ProgramDeletion>::failure(explain(*deleted, "deleting the program \"" + *current.value + "\"", _config, true));
+
+        ProgramDeletion deletion{true, *current.value, std::nullopt};
+        const auto count = await<akm::ProgramCountResult>(waitFor(1), [&](std::function<void(const akm::ProgramCountResult&)> done) {
+            akm::getProgramCount(_connection->session, std::move(done));
+        });
+        if (count && count->count)
+            deletion.remaining = *count->count;
+        return Outcome<ProgramDeletion>::success(std::move(deletion));
     }
 
     namespace

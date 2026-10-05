@@ -55,4 +55,10 @@
 {"jsonrpc":"2.0","id":54,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"NOPE"}}}
 {"jsonrpc":"2.0","id":55,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"LEAD"}}}
 {"jsonrpc":"2.0","id":56,"method":"tools/call","params":{"name":"get_parameters","arguments":{"parameters":["filter cutoff","lfo 1 rate"]}}}
-{"jsonrpc":"2.0","id":57,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":57,"method":"tools/call","params":{"name":"create_program","arguments":{"name":"SCRATCH","keygroups":2}}}
+{"jsonrpc":"2.0","id":58,"method":"tools/call","params":{"name":"rename_program","arguments":{"name":"SCRATCH2"}}}
+{"jsonrpc":"2.0","id":59,"method":"tools/call","params":{"name":"delete_program","arguments":{"confirm":"SCRATCH"}}}
+{"jsonrpc":"2.0","id":60,"method":"tools/call","params":{"name":"delete_program","arguments":{"confirm":"SCRATCH2"}}}
+{"jsonrpc":"2.0","id":61,"method":"tools/call","params":{"name":"create_program","arguments":{"name":"THIRTEENCHARS","keygroups":2}}}
+{"jsonrpc":"2.0","id":62,"method":"tools/call","params":{"name":"list_programs","arguments":{}}}
+{"jsonrpc":"2.0","id":63,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

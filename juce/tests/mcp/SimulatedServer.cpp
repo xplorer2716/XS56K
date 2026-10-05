@@ -68,7 +68,7 @@ int main()
     identity.title = SERVER_TITLE;
     identity.version = SERVER_VERSION;
     identity.instructions = mcp::programEditingInstructions();
-    mcp::McpServer server(identity, mcp::makeProgramEditingTools(gateway, mcp::ParameterCatalogue::standard()));
+    mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard()));
 
     std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding PAD, BASS and LEAD (BASS current)\n";
     server.serve(std::cin, std::cout);

@@ -33,6 +33,15 @@ namespace mcp
     // RQ-MCP-006, RQ-MCP-007, RQ-MCP-008, RQ-MCP-009, ADR-MCP-001 (DEC-MCP-006, DEC-MCP-007)]
     [[nodiscard]] std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue);
 
+    // The structure tools of a program, in the sampler's memory: `create_program`, `rename_program` and `delete_program`
+    // (which deletes the current program only when `confirm` is its name). They never save, load or touch the disk.
+    // The gateway must outlive the tools. [RQ-MCP-013, RQ-MCP-015, RQ-MCP-016, RQ-MCP-017, ADR-MCP-002 (DEC-MCP-010,
+    // DEC-MCP-011)]
+    [[nodiscard]] std::vector<Tool> makeProgramStructureTools(SamplerGateway& gateway);
+
+    /// Every tool the server offers: the editing tools then the structure tools. [ADR-MCP-002 (DEC-MCP-010)]
+    [[nodiscard]] std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue);
+
     /// The guidance the server gives the model with its first answer: what the server is for and how to use the tools.
     [[nodiscard]] std::string programEditingInstructions();
 }

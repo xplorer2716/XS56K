@@ -34,9 +34,11 @@ namespace mcp
 {
     // The sampler as the tools see it: blocking calls over an AKM session, in the vocabulary of the catalogue. The
     // session is opened the first time a call needs it, and again at the next call when the opening failed; a call
-    // that cannot be carried out answers a problem in plain words rather than throwing. It sends no command that
-    // creates, renames, deletes or saves anything (RQ-MCP-008). [RQ-MCP-003, RQ-MCP-005, RQ-MCP-006, RQ-MCP-007,
-    // RQ-MCP-008, RQ-MCP-009, ADR-MCP-001 (DEC-MCP-003, DEC-MCP-004, DEC-MCP-006, DEC-MCP-007)]
+    // that cannot be carried out answers a problem in plain words rather than throwing. Of the commands that change what
+    // the sampler stores it sends only the creation, the renaming and the deletion of the current program, in memory;
+    // never anything that saves, loads, touches the disk or deletes everything (RQ-MCP-014). [RQ-MCP-003, RQ-MCP-005,
+    // RQ-MCP-006, RQ-MCP-007, RQ-MCP-009, RQ-MCP-014, RQ-MCP-015, RQ-MCP-016, RQ-MCP-017, ADR-MCP-001 (DEC-MCP-003,
+    // DEC-MCP-004, DEC-MCP-006), ADR-MCP-002 (DEC-MCP-010, DEC-MCP-011)]
 
     struct GatewayConfig
     {
@@ -81,6 +83,21 @@ namespace mcp
         int keygroupCount = 0;
     };
 
+    struct ProgramRename
+    {
+        std::string oldName;
+        std::string newName;  ///< as the sampler reports it after the renaming
+    };
+
+    /// What `deleteCurrentProgram` did: `deleted` is false when the confirmation did not match, and `name` is then the
+    /// name of the current program.
+    struct ProgramDeletion
+    {
+        bool deleted = false;
+        std::string name;
+        std::optional<int> remaining;  ///< programs left in memory, when the sampler said
+    };
+
     /// Which keygroup an edit or a reading is about: one (1 to the program's count), or all of them.
     struct KeygroupSelection
     {
@@ -117,6 +134,18 @@ namespace mcp
         [[nodiscard]] Outcome<ProgramInfo> selectProgramByName(std::string_view name);
         [[nodiscard]] Outcome<ProgramInfo> selectProgramByIndex(int index);
 
+        /// Creates a program with `keygroups` keygroups in the sampler's memory; it becomes the current program, and
+        /// the answer is what the sampler then reports. The name and the count must have been checked by the caller
+        /// (a refusal of the AKM layer is a problem that says so). [RQ-MCP-015]
+        [[nodiscard]] Outcome<ProgramInfo> createProgram(std::string_view name, int keygroups);
+
+        /// Renames the current program; the answer holds the name before and the name read back. [RQ-MCP-016]
+        [[nodiscard]] Outcome<ProgramRename> renameCurrentProgram(std::string_view name);
+
+        /// Deletes the current program, and only when `confirm` is exactly the name the sampler reports for it at this
+        /// moment; otherwise nothing is sent and the answer says which program is current. [RQ-MCP-017]
+        [[nodiscard]] Outcome<ProgramDeletion> deleteCurrentProgram(std::string_view confirm);
+
         /// The value of a parameter of the current program, for one keygroup or for each. A keygroup beyond the
         /// program's is a problem that gives the count, and nothing is sent to the sampler but the questions that
         /// say so. A program parameter has no keygroup: its one value carries none. [RQ-MCP-005, RQ-MCP-007]
@@ -150,6 +179,7 @@ namespace mcp
                                                                                   const std::vector<std::string>& steps,
                                                                                   bool needsCurrentProgram);
         [[nodiscard]] Outcome<int> keygroupCount();
+        [[nodiscard]] Outcome<std::string> currentProgramName();
         [[nodiscard]] Outcome<ProgramInfo> currentProgramInfo();
         [[nodiscard]] Outcome<std::vector<ParameterValue>> editParameter(const ParameterDefinition& parameter,
                                                                          std::optional<std::int64_t> valueToSet,
