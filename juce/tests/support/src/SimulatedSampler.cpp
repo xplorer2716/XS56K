@@ -2673,7 +2673,7 @@ namespace akm::harness
         {
             FxChannelRecord channel;
             for (const std::uint8_t type : moduleTypes)
-                channel.modules.push_back({type});
+                channel.modules.push_back(FxModuleRecord{type, true, {}});
             _fx.channels.push_back(std::move(channel));
         }
         _fx.cardCode = _fx.channels.empty() ? 0 : 1;
