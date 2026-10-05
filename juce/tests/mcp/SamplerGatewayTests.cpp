@@ -62,11 +62,6 @@ namespace
         SimulatedSampler* sampler = nullptr;
     };
 
-    void seed(Rig& rig, const std::vector<mcp::test::SeededProgram>& programs, std::size_t current)
-    {
-        mcp::test::seedSimulatedPrograms(rig.backend, programs, current);
-    }
-
     /// PAD (1 keygroup), BASS (3, cutoffs 30, 60, 90) and LEAD (2); BASS is current.
     void seedThreePrograms(Rig& rig)
     {
