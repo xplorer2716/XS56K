@@ -26,7 +26,7 @@ renames or deletes an object in memory). A fourth class is **never offered**: an
 (§10), deletes everything (Delete ALL Programs, Clear Sampler Memory), or changes the sampler's own settings beyond the
 session's §00 handling. Saving stays on the sampler's front panel.
 
-**Out of scope.** Saving or loading any file; deleting all of anything; creating or deleting multis, samples or zones
+**Out of scope.** Saving or loading any file (taken up by FTR-MCP-003, behind `--allow-disk`); deleting all of anything; creating or deleting multis, samples or zones
 (sections 0C and 0E creation items, §06 keygroup/zone creation); the disk, the system setup, the MIDI setup, song files,
 scenelists, FX, the front panel; a graphical interface; any transport other than standard input and output.
 

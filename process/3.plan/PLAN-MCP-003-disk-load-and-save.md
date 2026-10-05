@@ -105,7 +105,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-024: Documentation and closure
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Update `AGENTS.md`, `CHANGELOG.md`, `juce/mcp/README.md` and the checkpoint for the disk tools, the flag, the timeout and what was and was not run on the real sampler.
 - **Requirement refs**: RQ-MCP-030
 - **ADR refs**: ADR-MCP-003
@@ -113,4 +113,4 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-MCP-022
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
-- **Assumptions**: None
+- **Assumptions**: The documents say the disk tools are not run on the hardware; they say so until TASK-MCP-023 is done and must be changed then.

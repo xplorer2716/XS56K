@@ -232,12 +232,12 @@ DEC-MCP-007|120-129||The server edits, it never creates, deletes, renames or sav
 DEC-MCP-008|130-136||Configuration is the launch arguments, nothing else
 DEC-MCP-009|137-144||Tested bottom-up on in-memory streams and the simulated sampler; the server also runs against the simulated sampler
 @process/2.architecture/ADR-MCP-002-safety-tiers-and-domain-targets.md
-ADR-MCP-002|1-154|Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-002 (RQ-MCP-013 to RQ-MCP-022) under the owner's delegation|MCP Server — Safety Tiers, the Delete Guard and Targets Beyond the Program
-DEC-MCP-010|30-40||Three tiers, declared by each tool; a fourth class is never offered
-DEC-MCP-011|41-49||Create returns the new program; delete is guarded by the current program's name
-DEC-MCP-012|50-58||The scope of a parameter says what to select; zones are a scope of the program catalogue, samples and multis are catalogues of their own
-DEC-MCP-013|59-67||Separate tools per domain for samples and multis
-DEC-MCP-014|68-73||The simulated sampler is corrected before it is trusted, and a real run precedes the next layer
+ADR-MCP-002|1-156|Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-002 (RQ-MCP-013 to RQ-MCP-022) under the owner's delegation|MCP Server — Safety Tiers, the Delete Guard and Targets Beyond the Program
+DEC-MCP-010|32-42||Three tiers, declared by each tool; a fourth class is never offered
+DEC-MCP-011|43-51||Create returns the new program; delete is guarded by the current program's name
+DEC-MCP-012|52-60||The scope of a parameter says what to select; zones are a scope of the program catalogue, samples and multis are catalogues of their own
+DEC-MCP-013|61-69||Separate tools per domain for samples and multis
+DEC-MCP-014|70-75||The simulated sampler is corrected before it is trusted, and a real run precedes the next layer
 @process/2.architecture/ADR-MCP-003-disk-tools-and-their-guards.md
 ADR-MCP-003|1-160|Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-003 (RQ-MCP-023 to RQ-MCP-030) under the owner's delegation (HOL, Human|MCP Server — Disk Tools (Browse, Load, Save) and Their Guards
 DEC-MCP-015|35-44||A fourth tier, "disk", offered only when the server is launched with `--allow-disk`
@@ -442,5 +442,5 @@ TASK-MCP-020|58-69|Done|Load a file or a folder
 TASK-MCP-021|70-81|Done|Save a memory item, save every item of a kind
 TASK-MCP-022|82-93|Done|Simulated conversation, fidelity and the hang test
 TASK-MCP-023|94-105|Blocked|Real-sampler run with the owner's disk
-TASK-MCP-024|106-116|Not Started|Documentation and closure
+TASK-MCP-024|106-116|Done|Documentation and closure
 @process/3.plan/SUMMARY-akm-sections-coverage.md

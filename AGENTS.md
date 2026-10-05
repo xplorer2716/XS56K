@@ -21,8 +21,8 @@ plumbing has a real GUI target to exercise. `juce/akm` is the S5000 SysEx layer 
 library `xs56k_akm`), written for this repository, not ported: it depends on `xs56k_midi` only and
 exposes no JUCE type in its public headers (`ADR-AKM-001`, `FTR-AKM-001`). `juce/mcp` is an MCP (Model Context
 Protocol) server that exposes the AKM layer to an MCP client, to edit programs, zones, samples and multis in the sampler's
-memory, never on disk (library `xs56k_mcp`, executable `xs56k_mcp_server`; `ADR-MCP-001`, `ADR-MCP-002`, `FTR-MCP-001`,
-`FTR-MCP-002`). Reference documentation
+memory and, behind a launch flag, to load and save them through the sampler's own disks (library `xs56k_mcp`, executable
+`xs56k_mcp_server`; `ADR-MCP-001` to `ADR-MCP-003`, `FTR-MCP-001` to `FTR-MCP-003`). Reference documentation
 lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
@@ -194,10 +194,21 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   output, tuning, pitch bend, and 13 per zone through a `zone` argument), 12 of a sample (positions of four 7-bit bytes, pitch,
   tunes, playback mode, and four read-only: type, channels, length, rate) and 12 of a multi's part (parts numbered from 1);
   values are in the sampler's own units (0 to 100 for most), signed values are plain signed numbers, choices are named as on the
-  screen ("2-POLE LP+", "10B"), and every Set is read back from the sampler. It edits the sampler's **memory**, never the disk:
-  no tool saves, loads, touches the disk, deletes all programs or multis or clears the sampler's memory, and no tool creates,
-  deletes, renames or loads a sample or a multi (`ctest` entry `mcp_sources_call_no_destructive_primitive`, an allow list: only
-  the gateway creates, renames or deletes a program). The session is opened at the first call that needs the sampler (so the
+  screen ("2-POLE LP+", "10B"), and every Set is read back from the sampler. It edits the sampler's **memory**; the disk is
+  touched only by nine more tools that exist only when the server is launched with `--allow-disk`
+  (`ADR-MCP-003` DEC-MCP-015 to DEC-MCP-019): `list_disks` (the sampler's refresh of its disk list only with `refresh` true),
+  `select_disk`, `list_disk_contents`, `open_folder` and `close_folder` browse the sampler's own disks (not the computer's
+  files), `load_file` (with or without `with_dependents`, a `sample_mode`) and `load_folder` load into memory and answer the
+  memory before and after, and `save_memory_item` and `save_all_memory_items` (tied to the count with `confirm`) write files to the
+  current folder of a writable disk and **never replace a file unless `overwrite` is true** (they are marked destructive).
+  `--disk-timeout-ms` (default 120000) is the wait of those slow commands, after which the answer says the sampler may have to be
+  switched off and on and nothing is retried: **a slow section 10 command left the owner's S5000 answering nothing until it was
+  switched off and on** (`OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, F4 to F7), and **the disk tools have been run on the
+  simulated sampler only, not yet on the hardware** (TASK-MCP-023, with the owner present and a disk plugged in; the simulated
+  sampler is completed after it). No tool deletes or renames a file or a folder, creates a folder, ejects or formats a disk,
+  deletes all programs or multis or clears the sampler's memory, and none creates, deletes or renames a sample or a multi
+  (`ctest` entry `mcp_sources_call_no_destructive_primitive`, an allow list per file: only the gateway creates, renames or deletes
+  a program, only its disk unit loads and saves). The session is opened at the first call that needs the sampler (so the
   list of tools works with the sampler off), switches Still Alive on, Sync LCD off and Auto screen update on (`--no-lcd` leaves
   the last two alone), and is closed, the settings put back, when the client closes standard input; a server that is killed
   instead leaves them changed until the sampler is switched off. `xs56k_mcp_server_simulated` (built with the tests, never
@@ -209,8 +220,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   were run on the real sampler only against an empty memory** (their error messages): it held no sample or multi and no tool
   creates one, so their parameters are verified on the simulated sampler only. Open points: the numbering of a multi's parts
   against the front panel (the tools send the part minus one), what codes 12 to 14 of the modulation sources show on the screen,
-  and whether a program name of more than 12 characters is kept. [RQ-MCP-001 to RQ-MCP-022, TASK-MCP-002 to TASK-MCP-017,
-  ADR-MCP-001, ADR-MCP-002]
+  and whether a program name of more than 12 characters is kept. [RQ-MCP-001 to RQ-MCP-030, TASK-MCP-002 to TASK-MCP-024,
+  ADR-MCP-001, ADR-MCP-002, ADR-MCP-003]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

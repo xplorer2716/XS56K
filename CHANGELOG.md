@@ -16,10 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one by confirming its name), 119 program parameters (filter, envelopes, LFOs, pitch and amplitude, output, tuning, pitch
   bend, and 13 per zone), samples (list, select, 12 parameters) and multis (list, select, 12 part parameters), named in the
   musician's vocabulary and set in the sampler's own units, each Set read back from the sampler. The MIDI ports are launch
-  arguments of the server (`--in`, `--out`, `--list-ports` shows them). It never saves, loads or touches the disk, never
-  deletes everything and never creates or deletes a sample or a multi. It speaks both eras of MCP over standard input and
-  output. The program tools and parameters were run on a real S5000; the sample and multi tools are tested against the
-  simulated sampler only (`xs56k_mcp_server_simulated` lets you try it with no sampler).
+  arguments of the server (`--in`, `--out`, `--list-ports` shows them). With `--allow-disk` it also offers nine disk tools to
+  browse the sampler's own disks, load a file or a folder into memory and save a program, a sample or a multi (one, or every
+  one of a kind) to a writable disk, never replacing a file unless `overwrite` is true; `--disk-timeout-ms` sets how long those
+  slow commands wait. It never deletes or renames a file or a folder, never deletes everything and never creates or deletes a
+  sample or a multi. It speaks both eras of MCP over standard input and output. The program tools and parameters were run on a real S5000; the sample, multi and disk tools are tested against the
+  simulated sampler only (a slow disk command has once left a real S5000 answering nothing until it was switched off and on) (`xs56k_mcp_server_simulated` lets you try it with no sampler).
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
   closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard

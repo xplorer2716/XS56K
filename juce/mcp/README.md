@@ -14,7 +14,7 @@ xs56k_mcp_server --in "<port the sampler sends on>" --out "<port it receives on>
 ```
 
 Optional: `--device-id <0-31>` (default 0), `--timeout-ms <ms>` (default 2000), `--no-lcd` (leave the sampler's Sync LCD and
-Auto screen update settings alone). The server speaks MCP on standard input and output and logs on standard error, so it is
+Auto screen update settings alone), `--allow-disk` (offer the disk tools) and `--disk-timeout-ms <ms>` (default 120000). The server speaks MCP on standard input and output and logs on standard error, so it is
 started by the client, not by hand.
 
 **The MIDI ports are the server's configuration.** Put them in the arguments of the server entry of your client's MCP
@@ -31,7 +31,7 @@ simulated sampler holding three programs (PAD, BASS and LEAD, BASS current).
 
 ## What it does
 
-Seventeen tools. Each declares a tier in its MCP annotations: **read** changes nothing, **edit** overwrites a value or a
+Seventeen tools (twenty-six with `--allow-disk`, see below). Each declares a tier in its MCP annotations: **read** changes nothing, **edit** overwrites a value or a
 selection in memory, **structure** creates, renames or deletes a program in memory.
 
 | Tool | Tier | What it does |
@@ -50,9 +50,32 @@ selection in memory, **structure** creates, renames or deletes a program in memo
 | `list_multis`, `select_multi` | read, edit | the multis in memory with their positions and the current one's part count; makes one current |
 | `get_multi_parameters`, `set_multi_parameter` | read, edit | the 12 parameters of a part of the current multi (parts numbered from 1; a Set needs its `part`, a number or `all`) |
 
-Everything acts on the sampler's **memory**, not on disk: nothing is saved or loaded, nothing deletes all programs or multis or
-clears the memory, and no tool creates, deletes, renames or loads a sample or a multi. A program is lost if the sampler is
-switched off without saving it from the front panel.
+Everything above acts on the sampler's **memory**: nothing deletes all programs or multis or clears the memory, and no tool
+creates, deletes or renames a sample or a multi. A program is lost if the sampler is switched off without saving it, from the
+front panel or with the disk tools below.
+
+### The disk tools (only with `--allow-disk`)
+
+A person cannot get a sample, a program or a multi into the sampler, or keep one, without the disk. These nine tools exist only when
+the server is launched with `--allow-disk` (write it in the client's server configuration, next to the ports), because **a slow
+section 10 command has once left a real S5000 answering nothing until it was switched off and on**. They act on the sampler's own
+disks (hard disk, floppy, CD-ROM, removable), not on the computer's files.
+
+| Tool | Tier | What it does |
+|---|---|---|
+| `list_disks` | read | the connected disks (handle, name, type, format, writable), the current one marked; the sampler's refresh of its list (the risky command) only with `refresh` true |
+| `select_disk` | edit | makes a disk current, by name or handle |
+| `list_disk_contents` | read | the current folder's sub-folders and files with their sizes, and the path |
+| `open_folder`, `close_folder` | edit | descends into a sub-folder, goes back up |
+| `load_file` | structure | loads a file of the current folder (a program, a sample, a multi), with `with_dependents` the files it depends on, a `sample_mode` (normal, ram, virtual); answers the memory before and after |
+| `load_folder` | structure | loads a sub-folder and everything in it |
+| `save_memory_item` | disk, destructive | saves a program, sample or multi by name to the current folder of a writable disk; refuses if a file of that name is there unless `overwrite` is true; checks the folder afterwards |
+| `save_all_memory_items` | disk, destructive | saves every item of a kind, only when `confirm` is how many there are in memory |
+
+`--disk-timeout-ms` (default 120000) is how long a refresh, a load or a save waits. After it the answer says the sampler may have to
+be switched off and on, and nothing is retried. No tool deletes or renames a file or a folder, creates a folder, ejects or formats a
+disk. **The disk tools are tested against the simulated sampler only; they have not been run on the hardware**
+(`PLAN-MCP-003` TASK-MCP-023 does it, with the owner present and a disk plugged in, one slow command at a time).
 
 **What was run on a real S5000** (2026-10-05, `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the program tools
 and all 119 program parameters, on a program the server created and deleted. The sample and multi tools were run against an empty

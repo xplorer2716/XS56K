@@ -4,7 +4,9 @@
 Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-002 (RQ-MCP-013 to RQ-MCP-022) under the owner's delegation
 (HOL, Human on the loop): the owner reviews it with the commits of the pull request. It amends ADR-MCP-001 DEC-MCP-007
 (the server never creates, deletes, renames or saves) and extends DEC-MCP-006 (the six tools) and DEC-MCP-005 (the
-catalogue); the other decisions of ADR-MCP-001 stand. No independent review by a second model was run.
+catalogue); the other decisions of ADR-MCP-001 stand. **Amended by ADR-MCP-003** (2026-10-05): the section 10 items of browsing, loading and
+saving are no longer "never offered" but offered behind `--allow-disk`; delete, rename, create-folder, eject and format stay never
+offered. No independent review by a second model was run.
 
 ## Context
 

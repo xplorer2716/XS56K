@@ -20,6 +20,41 @@ owner's delegation (HOL, Human on the loop): every commit carries "(HOL -Human o
 Two commits (`4593992`, `d39d863`) fixed GCC `-Werror` build failures of the pull request on `feature/MCP`; `cb24365` did the same
 on `feature/AKM`. `ctest` 861 of 861 on Windows/MSVC Debug at the last commit (803 at the start of the session).
 
+## Addendum — PLAN-MCP-003, the disk tools (same session, after the eight tasks above; the owner lifted the 10-task limit)
+
+The owner asked for loading and saving through the server ("sinon l'utilisateur ne pourra jamais faire charger un sample ou un
+programme"), which reversed the "never offered" rule of DEC-MCP-010 for section 10.
+
+| Task | Subject | Commit |
+|---|---|---|
+| TASK-MCP-018 | FTR-MCP-003, ADR-MCP-003 (Proposed), PLAN-MCP-003 | `8b43435` |
+| TASK-MCP-019 | `--allow-disk`, `--disk-timeout-ms`, the gateway's disk unit, the five browsing tools, the source check per file | `0081f21` |
+| TASK-MCP-020 | `load_file`, `load_folder` | `32f4b83` |
+| TASK-MCP-021 | `save_memory_item`, `save_all_memory_items` | `b07ecd6` |
+| TASK-MCP-022 | the simulated server takes `--allow-disk`, the scripted conversation over the disk tools | `562e6db` |
+| TASK-MCP-024 | documentation | the commit that carries this addendum |
+| **TASK-MCP-023** | **the real run with the owner's disk: Blocked** | not done |
+
+`ctest` 893 of 893 on Windows/MSVC Debug.
+
+**Open, in this order:**
+1. **TASK-MCP-023, the real run.** The owner plugs a disk with a test file into the S5000 and is present; the server is launched with
+   `--allow-disk` (the real executable built into a scratch folder if the client's own copy is running: `-- /p:OutDir=<dir>\`).
+   One slow command at a time: browse without the refresh, then the refresh, a load, a save without and with `overwrite`; a hang
+   needs a power cycle by hand (see `OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md` F4 to F7). Write it up in
+   `OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
+2. **Complete the simulated sampler after it (the owner's request).** What the simulator does and is not known for the real one:
+   the order of loaded programs (appended, not alphabetical), the file names and sizes a save gives (`.AKP`, `.AKS`, `.AKM`, 4096),
+   the format of the current path below the root ('/' joined), what the refresh and a load answer, what a save does with an
+   existing file and with `save_children`. Each correction comes with its tests.
+3. With a sample and a multi then in memory (loaded from the disk!), run the sample and multi sweeps that were simulator-only.
+
+**Decisions to remember (ADR-MCP-003):** the disk tools are opt-in by `--allow-disk` (the owner's explicit choice in the client's
+server entry); the slow commands have their own timeout and a message about the power cycle, never retried; the refresh of the disk
+list only with `refresh` true; a save refuses to overwrite unless `overwrite` is true, and a bulk save is tied to the count; the
+source check allows load and save primitives in `SamplerGatewayDisk.cpp` only, and delete, rename, create-folder, eject and format
+nowhere.
+
 ## What was verified where
 
 - **On the real S5000** (`process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the program tools; all 119 program
