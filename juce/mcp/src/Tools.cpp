@@ -1508,6 +1508,12 @@ namespace mcp
                 const auto space = gateway.readDiskSpace();
                 if (!space.ok())
                     return failure(space.problem);
+                // The S5000 answered 0 for its FAT32 disk although files could be written to it (observed 2026-10-06): a 0 is not shown as a
+                // fact. [RQ-MCP-040, OBSERVATIONS-RQ-MCP-012-real-sampler.md]
+                if (space.value->freeBytes == 0)
+                    return ok("The sampler reports 0 bytes free for the disk \"" + space.value->diskName +
+                              "\", but it probably does not report the free space of this kind of disk (a FAT32 disk was written to while it said so): do not "
+                              "rely on this figure.");
                 std::ostringstream megabytes;
                 megabytes << std::fixed << std::setprecision(1) << static_cast<double>(space.value->freeBytes) / BYTES_PER_MEGABYTE;
                 return ok("The disk \"" + space.value->diskName + "\" has " + std::to_string(space.value->freeBytes) + " bytes free (about " +

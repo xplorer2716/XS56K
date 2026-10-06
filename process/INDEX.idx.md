@@ -488,6 +488,6 @@ TASK-MCP-036|138-149|Done|The README as a reference, the simulated conversation 
 TASK-MCP-037|150-161|In Progress|Real-sampler run of the new tools with the owner
 TASK-MCP-038|162-173|Done|The option table of the README and the `--help` text say what each option does when given and when left out
 TASK-MCP-039|174-185|Done|`--screen independent | follow | as-is` replaces `--no-lcd`
-TASK-MCP-040|186-197|Not Started|`get_disk_space` says when the sampler reports 0 bytes free
+TASK-MCP-040|186-197|Done|`get_disk_space` says when the sampler reports 0 bytes free
 TASK-MCP-041|198-208|Not Started|The simulated sampler matches what the real S5000 did
 @process/3.plan/SUMMARY-akm-sections-coverage.md

@@ -101,6 +101,24 @@ TEST_CASE("Given an unexpected argument, When get_system_info or get_disk_space 
     CHECK(toolFailed(rig.call("get_disk_space", {{"extra", 1}})));
 }
 
+TEST_CASE("Given a disk for which the sampler reports 0 bytes free, When get_disk_space is called, Then the answer says the figure is probably not reported for this kind of disk and gives no size [RQ-MCP-040]",
+          "[mcp][sysinfo]")
+{
+    auto disks = standardDisks();
+    disks.front().freeBytes = 0;
+    DiskRig rig(std::move(disks), true);
+    REQUIRE_FALSE(mcp::test::isError(rig.call("select_disk", {{"name", "HD1"}})));
+
+    const json answer = rig.call("get_disk_space");
+
+    CHECK_FALSE(mcp::test::isError(answer));
+    const std::string text = mcp::test::textOf(answer);
+    CHECK(mcp::test::contains(text, "reports 0 bytes free"));
+    CHECK(mcp::test::contains(text, "\"HD1\""));
+    CHECK(mcp::test::contains(text, "probably does not report"));
+    CHECK_FALSE(mcp::test::contains(text, "MB"));
+}
+
 TEST_CASE("Given a disk with 1000000 bytes free, When get_disk_space is called, Then the answer gives them for that disk; with no disk selected it says to select one [RQ-MCP-040]",
           "[mcp][sysinfo]")
 {

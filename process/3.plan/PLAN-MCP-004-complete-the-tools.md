@@ -185,15 +185,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-040: `get_disk_space` says when the sampler reports 0 bytes free
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: On the owner's S5000 the free space of the SCSI2SD disk (FAT32) is reported as 0 bytes while files can be written to it (`OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the tool must not present that as a fact. When the sampler answers 0, the answer says that the sampler reports 0 bytes, that it probably does not report the free space of this kind of disk, and that the figure must not be relied on.
 - **Requirement refs**: RQ-MCP-040
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-024)
 - **Acceptance Criteria** (Gherkin): *Given* a disk for which the sampler reports 0 bytes free, *When* `get_disk_space` is called, *Then* the answer says the sampler reports 0 bytes, that the figure is probably not reported for this kind of disk, and gives no size in MB; *Given* a disk with free space, *Then* the answer is unchanged.
 - **Dependencies**: TASK-MCP-034
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: test first, **run red** (`SystemInfoToolsTests.cpp`: "test cases: 6 | 5 passed | 1 failed", the new case failing), then green: `xs56k_mcp_tests "[sysinfo]"` → "All tests passed (60 assertions in 6 test cases)". The new case gives a disk for which the sampler reports 0 bytes and checks the answer ("reports 0 bytes free", the disk's name, "probably does not report", no size in MB); the existing case (1000000 bytes free, "about 1.0 MB") is unchanged. `ctest` excluding only the unrelated `bld_mutate_tool_script_tests`: 971 of 971 pass. The README table and the observations already say so; checked on the real sampler only by the observation that gave rise to it.
+- **Assumptions**: a reported 0 is treated as "not reported" for any disk (a real full disk would be reported as 0 too, but the tool then tells the person not to rely on it, which is the safe wording).
 
 ### TASK-MCP-041: The simulated sampler matches what the real S5000 did
 - **Tier**: M
