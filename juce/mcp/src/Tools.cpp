@@ -39,6 +39,10 @@ namespace mcp
         constexpr std::size_t MAX_PROGRAM_NAME_LENGTH = 12;
         constexpr std::int64_t MIN_NEW_KEYGROUPS = 1;
         constexpr std::int64_t MAX_NEW_KEYGROUPS = 99;
+        // A keygroup has four zones and the keygroups of a program are numbered from 1. [RQ-MCP-034, ADR-MCP-004 (DEC-MCP-024)]
+        constexpr std::int64_t MIN_ZONE = 1;
+        constexpr std::int64_t MAX_ZONE = 4;
+        constexpr std::int64_t MIN_KEYGROUP = 1;
         constexpr char FIRST_PRINTABLE = ' ';
         constexpr char LAST_PRINTABLE = '~';
 
@@ -1590,6 +1594,84 @@ namespace mcp
         return tools;
     }
 
+    // The tools of the memory that complete the editing, group by group as the tasks of PLAN-MCP-004 add them: the zone samples
+    // (TASK-MCP-029, RQ-MCP-034). [ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)]
+    std::vector<Tool> makeMemoryExtraTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+        const std::string zoneRange = std::to_string(MIN_ZONE) + " to " + std::to_string(MAX_ZONE);
+
+        // set_zone_sample [RQ-MCP-034]
+        tools.push_back(Tool{
+            definition("set_zone_sample", "Assign a sample to a zone",
+                       std::string("Assigns a sample of the sampler's memory to one of the four zones of a keygroup of the current program, so "
+                                   "the keygroup plays it, and reads the assignment back. Load the sample first (load_file) and see "
+                                   "list_samples for the names. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"sample", {{"type", "string"}, {"description", "The sample's name, from list_samples."}}},
+                                         {"zone", {{"type", "integer"}, {"minimum", MIN_ZONE}, {"maximum", MAX_ZONE}, {"description", "The zone, " + zoneRange + "."}}},
+                                         {"keygroup",
+                                          {{"type", "integer"},
+                                           {"minimum", MIN_KEYGROUP},
+                                           {"description", "The keygroup of the current program, from 1 (see get_status for how many)."}}}},
+                                    json::array({"sample", "zone", "keygroup"})),
+                       false, true),
+            [&gateway, zoneRange](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"sample", "zone", "keygroup"}))
+                    return *refused;
+                if (!arguments.contains("sample") || !arguments.at("sample").is_string())
+                    return failure("Give the 'sample': the name of a sample in the sampler's memory (see list_samples).");
+                const auto zone = arguments.contains("zone") ? wholeNumber(arguments.at("zone")) : std::nullopt;
+                if (!zone)
+                    return failure("Give the 'zone' as a whole number from " + zoneRange + ".");
+                if (*zone < MIN_ZONE || *zone > MAX_ZONE)
+                    return failure("Zone " + std::to_string(*zone) + " does not exist: a keygroup has zones " + zoneRange + ".");
+                const auto keygroup = arguments.contains("keygroup") ? wholeNumber(arguments.at("keygroup")) : std::nullopt;
+                if (!keygroup || *keygroup < MIN_KEYGROUP)
+                    return failure("Give the 'keygroup' as a whole number from " + std::to_string(MIN_KEYGROUP) + ".");
+                const auto assigned = gateway.assignZoneSample(static_cast<int>(*keygroup), static_cast<int>(*zone),
+                                                               arguments.at("sample").get<std::string>());
+                if (!assigned.ok())
+                    return failure(assigned.problem);
+                const ZoneSampleEntry& entry = assigned.value->entries.front();
+                return ok("In the program \"" + assigned.value->program + "\", zone " + std::to_string(entry.zone) + " of keygroup " +
+                          std::to_string(entry.keygroup) + " now plays the sample \"" + entry.sample + "\" (read back from the sampler).");
+            }});
+
+        // get_zone_samples [RQ-MCP-034]
+        tools.push_back(Tool{
+            definition("get_zone_samples", "Read the samples of the zones",
+                       std::string("Says which sample each of the four zones plays, for one keygroup of the current program or for all of them. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"keygroup",
+                                          {{"type", "integer"},
+                                           {"minimum", MIN_KEYGROUP},
+                                           {"description", "One keygroup, from 1. Leave it out for every keygroup."}}}}),
+                       true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"keygroup"}))
+                    return *refused;
+                KeygroupSelection selection = KeygroupSelection::all();
+                if (arguments.contains("keygroup"))
+                {
+                    const auto keygroup = wholeNumber(arguments.at("keygroup"));
+                    if (!keygroup || *keygroup < MIN_KEYGROUP)
+                        return failure("The argument 'keygroup' must be a whole number from " + std::to_string(MIN_KEYGROUP) + ".");
+                    selection = KeygroupSelection::of(static_cast<int>(*keygroup));
+                }
+                const auto zones = gateway.readZoneSamples(selection);
+                if (!zones.ok())
+                    return failure(zones.problem);
+                std::string text = "Zone samples of the program \"" + zones.value->program + "\":\n";
+                for (const ZoneSampleEntry& entry : zones.value->entries)
+                    text += "keygroup " + std::to_string(entry.keygroup) + ", zone " + std::to_string(entry.zone) + ": " +
+                            (entry.sample.empty() ? std::string("no sample") : entry.sample) + "\n";
+                return ok(std::move(text));
+            }});
+
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -1601,6 +1683,8 @@ namespace mcp
         for (Tool& tool : makeSampleTools(gateway, ParameterCatalogue::samples()))
             tools.push_back(std::move(tool));
         for (Tool& tool : makeMultiTools(gateway, ParameterCatalogue::multis()))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeMemoryExtraTools(gateway))
             tools.push_back(std::move(tool));
         if (options.allowDisk)
         {

@@ -111,6 +111,21 @@ namespace mcp
     };
 
     /// The samples in memory, in memory order, and the position of the current one when there is one.
+    /// The sample a zone (1 to 4) of a keygroup (1-based) plays; empty when the zone has none. [RQ-MCP-034]
+    struct ZoneSampleEntry
+    {
+        int keygroup = 0;
+        int zone = 0;
+        std::string sample;
+    };
+
+    /// The zone samples of the current program, keygroup-major and zone-minor.
+    struct ZoneSamples
+    {
+        std::string program;
+        std::vector<ZoneSampleEntry> entries;
+    };
+
     struct SampleListing
     {
         std::vector<SampleEntry> samples;
@@ -372,6 +387,15 @@ namespace mcp
         [[nodiscard]] Outcome<std::vector<ParameterValue>> writeParameter(const ParameterDefinition& parameter,
                                                                           std::int64_t value, KeygroupSelection selection,
                                                                           ZoneSelection zones = ZoneSelection::all());
+
+        /// The sample each zone plays, for one keygroup of the current program or for each; the keygroup the sampler has selected is
+        /// left on the last one read. A keygroup the program does not have is a problem that gives the count. [RQ-MCP-034]
+        [[nodiscard]] Outcome<ZoneSamples> readZoneSamples(KeygroupSelection selection);
+
+        /// Assigns the sample named `sample` (found without regard to case, spaces or hyphens, and sent under the name the
+        /// sampler lists) to zone `zone` (1 to 4) of keygroup `keygroup` (1-based) of the current program, and reads it back; a
+        /// sample not in memory, a zone or a keygroup that does not exist is a problem and nothing is sent. [RQ-MCP-034]
+        [[nodiscard]] Outcome<ZoneSamples> assignZoneSample(int keygroup, int zone, std::string_view sample);
 
         /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
         /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the

@@ -65,6 +65,12 @@ namespace mcp
     // which hung a real S5000, is never sent. [RQ-MCP-031, ADR-MCP-003 (DEC-MCP-020)]
     [[nodiscard]] std::vector<Tool> makeDiskTools(SamplerGateway& gateway, bool offerRefresh = false);
 
+    // The tools of the memory that complete the editing: the zone samples (`set_zone_sample`, `get_zone_samples`) and, as
+    // the tasks of PLAN-MCP-004 add them, the keygroups, the samples, the multis and the information of the sampler. Every tool that
+    // deletes asks for `confirm`, the exact name of what is deleted. The gateway must outlive the tools. [RQ-MCP-034 to RQ-MCP-042,
+    // ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)]
+    [[nodiscard]] std::vector<Tool> makeMemoryExtraTools(SamplerGateway& gateway);
+
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions
     {

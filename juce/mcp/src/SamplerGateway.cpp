@@ -35,6 +35,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SamplerError.hpp"
 #include "akm/ThreadExecutor.hpp"
+#include "akm/ZonePrimitives.hpp"
 #include "GatewayDetail.hpp"
 
 namespace mcp
@@ -484,6 +485,109 @@ namespace mcp
         {
             return "The sampler's answer for " + parameter.name + " could not be read.";
         }
+    }
+
+    Outcome<ZoneSamples> SamplerGateway::readZoneSamples(KeygroupSelection selection)
+    {
+        const auto count = keygroupCount();
+        if (!count.ok())
+            return Outcome<ZoneSamples>::failure(count.problem);
+        if (selection.keygroup && (*selection.keygroup < 1 || *selection.keygroup > *count.value))
+            return Outcome<ZoneSamples>::failure("The current program has " + numberText(*count.value) + " keygroup" +
+                                                 (*count.value == 1 ? "" : "s") + "; keygroup " + numberText(*selection.keygroup) +
+                                                 " does not exist.");
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<ZoneSamples>::failure(program.problem);
+
+        ZoneSamples result;
+        result.program = *program.value;
+        const int first = selection.keygroup.value_or(1);
+        const int last = selection.keygroup.value_or(*count.value);
+        for (int keygroup = first; keygroup <= last; ++keygroup)
+        {
+            const auto selected = runSequence({selectKeygroupRequest(keygroup)}, {"selecting keygroup " + numberText(keygroup)}, true);
+            if (!selected.ok())
+                return Outcome<ZoneSamples>::failure(selected.problem);
+            for (int zone = 1; zone <= ZONES_PER_KEYGROUP; ++zone)
+            {
+                const auto read = await<akm::ZoneSampleResult>(waitFor(1), [&](std::function<void(const akm::ZoneSampleResult&)> done) {
+                    akm::getZoneSample(_connection->session, zone, std::move(done));
+                });
+                if (!read)
+                    return Outcome<ZoneSamples>::failure("The sampler session did not complete the command in time.");
+                if (!read->name)
+                    return Outcome<ZoneSamples>::failure(explain(read->outcome, "reading the sample of zone " + numberText(zone) +
+                                                                                    " of keygroup " + numberText(keygroup),
+                                                                 _config, true));
+                result.entries.push_back(ZoneSampleEntry{keygroup, zone, *read->name});
+            }
+        }
+        return Outcome<ZoneSamples>::success(std::move(result));
+    }
+
+    Outcome<ZoneSamples> SamplerGateway::assignZoneSample(int keygroup, int zone, std::string_view sample)
+    {
+        if (zone < 1 || zone > ZONES_PER_KEYGROUP)
+            return Outcome<ZoneSamples>::failure("Zone " + numberText(zone) + " does not exist: a keygroup has zones 1 to " +
+                                                 numberText(ZONES_PER_KEYGROUP) + ".");
+        const auto count = keygroupCount();
+        if (!count.ok())
+            return Outcome<ZoneSamples>::failure(count.problem);
+        if (keygroup < 1 || keygroup > *count.value)
+            return Outcome<ZoneSamples>::failure("The current program has " + numberText(*count.value) + " keygroup" +
+                                                 (*count.value == 1 ? "" : "s") + "; keygroup " + numberText(keygroup) +
+                                                 " does not exist.");
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<ZoneSamples>::failure(program.problem);
+
+        const auto samples = listSamples();
+        if (!samples.ok())
+            return Outcome<ZoneSamples>::failure(samples.problem);
+        const std::string wanted = normalizeText(sample);
+        const auto found = std::find_if(samples.value->samples.begin(), samples.value->samples.end(),
+                                        [&wanted](const SampleEntry& entry) { return normalizeText(entry.name) == wanted; });
+        if (found == samples.value->samples.end())
+        {
+            std::string text = "No sample is named \"" + std::string(sample) + "\" in the sampler's memory.";
+            if (samples.value->samples.empty())
+                return Outcome<ZoneSamples>::failure(text + " The memory holds none: load one first.");
+            text += " It holds: ";
+            for (std::size_t i = 0; i < samples.value->samples.size(); ++i)
+                text += (i == 0 ? "" : ", ") + std::string("\"") + samples.value->samples[i].name + "\"";
+            return Outcome<ZoneSamples>::failure(text + ".");
+        }
+        const std::string listed = found->name;
+
+        const auto selected = runSequence({selectKeygroupRequest(keygroup)}, {"selecting keygroup " + numberText(keygroup)}, true);
+        if (!selected.ok())
+            return Outcome<ZoneSamples>::failure(selected.problem);
+        const auto assigned = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setZoneSample(_connection->session, zone, listed, std::move(done));
+        });
+        if (!assigned)
+            return Outcome<ZoneSamples>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*assigned))
+            return Outcome<ZoneSamples>::failure(explain(*assigned, "assigning the sample \"" + listed + "\" to zone " + numberText(zone) +
+                                                                        " of keygroup " + numberText(keygroup),
+                                                         _config, true));
+        const auto read = await<akm::ZoneSampleResult>(waitFor(1), [&](std::function<void(const akm::ZoneSampleResult&)> done) {
+            akm::getZoneSample(_connection->session, zone, std::move(done));
+        });
+        if (!read)
+            return Outcome<ZoneSamples>::failure("The sampler session did not complete the command in time.");
+        if (!read->name)
+            return Outcome<ZoneSamples>::failure(explain(read->outcome, "reading back the sample of zone " + numberText(zone), _config, true));
+        if (*read->name != listed)
+            return Outcome<ZoneSamples>::failure("The sampler accepted the assignment but reports that zone " + numberText(zone) + " of keygroup " +
+                                                 numberText(keygroup) + " plays " +
+                                                 (read->name->empty() ? std::string("no sample") : "\"" + *read->name + "\"") + ", not \"" + listed +
+                                                 "\".");
+        ZoneSamples result;
+        result.program = *program.value;
+        result.entries.push_back(ZoneSampleEntry{keygroup, zone, *read->name});
+        return Outcome<ZoneSamples>::success(std::move(result));
     }
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::editParameter(const ParameterDefinition& parameter,

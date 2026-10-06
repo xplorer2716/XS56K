@@ -51,19 +51,19 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-029: Zone samples: `set_zone_sample` and `get_zone_samples`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the gateway's zone sample calls (`setZoneSample`, `getZoneSamples`, selecting the keygroup like the parameter tools do) and the two tools; the simulated sampler's behaviour for §06/&01 and &21 is checked and completed.
 - **Requirement refs**: RQ-MCP-034, RQ-MCP-013
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-024)
 - **Acceptance Criteria** (Gherkin): *Given* a program with two keygroups and a sample KICK, *When* `set_zone_sample` is called with KICK, zone 1 and keygroup 2, *Then* the assignment is sent for keygroup 2 and read back; *When* `get_zone_samples` is called for keygroup 2, *Then* zone 1 is KICK and the others have no sample; an unknown sample, a zone outside 1 to 4 and an unknown keygroup send nothing and list what exists.
 - **Dependencies**: TASK-MCP-028
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: `juce/tests/mcp/ZoneSampleToolsTests.cpp` (7 cases, over the shared `ToolRig.hpp`), re-run in this session: `xs56k_mcp_tests "[zonesample]"` → "All tests passed (119 assertions in 7 test cases)". They cover: both tools listed (set not read-only and not destructive, get read-only); KICK assigned to zone 1 of keygroup 2 of BASS sends one `&01`, is read back and listed for keygroup 2 only (zones 2 to 4 "no sample", keygroups 1 and 3 absent), and the listing of all keygroups shows keygroup 1 zone 1 as "no sample"; `kick` in lower case is assigned as "KICK"; an unknown sample, zones 0, 5 and -1, keygroup 4 of 3, a missing or badly typed argument and an extra argument send nothing and say what exists; no program in memory is an error. The two scripted conversations' tool lists gained exactly `get_zone_samples` and `set_zone_sample` (their expected output regenerated and the difference read: only answer id 2). Full `ctest` (Debug, MSVC `/W4 /WX`): 916 of 916 pass (909 before, 7 new). **The tests were written before the code but were not run red before it** (written and built together): a process gap, noted here and not repeated. NOT run on the real sampler (TASK-MCP-037).
+- **Assumptions**: `set_zone_sample` needs `keygroup` (no "all keygroups"); a zone has no way to be cleared (the sampler's set takes a name, and "no sample" is only a reading); the sample is found without regard to case, spaces or hyphens and sent under the name the sampler lists; `get_zone_samples` without a keygroup reads all of them, one command per zone (five per keygroup).
 
 ### TASK-MCP-030: Keygroups: `add_keygroups` and `delete_keygroup`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: Add the gateway calls and the two tools; `delete_keygroup` takes `confirm` equal to the current program's exact name and refuses the last keygroup; the source check allows the two primitives in the memory unit.
 - **Requirement refs**: RQ-MCP-035, RQ-MCP-042
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)

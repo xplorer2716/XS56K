@@ -474,8 +474,8 @@ TASK-MCP-027|142-152|Done|A save is verified against a refreshed listing
 @process/3.plan/PLAN-MCP-004-complete-the-tools.md
 PLAN-MCP-004|1-158||MCP Server — Completing the Tools and a Reference README
 TASK-MCP-028|40-51|Done|Author FTR-MCP-004, ADR-MCP-004 and PLAN-MCP-004
-TASK-MCP-029|52-63|Not Started|Zone samples: `set_zone_sample` and `get_zone_samples`
-TASK-MCP-030|64-75|Not Started|Keygroups: `add_keygroups` and `delete_keygroup`
+TASK-MCP-029|52-63|Done|Zone samples: `set_zone_sample` and `get_zone_samples`
+TASK-MCP-030|64-75|In Progress|Keygroups: `add_keygroups` and `delete_keygroup`
 TASK-MCP-031|76-87|Not Started|Samples: `rename_sample` and `delete_sample`
 TASK-MCP-032|88-99|Not Started|Multis: create, rename, delete, part program, clear part, program number
 TASK-MCP-033|100-111|Not Started|Files and folders: rename and delete
