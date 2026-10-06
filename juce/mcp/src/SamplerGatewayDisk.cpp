@@ -472,6 +472,46 @@ namespace mcp
         }
     }
 
+    Outcome<DiskContents> SamplerGateway::createFolder(std::string_view name)
+    {
+        const auto here = writableFolder();
+        if (!here.ok())
+            return Outcome<DiskContents>::failure(here.problem);
+
+        const std::string wanted = normalizeText(name);
+        for (const std::string& folder : here.value->folders)
+        {
+            if (normalizeText(folder) == wanted)
+                return Outcome<DiskContents>::failure("The current folder of the disk \"" + here.value->diskName + "\" already holds a folder named \"" +
+                                                      folder + "\": nothing was created.");
+        }
+        for (const DiskFileEntry& file : here.value->files)
+        {
+            if (normalizeText(file.name) == wanted)
+                return Outcome<DiskContents>::failure("The current folder of the disk \"" + here.value->diskName + "\" already holds a file named \"" +
+                                                      file.name + "\": nothing was created. Choose another name.");
+        }
+
+        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::createFolder(session(), name, std::move(done));
+        });
+        if (!created)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the creation of the folder in time.");
+        if (!akm::succeeded(*created))
+            return Outcome<DiskContents>::failure(explain(*created, "creating the folder \"" + std::string(name) + "\"", _config, true, DISK));
+
+        const auto after = listDiskContents();
+        if (!after.ok())
+            return Outcome<DiskContents>::failure("The sampler accepted the creation of the folder \"" + std::string(name) +
+                                                  "\" but the folder could not be listed afterwards: " + after.problem);
+        const bool present = std::any_of(after.value->folders.begin(), after.value->folders.end(),
+                                         [&wanted](const std::string& folder) { return normalizeText(folder) == wanted; });
+        if (!present)
+            return Outcome<DiskContents>::failure("The sampler accepted the creation of the folder \"" + std::string(name) +
+                                                  "\" but no such folder is in the listing afterwards: check the disk.");
+        return after;
+    }
+
     Outcome<SaveOutcome> SamplerGateway::saveMemoryItem(SaveKind kind, std::string_view name, bool overwrite, bool saveChildren)
     {
         const auto target = writableFolder();

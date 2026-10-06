@@ -3,9 +3,9 @@
 ## Status
 Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-003 (RQ-MCP-023 to RQ-MCP-030) under the owner's delegation (HOL, Human
 on the loop), after the owner asked for loading and saving through the server. It amends ADR-MCP-002 DEC-MCP-010 (section 10 was
-"never offered"): browsing, loading and saving become offered behind the guards below, and delete, rename, create-folder, eject
-and format stay never offered. The other decisions of ADR-MCP-001 and ADR-MCP-002 stand. No independent review by a second model
-was run. **DEC-MCP-020 (2026-10-05)** narrows DEC-MCP-017 for the refresh: it needs `--allow-disk-refresh` as well.
+"never offered"): browsing, loading and saving become offered behind the guards below, and delete, rename, eject
+and format stay never offered (create-folder was added by DEC-MCP-021). The other decisions of ADR-MCP-001 and ADR-MCP-002 stand. No independent review by a second model
+was run. **DEC-MCP-020 (2026-10-05)** narrows DEC-MCP-017 for the refresh: it needs `--allow-disk-refresh` as well. **DEC-MCP-021 (2026-10-06)** takes create-folder out of the "never offered" list, at the owner's request.
 
 ## Context
 
@@ -71,7 +71,7 @@ RQ-MCP-027]
 ### DEC-MCP-019: The source check allows the disk primitives of browsing, loading and saving in one file, and no other
 The disk calls live in `juce/mcp/src/SamplerGatewayDisk.cpp` (members of `SamplerGateway`). `CheckNoDestructiveCalls.cmake` allows
 there, and nowhere else, `selectDisk`, `updateDiskList`, `openFolder`, `closeFolder`, `loadFile`, `loadFileWithDependents`,
-`loadFolder`, `saveMemoryItem`, `saveAllMemoryItems` (the names that carry a forbidden verb); the delete, rename, create-folder, eject
+`loadFolder`, `saveMemoryItem`, `saveAllMemoryItems`, `createFolder` (the names that carry a forbidden verb); the delete, rename, eject
 and format primitives, `deleteAllPrograms`, `deleteAllMultis`, `deleteAllSamples` and Clear Sampler Memory stay forbidden in every
 file. A test of the tool list also checks that no tool is named after them. [RQ-MCP-028]
 
@@ -85,6 +85,16 @@ a program (0.3 s) and a 40 MB sample (60 s) all worked without it. So the refres
 the schema has no `refresh`, `refresh: true` is refused with an answer that names the option and nothing is sent, and the answer
 about an empty list says that the sampler's list is not refreshed by this server. `refresh: false` is accepted as a no-op. The
 simulated server takes the option too. [RQ-MCP-031, RQ-MCP-024, RQ-MCP-029]
+
+### DEC-MCP-021: `create_folder` is offered with the disk tools, and creates, never opens, never replaces
+Decided on 2026-10-06, after the owner pointed out that section 10 item &16 creates a folder and that the AKM layer already has
+`createFolder` (it had been excluded here, in DEC-MCP-019 and RQ-MCP-028, by the assistant's own choice and not at the owner's
+request). `create_folder {name}` is a disk-tier tool, offered with `--allow-disk` only, neither read-only nor destructive (nothing is
+deleted or replaced) nor idempotent (a second call refuses). The gateway's `createFolder` works on the current folder of a writable
+disk (`writableFolder`), refuses a name that a folder or a file of the folder already bears (compared as the other tools do,
+without case, spaces or hyphens), sends the one item, lists the folder again and checks the name is there; the tool refuses an
+empty name and a path (`/` or `\`: one name, the parent is opened first). It does not open the new folder. The source check allows
+`akm::createFolder` in `SamplerGatewayDisk.cpp` only; delete, rename, eject and format stay forbidden everywhere. [RQ-MCP-032]
 
 ## Consequences
 

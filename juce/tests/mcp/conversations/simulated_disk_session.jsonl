@@ -29,4 +29,9 @@
 {"jsonrpc":"2.0","id":29,"method":"tools/call","params":{"name":"select_disk","arguments":{"name":"CD1"}}}
 {"jsonrpc":"2.0","id":30,"method":"tools/call","params":{"name":"save_memory_item","arguments":{"kind":"program","name":"BASS"}}}
 {"jsonrpc":"2.0","id":31,"method":"tools/call","params":{"name":"select_disk","arguments":{"name":"NOPE"}}}
-{"jsonrpc":"2.0","id":32,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":32,"method":"tools/call","params":{"name":"select_disk","arguments":{"name":"HD1"}}}
+{"jsonrpc":"2.0","id":33,"method":"tools/call","params":{"name":"create_folder","arguments":{"name":"NEWDIR"}}}
+{"jsonrpc":"2.0","id":34,"method":"tools/call","params":{"name":"list_disk_contents","arguments":{}}}
+{"jsonrpc":"2.0","id":35,"method":"tools/call","params":{"name":"create_folder","arguments":{"name":"SYNTH"}}}
+{"jsonrpc":"2.0","id":36,"method":"tools/call","params":{"name":"create_folder","arguments":{"name":"A/B"}}}
+{"jsonrpc":"2.0","id":37,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

@@ -307,6 +307,12 @@ namespace mcp
         [[nodiscard]] Outcome<DiskContents> openFolder(std::string_view name);
         [[nodiscard]] Outcome<DiskContents> closeFolder();
 
+        /// Creates a sub-folder of the current folder of the current disk (§10/&16) and answers the folder's listing afterwards,
+        /// without opening it. A disk that is not selected or not writable, a name a folder or a file of the folder already
+        /// bears (compared without case, spaces or hyphens) are problems and nothing is sent. The name is checked in the
+        /// listing afterwards. [RQ-MCP-032]
+        [[nodiscard]] Outcome<DiskContents> createFolder(std::string_view name);
+
         /// Loads a file of the current folder of the current disk (its extension decides whether it is a program, a sample, a
         /// multi...), with the files it depends on when `withDependents`, and answers the memory before and after. The name
         /// must be one the folder lists, or nothing is sent. The command waits for the disk timeout; a silent sampler is

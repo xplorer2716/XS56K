@@ -15,8 +15,8 @@ folder, ejects or formats (`RQ-MCP-028`). Every commit carries "(HOL -Human on t
 skill computes.
 
 ## References
-- **Requirements**: RQ-MCP-023 to RQ-MCP-031 (`FTR-MCP-003`); RQ-MCP-014, RQ-MCP-022 (`FTR-MCP-002`)
-- **ADRs**: ADR-MCP-003 (Proposed): DEC-MCP-015 to DEC-MCP-020; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
+- **Requirements**: RQ-MCP-023 to RQ-MCP-032 (`FTR-MCP-003`); RQ-MCP-014, RQ-MCP-022 (`FTR-MCP-002`)
+- **ADRs**: ADR-MCP-003 (Proposed): DEC-MCP-015 to DEC-MCP-021; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
   DEC-MCP-003, DEC-MCP-004, DEC-MCP-008.
 
 The plan has 7 tasks (TASK-MCP-018 to TASK-MCP-024). 018 authors the artifacts; 019 the options and the browsing tools (after 018);
@@ -126,3 +126,15 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI (decided by the owner on 2026-10-05, after the refresh hung the real sampler)
 - **Verification**: tests written first and run red (the option did not exist: `allowDiskRefresh` is not a member of `ToolOptions` or `ServerOptions`), then green. `juce/tests/mcp/ServerOptionsTests.cpp`: the option is off by default, `--allow-disk --allow-disk-refresh` turns both on (either order), `--allow-disk-refresh` without `--allow-disk` is an error that names both, a value given to it is an error, the usage text names it and says SCSI2SD. `DiskBrowseTests.cpp`: without the option `list_disks` has no `refresh` property, `refresh: true` is refused with an answer naming `--allow-disk-refresh` and nothing at all is sent to the sampler (no `&01`, no `&04`), `refresh: false` lists the disks and a non-boolean is refused, an empty list does not suggest the refresh; with the option the property exists, the refresh is sent once and a silent refresh takes the disk timeout (the two existing refresh tests now pass the option). The simulated server takes `--allow-disk-refresh`, and the disk conversation is launched with both flags (its expected output unchanged: 31 answers). Full `ctest` (Debug, MSVC `/W4 /WX`): 900 of 900 pass (893 before, 7 new). The refresh itself was NOT run again on the real sampler (it hung it).
 - **Assumptions**: `refresh: false` is accepted when the option is off (a no-op) and the answer about an empty list says the sampler's list is not refreshed by this server; the instructions the server gives the model change with the option (`diskInstructions(refreshOffered)`). The sampler's list was current without any refresh in the real run, so the refresh is not needed for a disk plugged in before the server starts; for a disk plugged in later the owner can use the front panel or allow the refresh at their own risk.
+
+### TASK-MCP-026: The `create_folder` tool
+- **Tier**: S
+- **Status**: Done
+- **Description**: Add `create_folder {name}` to the disk tools (the gateway's `createFolder`, the source check allowing `akm::createFolder` in the disk unit), with tests first and the simulated conversation extended.
+- **Requirement refs**: RQ-MCP-032, RQ-MCP-028
+- **ADR refs**: ADR-MCP-003 (DEC-MCP-021, DEC-MCP-019)
+- **Acceptance Criteria** (Gherkin): *Given* a writable disk with a folder DRUMS, *When* `create_folder` is called with MCPTEST, *Then* one item &16 is sent, the folder is listed and not opened. *Given* an existing name, a path, an empty name, a read-only disk or no disk, *When* it is called, *Then* nothing is sent and the answer says why.
+- **Dependencies**: TASK-MCP-019
+- **Assignee**: AI (at the owner's request, 2026-10-06)
+- **Verification**: tests written first and run red (6 of the new cases failed: no such tool), then green. `DiskBrowseTests.cpp`: `create_folder` is listed with the flag (not read-only, not destructive, not idempotent, "sampler's own disks" in its description) and absent without it (invalid params); on HD1 it sends one `&16`, answers `Created the folder "MCPTEST"` naming the disk, the folder is listed, the current folder is still the root, and `open_folder` shows it empty; DRUMS, `drums` and `Drums ` are refused as existing, a file name (INIT.AKP) is refused, no disk and the read-only CD1 are refused, a missing, empty, blank, non-string or path-like name (`A/B`, `A\B`, `..\X`) and an extra argument are refused, all with nothing sent; a silent `&16` gives an error after the command timeout. `DiskSaveTests.cpp` no longer forbids the name `create_folder`. The source check allows `akm::createFolder` in `SamplerGatewayDisk.cpp` and still passes. The disk conversation gained 5 requests (select HD1, create NEWDIR, list, create SYNTH refused, create `A/B` refused) and a tool list with `create_folder`: 36 answers, its expected output regenerated and the diff read (the tool list and the new answers only). Full `ctest` (Debug, MSVC `/W4 /WX`): 906 of 906 pass (900 before, 6 new). NOT yet run on the real sampler (to run with the owner: create `MCPTEST` on the S5K disk).
+- **Assumptions**: a folder and a file cannot share a name on the sampler's disks, so a file bearing the name is refused; the name is sent as given (no trimming), after the checks; the length limit of a folder name on the sampler is not known and is not checked by the server (the sampler's answer is reported).

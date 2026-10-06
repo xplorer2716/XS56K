@@ -1380,6 +1380,35 @@ namespace mcp
                 return ok(describeContents(*contents.value));
             }});
 
+        // create_folder
+        tools.push_back(Tool{
+            definition("create_folder", "Create a folder",
+                       std::string("Creates an empty sub-folder in the current folder of the current disk, which must be writable, and does not "
+                                   "open it (use open_folder). It refuses a name a folder or a file of the folder already bears. It deletes and "
+                                   "replaces nothing. ") +
+                           DISK_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The new folder's name (one name, no path)."}}}},
+                                    json::array({"name"})),
+                       false, false),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name"}))
+                    return *refused;
+                if (!arguments.contains("name") || !arguments.at("name").is_string())
+                    return failure("Give the 'name' of the folder to create.");
+                const std::string name = arguments.at("name").get<std::string>();
+                if (name.find_first_not_of(" \t") == std::string::npos)
+                    return failure("The folder's name is empty: give the 'name' of the folder to create.");
+                if (name.find_first_of("/\\") != std::string::npos)
+                    return failure("The name must be one folder name, not a path: it cannot contain '/' or '\\'. Open the parent folder first "
+                                   "(open_folder), then create the folder in it.");
+                const auto contents = gateway.createFolder(name);
+                if (!contents.ok())
+                    return failure(contents.problem);
+                return ok("Created the folder \"" + name + "\" in the current folder of the disk \"" + contents.value->diskName + "\" (folder " +
+                          (contents.value->path.empty() ? "(root)" : contents.value->path) +
+                          "). It is empty and is not opened: use open_folder to go into it.");
+            }});
+
         // load_file
         tools.push_back(Tool{
             definition("load_file", "Load a file",

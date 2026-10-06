@@ -287,7 +287,6 @@ TEST_CASE("Given the save tools, When the server is launched without --allow-dis
         CHECK(name.find("delete_file") == std::string::npos);
         CHECK(name.find("delete_folder") == std::string::npos);
         CHECK(name.find("rename_file") == std::string::npos);
-        CHECK(name.find("create_folder") == std::string::npos);
         CHECK(name.find("eject") == std::string::npos);
         CHECK(name.find("format") == std::string::npos);
         if (name == "save_memory_item" || name == "save_all_memory_items")

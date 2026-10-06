@@ -32,7 +32,7 @@ simulated sampler holding three programs (PAD, BASS and LEAD, BASS current).
 
 ## What it does
 
-Seventeen tools (twenty-six with `--allow-disk`, see below). Each declares a tier in its MCP annotations: **read** changes nothing, **edit** overwrites a value or a
+Seventeen tools (twenty-seven with `--allow-disk`, see below). Each declares a tier in its MCP annotations: **read** changes nothing, **edit** overwrites a value or a
 selection in memory, **structure** creates, renames or deletes a program in memory.
 
 | Tool | Tier | What it does |
@@ -57,7 +57,7 @@ front panel or with the disk tools below.
 
 ### The disk tools (only with `--allow-disk`)
 
-A person cannot get a sample, a program or a multi into the sampler, or keep one, without the disk. These nine tools exist only when
+A person cannot get a sample, a program or a multi into the sampler, or keep one, without the disk. These ten tools exist only when
 the server is launched with `--allow-disk` (write it in the client's server configuration, next to the ports), because **a slow
 section 10 command has once left a real S5000 answering nothing until it was switched off and on**. They act on the sampler's own
 disks (hard disk, floppy, CD-ROM, removable), not on the computer's files.
@@ -68,6 +68,7 @@ disks (hard disk, floppy, CD-ROM, removable), not on the computer's files.
 | `select_disk` | edit | makes a disk current, by name or handle |
 | `list_disk_contents` | read | the current folder's sub-folders and files with their sizes, and the path |
 | `open_folder`, `close_folder` | edit | descends into a sub-folder, goes back up |
+| `create_folder` | disk | creates an empty sub-folder in the current folder of a writable disk (refuses an existing name, a path, a read-only disk); does not open it |
 | `load_file` | structure | loads a file of the current folder (a program, a sample, a multi), with `with_dependents` the files it depends on, a `sample_mode` (normal, ram, virtual); answers the memory before and after |
 | `load_folder` | structure | loads a sub-folder and everything in it |
 | `save_memory_item` | disk, destructive | saves a program, sample or multi by name to the current folder of a writable disk; refuses if a file of that name is there unless `overwrite` is true; checks the folder afterwards |
@@ -77,7 +78,7 @@ disks (hard disk, floppy, CD-ROM, removable), not on the computer's files.
 sampler answering nothing until it was switched off and on, and it is not needed for a disk that was plugged in before the server
 started (the list, the selection, the browsing and the loads worked without it). `--disk-timeout-ms` (default 120000) is how long a
 load or a save waits. After it the answer says the sampler may have to
-be switched off and on, and nothing is retried. No tool deletes or renames a file or a folder, creates a folder, ejects or formats a
+be switched off and on, and nothing is retried. No tool deletes or renames a file or a folder, ejects or formats a
 disk. **Run on the real sampler (2026-10-05, owner present, SCSI2SD disk)**: browsing, `select_disk`, `load_file` of a program (0.3 s)
 and of a 40 MB sample (60 s) work, a program with its sample was loaded with `with_dependents` (both added), and a program was saved (refused when its file exists, replaced with `overwrite`); the refresh hung the
 sampler; `save_all_memory_items`, saving a sample or a multi and the multi tools are tested against the simulated
@@ -100,7 +101,7 @@ on, Sync LCD off and Auto screen update on until the sampler is switched off.
 
 ## Safety rules
 
-- No tool deletes or renames a file or a folder, creates a folder, ejects or formats a disk, deletes all programs or multis, clears
+- No tool deletes or renames a file or a folder, ejects or formats a disk, deletes all programs or multis, clears
   the sampler's memory, or creates, deletes or renames a sample or a multi. The `ctest` entry `mcp_sources_call_no_destructive_primitive`
   searches the sources and allows each primitive in one file only: the gateway creates, renames and deletes a program, its disk unit
   (`SamplerGatewayDisk.cpp`) loads and saves.

@@ -54,6 +54,7 @@ namespace
     constexpr int INVALID_PARAMS = -32602;
     constexpr std::uint8_t SECTION_DISK = 0x10;
     constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
+    constexpr std::uint8_t ITEM_CREATE_FOLDER = 0x16;
 
     /// A simulated sampler holding the disks HD1 (a hard disk, MSDOS, writable, with the folders DRUMS and SYNTH and the files
     /// INIT.AKP and KICK.WAV at its root, one file in DRUMS) and CD1 (a CD-ROM, ISO9660, read-only).
@@ -361,6 +362,121 @@ TEST_CASE("Given the root of a disk, When a folder is opened and closed, Then th
     CHECK(contains(textOf(atRoot), "already the root"));
     CHECK(rig.accepted(akm::ItemId::DiskCloseFolder) == closesBefore);
     CHECK(isError(rig.call("open_folder")));
+}
+
+TEST_CASE("Given the server launched with and without --allow-disk, When the tools are listed, Then create_folder is a disk tool that is neither read-only nor destructive, and is absent without the flag [RQ-MCP-032]",
+          "[mcp][disk]")
+{
+    Rig with;
+    const json list = with.request("tools/list", json::object());
+    int found = 0;
+    for (const json& tool : list["result"]["tools"])
+        if (tool["name"] == "create_folder")
+        {
+            ++found;
+            CHECK_FALSE(tool["annotations"]["readOnlyHint"].get<bool>());
+            CHECK_FALSE(tool["annotations"]["destructiveHint"].get<bool>());
+            CHECK_FALSE(tool["annotations"]["idempotentHint"].get<bool>());
+            CHECK(contains(tool["description"].get<std::string>(), "sampler's own disks"));
+        }
+    CHECK(found == 1);
+
+    Rig without(false);
+    CHECK(toolNames(without).count("create_folder") == 0);
+    const json answer = without.call("create_folder", {{"name", "MCPTEST"}});
+    REQUIRE(answer.contains("error"));
+    CHECK(answer["error"]["code"] == INVALID_PARAMS);
+}
+
+TEST_CASE("Given a writable disk, When create_folder is given a new name, Then the folder is created once, listed, empty, and not opened [RQ-MCP-032]",
+          "[mcp][disk]")
+{
+    Rig rig;
+    REQUIRE_FALSE(isError(rig.call("select_disk", {{"name", "HD1"}})));
+    const json answer = rig.call("create_folder", {{"name", "MCPTEST"}});
+    CHECK_FALSE(isError(answer));
+    CHECK(contains(textOf(answer), "Created the folder \"MCPTEST\""));
+    CHECK(contains(textOf(answer), "HD1"));
+    CHECK(rig.accepted(akm::ItemId::DiskCreateFolder) == 1);
+
+    const std::string listing = textOf(rig.call("list_disk_contents"));
+    CHECK(contains(listing, "MCPTEST"));
+    CHECK(contains(listing, "DRUMS"));
+    CHECK(contains(listing, ": (root)"));  // created, not opened
+
+    const std::string opened = textOf(rig.call("open_folder", {{"name", "MCPTEST"}}));
+    CHECK(contains(opened, "MCPTEST"));
+    CHECK(contains(opened, "Folders: none"));
+    CHECK(contains(opened, "Files: none"));
+}
+
+TEST_CASE("Given a folder of that name already there, When create_folder runs, Then nothing is sent and the answer says it exists, whatever the case [RQ-MCP-032]",
+          "[mcp][disk]")
+{
+    Rig rig;
+    REQUIRE_FALSE(isError(rig.call("select_disk", {{"name", "HD1"}})));
+    for (const char* name : {"DRUMS", "drums", "Drums "})
+    {
+        const json answer = rig.call("create_folder", {{"name", name}});
+        INFO(name);
+        CHECK(isError(answer));
+        CHECK(contains(textOf(answer), "already holds"));
+        CHECK(contains(textOf(answer), "DRUMS"));
+    }
+    CHECK(rig.accepted(akm::ItemId::DiskCreateFolder) == 0);
+}
+
+TEST_CASE("Given a file bearing the name, no disk selected or a read-only disk, When create_folder runs, Then nothing is sent and the answer says why [RQ-MCP-032]",
+          "[mcp][disk]")
+{
+    Rig rig;
+    const json noDisk = rig.call("create_folder", {{"name", "MCPTEST"}});
+    CHECK(isError(noDisk));
+    CHECK(contains(textOf(noDisk), "select_disk"));
+
+    REQUIRE_FALSE(isError(rig.call("select_disk", {{"name", "HD1"}})));
+    const json file = rig.call("create_folder", {{"name", "INIT.AKP"}});
+    CHECK(isError(file));
+    CHECK(contains(textOf(file), "INIT.AKP"));
+
+    REQUIRE_FALSE(isError(rig.call("select_disk", {{"name", "CD1"}})));
+    const json readOnly = rig.call("create_folder", {{"name", "MCPTEST"}});
+    CHECK(isError(readOnly));
+    CHECK(contains(textOf(readOnly), "read-only"));
+    CHECK(rig.accepted(akm::ItemId::DiskCreateFolder) == 0);
+}
+
+TEST_CASE("Given a missing, empty, non-string or path-like name, When create_folder runs, Then nothing is sent [RQ-MCP-032]",
+          "[mcp][disk]")
+{
+    Rig rig;
+    REQUIRE_FALSE(isError(rig.call("select_disk", {{"name", "HD1"}})));
+    CHECK(isError(rig.call("create_folder")));
+    CHECK(isError(rig.call("create_folder", {{"name", ""}})));
+    CHECK(isError(rig.call("create_folder", {{"name", "   "}})));
+    CHECK(isError(rig.call("create_folder", {{"name", 12}})));
+    for (const char* name : {"A/B", "A\\B", "..\\X"})
+    {
+        const json answer = rig.call("create_folder", {{"name", name}});
+        INFO(name);
+        CHECK(isError(answer));
+        CHECK(contains(textOf(answer), "one folder name"));
+    }
+    CHECK(isError(rig.call("create_folder", {{"name", "OK"}, {"extra", 1}})));
+    CHECK(rig.accepted(akm::ItemId::DiskCreateFolder) == 0);
+}
+
+TEST_CASE("Given a sampler that never answers the creation, When create_folder runs, Then the answer is an error and nothing else is sent [RQ-MCP-032]",
+          "[mcp][disk]")
+{
+    Rig rig;
+    REQUIRE_FALSE(isError(rig.call("select_disk", {{"name", "HD1"}})));
+    akm::harness::SamplerBehaviour behaviour;
+    behaviour.silentItems.push_back(akm::harness::SilentItem{SECTION_DISK, ITEM_CREATE_FOLDER});
+    rig.sampler->setBehaviour(behaviour);
+    const json answer = rig.call("create_folder", {{"name", "MCPTEST"}});
+    CHECK(isError(answer));
+    CHECK(rig.accepted(akm::ItemId::DiskCreateFolder) == 1);
 }
 
 TEST_CASE("Given a refresh the sampler never answers, When list_disks refresh runs, Then it waits for the disk timeout, not the command timeout, and the answer mentions the power cycle and no retry [RQ-MCP-029]",

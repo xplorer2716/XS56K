@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one by confirming its name), 119 program parameters (filter, envelopes, LFOs, pitch and amplitude, output, tuning, pitch
   bend, and 13 per zone), samples (list, select, 12 parameters) and multis (list, select, 12 part parameters), named in the
   musician's vocabulary and set in the sampler's own units, each Set read back from the sampler. The MIDI ports are launch
-  arguments of the server (`--in`, `--out`, `--list-ports` shows them). With `--allow-disk` it also offers nine disk tools (the sampler's disk-list refresh only with `--allow-disk-refresh`) to
-  browse the sampler's own disks, load a file or a folder into memory and save a program, a sample or a multi (one, or every
+  arguments of the server (`--in`, `--out`, `--list-ports` shows them). With `--allow-disk` it also offers ten disk tools (the sampler's disk-list refresh only with `--allow-disk-refresh`) to
+  browse the sampler's own disks, create a folder, load a file or a folder into memory and save a program, a sample or a multi (one, or every
   one of a kind) to a writable disk, never replacing a file unless `overwrite` is true; `--disk-timeout-ms` sets how long those
   slow commands wait. It never deletes or renames a file or a folder, never deletes everything and never creates or deletes a
   sample or a multi. It speaks both eras of MCP over standard input and output. The program tools and parameters were run on a real S5000; the sample tools were also run on a real sample, and the disk browsing, loads and the save of a program on a real disk; the bulk save, the load of a

@@ -2,13 +2,14 @@
 # loads, clears, ejects or formats something, except in the two units that may:
 #   - SamplerGateway.cpp: the three program structure primitives (create a program with keygroups, rename the current
 #     program, delete the current program), all in memory (ADR-MCP-002 DEC-MCP-010);
-#   - SamplerGatewayDisk.cpp: the disk primitives of loading and saving and their types (ADR-MCP-003 DEC-MCP-019).
+#   - SamplerGatewayDisk.cpp: the disk primitives of loading and saving, of creating a folder, and their types (ADR-MCP-003
+#     DEC-MCP-019, DEC-MCP-021).
 #
 # Usage: cmake -DSOURCE_DIR=<dir> -P CheckNoDestructiveCalls.cmake
 #
 # The words are looked for as the names of the AKM layer's own functions (`akm::createProgram`, `deleteAllPrograms`,
 # `deleteFile`, ...) and of its items (`ItemId::ProgramCreate`, `ItemId::DiskSaveMemoryItem`, ...). Delete ALL, Clear Sampler
-# Memory and the delete, rename, create-folder, eject and format primitives of the disk are never allowed anywhere.
+# Memory and the delete, rename, eject and format primitives of the disk are never allowed anywhere.
 # [RQ-MCP-008, RQ-MCP-014, RQ-MCP-028, ADR-MCP-001 (DEC-MCP-007), ADR-MCP-002 (DEC-MCP-010), ADR-MCP-003 (DEC-MCP-019)]
 
 if(NOT DEFINED SOURCE_DIR)
@@ -29,7 +30,7 @@ set(pattern "(ItemId::|akm::)[A-Za-z]*(${verbs})")
 # What each allowed file may call. A file that is not listed may call none of the names that carry a verb.
 set(allowed_files "SamplerGateway.cpp" "SamplerGatewayDisk.cpp")
 set(allowed_calls_SamplerGateway.cpp "akm::createProgramWithKeygroups|akm::renameCurrentProgram|akm::deleteCurrentProgram")
-set(allowed_calls_SamplerGatewayDisk.cpp "akm::loadFileWithDependents|akm::loadFile|akm::loadFolder|akm::saveMemoryItem|akm::saveAllMemoryItems|akm::SaveableMemoryType|akm::SampleLoadOption")
+set(allowed_calls_SamplerGatewayDisk.cpp "akm::createFolder|akm::loadFileWithDependents|akm::loadFile|akm::loadFolder|akm::saveMemoryItem|akm::saveAllMemoryItems|akm::SaveableMemoryType|akm::SampleLoadOption")
 set(offenders "")
 foreach(source IN LISTS sources)
     file(STRINGS "${source}" lines REGEX "${pattern}")

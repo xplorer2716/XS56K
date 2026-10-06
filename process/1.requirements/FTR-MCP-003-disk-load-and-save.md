@@ -21,11 +21,11 @@ into the sampler".
 **Guards (ADR-MCP-003).** The disk tools exist only when the server is launched with `--allow-disk` (the owner's explicit choice,
 written in the client's server configuration); the slow commands have a long, configurable timeout and a message that says what
 a silent sampler means; the disk refresh is never sent unless asked, and asked for by a launch option of its own (`--allow-disk-refresh`, RQ-MCP-031); saves refuse to overwrite by default; and delete, eject,
-format, create-folder and rename-file stay never offered.
+format and rename-file stay never offered (create-folder was added by RQ-MCP-032, at the owner's request of 2026-10-06).
 
 **Vocabulary** is unchanged: names as the sampler's screen shows them, sizes in bytes, no invented file format.
 
-**Out of scope.** Deleting or renaming a file or a folder, creating a folder, ejecting a disk, formatting, saving or loading song
+**Out of scope.** Deleting or renaming a file or a folder, ejecting a disk, formatting, saving or loading song
 files and set lists, scenelists and MIDI files (SMF), auditioning a file from disk, moving files between the computer and the
 sampler, and everything FTR-MCP-002 already excludes (Delete ALL programs and multis, Clear Sampler Memory).
 
@@ -93,10 +93,10 @@ the front panel's), `documents/_index/sysex_spec.items.tsv` (section 10), the AK
 ### RQ-MCP-028: Never offered, still
 - **Category**: Functional
 - **EARS Type**: Unwanted-behavior
-- **Statement**: The server SHALL expose no tool that deletes or renames a file or a folder, creates a folder, ejects or formats a disk, and none that deletes all programs, samples or multis or clears the sampler's memory; the disk primitives it calls SHALL be those of browsing, loading and saving, called only from the gateway's disk unit.
+- **Statement**: The server SHALL expose no tool that deletes or renames a file or a folder, ejects or formats a disk, and none that deletes all programs, samples or multis or clears the sampler's memory; the disk primitives it calls SHALL be those of browsing, loading, saving and creating a folder, called only from the gateway's disk unit.
 - **Rationale**: those are the irreversible operations of the section; saving and loading are the ones a person needs.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the sources of `juce/mcp`, *When* searched for the delete, rename, create-folder, eject and format primitives of the disk, *Then* there is no call, and the load, save, select and folder-navigation primitives are called only from the gateway's disk unit.
+- **Acceptance Criteria** (Gherkin): *Given* the sources of `juce/mcp`, *When* searched for the delete, rename, eject and format primitives of the disk, *Then* there is no call, and the load, save, select, create-folder and folder-navigation primitives are called only from the gateway's disk unit.
 - **Dependencies**: RQ-MCP-014; ADR-MCP-003 (DEC-MCP-019)
 
 ---
@@ -124,6 +124,15 @@ the front panel's), `documents/_index/sysex_spec.items.tsv` (section 10), the AK
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the extended scripted conversation, *When* it runs against the simulated sampler in `ctest`, *Then* every answer matches. *Given* a disk plugged into the sampler, *When* the owner is present, *Then* the real run is made one slow command at a time and written up.
 - **Dependencies**: RQ-MCP-012, RQ-MCP-022, all functional requirements of this feature
+
+### RQ-MCP-032: Creating a folder on a writable disk
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the client calls `create_folder` with a name, the server SHALL create an empty sub-folder of that name in the current folder of the current disk (section 10, item &16), SHALL NOT open it, and SHALL answer after reading the folder's listing back; IF no disk is selected, the disk is read-only, the name is empty or a path, or a folder or a file of the folder already bears the name (compared without case, spaces or hyphens), THEN the server SHALL send nothing and say why.
+- **Rationale**: the owner asked for it on 2026-10-06 (a place to save test files in, without cluttering the root); it deletes and replaces nothing, the AKM primitive exists and ran on the real S5000 on 2026-10-03.
+- **Priority**: Should
+- **Acceptance Criteria** (Gherkin): *Given* a writable disk with a folder DRUMS, *When* `create_folder` is called with MCPTEST, *Then* one section 10 item &16 is sent, the answer says the folder is created and empty, and `list_disk_contents` lists MCPTEST while the current folder is unchanged. *Given* the name DRUMS, a path `A/B`, an empty name, a read-only disk or no disk, *When* it is called, *Then* nothing is sent and the answer says why.
+- **Dependencies**: RQ-MCP-023, RQ-MCP-024; ADR-MCP-003 (DEC-MCP-021)
 
 ### RQ-MCP-031: The refresh of the disk list is a launch option of its own
 - **Category**: Non-Functional
