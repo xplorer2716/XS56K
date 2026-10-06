@@ -125,6 +125,15 @@ the front panel's), `documents/_index/sysex_spec.items.tsv` (section 10), the AK
 - **Acceptance Criteria** (Gherkin): *Given* the extended scripted conversation, *When* it runs against the simulated sampler in `ctest`, *Then* every answer matches. *Given* a disk plugged into the sampler, *When* the owner is present, *Then* the real run is made one slow command at a time and written up.
 - **Dependencies**: RQ-MCP-012, RQ-MCP-022, all functional requirements of this feature
 
+### RQ-MCP-033: A save is checked against a listing the sampler has refreshed
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF, after a save, a file of a saved item is missing from the folder's listing, THEN the server SHALL close and open the current folder again, read the listing once more, and answer from that second listing; it SHALL NOT say that the folder gained nothing when the second listing holds the files.
+- **Rationale**: observed on the owner's S5000 on 2026-10-06: the sampler keeps a folder's file list until the folder is opened, and a bulk save of 13 samples into a folder that already held one file was listed as 1 file, 5 s and 17 s later too; the folder held 13.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* a sampler that keeps a stale file list and a root that holds a file, *When* `save_all_memory_items` saves three programs, *Then* the answer says the folder gained three files. *Given* the folder SYNTH, *When* a program is saved there, *Then* the folder is closed and opened again and is still the current folder.
+- **Dependencies**: RQ-MCP-026, RQ-MCP-027; ADR-MCP-003 (DEC-MCP-022)
+
 ### RQ-MCP-032: Creating a folder on a writable disk
 - **Category**: Functional
 - **EARS Type**: Event-driven

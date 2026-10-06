@@ -180,6 +180,69 @@ TEST_CASE("Given a read-only disk, no disk selected, an item not in memory or ba
     }
 }
 
+namespace
+{
+    /// A rig whose sampler caches a folder's file list as the real S5000 does (observed 2026-10-06): the list is read again only when a
+    /// disk or a folder is opened, and a save does not refresh it unless the folder held no file. The root holds `OLD.AKP` and the folder
+    /// SYNTH holds `LEAD2.AKP`, both non-empty so that a save leaves the cache stale. HD1 is selected after the behaviour is set.
+    std::unique_ptr<DiskRig> makeStaleRig()
+    {
+        akm::harness::FolderRecord synth;
+        synth.name = "SYNTH";
+        synth.files = {programFile("LEAD2.AKP", "LEAD2")};
+        auto rig = std::make_unique<DiskRig>(standardDisks({programFile("OLD.AKP", "OLD")}, {synth}), true);
+        rig->sampler->setSampleNames({"KICK", "SNARE"});
+        akm::harness::SamplerBehaviour behaviour;
+        behaviour.staleFileListAfterSave = true;
+        rig->sampler->setBehaviour(behaviour);
+        REQUIRE_FALSE(isError(rig->call("select_disk", {{"name", "HD1"}})));
+        return rig;
+    }
+}
+
+TEST_CASE("Given a sampler that keeps a stale file list and a root that holds a file, When save_all_memory_items saves three programs, Then the folder is reopened and the answer says the folder gained three files [RQ-MCP-033]",
+          "[mcp][disk][save]")
+{
+    const auto holder = makeStaleRig();
+    DiskRig& rig = *holder;
+    const json answer = rig.call("save_all_memory_items", {{"kind", "program"}, {"confirm", 3}});
+    CHECK_FALSE(isError(answer));
+    CHECK(contains(textOf(answer), "gained 3 files"));
+    CHECK(rig.accepted(akm::ItemId::DiskSaveAllMemoryItems) == 1);
+    const std::string contents = textOf(rig.call("list_disk_contents"));
+    CHECK(contains(contents, "BASS.AKP"));
+    CHECK(contains(contents, "OLD.AKP"));
+    CHECK(contains(contents, ": (root)"));
+}
+
+TEST_CASE("Given a stale file list and the folder SYNTH, When a program is saved there, Then the folder is closed and opened again, and SYNTH is still the current folder [RQ-MCP-033]",
+          "[mcp][disk][save]")
+{
+    const auto holder = makeStaleRig();
+    DiskRig& rig = *holder;
+    REQUIRE_FALSE(isError(rig.call("open_folder", {{"name", "SYNTH"}})));
+    const json answer = rig.call("save_memory_item", {{"kind", "program"}, {"name", "BASS"}});
+    CHECK_FALSE(isError(answer));
+    CHECK(contains(textOf(answer), "BASS.AKP"));
+    CHECK(contains(textOf(answer), "is in the folder"));
+    CHECK(rig.accepted(akm::ItemId::DiskCloseFolder) >= 1);
+    const std::string contents = textOf(rig.call("list_disk_contents"));
+    CHECK(contains(contents, "SYNTH"));
+    CHECK(contains(contents, "BASS.AKP"));
+    CHECK(contains(contents, "LEAD2.AKP"));
+}
+
+TEST_CASE("Given a stale file list, When the files saved are in the listing at once, Then the folder is not reopened [RQ-MCP-033]",
+          "[mcp][disk][save]")
+{
+    const auto holder = makeRig();  // no stale cache
+    DiskRig& rig = *holder;
+    const json answer = rig.call("save_all_memory_items", {{"kind", "program"}, {"confirm", 3}});
+    CHECK_FALSE(isError(answer));
+    CHECK(rig.accepted(akm::ItemId::DiskCloseFolder) == 0);
+    CHECK(rig.accepted(akm::ItemId::DiskOpenFolder) == 0);
+}
+
 TEST_CASE("Given three programs in memory, When save_all_memory_items is called with the wrong count, Then nothing is sent and the answer gives the count; with the right count the folder gains three files [RQ-MCP-027]",
           "[mcp][disk][save]")
 {

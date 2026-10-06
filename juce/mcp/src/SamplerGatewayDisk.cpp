@@ -472,6 +472,41 @@ namespace mcp
         }
     }
 
+    Outcome<DiskContents> SamplerGateway::reopenCurrentFolder()
+    {
+        const auto path = await<akm::DiskPathResult>(waitFor(1), [&](std::function<void(const akm::DiskPathResult&)> done) {
+            akm::getCurrentDiskPath(session(), std::move(done));
+        });
+        if (!path)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!path->path)
+            return Outcome<DiskContents>::failure(explain(path->outcome, "reading the current folder", _config, true, DISK));
+
+        // The folder to open again is the last name of the path (the sampler writes it with '\'; '/' is accepted too).
+        std::string last;
+        const bool atRoot = path->path->empty();
+        if (!atRoot)
+        {
+            const std::size_t cut = path->path->find_last_of("/\\");
+            last = cut == std::string::npos ? *path->path : path->path->substr(cut + 1);
+            const auto closed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+                akm::closeFolder(session(), std::move(done));
+            });
+            if (!closed)
+                return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+            if (!akm::succeeded(*closed))
+                return Outcome<DiskContents>::failure(explain(*closed, "closing the current folder", _config, true, DISK));
+        }
+        const auto opened = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::openFolder(session(), last, std::move(done));
+        });
+        if (!opened)
+            return Outcome<DiskContents>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*opened))
+            return Outcome<DiskContents>::failure(explain(*opened, "opening the folder again", _config, true, DISK));
+        return listDiskContents();
+    }
+
     Outcome<DiskContents> SamplerGateway::createFolder(std::string_view name)
     {
         const auto here = writableFolder();
@@ -545,9 +580,17 @@ namespace mcp
         if (!akm::succeeded(*saved))
             return Outcome<SaveOutcome>::failure(explainDisk(*saved, "saving the " + std::string(kindName(kind)) + " \"" + *found + "\""));
 
-        const auto after = listDiskContents();
+        auto after = listDiskContents();
         if (!after.ok())
             return Outcome<SaveOutcome>::failure("The save was sent but the folder could not be read afterwards: " + after.problem);
+        // The S5000 may keep the folder's old file list: when the file is not in it, the folder is opened again and read once more.
+        if (fileBearing(after.value->files, *found) == nullptr)
+        {
+            const auto reopened = reopenCurrentFolder();
+            if (!reopened.ok())
+                return Outcome<SaveOutcome>::failure("The save was sent but the folder could not be read again afterwards: " + reopened.problem);
+            after = reopened;
+        }
         SaveOutcome outcome;
         outcome.diskName = target.value->diskName;
         outcome.path = target.value->path;
@@ -598,9 +641,20 @@ namespace mcp
         if (!akm::succeeded(*saved))
             return Outcome<SaveOutcome>::failure(explainDisk(*saved, "saving every " + std::string(kindName(kind))));
 
-        const auto after = listDiskContents();
+        auto after = listDiskContents();
         if (!after.ok())
             return Outcome<SaveOutcome>::failure("The save was sent but the folder could not be read afterwards: " + after.problem);
+        // Same as for one item: when a file of an item is missing from the listing, the folder is opened again and read once more.
+        const auto anyMissing = [&names](const DiskContents& contents) {
+            return std::any_of(names.begin(), names.end(), [&contents](const std::string& item) { return fileBearing(contents.files, item) == nullptr; });
+        };
+        if (anyMissing(*after.value))
+        {
+            const auto reopened = reopenCurrentFolder();
+            if (!reopened.ok())
+                return Outcome<SaveOutcome>::failure("The save was sent but the folder could not be read again afterwards: " + reopened.problem);
+            after = reopened;
+        }
         SaveOutcome outcome;
         outcome.diskName = target.value->diskName;
         outcome.path = target.value->path;

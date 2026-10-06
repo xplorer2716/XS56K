@@ -96,6 +96,14 @@ without case, spaces or hyphens), sends the one item, lists the folder again and
 empty name and a path (`/` or `\`: one name, the parent is opened first). It does not open the new folder. The source check allows
 `akm::createFolder` in `SamplerGatewayDisk.cpp` only; delete, rename, eject and format stay forbidden everywhere. [RQ-MCP-032]
 
+### DEC-MCP-022: A save's verification reopens the folder when a saved file is missing from the listing
+Decided on 2026-10-06 after the real run: the S5000 keeps a folder's file list until the folder is opened, and a bulk save into a folder
+that already held a file was not listed (the listing stayed at 1 file after 5 s and 17 s; the folder held 13). After a save, the
+gateway lists the folder; when a file of a saved item is missing it closes and opens the same folder again (the root is opened again by
+the empty name) and lists once more, and answers from that listing. The simulated sampler reproduces the cache
+(`SamplerBehaviour::staleFileListAfterSave`: the list is taken when a disk or a folder is selected, opened, closed or created, and a save
+refreshes it only when it was empty). The tool never claims "gained nothing" from a listing that the second reading contradicts. [RQ-MCP-033]
+
 ## Consequences
 
 - **Easier.** A person can bring a sample, a program or a multi into memory through the server and keep what they edited, from a disk

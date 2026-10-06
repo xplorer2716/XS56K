@@ -2590,6 +2590,64 @@ namespace akm::harness
         // parameters (RQ-AKM-034, RQ-AKM-035), §0E's lifecycle (RQ-AKM-045) and §10's disk discovery
         // and selection (RQ-AKM-060, RQ-AKM-061) are modelled. A byte after the data an item expects is
         // ignored, as the spec says of a checksum sent while checksums are off.
+        // A disk that keeps a folder's file list as the real S5000 does (seen on 2026-10-06 with a SCSI2SD, `staleFileListAfterSave`):
+        // the list of files is taken when a disk is selected or a folder opened, closed or created, and served from that copy by `&22`
+        // (all file names) and `&23` (a file's size) until the next one; a save (`&2C`, `&2D`) refreshes it only when it was empty,
+        // so a save into a folder that already held a file is not listed until the folder is opened again.
+        void applyStaleFileList(std::uint8_t item, const Bytes& data, Outcome& outcome, std::vector<DiskRecord>& disks,
+                                const std::optional<std::size_t>& currentDisk, const std::vector<std::size_t>& currentFolderPath,
+                                std::optional<std::vector<FileRecord>>& cache)
+        {
+            const auto take = [&]() {
+                cache.reset();
+                if (!currentDisk.has_value())
+                    return;
+                if (const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath))
+                    cache = folder->files;
+            };
+            switch (item)
+            {
+                case ITEM_SELECT_DISK:
+                case ITEM_OPEN_FOLDER:
+                case ITEM_CLOSE_FOLDER:
+                case ITEM_CREATE_FOLDER:
+                    if (outcome.replyId == REPLY_DONE)
+                        take();
+                    break;
+                case ITEM_SAVE_MEMORY_ITEM:
+                case ITEM_SAVE_ALL_MEMORY_ITEMS:
+                    if (outcome.replyId == REPLY_DONE && (!cache.has_value() || cache->empty()))
+                        take();
+                    break;
+                case ITEM_GET_ALL_FILE_NAMES:
+                    if (cache.has_value() && outcome.replyId == REPLY_REPLY)
+                    {
+                        akm::ByteWriter writer;
+                        for (const FileRecord& file : *cache)
+                            writer.appendString(file.name);
+                        outcome = reply(writer.bytes());
+                    }
+                    break;
+                case ITEM_GET_FILE_SIZE:
+                    if (cache.has_value() && outcome.replyId == REPLY_REPLY)
+                    {
+                        akm::ByteReader reader(data);
+                        const auto index = reader.readWord();
+                        if (!index.has_value() || *index >= cache->size())
+                        {
+                            outcome = failure(error_number::NOT_FOUND);
+                            break;
+                        }
+                        akm::ByteWriter writer;
+                        appendCompoundWord(writer, (*cache)[*index].sizeBytes);
+                        outcome = reply(writer.bytes());
+                    }
+                    break;
+                default:
+                    break;
+            }
+        }
+
         // The sampler's mutable state, by reference, that `execute` hands to the section it dispatches to.
         struct SamplerState
         {
@@ -2954,6 +3012,7 @@ namespace akm::harness
             return;
         _currentDisk = index;
         _currentFolderPath.clear();
+        _staleFiles.reset();
     }
 
     void SimulatedSampler::setDisks(std::vector<DiskRecord> disks)
@@ -2962,6 +3021,7 @@ namespace akm::harness
         _disks = std::move(disks);
         _currentDisk.reset();
         _currentFolderPath.clear();
+        _staleFiles.reset();
     }
 
     SamplerBehaviour SimulatedSampler::behaviour() const
@@ -3120,8 +3180,10 @@ namespace akm::harness
                            _currentKeygroup, _samples,         _currentSample, _multis,       _disks,
                            _currentDisk,     _currentFolderPath, _frontPanel,  _midiConfig,
                            _songs,           _sceneLists,        _fx};
-        const Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
-                                                                        : execute(section, item, data, state);
+        Outcome outcome = refused != _behaviour.itemErrors.end() ? failure(refused->number)
+                                                                  : execute(section, item, data, state);
+        if (section == SECTION_DISK && _behaviour.staleFileListAfterSave)
+            applyStaleFileList(item, data, outcome, _disks, _currentDisk, _currentFolderPath, _staleFiles);
         // An item the sampler is deaf to ran, and says nothing, the OK included.
         const bool silentItem = std::any_of(_behaviour.silentItems.begin(), _behaviour.silentItems.end(),
                                             [section, item](const SilentItem& candidate) {

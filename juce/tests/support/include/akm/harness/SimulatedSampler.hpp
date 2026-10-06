@@ -131,6 +131,10 @@ namespace akm::harness
         /// follows the previous mode (first-contact probe, TASK-AKM-012). Set to false to model a sampler that
         /// confirms in the previous mode.
         bool checksumChangeAppliesToOwnConfirmation = true;
+        /// Whether the disk keeps a folder's file list as the real S5000 does (seen on 2026-10-06 with a SCSI2SD): the list is
+        /// taken again only when a disk or a folder is selected, opened, closed or created, and a save refreshes it only when it was empty.
+        /// Off by default: the list is always current.
+        bool staleFileListAfterSave = false;
         /// Items whose REPLY carries another section than the command's. The real S5000 does it for the clock, and
         /// so does the model by default; `clear()` it for a sampler that follows the spec to the letter.
         std::vector<ReplySectionOverride> replySectionOverrides{S5000_CLOCK_REPLY_SECTION};
@@ -681,5 +685,7 @@ namespace akm::harness
         // the current disk — the spec says nothing of what survives a disk change, and a stale path
         // from a different disk's tree would be meaningless.
         std::vector<std::size_t> _currentFolderPath;
+        // The copy of the current folder's file list a disk with `staleFileListAfterSave` serves (see `applyStaleFileList`).
+        std::optional<std::vector<FileRecord>> _staleFiles;
     };
 }

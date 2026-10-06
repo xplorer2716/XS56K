@@ -15,8 +15,8 @@ folder, ejects or formats (`RQ-MCP-028`). Every commit carries "(HOL -Human on t
 skill computes.
 
 ## References
-- **Requirements**: RQ-MCP-023 to RQ-MCP-032 (`FTR-MCP-003`); RQ-MCP-014, RQ-MCP-022 (`FTR-MCP-002`)
-- **ADRs**: ADR-MCP-003 (Proposed): DEC-MCP-015 to DEC-MCP-021; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
+- **Requirements**: RQ-MCP-023 to RQ-MCP-033 (`FTR-MCP-003`); RQ-MCP-014, RQ-MCP-022 (`FTR-MCP-002`)
+- **ADRs**: ADR-MCP-003 (Proposed): DEC-MCP-015 to DEC-MCP-022; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
   DEC-MCP-003, DEC-MCP-004, DEC-MCP-008.
 
 The plan has 7 tasks (TASK-MCP-018 to TASK-MCP-024). 018 authors the artifacts; 019 the options and the browsing tools (after 018);
@@ -138,3 +138,15 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI (at the owner's request, 2026-10-06)
 - **Verification**: tests written first and run red (6 of the new cases failed: no such tool), then green. `DiskBrowseTests.cpp`: `create_folder` is listed with the flag (not read-only, not destructive, not idempotent, "sampler's own disks" in its description) and absent without it (invalid params); on HD1 it sends one `&16`, answers `Created the folder "MCPTEST"` naming the disk, the folder is listed, the current folder is still the root, and `open_folder` shows it empty; DRUMS, `drums` and `Drums ` are refused as existing, a file name (INIT.AKP) is refused, no disk and the read-only CD1 are refused, a missing, empty, blank, non-string or path-like name (`A/B`, `A\B`, `..\X`) and an extra argument are refused, all with nothing sent; a silent `&16` gives an error after the command timeout. `DiskSaveTests.cpp` no longer forbids the name `create_folder`. The source check allows `akm::createFolder` in `SamplerGatewayDisk.cpp` and still passes. The disk conversation gained 5 requests (select HD1, create NEWDIR, list, create SYNTH refused, create `A/B` refused) and a tool list with `create_folder`: 36 answers, its expected output regenerated and the diff read (the tool list and the new answers only). Full `ctest` (Debug, MSVC `/W4 /WX`): 906 of 906 pass (900 before, 6 new). NOT yet run on the real sampler (to run with the owner: create `MCPTEST` on the S5K disk).
 - **Assumptions**: a folder and a file cannot share a name on the sampler's disks, so a file bearing the name is refused; the name is sent as given (no trimming), after the checks; the length limit of a folder name on the sampler is not known and is not checked by the server (the sampler's answer is reported).
+
+### TASK-MCP-027: A save is verified against a refreshed listing
+- **Tier**: S
+- **Status**: Done
+- **Description**: After `save_memory_item` and `save_all_memory_items`, reopen the current folder and list again when a saved file is missing from the listing; teach the simulated sampler the sampler's file-list cache.
+- **Requirement refs**: RQ-MCP-033, RQ-MCP-026, RQ-MCP-027
+- **ADR refs**: ADR-MCP-003 (DEC-MCP-022)
+- **Acceptance Criteria** (Gherkin): *Given* a sampler that keeps a stale file list and a root that holds a file, *When* three programs are saved with `save_all_memory_items`, *Then* the answer says the folder gained three files. *Given* the folder SYNTH, *When* a program is saved there, *Then* the folder is closed and opened again and SYNTH is still current.
+- **Dependencies**: TASK-MCP-021, TASK-MCP-026
+- **Assignee**: AI
+- **Verification**: tests written first. The simulated sampler gained `SamplerBehaviour::staleFileListAfterSave` (the file list `&22`/`&23` is served from a copy taken at selection, open, close and create, and refreshed by a save only when it was empty: what the real S5000 did on 2026-10-06), and with it the three new cases failed (the answer said no file was gained, the listing lacked BASS.AKP, no folder reopened), then passed once `reopenCurrentFolder` was called after a save whose file is missing. A fourth case checks that a sampler with a current listing causes no reopening (no `&13`, no `&14`). Full `ctest` (Debug, MSVC `/W4 /WX`): 909 of 909 pass (906 before, 3 new tests plus the 0 changed). The real S5000 was not run again with the fix.
+- **Assumptions**: the file to look for after a save is the one that bears the item's name without its extension; the folder to open again is the last name of the path the sampler gives (it writes it with a backslash; a slash is accepted). The simulated sampler still writes a path with `/` and a 4096-byte file: both are to be corrected with the rest of the simulator.

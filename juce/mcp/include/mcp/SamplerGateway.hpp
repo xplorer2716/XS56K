@@ -407,6 +407,11 @@ namespace mcp
         /// As `explain`, for a slow disk command: a timeout says the sampler may have to be switched off and on.
         [[nodiscard]] std::string explainDisk(const akm::CommandResult& outcome, const std::string& doing) const;
         [[nodiscard]] Outcome<std::vector<std::string>> folderNames();
+
+        /// Closes and opens again the current folder (the root is opened again by the empty name) and lists it: the S5000 keeps a
+        /// folder's file list until the folder is opened, and a save into a folder that already held a file does not refresh it
+        /// (seen on 2026-10-06). [RQ-MCP-033]
+        [[nodiscard]] Outcome<DiskContents> reopenCurrentFolder();
         [[nodiscard]] Outcome<MemoryNames> memoryNames();
         /// The current folder when its disk is selected and writable, or the problem that says why a save cannot start.
         [[nodiscard]] Outcome<DiskContents> writableFolder();
