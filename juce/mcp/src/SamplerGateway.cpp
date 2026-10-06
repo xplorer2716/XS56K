@@ -34,6 +34,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/RealScheduler.hpp"
 #include "akm/SamplePrimitives.hpp"
 #include "akm/SamplerError.hpp"
+#include "akm/SystemSetup.hpp"
+#include "akm/SystemVersion.hpp"
 #include "akm/ThreadExecutor.hpp"
 #include "akm/ZonePrimitives.hpp"
 #include "GatewayDetail.hpp"
@@ -488,6 +490,70 @@ namespace mcp
         {
             return "The sampler's answer for " + parameter.name + " could not be read.";
         }
+    }
+
+    Outcome<SystemInfo> SamplerGateway::readSystemInfo()
+    {
+        if (const auto problem = connect())
+            return Outcome<SystemInfo>::failure(*problem);
+        SystemInfo info;
+
+        const auto model = await<akm::SamplerModelResult>(waitFor(1), [&](std::function<void(const akm::SamplerModelResult&)> done) {
+            akm::getSamplerModel(_connection->session, std::move(done));
+        });
+        if (!model)
+            return Outcome<SystemInfo>::failure("The sampler session did not complete the command in time.");
+        if (model->model)
+            info.model = *model->model == akm::SamplerModel::S5000 ? "AKAI S5000" : "AKAI S6000";
+        else if (!akm::succeeded(model->outcome))
+            return Outcome<SystemInfo>::failure(explain(model->outcome, "reading the sampler's model", _config, false));
+
+        const auto version = await<akm::OsVersionResult>(waitFor(2), [&](std::function<void(const akm::OsVersionResult&)> done) {
+            akm::queryOsVersion(_connection->session, std::move(done));
+        });
+        if (!version)
+            return Outcome<SystemInfo>::failure("The sampler session did not complete the command in time.");
+        if (version->version)
+            info.osVersion = numberText(version->version->major) + "." + numberText(version->version->minor);
+
+        const auto percentOf = [&](void (*get)(akm::Session&, akm::MemoryPercentCompletion), const char* what) -> Outcome<int> {
+            const auto read = await<akm::MemoryPercentResult>(waitFor(1), [&](std::function<void(const akm::MemoryPercentResult&)> done) {
+                get(_connection->session, std::move(done));
+            });
+            if (!read)
+                return Outcome<int>::failure("The sampler session did not complete the command in time.");
+            if (!read->percent)
+                return Outcome<int>::failure(explain(read->outcome, what, _config, false));
+            return Outcome<int>::success(*read->percent);
+        };
+        const auto bytesOf = [&](void (*get)(akm::Session&, akm::MemoryBytesCompletion), const char* what) -> Outcome<std::uint32_t> {
+            const auto read = await<akm::MemoryBytesResult>(waitFor(1), [&](std::function<void(const akm::MemoryBytesResult&)> done) {
+                get(_connection->session, std::move(done));
+            });
+            if (!read)
+                return Outcome<std::uint32_t>::failure("The sampler session did not complete the command in time.");
+            if (!read->bytes)
+                return Outcome<std::uint32_t>::failure(explain(read->outcome, what, _config, false));
+            return Outcome<std::uint32_t>::success(*read->bytes);
+        };
+
+        const auto freeWavePercent = percentOf(akm::getFreeWaveMemoryPercent, "reading the free wave memory");
+        if (!freeWavePercent.ok())
+            return Outcome<SystemInfo>::failure(freeWavePercent.problem);
+        const auto freeWaveBytes = bytesOf(akm::getFreeWaveMemoryBytes, "reading the free wave memory in bytes");
+        if (!freeWaveBytes.ok())
+            return Outcome<SystemInfo>::failure(freeWaveBytes.problem);
+        const auto totalWaveBytes = bytesOf(akm::getTotalWaveMemoryBytes, "reading the total wave memory");
+        if (!totalWaveBytes.ok())
+            return Outcome<SystemInfo>::failure(totalWaveBytes.problem);
+        const auto freeMpksPercent = percentOf(akm::getFreeMpksMemoryPercent, "reading the free program and sample memory");
+        if (!freeMpksPercent.ok())
+            return Outcome<SystemInfo>::failure(freeMpksPercent.problem);
+        info.freeWavePercent = *freeWavePercent.value;
+        info.freeWaveBytes = *freeWaveBytes.value;
+        info.totalWaveBytes = *totalWaveBytes.value;
+        info.freeMpksPercent = *freeMpksPercent.value;
+        return Outcome<SystemInfo>::success(std::move(info));
     }
 
     Outcome<ZoneSamples> SamplerGateway::readZoneSamples(KeygroupSelection selection)

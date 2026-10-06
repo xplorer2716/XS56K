@@ -111,15 +111,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-034: Information: `get_system_info` and `get_disk_space`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the gateway reads (model, OS version, free wave memory in percent and bytes, free program-and-keygroup memory, free space of the current disk) and the two read tools (`get_disk_space` only with `--allow-disk`).
 - **Requirement refs**: RQ-MCP-040
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-024)
 - **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* `get_system_info` is called, *Then* the answer states the model, the OS version and both free-memory figures; *When* `get_disk_space` is called with a disk selected, *Then* it gives the free bytes, and with none it says to select one.
 - **Dependencies**: TASK-MCP-028
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: tests first, **run red before the code** (`SystemInfoToolsTests.cpp`, 5 cases: "test cases: 5 | 0 passed | 5 failed"), then green: `xs56k_mcp_tests "[sysinfo]"` → "All tests passed (49 assertions in 5 test cases)". They cover: `get_system_info` read-only, `get_disk_space` read-only and absent without the flag (-32602); a sampler with 16 MiB of 64 MiB of wave memory free and 80 percent of the other memory gives "Model: AKAI S5000", "Operating system: ", "Free wave memory: ... (16777216 bytes of 67108864)" and "Free program, keygroup, sample and multi memory: 80%"; an S6000 is named, and a model code that is neither says "Model: not recognised"; an extra argument is refused for both; `get_disk_space` on HD1 (1000000 bytes free) says so with a size in MB, and with no disk selected says to use `select_disk`. The conversations' tool lists gained exactly `get_system_info` (without the flag) and `get_system_info` and `get_disk_space` (with it) (regenerated, difference read). `ctest` excluding only the unrelated `bld_mutate_tool_script_tests` (run in full at the end of the batch): 959 of 959 pass. NOT run on the real sampler (TASK-MCP-037).
+- **Assumptions**: the operating system is given as "major.minor" (the sub-version is always 0 per the spec's table, so it is not shown); a model code that is neither 0 nor 1 is reported as not recognised rather than guessed; the memory figures are what §02/&30, &31, &33 and &34 answer; a megabyte is 1024 x 1024 bytes, as the samplers count memory; the free space is read from the disk the sampler has as current (the selection by SysEx).
 
 ### TASK-MCP-035: Audition: `audition_sample` and `audition_file`
 - **Tier**: M

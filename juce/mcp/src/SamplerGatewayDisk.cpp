@@ -242,6 +242,21 @@ namespace mcp
         return Outcome<DiskContents>::success(std::move(contents));
     }
 
+    Outcome<DiskSpace> SamplerGateway::readDiskSpace()
+    {
+        const auto here = listDiskContents();
+        if (!here.ok())
+            return Outcome<DiskSpace>::failure(here.problem);
+        const auto space = await<akm::DiskFreeSpaceResult>(waitFor(1), [&](std::function<void(const akm::DiskFreeSpaceResult&)> done) {
+            akm::getCurrentDiskFreeSpace(session(), std::move(done));
+        });
+        if (!space)
+            return Outcome<DiskSpace>::failure("The sampler session did not complete the command in time.");
+        if (!space->freeBytes)
+            return Outcome<DiskSpace>::failure(explain(space->outcome, "reading the free space of the disk \"" + here.value->diskName + "\"", _config, true, DISK));
+        return Outcome<DiskSpace>::success(DiskSpace{here.value->diskName, *space->freeBytes});
+    }
+
     Outcome<DiskContents> SamplerGateway::openFolder(std::string_view name)
     {
         if (const auto problem = connect())

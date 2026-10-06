@@ -479,7 +479,7 @@ TASK-MCP-030|64-75|Done|Keygroups: `add_keygroups` and `delete_keygroup`
 TASK-MCP-031|76-87|Done|Samples: `rename_sample` and `delete_sample`
 TASK-MCP-032|88-99|Done|Multis: create, rename, delete, part program, clear part, program number
 TASK-MCP-033|100-111|Done|Files and folders: rename and delete
-TASK-MCP-034|112-123|Not Started|Information: `get_system_info` and `get_disk_space`
+TASK-MCP-034|112-123|Done|Information: `get_system_info` and `get_disk_space`
 TASK-MCP-035|124-135|Not Started|Audition: `audition_sample` and `audition_file`
 TASK-MCP-036|136-147|Not Started|The README as a reference, the simulated conversation and the documents
 TASK-MCP-037|148-158|Blocked|Real-sampler run of the new tools with the owner

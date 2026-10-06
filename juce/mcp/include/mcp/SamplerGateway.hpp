@@ -307,6 +307,25 @@ namespace mcp
         int folders = 0;  ///< a folder's sub-folders, when it was looked at
     };
 
+    /// What the sampler says about itself: its model and operating system when they could be read, and how much of its memory is free.
+    /// [RQ-MCP-040]
+    struct SystemInfo
+    {
+        std::optional<std::string> model;       ///< "AKAI S5000" or "AKAI S6000"; empty when the sampler answered a code that is neither
+        std::optional<std::string> osVersion;   ///< "major.minor"; empty when it could not be read
+        int freeWavePercent = 0;
+        std::uint32_t freeWaveBytes = 0;
+        std::uint32_t totalWaveBytes = 0;
+        int freeMpksPercent = 0;                ///< programs, keygroups, samples and multis
+    };
+
+    /// The free space of the current disk. [RQ-MCP-040]
+    struct DiskSpace
+    {
+        std::string diskName;
+        std::uint64_t freeBytes = 0;
+    };
+
     /// One multi of the sampler's memory: its position (from 0) and its name.
     struct MultiEntry
     {
@@ -560,6 +579,12 @@ namespace mcp
 
         /// Sets the current multi's program number (1 to 128 as on the front panel) or switches it off, and reads it back. [RQ-MCP-038]
         [[nodiscard]] Outcome<MultiProgramNumber> setMultiProgramNumber(std::optional<int> number);
+
+        /// The sampler's model, operating system and free memory (section 02). [RQ-MCP-040]
+        [[nodiscard]] Outcome<SystemInfo> readSystemInfo();
+
+        /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
+        [[nodiscard]] Outcome<DiskSpace> readDiskSpace();
 
         /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
         /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the

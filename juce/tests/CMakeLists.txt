@@ -100,6 +100,7 @@ add_executable(xs56k_mcp_tests
     mcp/ProgramStructureTests.cpp
     mcp/SamplerGatewayTests.cpp
     mcp/ServerOptionsTests.cpp
+    mcp/SystemInfoToolsTests.cpp
     mcp/ToolsTests.cpp
     mcp/ZoneParameterTests.cpp
     mcp/ZoneSampleToolsTests.cpp)

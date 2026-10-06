@@ -20,7 +20,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <cmath>
 #include <initializer_list>
+#include <iomanip>
 #include <set>
+#include <sstream>
 #include <utility>
 
 using nlohmann::json;
@@ -1174,6 +1176,9 @@ namespace mcp
 
         constexpr const char* DISK_FILES_NOTICE = "It acts on the sampler's own disks, not on the computer's files.";
 
+        // A megabyte as the samplers count memory. [RQ-MCP-040]
+        constexpr double BYTES_PER_MEGABYTE = 1024.0 * 1024.0;
+
         // Where a change on the disk happened, for the answers. [RQ-MCP-039]
         std::string whereText(const std::string& diskName, const std::string& path)
         {
@@ -1443,6 +1448,24 @@ namespace mcp
                 return ok("Created the folder \"" + name + "\" in the current folder of the disk \"" + contents.value->diskName + "\" (folder " +
                           (contents.value->path.empty() ? "(root)" : contents.value->path) +
                           "). It is empty and is not opened: use open_folder to go into it.");
+            }});
+
+        // get_disk_space [RQ-MCP-040]
+        tools.push_back(Tool{
+            definition("get_disk_space", "Read the free space of the current disk",
+                       std::string("Says how many bytes are free on the current disk (see select_disk): check it before saving. It changes nothing. ") +
+                           DISK_NOTICE,
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto space = gateway.readDiskSpace();
+                if (!space.ok())
+                    return failure(space.problem);
+                std::ostringstream megabytes;
+                megabytes << std::fixed << std::setprecision(1) << static_cast<double>(space.value->freeBytes) / BYTES_PER_MEGABYTE;
+                return ok("The disk \"" + space.value->diskName + "\" has " + std::to_string(space.value->freeBytes) + " bytes free (about " +
+                          megabytes.str() + " MB).");
             }});
 
         // rename_file, rename_folder, delete_file, delete_folder [RQ-MCP-039, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)]
@@ -1867,6 +1890,27 @@ namespace mcp
                                            "\": it now has " + plural(deletion.value->keygroupCount, "keygroup") +
                                            ". Read the keygroups again before editing them: the numbers after the deleted one may have changed.");
                              }});
+
+        // get_system_info [RQ-MCP-040]
+        tools.push_back(Tool{
+            definition("get_system_info", "Read the sampler's model and memory",
+                       "Says which sampler this is (S5000 or S6000), its operating system version and how much of its memory is free: the wave "
+                       "memory (percent and bytes: check it before loading a large sample) and the memory for programs, keygroups, samples and "
+                       "multis (percent). It changes nothing.",
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto info = gateway.readSystemInfo();
+                if (!info.ok())
+                    return failure(info.problem);
+                std::string text = "Model: " + info.value->model.value_or("not recognised (the sampler answered a code that is neither an S5000 nor an S6000)") + "\n";
+                text += "Operating system: " + info.value->osVersion.value_or("not read") + "\n";
+                text += "Free wave memory: " + std::to_string(info.value->freeWavePercent) + "% (" + std::to_string(info.value->freeWaveBytes) +
+                        " bytes of " + std::to_string(info.value->totalWaveBytes) + ")\n";
+                text += "Free program, keygroup, sample and multi memory: " + std::to_string(info.value->freeMpksPercent) + "%\n";
+                return ok(std::move(text));
+            }});
 
         // rename_sample [RQ-MCP-036]
         tools.push_back(Tool{
