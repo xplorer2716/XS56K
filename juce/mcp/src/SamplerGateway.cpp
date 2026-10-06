@@ -164,10 +164,21 @@ namespace mcp
 
         akm::SessionConfig sessionConfig;
         sessionConfig.targetDeviceId = _config.deviceId;
-        if (_config.touchLcdSettings)
-            sessionConfig.autoScreenUpdate = akm::SettingChoice::On;
-        else
-            sessionConfig.syncLcd = akm::SettingChoice::Unchanged;
+        switch (_config.screen)
+        {
+            case ScreenMode::Independent:
+                sessionConfig.syncLcd = akm::SettingChoice::Off;
+                sessionConfig.autoScreenUpdate = akm::SettingChoice::On;
+                break;
+            case ScreenMode::Follow:
+                sessionConfig.syncLcd = akm::SettingChoice::On;
+                sessionConfig.autoScreenUpdate = akm::SettingChoice::On;
+                break;
+            case ScreenMode::AsIs:
+                sessionConfig.syncLcd = akm::SettingChoice::Unchanged;
+                sessionConfig.autoScreenUpdate = akm::SettingChoice::Unchanged;
+                break;
+        }
 
         const auto deadline = akm::DEFAULT_DISCOVERY_WINDOW + _config.commandTimeout * OPENING_COMMAND_BUDGET + WAIT_MARGIN;
         const auto opened = await<akm::OpenResult>(

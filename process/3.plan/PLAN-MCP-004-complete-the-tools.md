@@ -15,9 +15,9 @@ never sent (`ADR-MCP-003` DEC-MCP-020). Every commit carries "(HOL -Human on the
 skill computes.
 
 ## References
-- **Requirements**: RQ-MCP-034 to RQ-MCP-044 (`FTR-MCP-004`); RQ-MCP-013 (`FTR-MCP-001`); RQ-MCP-020, RQ-MCP-021 (`FTR-MCP-002`);
+- **Requirements**: RQ-MCP-034 to RQ-MCP-045 (`FTR-MCP-004`); RQ-MCP-013 (`FTR-MCP-001`); RQ-MCP-020, RQ-MCP-021 (`FTR-MCP-002`);
   RQ-MCP-023, RQ-MCP-024, RQ-MCP-032 (`FTR-MCP-003`)
-- **ADRs**: ADR-MCP-004 (Proposed): DEC-MCP-023 to DEC-MCP-026; ADR-MCP-003: DEC-MCP-019 (amended); ADR-MCP-002: DEC-MCP-010
+- **ADRs**: ADR-MCP-004 (Proposed): DEC-MCP-023 to DEC-MCP-027; ADR-MCP-003: DEC-MCP-019 (amended); ADR-MCP-002: DEC-MCP-010
   (amended), DEC-MCP-011
 
 The plan has 10 tasks (TASK-MCP-028 to TASK-MCP-037). 028 authors the artifacts; 029 the zone sample tools; 030 the keygroups; 031
@@ -150,7 +150,7 @@ This plan implements the tasks in the format specified below.
 ### TASK-MCP-037: Real-sampler run of the new tools with the owner
 - **Tier**: M
 - **Status**: Blocked
-- **Description**: With the owner present, run each new tool on the real S5000 on objects made for the run (a program created for it, samples loaded from the disk, a multi created for it, the `MCPTEST*` folders and a test file), one at a time, write up what the sampler did in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, list what is left on the disk, and correct the simulated sampler for what it did differently.
+- **Description**: With the owner present, run each new tool on the real S5000 on objects made for the run (a program created for it, samples loaded from the disk, a multi created for it, the `MCPTEST*` folders and a test file), one at a time, write up what the sampler did in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, list what is left on the disk, and correct the simulated sampler for what it did differently. It includes the owner's check of the sampler's screen with each value of `--screen` (RQ-MCP-045): what is shown when the person selects another program than the assistant's, with Sync LCD off and with it on.
 - **Requirement refs**: RQ-MCP-044
 - **ADR refs**: ADR-MCP-004
 - **Acceptance Criteria** (Gherkin): *Given* the owner present, *When* each new tool is run alone, *Then* its answer and what the sampler did are in the observations file, the objects created are removed or listed, and the simulated sampler matches what was seen.
@@ -170,3 +170,15 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI (at the owner's remark of 2026-10-06)
 - **Verification**: N/A (Tier S). Checked anyway: `xs56k_mcp_tests "[options]"` → "All tests passed (115 assertions in 18 test cases)" and `ctest -R "mcp_readme|mcp_server_executable"` → 4 of 4 pass, `mcp_readme_names_every_tool_and_option` included.
 - **Assumptions**: the meaning of the two settings is taken from the SysEx specification (§00 items &03 and &05, footnote a of &03) and from the code (`SamplerGateway.cpp` sets `autoScreenUpdate` On and leaves `syncLcd` at its default Off unless `--no-lcd`); the S5000's pages not following the edits with Auto screen update off was observed on 2026-10-04 (`OBSERVATIONS-RQ-AKM-080-midi-config.md`).
+
+### TASK-MCP-039: `--screen independent | follow | as-is` replaces `--no-lcd`
+- **Tier**: L
+- **Status**: Done
+- **Description**: Replace the launch argument `--no-lcd` by `--screen` with three values: `independent` (the default, what the server did without `--no-lcd`), `follow` (Sync LCD and Auto screen update both on) and `as-is` (neither touched); the gateway's configuration carries the mode; `--no-lcd` is refused with a message that names `--screen as-is`; the README, the `--help` text and the documents that said "put back as they were" say that the close puts the settings back to the sampler's documented defaults.
+- **Requirement refs**: RQ-MCP-045, RQ-MCP-002, RQ-MCP-003, RQ-MCP-043
+- **ADR refs**: ADR-MCP-004 (DEC-MCP-027); ADR-MCP-001 (DEC-MCP-004, DEC-MCP-008)
+- **Acceptance Criteria** (Gherkin): *Given* no `--screen`, *When* a session is opened, *Then* the sampler is sent Sync LCD off and Auto screen update on; with `follow` both on; with `as-is` neither; *When* the session is closed, *Then* the settings it changed are back to their documented defaults; *Given* an unknown value or `--no-lcd`, *When* parsed, *Then* the result is a usage error that names the three values or `--screen as-is`.
+- **Dependencies**: TASK-MCP-036
+- **Assignee**: AI (at the owner's request of 2026-10-06)
+- **Verification**: tests first, **red before the code** (the build of `xs56k_mcp_tests` failed: "'screen': is not a member of 'mcp::GatewayConfig'", "'ScreenMode': the symbol to the left of a '::' must be a type"), then green. `xs56k_mcp_tests "[options]"` → "All tests passed (168 assertions in 21 test cases)" and `"[gateway]"` → "All tests passed (470 assertions in 33 test cases)". They cover: no `--screen` gives `independent`; the three values, in the spaced and the `--screen=value` forms, reach the gateway's configuration; `sideways`, empty, `Follow`, `asis`, `off`, `1` and a missing value are usage errors naming `--screen`, `independent`, `follow` and `as-is`; `--no-lcd` is refused and the message names `--screen as-is`; the usage text names `--screen`, not `--no-lcd`, gives the three values, the default and what the close puts back; with `independent` the sampler is sent Sync LCD 0 and Auto screen update 1 (once each), with `follow` both 1, with `as-is` nothing, and after the close of `independent` and `follow` Sync LCD is on and Auto screen update off, after the close of `as-is` still nothing was sent. `ctest` excluding only the unrelated `bld_mutate_tool_script_tests` (run in full at the end of the batch): 970 of 970 pass. The README (the option table with two columns and a table of the three modes), the CHANGELOG, FTR-MCP-001 (RQ-MCP-002), ADR-MCP-001 (DEC-MCP-004, DEC-MCP-008) and PLAN-MCP-001 were made consistent: `--no-lcd` no longer appears in a current requirement, decision or document of the MCP server (the AKM probe has its own `--no-lcd`, unrelated). **A discrepancy was caught while reading the code for this task**: the documents and my own explanations said the close "puts the settings back as they were"; the session puts each setting it changed back to its documented default (`samplerDefault`: Sync LCD on, Auto screen update off), since section 00 has no Get. The existing test "the section 00 settings are back to their defaults" already said so. NOT run on a real sampler: what the S5000's screen shows in each mode is part of TASK-MCP-037.
+- **Assumptions**: `independent` stays the default (it is what the server did without `--no-lcd`); `follow` sets Sync LCD on and Auto screen update on, as the owner's description of "follow" implies, and its effect on the S5000's screen is deduced from the specification (§00 `&03` footnote a), not observed; `--no-lcd` is removed outright, not kept as an alias, since the only configuration known (the owner's `.mcp.json`) does not use it.

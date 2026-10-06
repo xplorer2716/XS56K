@@ -40,15 +40,26 @@ namespace mcp
     // RQ-MCP-006, RQ-MCP-007, RQ-MCP-009, RQ-MCP-014, RQ-MCP-015, RQ-MCP-016, RQ-MCP-017, ADR-MCP-001 (DEC-MCP-003,
     // DEC-MCP-004, DEC-MCP-006), ADR-MCP-002 (DEC-MCP-010, DEC-MCP-011)]
 
+    /// How the sampler's screen behaves while the server runs (`--screen`): `Independent` switches Sync LCD off and Auto screen update on
+    /// (the assistant has its own selection, the screen is redrawn after each edit), `Follow` switches both on (the screen and the
+    /// assistant's selection follow each other), `AsIs` changes neither and sends nothing about them. A setting the session changed is
+    /// put back at the close to the sampler's documented default (Sync LCD on, Auto screen update off), not to what it held before.
+    /// [RQ-MCP-045, ADR-MCP-004 (DEC-MCP-027)]
+    enum class ScreenMode
+    {
+        Independent,
+        Follow,
+        AsIs
+    };
+
     struct GatewayConfig
     {
         std::string inputPort;   ///< what the sampler sends on
         std::string outputPort;  ///< what the sampler receives on
         std::uint32_t deviceId = 0;
         std::chrono::milliseconds commandTimeout = std::chrono::duration_cast<std::chrono::milliseconds>(akm::DEFAULT_COMMAND_TIMEOUT);
-        /// Whether the session switches Sync LCD off and Auto screen update on, so that the sampler's screen follows
-        /// the edits (both are put back at the close); false leaves both alone.
-        bool touchLcdSettings = true;
+        /// What the session does with the sampler's screen settings. [RQ-MCP-045]
+        ScreenMode screen = ScreenMode::Independent;
         /// How long a slow section 10 command (the refresh of the disk list, a load, a save) waits for the sampler: much
         /// longer than an ordinary command, and its silence is answered with a message about the power cycle.
         /// [ADR-MCP-003 (DEC-MCP-017)]

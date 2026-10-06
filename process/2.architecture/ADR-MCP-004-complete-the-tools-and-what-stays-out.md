@@ -76,6 +76,21 @@ hang and the power cycle); and, last, the layout and tests for developers. Notes
 documents, not in the README. A `ctest` case checks that every tool the server lists and every option of its usage text is in the
 README. [RQ-MCP-043]
 
+### DEC-MCP-027: `--screen independent | follow | as-is` replaces `--no-lcd`
+Decided on 2026-10-06, after the owner found `--no-lcd` unclear. The server acts on two settings of section 00: Sync LCD (`&03`: on,
+the selection made over MIDI and what the front panel displays follow each other, so that a selection on one changes the other;
+off, they are independent) and Auto screen update (`&05`: on, the sampler redraws its screen when it processes a message; observed
+on the S5000 on 2026-10-04: with it off the pages do not follow the edits). `--screen independent` (the default: what the server
+always did when `--no-lcd` was left out) sets Sync LCD off and Auto screen update on; `--screen follow` sets both on; `--screen
+as-is` sets neither and sends nothing. The session's close puts each setting it changed back to its **documented default** (Sync
+LCD on, Auto screen update off: `samplerDefault`, RQ-AKM-042), **not to the value the sampler held before**, since section 00 has no
+Get for them: an earlier text of this repository's documents said "as they were", which was wrong and is corrected. `--no-lcd` is
+removed (its only user is the owner, whose configuration does not use it); it is refused with a message that names `--screen as-is`.
+Which value is the better default (`independent`, or `follow` so that the person sees what the assistant edits) depends on what the
+S5000's screen shows in each case, which has not been observed: the owner's check of the screen is part of TASK-MCP-037, and the
+default changes only if it shows that it should. This supersedes the `--no-lcd` of ADR-MCP-001 (DEC-MCP-004 and DEC-MCP-008).
+[RQ-MCP-045, RQ-MCP-002, RQ-MCP-003]
+
 ## Consequences
 
 - **Easier.** A client can load a sample, assign it to a zone, build a multi, free memory, fix names and tidy the owner's disk; the

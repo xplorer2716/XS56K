@@ -29,7 +29,12 @@ namespace mcp
         constexpr const char* OPTION_OUT = "--out";
         constexpr const char* OPTION_DEVICE_ID = "--device-id";
         constexpr const char* OPTION_TIMEOUT = "--timeout-ms";
-        constexpr const char* OPTION_NO_LCD = "--no-lcd";
+        constexpr const char* OPTION_SCREEN = "--screen";
+        // The argument --screen replaced: refused with a message that points to its successor. [RQ-MCP-045]
+        constexpr const char* OPTION_FORMER_NO_LCD = "--no-lcd";
+        constexpr const char* SCREEN_INDEPENDENT = "independent";
+        constexpr const char* SCREEN_FOLLOW = "follow";
+        constexpr const char* SCREEN_AS_IS = "as-is";
         constexpr const char* OPTION_ALLOW_DISK = "--allow-disk";
         constexpr const char* OPTION_ALLOW_DISK_REFRESH = "--allow-disk-refresh";
         constexpr const char* OPTION_DISK_TIMEOUT = "--disk-timeout-ms";
@@ -90,14 +95,16 @@ namespace mcp
                 return true;
             };
 
-            if (name == OPTION_NO_LCD || name == OPTION_ALLOW_DISK || name == OPTION_ALLOW_DISK_REFRESH || name == OPTION_LIST_PORTS ||
-                name == OPTION_HELP || name == OPTION_HELP_SHORT)
+            if (name == OPTION_FORMER_NO_LCD)
+                return usageError(std::string(OPTION_FORMER_NO_LCD) + " was replaced by " + OPTION_SCREEN + " " + SCREEN_AS_IS +
+                                  " (leave the sampler's screen settings alone); see " + OPTION_HELP + ".");
+
+            if (name == OPTION_ALLOW_DISK || name == OPTION_ALLOW_DISK_REFRESH || name == OPTION_LIST_PORTS || name == OPTION_HELP ||
+                name == OPTION_HELP_SHORT)
             {
                 if (inlineValue)
                     return usageError(name + " takes no value.");
-                if (name == OPTION_NO_LCD)
-                    options.touchLcdSettings = false;
-                else if (name == OPTION_ALLOW_DISK)
+                if (name == OPTION_ALLOW_DISK)
                     options.allowDisk = true;
                 else if (name == OPTION_ALLOW_DISK_REFRESH)
                     options.allowDiskRefresh = true;
@@ -109,7 +116,7 @@ namespace mcp
             }
 
             if (name != OPTION_IN && name != OPTION_OUT && name != OPTION_DEVICE_ID && name != OPTION_TIMEOUT &&
-                name != OPTION_DISK_TIMEOUT)
+                name != OPTION_DISK_TIMEOUT && name != OPTION_SCREEN)
                 return usageError("Unknown argument '" + arguments[at] + "'.");
 
             std::string value;
@@ -129,6 +136,18 @@ namespace mcp
                     return usageError(std::string(OPTION_DEVICE_ID) + " must be a whole number from 0 to " +
                                       std::to_string(MAX_DEVICE_ID) + " (got '" + value + "').");
                 options.deviceId = static_cast<std::uint32_t>(*number);
+            }
+            else if (name == OPTION_SCREEN)
+            {
+                if (value == SCREEN_INDEPENDENT)
+                    options.screen = ScreenMode::Independent;
+                else if (value == SCREEN_FOLLOW)
+                    options.screen = ScreenMode::Follow;
+                else if (value == SCREEN_AS_IS)
+                    options.screen = ScreenMode::AsIs;
+                else
+                    return usageError(std::string(OPTION_SCREEN) + " must be " + SCREEN_INDEPENDENT + ", " + SCREEN_FOLLOW + " or " + SCREEN_AS_IS +
+                                      " (got '" + value + "').");
             }
             else if (name == OPTION_DISK_TIMEOUT)
             {
@@ -169,7 +188,7 @@ namespace mcp
         config.outputPort = options.outputPort;
         config.deviceId = options.deviceId;
         config.commandTimeout = options.commandTimeout;
-        config.touchLcdSettings = options.touchLcdSettings;
+        config.screen = options.screen;
         config.diskTimeout = options.diskTimeout;
         return config;
     }
@@ -181,7 +200,8 @@ namespace mcp
                "It speaks MCP on its standard input and output; an MCP client launches it, and these arguments are\n"
                "its configuration.\n"
                "\n"
-               "Usage: xs56k_mcp_server --in <port> --out <port> [--device-id <0-31>] [--timeout-ms <ms>] [--no-lcd]\n"
+               "Usage: xs56k_mcp_server --in <port> --out <port> [--device-id <0-31>] [--timeout-ms <ms>]\n"
+               "                        [--screen independent|follow|as-is]\n"
                "                        [--allow-disk [--allow-disk-refresh] [--disk-timeout-ms <ms>]]\n"
                "       xs56k_mcp_server --list-ports\n"
                "\n"
@@ -189,8 +209,14 @@ namespace mcp
                "  --out <port>        the MIDI output port the sampler receives on (required)\n"
                "  --device-id <n>     the sampler's DeviceID, 0 to 31 (default 0)\n"
                "  --timeout-ms <n>    how long a command waits for the sampler's answer, 1 to 60000 (default 2000)\n"
-               "  --no-lcd            do not touch the sampler's Sync LCD and Auto screen update settings (without it the server sets\n"
-               "                      Sync LCD off and Auto screen update on while it runs, and puts them back when it stops)\n"
+               "  --screen <mode>     how the sampler's screen behaves while the server runs:\n"
+               "                        independent  (default) the assistant has its own selection, the screen does not follow it\n"
+               "                                     and is redrawn after each edit\n"
+               "                        follow       the screen follows the assistant's selection, and a selection made on the\n"
+               "                                     sampler changes the assistant's\n"
+               "                        as-is        the server does not touch the sampler's screen settings\n"
+               "                      When the server stops it puts the settings it changed back to the sampler's standard values\n"
+               "                      (Sync LCD on, Auto screen update off), not to what you had set.\n"
                "  --allow-disk        offer the disk tools (browse, load, save). A slow disk command can leave the sampler\n"
                "                      answering nothing until it is switched off and on: off unless you ask for it\n"
                "  --allow-disk-refresh  let list_disks send the sampler's refresh of its disk list (needs --allow-disk). Off\n"

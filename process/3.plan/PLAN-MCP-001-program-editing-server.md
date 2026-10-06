@@ -2,6 +2,10 @@
 
 ## Overview
 
+*Later amendments:* PLAN-MCP-002 to PLAN-MCP-004 extended the server well beyond this plan (structure, samples, multis, the disks, more
+tools), and the `--no-lcd` argument that TASK-MCP-004 delivered became `--screen` in TASK-MCP-039. The text below describes the state
+of this plan when it was written.
+
 Implements `FTR-MCP-001`: an MCP server in `juce/mcp` that exposes the AKM layer to an MCP client, limited to the editing
 of a program (filter, amplitude envelope, filter envelope, the two LFOs) in the musician's vocabulary. The work is cut
 bottom-up along the four units of `ADR-MCP-001` (protocol, parameter catalogue, sampler gateway, tools), then the

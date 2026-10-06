@@ -116,6 +116,15 @@ sampler's memory, the front-panel keys, saving or loading song files, scenelists
 - **Acceptance Criteria** (Gherkin): *Given* a current sample, *When* `audition_sample` is called with start then stop, *Then* the sampler is sent the audition start then the stop.
 - **Dependencies**: RQ-MCP-020, RQ-MCP-024; ADR-MCP-004 (DEC-MCP-024)
 
+### RQ-MCP-045: The person chooses how the sampler's screen behaves while the server runs (`--screen`)
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the server opens its session, it SHALL act on the sampler's two screen settings according to `--screen`: with `independent` (the value when the option is left out) it SHALL switch Sync LCD off and Auto screen update on; with `follow` it SHALL switch both on; with `as-is` it SHALL change neither and send nothing about them. WHEN it closes the session it SHALL put each setting it changed back to the sampler's documented default (Sync LCD on, Auto screen update off), which is not necessarily what the sampler held before, and SHALL put back nothing with `as-is`. IF the value of `--screen` is none of the three, or is missing, THEN the server SHALL print the usage naming the three values and exit with a non-zero status without starting the protocol. The former `--no-lcd` SHALL be refused as an unknown argument whose message names `--screen as-is`.
+- **Rationale**: the owner found `--no-lcd` unclear (a double negative that did not say what the server does by default) and asked for a choice among the behaviours: the assistant works on its own selection (`independent`), the sampler's screen and the assistant's selection follow each other (`follow`), or the sampler's settings are left as they are (`as-is`).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* no `--screen`, *When* a session is opened, *Then* the sampler is sent Sync LCD off and Auto screen update on. *Given* `--screen follow`, *Then* it is sent both on. *Given* `--screen as-is`, *Then* neither is sent. *Given* any of them, *When* the session is closed, *Then* Sync LCD is on and Auto screen update off (nothing is sent for `as-is`). *Given* `--screen sideways` or `--no-lcd`, *When* the arguments are parsed, *Then* the result is a usage error that names the three values or `--screen as-is`.
+- **Dependencies**: RQ-MCP-002, RQ-MCP-003; ADR-MCP-004 (DEC-MCP-027)
+
 ---
 
 ## Non-Functional Requirements

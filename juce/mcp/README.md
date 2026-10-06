@@ -46,8 +46,10 @@ save files on the sampler's disks, add `--allow-disk` to those arguments (see th
 
 **You do not start the server yourself**: the client starts it, and stops it by closing its standard input. On start the server
 opens a session with the sampler at the first call that needs it (so the list of tools works with the sampler switched off). It
-switches the sampler's *Still Alive* on, *Sync LCD* off and *Auto screen update* on, and puts them back when the client closes the
-server. A server that is killed instead leaves them changed until the sampler is switched off and on.
+switches the sampler's *Still Alive* on and, depending on `--screen`, its *Sync LCD* and *Auto screen update* (see the next
+section). When the client closes the server it puts what it changed back to the sampler's **standard values** (Still Alive off, Sync
+LCD on, Auto screen update off), **not to what you had set**. A server that is killed instead leaves them changed until the sampler is
+switched off and on.
 
 **To try the tools without a sampler**, run `xs56k_mcp_server_simulated` instead (built with the tests): the same server over a
 simulated sampler holding three programs, three samples and two multis, and two disks when started with `--allow-disk`.
@@ -74,24 +76,27 @@ Each row says what happens **if you leave the option out** and **if you give it*
 | `--out "<port>"` | the server refuses to start: **required** | the MIDI output port, i.e. what the computer sends to the sampler |
 | `--device-id <0-31>` | the sampler's DeviceID is taken to be `0` | the DeviceID you set on the sampler |
 | `--timeout-ms <ms>` | an ordinary command waits `2000` ms for the sampler's answer | that many ms (1 to 60000) |
-| `--no-lcd` | **at the start of the session the server sets the sampler's *Sync LCD* to OFF and its *Auto screen update* to ON, and puts both back as they were when it stops** (see below) | the server **does not touch** those two settings: they stay as you set them on the sampler |
+| `--screen <mode>` | the same as `--screen independent` | `independent`, `follow` or `as-is`: how the sampler's screen behaves while the server runs (see below) |
 | `--allow-disk` | no disk tool exists: the server can neither read nor write a disk | the **16 disk tools** exist: browse the sampler's disks, load, save, rename, delete, create folders, free space, audition files |
 | `--allow-disk-refresh` | `list_disks` cannot ask the sampler to refresh its list of disks (**recommended**: it hung the owner's S5000 until it was switched off and on) | `list_disks` has a `refresh` argument that does it. Only with `--allow-disk` |
 | `--disk-timeout-ms <ms>` | a slow disk command (a load, a save) waits `120000` ms; after that the sampler may have to be switched off and on, and nothing is retried | that many ms (1 to 1800000) |
 | `--list-ports` | the server starts normally | prints the MIDI ports and exits |
 | `--help` | the server starts normally | prints the options and exits |
 
-**What `--no-lcd` is about.** Two settings of the sampler decide how its front panel follows what the assistant does:
+**What `--screen` chooses.** Two settings of the sampler decide how its front panel reacts to what the assistant does: *Sync LCD*
+(whether the sampler's screen and the selection made over MIDI follow each other) and *Auto screen update* (whether the sampler
+redraws its screen when it processes an edit received over MIDI).
 
-- **Sync LCD** (`ON` makes the sampler's front panel and the selection made over MIDI follow each other: selecting a program from the
-  assistant changes what the screen shows, and selecting one on the front panel changes what the assistant is working on). The server
-  switches it **OFF** so that the assistant's selection and yours do not get in each other's way.
-- **Auto screen update** (when `ON`, the sampler redraws its screen when it processes an edit received over MIDI). The server switches
-  it **ON** so that you can see on the sampler's screen what the assistant changes. On the S5000 the pages do not follow the edits
-  with it off.
+| `--screen` | Sync LCD | Auto screen update | In plain words |
+|---|---|---|---|
+| `independent` (the default) | off | on | the assistant works on **its own selection** and does not move your screen; the screen is redrawn after each edit, so you see a change when the screen shows the program (or sample, or multi) the assistant is editing |
+| `follow` | on | on | the screen **follows the assistant's selection**, and what you select on the sampler becomes the assistant's selection: you see everything it does, but your own navigation on the front panel changes what it edits |
+| `as-is` | not touched | not touched | the server sends nothing about these two settings: they stay as you left them (the old `--no-lcd`) |
 
-So **leave `--no-lcd` out** unless you want to keep your own settings of these two; then the sampler's screen may not show the edits,
-and, if Sync LCD is on, the assistant's selections move your front panel.
+When the server stops it puts the settings it changed back to the sampler's **standard values** (Sync LCD on, Auto screen update off),
+not to what you had set; with `as-is` it changed nothing, so it puts nothing back. On the S5000 the pages do not follow the edits
+with Auto screen update off (seen on 2026-10-04). What the screen shows in each of the three cases has not yet been observed on a
+real sampler; it is part of the planned real run.
 
 `--allow-disk-refresh` without `--allow-disk` is an error. With none of the two, the server never touches a disk.
 

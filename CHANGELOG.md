@@ -20,7 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   file unless `overwrite` is true), free space, audition a file; `--disk-timeout-ms` sets how long the slow disk commands wait, and the
   sampler's disk-list refresh needs `--allow-disk-refresh` as well (it hung a real S5000). **Every deletion asks for a `confirm` that is
   the exact name of what is deleted**, and nothing is sent otherwise. The MIDI ports are launch arguments (`--in`, `--out`;
-  `--list-ports` shows them). It never deletes everything, never clears the memory, never formats or ejects. It speaks both eras of
+  `--list-ports` shows them), and `--screen independent|follow|as-is` chooses how the sampler's screen behaves while the server runs
+  (`independent` by default; it replaces `--no-lcd`, which is now refused). It never deletes everything, never clears the memory, never formats or ejects. It speaks both eras of
   MCP over standard input and output; `juce/mcp/README.md` is its reference. Run on a real S5000: the program tools and parameters, the
   parameters of a real sample, and browsing, loading and saving on a real disk; the tools added with ADR-MCP-004 (zone samples,
   keygroups, multis, renaming and deleting, information, audition) are tested against the simulated sampler only

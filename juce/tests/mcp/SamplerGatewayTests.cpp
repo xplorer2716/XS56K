@@ -392,19 +392,85 @@ TEST_CASE("Given an open session, When the gateway is closed, Then the section 0
     CHECK(gateway.status().ok());
 }
 
-TEST_CASE("Given no LCD touching, When a session is opened, Then Sync LCD and Auto screen update are left as the sampler has them [RQ-MCP-003]",
+namespace
+{
+    constexpr std::uint8_t SECTION_SETUP = 0x00;
+    constexpr std::uint8_t ITEM_SYNC_LCD = 0x03;
+    constexpr std::uint8_t ITEM_AUTO_SCREEN_UPDATE = 0x05;
+
+    /// The data of every command of the section 00 item `item` the simulated sampler accepted, in order.
+    std::vector<std::vector<std::uint8_t>> sentSetting(const akm::harness::SimulatedSampler& sampler, std::uint8_t item)
+    {
+        std::vector<std::vector<std::uint8_t>> sent;
+        for (const auto& command : sampler.acceptedCommands())
+        {
+            if (command.section == SECTION_SETUP && command.item == item)
+                sent.push_back(command.data);
+        }
+        return sent;
+    }
+}
+
+TEST_CASE("Given the screen mode independent, When a session is opened and closed, Then Sync LCD is sent off and Auto screen update on, and both are put back to their defaults [RQ-MCP-045]",
           "[mcp][gateway]")
 {
     Rig rig;
     seedThreePrograms(rig);
     mcp::GatewayConfig config = configFor(rig);
-    config.touchLcdSettings = false;
+    config.screen = mcp::ScreenMode::Independent;
     mcp::SamplerGateway gateway(rig.backend, config);
 
     REQUIRE(gateway.status().ok());
+    CHECK_FALSE(rig.sampler->settings().syncLcd);
+    CHECK(rig.sampler->settings().autoScreenUpdate);
+    REQUIRE(sentSetting(*rig.sampler, ITEM_SYNC_LCD).size() == 1);
+    CHECK(sentSetting(*rig.sampler, ITEM_SYNC_LCD).front() == std::vector<std::uint8_t>{0});
+    REQUIRE(sentSetting(*rig.sampler, ITEM_AUTO_SCREEN_UPDATE).size() == 1);
+    CHECK(sentSetting(*rig.sampler, ITEM_AUTO_SCREEN_UPDATE).front() == std::vector<std::uint8_t>{1});
 
+    gateway.close();
     CHECK(rig.sampler->settings().syncLcd);
     CHECK_FALSE(rig.sampler->settings().autoScreenUpdate);
+}
+
+TEST_CASE("Given the screen mode follow, When a session is opened and closed, Then Sync LCD and Auto screen update are both sent on, and put back to their defaults [RQ-MCP-045]",
+          "[mcp][gateway]")
+{
+    Rig rig;
+    seedThreePrograms(rig);
+    mcp::GatewayConfig config = configFor(rig);
+    config.screen = mcp::ScreenMode::Follow;
+    mcp::SamplerGateway gateway(rig.backend, config);
+
+    REQUIRE(gateway.status().ok());
+    REQUIRE(sentSetting(*rig.sampler, ITEM_SYNC_LCD).size() == 1);
+    CHECK(sentSetting(*rig.sampler, ITEM_SYNC_LCD).front() == std::vector<std::uint8_t>{1});
+    REQUIRE(sentSetting(*rig.sampler, ITEM_AUTO_SCREEN_UPDATE).size() == 1);
+    CHECK(sentSetting(*rig.sampler, ITEM_AUTO_SCREEN_UPDATE).front() == std::vector<std::uint8_t>{1});
+    CHECK(rig.sampler->settings().syncLcd);
+    CHECK(rig.sampler->settings().autoScreenUpdate);
+
+    gateway.close();
+    CHECK(rig.sampler->settings().syncLcd);
+    CHECK_FALSE(rig.sampler->settings().autoScreenUpdate);
+}
+
+TEST_CASE("Given the screen mode as-is, When a session is opened and closed, Then nothing is sent about Sync LCD and Auto screen update, before or after [RQ-MCP-045, RQ-MCP-003]",
+          "[mcp][gateway]")
+{
+    Rig rig;
+    seedThreePrograms(rig);
+    mcp::GatewayConfig config = configFor(rig);
+    config.screen = mcp::ScreenMode::AsIs;
+    mcp::SamplerGateway gateway(rig.backend, config);
+
+    REQUIRE(gateway.status().ok());
+    CHECK(rig.sampler->settings().syncLcd);
+    CHECK_FALSE(rig.sampler->settings().autoScreenUpdate);
+    gateway.close();
+
+    CHECK(sentSetting(*rig.sampler, ITEM_SYNC_LCD).empty());
+    CHECK(sentSetting(*rig.sampler, ITEM_AUTO_SCREEN_UPDATE).empty());
 }
 
 TEST_CASE("Given a MIDI port that does not exist, When the status is asked, Then the problem names the port and the ports there are [RQ-MCP-003, RQ-MCP-009]",
