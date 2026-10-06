@@ -66,18 +66,32 @@ file: build into another folder with `cmake --build juce/build --target xs56k_mc
 
 ## 2. The launch options
 
-| Option | Default | What it does |
+Each row says what happens **if you leave the option out** and **if you give it**.
+
+| Option | If you leave it out | If you give it |
 |---|---|---|
-| `--in "<port>"` | *required* | the MIDI input port: what the sampler sends to the computer |
-| `--out "<port>"` | *required* | the MIDI output port: what the computer sends to the sampler |
-| `--device-id <0-31>` | `0` | the sampler's DeviceID, if you changed it from 0 |
-| `--timeout-ms <ms>` | `2000` | how long an ordinary command waits for the sampler's answer (1 to 60000) |
-| `--no-lcd` | off | leave the sampler's *Sync LCD* and *Auto screen update* settings alone |
-| `--allow-disk` | off | **turns on the 16 disk tools**: browse the sampler's disks, load, save, rename, delete, create folders, free space, audition files |
-| `--allow-disk-refresh` | off | with `--allow-disk` only: lets `list_disks` ask the sampler to refresh its list of disks. **Leave it off**: it hung the owner's S5000 until it was switched off and on |
-| `--disk-timeout-ms <ms>` | `120000` | how long a slow disk command (a load, a save) waits; after it the sampler may have to be switched off and on, and nothing is retried (1 to 1800000) |
-| `--list-ports` | | prints the MIDI ports and exits |
-| `--help` | | prints the options and exits |
+| `--in "<port>"` | the server refuses to start: **required** | the MIDI input port, i.e. what the sampler sends to the computer |
+| `--out "<port>"` | the server refuses to start: **required** | the MIDI output port, i.e. what the computer sends to the sampler |
+| `--device-id <0-31>` | the sampler's DeviceID is taken to be `0` | the DeviceID you set on the sampler |
+| `--timeout-ms <ms>` | an ordinary command waits `2000` ms for the sampler's answer | that many ms (1 to 60000) |
+| `--no-lcd` | **at the start of the session the server sets the sampler's *Sync LCD* to OFF and its *Auto screen update* to ON, and puts both back as they were when it stops** (see below) | the server **does not touch** those two settings: they stay as you set them on the sampler |
+| `--allow-disk` | no disk tool exists: the server can neither read nor write a disk | the **16 disk tools** exist: browse the sampler's disks, load, save, rename, delete, create folders, free space, audition files |
+| `--allow-disk-refresh` | `list_disks` cannot ask the sampler to refresh its list of disks (**recommended**: it hung the owner's S5000 until it was switched off and on) | `list_disks` has a `refresh` argument that does it. Only with `--allow-disk` |
+| `--disk-timeout-ms <ms>` | a slow disk command (a load, a save) waits `120000` ms; after that the sampler may have to be switched off and on, and nothing is retried | that many ms (1 to 1800000) |
+| `--list-ports` | the server starts normally | prints the MIDI ports and exits |
+| `--help` | the server starts normally | prints the options and exits |
+
+**What `--no-lcd` is about.** Two settings of the sampler decide how its front panel follows what the assistant does:
+
+- **Sync LCD** (`ON` makes the sampler's front panel and the selection made over MIDI follow each other: selecting a program from the
+  assistant changes what the screen shows, and selecting one on the front panel changes what the assistant is working on). The server
+  switches it **OFF** so that the assistant's selection and yours do not get in each other's way.
+- **Auto screen update** (when `ON`, the sampler redraws its screen when it processes an edit received over MIDI). The server switches
+  it **ON** so that you can see on the sampler's screen what the assistant changes. On the S5000 the pages do not follow the edits
+  with it off.
+
+So **leave `--no-lcd` out** unless you want to keep your own settings of these two; then the sampler's screen may not show the edits,
+and, if Sync LCD is on, the assistant's selections move your front panel.
 
 `--allow-disk-refresh` without `--allow-disk` is an error. With none of the two, the server never touches a disk.
 

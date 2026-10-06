@@ -24,8 +24,10 @@ The plan has 10 tasks (TASK-MCP-028 to TASK-MCP-037). 028 authors the artifacts;
 the samples; 032 the multis; 033 the file and folder operations; 034 the information tools; 035 the audition; 036 the README, the
 simulated conversation and the documents; 037 the real run (after 036, with the owner). Tier M for 029 to 035, L for 036 (a rewrite
 of the reference, a test that reads it and the conversation), S for 028, M for 037. The tasks 029 to 035 are independent of one
-another and are done in this order only for readability; each ends with a green full `ctest` and a commit. The owner lifted the
-AGNOS limit of tasks per session ("tu peux faire toutes les taches", 2026-10-05).
+another and are done in this order only for readability; each ends with a green `ctest` run (the complete suite once per batch, the
+targeted tests and `ctest -E bld_mutate_tool_script_tests` per task) and a commit. TASK-MCP-038 (Tier S) was added after 036, when the
+owner found the option table of the README unclear. The owner lifted the AGNOS limit of tasks per session ("tu peux faire toutes les
+taches", 2026-10-05).
 
 What the review found and this plan does not schedule (ADR-MCP-004 DEC-MCP-025: the owner decides): song files, set lists,
 scenelists; the sampler's name, clock, play mode, lock and MIDI setup; the effects board; ejecting a disk; deleting all and clearing
@@ -156,3 +158,15 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: Human and AI
 - **Verification**: NOT DONE: blocked until the tools exist and the owner is present.
 - **Assumptions**: Never run on the owner's own files; no tool of this plan is run on the refresh of the disk list; a deletion is run only on the test file and folders made for the run.
+
+### TASK-MCP-038: The option table of the README and the `--help` text say what each option does when given and when left out
+- **Tier**: S
+- **Status**: Done
+- **Description**: The row of `--no-lcd` read "off", a double negative that said nothing about what the server does by default; the table of options now has two columns (what happens if the option is left out, what happens if it is given), a paragraph explains the two sampler settings behind `--no-lcd` (Sync LCD and Auto screen update), and the `--help` text says what the server does without the option.
+- **Requirement refs**: RQ-MCP-043
+- **ADR refs**: ADR-MCP-004 (DEC-MCP-026)
+- **Acceptance Criteria** (Gherkin): *Given* the README, *When* the row of `--no-lcd` is read, *Then* it says what the server does to Sync LCD and Auto screen update when the option is left out and when it is given.
+- **Dependencies**: TASK-MCP-036
+- **Assignee**: AI (at the owner's remark of 2026-10-06)
+- **Verification**: N/A (Tier S). Checked anyway: `xs56k_mcp_tests "[options]"` → "All tests passed (115 assertions in 18 test cases)" and `ctest -R "mcp_readme|mcp_server_executable"` → 4 of 4 pass, `mcp_readme_names_every_tool_and_option` included.
+- **Assumptions**: the meaning of the two settings is taken from the SysEx specification (§00 items &03 and &05, footnote a of &03) and from the code (`SamplerGateway.cpp` sets `autoScreenUpdate` On and leaves `syncLcd` at its default Off unless `--no-lcd`); the S5000's pages not following the edits with Auto screen update off was observed on 2026-10-04 (`OBSERVATIONS-RQ-AKM-080-midi-config.md`).
