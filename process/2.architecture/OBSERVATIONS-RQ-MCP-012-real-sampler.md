@@ -227,7 +227,7 @@ and nothing else.
 | `set_zone_sample`, `get_zone_samples` | `AKWF_oboe_0001` on zone 1 and `AKWF_oboe_0002` on zone 2 of keygroup 2, each read back by the sampler (0.2 s); the other zones "no sample"; **the same sample can play in two zones** (`AKWF_oboe_0002` on zones 2 and 3) |
 | `delete_keygroup` | a wrong `confirm` is refused with nothing sent; keygroup 1 of 2 deleted with the program's name: **the former keygroup 2 became keygroup 1 with its zones** (the numbers after a deleted keygroup move down by one); the last keygroup is refused by the tool before anything is sent (what the sampler itself does was not tried) |
 | `rename_sample`, `delete_sample` | `AKWF_oboe_0013` renamed `MCPREN`: it stays at position 12 (the memory order is alphabetical); a name another sample bears is refused by the tool; a wrong `confirm` refused; deleted: 12 samples left and **no sample is selected afterwards** |
-| `audition_sample` | start and stop accepted (the stop followed the start at once; whether anything was heard was not checked) |
+| `audition_sample` | start and stop accepted (the stop followed the start at once; whether anything was heard was not checked at first; **heard, and the stop cuts the sound: see "Audition heard" below**) |
 | `create_multi`, `rename_multi`, `delete_multi` | a multi is created with **32 parts** and is current; renamed; a wrong `confirm` refused; deleted |
 | `set_part_program`, `get_part_programs`, `clear_part`, `set_multi_program_number` | by name and by position, read back (the same program on two parts is allowed); the program number 5 and then `null` read back; a wrong `confirm` for `clear_part` refused, then the part cleared |
 | `get_multi_parameters`, `set_multi_parameter` | **all 12 part parameters of part 1 of a real multi** set to another value, read back as set, and put back (mute, solo, level, output, pan, effects channel, FX send, MIDI channel, fine tune, transpose, low note, high note); the defaults of a new multi's part: level 100, output OP1/2, pan 0, effects OFF, MIDI channel 1A, low note 21, high note 127 |
@@ -256,6 +256,18 @@ and said what they saw. Both test programs were deleted afterwards (the sampler 
 | `independent` (default) | the screen stayed on `MCPSCR1`, its cutoff stayed at 100, nothing moved | yes: the assistant's selection does not move the owner's screen |
 | `follow` | the screen went to `MCPSCR2` and the owner saw the whole sequence 60, 40, 100 | yes: the screen follows the assistant |
 | `as-is` | the screen stayed on `MCPSCR1`, nothing changed | consistent with the sampler being left as the previous close put it; the run does not say which of the two settings was responsible, because the state of the sampler at that moment was not read (§00 has no Get) |
+
+### Audition heard (2026-10-06, the owner listening)
+
+The sample `AKWF_oboe` files are far too short to judge, so the test used files of the `DiscoLoops` folder; every call was accepted.
+
+| What was run | What the owner heard |
+|---|---|
+| `audition_file` of `004_drumloop7.wav` (385322 bytes, about 4.4 s), start, 5 s, stop | the sample played, to its end (it was shorter than the wait: this did not show that the stop works) |
+| `audition_file` of `Taste Of Honey - Boogie Ooggie - Loop.wav` (1366822 bytes, about 15 s), start, 3 s, stop | the sound started after the command, then **stopped about 3 s later**: the stop works. The start answered after 3.4 s (the sampler reads the file first) |
+| `load_file` of that file (5.0 s, 13 samples then), `select_sample`, `audition_sample` start, 3 s, stop | the sound started at once (the start answered in 0.1 s) and **stopped about 3 s later** |
+
+The loaded sample was then deleted with `delete_sample` (12 samples again). The free wave memory was 158341622 bytes before the load, 156156442 with the sample, 157555190 after the deletion: 786432 bytes were not given back (the reason is unknown; not looked into).
 
 Afterwards the two programs were deleted through a server run with `--screen as-is`; the sampler answered that it held no program, but
 the owner's screen still showed `MCPSCR1` (a stale display, not the memory: the screen is not redrawn after a change made over MIDI
