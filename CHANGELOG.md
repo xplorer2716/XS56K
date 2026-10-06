@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`independent` by default; it replaces `--no-lcd`, which is now refused). It never deletes everything, never clears the memory, never formats or ejects. It speaks both eras of
   MCP over standard input and output; `juce/mcp/README.md` is its reference. Run on a real S5000 (2026-10-05 and 06, on test objects): every tool, the
   program and multi parameters, browsing, loading and saving on a real disk; the sampler reports 0 bytes free for its FAT32 disk, and
-  what its screen shows for each `--screen` mode has not been looked at yet (`xs56k_mcp_server_simulated` lets you try the server with
+  the three `--screen` modes behaved as designed against the sampler's screen (`xs56k_mcp_server_simulated` lets you try the server with
   no sampler).
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it

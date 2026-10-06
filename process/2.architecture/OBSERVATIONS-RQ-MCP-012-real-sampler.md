@@ -240,9 +240,25 @@ and nothing else.
 | `save_memory_item` of a multi | `MCPMULTI3.AKM`, 2354 bytes: **the extension of a multi's file is `.AKM`**, as the simulated sampler assumed |
 | `load_file` control | the program `MCPTEST1.AKP` loaded **without** `with_dependents`: samples 10, was 10; **with** it: samples 12, was 10, `AKWF_oboe_0001` and `AKWF_oboe_0002` added; the multi `MCPMULTI3.AKM` loaded: multis 1, was 0 |
 
-Not run: the three `--screen` modes against the screen (the owner's eyes are needed: it is the last part of TASK-MCP-037), the
-sampler's own answer to deleting the last keygroup of a program (the tool refuses first), and the numbering of the parts against the
-front panel (the tools send the part minus one).
+Not run: the sampler's own answer to deleting the last keygroup of a program (the tool refuses first), and the numbering of the
+parts against the front panel (the tools send the part minus one).
+
+### The three `--screen` modes against the screen (2026-10-06, the owner at the sampler)
+
+Two test programs, `MCPSCR1` and `MCPSCR2`, one keygroup each. Before each run the owner selected `MCPSCR1` on the front panel and
+opened the filter page showing the cutoff (100). One server per mode, the same calls: `select_program` of `MCPSCR2`, `filter cutoff`
+set to 60, 8 s pause, 40, 8 s pause, 100. Every call answered and read back correctly in all three runs; the owner watched the screen
+and said what they saw. Both test programs were deleted afterwards (the sampler holds no program again).
+
+| `--screen` | What the owner saw | As designed? |
+|---|---|---|
+| `independent` (default) | the screen stayed on `MCPSCR1`, its cutoff stayed at 100, nothing moved | yes: the assistant's selection does not move the owner's screen |
+| `follow` | the screen went to `MCPSCR2` and the owner saw the whole sequence 60, 40, 100 | yes: the screen follows the assistant |
+| `as-is` | the screen stayed on `MCPSCR1`, nothing changed | consistent with the sampler being left as the previous close put it; the run does not say which of the two settings was responsible, because the state of the sampler at that moment was not read (§00 has no Get) |
+
+What this does not show: that the two settings are put back to the standard values when a server closes (the owner did not look at the
+settings pages), and what `independent` shows when the owner's screen is on the program the assistant edits (the case the README
+describes: "you see a change when the screen shows the program the assistant is editing").
 
 ## Not established
 

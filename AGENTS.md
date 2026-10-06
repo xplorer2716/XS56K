@@ -64,7 +64,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `juce/mcp/README.md` (options, tools, safety rules, tests). 32 tools without an option, 48 with `--allow-disk`; every deletion asks for a
   `confirm` that is the exact name; the disk refresh needs `--allow-disk-refresh` too and **hung the sampler**, never send it without
   asking the owner; no tool deletes everything, clears the memory, formats or ejects. Every tool has been run on the real sampler on test
-  objects (2026-10-05/06, `OBSERVATIONS-RQ-MCP-012-real-sampler.md`); not yet looked at: the `--screen` modes against the sampler's screen.
+  objects (2026-10-05/06, `OBSERVATIONS-RQ-MCP-012-real-sampler.md`); the three `--screen` modes were also watched on the sampler's screen (2026-10-06).
   [RQ-MCP-001 to RQ-MCP-044, ADR-MCP-001 to ADR-MCP-004]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
