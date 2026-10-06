@@ -1,7 +1,7 @@
 # Fails when a source or header under SOURCE_DIR names an AKM primitive or item that creates, renames, deletes, saves,
 # loads, clears, ejects or formats something, except in the two units that may:
-#   - SamplerGateway.cpp: the three program structure primitives (create a program with keygroups, rename the current
-#     program, delete the current program), all in memory (ADR-MCP-002 DEC-MCP-010);
+#   - SamplerGateway.cpp: the program structure primitives (create a program with keygroups, rename the current
+#     program, delete the current program, delete a keygroup), all in memory (ADR-MCP-002 DEC-MCP-010, ADR-MCP-004 DEC-MCP-023);
 #   - SamplerGatewayDisk.cpp: the disk primitives of loading and saving, of creating a folder, and their types (ADR-MCP-003
 #     DEC-MCP-019, DEC-MCP-021).
 #
@@ -29,7 +29,7 @@ set(verbs "[Cc]reate|[Dd]elete|[Rr]ename|[Ss]ave|[Ll]oad|[Cc]lear|[Ee]ject|[Ff]o
 set(pattern "(ItemId::|akm::)[A-Za-z]*(${verbs})")
 # What each allowed file may call. A file that is not listed may call none of the names that carry a verb.
 set(allowed_files "SamplerGateway.cpp" "SamplerGatewayDisk.cpp")
-set(allowed_calls_SamplerGateway.cpp "akm::createProgramWithKeygroups|akm::renameCurrentProgram|akm::deleteCurrentProgram")
+set(allowed_calls_SamplerGateway.cpp "akm::createProgramWithKeygroups|akm::renameCurrentProgram|akm::deleteCurrentProgram|akm::deleteKeygroupFromProgram")
 set(allowed_calls_SamplerGatewayDisk.cpp "akm::createFolder|akm::loadFileWithDependents|akm::loadFile|akm::loadFolder|akm::saveMemoryItem|akm::saveAllMemoryItems|akm::SaveableMemoryType|akm::SampleLoadOption")
 set(offenders "")
 foreach(source IN LISTS sources)

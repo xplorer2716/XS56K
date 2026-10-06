@@ -126,6 +126,15 @@ namespace mcp
         std::vector<ZoneSampleEntry> entries;
     };
 
+    /// What adding or deleting keygroups did to the current program: its name and how many keygroups it has after. A deletion whose
+    /// `confirm` was not the program's exact name sends nothing and has `done` false. [RQ-MCP-035, RQ-MCP-042]
+    struct KeygroupChange
+    {
+        bool done = true;
+        std::string program;
+        int keygroupCount = 0;
+    };
+
     struct SampleListing
     {
         std::vector<SampleEntry> samples;
@@ -396,6 +405,15 @@ namespace mcp
         /// sampler lists) to zone `zone` (1 to 4) of keygroup `keygroup` (1-based) of the current program, and reads it back; a
         /// sample not in memory, a zone or a keygroup that does not exist is a problem and nothing is sent. [RQ-MCP-034]
         [[nodiscard]] Outcome<ZoneSamples> assignZoneSample(int keygroup, int zone, std::string_view sample);
+
+        /// Adds `count` keygroups (1 up to the 99 a program can have) to the current program and answers how many it has then; more
+        /// than it can take is a problem that gives what it has. [RQ-MCP-035]
+        [[nodiscard]] Outcome<KeygroupChange> addKeygroups(int count);
+
+        /// Deletes keygroup `keygroup` (1-based) of the current program, and only when `confirm` is exactly the program's name:
+        /// otherwise nothing is sent and `done` is false. A keygroup the program does not have, and its last keygroup, are
+        /// problems and nothing is sent. [RQ-MCP-035, RQ-MCP-042]
+        [[nodiscard]] Outcome<KeygroupChange> deleteKeygroup(int keygroup, std::string_view confirm);
 
         /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
         /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the

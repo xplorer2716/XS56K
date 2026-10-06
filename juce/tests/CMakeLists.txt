@@ -87,6 +87,7 @@ add_executable(xs56k_mcp_tests
     mcp/DiskBrowseTests.cpp
     mcp/DiskLoadTests.cpp
     mcp/DiskSaveTests.cpp
+    mcp/KeygroupToolsTests.cpp
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueLot2Tests.cpp
     mcp/ParameterCatalogueLot3Tests.cpp

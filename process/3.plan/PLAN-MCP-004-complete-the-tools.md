@@ -63,15 +63,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-030: Keygroups: `add_keygroups` and `delete_keygroup`
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: Add the gateway calls and the two tools; `delete_keygroup` takes `confirm` equal to the current program's exact name and refuses the last keygroup; the source check allows the two primitives in the memory unit.
 - **Requirement refs**: RQ-MCP-035, RQ-MCP-042
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)
 - **Acceptance Criteria** (Gherkin): *Given* a program PAD with 2 keygroups, *When* `add_keygroups` is called with 2, *Then* it has 4; *When* `delete_keygroup` is called for keygroup 3 with `confirm` "PAD", *Then* it has 3; with a wrong or no `confirm`, nothing is sent; the last keygroup is refused.
 - **Dependencies**: TASK-MCP-028
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: tests first, **run red before the code** (`KeygroupToolsTests.cpp`, 7 cases: "test cases: 7 | 0 passed | 7 failed"), then green: `xs56k_mcp_tests "[keygroup]"` → "All tests passed (112 assertions in 7 test cases)" (re-run in this session). They cover: `add_keygroups` not destructive and `delete_keygroup` destructive in the annotations; BASS (3) plus 2 gives 5, read back by `get_status`; 97 more (over 99), 0, -2, "two", no count and an extra argument send nothing; keygroup 3 of BASS with `confirm` BASS leaves 2, read by `get_status`; `confirm` "bass", "PAD", "BASS ", "" and none or no keygroup send nothing and name "BASS"; keygroups 4, 0 and -1 are refused with "3 keygroups"; the only keygroup of PAD is refused as the last one. The two conversations' tool lists gained exactly `add_keygroups` and `delete_keygroup` (regenerated, difference read). The source check allows `akm::deleteKeygroupFromProgram` in `SamplerGateway.cpp` only. Full `ctest` (Debug, MSVC `/W4 /WX`): 923 of 923 pass (916 before, 7 new). One discrepancy caught by running the tests: two of my own assertions counted the keygroup commands the rig sends to build BASS and LEAD (2) as if they were the tool's; the assertions now compare with the count before the call (a correction of the expectation, not of a behaviour). NOT run on the real sampler (TASK-MCP-037).
+- **Assumptions**: `delete_keygroup` is confirmed by the program's name and names the keygroup by number; the keygroup count is checked before the confirmation, and the last keygroup is refused before it too (nothing to confirm); what the sampler does with the numbers after a deleted keygroup is not known (the answer tells the client to read the keygroups again); the cap of 99 keygroups is the sampler's own (the AKM layer's count limit for `addKeygroupsToProgram` is 1 to 98 per call, the tool allows 1 to 99 and the gateway refuses a total above 99).
 
 ### TASK-MCP-031: Samples: `rename_sample` and `delete_sample`
 - **Tier**: M

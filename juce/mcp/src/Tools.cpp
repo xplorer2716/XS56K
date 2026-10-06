@@ -1669,6 +1669,65 @@ namespace mcp
                 return ok(std::move(text));
             }});
 
+        // add_keygroups [RQ-MCP-035]
+        tools.push_back(Tool{
+            definition("add_keygroups", "Add keygroups to the current program",
+                       std::string("Adds keygroups (empty, with the default settings) to the CURRENT program, up to the 99 a program can have, and says "
+                                   "how many it has then. See get_status for the current program and its keygroups. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"count",
+                                          {{"type", "integer"},
+                                           {"minimum", MIN_NEW_KEYGROUPS},
+                                           {"maximum", MAX_NEW_KEYGROUPS},
+                                           {"description", "How many keygroups to add."}}}},
+                                    json::array({"count"})),
+                       false, false),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"count"}))
+                    return *refused;
+                const auto count = arguments.contains("count") ? wholeNumber(arguments.at("count")) : std::nullopt;
+                if (!count || *count < MIN_NEW_KEYGROUPS || *count > MAX_NEW_KEYGROUPS)
+                    return failure("Give 'count' as a whole number from " + std::to_string(MIN_NEW_KEYGROUPS) + " to " +
+                                   std::to_string(MAX_NEW_KEYGROUPS) + ".");
+                const auto added = gateway.addKeygroups(static_cast<int>(*count));
+                if (!added.ok())
+                    return failure(added.problem);
+                return ok("Added " + plural(*count, "keygroup") + " to the program \"" + added.value->program + "\": it now has " +
+                          plural(added.value->keygroupCount, "keygroup") + ".");
+            }});
+
+        // delete_keygroup [RQ-MCP-035, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023)]
+        ToolDefinition removeKeygroup =
+            definition("delete_keygroup", "Delete a keygroup of the current program",
+                       std::string("Deletes one keygroup (with its settings and zones) of the CURRENT program, and only if 'confirm' is exactly the "
+                                   "program's name: otherwise nothing is deleted and the answer says which program is current. The last "
+                                   "keygroup of a program is never deleted. It cannot be undone from here. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"keygroup", {{"type", "integer"}, {"minimum", MIN_KEYGROUP}, {"description", "The keygroup to delete, from 1."}}},
+                                         {"confirm", {{"type", "string"}, {"description", "The exact name of the current program, to confirm the deletion."}}}},
+                                    json::array({"keygroup", "confirm"})),
+                       false, false);
+        removeKeygroup.annotations.destructive = true;
+        tools.push_back(Tool{std::move(removeKeygroup), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"keygroup", "confirm"}))
+                                     return *refused;
+                                 const auto keygroup = arguments.contains("keygroup") ? wholeNumber(arguments.at("keygroup")) : std::nullopt;
+                                 if (!keygroup)
+                                     return failure("Give the 'keygroup' to delete as a whole number from " + std::to_string(MIN_KEYGROUP) + ".");
+                                 if (!arguments.contains("confirm") || !arguments.at("confirm").is_string())
+                                     return failure("Give 'confirm', the exact name of the current program.");
+                                 const std::string confirm = arguments.at("confirm").get<std::string>();
+                                 const auto deletion = gateway.deleteKeygroup(static_cast<int>(*keygroup), confirm);
+                                 if (!deletion.ok())
+                                     return failure(deletion.problem);
+                                 if (!deletion.value->done)
+                                     return failure("The current program is \"" + deletion.value->program + "\", not \"" + confirm +
+                                                    "\": nothing was deleted. Confirm with the program's name.");
+                                 return ok("Deleted keygroup " + std::to_string(*keygroup) + " of the program \"" + deletion.value->program +
+                                           "\": it now has " + plural(deletion.value->keygroupCount, "keygroup") +
+                                           ". Read the keygroups again before editing them: the numbers after the deleted one may have changed.");
+                             }});
+
         return tools;
     }
 

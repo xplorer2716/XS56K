@@ -53,6 +53,9 @@ namespace mcp
         constexpr std::int64_t ALL_KEYGROUPS = 0;
         constexpr std::int64_t ALL_ZONES = 0;
         constexpr int ZONES_PER_KEYGROUP = 4;
+        // A program has 1 to 99 keygroups. [RQ-MCP-035]
+        constexpr int MIN_KEYGROUPS_ADDED = 1;
+        constexpr int MAX_KEYGROUPS_IN_PROGRAM = 99;
         constexpr std::uint32_t MAX_DEVICE_ID = 31;
 
         constexpr std::span<const std::int64_t> NO_VALUES{};
@@ -588,6 +591,64 @@ namespace mcp
         result.program = *program.value;
         result.entries.push_back(ZoneSampleEntry{keygroup, zone, *read->name});
         return Outcome<ZoneSamples>::success(std::move(result));
+    }
+
+    Outcome<KeygroupChange> SamplerGateway::addKeygroups(int count)
+    {
+        const auto before = keygroupCount();
+        if (!before.ok())
+            return Outcome<KeygroupChange>::failure(before.problem);
+        if (count < MIN_KEYGROUPS_ADDED || *before.value + count > MAX_KEYGROUPS_IN_PROGRAM)
+            return Outcome<KeygroupChange>::failure("A program has at most " + numberText(MAX_KEYGROUPS_IN_PROGRAM) + " keygroups and the current one has " +
+                                                    numberText(*before.value) + ": " + numberText(MAX_KEYGROUPS_IN_PROGRAM - *before.value) +
+                                                    " can still be added, not " + numberText(count) + ".");
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<KeygroupChange>::failure(program.problem);
+
+        const auto added = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::addKeygroupsToProgram(_connection->session, count, std::move(done));
+        });
+        if (!added)
+            return Outcome<KeygroupChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*added))
+            return Outcome<KeygroupChange>::failure(explain(*added, "adding " + numberText(count) + " keygroups to the program \"" + *program.value + "\"", _config, true));
+
+        const auto after = keygroupCount();
+        if (!after.ok())
+            return Outcome<KeygroupChange>::failure(after.problem);
+        return Outcome<KeygroupChange>::success(KeygroupChange{true, *program.value, *after.value});
+    }
+
+    Outcome<KeygroupChange> SamplerGateway::deleteKeygroup(int keygroup, std::string_view confirm)
+    {
+        const auto count = keygroupCount();
+        if (!count.ok())
+            return Outcome<KeygroupChange>::failure(count.problem);
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<KeygroupChange>::failure(program.problem);
+        if (keygroup < 1 || keygroup > *count.value)
+            return Outcome<KeygroupChange>::failure("The current program \"" + *program.value + "\" has " + numberText(*count.value) + " keygroup" +
+                                                    (*count.value == 1 ? "" : "s") + "; keygroup " + numberText(keygroup) + " does not exist.");
+        if (*count.value == 1)
+            return Outcome<KeygroupChange>::failure("Keygroup 1 is the last keygroup of the program \"" + *program.value +
+                                                    "\": a program keeps at least one, so nothing was deleted. Delete the program (delete_program) instead.");
+        if (*program.value != confirm)
+            return Outcome<KeygroupChange>::success(KeygroupChange{false, *program.value, *count.value});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteKeygroupFromProgram(_connection->session, keygroup - 1, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<KeygroupChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<KeygroupChange>::failure(explain(*deleted, "deleting keygroup " + numberText(keygroup) + " of the program \"" + *program.value + "\"", _config, true));
+
+        const auto after = keygroupCount();
+        if (!after.ok())
+            return Outcome<KeygroupChange>::failure(after.problem);
+        return Outcome<KeygroupChange>::success(KeygroupChange{true, *program.value, *after.value});
     }
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::editParameter(const ParameterDefinition& parameter,
