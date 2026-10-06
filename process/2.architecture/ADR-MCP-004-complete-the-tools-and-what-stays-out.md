@@ -42,7 +42,8 @@ exact on characters (not the tolerant matching the selection tools use), as `del
 
 ### DEC-MCP-024: The new tools and their tiers; no new launch option
 The memory tools: `set_zone_sample`, `get_zone_samples`, `add_keygroups`, `delete_keygroup`, `rename_sample`, `delete_sample`,
-`create_multi`, `rename_multi`, `delete_multi`, `set_part_program`, `clear_part`, `set_multi_program_number`, `get_system_info`,
+`create_multi`, `rename_multi`, `delete_multi`, `set_part_program`, `clear_part`, `set_multi_program_number`, `get_part_programs`
+(added while implementing TASK-MCP-032: the assignments need a way to be read back and listed), `get_system_info`,
 `audition_sample`. The disk tools (only with `--allow-disk`): `rename_file`, `rename_folder`, `delete_file`, `delete_folder`,
 `get_disk_space`, `audition_file`. Tiers: reads for the `get_` tools, edit for the assignments, the program number and the audition,
 structure for the creations, renames and deletions, disk for the rename and delete of files and folders (a folder is deleted only if it

@@ -98,6 +98,19 @@ namespace mcp::test
             return count;
         }
 
+        /// The data bytes of every command of `item` the simulated sampler has accepted, in order.
+        std::vector<std::vector<std::uint8_t>> sentData(akm::ItemId item) const
+        {
+            std::vector<std::vector<std::uint8_t>> sent;
+            const akm::ItemDescriptor& wanted = akm::descriptor(item);
+            for (const auto& command : sampler->acceptedCommands())
+            {
+                if (command.section == wanted.section && command.item == wanted.item)
+                    sent.push_back(command.data);
+            }
+            return sent;
+        }
+
         /// The tool named `name` as `tools/list` gives it, or null.
         nlohmann::json tool(const std::string& name)
         {

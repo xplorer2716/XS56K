@@ -475,7 +475,7 @@ TEST_CASE("Given list_parameters with the domain multi, When it is called, Then 
     CHECK(contains(textOf(unknown), "multi"));
 }
 
-TEST_CASE("Given the multi tools, When the tools are listed, Then none creates, deletes, renames or assigns a multi, the multi tools carry their tiers and Delete ALL Multis is never sent [RQ-MCP-021, RQ-MCP-013, RQ-MCP-014]",
+TEST_CASE("Given the multi tools, When the tools are listed, Then none deletes every multi, the multi tools carry their tiers and Delete ALL Multis is never sent [RQ-MCP-021, RQ-MCP-013, RQ-MCP-014, RQ-MCP-037]",
           "[mcp][multi][tools]")
 {
     Rig rig;
@@ -494,10 +494,9 @@ TEST_CASE("Given the multi tools, When the tools are listed, Then none creates, 
         CHECK(names.count(tool) == 1);
     for (const std::string& name : names)
     {
-        CHECK(name.find("create_multi") == std::string::npos);
-        CHECK(name.find("delete_multi") == std::string::npos);
-        CHECK(name.find("rename_multi") == std::string::npos);
-        CHECK(name.find("multi_part_program") == std::string::npos);
+        // create_multi, rename_multi, delete_multi (of the current multi) and the part tools are offered since ADR-MCP-004
+        // (DEC-MCP-024); deleting every multi is not.
+        CHECK(name.find("delete_all_multis") == std::string::npos);
     }
     for (const json& tool : list["result"]["tools"])
     {

@@ -84,7 +84,7 @@ sampler's memory, the front-panel keys, saving or loading song files, scenelists
 - **Category**: Functional
 - **EARS Type**: Event-driven
 - **Statement**: WHEN a client calls `set_part_program` with a part (numbered from 1) and a program (by name or by position), the server SHALL assign that program to that part of the current multi; WHEN it calls `clear_part` with a part and `confirm` equal to the current multi's exact name it SHALL remove the program of that part; WHEN it calls `set_multi_program_number` with a number from 1 to 128, or none, it SHALL set or clear the current multi's program number; a program or a part that does not exist, no current multi and a wrong `confirm` SHALL be refused with nothing sent.
-- **Rationale**: the existing multi tools edit the parameters of a part but cannot say what the part plays.
+- **Rationale**: the existing multi tools edit the parameters of a part but cannot say what the part plays; `get_part_programs` (added with TASK-MCP-032) lists the parts that play a program, numbered from 1, and answers that none does when none does.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* a current multi LIVE and programs BASS and LEAD, *When* `set_part_program` is called with part 2 and "LEAD", *Then* the sampler is sent the assignment for the part index 1 and the answer says part 2 plays LEAD; *When* `clear_part` is called for part 2 with `confirm` "LIVE", *Then* the part has no program.
 - **Dependencies**: RQ-MCP-021, RQ-MCP-037; ADR-MCP-004 (DEC-MCP-023)

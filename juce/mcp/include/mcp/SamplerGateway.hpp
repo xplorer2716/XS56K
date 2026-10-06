@@ -135,20 +135,74 @@ namespace mcp
         int keygroupCount = 0;
     };
 
-    /// A sample renamed: its name before and the name the sampler then gives it. [RQ-MCP-036]
-    struct SampleRename
+    /// A sample or a multi renamed: its name before and the name the sampler then gives it. [RQ-MCP-036, RQ-MCP-037]
+    struct RenamedItem
     {
         std::string before;
         std::string after;
     };
 
-    /// A deletion of the current sample: `done` is false when `confirm` was not its exact name (nothing was sent); `remaining` is how
-    /// many samples the memory holds after. [RQ-MCP-036, RQ-MCP-042]
-    struct SampleDeletion
+    /// A deletion of the current sample or multi: `done` is false when `confirm` was not its exact name (nothing was sent);
+    /// `remaining` is how many of that kind the memory holds after. [RQ-MCP-036, RQ-MCP-037, RQ-MCP-042]
+    struct DeletedItem
     {
         bool done = true;
         std::string name;
         int remaining = 0;
+    };
+
+    /// A multi created: its name, its number of parts and how many multis the memory holds then. [RQ-MCP-037]
+    struct MultiCreation
+    {
+        std::string name;
+        int partCount = 0;
+        int total = 0;
+    };
+
+    /// Which program a part is to play: its name or its position in the list of programs, exactly one of the two. [RQ-MCP-038]
+    struct ProgramReference
+    {
+        std::optional<std::string> name;
+        std::optional<int> position;
+    };
+
+    /// A part (from 1) of a multi and the program it plays; empty when it plays none. [RQ-MCP-038]
+    struct PartProgram
+    {
+        int part = 1;
+        std::string program;
+    };
+
+    /// A program assigned to a part of a multi, as read back. [RQ-MCP-038]
+    struct PartAssignment
+    {
+        std::string multi;
+        int part = 1;
+        std::string program;
+    };
+
+    /// What the parts of the current multi play: only the parts that play a program are listed. [RQ-MCP-038]
+    struct PartPrograms
+    {
+        std::string multi;
+        int partCount = 0;
+        std::vector<PartProgram> assigned;
+    };
+
+    /// A part cleared: `done` is false when `confirm` was not the multi's exact name (nothing was sent). [RQ-MCP-038, RQ-MCP-042]
+    struct PartClearing
+    {
+        bool done = true;
+        std::string multi;
+        int part = 1;
+        std::string previous;
+    };
+
+    /// The program number of the current multi as the sampler reports it after a change; empty when it is switched off. [RQ-MCP-038]
+    struct MultiProgramNumber
+    {
+        std::string multi;
+        std::optional<int> number;
     };
 
     struct SampleListing
@@ -433,11 +487,37 @@ namespace mcp
 
         /// Renames the current sample and reads the name back. No current sample, and a name that another sample bears (compared
         /// without regard to case, spaces or hyphens), are problems and nothing is sent. [RQ-MCP-036]
-        [[nodiscard]] Outcome<SampleRename> renameCurrentSample(std::string_view name);
+        [[nodiscard]] Outcome<RenamedItem> renameCurrentSample(std::string_view name);
 
         /// Deletes the current sample, and only when `confirm` is exactly its name: otherwise nothing is sent and `done` is false.
         /// [RQ-MCP-036, RQ-MCP-042]
-        [[nodiscard]] Outcome<SampleDeletion> deleteCurrentSample(std::string_view confirm);
+        [[nodiscard]] Outcome<DeletedItem> deleteCurrentSample(std::string_view confirm);
+
+        /// Creates a multi named `name`, which becomes the current multi. A name that another multi bears (compared without regard to
+        /// case, spaces or hyphens) is a problem and nothing is sent. [RQ-MCP-037]
+        [[nodiscard]] Outcome<MultiCreation> createMulti(std::string_view name);
+
+        /// Renames the current multi and reads the name back; no current multi and a name another multi bears are problems and nothing
+        /// is sent. [RQ-MCP-037]
+        [[nodiscard]] Outcome<RenamedItem> renameCurrentMulti(std::string_view name);
+
+        /// Deletes the current multi, and only when `confirm` is exactly its name: otherwise nothing is sent and `done` is false.
+        /// [RQ-MCP-037, RQ-MCP-042]
+        [[nodiscard]] Outcome<DeletedItem> deleteCurrentMulti(std::string_view confirm);
+
+        /// The parts of the current multi that play a program, numbered from 1. [RQ-MCP-038]
+        [[nodiscard]] Outcome<PartPrograms> readPartPrograms();
+
+        /// Makes part `part` (from 1, up to the multi's part count) of the current multi play a program of the sampler's memory and
+        /// reads the part back; a program or a part that does not exist is a problem and nothing is sent. [RQ-MCP-038]
+        [[nodiscard]] Outcome<PartAssignment> assignPartProgram(int part, const ProgramReference& program);
+
+        /// Removes the program of part `part` of the current multi, and only when `confirm` is exactly the multi's name; a part that
+        /// plays nothing is a problem and nothing is sent. [RQ-MCP-038, RQ-MCP-042]
+        [[nodiscard]] Outcome<PartClearing> clearPart(int part, std::string_view confirm);
+
+        /// Sets the current multi's program number (1 to 128 as on the front panel) or switches it off, and reads it back. [RQ-MCP-038]
+        [[nodiscard]] Outcome<MultiProgramNumber> setMultiProgramNumber(std::optional<int> number);
 
         /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
         /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the

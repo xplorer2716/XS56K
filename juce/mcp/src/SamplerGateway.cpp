@@ -831,20 +831,20 @@ namespace mcp
         return Outcome<SampleListing>::success(std::move(listing));
     }
 
-    Outcome<SampleRename> SamplerGateway::renameCurrentSample(std::string_view name)
+    Outcome<RenamedItem> SamplerGateway::renameCurrentSample(std::string_view name)
     {
         const auto listing = listSamples();
         if (!listing.ok())
-            return Outcome<SampleRename>::failure(listing.problem);
+            return Outcome<RenamedItem>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<SampleRename>::failure("No sample is current: use select_sample first.");
+            return Outcome<RenamedItem>::failure("No sample is current: use select_sample first.");
         const std::size_t current = static_cast<std::size_t>(*listing.value->current);
         const std::string before = listing.value->samples[current].name;
         const std::string wanted = normalizeText(name);
         for (std::size_t i = 0; i < listing.value->samples.size(); ++i)
         {
             if (i != current && normalizeText(listing.value->samples[i].name) == wanted)
-                return Outcome<SampleRename>::failure("The sampler already holds a sample named \"" + listing.value->samples[i].name +
+                return Outcome<RenamedItem>::failure("The sampler already holds a sample named \"" + listing.value->samples[i].name +
                                                       "\": nothing was renamed. Choose another name.");
         }
 
@@ -852,41 +852,41 @@ namespace mcp
             akm::renameCurrentSample(_connection->session, name, std::move(done));
         });
         if (!renamed)
-            return Outcome<SampleRename>::failure("The sampler session did not complete the command in time.");
+            return Outcome<RenamedItem>::failure("The sampler session did not complete the command in time.");
         if (!akm::succeeded(*renamed))
-            return Outcome<SampleRename>::failure(explain(*renamed, "renaming the sample \"" + before + "\"", _config, true, "sample"));
+            return Outcome<RenamedItem>::failure(explain(*renamed, "renaming the sample \"" + before + "\"", _config, true, "sample"));
 
         const auto after = listSamples();
         if (!after.ok())
-            return Outcome<SampleRename>::failure(after.problem);
+            return Outcome<RenamedItem>::failure(after.problem);
         if (!after.value->current)
-            return Outcome<SampleRename>::failure("The sampler accepted the new name but no sample is current afterwards.");
-        return Outcome<SampleRename>::success(SampleRename{before, after.value->samples[static_cast<std::size_t>(*after.value->current)].name});
+            return Outcome<RenamedItem>::failure("The sampler accepted the new name but no sample is current afterwards.");
+        return Outcome<RenamedItem>::success(RenamedItem{before, after.value->samples[static_cast<std::size_t>(*after.value->current)].name});
     }
 
-    Outcome<SampleDeletion> SamplerGateway::deleteCurrentSample(std::string_view confirm)
+    Outcome<DeletedItem> SamplerGateway::deleteCurrentSample(std::string_view confirm)
     {
         const auto listing = listSamples();
         if (!listing.ok())
-            return Outcome<SampleDeletion>::failure(listing.problem);
+            return Outcome<DeletedItem>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<SampleDeletion>::failure("No sample is current: use select_sample first.");
+            return Outcome<DeletedItem>::failure("No sample is current: use select_sample first.");
         const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
         if (name != confirm)
-            return Outcome<SampleDeletion>::success(SampleDeletion{false, name, static_cast<int>(listing.value->samples.size())});
+            return Outcome<DeletedItem>::success(DeletedItem{false, name, static_cast<int>(listing.value->samples.size())});
 
         const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteCurrentSample(_connection->session, std::move(done));
         });
         if (!deleted)
-            return Outcome<SampleDeletion>::failure("The sampler session did not complete the command in time.");
+            return Outcome<DeletedItem>::failure("The sampler session did not complete the command in time.");
         if (!akm::succeeded(*deleted))
-            return Outcome<SampleDeletion>::failure(explain(*deleted, "deleting the sample \"" + name + "\"", _config, true, "sample"));
+            return Outcome<DeletedItem>::failure(explain(*deleted, "deleting the sample \"" + name + "\"", _config, true, "sample"));
 
         const auto after = listSamples();
         if (!after.ok())
-            return Outcome<SampleDeletion>::failure(after.problem);
-        return Outcome<SampleDeletion>::success(SampleDeletion{true, name, static_cast<int>(after.value->samples.size())});
+            return Outcome<DeletedItem>::failure(after.problem);
+        return Outcome<DeletedItem>::success(DeletedItem{true, name, static_cast<int>(after.value->samples.size())});
     }
 
     Outcome<SampleEntry> SamplerGateway::selectSampleByName(std::string_view name)
@@ -959,6 +959,9 @@ namespace mcp
 
     Outcome<MultiEntry> SamplerGateway::currentMultiEntry()
     {
+        // The tools that act on the current multi may be the first call of a session. [RQ-MCP-037, RQ-MCP-038]
+        if (const auto problem = connect())
+            return Outcome<MultiEntry>::failure(*problem);
         const auto index = await<akm::MultiIndexResult>(waitFor(1), [&](std::function<void(const akm::MultiIndexResult&)> done) {
             akm::getCurrentMultiIndex(_connection->session, std::move(done));
         });
@@ -1019,6 +1022,255 @@ namespace mcp
             listing.currentPartCount = current.value->partCount;
         }
         return Outcome<MultiListing>::success(std::move(listing));
+    }
+
+    Outcome<MultiCreation> SamplerGateway::createMulti(std::string_view name)
+    {
+        const auto listing = listMultis();
+        if (!listing.ok())
+            return Outcome<MultiCreation>::failure(listing.problem);
+        const std::string wanted = normalizeText(name);
+        for (const MultiEntry& multi : listing.value->multis)
+        {
+            if (normalizeText(multi.name) == wanted)
+                return Outcome<MultiCreation>::failure("The sampler already holds a multi named \"" + multi.name + "\": nothing was created. Choose another name.");
+        }
+
+        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::createMulti(_connection->session, name, std::move(done));
+        });
+        if (!created)
+            return Outcome<MultiCreation>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*created))
+            return Outcome<MultiCreation>::failure(explain(*created, "creating the multi \"" + std::string(name) + "\"", _config, false));
+
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<MultiCreation>::failure(current.problem);
+        const auto after = listMultis();
+        if (!after.ok())
+            return Outcome<MultiCreation>::failure(after.problem);
+        return Outcome<MultiCreation>::success(MultiCreation{current.value->name, current.value->partCount, static_cast<int>(after.value->multis.size())});
+    }
+
+    Outcome<RenamedItem> SamplerGateway::renameCurrentMulti(std::string_view name)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<RenamedItem>::failure(current.problem);
+        const auto listing = listMultis();
+        if (!listing.ok())
+            return Outcome<RenamedItem>::failure(listing.problem);
+        const std::string wanted = normalizeText(name);
+        for (const MultiEntry& multi : listing.value->multis)
+        {
+            if (multi.index != current.value->index && normalizeText(multi.name) == wanted)
+                return Outcome<RenamedItem>::failure("The sampler already holds a multi named \"" + multi.name + "\": nothing was renamed. Choose another name.");
+        }
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameCurrentMulti(_connection->session, name, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<RenamedItem>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<RenamedItem>::failure(explain(*renamed, "renaming the multi \"" + current.value->name + "\"", _config, true, "multi"));
+
+        const auto after = currentMultiEntry();
+        if (!after.ok())
+            return Outcome<RenamedItem>::failure(after.problem);
+        return Outcome<RenamedItem>::success(RenamedItem{current.value->name, after.value->name});
+    }
+
+    Outcome<DeletedItem> SamplerGateway::deleteCurrentMulti(std::string_view confirm)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<DeletedItem>::failure(current.problem);
+        if (current.value->name != confirm)
+            return Outcome<DeletedItem>::success(DeletedItem{false, current.value->name, 0});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteCurrentMulti(_connection->session, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<DeletedItem>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<DeletedItem>::failure(explain(*deleted, "deleting the multi \"" + current.value->name + "\"", _config, true, "multi"));
+
+        const auto after = listMultis();
+        if (!after.ok())
+            return Outcome<DeletedItem>::failure(after.problem);
+        return Outcome<DeletedItem>::success(DeletedItem{true, current.value->name, static_cast<int>(after.value->multis.size())});
+    }
+
+    Outcome<PartPrograms> SamplerGateway::readPartPrograms()
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<PartPrograms>::failure(current.problem);
+        const auto names = await<akm::MultiNameListResult>(waitFor(1), [&](std::function<void(const akm::MultiNameListResult&)> done) {
+            akm::getAllMultiPartNames(_connection->session, std::move(done));
+        });
+        if (!names)
+            return Outcome<PartPrograms>::failure("The sampler session did not complete the command in time.");
+        if (!names->names)
+            return Outcome<PartPrograms>::failure(explain(names->outcome, "reading what the parts of the multi play", _config, true, "multi"));
+        PartPrograms result;
+        result.multi = current.value->name;
+        result.partCount = static_cast<int>(names->names->size());
+        for (std::size_t i = 0; i < names->names->size(); ++i)
+        {
+            if (!(*names->names)[i].empty())
+                result.assigned.push_back(PartProgram{static_cast<int>(i) + 1, (*names->names)[i]});
+        }
+        return Outcome<PartPrograms>::success(std::move(result));
+    }
+
+    namespace
+    {
+        // The message of a part that the current multi does not have. [RQ-MCP-038]
+        std::string noSuchPart(const MultiEntry& multi, int part)
+        {
+            return "The multi \"" + multi.name + "\" has " + numberText(multi.partCount) + " parts, numbered 1 to " + numberText(multi.partCount) +
+                   "; part " + numberText(part) + " does not exist.";
+        }
+    }
+
+    Outcome<PartAssignment> SamplerGateway::assignPartProgram(int part, const ProgramReference& program)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<PartAssignment>::failure(current.problem);
+        if (part < 1 || part > current.value->partCount)
+            return Outcome<PartAssignment>::failure(noSuchPart(*current.value, part));
+
+        const auto programs = listPrograms();
+        if (!programs.ok())
+            return Outcome<PartAssignment>::failure(programs.problem);
+        std::string listed;
+        int position = 0;
+        if (program.name)
+        {
+            const std::string wanted = normalizeText(*program.name);
+            const auto found = std::find_if(programs.value->begin(), programs.value->end(),
+                                            [&wanted](const ProgramEntry& entry) { return normalizeText(entry.name) == wanted; });
+            if (found == programs.value->end())
+            {
+                std::string text = "No program is named \"" + *program.name + "\" in the sampler's memory.";
+                if (programs.value->empty())
+                    return Outcome<PartAssignment>::failure(text + " The memory holds none.");
+                text += " It holds: ";
+                for (std::size_t i = 0; i < programs.value->size(); ++i)
+                    text += (i == 0 ? "" : ", ") + std::string("\"") + (*programs.value)[i].name + "\"";
+                return Outcome<PartAssignment>::failure(text + ".");
+            }
+            listed = found->name;
+        }
+        else
+        {
+            position = program.position.value_or(-1);
+            if (position < 0 || position >= static_cast<int>(programs.value->size()))
+                return Outcome<PartAssignment>::failure("There is no program at position " + numberText(position) + ": the sampler holds " +
+                                                     numberText(programs.value->size()) + " (positions 0 to " +
+                                                     numberText(static_cast<int>(programs.value->size()) - 1) + "; see list_programs).");
+            listed = (*programs.value)[static_cast<std::size_t>(position)].name;
+        }
+
+        const int wirePart = part - 1;
+        const auto assigned = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            if (program.name)
+                akm::setMultiPartByName(_connection->session, wirePart, listed, std::move(done));
+            else
+                akm::setMultiPartByIndex(_connection->session, wirePart, position, std::move(done));
+        });
+        if (!assigned)
+            return Outcome<PartAssignment>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*assigned))
+            return Outcome<PartAssignment>::failure(explain(*assigned, "assigning the program \"" + listed + "\" to part " + numberText(part), _config, true, "multi"));
+
+        const auto read = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getMultiPartName(_connection->session, wirePart, std::move(done));
+        });
+        if (!read)
+            return Outcome<PartAssignment>::failure("The sampler session did not complete the command in time.");
+        if (!read->name)
+            return Outcome<PartAssignment>::failure(explain(read->outcome, "reading back part " + numberText(part), _config, true, "multi"));
+        if (*read->name != listed)
+            return Outcome<PartAssignment>::failure("The sampler accepted the assignment but reports that part " + numberText(part) + " plays " +
+                                                 (read->name->empty() ? std::string("no program") : "\"" + *read->name + "\"") + ", not \"" + listed + "\".");
+        return Outcome<PartAssignment>::success(PartAssignment{current.value->name, part, listed});
+    }
+
+    Outcome<PartClearing> SamplerGateway::clearPart(int part, std::string_view confirm)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<PartClearing>::failure(current.problem);
+        if (part < 1 || part > current.value->partCount)
+            return Outcome<PartClearing>::failure(noSuchPart(*current.value, part));
+        if (current.value->name != confirm)
+            return Outcome<PartClearing>::success(PartClearing{false, current.value->name, part, ""});
+
+        const int wirePart = part - 1;
+        const auto before = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getMultiPartName(_connection->session, wirePart, std::move(done));
+        });
+        if (!before)
+            return Outcome<PartClearing>::failure("The sampler session did not complete the command in time.");
+        if (!before->name)
+            return Outcome<PartClearing>::failure(explain(before->outcome, "reading part " + numberText(part), _config, true, "multi"));
+        if (before->name->empty())
+            return Outcome<PartClearing>::failure("Part " + numberText(part) + " of the multi \"" + current.value->name +
+                                                  "\" plays no program: nothing to clear.");
+
+        const auto cleared = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteMultiPart(_connection->session, wirePart, std::move(done));
+        });
+        if (!cleared)
+            return Outcome<PartClearing>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*cleared))
+            return Outcome<PartClearing>::failure(explain(*cleared, "clearing part " + numberText(part), _config, true, "multi"));
+
+        const auto after = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getMultiPartName(_connection->session, wirePart, std::move(done));
+        });
+        if (!after)
+            return Outcome<PartClearing>::failure("The sampler session did not complete the command in time.");
+        if (!after->name)
+            return Outcome<PartClearing>::failure(explain(after->outcome, "reading back part " + numberText(part), _config, true, "multi"));
+        if (!after->name->empty())
+            return Outcome<PartClearing>::failure("The sampler accepted the removal but reports that part " + numberText(part) + " still plays \"" +
+                                                  *after->name + "\".");
+        return Outcome<PartClearing>::success(PartClearing{true, current.value->name, part, *before->name});
+    }
+
+    Outcome<MultiProgramNumber> SamplerGateway::setMultiProgramNumber(std::optional<int> number)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<MultiProgramNumber>::failure(current.problem);
+
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setMultiProgramNumber(_connection->session, number, std::move(done));
+        });
+        if (!set)
+            return Outcome<MultiProgramNumber>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*set))
+            return Outcome<MultiProgramNumber>::failure(explain(*set, "setting the program number of the multi \"" + current.value->name + "\"", _config, true, "multi"));
+
+        const auto read = await<akm::MultiProgramNumberResult>(waitFor(1), [&](std::function<void(const akm::MultiProgramNumberResult&)> done) {
+            akm::getMultiProgramNumber(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<MultiProgramNumber>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&read->outcome);
+        if (!read->frontPanelNumber && (error != nullptr || !akm::succeeded(read->outcome)))
+            return Outcome<MultiProgramNumber>::failure(explain(read->outcome, "reading back the program number", _config, true, "multi"));
+        if (read->frontPanelNumber != number)
+            return Outcome<MultiProgramNumber>::failure("The sampler accepted the program number but reports " +
+                                                        (read->frontPanelNumber ? numberText(*read->frontPanelNumber) : std::string("none")) + ".");
+        return Outcome<MultiProgramNumber>::success(MultiProgramNumber{current.value->name, read->frontPanelNumber});
     }
 
     Outcome<MultiEntry> SamplerGateway::selectMultiByName(std::string_view name)

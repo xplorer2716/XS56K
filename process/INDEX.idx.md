@@ -265,11 +265,11 @@ DEC-MCP-020|78-88||The refresh of the disk list is offered only with a launch op
 DEC-MCP-021|89-98||`create_folder` is offered with the disk tools, and creates, never opens, never replaces
 DEC-MCP-022|99-106||A save's verification reopens the folder when a saved file is missing from the listing
 @process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md
-ADR-MCP-004|1-109|Proposed — drafted in session MCP (2026-10-06) for FTR-MCP-004 (RQ-MCP-034 to RQ-MCP-044), under the owner's delegation (HOL, Human on|MCP Server — Completing the Tools, the Confirmation Rule, What Stays Out and the README as a Reference
+ADR-MCP-004|1-110|Proposed — drafted in session MCP (2026-10-06) for FTR-MCP-004 (RQ-MCP-034 to RQ-MCP-044), under the owner's delegation (HOL, Human on|MCP Server — Completing the Tools, the Confirmation Rule, What Stays Out and the README as a Reference
 DEC-MCP-023|35-42||Every deletion takes a `confirm` that is the exact name of what is deleted
-DEC-MCP-024|43-55||The new tools and their tiers; no new launch option
-DEC-MCP-025|56-66||What stays not offered, and the owner decides
-DEC-MCP-026|67-77||The README is the human reference, organised by what a person needs to ask
+DEC-MCP-024|43-56||The new tools and their tiers; no new launch option
+DEC-MCP-025|57-67||What stays not offered, and the owner decides
+DEC-MCP-026|68-78||The README is the human reference, organised by what a person needs to ask
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
@@ -477,7 +477,7 @@ TASK-MCP-028|40-51|Done|Author FTR-MCP-004, ADR-MCP-004 and PLAN-MCP-004
 TASK-MCP-029|52-63|Done|Zone samples: `set_zone_sample` and `get_zone_samples`
 TASK-MCP-030|64-75|Done|Keygroups: `add_keygroups` and `delete_keygroup`
 TASK-MCP-031|76-87|Done|Samples: `rename_sample` and `delete_sample`
-TASK-MCP-032|88-99|Not Started|Multis: create, rename, delete, part program, clear part, program number
+TASK-MCP-032|88-99|Done|Multis: create, rename, delete, part program, clear part, program number
 TASK-MCP-033|100-111|Not Started|Files and folders: rename and delete
 TASK-MCP-034|112-123|Not Started|Information: `get_system_info` and `get_disk_space`
 TASK-MCP-035|124-135|Not Started|Audition: `audition_sample` and `audition_file`

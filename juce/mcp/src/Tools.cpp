@@ -40,6 +40,12 @@ namespace mcp
         // A sample's name: the wire takes up to 20 characters (the AKM item) and the owner's disk holds samples of 14, so 12 would
         // refuse names the sampler keeps. [RQ-MCP-036, ADR-MCP-004 (DEC-MCP-024)]
         constexpr std::size_t MAX_SAMPLE_NAME_LENGTH = 20;
+        // A multi's name, and what a multi's program number and a part may be: from 1, to 128 on the front panel. [RQ-MCP-037, RQ-MCP-038]
+        constexpr std::size_t MAX_MULTI_NAME_LENGTH = 20;
+        constexpr std::int64_t MIN_PART = 1;
+        constexpr std::int64_t MIN_PROGRAM_POSITION = 0;
+        constexpr std::int64_t MIN_MULTI_PROGRAM_NUMBER = 1;
+        constexpr std::int64_t MAX_MULTI_PROGRAM_NUMBER = 128;
         constexpr std::int64_t MIN_NEW_KEYGROUPS = 1;
         constexpr std::int64_t MAX_NEW_KEYGROUPS = 99;
         // A keygroup has four zones and the keygroups of a program are numbered from 1. [RQ-MCP-034, ADR-MCP-004 (DEC-MCP-024)]
@@ -1786,6 +1792,209 @@ namespace mcp
                                  return ok("Deleted the sample \"" + deletion.value->name + "\". The sampler now holds " +
                                            plural(deletion.value->remaining, "sample") + ".");
                              }});
+
+        // create_multi [RQ-MCP-037]
+        tools.push_back(Tool{
+            definition("create_multi", "Create a multi",
+                       std::string("Creates an empty multi with the given name and makes it the current multi, so the next edits act on it (see "
+                                   "set_part_program and set_multi_parameter). A name another multi bears is refused. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The new multi's name, 1 to " + std::to_string(MAX_MULTI_NAME_LENGTH) + " characters."}}}},
+                                    json::array({"name"})),
+                       false, false),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name"}))
+                    return *refused;
+                if (!arguments.contains("name"))
+                    return failure("Give the 'name' of the new multi.");
+                if (const auto problem = itemNameProblem(arguments.at("name"), "name", "multi", MAX_MULTI_NAME_LENGTH))
+                    return failure(*problem);
+                const auto created = gateway.createMulti(arguments.at("name").get<std::string>());
+                if (!created.ok())
+                    return failure(created.problem);
+                return ok("Created the multi \"" + created.value->name + "\" with " + plural(created.value->partCount, "part") +
+                          "; it is now the current multi. The sampler holds " + plural(created.value->total, "multi") + ".");
+            }});
+
+        // rename_multi [RQ-MCP-037]
+        tools.push_back(Tool{
+            definition("rename_multi", "Rename the current multi",
+                       std::string("Renames the CURRENT multi (see list_multis and select_multi) and reads the new name back. A name another multi "
+                                   "bears is refused. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_MULTI_NAME_LENGTH) + " characters."}}}},
+                                    json::array({"name"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name"}))
+                    return *refused;
+                if (!arguments.contains("name"))
+                    return failure("Give the 'name' to give the current multi.");
+                if (const auto problem = itemNameProblem(arguments.at("name"), "name", "multi", MAX_MULTI_NAME_LENGTH))
+                    return failure(*problem);
+                const auto renamed = gateway.renameCurrentMulti(arguments.at("name").get<std::string>());
+                if (!renamed.ok())
+                    return failure(renamed.problem);
+                return ok("Renamed the multi \"" + renamed.value->before + "\" to \"" + renamed.value->after + "\".");
+            }});
+
+        // delete_multi [RQ-MCP-037, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023)]
+        ToolDefinition removeMulti =
+            definition("delete_multi", "Delete the current multi",
+                       std::string("Deletes the CURRENT multi from the sampler's memory (see list_multis and select_multi), and only if 'confirm' is "
+                                   "exactly its name: otherwise nothing is deleted and the answer says which multi is current. A multi that is not on "
+                                   "a disk is lost; it cannot be undone from here. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"confirm", {{"type", "string"}, {"description", "The exact name of the current multi, to confirm the deletion."}}}},
+                                    json::array({"confirm"})),
+                       false, false);
+        removeMulti.annotations.destructive = true;
+        tools.push_back(Tool{std::move(removeMulti), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"confirm"}))
+                                     return *refused;
+                                 if (!arguments.contains("confirm") || !arguments.at("confirm").is_string())
+                                     return failure("Give 'confirm', the exact name of the current multi.");
+                                 const std::string confirm = arguments.at("confirm").get<std::string>();
+                                 const auto deletion = gateway.deleteCurrentMulti(confirm);
+                                 if (!deletion.ok())
+                                     return failure(deletion.problem);
+                                 if (!deletion.value->done)
+                                     return failure("The current multi is \"" + deletion.value->name + "\", not \"" + confirm +
+                                                    "\": nothing was deleted. Select the multi to delete first (select_multi), then confirm with its name.");
+                                 return ok("Deleted the multi \"" + deletion.value->name + "\". The sampler now holds " +
+                                           plural(deletion.value->remaining, "multi") + ".");
+                             }});
+
+        // set_part_program [RQ-MCP-038]
+        tools.push_back(Tool{
+            definition("set_part_program", "Make a part of the current multi play a program",
+                       std::string("Makes one part of the CURRENT multi (see select_multi) play a program of the sampler's memory, and reads it back. "
+                                   "Parts are numbered from 1. Give the program by 'program' (its name) or by 'position' (its place in "
+                                   "list_programs, from 0), not both. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"part", {{"type", "integer"}, {"minimum", MIN_PART}, {"description", "The part, from 1 (see list_multis for how many)."}}},
+                                         {"program", {{"type", "string"}, {"description", "The program's name, from list_programs."}}},
+                                         {"position", {{"type", "integer"}, {"minimum", MIN_PROGRAM_POSITION}, {"description", "The program's position in list_programs, from 0."}}}},
+                                    json::array({"part"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"part", "program", "position"}))
+                    return *refused;
+                const auto part = arguments.contains("part") ? wholeNumber(arguments.at("part")) : std::nullopt;
+                if (!part || *part < MIN_PART)
+                    return failure("Give the 'part' as a whole number from " + std::to_string(MIN_PART) + ".");
+                const bool hasProgram = arguments.contains("program");
+                const bool hasPosition = arguments.contains("position");
+                if (hasProgram == hasPosition)
+                    return failure("Give the program by 'program' (its name) or by 'position' (its place in list_programs), exactly one of them.");
+                ProgramReference reference;
+                if (hasProgram)
+                {
+                    if (!arguments.at("program").is_string())
+                        return failure("The argument 'program' must be a program's name.");
+                    reference.name = arguments.at("program").get<std::string>();
+                }
+                else
+                {
+                    const auto position = wholeNumber(arguments.at("position"));
+                    if (!position || *position < MIN_PROGRAM_POSITION)
+                        return failure("The argument 'position' must be a whole number from " + std::to_string(MIN_PROGRAM_POSITION) + ".");
+                    reference.position = static_cast<int>(*position);
+                }
+                const auto assigned = gateway.assignPartProgram(static_cast<int>(*part), reference);
+                if (!assigned.ok())
+                    return failure(assigned.problem);
+                return ok("Done: part " + std::to_string(assigned.value->part) + " of the multi \"" + assigned.value->multi + "\" now plays the program \"" +
+                          assigned.value->program + "\" (read back from the sampler).");
+            }});
+
+        // clear_part [RQ-MCP-038, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023)]
+        ToolDefinition clearPartTool =
+            definition("clear_part", "Remove the program of a part of the current multi",
+                       std::string("Removes the program a part of the CURRENT multi plays (the multi stays), and only if 'confirm' is exactly the multi's "
+                                   "name: otherwise nothing is removed and the answer says which multi is current. Parts are numbered from 1. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"part", {{"type", "integer"}, {"minimum", MIN_PART}, {"description", "The part, from 1."}}},
+                                         {"confirm", {{"type", "string"}, {"description", "The exact name of the current multi, to confirm the removal."}}}},
+                                    json::array({"part", "confirm"})),
+                       false, false);
+        clearPartTool.annotations.destructive = true;
+        tools.push_back(Tool{std::move(clearPartTool), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"part", "confirm"}))
+                                     return *refused;
+                                 const auto part = arguments.contains("part") ? wholeNumber(arguments.at("part")) : std::nullopt;
+                                 if (!part || *part < MIN_PART)
+                                     return failure("Give the 'part' as a whole number from " + std::to_string(MIN_PART) + ".");
+                                 if (!arguments.contains("confirm") || !arguments.at("confirm").is_string())
+                                     return failure("Give 'confirm', the exact name of the current multi.");
+                                 const std::string confirm = arguments.at("confirm").get<std::string>();
+                                 const auto cleared = gateway.clearPart(static_cast<int>(*part), confirm);
+                                 if (!cleared.ok())
+                                     return failure(cleared.problem);
+                                 if (!cleared.value->done)
+                                     return failure("The current multi is \"" + cleared.value->multi + "\", not \"" + confirm +
+                                                    "\": nothing was removed. Confirm with the multi's name.");
+                                 return ok("Done: part " + std::to_string(cleared.value->part) + " of the multi \"" + cleared.value->multi +
+                                           "\" no longer plays \"" + cleared.value->previous + "\".");
+                             }});
+
+        // set_multi_program_number [RQ-MCP-038]
+        tools.push_back(Tool{
+            definition("set_multi_program_number", "Set the program number of the current multi",
+                       std::string("Sets the CURRENT multi's program number (1 to 128, as on the front panel: the number a MIDI program change "
+                                   "selects it by) or switches it off with null, and reads it back. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"number",
+                                          {{"type", json::array({"integer", "null"})},
+                                           {"minimum", MIN_MULTI_PROGRAM_NUMBER},
+                                           {"maximum", MAX_MULTI_PROGRAM_NUMBER},
+                                           {"description", "The number, 1 to 128, or null to switch it off."}}}},
+                                    json::array({"number"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"number"}))
+                    return *refused;
+                if (!arguments.contains("number"))
+                    return failure("Give the 'number' (1 to 128), or null to switch the program number off.");
+                std::optional<int> number;
+                if (!arguments.at("number").is_null())
+                {
+                    const auto given = wholeNumber(arguments.at("number"));
+                    if (!given || *given < MIN_MULTI_PROGRAM_NUMBER || *given > MAX_MULTI_PROGRAM_NUMBER)
+                        return failure("The 'number' must be a whole number from " + std::to_string(MIN_MULTI_PROGRAM_NUMBER) + " to " +
+                                       std::to_string(MAX_MULTI_PROGRAM_NUMBER) + ", or null.");
+                    number = static_cast<int>(*given);
+                }
+                const auto set = gateway.setMultiProgramNumber(number);
+                if (!set.ok())
+                    return failure(set.problem);
+                if (!set.value->number)
+                    return ok("The multi \"" + set.value->multi + "\" now has no program number (read back from the sampler).");
+                return ok("The multi \"" + set.value->multi + "\" now has the program number " + std::to_string(*set.value->number) +
+                          " (read back from the sampler).");
+            }});
+
+        // get_part_programs [RQ-MCP-038]
+        tools.push_back(Tool{
+            definition("get_part_programs", "Read what the parts of the current multi play",
+                       std::string("Lists the parts of the CURRENT multi (see select_multi) that play a program, with the program's name; parts are "
+                                   "numbered from 1. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto parts = gateway.readPartPrograms();
+                if (!parts.ok())
+                    return failure(parts.problem);
+                if (parts.value->assigned.empty())
+                    return ok("In the multi \"" + parts.value->multi + "\" no part plays a program (" + plural(parts.value->partCount, "part") + ").");
+                std::string text = "Parts of the multi \"" + parts.value->multi + "\" that play a program (" + std::to_string(parts.value->assigned.size()) +
+                                   " of " + plural(parts.value->partCount, "part") + "):\n";
+                for (const PartProgram& part : parts.value->assigned)
+                    text += "part " + std::to_string(part.part) + ": " + part.program + "\n";
+                return ok(std::move(text));
+            }});
 
         return tools;
     }

@@ -91,6 +91,7 @@ add_executable(xs56k_mcp_tests
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueLot2Tests.cpp
     mcp/ParameterCatalogueLot3Tests.cpp
+    mcp/MultiStructureToolsTests.cpp
     mcp/MultiToolsTests.cpp
     mcp/ParameterCatalogueTests.cpp
     mcp/SampleStructureToolsTests.cpp
