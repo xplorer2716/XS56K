@@ -85,6 +85,16 @@ TEST_CASE("Given the multis LIVE and STUDIO, When create_multi gives STAGE, Then
     CHECK(hasText(list, "LIVE"));
 }
 
+// The real S5000 gave a new multi 32 parts (observed 2026-10-06, OBSERVATIONS-RQ-MCP-012-real-sampler.md). [TASK-MCP-041, RQ-MCP-044]
+TEST_CASE("Given a new multi, When create_multi and then get_part_programs are called, Then the multi has 32 parts, as on the real sampler [RQ-MCP-044]",
+          "[mcp][multistructure]")
+{
+    ToolRig rig;
+    const json answer = rig.call("create_multi", {{"name", "STAGE"}});
+    CHECK(hasText(toolText(answer), "with 32 parts"));
+    CHECK(hasText(toolText(rig.call("get_part_programs")), "32 parts"));
+}
+
 TEST_CASE("Given a multi name that is taken or not acceptable, When create_multi or rename_multi is called, Then nothing is sent and the answer says why [RQ-MCP-037]",
           "[mcp][multistructure]")
 {

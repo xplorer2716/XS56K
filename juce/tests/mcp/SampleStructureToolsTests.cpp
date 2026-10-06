@@ -72,6 +72,19 @@ TEST_CASE("Given KICK is the current sample, When rename_sample gives KICK2, The
     CHECK_FALSE(hasText(list, ": KICK\n"));
 }
 
+// A renamed sample kept its place in the list on the real S5000 (observed 2026-10-06). [TASK-MCP-041, RQ-MCP-044]
+TEST_CASE("Given SNARE is the second sample, When it is renamed, Then it is still the second one in the list [RQ-MCP-044]",
+          "[mcp][samplestructure]")
+{
+    ToolRig rig;
+    selectSample(rig, "SNARE");
+    REQUIRE_FALSE(toolFailed(rig.call("rename_sample", {{"name", "SNARE2"}})));
+    const std::string list = toolText(rig.call("list_samples"));
+    CHECK(hasText(list, "0: KICK"));
+    CHECK(hasText(list, "1: SNARE2"));
+    CHECK(hasText(list, "2: PAD"));
+}
+
 TEST_CASE("Given a name another sample bears, When rename_sample is called, Then nothing is sent and the answer names the sample [RQ-MCP-036]",
           "[mcp][samplestructure]")
 {

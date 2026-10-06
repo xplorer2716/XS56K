@@ -75,6 +75,9 @@ namespace mcp::detail
                 text += " The current program does not have that keygroup.";
             else if (needsCurrentProgram && error->number == akm::error_number::NOT_FOUND)
                 text += " Is a " + currentObject + " selected? Use select_" + currentObject + " first.";
+            // The real S5000 answers 257 (not 4) to a disk command when no disk is selected (TASK-MCP-041).
+            else if (needsCurrentProgram && error->number == akm::error_number::DISK_SELECTED_DISK_INVALID)
+                text += " Is a disk selected? Use select_disk first.";
             return text;
         }
         if (std::holds_alternative<akm::Cancelled>(outcome))

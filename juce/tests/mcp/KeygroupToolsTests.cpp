@@ -86,6 +86,17 @@ TEST_CASE("Given BASS with three keygroups, When delete_keygroup is called for k
     CHECK(hasText(toolText(rig.call("get_status")), "2 keygroups"));
 }
 
+// On the real S5000 the keygroups after a deleted one moved down by one (observed 2026-10-06). [TASK-MCP-041, RQ-MCP-044]
+TEST_CASE("Given BASS whose keygroup 2 has a filter cutoff of 40, When keygroup 1 is deleted, Then keygroup 1 has that cutoff, as the keygroups moved down [RQ-MCP-044]",
+          "[mcp][keygroup]")
+{
+    ToolRig rig;
+    REQUIRE_FALSE(toolFailed(rig.call("set_parameter", {{"parameter", "filter cutoff"}, {"value", 40}, {"keygroup", 2}})));
+    REQUIRE_FALSE(toolFailed(rig.call("delete_keygroup", {{"keygroup", 1}, {"confirm", "BASS"}})));
+    const std::string text = toolText(rig.call("get_parameters", {{"parameters", json::array({"filter cutoff"})}, {"keygroup", 1}}));
+    CHECK(hasText(text, "filter cutoff = 40"));
+}
+
 TEST_CASE("Given a missing or wrong confirm, When delete_keygroup is called, Then nothing is sent and the answer names the program to give [RQ-MCP-042]",
           "[mcp][keygroup]")
 {

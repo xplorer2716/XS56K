@@ -391,6 +391,49 @@ TEST_CASE("Given no disk selected, When the current type, handle or path is read
     CHECK_FALSE(getCurrentDiskPath(harness).path.has_value());
 }
 
+// The real S5000 answers error 257 ("selected disk is invalid"), not 4, to a command that needs a selected disk when none is
+// (observed 2026-10-05, OBSERVATIONS-RQ-MCP-012-real-sampler.md: the first command of a listing is &06, the current handle).
+// [TASK-MCP-041, RQ-MCP-044]
+TEST_CASE("Given no disk selected, When the current handle or path is read, Then the error is 257, selected disk invalid, as the real sampler answered [RQ-MCP-044]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 0, .format = 0, .scsiId = 0, .writable = true, .name = "A"}});
+
+    const DiskHandleResult handle = getCurrentDiskHandle(harness);
+    REQUIRE(std::holds_alternative<Error>(handle.outcome));
+    CHECK(std::get<Error>(handle.outcome).number == akm::error_number::DISK_SELECTED_DISK_INVALID);
+
+    const DiskPathResult path = getCurrentDiskPath(harness);
+    REQUIRE(std::holds_alternative<Error>(path.outcome));
+    CHECK(std::get<Error>(path.outcome).number == akm::error_number::DISK_SELECTED_DISK_INVALID);
+}
+
+// The real S5000 writes the current path below the root with a backslash: `AKWF\AKWF_theremin` (observed 2026-10-05).
+// [TASK-MCP-041, RQ-MCP-044]
+TEST_CASE("Given two folders opened one in the other, When the current path is read, Then the names are joined with a backslash as the real sampler did [RQ-MCP-044]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    const FolderRecord inner{"INNER", {}, {}, {}, {}};
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+                                           .rootFolder = FolderRecord{"", {FolderRecord{"OUTER", {inner}, {}, {}, {}}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+    openFolder(harness, "OUTER");
+    REQUIRE(harness.waitForCompletions(2));
+    openFolder(harness, "INNER");
+    REQUIRE(harness.waitForCompletions(3));
+
+    const DiskPathResult path = getCurrentDiskPath(harness);
+    REQUIRE(path.path.has_value());
+    CHECK(*path.path == "OUTER\\INNER");
+}
+
 TEST_CASE("Given a disk formatted FAT32 with free space, When its format and free space are read, Then they decode to FAT32 and the byte count [RQ-AKM-062]",
           "[akm][disk]")
 {
@@ -838,7 +881,54 @@ TEST_CASE("Given a simulated disk with an existing file at the target name, When
     CHECK(*count.count == 1);
     const DiskFileSizeResult size = getFileSize(harness, 0);
     REQUIRE(size.sizeBytes.has_value());
-    CHECK(*size.sizeBytes == 4096u);
+    // 516 bytes: the size of a saved program of one keygroup on the real S5000 (2026-10-05, TASK-MCP-041).
+    CHECK(*size.sizeBytes == 516u);
+}
+
+// What the real S5000 wrote on 2026-10-06 (OBSERVATIONS-RQ-MCP-012-real-sampler.md): a sample of 666 points, mono, is a 1376-byte
+// `.WAV` (44 bytes of header plus 2 bytes per point and channel), a multi of 32 parts is a 2354-byte `.AKM`. [TASK-MCP-041, RQ-MCP-044]
+TEST_CASE("Given a mono sample of 666 points and a stereo one of 100 points, When they are saved, Then the files are 1376 and 444 bytes [RQ-MCP-044]",
+          "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    harness.sampler().setSampleNames({"MONO", "STEREO"});
+    harness.sampler().setSampleAttributes(0, 0, 1, 666, 44100);
+    harness.sampler().setSampleAttributes(1, 0, 2, 100, 44100);
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::saveMemoryItem(harness.session(), 0, akm::SaveableMemoryType::Sample, false, false, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+    akm::saveMemoryItem(harness.session(), 1, akm::SaveableMemoryType::Sample, false, false, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(3));
+
+    const DiskFileSizeResult mono = getFileSize(harness, 0);
+    REQUIRE(mono.sizeBytes.has_value());
+    CHECK(*mono.sizeBytes == 1376u);
+    const DiskFileSizeResult stereo = getFileSize(harness, 1);
+    REQUIRE(stereo.sizeBytes.has_value());
+    CHECK(*stereo.sizeBytes == 444u);
+}
+
+TEST_CASE("Given a multi of 32 parts, When it is saved, Then the file is 2354 bytes [RQ-MCP-044]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    harness.sampler().setMultiNames({"LIVE"});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    akm::saveMemoryItem(harness.session(), 0, akm::SaveableMemoryType::Multi, false, false, harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2));
+
+    const DiskFileSizeResult size = getFileSize(harness, 0);
+    REQUIRE(size.sizeBytes.has_value());
+    CHECK(*size.sizeBytes == 2354u);
 }
 
 TEST_CASE("Given two programs in memory, When all are saved, Then two files appear in the current folder [RQ-AKM-067]",

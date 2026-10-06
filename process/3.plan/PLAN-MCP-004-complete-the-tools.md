@@ -197,12 +197,12 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-041: The simulated sampler matches what the real S5000 did
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Correct the simulated sampler, each with its test, for what the real runs showed and it did differently: the error with no disk selected (257, "selected disk is invalid", against 4), the current path below the root written with a backslash (`AKWF\AKWF_oboe` against `AKWF/AKWF_oboe`), the size of a saved program (516 bytes, observed for a program of one keygroup), of a saved sample (44 bytes of header plus 2 bytes per sample point and channel: 1376 bytes for a 666-point mono sample) and of a saved multi (2354 bytes for a multi of 32 parts), and the memory after the deletion of a sample (none is selected); check against the observations the other behaviours the tools rely on (the keygroups after a deleted one move down, a sample keeps its place when renamed, a new multi has 32 parts) and add a test for each that has none.
 - **Requirement refs**: RQ-MCP-044, RQ-MCP-030
 - **ADR refs**: ADR-MCP-003 (DEC-MCP-022); ADR-MCP-004
 - **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* each of the behaviours above is exercised, *Then* it answers as the real sampler did (the observations file is the source), and no earlier test is changed except where its expectation was the old, wrong behaviour.
 - **Dependencies**: TASK-MCP-037
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: DONE on 2026-10-06, from the tools' own output. Red first (five new or changed tests failed: error number 257, the backslash path, the sample size 4096 against 1376 and 444, the program 4096 against 516, the multi; then seven MCP tests that expected the hint "select_disk" failed once the simulator answered 257, which showed a real defect: the hint was added for error 4 only, so with the real sampler it never appeared). Green after the changes: `xs56k_akm_tests "[disk]"` 40 cases, `xs56k_mcp_tests` 253 cases then the three added ones (a new multi has 32 parts, a renamed sample keeps its place, the keygroups after a deleted one move down: these three passed at once, the simulator already did that, they now pin it), and `ctest` 976 of 977 before the scripted disk conversation was regenerated (its differences read one by one: the 257 message with the hint, the sizes 516 / 44 / 2354), then both scripted conversations pass. Not done: the order of a folder listing and the load time of a large file stay different from the real sampler.
+- **Assumptions**: error 257 is given to every disk command with no disk selected, the real answer was seen for the first command of a listing only; a saved program is 516 bytes whatever its keygroups and a multi 2354 whatever its parts, only one size of each was observed.

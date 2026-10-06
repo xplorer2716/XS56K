@@ -1923,18 +1923,32 @@ namespace akm::harness
             }
         }
 
+        // What the real S5000 wrote (OBSERVATIONS-RQ-MCP-012-real-sampler.md, TASK-MCP-041): a program of one keygroup is 516
+        // bytes (how the size grows with more keygroups was not observed: it stays 516 here), a sample is a 44-byte header then
+        // 2 bytes per point and channel (666 mono points: 1376 bytes), a multi of 32 parts is 2354 bytes (other part counts
+        // were not observed: 2354 here).
+        constexpr std::uint32_t SAVED_PROGRAM_BYTES = 516;
+        constexpr std::uint32_t SAVED_SAMPLE_HEADER_BYTES = 44;
+        constexpr std::uint32_t SAVED_SAMPLE_BYTES_PER_POINT = 2;
+        constexpr std::uint32_t SAVED_MULTI_BYTES = 2354;
+
+        std::uint32_t savedSampleBytes(const SampleRecord& sample)
+        {
+            return SAVED_SAMPLE_HEADER_BYTES + SAVED_SAMPLE_BYTES_PER_POINT * sample.length * sample.channels;
+        }
+
         // Saves `itemName` of `type` into `folder`'s file list (RQ-AKM-067): creates a new `FileRecord`
         // named `itemName` plus its type's extension, marked loadable as the same kind of memory item it
         // was saved from; refuses as `COULD_NOT_CREATE` when a file of that name exists and
         // `overwriteExisting` is false, replacing it otherwise.
-        Outcome saveToFile(FolderRecord* folder, bool overwriteExisting, std::uint8_t type, const std::string& itemName)
+        Outcome saveToFile(FolderRecord* folder, bool overwriteExisting, std::uint8_t type, const std::string& itemName,
+                           std::uint32_t sizeBytes)
         {
             if (folder == nullptr)
                 return failure(error_number::NOT_FOUND);
             FileRecord file;
             file.name = itemName + extensionForSaveType(type);
-            // A saved file has a size; the simulated sampler gives every one the same nominal size (RQ-AKM-065, &23).
-            file.sizeBytes = 4096;
+            file.sizeBytes = sizeBytes;
             if (type == SAVE_TYPE_PROGRAM)
                 file.loadsProgramNamed = itemName;
             else if (type == SAVE_TYPE_SAMPLE)
@@ -1968,11 +1982,11 @@ namespace akm::harness
         // format, SCSI ID, writable, name), concatenated in order; &02/&03 act on the handle named by
         // the command's own data bytes, not necessarily the current selection (spec Table 20, footnote
         // a reads "the currently selected disk", but &03's own data columns carry a handle like &02's,
-        // which is what this model follows); &06/&08/&09 act on the current selection, answering
-        // ERROR 4 (not found) when there is none, like a current program or sample with nothing
-        // selected; &10-&14/&16/&18 (TASK-AKM-060, RQ-AKM-063) act on the current disk's current folder,
-        // answering ERROR 4 with no disk selected like &06/&08 do; &09 answers the empty path at the root and, below
-        // it, the names of the folders opened joined by '/' (the MCP disk tools needed a path: TASK-MCP-019).
+        // which is what this model follows); &06/&08/&09 act on the current selection and &10-&14/&16/&18
+        // (TASK-AKM-060, RQ-AKM-063) on the current disk's current folder, all answering ERROR 257 (selected disk
+        // invalid) when no disk is selected: the real S5000 answered that to &06 (TASK-MCP-041), the other items
+        // are assumed to answer the same; &09 answers the empty path at the root and, below it, the names of the
+        // folders opened joined by a backslash (the MCP disk tools needed a path: TASK-MCP-019).
         Outcome executeDisk(std::uint8_t item, const Bytes& data, std::vector<DiskRecord>& disks,
                             std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
                             std::vector<ProgramRecord>& programs, std::vector<SampleRecord>& samples,
@@ -2021,7 +2035,7 @@ namespace akm::harness
                 }
                 case ITEM_GET_CURRENT_DISK_TYPE:
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     return reply(Bytes{disks[*currentDisk].type});
                 case ITEM_GET_DISK_TYPE:
                 {
@@ -2037,7 +2051,7 @@ namespace akm::harness
                 case ITEM_GET_CURRENT_DISK_HANDLE:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(disks[*currentDisk].handle));
                     return reply(writer.bytes());
@@ -2045,15 +2059,15 @@ namespace akm::harness
                 case ITEM_GET_CURRENT_DISK_PATH:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     // The root is the empty path (the spec's "a single byte = 0"). Below it the names of the folders opened,
-                    // joined by '/': the real format is not known (to be observed with a disk plugged into the S5000).
+                    // joined by a backslash, as the real S5000 wrote them (`AKWF\AKWF_oboe`, 2026-10-05, TASK-MCP-041).
                     std::string path;
                     const FolderRecord* folder = &disks[*currentDisk].rootFolder;
                     for (const std::size_t index : currentFolderPath)
                     {
                         folder = &folder->subFolders[index];
-                        path += (path.empty() ? "" : "/") + folder->name;
+                        path += (path.empty() ? "" : "\\") + folder->name;
                     }
                     akm::ByteWriter writer;
                     writer.appendString(path);
@@ -2061,12 +2075,12 @@ namespace akm::harness
                 }
                 case ITEM_GET_CURRENT_DISK_FORMAT:
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     return reply(Bytes{disks[*currentDisk].format});
                 case ITEM_GET_DISK_FREE_SPACE:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteWriter writer;
                     writer.appendQword(disks[*currentDisk].freeBytes);
                     return reply(writer.bytes());
@@ -2087,7 +2101,7 @@ namespace akm::harness
                 case ITEM_GET_FOLDER_COUNT:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(folder == nullptr ? 0 : folder->subFolders.size()));
@@ -2096,7 +2110,7 @@ namespace akm::harness
                 case ITEM_GET_FOLDER_NAME:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
                     if (!index.has_value())
@@ -2111,7 +2125,7 @@ namespace akm::harness
                 case ITEM_GET_ALL_FOLDER_NAMES:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
                     if (folder != nullptr)
@@ -2122,7 +2136,7 @@ namespace akm::harness
                 case ITEM_OPEN_FOLDER:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     if (!name)
@@ -2141,7 +2155,7 @@ namespace akm::harness
                 }
                 case ITEM_CLOSE_FOLDER:
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     if (currentFolderPath.empty())
                         return failure(error_number::NOT_FOUND);
                     currentFolderPath.pop_back();
@@ -2149,7 +2163,7 @@ namespace akm::harness
                 case ITEM_CREATE_FOLDER:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     if (!name)
@@ -2163,7 +2177,7 @@ namespace akm::harness
                 case ITEM_RENAME_FOLDER:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto oldName = reader.readString();
                     const auto newName = oldName ? reader.readString() : std::nullopt;
@@ -2179,7 +2193,7 @@ namespace akm::harness
                 case ITEM_LOAD_FOLDER:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     if (!name)
@@ -2207,7 +2221,7 @@ namespace akm::harness
                 case ITEM_GET_FILE_COUNT:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
                     writer.appendWord(static_cast<std::uint32_t>(folder == nullptr ? 0 : folder->files.size()));
@@ -2216,7 +2230,7 @@ namespace akm::harness
                 case ITEM_GET_FILE_NAME:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
                     if (!index.has_value())
@@ -2231,7 +2245,7 @@ namespace akm::harness
                 case ITEM_GET_ALL_FILE_NAMES:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     const FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
                     akm::ByteWriter writer;
                     if (folder != nullptr)
@@ -2242,7 +2256,7 @@ namespace akm::harness
                 case ITEM_GET_FILE_SIZE:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
                     if (!index.has_value())
@@ -2257,7 +2271,7 @@ namespace akm::harness
                 case ITEM_GET_FILE_INDEX_BY_NAME:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     if (!name)
@@ -2273,7 +2287,7 @@ namespace akm::harness
                 case ITEM_RENAME_FILE:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto oldName = reader.readString();
                     const auto newName = oldName ? reader.readString() : std::nullopt;
@@ -2294,7 +2308,7 @@ namespace akm::harness
                 case ITEM_LOAD_FILE:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     const auto sampleLoadOption = name ? reader.readByte() : std::nullopt;
@@ -2310,7 +2324,7 @@ namespace akm::harness
                 case ITEM_LOAD_FILE_WITH_DEPENDENTS:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     if (!name)
@@ -2331,7 +2345,7 @@ namespace akm::harness
                 case ITEM_SAVE_MEMORY_ITEM:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
                     const auto type = index ? reader.readByte() : std::nullopt;
@@ -2340,35 +2354,39 @@ namespace akm::harness
                     if (!index.has_value() || !type || !overwriteExisting || !saveChildren)
                         return failure(error_number::INVALID_FORMAT);
                     std::string itemName;
+                    std::uint32_t sizeBytes = 0;
                     if (*type == SAVE_TYPE_PROGRAM)
                     {
                         if (*index >= programs.size())
                             return failure(error_number::NOT_FOUND);
                         itemName = programs[*index].name;
+                        sizeBytes = SAVED_PROGRAM_BYTES;
                     }
                     else if (*type == SAVE_TYPE_SAMPLE)
                     {
                         if (*index >= samples.size())
                             return failure(error_number::NOT_FOUND);
                         itemName = samples[*index].name;
+                        sizeBytes = savedSampleBytes(samples[*index]);
                     }
                     else if (*type == SAVE_TYPE_MULTI)
                     {
                         if (*index >= multis.size())
                             return failure(error_number::NOT_FOUND);
                         itemName = multis[*index].name;
+                        sizeBytes = SAVED_MULTI_BYTES;
                     }
                     else
                     {
                         return done();  // other memory types are not modelled; nothing to save or fail
                     }
                     FolderRecord* folder = navigateToFolder(disks[*currentDisk], currentFolderPath);
-                    return saveToFile(folder, *overwriteExisting != 0, *type, itemName);
+                    return saveToFile(folder, *overwriteExisting != 0, *type, itemName, sizeBytes);
                 }
                 case ITEM_SAVE_ALL_MEMORY_ITEMS:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto type = reader.readByte();
                     const auto overwriteExisting = type ? reader.readByte() : std::nullopt;
@@ -2382,7 +2400,7 @@ namespace akm::harness
                     {
                         for (const ProgramRecord& program : programs)
                         {
-                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, program.name);
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, program.name, SAVED_PROGRAM_BYTES);
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
@@ -2391,7 +2409,7 @@ namespace akm::harness
                     {
                         for (const SampleRecord& sample : samples)
                         {
-                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, sample.name);
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, sample.name, savedSampleBytes(sample));
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
@@ -2400,7 +2418,7 @@ namespace akm::harness
                     {
                         for (const MultiRecord& multi : multis)
                         {
-                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, multi.name);
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, multi.name, SAVED_MULTI_BYTES);
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
@@ -2410,7 +2428,7 @@ namespace akm::harness
                 case ITEM_START_FILE_AUDITION:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto index = reader.readWord();
                     if (!index.has_value())
@@ -2455,7 +2473,7 @@ namespace akm::harness
                 case ITEM_DELETE_SUB_FOLDER:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     if (!name)
@@ -2470,7 +2488,7 @@ namespace akm::harness
                 case ITEM_DELETE_FILE:
                 {
                     if (!currentDisk.has_value())
-                        return failure(error_number::NOT_FOUND);
+                        return failure(error_number::DISK_SELECTED_DISK_INVALID);
                     akm::ByteReader reader(data);
                     const auto name = reader.readString();
                     if (!name)
