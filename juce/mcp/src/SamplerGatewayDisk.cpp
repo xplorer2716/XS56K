@@ -767,6 +767,39 @@ namespace mcp
         return Outcome<DiskChange>::success(std::move(change));
     }
 
+    Outcome<std::string> SamplerGateway::startFileAudition(std::string_view name)
+    {
+        const auto here = listDiskContents();
+        if (!here.ok())
+            return Outcome<std::string>::failure(here.problem);
+        const DiskFileEntry* found = fileNamed(here.value->files, name);
+        if (found == nullptr)
+            return Outcome<std::string>::failure(noSuchFile(*here.value, name));
+        const int index = static_cast<int>(found - here.value->files.data());
+        const auto started = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::startFileAudition(session(), index, std::move(done));
+        });
+        if (!started)
+            return Outcome<std::string>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*started))
+            return Outcome<std::string>::failure(explain(*started, "starting the audition of the file \"" + found->name + "\"", _config, true, DISK));
+        return Outcome<std::string>::success(found->name);
+    }
+
+    Outcome<bool> SamplerGateway::stopFileAudition()
+    {
+        if (const auto problem = connect())
+            return Outcome<bool>::failure(*problem);
+        const auto stopped = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::stopFileAudition(session(), std::move(done));
+        });
+        if (!stopped)
+            return Outcome<bool>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*stopped))
+            return Outcome<bool>::failure(explain(*stopped, "stopping the audition of the file", _config, true, DISK));
+        return Outcome<bool>::success(true);
+    }
+
     Outcome<DiskContents> SamplerGateway::createFolder(std::string_view name)
     {
         const auto here = writableFolder();

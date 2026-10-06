@@ -123,15 +123,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-035: Audition: `audition_sample` and `audition_file`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the gateway calls and the two tools with an `action` of start or stop (`audition_file` only with `--allow-disk`, and takes a file name for start).
 - **Requirement refs**: RQ-MCP-041
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-024)
 - **Acceptance Criteria** (Gherkin): *Given* a current sample, *When* `audition_sample` is called with start then stop, *Then* the sampler is sent the audition start then the stop; `audition_file` with start needs a name the folder lists.
 - **Dependencies**: TASK-MCP-028
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: tests first, **run red before the code** (`AuditionToolsTests.cpp`, 5 cases: "test cases: 5 | 0 passed | 5 failed"), then green: `xs56k_mcp_tests "[audition]"` → "All tests passed (104 assertions in 5 test cases)". They cover: `audition_sample` an edit (not read-only, not destructive), `audition_file` absent without the flag (-32602) and listed with it; with KICK current the start is sent once and the answer says it plays "until it is stopped", then the stop is sent once; no current sample, an action that is not "start" or "stop" (a word, empty, a number, null, none) and an extra argument send nothing; `audition_file` start of "kick.wav" sends the start with the file's position in the listing (1) and the stop is sent once; a file that is not there (listing the files), no name, a non-string name, a bad action and no disk send nothing. The conversations' tool lists gained exactly `audition_sample` (without the flag) and `audition_sample` and `audition_file` (with it) (regenerated, difference read). `ctest` excluding only the unrelated `bld_mutate_tool_script_tests` (run in full at the end of the batch): 964 of 964 pass. NOT run on the real sampler (TASK-MCP-037; the disk audition ran on it on 2026-10-03 through the AKM probe).
+- **Assumptions**: an audition plays until stopped, and the tool says so in its answer and description; stopping needs no current sample or file (the stop is sent whenever asked); the file is found by its whole name without regard to case, spaces or hyphens and started by its position in the listing; a file that is not a sample is left to the sampler to answer.
 
 ### TASK-MCP-036: The README as a reference, the simulated conversation and the documents
 - **Tier**: L

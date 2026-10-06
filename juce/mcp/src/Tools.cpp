@@ -1176,6 +1176,20 @@ namespace mcp
 
         constexpr const char* DISK_FILES_NOTICE = "It acts on the sampler's own disks, not on the computer's files.";
 
+        // The two actions of an audition. [RQ-MCP-041]
+        constexpr const char* ACTION_START = "start";
+        constexpr const char* ACTION_STOP = "stop";
+        constexpr const char* AUDITION_PLAYS_UNTIL_STOPPED = "it plays until it is stopped";
+
+        // The action of an audition: "start" or "stop", or what is wrong with the argument. [RQ-MCP-041]
+        std::optional<std::string> auditionActionProblem(const json& arguments)
+        {
+            if (!arguments.contains("action") || !arguments.at("action").is_string() ||
+                (arguments.at("action") != ACTION_START && arguments.at("action") != ACTION_STOP))
+                return std::string("Give 'action' as \"") + ACTION_START + "\" or \"" + ACTION_STOP + "\".";
+            return std::nullopt;
+        }
+
         // A megabyte as the samplers count memory. [RQ-MCP-040]
         constexpr double BYTES_PER_MEGABYTE = 1024.0 * 1024.0;
 
@@ -1448,6 +1462,38 @@ namespace mcp
                 return ok("Created the folder \"" + name + "\" in the current folder of the disk \"" + contents.value->diskName + "\" (folder " +
                           (contents.value->path.empty() ? "(root)" : contents.value->path) +
                           "). It is empty and is not opened: use open_folder to go into it.");
+            }});
+
+        // audition_file [RQ-MCP-041]
+        tools.push_back(Tool{
+            definition("audition_file", "Play or stop a file of the current folder",
+                       std::string("Starts the audition of a file of the current folder of the current disk (a sample, see list_disk_contents) or stops "
+                                   "the audition: the sampler plays it through its outputs without loading it. A started audition plays until it is "
+                                   "stopped with action \"stop\". ") +
+                           DISK_NOTICE,
+                       objectSchema(json{{"action", {{"type", "string"}, {"enum", json::array({ACTION_START, ACTION_STOP})}, {"description", "start or stop."}}},
+                                         {"name", {{"type", "string"}, {"description", "For start: the file's name, from list_disk_contents."}}}},
+                                    json::array({"action"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"action", "name"}))
+                    return *refused;
+                if (const auto problem = auditionActionProblem(arguments))
+                    return failure(*problem);
+                if (arguments.at("action") == ACTION_START)
+                {
+                    if (!arguments.contains("name") || !arguments.at("name").is_string())
+                        return failure("Give the 'name' of the file to play (see list_disk_contents).");
+                    const auto started = gateway.startFileAudition(arguments.at("name").get<std::string>());
+                    if (!started.ok())
+                        return failure(started.problem);
+                    return ok("Started the audition of the file \"" + *started.value + "\": " + AUDITION_PLAYS_UNTIL_STOPPED +
+                              " (call audition_file with action \"stop\").");
+                }
+                const auto stopped = gateway.stopFileAudition();
+                if (!stopped.ok())
+                    return failure(stopped.problem);
+                return ok("Stopped the audition of the file.");
             }});
 
         // get_disk_space [RQ-MCP-040]
@@ -1890,6 +1936,34 @@ namespace mcp
                                            "\": it now has " + plural(deletion.value->keygroupCount, "keygroup") +
                                            ". Read the keygroups again before editing them: the numbers after the deleted one may have changed.");
                              }});
+
+        // audition_sample [RQ-MCP-041]
+        tools.push_back(Tool{
+            definition("audition_sample", "Play or stop the current sample",
+                       std::string("Starts or stops the audition of the CURRENT sample (see select_sample): the sampler plays it through its outputs. A "
+                                   "started audition plays until it is stopped with action \"stop\". ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"action", {{"type", "string"}, {"enum", json::array({ACTION_START, ACTION_STOP})}, {"description", "start or stop."}}}},
+                                    json::array({"action"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"action"}))
+                    return *refused;
+                if (const auto problem = auditionActionProblem(arguments))
+                    return failure(*problem);
+                if (arguments.at("action") == ACTION_START)
+                {
+                    const auto started = gateway.startSampleAudition();
+                    if (!started.ok())
+                        return failure(started.problem);
+                    return ok("Started the audition of the sample \"" + *started.value + "\": " + AUDITION_PLAYS_UNTIL_STOPPED +
+                              " (call audition_sample with action \"stop\").");
+                }
+                const auto stopped = gateway.stopSampleAudition();
+                if (!stopped.ok())
+                    return failure(stopped.problem);
+                return ok("Stopped the audition of the sample.");
+            }});
 
         // get_system_info [RQ-MCP-040]
         tools.push_back(Tool{

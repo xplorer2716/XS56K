@@ -492,6 +492,38 @@ namespace mcp
         }
     }
 
+    Outcome<std::string> SamplerGateway::startSampleAudition()
+    {
+        const auto listing = listSamples();
+        if (!listing.ok())
+            return Outcome<std::string>::failure(listing.problem);
+        if (!listing.value->current)
+            return Outcome<std::string>::failure("No sample is current: use select_sample first.");
+        const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
+        const auto started = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::startSampleAudition(_connection->session, std::move(done));
+        });
+        if (!started)
+            return Outcome<std::string>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*started))
+            return Outcome<std::string>::failure(explain(*started, "starting the audition of the sample \"" + name + "\"", _config, true, "sample"));
+        return Outcome<std::string>::success(name);
+    }
+
+    Outcome<bool> SamplerGateway::stopSampleAudition()
+    {
+        if (const auto problem = connect())
+            return Outcome<bool>::failure(*problem);
+        const auto stopped = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::stopSampleAudition(_connection->session, std::move(done));
+        });
+        if (!stopped)
+            return Outcome<bool>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*stopped))
+            return Outcome<bool>::failure(explain(*stopped, "stopping the audition of the sample", _config, true, "sample"));
+        return Outcome<bool>::success(true);
+    }
+
     Outcome<SystemInfo> SamplerGateway::readSystemInfo()
     {
         if (const auto problem = connect())

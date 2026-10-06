@@ -586,6 +586,21 @@ namespace mcp
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();
 
+        /// Starts the audition of the current sample and answers its name; no current sample is a problem and nothing is sent. The
+        /// sample plays until the audition is stopped. [RQ-MCP-041]
+        [[nodiscard]] Outcome<std::string> startSampleAudition();
+
+        /// Stops the audition of the sample. [RQ-MCP-041]
+        [[nodiscard]] Outcome<bool> stopSampleAudition();
+
+        /// Starts the audition of a file of the current folder of the current disk (found without regard to case, spaces or hyphens) and
+        /// answers the name the listing gives it; a file that is not there, or no disk selected, is a problem and nothing is sent. The
+        /// file plays until the audition is stopped. [RQ-MCP-041]
+        [[nodiscard]] Outcome<std::string> startFileAudition(std::string_view name);
+
+        /// Stops the audition of the file. [RQ-MCP-041]
+        [[nodiscard]] Outcome<bool> stopFileAudition();
+
         /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
         /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the
         /// sampler opens a new session. [RQ-MCP-003]
