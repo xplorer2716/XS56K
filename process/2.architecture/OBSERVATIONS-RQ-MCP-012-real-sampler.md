@@ -269,6 +269,16 @@ The sample `AKWF_oboe` files are far too short to judge, so the test used files 
 
 The loaded sample was then deleted with `delete_sample` (12 samples again). The free wave memory was 158341622 bytes before the load, 156156442 with the sample, 157555190 after the deletion: 786432 bytes were not given back (the reason is unknown; not looked into).
 
+### Numbering of the multi parts, and `follow` from a page that is not the multi's (2026-10-06, the owner at the front panel)
+
+A program `MCPPART` and a multi `MCPMULTI5` (32 parts) were made for the run. `set_part_program` put `MCPPART` on part 1 (read back as part 1),
+then, in a server run with `--screen follow` that selected the multi and then set part 5, on part 5. With the sampler's screen on the
+file-system page, **the screen did not move to the multi** when the multi was selected: `follow` makes the screen follow the selection
+within the kind of page that is shown (the program page followed the program in the `--screen` run above), it does not change page
+(a reading of the two runs, not tested apart). With the multi's part page open, the owner saw `MCPPART` on **part 1 and part 5**: **the part
+number the tools send is the number the front panel shows** (the tools send the part minus one on the wire). Both objects were deleted
+afterwards (no program, no multi in the sampler).
+
 Afterwards the two programs were deleted through a server run with `--screen as-is`; the sampler answered that it held no program, but
 the owner's screen still showed `MCPSCR1` (a stale display, not the memory: the screen is not redrawn after a change made over MIDI
 when the server leaves the settings alone).
