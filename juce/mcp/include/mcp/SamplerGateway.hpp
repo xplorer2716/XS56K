@@ -283,6 +283,30 @@ namespace mcp
         std::optional<DiskFileEntry> savedFile;  ///< one item: the file that bears its name afterwards
     };
 
+    /// What a listing after a change must show: a file or a folder of that name is there, or is gone. [RQ-MCP-039, RQ-MCP-033]
+    enum class ListingCheck
+    {
+        FileThere,
+        FileGone,
+        FolderThere,
+        FolderGone
+    };
+
+    /// What a rename or a deletion of a file or a folder did on the current disk: `done` is false when `confirm` was not the exact name
+    /// or when a folder that is not empty was not allowed to be deleted with its contents (`notEmpty`, with what it holds); nothing was
+    /// sent then. For a rename `newName` is the name the sampler gave. [RQ-MCP-039, RQ-MCP-042]
+    struct DiskChange
+    {
+        bool done = true;
+        bool notEmpty = false;
+        std::string diskName;
+        std::string path;
+        std::string name;
+        std::string newName;
+        int files = 0;    ///< a folder's files, when it was looked at
+        int folders = 0;  ///< a folder's sub-folders, when it was looked at
+    };
+
     /// One multi of the sampler's memory: its position (from 0) and its name.
     struct MultiEntry
     {
@@ -406,6 +430,24 @@ namespace mcp
         /// bears (compared without case, spaces or hyphens) are problems and nothing is sent. The name is checked in the
         /// listing afterwards. [RQ-MCP-032]
         [[nodiscard]] Outcome<DiskContents> createFolder(std::string_view name);
+
+        /// Renames a file of the current folder of the current writable disk: `newName` is given without the extension, which the sampler
+        /// keeps and adds (seen on the S5000); a new name that carries the extension, one that a file or a folder already bears, a file
+        /// that is not there, a disk that is not selected or not writable are problems and nothing is sent. The new name is checked in
+        /// the listing afterwards. [RQ-MCP-039]
+        [[nodiscard]] Outcome<DiskChange> renameFile(std::string_view name, std::string_view newName);
+
+        /// The same for a sub-folder of the current folder. [RQ-MCP-039]
+        [[nodiscard]] Outcome<DiskChange> renameFolder(std::string_view name, std::string_view newName);
+
+        /// Deletes a file of the current folder, and only when `confirm` is exactly the name the listing gives it: otherwise nothing is
+        /// sent and `done` is false. The deletion is checked in the listing afterwards. [RQ-MCP-039, RQ-MCP-042]
+        [[nodiscard]] Outcome<DiskChange> deleteFile(std::string_view name, std::string_view confirm);
+
+        /// Deletes a sub-folder of the current folder, and only when `confirm` is exactly its name; a folder that holds files or folders
+        /// is deleted only when `deleteContents` is true, otherwise nothing is sent, `done` and `notEmpty` say so and the counts are
+        /// given (the folder is opened to count and closed again). [RQ-MCP-039, RQ-MCP-042]
+        [[nodiscard]] Outcome<DiskChange> deleteFolder(std::string_view name, std::string_view confirm, bool deleteContents);
 
         /// Loads a file of the current folder of the current disk (its extension decides whether it is a program, a sample, a
         /// multi...), with the files it depends on when `withDependents`, and answers the memory before and after. The name
@@ -558,6 +600,10 @@ namespace mcp
         /// folder's file list until the folder is opened, and a save into a folder that already held a file does not refresh it
         /// (seen on 2026-10-06). [RQ-MCP-033]
         [[nodiscard]] Outcome<DiskContents> reopenCurrentFolder();
+
+        /// Lists the current folder; when the listing does not show what the change did, the folder is closed and opened again and listed
+        /// once more (the sampler keeps a folder's list until it is opened). The caller checks the answer again. [RQ-MCP-033]
+        [[nodiscard]] Outcome<DiskContents> listAfterChange(ListingCheck check, std::string_view name);
         [[nodiscard]] Outcome<MemoryNames> memoryNames();
         /// The current folder when its disk is selected and writable, or the problem that says why a save cannot start.
         [[nodiscard]] Outcome<DiskContents> writableFolder();

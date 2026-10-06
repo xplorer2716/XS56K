@@ -2620,7 +2620,7 @@ namespace akm::harness
                         take();
                     break;
                 case ITEM_GET_ALL_FILE_NAMES:
-                    if (cache.has_value() && outcome.replyId == REPLY_REPLY)
+                    if (cache.has_value())  // served from the copy whatever the folder now holds
                     {
                         akm::ByteWriter writer;
                         for (const FileRecord& file : *cache)
@@ -2628,8 +2628,26 @@ namespace akm::harness
                         outcome = reply(writer.bytes());
                     }
                     break;
+                case ITEM_GET_FILE_INDEX_BY_NAME:
+                    if (cache.has_value())  // served from the copy, found or not
+                    {
+                        akm::ByteReader reader(data);
+                        const auto name = reader.readString();
+                        if (!name.has_value())
+                            break;
+                        const auto found = std::find_if(cache->begin(), cache->end(), [&name](const FileRecord& file) { return file.name == *name; });
+                        if (found == cache->end())
+                        {
+                            outcome = failure(error_number::NOT_FOUND);
+                            break;
+                        }
+                        akm::ByteWriter writer;
+                        writer.appendWord(static_cast<std::uint32_t>(found - cache->begin()));
+                        outcome = reply(writer.bytes());
+                    }
+                    break;
                 case ITEM_GET_FILE_SIZE:
-                    if (cache.has_value() && outcome.replyId == REPLY_REPLY)
+                    if (cache.has_value())  // an index of the copy may no longer exist in the folder
                     {
                         akm::ByteReader reader(data);
                         const auto index = reader.readWord();

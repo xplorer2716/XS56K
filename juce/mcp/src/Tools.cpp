@@ -1174,6 +1174,22 @@ namespace mcp
 
         constexpr const char* DISK_FILES_NOTICE = "It acts on the sampler's own disks, not on the computer's files.";
 
+        // Where a change on the disk happened, for the answers. [RQ-MCP-039]
+        std::string whereText(const std::string& diskName, const std::string& path)
+        {
+            return "the disk \"" + diskName + "\" (folder " + (path.empty() ? "(root)" : path) + ")";
+        }
+
+        // What is wrong with a new name for a file or a folder, or nothing: not blank, one name and not a path. [RQ-MCP-039]
+        std::optional<std::string> diskNameProblem(const std::string& name)
+        {
+            if (name.find_first_not_of(" \t") == std::string::npos)
+                return "The new name is empty: give the 'new_name'.";
+            if (name.find_first_of("/\\") != std::string::npos)
+                return "The new name must be one name, not a path: it cannot contain '/' or '\\'.";
+            return std::nullopt;
+        }
+
         std::string diskType(int type)
         {
             return type >= 0 && type < DISK_TYPE_COUNT ? DISK_TYPES[type] : "type " + std::to_string(type);
@@ -1428,6 +1444,114 @@ namespace mcp
                           (contents.value->path.empty() ? "(root)" : contents.value->path) +
                           "). It is empty and is not opened: use open_folder to go into it.");
             }});
+
+        // rename_file, rename_folder, delete_file, delete_folder [RQ-MCP-039, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)]
+        const auto renameTool = [&gateway](const char* tool, const char* title, bool isFile) {
+            return Tool{
+                definition(tool, title,
+                           std::string(isFile ? "Renames a file of the current folder of the current disk, which must be writable. Give the new name WITHOUT "
+                                                "the extension: the sampler keeps the file's own and adds it. "
+                                              : "Renames a sub-folder of the current folder of the current disk, which must be writable. ") +
+                               "A name that a file or a folder of the folder already bears is refused. It deletes nothing. " + DISK_FILES_NOTICE,
+                           objectSchema(json{{"name", {{"type", "string"}, {"description", isFile ? "The file's name, from list_disk_contents." : "The folder's name, from list_disk_contents."}}},
+                                             {"new_name", {{"type", "string"}, {"description", isFile ? "The new name, without the extension." : "The new name."}}}},
+                                        json::array({"name", "new_name"})),
+                           false, false),
+                [&gateway, isFile](const json& arguments) {
+                    if (const auto refused = unknownArguments(arguments, {"name", "new_name"}))
+                        return *refused;
+                    if (!arguments.contains("name") || !arguments.at("name").is_string() || !arguments.contains("new_name") || !arguments.at("new_name").is_string())
+                        return failure("Give the 'name' and the 'new_name', both as text.");
+                    const std::string newName = arguments.at("new_name").get<std::string>();
+                    if (const auto problem = diskNameProblem(newName))
+                        return failure(*problem);
+                    const auto renamed = isFile ? gateway.renameFile(arguments.at("name").get<std::string>(), newName)
+                                                : gateway.renameFolder(arguments.at("name").get<std::string>(), newName);
+                    if (!renamed.ok())
+                        return failure(renamed.problem);
+                    return ok(std::string("Renamed the ") + (isFile ? "file" : "folder") + " \"" + renamed.value->name + "\" to \"" + renamed.value->newName + "\" in " +
+                              whereText(renamed.value->diskName, renamed.value->path) + ".");
+                }};
+        };
+        tools.push_back(renameTool("rename_file", "Rename a file", true));
+        tools.push_back(renameTool("rename_folder", "Rename a folder", false));
+
+        ToolDefinition removeFile = definition(
+            "delete_file", "Delete a file",
+            std::string("Deletes a file of the current folder of the current disk, which must be writable, and only if 'confirm' is exactly the file's name as "
+                        "list_disk_contents gives it: otherwise nothing is deleted. IRREVERSIBLE: the sampler has no undo and no bin. ") +
+                DISK_FILES_NOTICE,
+            objectSchema(json{{"name", {{"type", "string"}, {"description", "The file's name, from list_disk_contents."}}},
+                              {"confirm", {{"type", "string"}, {"description", "The exact name of the file, to confirm the deletion."}}}},
+                         json::array({"name", "confirm"})),
+            false, false);
+        removeFile.annotations.destructive = true;
+        tools.push_back(Tool{std::move(removeFile), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"name", "confirm"}))
+                                     return *refused;
+                                 if (!arguments.contains("name") || !arguments.at("name").is_string())
+                                     return failure("Give the 'name' of the file to delete.");
+                                 if (!arguments.contains("confirm") || !arguments.at("confirm").is_string())
+                                     return failure("Give 'confirm', the exact name of the file.");
+                                 const std::string confirm = arguments.at("confirm").get<std::string>();
+                                 const auto deletion = gateway.deleteFile(arguments.at("name").get<std::string>(), confirm);
+                                 if (!deletion.ok())
+                                     return failure(deletion.problem);
+                                 if (!deletion.value->done)
+                                     return failure("The file is named \"" + deletion.value->name + "\" and 'confirm' was \"" + confirm +
+                                                    "\": nothing was deleted. Give 'confirm' exactly as the file is named.");
+                                 return ok("Deleted the file \"" + deletion.value->name + "\" from " + whereText(deletion.value->diskName, deletion.value->path) +
+                                           ". It cannot be recovered from here.");
+                             }});
+
+        ToolDefinition removeFolder = definition(
+            "delete_folder", "Delete a folder",
+            std::string("Deletes a sub-folder of the current folder of the current disk, which must be writable, and only if 'confirm' is exactly the "
+                        "folder's name. A folder that holds files or folders is refused, with the count, unless delete_contents is true, and then "
+                        "EVERYTHING in it goes. IRREVERSIBLE: the sampler has no undo and no bin. ") +
+                DISK_FILES_NOTICE,
+            objectSchema(json{{"name", {{"type", "string"}, {"description", "The folder's name, from list_disk_contents."}}},
+                              {"confirm", {{"type", "string"}, {"description", "The exact name of the folder, to confirm the deletion."}}},
+                              {"delete_contents",
+                               {{"type", "boolean"}, {"description", "Allow deleting a folder that holds files or folders, with all of it. Default false."}}}},
+                         json::array({"name", "confirm"})),
+            false, false);
+        removeFolder.annotations.destructive = true;
+        tools.push_back(Tool{std::move(removeFolder), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"name", "confirm", "delete_contents"}))
+                                     return *refused;
+                                 if (!arguments.contains("name") || !arguments.at("name").is_string())
+                                     return failure("Give the 'name' of the folder to delete.");
+                                 if (!arguments.contains("confirm") || !arguments.at("confirm").is_string())
+                                     return failure("Give 'confirm', the exact name of the folder.");
+                                 bool deleteContents = false;
+                                 if (arguments.contains("delete_contents"))
+                                 {
+                                     if (!arguments.at("delete_contents").is_boolean())
+                                         return failure("The argument 'delete_contents' must be true or false.");
+                                     deleteContents = arguments.at("delete_contents").get<bool>();
+                                 }
+                                 const std::string confirm = arguments.at("confirm").get<std::string>();
+                                 const auto deletion = gateway.deleteFolder(arguments.at("name").get<std::string>(), confirm, deleteContents);
+                                 if (!deletion.ok())
+                                     return failure(deletion.problem);
+                                 if (deletion.value->notEmpty)
+                                 {
+                                     const int items = deletion.value->files + deletion.value->folders;
+                                     return failure("The folder \"" + deletion.value->name + "\" holds " + plural(items, "item") + " (" +
+                                                    plural(deletion.value->files, "file") + ", " + plural(deletion.value->folders, "folder") +
+                                                    "): nothing was deleted. Pass delete_contents true to delete the folder with everything in it.");
+                                 }
+                                 if (!deletion.value->done)
+                                     return failure("The folder is named \"" + deletion.value->name + "\" and 'confirm' was \"" + confirm +
+                                                    "\": nothing was deleted. Give 'confirm' exactly as the folder is named.");
+                                 const int items = deletion.value->files + deletion.value->folders;
+                                 if (items == 0)
+                                     return ok("Deleted the empty folder \"" + deletion.value->name + "\" from " +
+                                               whereText(deletion.value->diskName, deletion.value->path) + ".");
+                                 return ok("Deleted the folder \"" + deletion.value->name + "\" and the " + plural(items, "item") + " it held from " +
+                                           whereText(deletion.value->diskName, deletion.value->path) + ". It cannot be recovered from here.");
+                             }});
 
         // load_file
         tools.push_back(Tool{

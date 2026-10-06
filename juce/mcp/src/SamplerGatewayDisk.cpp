@@ -507,6 +507,251 @@ namespace mcp
         return listDiskContents();
     }
 
+    namespace
+    {
+        /// A file of the folder by its whole name, the extension included, compared without regard to case, spaces or hyphens.
+        const DiskFileEntry* fileNamed(const std::vector<DiskFileEntry>& files, std::string_view name)
+        {
+            const std::string wanted = normalizeText(name);
+            for (const DiskFileEntry& file : files)
+            {
+                if (normalizeText(file.name) == wanted)
+                    return &file;
+            }
+            return nullptr;
+        }
+
+        const std::string* folderNamed(const std::vector<std::string>& folders, std::string_view name)
+        {
+            const std::string wanted = normalizeText(name);
+            for (const std::string& folder : folders)
+            {
+                if (normalizeText(folder) == wanted)
+                    return &folder;
+            }
+            return nullptr;
+        }
+
+        bool endsWithIgnoringCase(const std::string& text, const std::string& tail)
+        {
+            if (tail.empty() || text.size() < tail.size())
+                return false;
+            return std::equal(tail.begin(), tail.end(), text.end() - static_cast<std::ptrdiff_t>(tail.size()),
+                              [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); });
+        }
+
+        std::string noSuchFile(const DiskContents& here, std::string_view name)
+        {
+            std::string text = "There is no file named \"" + std::string(name) + "\" in the current folder of the disk \"" + here.diskName + "\".";
+            if (here.files.empty())
+                return text + " The folder holds no file.";
+            std::vector<std::string> names;
+            for (const DiskFileEntry& file : here.files)
+                names.push_back(file.name);
+            return text + " Its files are: " + quotedList(names) + ".";
+        }
+
+        std::string noSuchFolder(const DiskContents& here, std::string_view name)
+        {
+            std::string text = "There is no folder named \"" + std::string(name) + "\" in the current folder of the disk \"" + here.diskName + "\".";
+            if (here.folders.empty())
+                return text + " The folder holds no sub-folder.";
+            return text + " Its folders are: " + quotedList(here.folders) + ".";
+        }
+
+        bool listingShows(ListingCheck check, const DiskContents& contents, std::string_view name)
+        {
+            switch (check)
+            {
+                case ListingCheck::FileThere:
+                    return fileNamed(contents.files, name) != nullptr;
+                case ListingCheck::FileGone:
+                    return fileNamed(contents.files, name) == nullptr;
+                case ListingCheck::FolderThere:
+                    return folderNamed(contents.folders, name) != nullptr;
+                case ListingCheck::FolderGone:
+                    return folderNamed(contents.folders, name) == nullptr;
+            }
+            return false;
+        }
+    }
+
+    Outcome<DiskContents> SamplerGateway::listAfterChange(ListingCheck check, std::string_view name)
+    {
+        const auto listed = listDiskContents();
+        if (!listed.ok() || listingShows(check, *listed.value, name))
+            return listed;
+        return reopenCurrentFolder();
+    }
+
+    Outcome<DiskChange> SamplerGateway::renameFile(std::string_view name, std::string_view newName)
+    {
+        const auto here = writableFolder();
+        if (!here.ok())
+            return Outcome<DiskChange>::failure(here.problem);
+        const DiskFileEntry* file = fileNamed(here.value->files, name);
+        if (file == nullptr)
+            return Outcome<DiskChange>::failure(noSuchFile(*here.value, name));
+
+        const std::string extension = file->name.substr(baseName(file->name).size());
+        const std::string wantedNew(newName);
+        if (endsWithIgnoringCase(wantedNew, extension))
+            return Outcome<DiskChange>::failure("The sampler keeps the file's own extension (\"" + extension + "\") and adds it to the new name: give \"" +
+                                                wantedNew.substr(0, wantedNew.size() - extension.size()) + "\" and not \"" + wantedNew + "\".");
+        const std::string expected = wantedNew + extension;
+        for (const DiskFileEntry& other : here.value->files)
+        {
+            if (&other != file && normalizeText(other.name) == normalizeText(expected))
+                return Outcome<DiskChange>::failure("The current folder already holds a file named \"" + other.name + "\": nothing was renamed. Choose another name.");
+        }
+        if (const std::string* folder = folderNamed(here.value->folders, expected))
+            return Outcome<DiskChange>::failure("The current folder already holds a folder named \"" + *folder + "\": nothing was renamed. Choose another name.");
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameFile(session(), file->name, newName, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<DiskChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<DiskChange>::failure(explain(*renamed, "renaming the file \"" + file->name + "\"", _config, true, DISK));
+
+        const auto after = listAfterChange(ListingCheck::FileThere, expected);
+        if (!after.ok())
+            return Outcome<DiskChange>::failure("The sampler accepted the rename but the folder could not be read afterwards: " + after.problem);
+        const DiskFileEntry* now = fileNamed(after.value->files, expected);
+        if (now == nullptr)
+            return Outcome<DiskChange>::failure("The sampler accepted the rename but no file named \"" + expected + "\" is in the folder afterwards: check the disk.");
+        DiskChange change;
+        change.diskName = here.value->diskName;
+        change.path = here.value->path;
+        change.name = file->name;
+        change.newName = now->name;
+        return Outcome<DiskChange>::success(std::move(change));
+    }
+
+    Outcome<DiskChange> SamplerGateway::renameFolder(std::string_view name, std::string_view newName)
+    {
+        const auto here = writableFolder();
+        if (!here.ok())
+            return Outcome<DiskChange>::failure(here.problem);
+        const std::string* folder = folderNamed(here.value->folders, name);
+        if (folder == nullptr)
+            return Outcome<DiskChange>::failure(noSuchFolder(*here.value, name));
+
+        for (const std::string& other : here.value->folders)
+        {
+            if (&other != folder && normalizeText(other) == normalizeText(newName))
+                return Outcome<DiskChange>::failure("The current folder already holds a folder named \"" + other + "\": nothing was renamed. Choose another name.");
+        }
+        if (const DiskFileEntry* file = fileNamed(here.value->files, newName))
+            return Outcome<DiskChange>::failure("The current folder already holds a file named \"" + file->name + "\": nothing was renamed. Choose another name.");
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameFolder(session(), *folder, newName, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<DiskChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<DiskChange>::failure(explain(*renamed, "renaming the folder \"" + *folder + "\"", _config, true, DISK));
+
+        const auto after = listAfterChange(ListingCheck::FolderThere, newName);
+        if (!after.ok())
+            return Outcome<DiskChange>::failure("The sampler accepted the rename but the folder could not be read afterwards: " + after.problem);
+        const std::string* now = folderNamed(after.value->folders, newName);
+        if (now == nullptr)
+            return Outcome<DiskChange>::failure("The sampler accepted the rename but no folder named \"" + std::string(newName) + "\" is in the folder afterwards: check the disk.");
+        DiskChange change;
+        change.diskName = here.value->diskName;
+        change.path = here.value->path;
+        change.name = *folder;
+        change.newName = *now;
+        return Outcome<DiskChange>::success(std::move(change));
+    }
+
+    Outcome<DiskChange> SamplerGateway::deleteFile(std::string_view name, std::string_view confirm)
+    {
+        const auto here = writableFolder();
+        if (!here.ok())
+            return Outcome<DiskChange>::failure(here.problem);
+        const DiskFileEntry* file = fileNamed(here.value->files, name);
+        if (file == nullptr)
+            return Outcome<DiskChange>::failure(noSuchFile(*here.value, name));
+        DiskChange change;
+        change.diskName = here.value->diskName;
+        change.path = here.value->path;
+        change.name = file->name;
+        if (file->name != confirm)
+        {
+            change.done = false;
+            return Outcome<DiskChange>::success(std::move(change));
+        }
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteFile(session(), change.name, akm::ConfirmDeleteFile::IUnderstandThisDeletesTheFile, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<DiskChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<DiskChange>::failure(explain(*deleted, "deleting the file \"" + change.name + "\"", _config, true, DISK));
+
+        const auto after = listAfterChange(ListingCheck::FileGone, change.name);
+        if (!after.ok())
+            return Outcome<DiskChange>::failure("The sampler accepted the deletion but the folder could not be read afterwards: " + after.problem);
+        if (fileNamed(after.value->files, change.name) != nullptr)
+            return Outcome<DiskChange>::failure("The sampler accepted the deletion but the file \"" + change.name + "\" is still in the folder afterwards: check the disk.");
+        return Outcome<DiskChange>::success(std::move(change));
+    }
+
+    Outcome<DiskChange> SamplerGateway::deleteFolder(std::string_view name, std::string_view confirm, bool deleteContents)
+    {
+        const auto here = writableFolder();
+        if (!here.ok())
+            return Outcome<DiskChange>::failure(here.problem);
+        const std::string* folder = folderNamed(here.value->folders, name);
+        if (folder == nullptr)
+            return Outcome<DiskChange>::failure(noSuchFolder(*here.value, name));
+        DiskChange change;
+        change.diskName = here.value->diskName;
+        change.path = here.value->path;
+        change.name = *folder;
+        if (*folder != confirm)
+        {
+            change.done = false;
+            return Outcome<DiskChange>::success(std::move(change));
+        }
+
+        // What the folder holds: it is opened to count and closed again, so that the current folder is the same afterwards.
+        const auto inside = openFolder(change.name);
+        if (!inside.ok())
+            return Outcome<DiskChange>::failure("The folder \"" + change.name + "\" could not be looked at before its deletion: " + inside.problem);
+        change.files = static_cast<int>(inside.value->files.size());
+        change.folders = static_cast<int>(inside.value->folders.size());
+        const auto back = closeFolder();
+        if (!back.ok())
+            return Outcome<DiskChange>::failure("The folder \"" + change.name + "\" was looked at but the sampler could not go back up: " + back.problem);
+        if ((change.files > 0 || change.folders > 0) && !deleteContents)
+        {
+            change.done = false;
+            change.notEmpty = true;
+            return Outcome<DiskChange>::success(std::move(change));
+        }
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteSubFolder(session(), change.name, akm::ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<DiskChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<DiskChange>::failure(explain(*deleted, "deleting the folder \"" + change.name + "\"", _config, true, DISK));
+
+        const auto after = listAfterChange(ListingCheck::FolderGone, change.name);
+        if (!after.ok())
+            return Outcome<DiskChange>::failure("The sampler accepted the deletion but the folder could not be read afterwards: " + after.problem);
+        if (folderNamed(after.value->folders, change.name) != nullptr)
+            return Outcome<DiskChange>::failure("The sampler accepted the deletion but the folder \"" + change.name + "\" is still listed afterwards: check the disk.");
+        return Outcome<DiskChange>::success(std::move(change));
+    }
+
     Outcome<DiskContents> SamplerGateway::createFolder(std::string_view name)
     {
         const auto here = writableFolder();

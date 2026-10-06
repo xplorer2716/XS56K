@@ -347,9 +347,8 @@ TEST_CASE("Given the save tools, When the server is launched without --allow-dis
     for (const json& tool : list["result"]["tools"])
     {
         const std::string name = tool["name"].get<std::string>();
-        CHECK(name.find("delete_file") == std::string::npos);
-        CHECK(name.find("delete_folder") == std::string::npos);
-        CHECK(name.find("rename_file") == std::string::npos);
+        // delete_file, delete_folder, rename_file and rename_folder are offered since ADR-MCP-004 (DEC-MCP-024), asking for a confirmation
+        // when they delete (DiskFileOpsTests.cpp); ejecting and formatting still are not.
         CHECK(name.find("eject") == std::string::npos);
         CHECK(name.find("format") == std::string::npos);
         if (name == "save_memory_item" || name == "save_all_memory_items")
