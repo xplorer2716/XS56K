@@ -63,8 +63,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 - **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
   `juce/mcp/README.md` (options, tools, safety rules, tests). 32 tools without an option, 48 with `--allow-disk`; every deletion asks for a
   `confirm` that is the exact name; the disk refresh needs `--allow-disk-refresh` too and **hung the sampler**, never send it without
-  asking the owner; no tool deletes everything, clears the memory, formats or ejects. The tools added by ADR-MCP-004 are not run on the
-  real sampler yet (TASK-MCP-037, with the owner, on test objects only).
+  asking the owner; no tool deletes everything, clears the memory, formats or ejects. Every tool has been run on the real sampler on test
+  objects (2026-10-05/06, `OBSERVATIONS-RQ-MCP-012-real-sampler.md`); not yet looked at: the `--screen` modes against the sampler's screen.
   [RQ-MCP-001 to RQ-MCP-044, ADR-MCP-001 to ADR-MCP-004]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the

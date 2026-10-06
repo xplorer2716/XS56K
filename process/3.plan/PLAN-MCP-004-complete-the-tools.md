@@ -149,14 +149,14 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-037: Real-sampler run of the new tools with the owner
 - **Tier**: M
-- **Status**: Blocked
+- **Status**: In Progress
 - **Description**: With the owner present, run each new tool on the real S5000 on objects made for the run (a program created for it, samples loaded from the disk, a multi created for it, the `MCPTEST*` folders and a test file), one at a time, write up what the sampler did in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, list what is left on the disk, and correct the simulated sampler for what it did differently. It includes the owner's check of the sampler's screen with each value of `--screen` (RQ-MCP-045): what is shown when the person selects another program than the assistant's, with Sync LCD off and with it on.
 - **Requirement refs**: RQ-MCP-044
 - **ADR refs**: ADR-MCP-004
 - **Acceptance Criteria** (Gherkin): *Given* the owner present, *When* each new tool is run alone, *Then* its answer and what the sampler did are in the observations file, the objects created are removed or listed, and the simulated sampler matches what was seen.
 - **Dependencies**: TASK-MCP-036 (and the owner)
 - **Assignee**: Human and AI
-- **Verification**: NOT DONE: blocked until the tools exist and the owner is present.
+- **Verification**: PARTLY DONE on 2026-10-06, the owner present: every new tool was run on the real S5000 on objects made for the run, one at a time, and written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md` ("The tools of ADR-MCP-004"): `get_system_info`, `add_keygroups`, `delete_keygroup` (the numbers after a deleted keygroup move down), `set_zone_sample`, `get_zone_samples`, `rename_sample`, `delete_sample`, `audition_sample`, `create_multi`, `rename_multi`, `delete_multi`, `set_part_program`, `get_part_programs`, `clear_part`, `set_multi_program_number`, the 12 part parameters of a real multi, `get_disk_space` (the sampler answers 0 bytes free for this FAT32 disk), `audition_file`, `rename_file` of a `.WAV` (the extension is appended), `rename_folder`, `delete_file`, `delete_folder` with and without `delete_contents`, `save_memory_item` with `save_children` and of a multi (`.AKM` confirmed), and the control of `load_file` without and with `with_dependents`. Everything created was deleted again and the disk is back to its original content. Still to do: the owner's check of the screen with each `--screen` mode, and the correction of the simulated sampler (TASK-MCP-041).
 - **Assumptions**: Never run on the owner's own files; no tool of this plan is run on the refresh of the disk list; a deletion is run only on the test file and folders made for the run.
 
 ### TASK-MCP-038: The option table of the README and the `--help` text say what each option does when given and when left out
@@ -182,3 +182,27 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI (at the owner's request of 2026-10-06)
 - **Verification**: tests first, **red before the code** (the build of `xs56k_mcp_tests` failed: "'screen': is not a member of 'mcp::GatewayConfig'", "'ScreenMode': the symbol to the left of a '::' must be a type"), then green. `xs56k_mcp_tests "[options]"` → "All tests passed (168 assertions in 21 test cases)" and `"[gateway]"` → "All tests passed (470 assertions in 33 test cases)". They cover: no `--screen` gives `independent`; the three values, in the spaced and the `--screen=value` forms, reach the gateway's configuration; `sideways`, empty, `Follow`, `asis`, `off`, `1` and a missing value are usage errors naming `--screen`, `independent`, `follow` and `as-is`; `--no-lcd` is refused and the message names `--screen as-is`; the usage text names `--screen`, not `--no-lcd`, gives the three values, the default and what the close puts back; with `independent` the sampler is sent Sync LCD 0 and Auto screen update 1 (once each), with `follow` both 1, with `as-is` nothing, and after the close of `independent` and `follow` Sync LCD is on and Auto screen update off, after the close of `as-is` still nothing was sent. `ctest` excluding only the unrelated `bld_mutate_tool_script_tests` (run in full at the end of the batch): 970 of 970 pass. The README (the option table with two columns and a table of the three modes), the CHANGELOG, FTR-MCP-001 (RQ-MCP-002), ADR-MCP-001 (DEC-MCP-004, DEC-MCP-008) and PLAN-MCP-001 were made consistent: `--no-lcd` no longer appears in a current requirement, decision or document of the MCP server (the AKM probe has its own `--no-lcd`, unrelated). **A discrepancy was caught while reading the code for this task**: the documents and my own explanations said the close "puts the settings back as they were"; the session puts each setting it changed back to its documented default (`samplerDefault`: Sync LCD on, Auto screen update off), since section 00 has no Get. The existing test "the section 00 settings are back to their defaults" already said so. NOT run on a real sampler: what the S5000's screen shows in each mode is part of TASK-MCP-037.
 - **Assumptions**: `independent` stays the default (it is what the server did without `--no-lcd`); `follow` sets Sync LCD on and Auto screen update on, as the owner's description of "follow" implies, and its effect on the S5000's screen is deduced from the specification (§00 `&03` footnote a), not observed; `--no-lcd` is removed outright, not kept as an alias, since the only configuration known (the owner's `.mcp.json`) does not use it.
+
+### TASK-MCP-040: `get_disk_space` says when the sampler reports 0 bytes free
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: On the owner's S5000 the free space of the SCSI2SD disk (FAT32) is reported as 0 bytes while files can be written to it (`OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the tool must not present that as a fact. When the sampler answers 0, the answer says that the sampler reports 0 bytes, that it probably does not report the free space of this kind of disk, and that the figure must not be relied on.
+- **Requirement refs**: RQ-MCP-040
+- **ADR refs**: ADR-MCP-004 (DEC-MCP-024)
+- **Acceptance Criteria** (Gherkin): *Given* a disk for which the sampler reports 0 bytes free, *When* `get_disk_space` is called, *Then* the answer says the sampler reports 0 bytes, that the figure is probably not reported for this kind of disk, and gives no size in MB; *Given* a disk with free space, *Then* the answer is unchanged.
+- **Dependencies**: TASK-MCP-034
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: None yet.
+
+### TASK-MCP-041: The simulated sampler matches what the real S5000 did
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Correct the simulated sampler, each with its test, for what the real runs showed and it did differently: the error with no disk selected (257, "selected disk is invalid", against 4), the current path below the root written with a backslash (`AKWF\AKWF_oboe` against `AKWF/AKWF_oboe`), the size of a saved program (516 bytes, observed for a program of one keygroup), of a saved sample (44 bytes of header plus 2 bytes per sample point and channel: 1376 bytes for a 666-point mono sample) and of a saved multi (2354 bytes for a multi of 32 parts), and the memory after the deletion of a sample (none is selected); check against the observations the other behaviours the tools rely on (the keygroups after a deleted one move down, a sample keeps its place when renamed, a new multi has 32 parts) and add a test for each that has none.
+- **Requirement refs**: RQ-MCP-044, RQ-MCP-030
+- **ADR refs**: ADR-MCP-003 (DEC-MCP-022); ADR-MCP-004
+- **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* each of the behaviours above is exercised, *Then* it answers as the real sampler did (the observations file is the source), and no earlier test is changed except where its expectation was the old, wrong behaviour.
+- **Dependencies**: TASK-MCP-037
+- **Assignee**: AI
+- **Verification**: (to be filled at closure)
+- **Assumptions**: None yet.

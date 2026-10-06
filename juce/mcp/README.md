@@ -273,23 +273,23 @@ delete, rename, create, save, load, eject, format or clear, and allows each one 
 
 ## 6. What has been tried on a real sampler
 
-On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, 2026-10-05 and 2026-10-06; the full record is
-`process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
+On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, 2026-10-05 and 2026-10-06, with the owner present, on objects made for the test; the
+full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 
-| Worked on the real sampler | Not tried yet on the real sampler |
+| Tried and worked | Not tried, or with a known limit |
 |---|---|
-| program tools; all 119 program parameters set, read back and put back; creating, renaming, deleting a program | adding and deleting keygroups |
-| the sample parameters, on a real sample loaded from the disk (all 8 editable ones) | assigning a sample to a zone |
-| browsing the disk, selecting it, opening folders, `create_folder` | renaming and deleting samples; creating, renaming, deleting multis; part programs; the multi's program number |
-| `load_file` (a program, a 40 MB sample, a program with its sample), `load_folder` (13 samples) | `get_system_info`, `get_disk_space`, `audition_sample`, `audition_file` |
-| `save_memory_item` (a program, a sample), `save_all_memory_items` (13 samples), the refusal to overwrite, and the save with `overwrite` | renaming and deleting files and folders |
-| | the multi parameters on a real multi |
+| **Programs**: create, rename, delete; all 119 parameters set, read back and put back | the sampler's own answer to deleting the last keygroup of a program (the server refuses it first) |
+| **Keygroups and zones**: `add_keygroups`, `delete_keygroup` (the keygroups after a deleted one move down by one), `set_zone_sample`, `get_zone_samples` (the same sample may play in two zones) | |
+| **Samples**: the 8 editable parameters; `rename_sample`, `delete_sample` (no sample is selected afterwards); `audition_sample` (start and stop accepted) | whether anything is *heard*: the audition was started and stopped at once |
+| **Multis**: `create_multi` (32 parts), `rename_multi`, `delete_multi`, `set_part_program` by name and by position, `get_part_programs`, `clear_part`, `set_multi_program_number`, and **all 12 part parameters** | the numbering of the parts against the front panel (the server sends the part minus one) |
+| **Disk**: browsing, `create_folder`, `rename_file` (a `.WAV` and a `.AKP`: the sampler adds the extension), `rename_folder`, `delete_file`, `delete_folder` with and without `delete_contents`, `audition_file` | **`get_disk_space` says 0 bytes free** for this FAT32 disk: the S5000 does not seem to report it, so do not rely on it |
+| **Load and save**: `load_file` (a program, a 40 MB sample, a multi), the control of `with_dependents` (without it no sample is added, with it the program's samples are), `load_folder` (13 samples); `save_memory_item` (a program, a sample, a multi), `save_children` (the program and the samples it uses), `save_all_memory_items` (13 samples), the refusal to overwrite and the save with `overwrite` | a save of a very large sample |
+| **Information**: `get_system_info` | the three `--screen` modes against the sampler's screen: not yet looked at |
+
+A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`.
 
 **Do not use the refresh of the disk list (`--allow-disk-refresh`):** on this sampler it never answered, and the sampler had to be
 switched off and on. It is not needed for a disk that was plugged in before the server started.
-
-The tools in the right-hand column are tested against the simulated sampler only, which is not evidence of what the sampler itself
-does; they are tried on the real one, one at a time, on objects made for the test.
 
 ---
 

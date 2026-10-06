@@ -210,6 +210,40 @@ multi on the disk), and the refresh, which must not be run again on this sampler
 and that are still to correct: the error code with no disk selected (257 against 4), the path format below the root (`AKWF\AKWF_oboe` against `AKWF/AKWF_oboe`), the size of a saved program (516 bytes against
 4096), the order of a folder listing (the sampler's, not alphabetical), and the time of a load of a large file.
 
+## The tools of ADR-MCP-004 (TASK-MCP-037), run on 2026-10-06 with the owner present
+
+The server built from the branch, launched with `--allow-disk` (screen mode `independent`, the default), one tool at a time through a
+scripted client, the output written to files. The refresh of the disk list was never sent; the sampler never stopped answering. The
+objects were made for the run: a program `MCPTEST1`/`MCPTEST2`, a multi `MCPMULTI*`, the folder `MCPTEST` of the owner's disk (the
+owner had deleted the earlier `MCPTEST*` folders and `MCPSAVETEST.AKP` by hand between the runs). Everything created was deleted
+again by the tools: the disk root is back to its 8 folders and 5 files, the memory holds the 12 `AKWF_oboe` samples loaded earlier
+and nothing else.
+
+| Tool | What the sampler did |
+|---|---|
+| `get_system_info` | `AKAI S5000`, operating system 2.14, free wave memory 99 % (158324678 bytes of 158548694), free program, keygroup, sample and multi memory 99 % |
+| `add_keygroups` | 1 keygroup added to a 1-keygroup program: 2, in 0.0 s |
+| `set_zone_sample`, `get_zone_samples` | `AKWF_oboe_0001` on zone 1 and `AKWF_oboe_0002` on zone 2 of keygroup 2, each read back by the sampler (0.2 s); the other zones "no sample"; **the same sample can play in two zones** (`AKWF_oboe_0002` on zones 2 and 3) |
+| `delete_keygroup` | a wrong `confirm` is refused with nothing sent; keygroup 1 of 2 deleted with the program's name: **the former keygroup 2 became keygroup 1 with its zones** (the numbers after a deleted keygroup move down by one); the last keygroup is refused by the tool before anything is sent (what the sampler itself does was not tried) |
+| `rename_sample`, `delete_sample` | `AKWF_oboe_0013` renamed `MCPREN`: it stays at position 12 (the memory order is alphabetical); a name another sample bears is refused by the tool; a wrong `confirm` refused; deleted: 12 samples left and **no sample is selected afterwards** |
+| `audition_sample` | start and stop accepted (the stop followed the start at once; whether anything was heard was not checked) |
+| `create_multi`, `rename_multi`, `delete_multi` | a multi is created with **32 parts** and is current; renamed; a wrong `confirm` refused; deleted |
+| `set_part_program`, `get_part_programs`, `clear_part`, `set_multi_program_number` | by name and by position, read back (the same program on two parts is allowed); the program number 5 and then `null` read back; a wrong `confirm` for `clear_part` refused, then the part cleared |
+| `get_multi_parameters`, `set_multi_parameter` | **all 12 part parameters of part 1 of a real multi** set to another value, read back as set, and put back (mute, solo, level, output, pan, effects channel, FX send, MIDI channel, fine tune, transpose, low note, high note); the defaults of a new multi's part: level 100, output OP1/2, pan 0, effects OFF, MIDI channel 1A, low note 21, high note 127 |
+| `get_disk_space` | **"0 bytes free" for the disk `S5K`** (FAT32 on a SCSI2SD), which cannot be true since files were written to it: the S5000 does not seem to report the free space of this disk (TASK-MCP-040 makes the tool say so) |
+| `audition_file` | start and stop of a `.WAV` file accepted |
+| `rename_file` of a `.WAV` | `MCPREN` given: the file became `MCPREN.WAV`, **the sampler appends the extension as it does for a `.AKP`** (0.6 s); renamed back |
+| `rename_folder` | `MCPTEST` to `MCPTESTB` and back, 0.8 s each, the folder kept its place in the listing |
+| `delete_file` | a wrong `confirm` refused with nothing sent; the file deleted (0.3 s) |
+| `delete_folder` | refused while the folder held a file ("1 item (1 file, 0 folders)", 1.0 s: the gateway opens it to count); deleted with `delete_contents` (1.8 s for 1 file, 2.2 s for 4 files) |
+| `save_memory_item` with `save_children` | the program `MCPTEST1.AKP` (516 bytes) and **the two samples it uses**, `AKWF_oboe_0001.WAV` and `AKWF_oboe_0002.WAV` (1376 bytes each), were written |
+| `save_memory_item` of a multi | `MCPMULTI3.AKM`, 2354 bytes: **the extension of a multi's file is `.AKM`**, as the simulated sampler assumed |
+| `load_file` control | the program `MCPTEST1.AKP` loaded **without** `with_dependents`: samples 10, was 10; **with** it: samples 12, was 10, `AKWF_oboe_0001` and `AKWF_oboe_0002` added; the multi `MCPMULTI3.AKM` loaded: multis 1, was 0 |
+
+Not run: the three `--screen` modes against the screen (the owner's eyes are needed: it is the last part of TASK-MCP-037), the
+sampler's own answer to deleting the last keygroup of a program (the tool refuses first), and the numbering of the parts against the
+front panel (the tools send the part minus one).
+
 ## Not established
 
 - What the sampler's screen shows (modulation source and clock division labels, the effect of Auto screen update during edits).
