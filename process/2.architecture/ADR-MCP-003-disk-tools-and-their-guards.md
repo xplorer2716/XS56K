@@ -5,7 +5,7 @@ Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-003 (RQ-MCP-023 to 
 on the loop), after the owner asked for loading and saving through the server. It amends ADR-MCP-002 DEC-MCP-010 (section 10 was
 "never offered"): browsing, loading and saving become offered behind the guards below, and delete, rename, eject
 and format stay never offered (create-folder was added by DEC-MCP-021). The other decisions of ADR-MCP-001 and ADR-MCP-002 stand. No independent review by a second model
-was run. **DEC-MCP-020 (2026-10-05)** narrows DEC-MCP-017 for the refresh: it needs `--allow-disk-refresh` as well. **DEC-MCP-021 (2026-10-06)** takes create-folder out of the "never offered" list, at the owner's request.
+was run. **DEC-MCP-020 (2026-10-05)** narrows DEC-MCP-017 for the refresh: it needs `--allow-disk-refresh` as well. **DEC-MCP-021 (2026-10-06)** takes create-folder out of the "never offered" list, at the owner's request. **ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024, 2026-10-06)** takes rename and delete of files and folders out of it too, behind a confirmation by the exact name.
 
 ## Context
 

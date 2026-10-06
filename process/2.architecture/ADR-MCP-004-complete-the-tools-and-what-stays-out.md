@@ -80,7 +80,7 @@ README. [RQ-MCP-043]
 
 - **Easier.** A client can load a sample, assign it to a zone, build a multi, free memory, fix names and tidy the owner's disk; the
   loop "load, make a program, make it play, save" works end to end.
-- **Harder.** Twenty more tools: the server offers 17 tools without `--allow-disk` and 27 with it before this record, 31 and 47
+- **Harder.** Twenty-one more tools: the server offers 17 tools without `--allow-disk` and 27 with it before this record, 32 and 48
   after it; a client picks among more of them, so every description says in one line when to use it and what it needs.
 - **Constrained.** A deletion of a file or a folder is irreversible and the sampler gives no undo: the guard is the confirmation by
   name, the folder-contents rule and the owner's own judgement; the real run uses only the `MCPTEST*` folders and test files.

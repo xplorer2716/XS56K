@@ -20,12 +20,12 @@ into the sampler".
 
 **Guards (ADR-MCP-003).** The disk tools exist only when the server is launched with `--allow-disk` (the owner's explicit choice,
 written in the client's server configuration); the slow commands have a long, configurable timeout and a message that says what
-a silent sampler means; the disk refresh is never sent unless asked, and asked for by a launch option of its own (`--allow-disk-refresh`, RQ-MCP-031); saves refuse to overwrite by default; and delete, eject,
-format and rename-file stay never offered (create-folder was added by RQ-MCP-032, at the owner's request of 2026-10-06).
+a silent sampler means; the disk refresh is never sent unless asked, and asked for by a launch option of its own (`--allow-disk-refresh`, RQ-MCP-031); saves refuse to overwrite by default; and eject and format stay never offered (create-folder was added by RQ-MCP-032 and the rename and delete of files and folders by
+RQ-MCP-039 of FTR-MCP-004, at the owner's request of 2026-10-06).
 
 **Vocabulary** is unchanged: names as the sampler's screen shows them, sizes in bytes, no invented file format.
 
-**Out of scope.** Deleting or renaming a file or a folder, ejecting a disk, formatting, saving or loading song
+**Out of scope.** Ejecting a disk (deleting and renaming a file or a folder were taken up by FTR-MCP-004), formatting, saving or loading song
 files and set lists, scenelists and MIDI files (SMF), auditioning a file from disk, moving files between the computer and the
 sampler, and everything FTR-MCP-002 already excludes (Delete ALL programs and multis, Clear Sampler Memory).
 
@@ -93,7 +93,7 @@ the front panel's), `documents/_index/sysex_spec.items.tsv` (section 10), the AK
 ### RQ-MCP-028: Never offered, still
 - **Category**: Functional
 - **EARS Type**: Unwanted-behavior
-- **Statement**: The server SHALL expose no tool that deletes or renames a file or a folder, ejects or formats a disk, and none that deletes all programs, samples or multis or clears the sampler's memory; the disk primitives it calls SHALL be those of browsing, loading, saving and creating a folder, called only from the gateway's disk unit.
+- **Statement**: The server SHALL expose no tool that ejects or formats a disk (the tools that rename or delete a file or a folder are those of RQ-MCP-039, which ask for a confirmation), and none that deletes all programs, samples or multis or clears the sampler's memory; the disk primitives it calls SHALL be those of browsing, loading, saving and creating a folder, called only from the gateway's disk unit.
 - **Rationale**: those are the irreversible operations of the section; saving and loading are the ones a person needs.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the sources of `juce/mcp`, *When* searched for the delete, rename, eject and format primitives of the disk, *Then* there is no call, and the load, save, select, create-folder and folder-navigation primitives are called only from the gateway's disk unit.

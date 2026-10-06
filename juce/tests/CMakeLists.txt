@@ -158,7 +158,7 @@ add_test(NAME mcp_simulated_server_scripted_conversation
         -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
-        -DEXPECT_LINES=96
+        -DEXPECT_LINES=114
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The same server launched with --allow-disk and --allow-disk-refresh (the conversation sends a refresh), and a scripted conversation over the disk tools: browsing, loading, saving, what
 # a save refuses and a read-only disk. To regenerate the expected output after a deliberate change, run
@@ -170,7 +170,7 @@ add_test(NAME mcp_simulated_server_disk_conversation
         "-DSERVER_ARGS=--allow-disk;--allow-disk-refresh"
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_disk_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_disk_session.expected.jsonl
-        -DEXPECT_LINES=36
+        -DEXPECT_LINES=45
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The shipped server must not link the simulated sampler or anything else of the test support: checked when CMake
 # configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
@@ -187,6 +187,16 @@ add_test(NAME mcp_sources_call_no_destructive_primitive
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/mcp
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
+
+# The README of the MCP server names every tool the server lists and every option of its usage text: it is the reference for the person
+# who uses the server. [TASK-MCP-036, RQ-MCP-043, ADR-MCP-004 (DEC-MCP-026)]
+add_test(NAME mcp_readme_names_every_tool_and_option
+    COMMAND ${CMAKE_COMMAND}
+        -DSIMULATED_SERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
+        -DREAL_SERVER=$<TARGET_FILE:xs56k_mcp_server>
+        -DREADME=${PROJECT_SOURCE_DIR}/mcp/README.md
+        -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/list_tools.jsonl
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckReadmeCoversTools.cmake)
 
 # No JUCE include in the public headers of the AKM layer. [RQ-AKM-019]
 add_test(NAME akm_public_headers_have_no_juce_include

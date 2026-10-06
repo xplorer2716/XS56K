@@ -287,6 +287,7 @@ DEC-MCP-026|68-78||The README is the human reference, organised by what a person
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-05.md
+@process/3.plan/CHECKPOINT-MCP-2026-10-06.md
 @process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md
 PLAN-AKM-001|1-210||Transport and SysEx Configuration (Phase A, lots A0+A1)
 TASK-AKM-001|30-43|Done|Author the Phase A feature files
@@ -481,6 +482,6 @@ TASK-MCP-032|88-99|Done|Multis: create, rename, delete, part program, clear part
 TASK-MCP-033|100-111|Done|Files and folders: rename and delete
 TASK-MCP-034|112-123|Done|Information: `get_system_info` and `get_disk_space`
 TASK-MCP-035|124-135|Done|Audition: `audition_sample` and `audition_file`
-TASK-MCP-036|136-147|Not Started|The README as a reference, the simulated conversation and the documents
+TASK-MCP-036|136-147|Done|The README as a reference, the simulated conversation and the documents
 TASK-MCP-037|148-158|Blocked|Real-sampler run of the new tools with the owner
 @process/3.plan/SUMMARY-akm-sections-coverage.md

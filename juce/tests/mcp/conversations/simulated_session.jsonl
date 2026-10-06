@@ -94,4 +94,22 @@
 {"jsonrpc":"2.0","id":93,"method":"tools/call","params":{"name":"set_multi_parameter","arguments":{"parameter":"part level","value":80,"part":33}}}
 {"jsonrpc":"2.0","id":94,"method":"tools/call","params":{"name":"select_multi","arguments":{"name":"NOPE"}}}
 {"jsonrpc":"2.0","id":95,"method":"tools/call","params":{"name":"list_parameters","arguments":{"domain":"multi","group":"setup"}}}
-{"jsonrpc":"2.0","id":96,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":96,"method":"tools/call","params":{"name":"get_system_info","arguments":{}}}
+{"jsonrpc":"2.0","id":97,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"BASS"}}}
+{"jsonrpc":"2.0","id":98,"method":"tools/call","params":{"name":"set_zone_sample","arguments":{"sample":"KICK","zone":1,"keygroup":1}}}
+{"jsonrpc":"2.0","id":99,"method":"tools/call","params":{"name":"get_zone_samples","arguments":{"keygroup":1}}}
+{"jsonrpc":"2.0","id":100,"method":"tools/call","params":{"name":"add_keygroups","arguments":{"count":1}}}
+{"jsonrpc":"2.0","id":101,"method":"tools/call","params":{"name":"delete_keygroup","arguments":{"keygroup":1,"confirm":"WRONG"}}}
+{"jsonrpc":"2.0","id":102,"method":"tools/call","params":{"name":"select_sample","arguments":{"name":"KICK"}}}
+{"jsonrpc":"2.0","id":103,"method":"tools/call","params":{"name":"rename_sample","arguments":{"name":"KICK2"}}}
+{"jsonrpc":"2.0","id":104,"method":"tools/call","params":{"name":"delete_sample","arguments":{"confirm":"KICK"}}}
+{"jsonrpc":"2.0","id":105,"method":"tools/call","params":{"name":"audition_sample","arguments":{"action":"start"}}}
+{"jsonrpc":"2.0","id":106,"method":"tools/call","params":{"name":"audition_sample","arguments":{"action":"stop"}}}
+{"jsonrpc":"2.0","id":107,"method":"tools/call","params":{"name":"create_multi","arguments":{"name":"STAGE"}}}
+{"jsonrpc":"2.0","id":108,"method":"tools/call","params":{"name":"set_part_program","arguments":{"part":1,"program":"BASS"}}}
+{"jsonrpc":"2.0","id":109,"method":"tools/call","params":{"name":"get_part_programs","arguments":{}}}
+{"jsonrpc":"2.0","id":110,"method":"tools/call","params":{"name":"set_multi_program_number","arguments":{"number":5}}}
+{"jsonrpc":"2.0","id":111,"method":"tools/call","params":{"name":"clear_part","arguments":{"part":1,"confirm":"WRONG"}}}
+{"jsonrpc":"2.0","id":112,"method":"tools/call","params":{"name":"rename_multi","arguments":{"name":"STAGE2"}}}
+{"jsonrpc":"2.0","id":113,"method":"tools/call","params":{"name":"delete_multi","arguments":{"confirm":"STAGE"}}}
+{"jsonrpc":"2.0","id":114,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

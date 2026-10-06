@@ -135,15 +135,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-036: The README as a reference, the simulated conversation and the documents
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Rewrite `juce/mcp/README.md` as the human reference of ADR-MCP-004 DEC-MCP-026 (what it is and needs, start, options table, which tool needs which option, the tools by domain with arguments and confirmations, the safety rules, what has been tried on a real sampler, troubleshooting, developers' notes last); add a `ctest` case that checks that every tool the server lists and every option of the usage text is in it; extend the scripted conversations with the new tools; update `AGENTS.md`, `CHANGELOG.md` and the checkpoint.
 - **Requirement refs**: RQ-MCP-043, RQ-MCP-044
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-026)
 - **Acceptance Criteria** (Gherkin): *Given* the README, *When* its tool tables and the server's tool list are compared, *Then* each tool of the list (all options on) is in a table with its needed option, and each option of the usage text is in the options table; the scripted conversations match.
 - **Dependencies**: TASK-MCP-029 to TASK-MCP-035
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: the check written first and **run red before the README was touched**: `ctest -R mcp_readme_names_every_tool_and_option` → failed, "The README leaves out tools: set_zone_sample, get_zone_samples, ... delete_folder (21) options: --in, --out, --list-ports, --help"; then green after the rewrite: "Test #961: mcp_readme_names_every_tool_and_option ... Passed". The check (`CheckReadmeCoversTools.cmake`) reads the tool names from the simulated server launched with `--allow-disk --allow-disk-refresh` (a `tools/list` request in `conversations/list_tools.jsonl`, 48 tools) and the options from the shipped server's `--help`, and requires each between backticks in the README. The README is organised as DEC-MCP-026 says: what it is and needs, how to start, the table of every option, which tools need which option (32 without an option, 48 with `--allow-disk`), the tools by domain with arguments and the exact `confirm`, the safety rules, what was tried on a real sampler (a two-column table), what to do when something goes wrong, and the developers' notes last. The two scripted conversations gained 18 and 9 requests (the new memory tools; the new disk tools): 114 and 45 answers, each new answer read one by one (successes and refusals of a wrong `confirm`), expected output regenerated. `CHANGELOG.md`, `AGENTS.md` (a pointer), ADR-MCP-003, FTR-MCP-003 and ADR-MCP-004 (the tool counts: 32 and 48) were updated. Full `ctest` (Debug, MSVC `/W4 /WX`), the complete suite including the build-tool test: 966 of 966 pass (916 at TASK-MCP-029's start of the batch plus the new cases, as counted per task).
+- **Assumptions**: the README is in English like the other documents of the repository; the table "what has been tried on a real sampler" lists the tools of ADR-MCP-004 as not tried and must be updated by TASK-MCP-037; `get_part_programs` was added during TASK-MCP-032 (ADR-MCP-004 DEC-MCP-024 and FTR-MCP-004 RQ-MCP-038 say so), hence 15 new memory tools and 6 new disk tools (21), not the 20 first counted.
 
 ### TASK-MCP-037: Real-sampler run of the new tools with the owner
 - **Tier**: M

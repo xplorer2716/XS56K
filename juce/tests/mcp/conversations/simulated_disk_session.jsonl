@@ -34,4 +34,13 @@
 {"jsonrpc":"2.0","id":34,"method":"tools/call","params":{"name":"list_disk_contents","arguments":{}}}
 {"jsonrpc":"2.0","id":35,"method":"tools/call","params":{"name":"create_folder","arguments":{"name":"SYNTH"}}}
 {"jsonrpc":"2.0","id":36,"method":"tools/call","params":{"name":"create_folder","arguments":{"name":"A/B"}}}
-{"jsonrpc":"2.0","id":37,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
+{"jsonrpc":"2.0","id":37,"method":"tools/call","params":{"name":"get_disk_space","arguments":{}}}
+{"jsonrpc":"2.0","id":38,"method":"tools/call","params":{"name":"rename_file","arguments":{"name":"INIT.AKP","new_name":"FIRST"}}}
+{"jsonrpc":"2.0","id":39,"method":"tools/call","params":{"name":"delete_file","arguments":{"name":"FIRST.AKP","confirm":"WRONG"}}}
+{"jsonrpc":"2.0","id":40,"method":"tools/call","params":{"name":"delete_file","arguments":{"name":"FIRST.AKP","confirm":"FIRST.AKP"}}}
+{"jsonrpc":"2.0","id":41,"method":"tools/call","params":{"name":"rename_folder","arguments":{"name":"SYNTH","new_name":"SYNTH2"}}}
+{"jsonrpc":"2.0","id":42,"method":"tools/call","params":{"name":"delete_folder","arguments":{"name":"SYNTH2","confirm":"SYNTH2"}}}
+{"jsonrpc":"2.0","id":43,"method":"tools/call","params":{"name":"delete_folder","arguments":{"name":"NEWDIR","confirm":"NEWDIR"}}}
+{"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"audition_file","arguments":{"action":"start","name":"KICK2.WAV"}}}
+{"jsonrpc":"2.0","id":45,"method":"tools/call","params":{"name":"audition_file","arguments":{"action":"stop"}}}
+{"jsonrpc":"2.0","id":46,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

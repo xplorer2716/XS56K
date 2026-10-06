@@ -11,18 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - This section may be incomplete. for full history, please check git history.
 - Initial project structure.
-- MCP server (`juce/mcp`, `xs56k_mcp_server`): an MCP client such as Claude Code can edit the sampler's memory by talking to
-  it. Seventeen tools in three tiers (read, edit, structure): programs (list, select, create, rename, and delete the current
-  one by confirming its name), 119 program parameters (filter, envelopes, LFOs, pitch and amplitude, output, tuning, pitch
-  bend, and 13 per zone), samples (list, select, 12 parameters) and multis (list, select, 12 part parameters), named in the
-  musician's vocabulary and set in the sampler's own units, each Set read back from the sampler. The MIDI ports are launch
-  arguments of the server (`--in`, `--out`, `--list-ports` shows them). With `--allow-disk` it also offers ten disk tools (the sampler's disk-list refresh only with `--allow-disk-refresh`) to
-  browse the sampler's own disks, create a folder, load a file or a folder into memory and save a program, a sample or a multi (one, or every
-  one of a kind) to a writable disk, never replacing a file unless `overwrite` is true; `--disk-timeout-ms` sets how long those
-  slow commands wait. It never deletes or renames a file or a folder, never deletes everything and never creates or deletes a
-  sample or a multi. It speaks both eras of MCP over standard input and output. The program tools and parameters were run on a real S5000; the sample tools were also run on a real sample, and the disk browsing, loads and the save of a program on a real disk; the bulk save, the load of a
-  folder and the multi tools are tested against the simulated sampler only (the refresh of the disk list has left a real S5000 answering nothing
-  until it was switched off and on, hence its own launch option) (`xs56k_mcp_server_simulated` lets you try it with no sampler).
+- MCP server (`juce/mcp`, `xs56k_mcp_server`): an MCP client such as Claude Code can work on the sampler by talking to it, in the
+  musician's vocabulary and the sampler's own units, each Set read back from the sampler. **32 tools without any option**: programs
+  (list, select, create, rename, delete), 119 program parameters, keygroups (add, delete), the sample of each zone, samples (list,
+  select, 12 parameters, rename, delete, audition), multis (list, select, create, rename, delete, 12 part parameters, the program of
+  each part, the program number), and the sampler's model and free memory. **16 more with `--allow-disk`**: browse the sampler's own
+  disks, create, rename and delete folders and files, load a file or a folder, save one item or every item of a kind (never replacing a
+  file unless `overwrite` is true), free space, audition a file; `--disk-timeout-ms` sets how long the slow disk commands wait, and the
+  sampler's disk-list refresh needs `--allow-disk-refresh` as well (it hung a real S5000). **Every deletion asks for a `confirm` that is
+  the exact name of what is deleted**, and nothing is sent otherwise. The MIDI ports are launch arguments (`--in`, `--out`;
+  `--list-ports` shows them). It never deletes everything, never clears the memory, never formats or ejects. It speaks both eras of
+  MCP over standard input and output; `juce/mcp/README.md` is its reference. Run on a real S5000: the program tools and parameters, the
+  parameters of a real sample, and browsing, loading and saving on a real disk; the tools added with ADR-MCP-004 (zone samples,
+  keygroups, multis, renaming and deleting, information, audition) are tested against the simulated sampler only
+  (`xs56k_mcp_server_simulated` lets you try it with no sampler).
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
   closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard

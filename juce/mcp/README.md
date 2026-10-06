@@ -1,126 +1,306 @@
-# juce/mcp — MCP server for the AKAI S5000/S6000
+# XS56K MCP server — control an AKAI S5000/S6000 from an AI assistant
 
-An [MCP](https://modelcontextprotocol.io) server that lets an MCP client (Claude Code or another) edit the sampler's memory by
-talking to it: "set the filter cutoff to 80", "change the filter type to 2-POLE LP+", "create a program with 4 keygroups",
-"set the loop end of the sample to 1500", "put part 3 of the multi on channel 10B". Requirements:
-`process/1.requirements/FTR-MCP-001-program-editing-server.md` and `FTR-MCP-002-structure-and-more-domains.md`; decisions:
-`process/2.architecture/ADR-MCP-001-mcp-server-architecture.md` and `ADR-MCP-002-safety-tiers-and-domain-targets.md`.
+This program lets an AI assistant (Claude Code, or any other [MCP](https://modelcontextprotocol.io) client) work on your sampler
+through MIDI, in plain musical words: *"set the filter cutoff to 80"*, *"load the sample S1 and play it on zone 1 of the first
+keygroup"*, *"build a multi with BASS on part 1 and LEAD on part 2"*, *"save the program"*.
 
-## Run it
+**What you need**
+- an AKAI S5000 or S6000 connected to the computer by MIDI (SysEx must reach it: use the ports the sampler is on);
+- an MCP client that can start a program and talk to it on its standard input and output;
+- the program `xs56k_mcp_server` (built with the rest of the project, see [Build](#build)).
+
+**What it does not do:** it does not record, edit audio, format a disk, eject a disk or touch the files of your computer. It works on
+what is in the **sampler's memory**, and — only if you ask for it — on the **sampler's own disks**.
+
+## Contents
+1. [Start it](#1-start-it)
+2. [The launch options](#2-the-launch-options)
+3. [Which tools need which option](#3-which-tools-need-which-option)
+4. [The tools](#4-the-tools)
+5. [Safety: what asks for a confirmation, what is never done](#5-safety)
+6. [What has been tried on a real sampler](#6-what-has-been-tried-on-a-real-sampler)
+7. [When something goes wrong](#7-when-something-goes-wrong)
+8. [For developers](#8-for-developers)
+
+---
+
+## 1. Start it
+
+**Find the MIDI ports of the sampler**
 
 ```
 xs56k_mcp_server --list-ports
-xs56k_mcp_server --in "<port the sampler sends on>" --out "<port it receives on>"
 ```
 
-Optional: `--device-id <0-31>` (default 0), `--timeout-ms <ms>` (default 2000), `--no-lcd` (leave the sampler's Sync LCD and
-Auto screen update settings alone), `--allow-disk` (offer the disk tools), `--allow-disk-refresh` (with `--allow-disk`: let `list_disks` refresh the sampler's disk list; see
-below) and `--disk-timeout-ms <ms>` (default 120000). The server speaks MCP on standard input and output and logs on standard error, so it is
-started by the client, not by hand.
+It prints the inputs (what the sampler sends to the computer) and the outputs (what the computer sends to the sampler).
 
-**The MIDI ports are the server's configuration.** Put them in the arguments of the server entry of your client's MCP
-configuration. With Claude Code, for example:
+**Tell your MCP client how to start the server.** The ports are part of the server's configuration: they are written in the
+arguments of the server's entry in the client's own settings. With Claude Code:
 
 ```
 claude mcp add xs56k -- <path to>/xs56k_mcp_server --in "MIDIIN2 (ESI M8U eX)" --out "MIDIOUT15 (ESI M8U eX)"
 ```
 
-(or the equivalent `command` and `args` in the client's own settings file; that file is yours, do not commit it).
+(or the same `command` and `args` in the client's settings file; that file is yours, do not commit it). To let the assistant load and
+save files on the sampler's disks, add `--allow-disk` to those arguments (see the next section).
 
-To try the tools with no sampler, run `xs56k_mcp_server_simulated` instead (built with the tests): the same server over a
-simulated sampler holding three programs (PAD, BASS and LEAD, BASS current).
+**You do not start the server yourself**: the client starts it, and stops it by closing its standard input. On start the server
+opens a session with the sampler at the first call that needs it (so the list of tools works with the sampler switched off). It
+switches the sampler's *Still Alive* on, *Sync LCD* off and *Auto screen update* on, and puts them back when the client closes the
+server. A server that is killed instead leaves them changed until the sampler is switched off and on.
 
-## What it does
+**To try the tools without a sampler**, run `xs56k_mcp_server_simulated` instead (built with the tests): the same server over a
+simulated sampler holding three programs, three samples and two multis, and two disks when started with `--allow-disk`.
 
-Seventeen tools (twenty-seven with `--allow-disk`, see below). Each declares a tier in its MCP annotations: **read** changes nothing, **edit** overwrites a value or a
-selection in memory, **structure** creates, renames or deletes a program in memory.
+### Build
 
-| Tool | Tier | What it does |
+```
+cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+cmake --build juce/build --target xs56k_mcp_server
+```
+
+The program is `juce/build/mcp/xs56k_mcp_server` (in a `Debug` folder with Visual Studio). On Windows, a running server locks its
+file: build into another folder with `cmake --build juce/build --target xs56k_mcp_server -- "/p:OutDir=<folder>\"` to run a fresh copy.
+
+---
+
+## 2. The launch options
+
+| Option | Default | What it does |
 |---|---|---|
-| `get_status` | read | whether the sampler answers, how many programs, the current one and its keygroups |
-| `list_programs` | read | the programs in memory, with their positions (the sampler keeps them in alphabetical order) |
-| `list_parameters` | read | the parameters, their names, what they accept and do (optionally one group, and a `domain`: program, sample or multi) |
-| `select_program` | edit | makes a program current, by name or by position |
-| `get_parameters` | edit | reads a group or a list of parameters of the current program, for one keygroup or all, and for one zone or all (it moves the sampler's keygroup selection) |
-| `set_parameter` | edit | sets one parameter (a number, a choice such as `2-POLE LP+`, or on/off) for a keygroup and a zone, then reads it back |
-| `create_program` | structure | creates a program with a name (up to 12 characters) and 1 to 99 keygroups, and makes it current |
-| `rename_program` | structure | renames the current program |
-| `delete_program` | structure | deletes the **current** program, only when `confirm` is its exact name |
-| `list_samples`, `select_sample` | read, edit | the samples in memory with their positions; makes one current |
-| `get_sample_parameters`, `set_sample_parameter` | read, edit | the current sample's 12 parameters (four of them read-only: type, channels, length, rate) |
-| `list_multis`, `select_multi` | read, edit | the multis in memory with their positions and the current one's part count; makes one current |
-| `get_multi_parameters`, `set_multi_parameter` | read, edit | the 12 parameters of a part of the current multi (parts numbered from 1; a Set needs its `part`, a number or `all`) |
+| `--in "<port>"` | *required* | the MIDI input port: what the sampler sends to the computer |
+| `--out "<port>"` | *required* | the MIDI output port: what the computer sends to the sampler |
+| `--device-id <0-31>` | `0` | the sampler's DeviceID, if you changed it from 0 |
+| `--timeout-ms <ms>` | `2000` | how long an ordinary command waits for the sampler's answer (1 to 60000) |
+| `--no-lcd` | off | leave the sampler's *Sync LCD* and *Auto screen update* settings alone |
+| `--allow-disk` | off | **turns on the 16 disk tools**: browse the sampler's disks, load, save, rename, delete, create folders, free space, audition files |
+| `--allow-disk-refresh` | off | with `--allow-disk` only: lets `list_disks` ask the sampler to refresh its list of disks. **Leave it off**: it hung the owner's S5000 until it was switched off and on |
+| `--disk-timeout-ms <ms>` | `120000` | how long a slow disk command (a load, a save) waits; after it the sampler may have to be switched off and on, and nothing is retried (1 to 1800000) |
+| `--list-ports` | | prints the MIDI ports and exits |
+| `--help` | | prints the options and exits |
 
-Everything above acts on the sampler's **memory**: nothing deletes all programs or multis or clears the memory, and no tool
-creates, deletes or renames a sample or a multi. A program is lost if the sampler is switched off without saving it, from the
-front panel or with the disk tools below.
+`--allow-disk-refresh` without `--allow-disk` is an error. With none of the two, the server never touches a disk.
 
-### The disk tools (only with `--allow-disk`)
+---
 
-A person cannot get a sample, a program or a multi into the sampler, or keep one, without the disk. These ten tools exist only when
-the server is launched with `--allow-disk` (write it in the client's server configuration, next to the ports), because **a slow
-section 10 command has once left a real S5000 answering nothing until it was switched off and on**. They act on the sampler's own
-disks (hard disk, floppy, CD-ROM, removable), not on the computer's files.
+## 3. Which tools need which option
 
-| Tool | Tier | What it does |
+| Group of tools | Tools | Needs |
 |---|---|---|
-| `list_disks` | read | the connected disks (handle, name, type, format, writable), the current one marked; the sampler's refresh of its list (the risky command) only with the launch option `--allow-disk-refresh` and `refresh` true |
-| `select_disk` | edit | makes a disk current, by name or handle |
-| `list_disk_contents` | read | the current folder's sub-folders and files with their sizes, and the path |
-| `open_folder`, `close_folder` | edit | descends into a sub-folder, goes back up |
-| `create_folder` | disk | creates an empty sub-folder in the current folder of a writable disk (refuses an existing name, a path, a read-only disk); does not open it |
-| `load_file` | structure | loads a file of the current folder (a program, a sample, a multi), with `with_dependents` the files it depends on, a `sample_mode` (normal, ram, virtual); answers the memory before and after |
-| `load_folder` | structure | loads a sub-folder and everything in it |
-| `save_memory_item` | disk, destructive | saves a program, sample or multi by name to the current folder of a writable disk; refuses if a file of that name is there unless `overwrite` is true; checks the folder afterwards |
-| `save_all_memory_items` | disk, destructive | saves every item of a kind, only when `confirm` is how many there are in memory |
+| Status and information | 3 | nothing |
+| Programs, keygroups and zones | 11 | nothing |
+| Samples | 7 | nothing |
+| Multis | 11 | nothing |
+| **Disks and files** | **16** | **`--allow-disk`** |
+| The refresh of the disk list | an argument of `list_disks` | `--allow-disk` **and** `--allow-disk-refresh` |
 
-**The refresh of the disk list is off unless `--allow-disk-refresh` is given**: on the owner's S5000, whose disk is a SCSI2SD, it left the
-sampler answering nothing until it was switched off and on, and it is not needed for a disk that was plugged in before the server
-started (the list, the selection, the browsing and the loads worked without it). `--disk-timeout-ms` (default 120000) is how long a
-load or a save waits. After it the answer says the sampler may have to
-be switched off and on, and nothing is retried. No tool deletes or renames a file or a folder, ejects or formats a
-disk. **Run on the real sampler (2026-10-05, owner present, SCSI2SD disk)**: browsing, `select_disk`, `load_file` of a program (0.3 s)
-and of a 40 MB sample (60 s) work, a program with its sample was loaded with `with_dependents` (both added), and a program was saved (refused when its file exists, replaced with `overwrite`); the refresh hung the
-sampler; `save_all_memory_items`, saving a sample or a multi and the multi tools are tested against the simulated
-sampler only so far; `load_folder` of a 13-sample folder worked (1.4 s) (`PLAN-MCP-003` TASK-MCP-023).
+That is **32 tools without any option and 48 with `--allow-disk`**. A disk tool that is not enabled is absent from the server's list of
+tools, and calling it is an error.
 
-**What was run on a real S5000** (2026-10-05, `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`): the program tools
-and all 119 program parameters, on a program the server created and deleted. The sample tools were then run on a real sample (S1, loaded from the
-disk): the eight editable parameters were set, read back and put back. The multi tools were run against an empty memory only; their
-parameters are verified on the simulated sampler until a multi is in memory.
+**Tiers.** Every tool tells the client what it does to the sampler, in its MCP annotations:
 
-Open points: the numbering of a multi's parts against the front panel (the tools send the part minus one), what codes 12 to 14 of
-the modulation sources show on the screen, and whether a program name of more than 12 characters is kept.
+| Tier | Meaning | Examples |
+|---|---|---|
+| **read** | changes nothing | `get_status`, `list_samples`, `list_disk_contents` |
+| **change** | changes a value, a selection, a name, or adds something | `set_parameter`, `select_program`, `create_multi`, `load_file` |
+| **destructive** | deletes or replaces something: always asks for a `confirm` (or `overwrite`) | `delete_program`, `delete_file`, `save_memory_item` |
 
-On Windows a running `xs56k_mcp_server.exe` (the client's own) locks the file: build into another folder with
-`cmake --build <dir> --target xs56k_mcp_server -- "/p:OutDir=<folder>\"` to run a fresh copy by hand.
+---
 
-When a client closes the server's standard input, the server closes its session and puts the sampler's section 00 settings
-back (checksums, Still Alive, Notification, Sync LCD, Auto screen update). A server that is killed instead leaves Still Alive
-on, Sync LCD off and Auto screen update on until the sampler is switched off.
+## 4. The tools
 
-## Safety rules
+Values are in the sampler's own units (0 to 100 for most parameters), signed values are plain signed numbers, and choices are
+named as the sampler's screen names them (`"2-POLE LP+"`, `"10B"`). Every value that is set is read back from the sampler and
+reported as the sampler holds it. Zones are numbered 1 to 4, keygroups and multi parts from 1, and positions in lists from 0.
 
-- No tool deletes or renames a file or a folder, ejects or formats a disk, deletes all programs or multis, clears
-  the sampler's memory, or creates, deletes or renames a sample or a multi. The `ctest` entry `mcp_sources_call_no_destructive_primitive`
-  searches the sources and allows each primitive in one file only: the gateway creates, renames and deletes a program, its disk unit
-  (`SamplerGatewayDisk.cpp`) loads and saves.
-- The disk tools exist only with `--allow-disk`, and the refresh of the disk list only with `--allow-disk-refresh` as well (it hung the
-  owner's S5000); they never replace a file unless `overwrite` is true. Browsing, loading (a file, with dependents, a folder) and the save of a program have been run on the real
-  sampler, the bulk save and the save of a sample or a multi not yet (see above).
-- The ports are the server's configuration, in the client's own MCP settings file, which is never committed.
-- Requirements `RQ-MCP-001` to `RQ-MCP-030`, tasks `TASK-MCP-002` to `TASK-MCP-024`.
+In the tables, **\*** marks a required argument. **Confirm** says which exact text a destructive tool needs.
 
-## Tests
+### 4.1 Status and information (no option)
 
-`xs56k_mcp_tests` and the `mcp_*` entries of `ctest`, all against the simulated sampler. `xs56k_mcp_server_simulated` (built with the
-tests, never shipped) is the same server over a simulated sampler holding three programs, three samples and two multis; a scripted
-conversation piped into it is a `ctest` entry (`--allow-disk` adds two disks and a second conversation).
+| Tool | What it does | Arguments |
+|---|---|---|
+| `get_status` | whether the sampler answers, how many programs it holds, which one is current and how many keygroups it has | none |
+| `get_system_info` | the model (S5000 or S6000), the operating system version, the free wave memory (percent and bytes: check it before loading a large sample) and the free program, keygroup, sample and multi memory | none |
+| `list_parameters` | the names of the parameters, what each accepts, and what it does | `domain` (`program`, `sample` or `multi`), `group` (to narrow the list) |
 
-## Layout
+### 4.2 Programs, keygroups and zones (no option)
 
-`src/McpServer.cpp` (JSON-RPC lines, both eras of MCP), `src/ParameterCatalogue.cpp` and `src/StandardParameters.cpp` (the
-parameters as a table of rows, checked against the AKM item catalogue by the tests), `src/SamplerGateway.cpp` (blocking calls
-over an AKM session), `src/Tools.cpp` (the tools), `src/ServerOptions.cpp` (the launch arguments) and `server/main.cpp`
-(the executable, the only file that knows the JUCE MIDI backend). To add a parameter, add a row to `StandardParameters.cpp`.
-Tests are in `juce/tests/mcp/`.
+A program has 1 to 99 keygroups; a keygroup has 4 zones, each of which plays a sample.
+
+| Tool | What it does | Arguments | Confirm |
+|---|---|---|---|
+| `list_programs` | the programs in memory, with their positions (the sampler keeps them in alphabetical order) | none | |
+| `select_program` | makes a program current | `name` or `index` | |
+| `create_program` | creates a program and makes it current | `name`\*, `keygroups`\* (1 to 99) | |
+| `rename_program` | renames the current program | `name`\* | |
+| `delete_program` | **deletes the current program** | `confirm`\* | its exact name |
+| `get_parameters` | reads parameters of the current program (the filter, the envelopes, the LFOs, the keygroup's options, the zones' settings...) | `group` or `parameters`\*, `keygroup`, `zone` | |
+| `set_parameter` | sets one parameter, for one keygroup (or all) and one zone (or all) | `parameter`\*, `value`\*, `keygroup`, `zone` | |
+| `add_keygroups` | adds empty keygroups to the current program (up to 99 in all) | `count`\* | |
+| `delete_keygroup` | **deletes one keygroup** of the current program, with its zones; never the last one | `keygroup`\*, `confirm`\* | the program's exact name |
+| `set_zone_sample` | makes a zone of a keygroup play a sample that is in memory | `sample`\*, `zone`\* (1 to 4), `keygroup`\* | |
+| `get_zone_samples` | the sample each zone plays, for one keygroup or all | `keygroup` | |
+
+`get_parameters` moves the sampler's keygroup selection. `list_parameters` gives the 119 program parameters.
+
+### 4.3 Samples (no option)
+
+A sample can only come from a disk (`load_file`) or be recorded on the sampler: no tool creates one. All the sample tools act on the
+**current** sample.
+
+| Tool | What it does | Arguments | Confirm |
+|---|---|---|---|
+| `list_samples` | the samples in memory, with their positions | none | |
+| `select_sample` | makes a sample current | `name` or `index` | |
+| `get_sample_parameters` | the current sample's parameters: start, end, loop start and end, playback mode, original pitch, tunings; and, read-only, its type, channels, length and rate | `group` or `parameters` | |
+| `set_sample_parameter` | sets one parameter of the current sample | `parameter`\*, `value`\* | |
+| `rename_sample` | renames the current sample (1 to 20 characters; a name another sample bears is refused) | `name`\* | |
+| `delete_sample` | **deletes the current sample from memory** (it is lost unless it is on a disk) | `confirm`\* | its exact name |
+| `audition_sample` | plays the current sample, or stops it (a started audition plays until stopped) | `action`\* (`start` or `stop`) | |
+
+### 4.4 Multis (no option)
+
+A multi has 32, 64 or 128 parts; each part plays one program. The multi tools act on the **current** multi.
+
+| Tool | What it does | Arguments | Confirm |
+|---|---|---|---|
+| `list_multis` | the multis in memory, with their positions and the current one's number of parts | none | |
+| `select_multi` | makes a multi current | `name` or `index` | |
+| `create_multi` | creates an empty multi and makes it current | `name`\* (1 to 20 characters) | |
+| `rename_multi` | renames the current multi | `name`\* | |
+| `delete_multi` | **deletes the current multi from memory** | `confirm`\* | its exact name |
+| `get_multi_parameters` | the settings of the parts (level, pan, channel, mute, solo...) | `group` or `parameters`, `part` | |
+| `set_multi_parameter` | sets one setting of one part (or all) | `parameter`\*, `value`\*, `part`\* | |
+| `set_part_program` | makes a part play a program that is in memory | `part`\*, then `program` (its name) **or** `position` (its place in `list_programs`) | |
+| `get_part_programs` | which parts play a program, and which | none | |
+| `clear_part` | **removes the program of a part** (the multi stays) | `part`\*, `confirm`\* | the multi's exact name |
+| `set_multi_program_number` | sets the program number (1 to 128) by which a MIDI program change selects the multi, or switches it off with `null` | `number`\* | |
+
+### 4.5 Disks and files (`--allow-disk`)
+
+These tools act on the **sampler's own disks** (hard disk, floppy, CD-ROM, removable), not on the files of your computer. They work
+on a *current disk* and a *current folder* that the sampler itself keeps: `select_disk` chooses the disk (at its root), `open_folder`
+and `close_folder` move down and up.
+
+**Browsing and information**
+
+| Tool | What it does | Arguments |
+|---|---|---|
+| `list_disks` | the connected disks (name, type, format, writable or not) and the current one. The sampler's own refresh of that list is sent only with `--allow-disk-refresh` and `refresh: true` | `refresh` (only with `--allow-disk-refresh`) |
+| `select_disk` | makes a disk current | `name` or `handle` |
+| `list_disk_contents` | the current folder's sub-folders and files, with sizes in bytes | none |
+| `open_folder` | goes into a sub-folder and lists it | `name`\* |
+| `close_folder` | goes back up to the parent folder | none |
+| `get_disk_space` | the free bytes of the current disk | none |
+| `audition_file` | plays a file of the current folder without loading it (a started audition plays until stopped), or stops | `action`\* (`start` or `stop`), `name` (for `start`) |
+
+**Loading** (adds to the sampler's memory; the answer lists what was added)
+
+| Tool | What it does | Arguments |
+|---|---|---|
+| `load_file` | loads a program, a sample or a multi file of the current folder | `name`\*, `with_dependents` (also load the samples a program uses), `sample_mode` (`normal`, `ram` or `virtual`) |
+| `load_folder` | loads a sub-folder and everything in it | `name`\* |
+
+A large sample takes time: a 40 MB sample took about a minute.
+
+**Saving** (needs a writable disk; **never replaces a file unless `overwrite` is true**)
+
+| Tool | What it does | Arguments | Confirm |
+|---|---|---|---|
+| `save_memory_item` | saves one program, sample or multi to the current folder, then checks the folder | `kind`\* (`program`, `sample`, `multi`), `name`\*, `overwrite`, `save_children` | |
+| `save_all_memory_items` | saves every item of a kind | `kind`\*, `confirm`\*, `overwrite`, `save_children` | **the number** of items of that kind in memory |
+
+A program is saved as `<name>.AKP`, a sample as `<name>.WAV`; the extension of a multi file has not been seen on a real sampler.
+
+**Organising the disk** (needs a writable disk)
+
+| Tool | What it does | Arguments | Confirm |
+|---|---|---|---|
+| `create_folder` | creates an empty sub-folder of the current folder (it does not open it) | `name`\* | |
+| `rename_file` | renames a file; give the new name **without** the extension, which the sampler keeps | `name`\*, `new_name`\* | |
+| `rename_folder` | renames a sub-folder | `name`\*, `new_name`\* | |
+| `delete_file` | **deletes a file. Irreversible** | `name`\*, `confirm`\* | the file's exact name, as listed |
+| `delete_folder` | **deletes a sub-folder. Irreversible.** A folder that holds files or folders is refused, with the count, unless `delete_contents` is true; then everything in it goes | `name`\*, `confirm`\*, `delete_contents` | the folder's exact name |
+
+---
+
+## 5. Safety
+
+**Every deletion asks for a confirmation.** A tool that deletes something takes a `confirm` argument that must be the **exact name**
+of what is deleted (for `delete_keygroup`, the program's name; for `save_all_memory_items`, the number of items). If it is
+missing or wrong, **nothing is sent to the sampler** and the answer says what to give. The destructive tools say so in their
+annotations, so a client can ask you before it calls them.
+
+**Never done, whatever the options:**
+- deleting *all* programs, samples or multis, and clearing the sampler's memory;
+- formatting or ejecting a disk;
+- the sampler's front-panel keys, its name, clock, play mode, panel lock and MIDI setup;
+- song files, set lists, scenelists and the effects board.
+
+(Some of these exist in the sampler's protocol and may be added later; none is offered today. They are listed with their reasons in
+`process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md`.)
+
+**The changes are in the sampler's memory** and are lost when it is switched off, unless they are saved to a disk (`save_memory_item`,
+`save_all_memory_items`) or from the front panel.
+
+**The disk is opt-in.** Without `--allow-disk` the server cannot read, write, rename or delete anything on a disk. A slow disk
+command has once left a real S5000 answering nothing until it was switched off and on; for that reason the disk commands have a long
+timeout of their own, are never retried, and the refresh of the disk list is a separate option that should stay off.
+
+**It is checked by a test.** A test (`mcp_sources_call_no_destructive_primitive`) searches the server's source for the commands that
+delete, rename, create, save, load, eject, format or clear, and allows each one in a single file only.
+
+---
+
+## 6. What has been tried on a real sampler
+
+On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, 2026-10-05 and 2026-10-06; the full record is
+`process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
+
+| Worked on the real sampler | Not tried yet on the real sampler |
+|---|---|
+| program tools; all 119 program parameters set, read back and put back; creating, renaming, deleting a program | adding and deleting keygroups |
+| the sample parameters, on a real sample loaded from the disk (all 8 editable ones) | assigning a sample to a zone |
+| browsing the disk, selecting it, opening folders, `create_folder` | renaming and deleting samples; creating, renaming, deleting multis; part programs; the multi's program number |
+| `load_file` (a program, a 40 MB sample, a program with its sample), `load_folder` (13 samples) | `get_system_info`, `get_disk_space`, `audition_sample`, `audition_file` |
+| `save_memory_item` (a program, a sample), `save_all_memory_items` (13 samples), the refusal to overwrite, and the save with `overwrite` | renaming and deleting files and folders |
+| | the multi parameters on a real multi |
+
+**Do not use the refresh of the disk list (`--allow-disk-refresh`):** on this sampler it never answered, and the sampler had to be
+switched off and on. It is not needed for a disk that was plugged in before the server started.
+
+The tools in the right-hand column are tested against the simulated sampler only, which is not evidence of what the sampler itself
+does; they are tried on the real one, one at a time, on objects made for the test.
+
+---
+
+## 7. When something goes wrong
+
+| What you see | What it means | What to do |
+|---|---|---|
+| "No sampler answered at DeviceID 0" | nothing answered on the MIDI ports | check the sampler is on, the cable, the two ports (`--list-ports`), and that no other program holds the ports (another copy of the server, a MIDI editor) |
+| "The sampler did not answer while ... (no reply within 2000 ms)" | one command got no answer | try again; if it keeps happening, switch the sampler off and on |
+| the same after a **load, save or other disk command** ("... may have to be switched off and on") | the sampler stopped answering during a slow disk command | switch the sampler **off and on**, then let the client call the tool again (the server opens a new session by itself). Nothing was retried |
+| "Is a disk selected? Use select_disk first." | no disk is current | `list_disks`, then `select_disk` |
+| "Is a program / sample / multi selected?" | the tool acts on the current one and there is none | `select_program`, `select_sample` or `select_multi` |
+| a destructive tool answers "nothing was deleted" | the `confirm` was not the exact name | give the name exactly as listed |
+| a disk tool is "unknown" (error -32602) | the server was started without `--allow-disk` | add `--allow-disk` to the server's arguments in the client's settings |
+
+---
+
+## 8. For developers
+
+- **Requirements and decisions:** `process/1.requirements/FTR-MCP-001` to `FTR-MCP-004`, `process/2.architecture/ADR-MCP-001` to
+  `ADR-MCP-004`, the plans `process/3.plan/PLAN-MCP-001` to `PLAN-MCP-004`.
+- **Layout:** `src/McpServer.cpp` (JSON-RPC lines, both eras of MCP: the stateless revision `2026-07-28` and `initialize` for
+  `2025-11-25` and earlier), `src/ParameterCatalogue.cpp` and `src/StandardParameters.cpp` (the parameters as a table of rows,
+  checked against the AKM item catalogue by the tests), `src/SamplerGateway.cpp` and `src/SamplerGatewayDisk.cpp` (blocking calls
+  over an AKM session: memory and disk), `src/Tools.cpp` (the tools), `src/ServerOptions.cpp` (the launch arguments), `server/main.cpp`
+  (the executable, the only file that knows the JUCE MIDI backend). To add a parameter, add a row to `StandardParameters.cpp`.
+- **Tests:** `xs56k_mcp_tests` and the `mcp_*` entries of `ctest`, all against the simulated sampler (`juce/tests/mcp/`). Two scripted
+  conversations are piped into `xs56k_mcp_server_simulated` (one with `--allow-disk --allow-disk-refresh`) and compared with
+  `*.expected.jsonl`; `mcp_readme_names_every_tool_and_option` checks that this README names every tool the server lists and every
+  option of its usage text. To regenerate an expected conversation after a deliberate change, run the simulated server on the
+  `.jsonl` input and read the difference.
+- **Process:** every change goes through the AGNOS process of `.github/instructions/agnos-sw-eng.instructions.md`; the tests are
+  written first and run red before the code.
