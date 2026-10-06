@@ -174,6 +174,21 @@ killed half way, the sampler stopped answering until the owner switched it off a
 | `close_folder` | 0.5 s, back in `AKWF` with its listing |
 | `load_folder` `AKWF_oboe` (from `AKWF`) | **1.4 s: samples 14 (was 1), the 13 files added as `AKWF_oboe_0001` to `AKWF_oboe_0013`** (the names of the files without `.WAV`); the memory lists them in alphabetical order with `Al_Jarreau-Flame` after them, and the first of the folder is the current sample. Programs unchanged (1 was 1) |
 
+`create_folder` and the saves of samples (2026-10-06, the owner present; memory emptied by the owner's restart, then `AKWF_oboe` loaded again: 13 samples):
+
+| Tool | What the sampler did |
+|---|---|
+| `create_folder` `MCPTEST` at the root | 2.1 s, accepted; the root then lists 9 folders; the new folder is empty. Two more, `MCPTEST2` and `MCPTEST3`, were created the same way |
+| `save_memory_item` sample `AKWF_oboe_0001` in `MCPTEST` | 0.4 s: **a sample is saved as a `.WAV` file**, `AKWF_oboe_0001.WAV`, 1376 bytes (the simulated sampler had written `.AKS`, an extension that is in no spec and that the owner never mentioned: corrected) |
+| `save_all_memory_items` samples, `confirm` 12 (13 in memory) | refused by the tool, nothing sent |
+| the same with `confirm` 13, no `overwrite`, `AKWF_oboe_0001.WAV` already in the folder | refused by the tool, nothing sent, names the existing file |
+| the same with `overwrite` | 2.0 s, accepted. **The listing read right after showed 1 file; the folder holds 13** (checked by listing it again in a new session). The tool therefore said "the folder gained no new file", which was wrong |
+| `save_all_memory_items` in an empty folder (`MCPTEST2`) | 2 s, the listing right after showed all 13 files |
+| the same scenario as the first (`MCPTEST3`: one file saved, then the bulk save with `overwrite`) | the listing stayed at 1 file right after, **and 5 s and 17 s later**; it showed 13 only after `close_folder` and `open_folder` of the same folder. **The sampler caches a folder's file list, and a bulk save into a folder that already holds a file does not refresh it** (an empty folder was refreshed). To fix in the tool: after a save whose files are missing from the listing, close and reopen the folder and list again |
+
+Left on the owner's disk by the run, to delete by hand (no tool deletes): `MCPSAVETEST.AKP` at the root, and the folders `MCPTEST`,
+`MCPTEST2` and `MCPTEST3` with their 13 `.WAV` files each. `Al_Jarreau-Flame.WAV` at the root is the owner's.
+
 The listing of a folder is **not alphabetical** (the order of the FAT directory: `New Program  1.AKP`, `MCPSAVETEST.AKP`, `X01.AKP`,
 `S1.WAV`, the `.wav` of 35 MB): the tools give it as the sampler does. The two test programs were then deleted from memory with
 `delete_program`. **`MCPSAVETEST.AKP` is still on the owner's disk (root of S5K): the owner deletes it by hand**, no tool deletes a file.

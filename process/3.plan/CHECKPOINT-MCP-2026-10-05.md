@@ -44,7 +44,7 @@ programme"), which reversed the "never offered" rule of DEC-MCP-010 for section 
    needs a power cycle by hand (see `OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md` F4 to F7). Write it up in
    `OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 2. **Complete the simulated sampler after it (the owner's request).** What the simulator does and is not known for the real one:
-   the order of loaded programs (appended, not alphabetical), the file names and sizes a save gives (`.AKP`, `.AKS`, `.AKM`, 4096),
+   the order of loaded programs (appended, not alphabetical), the file names and sizes a save gives (`.AKP`, `.WAV`, `.AKM` (the last assumed), 4096),
    the format of the current path below the root ('/' joined), what the refresh and a load answer, what a save does with an
    existing file and with `save_children`. Each correction comes with its tests.
 3. With a sample and a multi then in memory (loaded from the disk!), run the sample and multi sweeps that were simulator-only.

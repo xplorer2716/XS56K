@@ -93,7 +93,7 @@ TEST_CASE("Given a sample and a multi in memory, When they are saved, Then each 
 
     const json sample = rig.call("save_memory_item", {{"kind", "sample"}, {"name", "SNARE"}});
     CHECK_FALSE(isError(sample));
-    CHECK(contains(textOf(sample), "SNARE.AKS"));
+    CHECK(contains(textOf(sample), "SNARE.WAV"));
     const json multi = rig.call("save_memory_item", {{"kind", "multi"}, {"name", "LIVE"}});
     CHECK_FALSE(isError(multi));
     CHECK(contains(textOf(multi), "LIVE.AKM"));

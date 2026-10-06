@@ -1904,10 +1904,10 @@ namespace akm::harness
             }
         }
 
-        // The file extension a save gives its target name, matching the type byte (RQ-AKM-067):
-        // arbitrary, since no SysEx item reports or needs the spelling, only that each type keeps one of
-        // its own so an overwrite check compares like-for-like names; empty for a type this model does
-        // not save content for.
+        // The file extension a save gives its target name, matching the type byte (RQ-AKM-067): a program is
+        // `.AKP` and a sample is `.WAV` (the owner's own statement, and what the real S5000 wrote on 2026-10-06 when a
+        // sample was saved). A multi's `.AKM` is an ASSUMPTION: no multi has been saved on the real sampler yet and no
+        // spec gives it. Empty for a type this model does not save content for.
         std::string extensionForSaveType(std::uint8_t type)
         {
             switch (type)
@@ -1917,7 +1917,7 @@ namespace akm::harness
                 case SAVE_TYPE_PROGRAM:
                     return ".AKP";
                 case SAVE_TYPE_SAMPLE:
-                    return ".AKS";
+                    return ".WAV";
                 default:
                     return "";
             }

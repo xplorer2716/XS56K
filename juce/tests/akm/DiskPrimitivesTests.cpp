@@ -687,8 +687,8 @@ TEST_CASE("Given a simulated program file whose sample is a separate file, When 
     ManualScenarioDriver driver;
     SessionHarness harness{driver};
     REQUIRE(harness.establishChecksumMode(false).has_value());
-    FileRecord programFile{"LEAD.AKP", 100, std::string{"LEAD"}, std::nullopt, {"LEAD.AKS"}};
-    FileRecord sampleFile{"LEAD.AKS", 200, std::nullopt, std::string{"LEAD"}, {}};
+    FileRecord programFile{"LEAD.AKP", 100, std::string{"LEAD"}, std::nullopt, {"LEAD.WAV"}};
+    FileRecord sampleFile{"LEAD.WAV", 200, std::nullopt, std::string{"LEAD"}, {}};
     harness.sampler().setDisks({DiskRecord{.handle = 0,
                                            .type = 1,
                                            .format = 2,
@@ -723,8 +723,8 @@ TEST_CASE("Given the same file loaded with &2B, Then both the program and its sa
     ManualScenarioDriver driver;
     SessionHarness harness{driver};
     REQUIRE(harness.establishChecksumMode(false).has_value());
-    FileRecord programFile{"LEAD.AKP", 100, std::string{"LEAD"}, std::nullopt, {"LEAD.AKS"}};
-    FileRecord sampleFile{"LEAD.AKS", 200, std::nullopt, std::string{"LEAD"}, {}};
+    FileRecord programFile{"LEAD.AKP", 100, std::string{"LEAD"}, std::nullopt, {"LEAD.WAV"}};
+    FileRecord sampleFile{"LEAD.WAV", 200, std::nullopt, std::string{"LEAD"}, {}};
     harness.sampler().setDisks({DiskRecord{.handle = 0,
                                            .type = 1,
                                            .format = 2,
@@ -759,11 +759,11 @@ TEST_CASE("Given a sample load option of VIRTUAL, When sent, Then the option byt
     REQUIRE(harness.establishChecksumMode(false).has_value());
     harness.sampler().setDisks({DiskRecord{
         .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
-        .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"KICK.AKS", 10, std::nullopt, std::string{"KICK"}, {}}}}}});
+        .rootFolder = FolderRecord{"", {}, {}, {}, {FileRecord{"KICK.WAV", 10, std::nullopt, std::string{"KICK"}, {}}}}}});
     selectDisk(harness, 0);
     REQUIRE(harness.waitForCompletions(1));
 
-    akm::loadFile(harness.session(), "KICK.AKS", akm::SampleLoadOption::Virtual, harness.recorder().completion());
+    akm::loadFile(harness.session(), "KICK.WAV", akm::SampleLoadOption::Virtual, harness.recorder().completion());
     REQUIRE(harness.waitForCompletions(2));
     CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
 
