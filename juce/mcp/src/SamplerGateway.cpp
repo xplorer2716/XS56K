@@ -831,6 +831,64 @@ namespace mcp
         return Outcome<SampleListing>::success(std::move(listing));
     }
 
+    Outcome<SampleRename> SamplerGateway::renameCurrentSample(std::string_view name)
+    {
+        const auto listing = listSamples();
+        if (!listing.ok())
+            return Outcome<SampleRename>::failure(listing.problem);
+        if (!listing.value->current)
+            return Outcome<SampleRename>::failure("No sample is current: use select_sample first.");
+        const std::size_t current = static_cast<std::size_t>(*listing.value->current);
+        const std::string before = listing.value->samples[current].name;
+        const std::string wanted = normalizeText(name);
+        for (std::size_t i = 0; i < listing.value->samples.size(); ++i)
+        {
+            if (i != current && normalizeText(listing.value->samples[i].name) == wanted)
+                return Outcome<SampleRename>::failure("The sampler already holds a sample named \"" + listing.value->samples[i].name +
+                                                      "\": nothing was renamed. Choose another name.");
+        }
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameCurrentSample(_connection->session, name, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<SampleRename>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<SampleRename>::failure(explain(*renamed, "renaming the sample \"" + before + "\"", _config, true, "sample"));
+
+        const auto after = listSamples();
+        if (!after.ok())
+            return Outcome<SampleRename>::failure(after.problem);
+        if (!after.value->current)
+            return Outcome<SampleRename>::failure("The sampler accepted the new name but no sample is current afterwards.");
+        return Outcome<SampleRename>::success(SampleRename{before, after.value->samples[static_cast<std::size_t>(*after.value->current)].name});
+    }
+
+    Outcome<SampleDeletion> SamplerGateway::deleteCurrentSample(std::string_view confirm)
+    {
+        const auto listing = listSamples();
+        if (!listing.ok())
+            return Outcome<SampleDeletion>::failure(listing.problem);
+        if (!listing.value->current)
+            return Outcome<SampleDeletion>::failure("No sample is current: use select_sample first.");
+        const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
+        if (name != confirm)
+            return Outcome<SampleDeletion>::success(SampleDeletion{false, name, static_cast<int>(listing.value->samples.size())});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteCurrentSample(_connection->session, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<SampleDeletion>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<SampleDeletion>::failure(explain(*deleted, "deleting the sample \"" + name + "\"", _config, true, "sample"));
+
+        const auto after = listSamples();
+        if (!after.ok())
+            return Outcome<SampleDeletion>::failure(after.problem);
+        return Outcome<SampleDeletion>::success(SampleDeletion{true, name, static_cast<int>(after.value->samples.size())});
+    }
+
     Outcome<SampleEntry> SamplerGateway::selectSampleByName(std::string_view name)
     {
         if (const auto problem = connect())

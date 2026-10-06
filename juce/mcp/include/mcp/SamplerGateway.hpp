@@ -135,6 +135,22 @@ namespace mcp
         int keygroupCount = 0;
     };
 
+    /// A sample renamed: its name before and the name the sampler then gives it. [RQ-MCP-036]
+    struct SampleRename
+    {
+        std::string before;
+        std::string after;
+    };
+
+    /// A deletion of the current sample: `done` is false when `confirm` was not its exact name (nothing was sent); `remaining` is how
+    /// many samples the memory holds after. [RQ-MCP-036, RQ-MCP-042]
+    struct SampleDeletion
+    {
+        bool done = true;
+        std::string name;
+        int remaining = 0;
+    };
+
     struct SampleListing
     {
         std::vector<SampleEntry> samples;
@@ -414,6 +430,14 @@ namespace mcp
         /// otherwise nothing is sent and `done` is false. A keygroup the program does not have, and its last keygroup, are
         /// problems and nothing is sent. [RQ-MCP-035, RQ-MCP-042]
         [[nodiscard]] Outcome<KeygroupChange> deleteKeygroup(int keygroup, std::string_view confirm);
+
+        /// Renames the current sample and reads the name back. No current sample, and a name that another sample bears (compared
+        /// without regard to case, spaces or hyphens), are problems and nothing is sent. [RQ-MCP-036]
+        [[nodiscard]] Outcome<SampleRename> renameCurrentSample(std::string_view name);
+
+        /// Deletes the current sample, and only when `confirm` is exactly its name: otherwise nothing is sent and `done` is false.
+        /// [RQ-MCP-036, RQ-MCP-042]
+        [[nodiscard]] Outcome<SampleDeletion> deleteCurrentSample(std::string_view confirm);
 
         /// Closes the session, if one is open: the sampler's section 00 settings are put back, and what was and was not
         /// put back is answered (nothing when no session was open). Safe to call twice; the next call that needs the

@@ -75,15 +75,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-031: Samples: `rename_sample` and `delete_sample`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add the gateway calls and the two tools on the current sample; `delete_sample` takes `confirm` equal to the current sample's exact name; a new name that another sample bears is refused.
 - **Requirement refs**: RQ-MCP-036, RQ-MCP-042
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)
 - **Acceptance Criteria** (Gherkin): *Given* samples KICK and SNARE with KICK current, *When* `rename_sample` is called with "KICK2", *Then* the list has KICK2 and SNARE; *When* `delete_sample` is called with `confirm` "KICK2", *Then* only SNARE remains; with a wrong `confirm`, nothing is sent.
 - **Dependencies**: TASK-MCP-028
 - **Assignee**: AI
-- **Verification**: (to be filled at closure)
-- **Assumptions**: None yet.
+- **Verification**: tests first, **run red before the code** (`SampleStructureToolsTests.cpp`, 7 cases: "test cases: 7 | 0 passed | 7 failed"), then green: `xs56k_mcp_tests "[samplestructure]"` → "All tests passed (136 assertions in 7 test cases)". They cover: `rename_sample` not destructive and `delete_sample` destructive; KICK renamed to KICK2 sends one rename, is listed and KICK is gone; "SNARE", "snare" and "Sn-are" are refused as already held; a missing, empty, 21-character, non-string, non-ASCII name and an extra argument send nothing; no current sample asks for `select_sample` for both tools; `delete_sample` with `confirm` KICK leaves SNARE and PAD ("2 samples"); `confirm` "kick", "SNARE", "KICK ", "", none or a number send nothing and name "KICK". The conversations' tool lists gained exactly `delete_sample` and `rename_sample` (regenerated, difference read). One existing test encoded the old rule ("no tool deletes or renames a sample", `SampleToolsTests.cpp`): it now forbids only `delete_all_samples`, `load_sample` and `create_sample`, its other checks unchanged (a change of expectation caused by ADR-MCP-004, not made to force a pass). Full `ctest` (Debug, MSVC `/W4 /WX`): 930 of 930 pass (923 before, 7 new). NOT run on the real sampler (TASK-MCP-037).
+- **Assumptions**: a sample's name is 1 to 20 printable ASCII characters (the AKM item's 20; the owner's disk has samples of 14 characters); a new name is refused when another sample bears it without regard to case, spaces or hyphens (stricter than the sampler); renaming a sample to a name that differs from its own only by case is allowed; the sampler's own handling of a duplicate is not known.
 
 ### TASK-MCP-032: Multis: create, rename, delete, part program, clear part, program number
 - **Tier**: M

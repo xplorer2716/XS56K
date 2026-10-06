@@ -476,7 +476,7 @@ PLAN-MCP-004|1-158||MCP Server — Completing the Tools and a Reference README
 TASK-MCP-028|40-51|Done|Author FTR-MCP-004, ADR-MCP-004 and PLAN-MCP-004
 TASK-MCP-029|52-63|Done|Zone samples: `set_zone_sample` and `get_zone_samples`
 TASK-MCP-030|64-75|Done|Keygroups: `add_keygroups` and `delete_keygroup`
-TASK-MCP-031|76-87|Not Started|Samples: `rename_sample` and `delete_sample`
+TASK-MCP-031|76-87|Done|Samples: `rename_sample` and `delete_sample`
 TASK-MCP-032|88-99|Not Started|Multis: create, rename, delete, part program, clear part, program number
 TASK-MCP-033|100-111|Not Started|Files and folders: rename and delete
 TASK-MCP-034|112-123|Not Started|Information: `get_system_info` and `get_disk_space`

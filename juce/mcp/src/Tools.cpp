@@ -37,6 +37,9 @@ namespace mcp
         // The sampler's program names are 12 characters on its screen; the wire takes up to 20 (the AKM item), and
         // whether the sampler keeps more is observed on the real sampler. [ADR-MCP-002 (DEC-MCP-011)]
         constexpr std::size_t MAX_PROGRAM_NAME_LENGTH = 12;
+        // A sample's name: the wire takes up to 20 characters (the AKM item) and the owner's disk holds samples of 14, so 12 would
+        // refuse names the sampler keeps. [RQ-MCP-036, ADR-MCP-004 (DEC-MCP-024)]
+        constexpr std::size_t MAX_SAMPLE_NAME_LENGTH = 20;
         constexpr std::int64_t MIN_NEW_KEYGROUPS = 1;
         constexpr std::int64_t MAX_NEW_KEYGROUPS = 99;
         // A keygroup has four zones and the keygroups of a program are numbered from 1. [RQ-MCP-034, ADR-MCP-004 (DEC-MCP-024)]
@@ -328,18 +331,25 @@ namespace mcp
         }
 
         /// The problem with a program name the sampler would not take, or nothing.
-        std::optional<std::string> programNameProblem(const json& argument, const char* field)
+        // What is wrong with a name to give to a `kind` of item, or nothing: a string of 1 to `maxLength` characters of plain printable
+        // ASCII. [RQ-MCP-015, RQ-MCP-016, RQ-MCP-036]
+        std::optional<std::string> itemNameProblem(const json& argument, const char* field, const char* kind, std::size_t maxLength)
         {
             if (!argument.is_string())
                 return "The argument '" + std::string(field) + "' must be a string.";
             const std::string name = argument.get<std::string>();
-            const std::string accepted = "A program name is 1 to " + std::to_string(MAX_PROGRAM_NAME_LENGTH) +
+            const std::string accepted = "A " + std::string(kind) + " name is 1 to " + std::to_string(maxLength) +
                                          " characters, letters, digits, spaces and punctuation of plain ASCII.";
-            if (name.empty() || name.size() > MAX_PROGRAM_NAME_LENGTH)
+            if (name.empty() || name.size() > maxLength)
                 return "The name \"" + name + "\" has " + std::to_string(name.size()) + " characters. " + accepted;
             if (!std::all_of(name.begin(), name.end(), [](char c) { return c >= FIRST_PRINTABLE && c <= LAST_PRINTABLE; }))
                 return "The name \"" + name + "\" has a character the sampler does not take. " + accepted;
             return std::nullopt;
+        }
+
+        std::optional<std::string> programNameProblem(const json& argument, const char* field)
+        {
+            return itemNameProblem(argument, field, "program", MAX_PROGRAM_NAME_LENGTH);
         }
 
         json keygroupSchema()
@@ -1726,6 +1736,55 @@ namespace mcp
                                  return ok("Deleted keygroup " + std::to_string(*keygroup) + " of the program \"" + deletion.value->program +
                                            "\": it now has " + plural(deletion.value->keygroupCount, "keygroup") +
                                            ". Read the keygroups again before editing them: the numbers after the deleted one may have changed.");
+                             }});
+
+        // rename_sample [RQ-MCP-036]
+        tools.push_back(Tool{
+            definition("rename_sample", "Rename the current sample",
+                       std::string("Renames the CURRENT sample (see list_samples and select_sample) and reads the new name back. A name another sample "
+                                   "already bears is refused. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"name", {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_SAMPLE_NAME_LENGTH) + " characters."}}}},
+                                    json::array({"name"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"name"}))
+                    return *refused;
+                if (!arguments.contains("name"))
+                    return failure("Give the 'name' to give the current sample.");
+                if (const auto problem = itemNameProblem(arguments.at("name"), "name", "sample", MAX_SAMPLE_NAME_LENGTH))
+                    return failure(*problem);
+                const auto renamed = gateway.renameCurrentSample(arguments.at("name").get<std::string>());
+                if (!renamed.ok())
+                    return failure(renamed.problem);
+                return ok("Renamed the sample \"" + renamed.value->before + "\" to \"" + renamed.value->after + "\".");
+            }});
+
+        // delete_sample [RQ-MCP-036, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023)]
+        ToolDefinition removeSample =
+            definition("delete_sample", "Delete the current sample",
+                       std::string("Deletes the CURRENT sample from the sampler's memory (see list_samples and select_sample), and only if 'confirm' is "
+                                   "exactly its name: otherwise nothing is deleted and the answer says which sample is current. A sample that is not on "
+                                   "a disk is lost; it cannot be undone from here. ") +
+                           MEMORY_NOTICE,
+                       objectSchema(json{{"confirm", {{"type", "string"}, {"description", "The exact name of the current sample, to confirm the deletion."}}}},
+                                    json::array({"confirm"})),
+                       false, false);
+        removeSample.annotations.destructive = true;
+        tools.push_back(Tool{std::move(removeSample), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {"confirm"}))
+                                     return *refused;
+                                 if (!arguments.contains("confirm") || !arguments.at("confirm").is_string())
+                                     return failure("Give 'confirm', the exact name of the current sample.");
+                                 const std::string confirm = arguments.at("confirm").get<std::string>();
+                                 const auto deletion = gateway.deleteCurrentSample(confirm);
+                                 if (!deletion.ok())
+                                     return failure(deletion.problem);
+                                 if (!deletion.value->done)
+                                     return failure("The current sample is \"" + deletion.value->name + "\", not \"" + confirm +
+                                                    "\": nothing was deleted. Select the sample to delete first (select_sample), then confirm with its name.");
+                                 return ok("Deleted the sample \"" + deletion.value->name + "\". The sampler now holds " +
+                                           plural(deletion.value->remaining, "sample") + ".");
                              }});
 
         return tools;

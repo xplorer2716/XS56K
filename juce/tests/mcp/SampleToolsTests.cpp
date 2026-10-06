@@ -406,7 +406,7 @@ TEST_CASE("Given list_parameters with a domain, When it is called, Then it lists
     CHECK(contains(textOf(unknown), "sample"));
 }
 
-TEST_CASE("Given the sources of the sample tools, When the tools are listed, Then no tool creates, deletes, renames or loads a sample and the sample tools carry their tiers [RQ-MCP-020, RQ-MCP-013]",
+TEST_CASE("Given the sources of the sample tools, When the tools are listed, Then no tool creates or loads a sample from memory or deletes every sample, and the sample tools carry their tiers [RQ-MCP-020, RQ-MCP-013, RQ-MCP-036]",
           "[mcp][sample][tools]")
 {
     Rig rig;
@@ -425,8 +425,8 @@ TEST_CASE("Given the sources of the sample tools, When the tools are listed, The
         CHECK(names.count(tool) == 1);
     for (const std::string& name : names)
     {
-        CHECK(name.find("delete_sample") == std::string::npos);
-        CHECK(name.find("rename_sample") == std::string::npos);
+        // delete_sample and rename_sample (of the current sample) are offered since ADR-MCP-004 (DEC-MCP-024); deleting every sample is not.
+        CHECK(name.find("delete_all_samples") == std::string::npos);
         CHECK(name.find("load_sample") == std::string::npos);
         CHECK(name.find("create_sample") == std::string::npos);
     }
