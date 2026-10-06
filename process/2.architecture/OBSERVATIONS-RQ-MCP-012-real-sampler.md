@@ -256,6 +256,10 @@ and said what they saw. Both test programs were deleted afterwards (the sampler 
 | `follow` | the screen went to `MCPSCR2` and the owner saw the whole sequence 60, 40, 100 | yes: the screen follows the assistant |
 | `as-is` | the screen stayed on `MCPSCR1`, nothing changed | consistent with the sampler being left as the previous close put it; the run does not say which of the two settings was responsible, because the state of the sampler at that moment was not read (§00 has no Get) |
 
+Afterwards the two programs were deleted through a server run with `--screen as-is`; the sampler answered that it held no program, but
+the owner's screen still showed `MCPSCR1` (a stale display, not the memory: the screen is not redrawn after a change made over MIDI
+when the server leaves the settings alone).
+
 What this does not show: that the two settings are put back to the standard values when a server closes (the owner did not look at the
 settings pages), and what `independent` shows when the owner's screen is on the program the assistant edits (the case the README
 describes: "you see a change when the screen shows the program the assistant is editing").
