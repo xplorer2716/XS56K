@@ -701,13 +701,15 @@ namespace mcp
             return Outcome<DiskChange>::success(std::move(change));
         }
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
-            akm::deleteFile(session(), change.name, akm::ConfirmDeleteFile::IUnderstandThisDeletesTheFile, std::move(done));
+        // A deletion can take longer than an ordinary command (a folder of 7 files took more than 2 s on the real S5000,
+        // TASK-MCP-042): it waits for the disk timeout, as a load or a save does.
+        const auto deleted = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteFile(session(), change.name, akm::ConfirmDeleteFile::IUnderstandThisDeletesTheFile, std::move(done), diskOptions());
         });
         if (!deleted)
             return Outcome<DiskChange>::failure("The sampler session did not complete the command in time.");
         if (!akm::succeeded(*deleted))
-            return Outcome<DiskChange>::failure(explain(*deleted, "deleting the file \"" + change.name + "\"", _config, true, DISK));
+            return Outcome<DiskChange>::failure(explainDisk(*deleted, "deleting the file \"" + change.name + "\""));
 
         const auto after = listAfterChange(ListingCheck::FileGone, change.name);
         if (!after.ok())
@@ -751,13 +753,15 @@ namespace mcp
             return Outcome<DiskChange>::success(std::move(change));
         }
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
-            akm::deleteSubFolder(session(), change.name, akm::ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt, std::move(done));
+        // The same wait for the disk timeout: this is the command that was given up after 2 s while the sampler was still deleting.
+        const auto deleted = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteSubFolder(session(), change.name, akm::ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt, std::move(done),
+                                 diskOptions());
         });
         if (!deleted)
             return Outcome<DiskChange>::failure("The sampler session did not complete the command in time.");
         if (!akm::succeeded(*deleted))
-            return Outcome<DiskChange>::failure(explain(*deleted, "deleting the folder \"" + change.name + "\"", _config, true, DISK));
+            return Outcome<DiskChange>::failure(explainDisk(*deleted, "deleting the folder \"" + change.name + "\""));
 
         const auto after = listAfterChange(ListingCheck::FolderGone, change.name);
         if (!after.ok())

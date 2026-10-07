@@ -420,9 +420,10 @@ namespace akm
     };
 
     /// Deletes the sub-folder named `name` of the current folder (§10/&17) — irreversible, and takes
-    /// everything inside it with it. No real-sampler test of any feature calls this. [RQ-AKM-069]
+    /// everything inside it with it. No real-sampler test of any feature calls this. `options` lets the caller wait longer than an
+    /// ordinary command: the real S5000 took more than 2 s to delete a folder of 7 files (TASK-MCP-042). [RQ-AKM-069]
     void deleteSubFolder(Session& session, std::string_view name, std::optional<ConfirmDeleteSubFolder> confirmation,
-                        CommandCompletion completion);
+                        CommandCompletion completion, CommandOptions options = {});
 
     /// Passed to `deleteFile` to prove the caller means it. No default: sent only when it is the
     /// enumerator; `std::nullopt` refuses the command as `NotConfirmed` without sending. [RQ-AKM-069]
@@ -434,5 +435,5 @@ namespace akm
     /// Deletes the file named `name` in the current folder (§10/&29) — irreversible. No real-sampler
     /// test of any feature calls this. [RQ-AKM-069]
     void deleteFile(Session& session, std::string_view name, std::optional<ConfirmDeleteFile> confirmation,
-                   CommandCompletion completion);
+                   CommandCompletion completion, CommandOptions options = {});
 }

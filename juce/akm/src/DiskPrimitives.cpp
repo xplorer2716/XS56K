@@ -486,7 +486,7 @@ namespace akm
     }
 
     void deleteSubFolder(Session& session, std::string_view name, std::optional<ConfirmDeleteSubFolder> confirmation,
-                        CommandCompletion completion)
+                        CommandCompletion completion, CommandOptions options)
     {
         if (!confirmation)
         {
@@ -498,11 +498,11 @@ namespace akm
             session.submit(std::move(request), std::move(completion));
             return;
         }
-        session.submit(makeStringRequest(ItemId::DiskDeleteSubFolder, name), std::move(completion));
+        session.submit(makeStringRequest(ItemId::DiskDeleteSubFolder, name, std::move(options)), std::move(completion));
     }
 
     void deleteFile(Session& session, std::string_view name, std::optional<ConfirmDeleteFile> confirmation,
-                   CommandCompletion completion)
+                   CommandCompletion completion, CommandOptions options)
     {
         if (!confirmation)
         {
@@ -514,6 +514,6 @@ namespace akm
             session.submit(std::move(request), std::move(completion));
             return;
         }
-        session.submit(makeStringRequest(ItemId::DiskDeleteFile, name), std::move(completion));
+        session.submit(makeStringRequest(ItemId::DiskDeleteFile, name, std::move(options)), std::move(completion));
     }
 }

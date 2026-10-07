@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // and the list of all connected disks (&05). [TASK-AKM-057, RQ-AKM-060]
 #include <catch2/catch_test_macros.hpp>
 
+#include <chrono>
 #include <string_view>
 #include <variant>
 #include <vector>
@@ -885,9 +886,11 @@ TEST_CASE("Given a simulated disk with an existing file at the target name, When
     CHECK(*size.sizeBytes == 516u);
 }
 
-// What the real S5000 wrote on 2026-10-06 (OBSERVATIONS-RQ-MCP-012-real-sampler.md): a sample of 666 points, mono, is a 1376-byte
-// `.WAV` (44 bytes of header plus 2 bytes per point and channel), a multi of 32 parts is a 2354-byte `.AKM`. [TASK-MCP-041, RQ-MCP-044]
-TEST_CASE("Given a mono sample of 666 points and a stereo one of 100 points, When they are saved, Then the files are 1376 and 444 bytes [RQ-MCP-044]",
+// What the real S5000 wrote on 2026-10-06 (OBSERVATIONS-RQ-MCP-012-real-sampler.md): a mono sample of 616 points is a 1376-byte `.WAV`
+// (144 bytes before the data, 2 bytes per point and channel: the source file of a loaded sample is 100 bytes shorter than its saved copy),
+// a multi of 32 parts is a 2354-byte `.AKM`, a program is 164 bytes plus 352 per keygroup (516, 1220 and 3684 for 1, 3 and 10).
+// [TASK-MCP-041, TASK-MCP-043, RQ-MCP-044]
+TEST_CASE("Given a mono sample of 616 points and a stereo one of 100 points, When they are saved, Then the files are 1376 and 544 bytes [RQ-MCP-044]",
           "[akm][disk]")
 {
     ManualScenarioDriver driver;
@@ -895,7 +898,7 @@ TEST_CASE("Given a mono sample of 666 points and a stereo one of 100 points, Whe
     REQUIRE(harness.establishChecksumMode(false).has_value());
     harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
     harness.sampler().setSampleNames({"MONO", "STEREO"});
-    harness.sampler().setSampleAttributes(0, 0, 1, 666, 44100);
+    harness.sampler().setSampleAttributes(0, 0, 1, 616, 44100);
     harness.sampler().setSampleAttributes(1, 0, 2, 100, 44100);
     selectDisk(harness, 0);
     REQUIRE(harness.waitForCompletions(1));
@@ -910,7 +913,34 @@ TEST_CASE("Given a mono sample of 666 points and a stereo one of 100 points, Whe
     CHECK(*mono.sizeBytes == 1376u);
     const DiskFileSizeResult stereo = getFileSize(harness, 1);
     REQUIRE(stereo.sizeBytes.has_value());
-    CHECK(*stereo.sizeBytes == 444u);
+    CHECK(*stereo.sizeBytes == 544u);
+}
+
+TEST_CASE("Given programs of 1, 3 and 10 keygroups, When they are saved, Then the files are 516, 1220 and 3684 bytes [RQ-MCP-044]", "[akm][disk]")
+{
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{.handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA"}});
+    harness.sampler().setProgramNames({"P01", "P03", "P10"});
+    harness.sampler().setKeygroupCount(1, 3);
+    harness.sampler().setKeygroupCount(2, 10);
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+
+    for (int index = 0; index < 3; ++index)
+    {
+        akm::saveMemoryItem(harness.session(), index, akm::SaveableMemoryType::Program, false, false, harness.recorder().completion());
+        REQUIRE(harness.waitForCompletions(2 + static_cast<std::size_t>(index)));
+    }
+
+    const std::uint32_t expected[] = {516u, 1220u, 3684u};
+    for (int index = 0; index < 3; ++index)
+    {
+        const DiskFileSizeResult size = getFileSize(harness, index);
+        REQUIRE(size.sizeBytes.has_value());
+        CHECK(*size.sizeBytes == expected[index]);
+    }
 }
 
 TEST_CASE("Given a multi of 32 parts, When it is saved, Then the file is 2354 bytes [RQ-MCP-044]", "[akm][disk]")
@@ -1028,6 +1058,47 @@ TEST_CASE("Given eject without discard, When requested, Then it is sent without 
     const DiskListResult disks = getConnectedDisks(harness);
     REQUIRE(disks.disks.has_value());
     CHECK(disks.disks->empty());
+}
+
+// The real S5000 took longer than the 2 s of an ordinary command to delete a folder of 7 files (2026-10-06, TASK-MCP-042): the
+// deletion succeeded but the command had already been given up. A caller can pass a longer timeout, as it does for a load or a
+// save. [RQ-MCP-039, RQ-MCP-044]
+TEST_CASE("Given a sampler that answers after 5 s, When a folder and a file are deleted with a 10 s timeout, Then each completes DONE; with the default options the first one times out [RQ-MCP-044]",
+          "[akm][disk]")
+{
+    using namespace std::chrono_literals;
+    constexpr auto SLOW_REPLY = 5s;
+    constexpr auto LONG_TIMEOUT = 10s;
+    ManualScenarioDriver driver;
+    SessionHarness harness{driver};
+    REQUIRE(harness.establishChecksumMode(false).has_value());
+    harness.sampler().setDisks({DiskRecord{
+        .handle = 0, .type = 1, .format = 2, .scsiId = 0, .writable = true, .name = "DATA",
+        .rootFolder = FolderRecord{"", {FolderRecord{"OLD", {}, {}, {}, {}}, FolderRecord{"OLDER", {}, {}, {}, {}}}, {}, {},
+                                   {FileRecord{"JUNK.AKP", 1}}}}});
+    selectDisk(harness, 0);
+    REQUIRE(harness.waitForCompletions(1));
+    akm::harness::SamplerBehaviour slow;
+    slow.replyDelay = SLOW_REPLY;
+    harness.sampler().setBehaviour(slow);
+
+    akm::deleteSubFolder(harness.session(), "OLD", akm::ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt,
+                         harness.recorder().completion());
+    REQUIRE(harness.waitForCompletions(2, 60s));
+    CHECK(std::holds_alternative<akm::Timeout>(harness.recorder().results().back()));
+
+    akm::CommandOptions longWait;
+    longWait.timeout = LONG_TIMEOUT;
+    longWait.maxTotalWait = LONG_TIMEOUT;
+    akm::deleteSubFolder(harness.session(), "OLDER", akm::ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt,
+                         harness.recorder().completion(), longWait);
+    REQUIRE(harness.waitForCompletions(3, 60s));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
+
+    akm::deleteFile(harness.session(), "JUNK.AKP", akm::ConfirmDeleteFile::IUnderstandThisDeletesTheFile,
+                    harness.recorder().completion(), longWait);
+    REQUIRE(harness.waitForCompletions(4, 60s));
+    CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
 }
 
 TEST_CASE("Given confirmation, When eject-with-discard, delete sub-folder and delete file are requested, Then each removes its target and completes DONE [RQ-AKM-069]",

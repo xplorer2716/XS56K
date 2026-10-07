@@ -6,10 +6,20 @@ Guidance for AI coding agents working in this repository.
 ## Project overview
 
 - **Name:** XS56K
-- **Purpose:** Éditeur pour les sampleurs AKAI S5000 et S6000 — contrôle bidirectionnel
-  avec une interface moderne.
+- **Purpose:** Drive an AKAI S5000 or S6000 sampler from a computer: a SysEx library, an MCP server
+  for AI assistants, and, later, an editor.
 - **Stack:** C++ / [JUCE](https://juce.com/) 8.0.15
-- **Status:** experimental
+- **Status:** experimental. Only the first two parts exist, and only part of the second one.
+
+XS56K is three things that build on each other (see `README.md`):
+
+1. **A SysEx library** (`juce/akm`) that aims to cover every MIDI SysEx message of the S5000 and S6000.
+   All 13 sections of the spec have a command for every row; run on a real S5000 (OS 2.14), with gaps
+   listed in `README.md`; nothing tried on an S6000.
+2. **An MCP server** (`juce/mcp`) that lets an AI assistant work on the sampler. 32 tools, 48 with
+   `--allow-disk`, every tool run on a real S5000 on test objects. The goal is every function of the
+   samplers (song files, set lists, MIDI setup and effects are not offered yet).
+3. **A program editor** (`juce/app`): a goal, it does not exist yet. Only a placeholder window exists.
 
 `juce/midi` and `juce/framework` are ported from
 [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor) (a real-time editor for
