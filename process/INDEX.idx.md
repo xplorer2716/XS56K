@@ -463,17 +463,17 @@ TASK-MCP-015|92-103|Done|Samples — list, select, get and set parameters
 TASK-MCP-016|104-115|Done|Multis — list, select, get and set parameters
 TASK-MCP-017|116-126|Done|Documentation and closure
 @process/3.plan/PLAN-MCP-003-disk-load-and-save.md
-PLAN-MCP-003|1-152||MCP Server — Loading and Saving through the Sampler's Disks
+PLAN-MCP-003|1-151||MCP Server — Loading and Saving through the Sampler's Disks
 TASK-MCP-018|34-45|Done|Author FTR-MCP-003, ADR-MCP-003 and PLAN-MCP-003
 TASK-MCP-019|46-57|Done|Disk options, gateway disk unit and browsing tools
 TASK-MCP-020|58-69|Done|Load a file or a folder
 TASK-MCP-021|70-81|Done|Save a memory item, save every item of a kind
 TASK-MCP-022|82-93|Done|Simulated conversation, fidelity and the hang test
-TASK-MCP-023|94-105|In Progress|Real-sampler run with the owner's disk
-TASK-MCP-024|106-117|Done|Documentation and closure
-TASK-MCP-025|118-129|Done|The disk refresh behind its own launch option
-TASK-MCP-026|130-141|Done|The `create_folder` tool
-TASK-MCP-027|142-152|Done|A save is verified against a refreshed listing
+TASK-MCP-023|94-104|Done|Real-sampler run with the owner's disk
+TASK-MCP-024|105-116|Done|Documentation and closure
+TASK-MCP-025|117-128|Done|The disk refresh behind its own launch option
+TASK-MCP-026|129-140|Done|The `create_folder` tool
+TASK-MCP-027|141-151|Done|A save is verified against a refreshed listing
 @process/3.plan/PLAN-MCP-004-complete-the-tools.md
 PLAN-MCP-004|1-208||MCP Server — Completing the Tools and a Reference README
 TASK-MCP-028|42-53|Done|Author FTR-MCP-004, ADR-MCP-004 and PLAN-MCP-004

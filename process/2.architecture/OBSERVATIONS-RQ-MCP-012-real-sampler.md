@@ -205,11 +205,13 @@ and putting the loop end back and the loop start to 1 restored both. Nothing was
 
 **Established:** browsing the SCSI2SD, selecting it, loading a program (with and without dependents) and a very large sample,
 loading a folder (13 samples in 1.4 s), saving a program (refused without `overwrite` when the file exists, replaced with it), the load with dependents of a program that refers to a sample (the sample is loaded too) and reading and setting every parameter of a
-real sample. **Not run:** the same load without `with_dependents` as a control, `save_all_memory_items`, saving a sample or a multi, `save_children`, the multi tools (no
-multi on the disk), and the refresh, which must not be run again on this sampler. Things the simulated sampler did differently:
+real sample. The load without `with_dependents` as a control, `save_all_memory_items`, the save of a sample and of a multi and `save_children` were run
+later the same day (tables above and below); the multi tools were run in TASK-MCP-037. **Not run:** the refresh, which must not be run again on this sampler.
+Things the simulated sampler did differently:
 the error code with no disk selected (257 against 4), the path format below the root (`AKWF\AKWF_oboe` against `AKWF/AKWF_oboe`), the size of a saved program (516 bytes against
-4096): **corrected in TASK-MCP-041** (2026-10-06), as are the sizes of a saved sample and multi. Still different, and not corrected: the order of a folder listing
-(the sampler's, not alphabetical), and the time of a load of a large file.
+4096): **corrected in TASK-MCP-041** (2026-10-06), as are the sizes of a saved sample and multi. The order of a folder listing (the disk's, not alphabetical) needed
+no correction: the simulated sampler lists files in the order they were added and replaces an overwritten file in place, and does not sort. The time of a load of a
+large file (60 s on the real sampler) is different and **accepted** by the owner (2026-10-07): it changes no logic.
 
 ## The tools of ADR-MCP-004 (TASK-MCP-037), run on 2026-10-06 with the owner present
 
