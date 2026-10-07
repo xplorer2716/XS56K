@@ -13,6 +13,10 @@
 # Memory and the eject and format primitives of the disk are never allowed anywhere.
 # [RQ-MCP-008, RQ-MCP-014, RQ-MCP-028, ADR-MCP-001 (DEC-MCP-007), ADR-MCP-002 (DEC-MCP-010), ADR-MCP-003 (DEC-MCP-019)]
 
+# A script run with -P sets no policy of its own: before CMake 4 the operator IN_LIST (used below) is then read as a plain
+# string on the CI runners that still have CMake 3 (CMP0057), and the check fails with an error.
+cmake_policy(SET CMP0057 NEW)
+
 if(NOT DEFINED SOURCE_DIR)
     message(FATAL_ERROR "SOURCE_DIR is not set")
 endif()
