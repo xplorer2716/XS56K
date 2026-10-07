@@ -1923,14 +1923,20 @@ namespace akm::harness
             }
         }
 
-        // What the real S5000 wrote (OBSERVATIONS-RQ-MCP-012-real-sampler.md, TASK-MCP-041): a program of one keygroup is 516
-        // bytes (how the size grows with more keygroups was not observed: it stays 516 here), a sample is a 44-byte header then
-        // 2 bytes per point and channel (666 mono points: 1376 bytes), a multi of 32 parts is 2354 bytes (other part counts
-        // were not observed: 2354 here).
-        constexpr std::uint32_t SAVED_PROGRAM_BYTES = 516;
-        constexpr std::uint32_t SAVED_SAMPLE_HEADER_BYTES = 44;
+        // What the real S5000 wrote (OBSERVATIONS-RQ-MCP-012-real-sampler.md, TASK-MCP-041, TASK-MCP-043): a program is 164 bytes
+        // plus 352 per keygroup (516, 1220 and 3684 for 1, 3 and 10), a sample is a 144-byte header then 2 bytes per point and
+        // channel (616 mono points: 1376 bytes), a multi of 32 parts is 2354 bytes (other part counts were not observed: 2354
+        // here).
+        constexpr std::uint32_t SAVED_PROGRAM_BASE_BYTES = 164;
+        constexpr std::uint32_t SAVED_PROGRAM_BYTES_PER_KEYGROUP = 352;
+        constexpr std::uint32_t SAVED_SAMPLE_HEADER_BYTES = 144;
         constexpr std::uint32_t SAVED_SAMPLE_BYTES_PER_POINT = 2;
         constexpr std::uint32_t SAVED_MULTI_BYTES = 2354;
+
+        std::uint32_t savedProgramBytes(const ProgramRecord& program)
+        {
+            return SAVED_PROGRAM_BASE_BYTES + SAVED_PROGRAM_BYTES_PER_KEYGROUP * static_cast<std::uint32_t>(program.keygroupCount);
+        }
 
         std::uint32_t savedSampleBytes(const SampleRecord& sample)
         {
@@ -2360,7 +2366,7 @@ namespace akm::harness
                         if (*index >= programs.size())
                             return failure(error_number::NOT_FOUND);
                         itemName = programs[*index].name;
-                        sizeBytes = SAVED_PROGRAM_BYTES;
+                        sizeBytes = savedProgramBytes(programs[*index]);
                     }
                     else if (*type == SAVE_TYPE_SAMPLE)
                     {
@@ -2400,7 +2406,7 @@ namespace akm::harness
                     {
                         for (const ProgramRecord& program : programs)
                         {
-                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, program.name, SAVED_PROGRAM_BYTES);
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, program.name, savedProgramBytes(program));
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
@@ -2809,6 +2815,30 @@ namespace akm::harness
             _samples.push_back(std::move(record));
         }
         _currentSample.reset();
+    }
+
+    void SimulatedSampler::setProgramNames(std::vector<std::string> names)
+    {
+        const std::lock_guard lock(_mutex);
+        _programs.clear();
+        _programs.reserve(names.size());
+        for (std::string& name : names)
+        {
+            ProgramRecord record;
+            record.name = std::move(name);
+            _programs.push_back(std::move(record));
+        }
+        _currentProgram.reset();
+        _currentKeygroup.reset();
+    }
+
+    void SimulatedSampler::setKeygroupCount(std::size_t index, int count)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index >= _programs.size() || count < 1)
+            return;
+        _programs[index].keygroupCount = count;
+        _programs[index].keygroups.assign(static_cast<std::size_t>(count), KeygroupRecord{});
     }
 
     void SimulatedSampler::setSongNames(std::vector<std::string> names)

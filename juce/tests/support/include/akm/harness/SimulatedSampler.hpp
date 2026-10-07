@@ -505,6 +505,15 @@ namespace akm::harness
         /// wants a successful assignment or selection must call this first, like `setBehaviour`.
         void setSampleNames(std::vector<std::string> names);
 
+        /// Seeds the sampler's program memory (§0A) by name, one `ProgramRecord` of one keygroup each, in the order given
+        /// (a test gives them in the sampler's alphabetical order), current program and keygroup reset. Empty by
+        /// default. [RQ-MCP-044, TASK-MCP-043]
+        void setProgramNames(std::vector<std::string> names);
+
+        /// Gives the program at `index` `count` keygroups (at least one), as §0A/&0B would have; a no-op when `index`
+        /// names no program or `count` is below one. [RQ-MCP-044, TASK-MCP-043]
+        void setKeygroupCount(std::size_t index, int count);
+
         /// Seeds the sampler's MIDI song files (§16) by name, current selection reset. Empty by default, as the
         /// samples are: no §16 item creates a song file. [RQ-AKM-082]
         void setSongNames(std::vector<std::string> names);
