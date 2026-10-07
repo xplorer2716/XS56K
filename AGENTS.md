@@ -14,11 +14,8 @@ Guidance for AI coding agents working in this repository.
 XS56K is three things that build on each other (see `README.md`):
 
 1. **A SysEx library** (`juce/akm`) that aims to cover every MIDI SysEx message of the S5000 and S6000.
-   All 13 sections of the spec have a command for every row; run on a real S5000 (OS 2.14), with gaps
-   listed in `README.md`; nothing tried on an S6000.
-2. **An MCP server** (`juce/mcp`) that lets an AI assistant work on the sampler. 32 tools, 48 with
-   `--allow-disk`, every tool run on a real S5000 on test objects. The goal is every function of the
-   samplers (song files, set lists, MIDI setup and effects are not offered yet).
+2. **An MCP server** (`juce/mcp`) that lets an AI assistant work on the sampler. The goal is every function of the
+   samplers that the SysEx specification offers.
 3. **A program editor** (`juce/app`): a goal, it does not exist yet. Only a placeholder window exists.
 
 `juce/midi` and `juce/framework` are ported from
@@ -76,11 +73,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
   ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
 - **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
-  `juce/mcp/README.md` (options, tools, safety rules, tests). 32 tools without an option, 48 with `--allow-disk`; every deletion asks for a
-  `confirm` that is the exact name; the disk refresh needs `--allow-disk-refresh` too and **hung the sampler**, never send it without
-  asking the owner; no tool deletes everything, clears the memory, formats or ejects. Every tool has been run on the real sampler on test
-  objects (2026-10-05/06, `OBSERVATIONS-RQ-MCP-012-real-sampler.md`); the three `--screen` modes were also watched on the sampler's screen (2026-10-06).
-  [RQ-MCP-001 to RQ-MCP-044, ADR-MCP-001 to ADR-MCP-004]
+  `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
+  refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first. [FTR-MCP-*, ADR-MCP-*]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

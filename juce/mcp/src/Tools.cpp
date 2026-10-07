@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "mcp/Tools.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <initializer_list>
 #include <iomanip>
@@ -2247,6 +2248,276 @@ namespace mcp
         return tools;
     }
 
+    // The sampler's own settings. [TASK-MCP-045, RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
+    namespace
+    {
+        constexpr const char* SETTING_NAME = "name";
+        constexpr const char* SETTING_CLOCK = "clock";
+        constexpr const char* SETTING_PLAY_MODE = "play_mode";
+        constexpr const char* SETTING_FRONT_PANEL = "front_panel";
+        constexpr const char* SETTING_LIST = "name, clock, play_mode, front_panel";
+        constexpr const char* PLAY_MODE_LIST = "multi, program, sample, muted";
+        constexpr const char* PLAYING_MODE_LIST = "multi, program or sample";
+        constexpr const char* PANEL_LIST = "normal, locked";
+        constexpr const char* CLOCK_FORMAT = "YYYY-MM-DD HH:MM:SS";
+        // The sampler's name is 20 characters on the wire (the AKM item). [RQ-AKM-052]
+        constexpr std::size_t MAX_SAMPLER_NAME_LENGTH = 20;
+        // The sampler's clock takes the years 1980 to 2079 (the AKM item). [RQ-AKM-054]
+        constexpr int FIRST_CLOCK_YEAR = 1980;
+        constexpr int LAST_CLOCK_YEAR = 2079;
+        constexpr int MONTHS_IN_YEAR = 12;
+        constexpr int HOURS_IN_DAY = 24;
+        constexpr int MINUTES_IN_HOUR = 60;
+        constexpr int SECONDS_IN_MINUTE = 60;
+        constexpr int DAYS_IN_WEEK = 7;
+        // "YYYY-MM-DD" then a space or a T then "HH:MM:SS": where each field and each separator is.
+        constexpr std::size_t CLOCK_TEXT_LENGTH = 19;
+        constexpr std::size_t YEAR_AT = 0;
+        constexpr std::size_t YEAR_LENGTH = 4;
+        constexpr std::size_t MONTH_AT = 5;
+        constexpr std::size_t DAY_AT = 8;
+        constexpr std::size_t HOURS_AT = 11;
+        constexpr std::size_t MINUTES_AT = 14;
+        constexpr std::size_t SECONDS_AT = 17;
+        constexpr std::size_t PAIR_LENGTH = 2;
+        constexpr std::size_t FIRST_DATE_DASH_AT = 4;
+        constexpr std::size_t SECOND_DATE_DASH_AT = 7;
+        constexpr std::size_t DATE_TIME_SEPARATOR_AT = 10;
+        constexpr std::size_t FIRST_TIME_COLON_AT = 13;
+        constexpr std::size_t SECOND_TIME_COLON_AT = 16;
+
+        std::string lowerCase(std::string text)
+        {
+            std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return text;
+        }
+
+        bool isLeapYear(int year)
+        {
+            return (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
+        }
+
+        int daysInMonth(int year, int month)
+        {
+            constexpr int DAYS[MONTHS_IN_YEAR] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            return month == 2 && isLeapYear(year) ? 29 : DAYS[month - 1];
+        }
+
+        /// The day of the week of a date as the sampler counts it: 1 to 7, 1 = Sunday (Sakamoto's method). [RQ-AKM-054]
+        int dayOfWeekOf(int year, int month, int day)
+        {
+            constexpr int MONTH_OFFSET[MONTHS_IN_YEAR] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+            constexpr int MARCH = 3;
+            const int y = month < MARCH ? year - 1 : year;
+            const int sundayIsZero = (y + y / 4 - y / 100 + y / 400 + MONTH_OFFSET[month - 1] + day) % DAYS_IN_WEEK;
+            return sundayIsZero + 1;
+        }
+
+        std::string dayName(int dayOfWeek)
+        {
+            constexpr const char* NAMES[DAYS_IN_WEEK] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+            if (dayOfWeek < 1 || dayOfWeek > DAYS_IN_WEEK)
+                return "day of week " + std::to_string(dayOfWeek);
+            return NAMES[dayOfWeek - 1];
+        }
+
+        std::string two(int value)
+        {
+            return (value < 10 ? "0" : "") + std::to_string(value);
+        }
+
+        std::string clockText(const SamplerClock& clock)
+        {
+            std::string year = std::to_string(clock.year);
+            while (year.size() < 4)
+                year.insert(year.begin(), '0');
+            return year + "-" + two(clock.month) + "-" + two(clock.day) + " " + two(clock.hours) + ":" + two(clock.minutes) + ":" +
+                   two(clock.seconds) + " (" + dayName(clock.dayOfWeek) + ")";
+        }
+
+        std::string playModeText(SamplerPlayMode mode)
+        {
+            switch (mode)
+            {
+                case SamplerPlayMode::Multi:
+                    return "multi";
+                case SamplerPlayMode::Program:
+                    return "program";
+                case SamplerPlayMode::Sample:
+                    return "sample";
+                case SamplerPlayMode::Muted:
+                    break;
+            }
+            return "muted";
+        }
+
+        std::string panelText(SamplerPanel panel)
+        {
+            return panel == SamplerPanel::Locked ? "locked" : "normal";
+        }
+
+        /// The clock a text gives, or the problem with it (naming the field when the date or the time does not exist). The day of the week
+        /// is worked out, not given. [RQ-MCP-046]
+        std::optional<std::string> parseClock(const std::string& text, SamplerClock& clock)
+        {
+            const std::string format = std::string("Give the date and the time as ") + CLOCK_FORMAT + ", for example 2026-10-07 22:15:30.";
+            const std::string unreadable = "The clock \"" + text + "\" is not a date and a time. " + format;
+            if (text.size() != CLOCK_TEXT_LENGTH)
+                return unreadable;
+            for (std::size_t i = 0; i < text.size(); ++i)
+            {
+                const char c = text[i];
+                bool fits = std::isdigit(static_cast<unsigned char>(c)) != 0;
+                if (i == FIRST_DATE_DASH_AT || i == SECOND_DATE_DASH_AT)
+                    fits = c == '-';
+                else if (i == DATE_TIME_SEPARATOR_AT)
+                    fits = c == ' ' || c == 'T';
+                else if (i == FIRST_TIME_COLON_AT || i == SECOND_TIME_COLON_AT)
+                    fits = c == ':';
+                if (!fits)
+                    return unreadable;
+            }
+            const auto field = [&](std::size_t from, std::size_t length) { return std::stoi(text.substr(from, length)); };
+            clock.year = field(YEAR_AT, YEAR_LENGTH);
+            clock.month = field(MONTH_AT, PAIR_LENGTH);
+            clock.day = field(DAY_AT, PAIR_LENGTH);
+            clock.hours = field(HOURS_AT, PAIR_LENGTH);
+            clock.minutes = field(MINUTES_AT, PAIR_LENGTH);
+            clock.seconds = field(SECONDS_AT, PAIR_LENGTH);
+            const auto outOfRange = [&](const char* name, const std::string& range) {
+                return "The " + std::string(name) + " of the clock \"" + text + "\" is outside " + range + ". " + format;
+            };
+            if (clock.year < FIRST_CLOCK_YEAR || clock.year > LAST_CLOCK_YEAR)
+                return outOfRange("year", std::to_string(FIRST_CLOCK_YEAR) + " to " + std::to_string(LAST_CLOCK_YEAR));
+            if (clock.month < 1 || clock.month > MONTHS_IN_YEAR)
+                return outOfRange("month", "1 to " + std::to_string(MONTHS_IN_YEAR));
+            if (clock.day < 1 || clock.day > daysInMonth(clock.year, clock.month))
+                return outOfRange("day", "1 to " + std::to_string(daysInMonth(clock.year, clock.month)) + " for that month");
+            if (clock.hours >= HOURS_IN_DAY)
+                return outOfRange("hours", "0 to " + std::to_string(HOURS_IN_DAY - 1));
+            if (clock.minutes >= MINUTES_IN_HOUR)
+                return outOfRange("minutes", "0 to " + std::to_string(MINUTES_IN_HOUR - 1));
+            if (clock.seconds >= SECONDS_IN_MINUTE)
+                return outOfRange("seconds", "0 to " + std::to_string(SECONDS_IN_MINUTE - 1));
+            clock.dayOfWeek = dayOfWeekOf(clock.year, clock.month, clock.day);
+            return std::nullopt;
+        }
+
+        /// What setting a value changes, as the answer says it: the setting and what the sampler now reports. [RQ-MCP-046]
+        std::string settingChanged(const char* what, const std::string& reported)
+        {
+            return std::string("Set the sampler's ") + what + ". The sampler now reports " + reported + ".";
+        }
+    }
+
+    std::vector<Tool> makeSamplerSettingsTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+
+        // get_sampler_settings [RQ-MCP-046]
+        tools.push_back(Tool{
+            definition("get_sampler_settings", "Read the sampler's name, clock, play mode and front-panel lock",
+                       "Reads the sampler's own settings: its name, its clock and date, its play mode (multi, program, sample or muted) and "
+                       "whether its front panel is locked. It changes nothing.",
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto settings = gateway.readSamplerSettings();
+                if (!settings.ok())
+                    return failure(settings.problem);
+                std::string text = "Name: " + settings.value->name + "\n";
+                text += "Clock: " + clockText(settings.value->clock) + "\n";
+                text += "Play mode: " + playModeText(settings.value->playMode) + "\n";
+                text += "Front panel: " + panelText(settings.value->panel) + "\n";
+                return ok(std::move(text));
+            }});
+
+        // set_sampler_setting [RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
+        tools.push_back(Tool{
+            definition("set_sampler_setting", "Set the sampler's name, clock, play mode or front-panel lock",
+                       std::string("Sets one of the sampler's own settings and reads it back. 'name': 1 to ") + std::to_string(MAX_SAMPLER_NAME_LENGTH) +
+                           " characters of plain ASCII. 'clock': " + CLOCK_FORMAT + " (the day of the week is worked out). 'play_mode': " +
+                           PLAY_MODE_LIST + "; muted plays nothing until another mode is set. 'front_panel': " + PANEL_LIST +
+                           "; a locked front panel is unlocked only by setting it to normal. A value that is not valid is refused and nothing "
+                           "is sent.",
+                       objectSchema(json{{"setting", {{"type", "string"}, {"enum", json::array({SETTING_NAME, SETTING_CLOCK, SETTING_PLAY_MODE, SETTING_FRONT_PANEL})},
+                                                        {"description", "Which setting to change."}}},
+                                         {"value", {{"type", "string"}, {"description", "The new value, in the form the description gives for that setting."}}}},
+                                    json::array({"setting", "value"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"setting", "value"}))
+                    return *refused;
+                if (!arguments.contains("setting") || !arguments.at("setting").is_string())
+                    return failure(std::string("Give the 'setting' to change: ") + SETTING_LIST + ".");
+                if (!arguments.contains("value") || !arguments.at("value").is_string())
+                    return failure("Give the 'value' as a string.");
+                const std::string setting = lowerCase(arguments.at("setting").get<std::string>());
+                const std::string value = arguments.at("value").get<std::string>();
+
+                if (setting == SETTING_NAME)
+                {
+                    if (const auto problem = itemNameProblem(arguments.at("value"), "value", "sampler", MAX_SAMPLER_NAME_LENGTH))
+                        return failure(*problem);
+                    const auto name = gateway.setSamplerName(value);
+                    if (!name.ok())
+                        return failure(name.problem);
+                    return ok(settingChanged("name", "\"" + *name.value + "\""));
+                }
+                if (setting == SETTING_CLOCK)
+                {
+                    SamplerClock wanted;
+                    if (const auto problem = parseClock(value, wanted))
+                        return failure(*problem);
+                    const auto clock = gateway.setSamplerClock(wanted);
+                    if (!clock.ok())
+                        return failure(clock.problem);
+                    return ok(settingChanged("clock", clockText(*clock.value)));
+                }
+                if (setting == SETTING_PLAY_MODE)
+                {
+                    const std::string mode = lowerCase(value);
+                    SamplerPlayMode wanted = SamplerPlayMode::Multi;
+                    if (mode == "multi")
+                        wanted = SamplerPlayMode::Multi;
+                    else if (mode == "program")
+                        wanted = SamplerPlayMode::Program;
+                    else if (mode == "sample")
+                        wanted = SamplerPlayMode::Sample;
+                    else if (mode == "muted")
+                        wanted = SamplerPlayMode::Muted;
+                    else
+                        return failure("The play mode \"" + value + "\" is not one the sampler has. The play modes are: " + PLAY_MODE_LIST + ".");
+                    const auto reported = gateway.setSamplerPlayMode(wanted);
+                    if (!reported.ok())
+                        return failure(reported.problem);
+                    std::string text = settingChanged("play mode", "\"" + playModeText(*reported.value) + "\"");
+                    if (*reported.value == SamplerPlayMode::Muted)
+                        text += std::string(" The muted mode plays nothing: set play_mode to ") + PLAYING_MODE_LIST + " to hear the sampler again.";
+                    return ok(std::move(text));
+                }
+                if (setting == SETTING_FRONT_PANEL)
+                {
+                    const std::string state = lowerCase(value);
+                    if (state != "normal" && state != "locked")
+                        return failure("The front-panel state \"" + value + "\" is not one the sampler has. The states are: " + PANEL_LIST + ".");
+                    const auto reported = gateway.setSamplerPanel(state == "locked" ? SamplerPanel::Locked : SamplerPanel::Normal);
+                    if (!reported.ok())
+                        return failure(reported.problem);
+                    std::string text = settingChanged("front-panel lock", "\"" + panelText(*reported.value) + "\"");
+                    if (*reported.value == SamplerPanel::Locked)
+                        text += std::string(" The sampler's keys are locked out. To unlock it, call set_sampler_setting with setting \"") +
+                                SETTING_FRONT_PANEL + "\" and value \"normal\".";
+                    return ok(std::move(text));
+                }
+                return failure("The setting \"" + arguments.at("setting").get<std::string>() + "\" is not one this tool changes. The settings are: " +
+                               SETTING_LIST + ".");
+            }});
+
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -2260,6 +2531,8 @@ namespace mcp
         for (Tool& tool : makeMultiTools(gateway, ParameterCatalogue::multis()))
             tools.push_back(std::move(tool));
         for (Tool& tool : makeMemoryExtraTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeSamplerSettingsTools(gateway))
             tools.push_back(std::move(tool));
         if (options.allowDisk)
         {

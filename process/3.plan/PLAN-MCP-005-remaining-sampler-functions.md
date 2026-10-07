@@ -60,15 +60,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-045: The sampler's settings
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `get_sampler_settings` (name, clock, play mode, front-panel lock) and `set_sampler_setting` (a setting and a value: validate, send, read back, answer). Check what the simulated sampler already models of the four settings and complete it; add the tools, their catalogue of settings and values, the README rows and the scripted conversation lines.
 - **Requirement refs**: RQ-MCP-046
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-030)
 - **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* the name, the clock, the play mode and the front-panel lock are set, *Then* `get_sampler_settings` answers each as set; *given* an invalid date, a name that is too long or a lock the sampler does not have, *Then* nothing is sent and the answer says what is accepted.
 - **Dependencies**: TASK-MCP-044
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None yet.
+- **Verification**: DONE on 2026-10-07, from the tools' own output. Red first: `xs56k_mcp_tests "[settings]"` ("test cases: 9 | 0 passed | 9 failed", "assertions: 231 | 54 passed | 177 failed": the tools did not exist). Green after the gateway methods and the two tools: "All tests passed (263 assertions in 9 test cases)" (`SamplerSettingsToolsTests.cpp`: the tool annotations; the name set, read back and refused at 21 characters, empty or beyond ASCII; the clock set for five dates including a leap day and the two ends of 1980-2079, with the day of the week worked out, and refused for twelve bad inputs, each naming the field and the format; the four play modes read back, with "plays nothing" said for muted only; the front-panel lock with how to unlock it; the missing, unknown and badly typed arguments, with nothing sent). `ctest` excluding only `bld_mutate_tool_script_tests`: 989 of 989 pass, after the two scripted conversations were extended with nine calls (`simulated_session.jsonl`, `EXPECT_LINES` 114 to 123) and their expected output regenerated (the differences read one by one: the nine new answers and the two new tool definitions in the discovery answer). The tool tables of `juce/mcp/README.md` and the counts in the three documents (34 tools, 50 with `--allow-disk`) are up to date. Not run on the real sampler yet (TASK-MCP-055).
+- **Assumptions**: the clock text is `YYYY-MM-DD HH:MM:SS` (a `T` is accepted in place of the space) and the day of the week is worked out by the tool, since the sampler takes it as a field of its own and a wrong one would be the caller's mistake; the checks run in the order year, month, day, hours, minutes, seconds and name the first field outside its range; the sampler's name is 1 to 20 characters of printable ASCII (the AKM item takes up to 20; whether the sampler keeps a name of 20 is not observed); the setting names are `name`, `clock`, `play_mode` and `front_panel`; Muted (play mode 3) was confirmed on a real S5000 by the AKM suite on 2026-10-01 (`sysex_spec.kb.md`), so the tool offers it, with a warning that it plays nothing.
 
 ### TASK-MCP-046: The MIDI setup
 - **Tier**: M

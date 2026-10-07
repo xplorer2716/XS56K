@@ -330,6 +330,44 @@ namespace mcp
         int freeMpksPercent = 0;                ///< programs, keygroups, samples and multis
     };
 
+    /// The sampler's clock and date as it holds them: `dayOfWeek` is 1 to 7 with 1 = Sunday, a field of its own for the sampler.
+    /// [RQ-MCP-046]
+    struct SamplerClock
+    {
+        int year = 0;
+        int month = 0;
+        int day = 0;
+        int dayOfWeek = 0;
+        int hours = 0;
+        int minutes = 0;
+        int seconds = 0;
+    };
+
+    /// The sampler's Play Mode; `Muted` plays nothing. [RQ-MCP-046]
+    enum class SamplerPlayMode
+    {
+        Multi,
+        Program,
+        Sample,
+        Muted,
+    };
+
+    /// The front-panel lock-out state: a locked panel is unlocked only by another Set. [RQ-MCP-046]
+    enum class SamplerPanel
+    {
+        Normal,
+        Locked,
+    };
+
+    /// The sampler's own settings, as it reports them. [RQ-MCP-046]
+    struct SamplerSettings
+    {
+        std::string name;
+        SamplerClock clock;
+        SamplerPlayMode playMode = SamplerPlayMode::Multi;
+        SamplerPanel panel = SamplerPanel::Normal;
+    };
+
     /// The free space of the current disk. [RQ-MCP-040]
     struct DiskSpace
     {
@@ -594,6 +632,17 @@ namespace mcp
         /// The sampler's model, operating system and free memory (section 02). [RQ-MCP-040]
         [[nodiscard]] Outcome<SystemInfo> readSystemInfo();
 
+        /// The sampler's name, clock, play mode and front-panel lock (section 02). [RQ-MCP-046]
+        [[nodiscard]] Outcome<SamplerSettings> readSamplerSettings();
+
+        /// Each of these sends one Set of section 02 and answers what the sampler reports afterwards for that setting. The caller checks
+        /// the value first; the AKM layer refuses a name over 20 characters or beyond 7-bit ASCII, and a clock field out of range, and
+        /// nothing is then sent. [RQ-MCP-046]
+        [[nodiscard]] Outcome<std::string> setSamplerName(std::string_view name);
+        [[nodiscard]] Outcome<SamplerClock> setSamplerClock(const SamplerClock& clock);
+        [[nodiscard]] Outcome<SamplerPlayMode> setSamplerPlayMode(SamplerPlayMode mode);
+        [[nodiscard]] Outcome<SamplerPanel> setSamplerPanel(SamplerPanel panel);
+
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();
 
@@ -635,6 +684,12 @@ namespace mcp
                                                                                   const char* currentObject = "program");
         [[nodiscard]] Outcome<SampleEntry> currentSampleEntry();
         [[nodiscard]] Outcome<MultiEntry> currentMultiEntry();
+
+        /// One Get of section 02 each, on the open session. [RQ-MCP-046]
+        [[nodiscard]] Outcome<std::string> readSamplerName();
+        [[nodiscard]] Outcome<SamplerClock> readSamplerClock();
+        [[nodiscard]] Outcome<SamplerPlayMode> readSamplerPlayMode();
+        [[nodiscard]] Outcome<SamplerPanel> readSamplerPanel();
 
         /// The open session, for the units of the gateway; only called while a connection is open.
         [[nodiscard]] akm::Session& session();

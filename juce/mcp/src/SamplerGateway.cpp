@@ -599,6 +599,180 @@ namespace mcp
         return Outcome<SystemInfo>::success(std::move(info));
     }
 
+    // The sampler's own settings (section 02). [RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
+    namespace
+    {
+        constexpr const char* SESSION_TIMED_OUT = "The sampler session did not complete the command in time.";
+
+        SamplerPlayMode playModeOf(akm::PlayMode mode)
+        {
+            switch (mode)
+            {
+                case akm::PlayMode::Multi:
+                    return SamplerPlayMode::Multi;
+                case akm::PlayMode::Program:
+                    return SamplerPlayMode::Program;
+                case akm::PlayMode::Sample:
+                    return SamplerPlayMode::Sample;
+                case akm::PlayMode::Muted:
+                    break;
+            }
+            return SamplerPlayMode::Muted;
+        }
+
+        akm::PlayMode playModeOf(SamplerPlayMode mode)
+        {
+            switch (mode)
+            {
+                case SamplerPlayMode::Multi:
+                    return akm::PlayMode::Multi;
+                case SamplerPlayMode::Program:
+                    return akm::PlayMode::Program;
+                case SamplerPlayMode::Sample:
+                    return akm::PlayMode::Sample;
+                case SamplerPlayMode::Muted:
+                    break;
+            }
+            return akm::PlayMode::Muted;
+        }
+    }
+
+    Outcome<std::string> SamplerGateway::readSamplerName()
+    {
+        const auto read = await<akm::SamplerNameResult>(waitFor(1), [&](std::function<void(const akm::SamplerNameResult&)> done) {
+            akm::getSamplerName(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<std::string>::failure(SESSION_TIMED_OUT);
+        if (!read->name)
+            return Outcome<std::string>::failure(explain(read->outcome, "reading the sampler's name", _config, false));
+        return Outcome<std::string>::success(*read->name);
+    }
+
+    Outcome<SamplerClock> SamplerGateway::readSamplerClock()
+    {
+        const auto read = await<akm::ClockDateResult>(waitFor(1), [&](std::function<void(const akm::ClockDateResult&)> done) {
+            akm::getClockDate(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<SamplerClock>::failure(SESSION_TIMED_OUT);
+        if (!read->clock)
+            return Outcome<SamplerClock>::failure(explain(read->outcome, "reading the sampler's clock", _config, false));
+        const akm::ClockDate& clock = *read->clock;
+        return Outcome<SamplerClock>::success(
+            SamplerClock{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds});
+    }
+
+    Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode()
+    {
+        const auto read = await<akm::PlayModeResult>(waitFor(1), [&](std::function<void(const akm::PlayModeResult&)> done) {
+            akm::getPlayMode(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<SamplerPlayMode>::failure(SESSION_TIMED_OUT);
+        if (!read->mode)
+            return Outcome<SamplerPlayMode>::failure(akm::succeeded(read->outcome)
+                                                          ? std::string("The sampler answered a play mode this server does not know.")
+                                                          : explain(read->outcome, "reading the sampler's play mode", _config, false));
+        return Outcome<SamplerPlayMode>::success(playModeOf(*read->mode));
+    }
+
+    Outcome<SamplerPanel> SamplerGateway::readSamplerPanel()
+    {
+        const auto read = await<akm::FrontPanelLockResult>(waitFor(1), [&](std::function<void(const akm::FrontPanelLockResult&)> done) {
+            akm::getFrontPanelLock(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<SamplerPanel>::failure(SESSION_TIMED_OUT);
+        if (!read->lock)
+            return Outcome<SamplerPanel>::failure(akm::succeeded(read->outcome)
+                                                       ? std::string("The sampler answered a front-panel state this server does not know.")
+                                                       : explain(read->outcome, "reading the front-panel lock", _config, false));
+        return Outcome<SamplerPanel>::success(*read->lock == akm::FrontPanelLock::Locked ? SamplerPanel::Locked : SamplerPanel::Normal);
+    }
+
+    Outcome<SamplerSettings> SamplerGateway::readSamplerSettings()
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerSettings>::failure(*problem);
+        SamplerSettings settings;
+        const auto name = readSamplerName();
+        if (!name.ok())
+            return Outcome<SamplerSettings>::failure(name.problem);
+        const auto clock = readSamplerClock();
+        if (!clock.ok())
+            return Outcome<SamplerSettings>::failure(clock.problem);
+        const auto playMode = readSamplerPlayMode();
+        if (!playMode.ok())
+            return Outcome<SamplerSettings>::failure(playMode.problem);
+        const auto panel = readSamplerPanel();
+        if (!panel.ok())
+            return Outcome<SamplerSettings>::failure(panel.problem);
+        settings.name = *name.value;
+        settings.clock = *clock.value;
+        settings.playMode = *playMode.value;
+        settings.panel = *panel.value;
+        return Outcome<SamplerSettings>::success(std::move(settings));
+    }
+
+    Outcome<std::string> SamplerGateway::setSamplerName(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<std::string>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setSamplerName(_connection->session, name, std::move(done));
+        });
+        if (!set)
+            return Outcome<std::string>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<std::string>::failure(explain(*set, "setting the sampler's name", _config, false));
+        return readSamplerName();
+    }
+
+    Outcome<SamplerClock> SamplerGateway::setSamplerClock(const SamplerClock& clock)
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerClock>::failure(*problem);
+        const akm::ClockDate wanted{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds};
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setClockDate(_connection->session, wanted, std::move(done));
+        });
+        if (!set)
+            return Outcome<SamplerClock>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<SamplerClock>::failure(explain(*set, "setting the sampler's clock", _config, false));
+        return readSamplerClock();
+    }
+
+    Outcome<SamplerPlayMode> SamplerGateway::setSamplerPlayMode(SamplerPlayMode mode)
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerPlayMode>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setPlayMode(_connection->session, playModeOf(mode), std::move(done));
+        });
+        if (!set)
+            return Outcome<SamplerPlayMode>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<SamplerPlayMode>::failure(explain(*set, "setting the sampler's play mode", _config, false));
+        return readSamplerPlayMode();
+    }
+
+    Outcome<SamplerPanel> SamplerGateway::setSamplerPanel(SamplerPanel panel)
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerPanel>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setFrontPanelLock(_connection->session, panel == SamplerPanel::Locked ? akm::FrontPanelLock::Locked : akm::FrontPanelLock::Normal,
+                                   std::move(done));
+        });
+        if (!set)
+            return Outcome<SamplerPanel>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<SamplerPanel>::failure(explain(*set, "setting the front-panel lock", _config, false));
+        return readSamplerPanel();
+    }
+
     Outcome<ZoneSamples> SamplerGateway::readZoneSamples(KeygroupSelection selection)
     {
         const auto count = keygroupCount();

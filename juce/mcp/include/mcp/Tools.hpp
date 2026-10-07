@@ -71,6 +71,11 @@ namespace mcp
     // ADR-MCP-004 (DEC-MCP-023, DEC-MCP-024)]
     [[nodiscard]] std::vector<Tool> makeMemoryExtraTools(SamplerGateway& gateway);
 
+    // The sampler's own settings: `get_sampler_settings` reads its name, clock, play mode and front-panel lock, and
+    // `set_sampler_setting` sets one of them, reading it back. Nothing is deleted. The gateway must outlive the tools.
+    // [RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
+    [[nodiscard]] std::vector<Tool> makeSamplerSettingsTools(SamplerGateway& gateway);
+
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions
     {

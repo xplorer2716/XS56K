@@ -95,6 +95,15 @@
 {"jsonrpc":"2.0","id":94,"method":"tools/call","params":{"name":"select_multi","arguments":{"name":"NOPE"}}}
 {"jsonrpc":"2.0","id":95,"method":"tools/call","params":{"name":"list_parameters","arguments":{"domain":"multi","group":"setup"}}}
 {"jsonrpc":"2.0","id":96,"method":"tools/call","params":{"name":"get_system_info","arguments":{}}}
+{"jsonrpc":"2.0","id":1001,"method":"tools/call","params":{"name":"get_sampler_settings","arguments":{}}}
+{"jsonrpc":"2.0","id":1002,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"name","value":"STUDIO S5K"}}}
+{"jsonrpc":"2.0","id":1003,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"clock","value":"2026-10-07 22:15:30"}}}
+{"jsonrpc":"2.0","id":1004,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"play_mode","value":"muted"}}}
+{"jsonrpc":"2.0","id":1005,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"play_mode","value":"multi"}}}
+{"jsonrpc":"2.0","id":1006,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"front_panel","value":"locked"}}}
+{"jsonrpc":"2.0","id":1007,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"front_panel","value":"normal"}}}
+{"jsonrpc":"2.0","id":1008,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"clock","value":"2027-02-29 00:00:00"}}}
+{"jsonrpc":"2.0","id":1009,"method":"tools/call","params":{"name":"get_sampler_settings","arguments":{}}}
 {"jsonrpc":"2.0","id":97,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"BASS"}}}
 {"jsonrpc":"2.0","id":98,"method":"tools/call","params":{"name":"set_zone_sample","arguments":{"sample":"KICK","zone":1,"keygroup":1}}}
 {"jsonrpc":"2.0","id":99,"method":"tools/call","params":{"name":"get_zone_samples","arguments":{"keygroup":1}}}
