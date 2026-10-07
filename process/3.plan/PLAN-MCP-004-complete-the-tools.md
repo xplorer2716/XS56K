@@ -27,7 +27,7 @@ of the reference, a test that reads it and the conversation), S for 028, M for 0
 another and are done in this order only for readability; each ends with a green `ctest` run (the complete suite once per batch, the
 targeted tests and `ctest -E bld_mutate_tool_script_tests` per task) and a commit. TASK-MCP-038 (Tier S) was added after 036, when the
 owner found the option table of the README unclear. The owner lifted the AGNOS limit of tasks per session ("tu peux faire toutes les
-taches", 2026-10-05).
+taches", 2026-10-05). TASK-MCP-042 and TASK-MCP-043 (Tier M) were written into the code and its tests on 2026-10-06 and are recorded here after the fact, on 2026-10-07, with the number the code already carried.
 
 What the review found and this plan does not schedule (ADR-MCP-004 DEC-MCP-025: the owner decides): song files, set lists,
 scenelists; the sampler's name, clock, play mode, lock and MIDI setup; the effects board; ejecting a disk; deleting all and clearing
@@ -205,4 +205,28 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-MCP-037
 - **Assignee**: AI
 - **Verification**: DONE on 2026-10-06, from the tools' own output. Red first (five new or changed tests failed: error number 257, the backslash path, the sample size 4096 against 1376 and 444, the program 4096 against 516, the multi; then seven MCP tests that expected the hint "select_disk" failed once the simulator answered 257, which showed a real defect: the hint was added for error 4 only, so with the real sampler it never appeared). Green after the changes: `xs56k_akm_tests "[disk]"` 40 cases, `xs56k_mcp_tests` 253 cases then the three added ones (a new multi has 32 parts, a renamed sample keeps its place, the keygroups after a deleted one move down: these three passed at once, the simulator already did that, they now pin it), and `ctest` 976 of 977 before the scripted disk conversation was regenerated (its differences read one by one: the 257 message with the hint, the sizes 516 / 44 / 2354), then both scripted conversations pass. Not done: the order of a folder listing and the load time of a large file stay different from the real sampler.
-- **Assumptions**: error 257 is given to every disk command with no disk selected, the real answer was seen for the first command of a listing only; a saved program is 516 bytes whatever its keygroups and a multi 2354 whatever its parts, only one size of each was observed.
+- **Assumptions**: error 257 is given to every disk command with no disk selected, the real answer was seen for the first command of a listing only; a saved program is 516 bytes whatever its keygroups and a multi 2354 whatever its parts, only one size of each was observed. (Corrected by TASK-MCP-043 for the program and the sample.)
+
+### TASK-MCP-042: A deletion on the disk waits for the disk timeout
+- **Tier**: M
+- **Status**: Done
+- **Description**: The real S5000 took more than 2 s to delete a folder of 7 files (2026-10-06): the deletion succeeded but the command had already been given up after the 2 s of an ordinary command. The AKM primitives `deleteSubFolder` and `deleteFile` take optional command options (a longer timeout), and the gateway's file and folder deletions wait for the disk timeout, as a load or a save does.
+- **Requirement refs**: RQ-AKM-069, RQ-MCP-039, RQ-MCP-044
+- **ADR refs**: ADR-MCP-004 (DEC-MCP-023)
+- **Acceptance Criteria** (Gherkin): *Given* a sampler that answers after 5 s, *When* a folder and a file are deleted with a 10 s timeout, *Then* each completes DONE; *and with the default options the first one times out*.
+- **Dependencies**: TASK-MCP-033
+- **Assignee**: AI
+- **Verification**: recorded after the fact on 2026-10-07; the work was done in an earlier session and committed with `62ab506`. The test case "Given a sampler that answers after 5 s, When a folder and a file are deleted with a 10 s timeout, Then each completes DONE; with the default options the first one times out" (`DiskPrimitivesTests.cpp`) is in the suite that passes: local `ctest` excluding only `bld_mutate_tool_script_tests` 979 of 980 on 2026-10-07 (the one failure being the disk conversation of TASK-MCP-043, regenerated afterwards and run alone), and the 7 canary builds of `b1c2ad4` green, each running the whole suite (981 tests). It was not seen red in this session.
+- **Assumptions**: the fact "more than 2 s for a folder of 7 files" is taken from the comments of the code and of the test (`DiskPrimitives.hpp`, `SamplerGatewayDisk.cpp`, `DiskPrimitivesTests.cpp`); `OBSERVATIONS-RQ-MCP-012-real-sampler.md` does not hold it (it has the deletion of a folder of 1 and of 4 files, 1.8 s and 2.2 s), so the observation of the 7-file folder still has to be written up there.
+
+### TASK-MCP-043: The simulated sampler saves a program and a sample at the real sizes
+- **Tier**: M
+- **Status**: Done
+- **Description**: Correct what TASK-MCP-041 left approximate: a saved program is 164 bytes plus 352 per keygroup (516, 1220 and 3684 bytes for 1, 3 and 10 keygroups; TASK-MCP-041 had 516 whatever the keygroups), and a saved sample has a 144-byte header then 2 bytes per point and channel (1376 bytes for a mono sample of 616 points, 544 for a stereo one of 100 points; TASK-MCP-041 had a 44-byte header, which fitted 666 points for the same 1376 bytes). The simulated sampler gains `setProgramNames` and `setKeygroupCount` so a test can seed programs of several keygroups.
+- **Requirement refs**: RQ-MCP-044, RQ-MCP-030
+- **ADR refs**: ADR-MCP-003 (DEC-MCP-022); ADR-MCP-004
+- **Acceptance Criteria** (Gherkin): *Given* programs of 1, 3 and 10 keygroups, *When* they are saved, *Then* the files are 516, 1220 and 3684 bytes; *and given* a mono sample of 616 points and a stereo one of 100 points, *when* they are saved, *then* the files are 1376 and 544 bytes.
+- **Dependencies**: TASK-MCP-041
+- **Assignee**: AI
+- **Verification**: the tests were written in an earlier session and committed with `62ab506`, which did not compile (the two seeding functions did not exist): the 7 canary builds failed on it, with `no member named 'setProgramNames'` / `'setKeygroupCount'` at `DiskPrimitivesTests.cpp:925-927` (the red). On 2026-10-07 the functions and the sizes were written in `SimulatedSampler.hpp` / `.cpp` (`835161f`): local build clean, `ctest` 979 of 980 with one failure, `mcp_simulated_server_disk_conversation`, whose expected output was regenerated after its differences were read one by one (516 became 1220 and 868 for programs of 3 and 2 keygroups, 44 became 144 for the sample header, nothing else), then the disk tests pass. The 7 canary builds of `b1c2ad4` are green (the other failure they showed, `mcp_sources_call_no_destructive_primitive`, came from CMake 3 not reading `IN_LIST` without policy CMP0057 and was fixed by a line in `CheckNoDestructiveCalls.cmake`).
+- **Assumptions**: the sizes (164 + 352 per keygroup for 1, 3 and 10 keygroups, the 144-byte header) are taken from the comment of the test in `62ab506`, which says what the real S5000 wrote on 2026-10-06; `OBSERVATIONS-RQ-MCP-012-real-sampler.md` holds only the 516-byte program and the 1376-byte sample, so those figures still have to be written up there. The multi stays 2354 bytes whatever its parts.
