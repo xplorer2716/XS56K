@@ -98,6 +98,7 @@ the front panel's), `documents/_index/sysex_spec.items.tsv` (section 10), the AK
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the sources of `juce/mcp`, *When* searched for the delete, rename, eject and format primitives of the disk, *Then* there is no call, and the load, save, select, create-folder and folder-navigation primitives are called only from the gateway's disk unit.
 - **Dependencies**: RQ-MCP-014; ADR-MCP-003 (DEC-MCP-019)
+- **Amended 2026-10-07**: the owner decided that deleting all programs, samples or multis and clearing the sampler's memory are offered, with a confirmation by count (RQ-MCP-051, RQ-MCP-052; ADR-MCP-005 DEC-MCP-029). Ejecting a disk stays not offered by the owner's decision, formatting is not in the SysEx specification (RQ-MCP-055).
 
 ---
 

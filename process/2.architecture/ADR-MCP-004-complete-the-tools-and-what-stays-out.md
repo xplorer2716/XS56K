@@ -65,6 +65,11 @@ save screen and bypasses every guard); saving or loading song files, scenelists 
 computer and the sampler do not exist in the SysEx specification. The source check keeps these forbidden until a decision changes it.
 [RQ-MCP-042]
 
+**Amended 2026-10-07 by ADR-MCP-005 (DEC-MCP-028)**: the owner decided each item. Song files, set lists, scenelists (and their saving
+and loading), the sampler's settings and MIDI setup, the effects board, delete all, clear memory and the front-panel keys are
+offered (FTR-MCP-005). Ejecting a disk stays not offered, formatting and file transfer are outside the specification, and the
+disk-list refresh stays behind `--allow-disk-refresh`.
+
 ### DEC-MCP-026: The README is the human reference, organised by what a person needs to ask
 `juce/mcp/README.md` is rewritten in this order: what the server is and what it needs (sampler, MIDI ports, an MCP client); how to
 start it; a table of every launch option with its default and what it turns on; a table that says, for each group of tools, which

@@ -62,6 +62,7 @@ AKM primitives of `juce/akm/include/akm/`.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the sources of `juce/mcp`, *When* searched for the disk primitives (`DiskPrimitives`), the Delete ALL primitives and Clear Sampler Memory, *Then* none is called. *Given* the list of tools, *Then* none is named save, load, delete all or clear.
 - **Dependencies**: RQ-MCP-008; ADR-MCP-002 (DEC-MCP-010)
+- **Amended 2026-10-07**: no longer true for what the owner has since asked for. The disk tools were offered by FTR-MCP-003; the sampler's settings and MIDI setup, delete all and clear memory are offered by FTR-MCP-005 (RQ-MCP-046, RQ-MCP-047, RQ-MCP-051, RQ-MCP-052; ADR-MCP-005 DEC-MCP-028), each behind its confirmation. What stays out is in RQ-MCP-055.
 
 ### RQ-MCP-015: Create a program
 - **Category**: Functional
