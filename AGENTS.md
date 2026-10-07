@@ -45,6 +45,11 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 
 ## Commands
 
+- **Shell calls:** prefix every command-line call with `rtk` (RTK, "Rust Token Killer", a token-saving CLI proxy that
+  condenses command output): `rtk git status`, `rtk cmake --build juce/build`, `rtk ctest --test-dir juce/build
+  --output-on-failure`, `rtk gh run view <id>`. Write the prefix yourself, the automatic rewriting hook is not relied
+  upon. If a condensed result is unusable (empty when output was clearly expected, contradicting its exit code, or
+  garbled), re-run it as `rtk proxy <cmd>` to get the raw output; `rtk gain` shows the savings.
 - **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
   (ALSA headers, needed by `juce_audio_devices`); the GUI target (`BUILD_APP=ON`) additionally
   needs `libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libxext-dev
