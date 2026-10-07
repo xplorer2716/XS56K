@@ -887,9 +887,9 @@ TEST_CASE("Given a simulated disk with an existing file at the target name, When
 }
 
 // What the real S5000 wrote on 2026-10-06 (OBSERVATIONS-RQ-MCP-012-real-sampler.md): a mono sample of 616 points is a 1376-byte `.WAV`
-// (144 bytes before the data, 2 bytes per point and channel: the source file of a loaded sample is 100 bytes shorter than its saved copy),
+// (144 bytes before the data, 2 bytes per point and channel; a stereo sample of 91985 points is 368084 bytes),
 // a multi of 32 parts is a 2354-byte `.AKM`, a program is 164 bytes plus 352 per keygroup (516, 1220 and 3684 for 1, 3 and 10).
-// [TASK-MCP-041, TASK-MCP-043, RQ-MCP-044]
+// Measured again on 2026-10-07 (OBSERVATIONS-RQ-MCP-012-real-sampler.md). [TASK-MCP-041, TASK-MCP-043, RQ-MCP-044]
 TEST_CASE("Given a mono sample of 616 points and a stereo one of 100 points, When they are saved, Then the files are 1376 and 544 bytes [RQ-MCP-044]",
           "[akm][disk]")
 {

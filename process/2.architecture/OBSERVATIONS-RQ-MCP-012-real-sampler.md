@@ -297,3 +297,29 @@ describes: "you see a change when the screen shows the program the assistant is 
 - A program name longer than 12 characters, or with characters beyond printable ASCII.
 - Programs with the same name apart from case (two `mmm`/`MMM`): the simulated sampler refuses an identical name only.
 - The sampler's reaction to `delete_program` while it holds a very long list.
+
+## The sizes of saved files and the time of a deletion (TASK-MCP-042, TASK-MCP-043), run on 2026-10-07
+
+The owner's S5000 (OS 2.14, memory empty) and its SCSI2SD disk, the owner present; the real `xs56k_mcp_server` with `--allow-disk`,
+driven one tool call at a time by a script that times each answer (the refresh of the disk list never sent, no call piped into
+anything that can end early). It was run to read real figures after the code and the tests of TASK-MCP-042 and TASK-MCP-043 had
+been written with figures whose source was not in this file. Test objects only: the folders `MCPSIZE` and `MCPDEL`, the programs
+`MCPSZ1`, `MCPSZ2`, `MCPSZ3`, `MCPSZ4`, `MCPSZ10`, and two samples loaded from the disk; all deleted at the end by the tools
+(`delete_folder` with `delete_contents`, `delete_program`, `delete_sample`, each with the exact name), the sampler left with no
+program and no sample and the root of the disk as it was found.
+
+| What | What the sampler did |
+|---|---|
+| `save_memory_item` of a program, **1, 2, 3, 4 and 10 keygroups** | `.AKP` files of **516, 868, 1220, 1572 and 3684 bytes**: 164 bytes plus 352 per keygroup, for the five counts |
+| `save_memory_item` of a **mono sample of 616 points** (`AKWF_oboe_0001`, loaded from a 1344-byte file) | `AKWF_oboe_0001.WAV` of **1376 bytes** = 144 + 2 x 616 |
+| `save_memory_item` of a **stereo sample of 91985 points** (`Al_Jarreau-Flame`, loaded from a 368084-byte file) | `Al_Jarreau-Flame.WAV` of **368084 bytes** = 144 + 2 x 2 x 91985: the same size as the file it was loaded from |
+| the order of the files of a folder | the order they were written, not alphabetical: `MCPSZ1.AKP`, `MCPSZ3.AKP`, `MCPSZ10.AKP` (saved in that order), and in the second folder `MCPSZ1`, `MCPSZ2`, `MCPSZ3`, `MCPSZ4`, `MCPSZ10`, the two samples; an overwrite was not tried here |
+| `delete_folder` of `MCPDEL` (7 files: 5 programs, 2 samples) with `delete_contents` | **2.67 s** for the whole tool call ("the 7 items it held"). The call opens the folder first to count (an `open_folder` takes about 0.4 s), so the deletion itself took about 2.2 s, above the 2 s of an ordinary command |
+| `delete_folder` of `MCPSIZE` (5 files) with `delete_contents` | 2.37 s for the whole call (earlier runs: 1.8 s for 1 file, 2.2 s for 4 files) |
+
+What this changes: the figures of TASK-MCP-043 are now measured, not only written in a comment (the multi stays at the one size seen,
+2354 bytes for 32 parts). The 144-byte header of a saved sample holds for a mono and a stereo sample of very different lengths. The
+claim in a test comment that the source file of a loaded sample is "100 bytes shorter than its saved copy" is **not** what was seen:
+the oboe file is 32 bytes shorter than its saved copy (1344 and 1376) and the stereo file is the same size as its copy (368084). Left
+as it was, after the run: the free wave memory read 99 % afterwards (158131378 of 158548694 bytes) with no sample in memory, bytes not
+given back after the deletions, as already noted for 786432 bytes in TASK-MCP-037.
