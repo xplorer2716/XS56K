@@ -421,6 +421,16 @@ namespace mcp
         std::string after;
     };
 
+    /// A song file, set list or scenelist deletion: `done` is false when `confirm` was not its exact name (nothing was sent); `remaining` is what
+    /// the list holds after. [RQ-MCP-049]
+    struct NamedDeletion
+    {
+        bool done = true;
+        int index = 0;
+        std::string name;
+        std::vector<NamedListEntry> remaining;
+    };
+
     /// The free space of the current disk. [RQ-MCP-040]
     struct DiskSpace
     {
@@ -720,6 +730,13 @@ namespace mcp
         /// position and the names; nothing is sent when no set list or several have that name, or when another already bears the new name.
         /// [RQ-MCP-048]
         [[nodiscard]] Outcome<SetListRenaming> renameSetList(std::string_view name, std::string_view newName);
+
+        /// Deletes the current song file or scenelist, and only when `confirm` is exactly its name; otherwise nothing is sent and the answer
+        /// says which one is current. Nothing is sent either when none is current. [RQ-MCP-049, RQ-MCP-042]
+        [[nodiscard]] Outcome<NamedDeletion> deleteCurrentNamedItem(NamedListKind kind, std::string_view confirm);
+
+        /// Deletes the set list found by `name` (as `renameSetList` finds it), and only when `confirm` is exactly its name. [RQ-MCP-049]
+        [[nodiscard]] Outcome<NamedDeletion> deleteSetList(std::string_view name, std::string_view confirm);
 
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();

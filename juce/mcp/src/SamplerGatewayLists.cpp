@@ -17,8 +17,8 @@
  */
 
 // The lists unit of the sampler gateway: the song files (section 16), the set lists (section 16) and the scenelists (section 14) -
-// listing, selecting and renaming. It is the only unit that may call their rename primitives (checked by
-// `CheckNoDestructiveCalls.cmake`). [TASK-MCP-047, RQ-MCP-048, RQ-MCP-057, ADR-MCP-005 (DEC-MCP-031)]
+// listing, selecting, renaming and deleting. It is the only unit that may call their rename and delete primitives (checked by
+// `CheckNoDestructiveCalls.cmake`). [TASK-MCP-047, TASK-MCP-048, RQ-MCP-048, RQ-MCP-049, RQ-MCP-057, ADR-MCP-005 (DEC-MCP-031)]
 #include <algorithm>
 #include <functional>
 #include <utility>
@@ -57,6 +57,7 @@ namespace mcp
             void (*selectByName)(akm::Session&, std::string_view, akm::CommandCompletion);
             void (*selectByIndex)(akm::Session&, int, akm::CommandCompletion);
             void (*renameCurrent)(akm::Session&, std::string_view, akm::CommandCompletion);
+            void (*deleteCurrent)(akm::Session&, akm::CommandCompletion);
         };
 
         const ListCalls& callsOf(NamedListKind kind)
@@ -69,9 +70,10 @@ namespace mcp
                                          &akm::getCurrentSongIndex,
                                          &akm::selectSongByName,
                                          &akm::selectSongByIndex,
-                                         &akm::renameCurrentSong};
+                                         &akm::renameCurrentSong,
+                                         &akm::deleteCurrentSong};
             static const ListCalls SET_LISTS{NOUN_SET_LIST, "list_set_lists", "", &akm::getSetListCount, &akm::getSetListNameByIndex,
-                                             nullptr,       nullptr,          nullptr, nullptr};
+                                             nullptr,       nullptr,          nullptr, nullptr,         nullptr};
             static const ListCalls SCENELISTS{NOUN_SCENELIST,
                                               "list_scenelists",
                                               "select_scenelist",
@@ -80,7 +82,8 @@ namespace mcp
                                               &akm::getCurrentSceneListIndex,
                                               &akm::selectSceneListByName,
                                               &akm::selectSceneListByIndex,
-                                              &akm::renameCurrentSceneList};
+                                              &akm::renameCurrentSceneList,
+                                              &akm::deleteCurrentSceneList};
             switch (kind)
             {
                 case NamedListKind::SongFile:
@@ -331,5 +334,62 @@ namespace mcp
         if (!after.ok())
             return Outcome<SetListRenaming>::failure(after.problem);
         return Outcome<SetListRenaming>::success(SetListRenaming{target.index, target.name, *after.value});
+    }
+
+    Outcome<NamedDeletion> SamplerGateway::deleteCurrentNamedItem(NamedListKind kind, std::string_view confirm)
+    {
+        const ListCalls& calls = callsOf(kind);
+        if (calls.deleteCurrent == nullptr)
+            return Outcome<NamedDeletion>::failure(std::string("The sampler has no current ") + calls.noun + ": a " + calls.noun + " is deleted by its name.");
+        if (const auto problem = connect())
+            return Outcome<NamedDeletion>::failure(*problem);
+        const auto current = currentNamedEntry(kind);
+        if (!current.ok())
+            return Outcome<NamedDeletion>::failure(std::string("No ") + calls.noun + " is selected: use " + calls.selectTool + " first.");
+        if (current.value->name != confirm)
+            return Outcome<NamedDeletion>::success(NamedDeletion{false, current.value->index, current.value->name, {}});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            calls.deleteCurrent(session(), std::move(done));
+        });
+        if (!deleted)
+            return Outcome<NamedDeletion>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*deleted))
+            return Outcome<NamedDeletion>::failure(
+                explain(*deleted, std::string("deleting the ") + calls.noun + " \"" + current.value->name + "\"", _config, false));
+        const auto after = listNamedItems(kind);
+        if (!after.ok())
+            return Outcome<NamedDeletion>::failure(after.problem);
+        return Outcome<NamedDeletion>::success(NamedDeletion{true, current.value->index, current.value->name, after.value->entries});
+    }
+
+    Outcome<NamedDeletion> SamplerGateway::deleteSetList(std::string_view name, std::string_view confirm)
+    {
+        const char* noun = namedListNoun(NamedListKind::SetList);
+        const auto listing = listNamedItems(NamedListKind::SetList);
+        if (!listing.ok())
+            return Outcome<NamedDeletion>::failure(listing.problem);
+        const std::vector<int> found = positionsNamed(*listing.value, name);
+        if (found.empty())
+            return Outcome<NamedDeletion>::failure(std::string("No ") + noun + " is named \"" + std::string(name) + "\". Use " +
+                                                   callsOf(NamedListKind::SetList).listTool + " to see the names.");
+        if (found.size() > 1)
+            return Outcome<NamedDeletion>::failure(std::string("Several ") + noun + "s are named \"" + std::string(name) + "\" (positions " +
+                                                   positionsText(found) + "): nothing was deleted, because a " + noun + " is found by its name.");
+        const NamedListEntry& target = listing.value->entries[static_cast<std::size_t>(found.front())];
+        if (target.name != confirm)
+            return Outcome<NamedDeletion>::success(NamedDeletion{false, target.index, target.name, {}});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteSetList(session(), target.index, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<NamedDeletion>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*deleted))
+            return Outcome<NamedDeletion>::failure(explain(*deleted, std::string("deleting the ") + noun + " \"" + target.name + "\"", _config, false));
+        const auto after = listNamedItems(NamedListKind::SetList);
+        if (!after.ok())
+            return Outcome<NamedDeletion>::failure(after.problem);
+        return Outcome<NamedDeletion>::success(NamedDeletion{true, target.index, target.name, after.value->entries});
     }
 }

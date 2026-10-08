@@ -81,9 +81,10 @@ namespace mcp
     // The gateway must outlive the tools. [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
     [[nodiscard]] std::vector<Tool> makeMidiSetupTools(SamplerGateway& gateway);
 
-    // The song files, the set lists and the scenelists: for each, a list tool (`list_song_files`, `list_set_lists`, `list_scenelists`) and a
-    // rename tool; the song files and the scenelists, which have a current one, also a select tool. A set list is renamed by name. Nothing is
-    // deleted here. The gateway must outlive the tools. [RQ-MCP-048, ADR-MCP-005 (DEC-MCP-031)]
+    // The song files, the set lists and the scenelists: for each, a list tool (`list_song_files`, `list_set_lists`, `list_scenelists`), a
+    // rename tool and a delete tool (`delete_song_file`, `delete_set_list`, `delete_scenelist`, destructive, each only with a `confirm` that is the
+    // exact name); the song files and the scenelists, which have a current one, also a select tool. A set list is renamed and deleted by name.
+    // The gateway must outlive the tools. [RQ-MCP-048, RQ-MCP-049, ADR-MCP-005 (DEC-MCP-031), ADR-MCP-004 (DEC-MCP-023)]
     [[nodiscard]] std::vector<Tool> makeNamedListTools(SamplerGateway& gateway);
 
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]

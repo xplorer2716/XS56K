@@ -121,6 +121,11 @@
 {"jsonrpc":"2.0","id":1024,"method":"tools/call","params":{"name":"select_scenelist","arguments":{"index":1}}}
 {"jsonrpc":"2.0","id":1025,"method":"tools/call","params":{"name":"rename_scenelist","arguments":{"name":"GIG"}}}
 {"jsonrpc":"2.0","id":1026,"method":"tools/call","params":{"name":"rename_scenelist","arguments":{"name":"live set"}}}
+{"jsonrpc":"2.0","id":1027,"method":"tools/call","params":{"name":"delete_song_file","arguments":{"confirm":"verse two"}}}
+{"jsonrpc":"2.0","id":1028,"method":"tools/call","params":{"name":"delete_song_file","arguments":{"confirm":"VERSE TWO"}}}
+{"jsonrpc":"2.0","id":1029,"method":"tools/call","params":{"name":"delete_set_list","arguments":{"name":"TOUR","confirm":"TOUR"}}}
+{"jsonrpc":"2.0","id":1030,"method":"tools/call","params":{"name":"delete_scenelist","arguments":{"confirm":"GIG"}}}
+{"jsonrpc":"2.0","id":1031,"method":"tools/call","params":{"name":"list_song_files","arguments":{}}}
 {"jsonrpc":"2.0","id":97,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"BASS"}}}
 {"jsonrpc":"2.0","id":98,"method":"tools/call","params":{"name":"set_zone_sample","arguments":{"sample":"KICK","zone":1,"keygroup":1}}}
 {"jsonrpc":"2.0","id":99,"method":"tools/call","params":{"name":"get_zone_samples","arguments":{"keygroup":1}}}

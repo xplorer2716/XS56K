@@ -2799,6 +2799,7 @@ namespace mcp
         constexpr const char* ARGUMENT_NAME = "name";
         constexpr const char* ARGUMENT_INDEX = "index";
         constexpr const char* ARGUMENT_NEW_NAME = "new_name";
+        constexpr const char* ARGUMENT_CONFIRM = "confirm";
 
         /// A kind of list and the names of its tools; a set list has no current item, so no select tool.
         struct ListTools
@@ -2807,17 +2808,29 @@ namespace mcp
             const char* list;
             const char* select;
             const char* rename;
+            const char* remove;
         };
 
-        constexpr ListTools SONG_FILE_TOOLS{NamedListKind::SongFile, "list_song_files", "select_song_file", "rename_song_file"};
-        constexpr ListTools SET_LIST_TOOLS{NamedListKind::SetList, "list_set_lists", nullptr, "rename_set_list"};
-        constexpr ListTools SCENELIST_TOOLS{NamedListKind::SceneList, "list_scenelists", "select_scenelist", "rename_scenelist"};
+        constexpr ListTools SONG_FILE_TOOLS{NamedListKind::SongFile, "list_song_files", "select_song_file", "rename_song_file", "delete_song_file"};
+        constexpr ListTools SET_LIST_TOOLS{NamedListKind::SetList, "list_set_lists", nullptr, "rename_set_list", "delete_set_list"};
+        constexpr ListTools SCENELIST_TOOLS{NamedListKind::SceneList, "list_scenelists", "select_scenelist", "rename_scenelist", "delete_scenelist"};
 
         std::string capitalized(std::string text)
         {
             if (!text.empty())
                 text.front() = static_cast<char>(std::toupper(static_cast<unsigned char>(text.front())));
             return text;
+        }
+
+        /// What a list holds after a deletion, as the end of the answer. [RQ-MCP-049]
+        std::string remainingText(const std::string& noun, const std::vector<NamedListEntry>& remaining)
+        {
+            if (remaining.empty())
+                return "No " + noun + " remains.";
+            std::vector<std::string> kept;
+            for (const NamedListEntry& entry : remaining)
+                kept.push_back(entry.name);
+            return capitalized(noun) + "s that remain (" + std::to_string(remaining.size()) + "): " + joined(kept, ", ") + ".";
         }
     }
 
@@ -2945,6 +2958,70 @@ namespace mcp
                         return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" (position " + std::to_string(renamed.value->index) + ") to \"" +
                                   renamed.value->after + "\".");
                     }});
+            }
+
+            // delete_song_file, delete_scenelist: the current one; delete_set_list: by name. Each only with `confirm`, the exact name.
+            // [RQ-MCP-049, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023)]
+            const std::string lostNotice = " A " + noun + " that is not on a disk is lost; it cannot be undone from here. ";
+            const auto notConfirmed = [noun](const NamedDeletion& deletion, const std::string& confirm) {
+                return failure("The " + noun + " is named \"" + deletion.name + "\" and 'confirm' was \"" + confirm + "\": nothing was deleted. Give 'confirm' exactly as the " +
+                               noun + " is named.");
+            };
+            const auto deletedText = [noun](const NamedDeletion& deletion, bool withPosition) {
+                return "Deleted the " + noun + " \"" + deletion.name + "\"" + (withPosition ? " (position " + std::to_string(deletion.index) + ")" : std::string()) +
+                       ". " + remainingText(noun, deletion.remaining);
+            };
+            if (hasCurrent)
+            {
+                ToolDefinition removal = definition(
+                    names.remove, capitalized("Delete the current " + noun).c_str(),
+                    "Deletes the CURRENT " + noun + " from the sampler's memory (see " + names.list + " and " + names.select +
+                        "), and only if 'confirm' is exactly its name: otherwise nothing is deleted and the answer says which one is current." + lostNotice + MEMORY_NOTICE,
+                    objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "string"}, {"description", "The exact name of the current " + noun + ", to confirm the deletion."}}}},
+                                 json::array({ARGUMENT_CONFIRM})),
+                    false, false);
+                removal.annotations.destructive = true;
+                tools.push_back(Tool{std::move(removal), [&gateway, kind, noun, notConfirmed, deletedText](const json& arguments) {
+                                         if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
+                                             return *refused;
+                                         if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
+                                             return failure("Give 'confirm', the exact name of the current " + noun + ".");
+                                         const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
+                                         const auto deletion = gateway.deleteCurrentNamedItem(kind, confirm);
+                                         if (!deletion.ok())
+                                             return failure(deletion.problem);
+                                         if (!deletion.value->done)
+                                             return notConfirmed(*deletion.value, confirm);
+                                         return ok(deletedText(*deletion.value, false));
+                                     }});
+            }
+            else
+            {
+                ToolDefinition removal = definition(
+                    names.remove, capitalized("Delete a " + noun).c_str(),
+                    "Deletes the " + noun + " called 'name' (see " + names.list + ") from the sampler's memory, and only if 'confirm' is exactly its name as " +
+                        names.list + " gives it: otherwise nothing is deleted. The sampler has no current " + noun + ", so it is found by its name." + lostNotice +
+                        MEMORY_NOTICE,
+                    objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The " + noun + "'s name."}}},
+                                      {ARGUMENT_CONFIRM, {{"type", "string"}, {"description", "The exact name of the " + noun + ", to confirm the deletion."}}}},
+                                 json::array({ARGUMENT_NAME, ARGUMENT_CONFIRM})),
+                    false, false);
+                removal.annotations.destructive = true;
+                tools.push_back(Tool{std::move(removal), [&gateway, noun, notConfirmed, deletedText](const json& arguments) {
+                                         if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_CONFIRM}))
+                                             return *refused;
+                                         if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
+                                             return failure("Give the 'name' of the " + noun + " to delete, as a string.");
+                                         if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
+                                             return failure("Give 'confirm', the exact name of the " + noun + ".");
+                                         const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
+                                         const auto deletion = gateway.deleteSetList(arguments.at(ARGUMENT_NAME).get<std::string>(), confirm);
+                                         if (!deletion.ok())
+                                             return failure(deletion.problem);
+                                         if (!deletion.value->done)
+                                             return notConfirmed(*deletion.value, confirm);
+                                         return ok(deletedText(*deletion.value, true));
+                                     }});
             }
         }
         return tools;

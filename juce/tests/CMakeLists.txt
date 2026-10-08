@@ -104,6 +104,7 @@ add_executable(xs56k_mcp_tests
     mcp/SystemInfoToolsTests.cpp
     mcp/SamplerSettingsToolsTests.cpp
     mcp/MidiSetupToolsTests.cpp
+    mcp/NamedListDeleteToolsTests.cpp
     mcp/NamedListToolsTests.cpp
     mcp/ToolsTests.cpp
     mcp/ZoneParameterTests.cpp
@@ -161,7 +162,7 @@ add_test(NAME mcp_simulated_server_scripted_conversation
         -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
-        -DEXPECT_LINES=140
+        -DEXPECT_LINES=145
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The same server launched with --allow-disk and --allow-disk-refresh (the conversation sends a refresh), and a scripted conversation over the disk tools: browsing, loading, saving, what
 # a save refuses and a read-only disk. To regenerate the expected output after a deliberate change, run
@@ -190,6 +191,13 @@ add_test(NAME mcp_sources_call_no_destructive_primitive
     COMMAND ${CMAKE_COMMAND}
         -DSOURCE_DIR=${PROJECT_SOURCE_DIR}/mcp
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
+# The same check must fail on a tool file that calls a delete primitive: the fixture holds one. [TASK-MCP-048, RQ-MCP-049, RQ-MCP-057]
+add_test(NAME mcp_source_check_fails_on_a_delete_call_in_a_tool_file
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/mcp/forbidden_call_fixture
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
+set_tests_properties(mcp_source_check_fails_on_a_delete_call_in_a_tool_file PROPERTIES
+    PASS_REGULAR_EXPRESSION "A forbidden AKM call in the MCP server:.*akm::deleteSetList")
 
 # The README of the MCP server names every tool the server lists and every option of its usage text: it is the reference for the person
 # who uses the server. [TASK-MCP-036, RQ-MCP-043, ADR-MCP-004 (DEC-MCP-026)]

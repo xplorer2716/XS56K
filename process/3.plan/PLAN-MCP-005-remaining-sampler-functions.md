@@ -96,15 +96,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-048: Song files, set lists and scenelists — deletion
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `delete_song_file`, `delete_set_list`, `delete_scenelist`, each with `confirm` = the exact name (DEC-MCP-023), destructive annotation, the AKM delete primitives allowed in the gateway's memory unit only, `CheckNoDestructiveCalls.cmake` widened for them.
 - **Requirement refs**: RQ-MCP-049, RQ-MCP-042, RQ-MCP-057
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-031); ADR-MCP-004 (DEC-MCP-023)
 - **Acceptance Criteria** (Gherkin): *Given* each tool, *When* it is called with no `confirm`, a wrong one and the right one, *Then* the first two send nothing and name the `confirm` expected and the third deletes it; *given* a call to one of the primitives in a tool file, *then* the source check fails.
 - **Dependencies**: TASK-MCP-047
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None yet.
+- **Verification**: DONE on 2026-10-08, from the tools' own output. Red first: `xs56k_mcp_tests "[deletelists]"`: 7 test cases, 0 passed. Green: "All tests passed (156 assertions in 7 test cases)" (`NamedListDeleteToolsTests.cpp`: annotations; no `confirm`, a wrong one and the right one for each of the three tools; none selected; the set list found in other letters; unknown and doubled names; argument errors). The source check: `mcp_sources_call_no_destructive_primitive` passes on the real sources and the new `mcp_source_check_fails_on_a_delete_call_in_a_tool_file` passes because the script fails on `mcp/forbidden_call_fixture/Tools.cpp`, which calls `akm::deleteSetList`. Full `ctest` on Linux (GCC 13, `-Wno-dangling-reference`): 1025 of 1025 pass. The scripted conversation gained 5 calls (`EXPECT_LINES` 140 to 145); both expected outputs regenerated and the diff read (the 5 answers, the 3 new tool definitions). 47 tools, 63 with `--allow-disk`. Not run on the real sampler (TASK-MCP-055).
+- **Assumptions**: (1) The delete primitives are called from `SamplerGatewayLists.cpp` (the lists unit created in TASK-MCP-047, next to the rename primitives), not from "the gateway's memory unit" (`SamplerGateway.cpp`) the task text names: one unit per family keeps RQ-MCP-057's single call site; `CheckNoDestructiveCalls.cmake` allows the three delete names there only. (2) `delete_song_file` and `delete_scenelist` delete the CURRENT one (the sampler's primitives act on the current item), with `confirm` = its exact name, like `delete_multi`; `delete_set_list` takes `name` (found as for the rename: exactly, else the only one differing by case, spaces or hyphens) AND `confirm`, which must be the exact name the list gives, so a loosely typed name cannot delete by itself. (3) The answer after a deletion lists the names that remain (RQ-MCP-049), re-read from the sampler. (4) After deleting the current song file or scenelist the simulated sampler has none selected (modelled; the real sampler's selection after a deletion is unobserved). (5) The acceptance criterion "a call to the primitive in a tool file makes the source check fail" is proved with a fixture directory that the script scans, not by editing the real `Tools.cpp`.
 
 ### TASK-MCP-049: Saving and loading song files, set lists and scenelists through the disk
 - **Tier**: M
