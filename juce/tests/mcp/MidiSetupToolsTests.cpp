@@ -38,15 +38,28 @@ using mcp::test::toolText;
 namespace
 {
     constexpr std::size_t FILTER_EVENT_TYPES = 4;
+    constexpr const char* TOOL_SET_SETTING = "set_midi_setting";
+    constexpr const char* TOOL_SET_FILTER = "set_midi_filter";
+    constexpr const char* SWITCH_PROGRAM_CHANGE = "program_change";
+    constexpr const char* SWITCH_MULTI_SELECT = "multi_select";
+    constexpr const char* SWITCH_MULTI_SELECT_CHANNEL = "multi_select_channel";
+    constexpr const char* SWITCH_EXTERNAL_APM_CONTROLLER = "external_apm_controller";
+    constexpr const char* SWITCH_AFTERTOUCH = "aftertouch";
+    constexpr const char* EVENT_NOTE_ON = "note_on";
+    constexpr const char* EVENT_AFTERTOUCH = "aftertouch";
+    constexpr const char* EVENT_WHEELS = "wheels";
+    constexpr const char* EVENT_VOLUME = "volume";
+    constexpr const char* ACTION_ALLOW = "allow";
+    constexpr const char* ACTION_IGNORE = "ignore";
 
     json setting(ToolRig& rig, const char* name, const std::string& value)
     {
-        return rig.call("set_midi_setting", {{"setting", name}, {"value", value}});
+        return rig.call(TOOL_SET_SETTING, {{"setting", name}, {"value", value}});
     }
 
     json filter(ToolRig& rig, const char* event, const json& channel, const char* action)
     {
-        return rig.call("set_midi_filter", {{"event", event}, {"channel", channel}, {"action", action}});
+        return rig.call(TOOL_SET_FILTER, {{"event", event}, {"channel", channel}, {"action", action}});
     }
 
     /// How many §04 items of any kind the simulated sampler has been sent.
@@ -66,7 +79,7 @@ TEST_CASE("Given the server, When the tools are listed, Then set_midi_setting an
           "[mcp][midi]")
 {
     ToolRig rig;
-    for (const char* name : {"set_midi_setting", "set_midi_filter"})
+    for (const char* name : {TOOL_SET_SETTING, TOOL_SET_FILTER})
     {
         const json tool = rig.tool(name);
         INFO(name);
@@ -81,12 +94,12 @@ TEST_CASE("Given the program change switch, When it is set off then on, Then the
           "[mcp][midi]")
 {
     ToolRig rig;
-    const std::string off = toolText(setting(rig, "program_change", "off"));
+    const std::string off = toolText(setting(rig, SWITCH_PROGRAM_CHANGE, "off"));
     CHECK(hasText(off, "program_change"));
     CHECK(hasText(off, "off"));
     checkPreviousValueSaid(off);
     CHECK(rig.sampler->midiConfig().programChangeEnable == 0);
-    const json on = setting(rig, "program_change", "on");
+    const json on = setting(rig, SWITCH_PROGRAM_CHANGE, "on");
     CHECK_FALSE(toolFailed(on));
     CHECK(rig.sampler->midiConfig().programChangeEnable == 1);
     CHECK(rig.accepted(akm::ItemId::MidiProgramChangeEnable) == 2);
@@ -99,7 +112,7 @@ TEST_CASE("Given each multi select mode, When it is set, Then the simulated samp
     const std::vector<std::pair<const char*, std::uint8_t>> modes = {{"off", 0}, {"program_change", 1}, {"bank", 2}};
     for (const auto& [mode, byte] : modes)
     {
-        const json answer = setting(rig, "multi_select", mode);
+        const json answer = setting(rig, SWITCH_MULTI_SELECT, mode);
         INFO(mode);
         CHECK_FALSE(toolFailed(answer));
         CHECK(hasText(toolText(answer), mode));
@@ -112,7 +125,7 @@ TEST_CASE("Given the multi select channel 3, When it is set, Then the simulated 
           "[mcp][midi]")
 {
     ToolRig rig;
-    const std::string three = toolText(setting(rig, "multi_select_channel", "3"));
+    const std::string three = toolText(setting(rig, SWITCH_MULTI_SELECT_CHANNEL, "3"));
     CHECK(hasText(three, "3A"));
     checkPreviousValueSaid(three);
     CHECK(rig.sampler->midiConfig().multiSelectChannel == 2);
@@ -120,7 +133,7 @@ TEST_CASE("Given the multi select channel 3, When it is set, Then the simulated 
     const std::vector<std::pair<const char*, std::uint8_t>> channels = {{"3b", 18}, {"1A", 0}, {"16B", 31}, {"16", 15}, {"10a", 9}};
     for (const auto& [channel, byte] : channels)
     {
-        const json answer = setting(rig, "multi_select_channel", channel);
+        const json answer = setting(rig, SWITCH_MULTI_SELECT_CHANNEL, channel);
         INFO(channel);
         CHECK_FALSE(toolFailed(answer));
         CHECK(rig.sampler->midiConfig().multiSelectChannel == byte);
@@ -134,7 +147,7 @@ TEST_CASE("Given the external APM controller, When 0, 74 and 127 are set, Then t
     ToolRig rig;
     for (const std::uint8_t controller : {0, 74, 127})
     {
-        const json answer = setting(rig, "external_apm_controller", std::to_string(controller));
+        const json answer = setting(rig, SWITCH_EXTERNAL_APM_CONTROLLER, std::to_string(controller));
         INFO(static_cast<int>(controller));
         CHECK_FALSE(toolFailed(answer));
         CHECK(hasText(toolText(answer), std::to_string(controller).c_str()));
@@ -147,9 +160,9 @@ TEST_CASE("Given the aftertouch type, When channel and polyphonic are set, Then 
           "[mcp][midi]")
 {
     ToolRig rig;
-    CHECK_FALSE(toolFailed(setting(rig, "aftertouch", "polyphonic")));
+    CHECK_FALSE(toolFailed(setting(rig, SWITCH_AFTERTOUCH, "polyphonic")));
     CHECK(rig.sampler->midiConfig().aftertouch == 1);
-    CHECK_FALSE(toolFailed(setting(rig, "aftertouch", "Channel")));
+    CHECK_FALSE(toolFailed(setting(rig, SWITCH_AFTERTOUCH, "Channel")));
     CHECK(rig.sampler->midiConfig().aftertouch == 0);
     CHECK(rig.accepted(akm::ItemId::MidiAftertouch) == 2);
 }
@@ -164,20 +177,20 @@ TEST_CASE("Given a value the sampler does not take, When a MIDI setting is set, 
         const char* accepted;
     };
     const std::vector<Case> cases = {
-        {"program_change", "maybe", "on, off"},
-        {"multi_select", "loud", "off, program_change, bank"},
-        {"multi_select_channel", "17", "1 to 16"},
-        {"multi_select_channel", "0", "1 to 16"},
-        {"multi_select_channel", "17A", "1 to 16"},
-        {"multi_select_channel", "3C", "A or B"},
-        {"multi_select_channel", "", "1 to 16"},
-        {"multi_select_channel", "A", "1 to 16"},
-        {"multi_select_channel", "-1", "1 to 16"},
-        {"external_apm_controller", "128", "0 to 127"},
-        {"external_apm_controller", "-1", "0 to 127"},
-        {"external_apm_controller", "cutoff", "0 to 127"},
-        {"external_apm_controller", "7.5", "0 to 127"},
-        {"aftertouch", "monophonic", "channel, polyphonic"},
+        {SWITCH_PROGRAM_CHANGE, "maybe", "on, off"},
+        {SWITCH_MULTI_SELECT, "loud", "off, program_change, bank"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "17", "1 to 16"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "0", "1 to 16"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "17A", "1 to 16"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "3C", "A or B"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "", "1 to 16"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "A", "1 to 16"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "-1", "1 to 16"},
+        {SWITCH_EXTERNAL_APM_CONTROLLER, "128", "0 to 127"},
+        {SWITCH_EXTERNAL_APM_CONTROLLER, "-1", "0 to 127"},
+        {SWITCH_EXTERNAL_APM_CONTROLLER, "cutoff", "0 to 127"},
+        {SWITCH_EXTERNAL_APM_CONTROLLER, "7.5", "0 to 127"},
+        {SWITCH_AFTERTOUCH, "monophonic", "channel, polyphonic"},
     };
     ToolRig rig;
     for (const Case& test : cases)
@@ -194,34 +207,34 @@ TEST_CASE("Given a setting the tool does not have, a missing or a badly typed ar
           "[mcp][midi]")
 {
     ToolRig rig;
-    const json unknown = rig.call("set_midi_setting", {{"setting", "volume"}, {"value", "10"}});
+    const json unknown = rig.call(TOOL_SET_SETTING, {{"setting", "volume"}, {"value", "10"}});
     CHECK(toolFailed(unknown));
     CHECK(hasText(toolText(unknown), "program_change, multi_select, multi_select_channel, external_apm_controller, aftertouch"));
-    CHECK(toolFailed(rig.call("set_midi_setting")));
-    CHECK(toolFailed(rig.call("set_midi_setting", {{"setting", "aftertouch"}})));
-    CHECK(toolFailed(rig.call("set_midi_setting", {{"value", "bank"}})));
-    CHECK(toolFailed(rig.call("set_midi_setting", {{"setting", "external_apm_controller"}, {"value", 5}})));
-    CHECK(toolFailed(rig.call("set_midi_setting", {{"setting", "aftertouch"}, {"value", "channel"}, {"extra", 1}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_SETTING)));
+    CHECK(toolFailed(rig.call(TOOL_SET_SETTING, {{"setting", SWITCH_AFTERTOUCH}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_SETTING, {{"value", "bank"}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_SETTING, {{"setting", SWITCH_EXTERNAL_APM_CONTROLLER}, {"value", 5}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_SETTING, {{"setting", SWITCH_AFTERTOUCH}, {"value", "channel"}, {"extra", 1}})));
     CHECK(midiItemsSent(rig) == 0);
 }
 
 TEST_CASE("Given each event type, When it is ignored and then allowed on channel 5, Then the simulated sampler holds the filter as set, and the answer names the event, the channel and that the previous value is unknown [RQ-MCP-047]",
           "[mcp][midi]")
 {
-    const std::vector<const char*> events = {"note_on", "aftertouch", "wheels", "volume"};
+    const std::vector<const char*> events = {EVENT_NOTE_ON, EVENT_AFTERTOUCH, EVENT_WHEELS, EVENT_VOLUME};
     ToolRig rig;
     for (std::size_t type = 0; type < FILTER_EVENT_TYPES; ++type)
     {
-        const std::string ignored = toolText(filter(rig, events[type], 5, "ignore"));
+        const std::string ignored = toolText(filter(rig, events[type], 5, ACTION_IGNORE));
         INFO(events[type]);
         CHECK(hasText(ignored, events[type]));
         CHECK(hasText(ignored, "5A"));
-        CHECK(hasText(ignored, "ignore"));
+        CHECK(hasText(ignored, ACTION_IGNORE));
         checkPreviousValueSaid(ignored);
         CHECK_FALSE(rig.sampler->midiConfig().filterAllowed[type][4]);
         CHECK(rig.sampler->midiConfig().filterAllowed[type][5]);
 
-        CHECK_FALSE(toolFailed(filter(rig, events[type], 5, "allow")));
+        CHECK_FALSE(toolFailed(filter(rig, events[type], 5, ACTION_ALLOW)));
         CHECK(rig.sampler->midiConfig().filterAllowed[type][4]);
     }
     CHECK(rig.accepted(akm::ItemId::MidiFilterIgnore) == FILTER_EVENT_TYPES);
@@ -236,7 +249,7 @@ TEST_CASE("Given the channels 1A, 16A, 1B and 16B as text, When a filter is set,
     for (const auto& [channel, index] : channels)
     {
         INFO(channel);
-        CHECK_FALSE(toolFailed(filter(rig, "wheels", channel, "ignore")));
+        CHECK_FALSE(toolFailed(filter(rig, EVENT_WHEELS, channel, ACTION_IGNORE)));
         CHECK_FALSE(rig.sampler->midiConfig().filterAllowed[2][index]);
     }
 }
@@ -245,20 +258,20 @@ TEST_CASE("Given a channel of 17 or 0, an unknown event or action, When a filter
           "[mcp][midi]")
 {
     ToolRig rig;
-    const json tooHigh = filter(rig, "note_on", 17, "ignore");
+    const json tooHigh = filter(rig, EVENT_NOTE_ON, 17, ACTION_IGNORE);
     CHECK(toolFailed(tooHigh));
     CHECK(hasText(toolText(tooHigh), "1 to 16"));
-    CHECK(toolFailed(filter(rig, "note_on", 0, "ignore")));
-    CHECK(toolFailed(filter(rig, "note_on", "17B", "ignore")));
-    CHECK(toolFailed(filter(rig, "note_on", "3C", "ignore")));
-    CHECK(toolFailed(filter(rig, "note_on", 2.5, "ignore")));
-    CHECK(toolFailed(filter(rig, "note_on", true, "ignore")));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, 0, ACTION_IGNORE)));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, "17B", ACTION_IGNORE)));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, "3C", ACTION_IGNORE)));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, 2.5, ACTION_IGNORE)));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, true, ACTION_IGNORE)));
 
-    const json event = filter(rig, "pitch_bend", 1, "ignore");
+    const json event = filter(rig, "pitch_bend", 1, ACTION_IGNORE);
     CHECK(toolFailed(event));
     CHECK(hasText(toolText(event), "note_on, aftertouch, wheels, volume"));
 
-    const json action = filter(rig, "note_on", 1, "mute");
+    const json action = filter(rig, EVENT_NOTE_ON, 1, "mute");
     CHECK(toolFailed(action));
     CHECK(hasText(toolText(action), "allow, ignore"));
 
@@ -269,11 +282,11 @@ TEST_CASE("Given a missing, an unknown or a badly typed argument, When set_midi_
           "[mcp][midi]")
 {
     ToolRig rig;
-    CHECK(toolFailed(rig.call("set_midi_filter")));
-    CHECK(toolFailed(rig.call("set_midi_filter", {{"event", "note_on"}, {"channel", 1}})));
-    CHECK(toolFailed(rig.call("set_midi_filter", {{"event", "note_on"}, {"action", "allow"}})));
-    CHECK(toolFailed(rig.call("set_midi_filter", {{"channel", 1}, {"action", "allow"}})));
-    CHECK(toolFailed(rig.call("set_midi_filter", {{"event", 3}, {"channel", 1}, {"action", "allow"}})));
-    CHECK(toolFailed(rig.call("set_midi_filter", {{"event", "note_on"}, {"channel", 1}, {"action", "allow"}, {"extra", 1}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_FILTER)));
+    CHECK(toolFailed(rig.call(TOOL_SET_FILTER, {{"event", EVENT_NOTE_ON}, {"channel", 1}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_FILTER, {{"event", EVENT_NOTE_ON}, {"action", ACTION_ALLOW}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_FILTER, {{"channel", 1}, {"action", ACTION_ALLOW}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_FILTER, {{"event", 3}, {"channel", 1}, {"action", ACTION_ALLOW}})));
+    CHECK(toolFailed(rig.call(TOOL_SET_FILTER, {{"event", EVENT_NOTE_ON}, {"channel", 1}, {"action", ACTION_ALLOW}, {"extra", 1}})));
     CHECK(midiItemsSent(rig) == 0);
 }
