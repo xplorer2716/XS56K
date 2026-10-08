@@ -48,7 +48,7 @@ namespace mcp
 
     // The multi tools: `list_multis`, `select_multi`, `get_multi_parameters` and `set_multi_parameter`. They act on the
     // sampler's current multi in memory, part by part (parts are numbered from 1); none creates, deletes, renames or
-    // assigns a multi, and Delete ALL Multis is never sent. The gateway and the catalogue must outlive the tools.
+    // assigns a multi; Delete ALL is `makeBulkDeleteTools`. The gateway and the catalogue must outlive the tools.
     // [RQ-MCP-013, RQ-MCP-014, RQ-MCP-021, ADR-MCP-002 (DEC-MCP-010, DEC-MCP-013)]
     [[nodiscard]] std::vector<Tool> makeMultiTools(SamplerGateway& gateway, const ParameterCatalogue& multiCatalogue);
 
@@ -86,6 +86,10 @@ namespace mcp
     // exact name); the song files and the scenelists, which have a current one, also a select tool. A set list is renamed and deleted by name.
     // The gateway must outlive the tools. [RQ-MCP-048, RQ-MCP-049, ADR-MCP-005 (DEC-MCP-031), ADR-MCP-004 (DEC-MCP-023)]
     [[nodiscard]] std::vector<Tool> makeNamedListTools(SamplerGateway& gateway);
+
+    // Delete ALL: `delete_all_programs`, `delete_all_samples` and `delete_all_multis`, destructive, each only with a `confirm` that is the number
+    // of items of that kind the sampler holds now. The gateway must outlive the tools. [RQ-MCP-051, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    [[nodiscard]] std::vector<Tool> makeBulkDeleteTools(SamplerGateway& gateway);
 
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions

@@ -108,13 +108,14 @@ real sampler; it is part of the planned real run.
 |---|---|---|
 | Status, information, settings and MIDI setup | 7 | nothing |
 | Song files, set lists and scenelists | 11 | nothing |
+| Delete all programs, samples or multis | 3 | nothing |
 | Programs, keygroups and zones | 11 | nothing |
 | Samples | 7 | nothing |
 | Multis | 11 | nothing |
 | **Disks and files** | **16** | **`--allow-disk`** |
 | The refresh of the disk list | an argument of `list_disks` | `--allow-disk` **and** `--allow-disk-refresh` |
 
-That is **47 tools without any option and 63 with `--allow-disk`**. A disk tool that is not enabled is absent from the server's list of
+That is **50 tools without any option and 66 with `--allow-disk`**. A disk tool that is not enabled is absent from the server's list of
 tools, and calling it is an error.
 
 **Tiers.** Every tool tells the client what it does to the sampler, in its MCP annotations:
@@ -152,6 +153,7 @@ In the tables, **\*** marks a required argument. **Confirm** says which exact te
 | `rename_set_list` | renames the set list called `name` (the sampler has no current set list) to `new_name` and reads it back; two set lists of the same name, or a new name another bears, are refused and nothing is sent | `name`\*, `new_name`\* |
 | `delete_song_file`, `delete_scenelist` | **deletes the current song file or scenelist from memory** (it is lost unless it is on a disk); only if `confirm` is exactly its name, otherwise nothing is sent and the answer says which one is current; answers the names that remain | `confirm`\* (its exact name) |
 | `delete_set_list` | **deletes the set list called `name` from memory**; only if `confirm` is exactly its name as `list_set_lists` gives it (`name` may differ in letters, `confirm` may not); answers the names that remain | `name`\*, `confirm`\* |
+| `delete_all_programs`, `delete_all_samples`, `delete_all_multis` | **deletes EVERY program, sample or multi from memory** (lost unless saved to a disk); only if `confirm` is exactly how many the sampler holds now, otherwise nothing is sent and the answer gives the number; a sampler that holds none sends nothing | `confirm`\* (the number of items) |
 
 ### 4.2 Programs, keygroups and zones (no option)
 

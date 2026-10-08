@@ -120,15 +120,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-050: Delete all programs, all samples, all multis
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `delete_all_programs`, `delete_all_samples`, `delete_all_multis`, each with `confirm` = the number of items of that kind (DEC-MCP-029), destructive annotation, the AKM Delete ALL primitives allowed in the gateway's memory unit only, the source check widened.
 - **Requirement refs**: RQ-MCP-051, RQ-MCP-042, RQ-MCP-057
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-029)
 - **Acceptance Criteria** (Gherkin): *Given* a simulated sampler with 3 programs, *When* `delete_all_programs` is called with "2", *Then* nothing is sent and the answer says 3; *when* it is called with "3", *then* `list_programs` says there is none; the same for samples and multis.
 - **Dependencies**: TASK-MCP-048
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None yet.
+- **Verification**: DONE on 2026-10-08, from the tools' own output. Red first: `xs56k_mcp_tests "[bulkdelete]"`: 5 test cases, 0 passed. Green: "All tests passed (164 assertions in 5 test cases)" (`BulkDeleteToolsTests.cpp`: annotations; for programs (3), samples (3) and multis (2) no `confirm`, a wrong count and the right count, the list saying the sampler holds none; a tool deletes its own kind only; a sampler holding none; confirm that is not a whole number from 1). Full `ctest` on Linux (GCC 13, `-Wno-dangling-reference`): 1038 of 1038 pass, `mcp_sources_call_no_destructive_primitive` included (the check now allows the three Delete ALL names in `SamplerGateway.cpp` only; `mcp_source_check_fails_on_a_delete_call_in_a_tool_file` still passes). The scripted conversation gained 4 calls (`EXPECT_LINES` 145 to 149); expected outputs regenerated and the diff read (the 4 answers and the 3 new tool definitions). 50 tools, 66 with `--allow-disk`. Not run on the real sampler (TASK-MCP-055).
+- **Assumptions**: (1) `confirm` is a JSON integer from 1: a text such as "3" (the acceptance criterion writes the counts in quotes) is refused, like the count of `save_all_memory_items`. (2) A sampler that holds none of the kind sends nothing and says so, whatever the `confirm`. (3) The count is read just before the command is sent; it is not atomic with it (a change made at the sampler's panel in between is not seen). (4) The three Delete ALL primitives and their typed confirmations are called from `SamplerGateway.cpp`, the gateway's memory unit, as the task says; `CheckNoDestructiveCalls.cmake` allows exactly those six names there. (5) After the deletion the gateway counts again and fails if the sampler still holds some. (6) No launch option, per DEC-MCP-029. (7) What the real sampler does with the multis' parts when all programs go, or with a program's zones when all samples go, is unobserved: the simulated sampler keeps them untouched. (8) **Two earlier tests were changed**: `SampleToolsTests.cpp` and `MultiToolsTests.cpp` asserted that no tool is named `delete_all_samples` or `delete_all_multis`; RQ-MCP-051 (amending RQ-MCP-014 and RQ-MCP-028) now requires them, so each checks that the tool is offered and destructive instead.
 
 ### TASK-MCP-051: Clear the sampler's memory
 - **Tier**: M

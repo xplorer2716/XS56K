@@ -15,7 +15,7 @@ XS56K is three things that build on each other:
 | Part | Today | Goal |
 |---|---|---|
 | SysEx library (`juce/akm`) | All 13 sections of the spec have a command for every row (check below). Run on a real S5000 (OS 2.14), with gaps listed below. | The same, checked on an S6000 too |
-| MCP server (`juce/mcp`) | 47 tools, 63 with `--allow-disk`. Every tool but the settings, the MIDI setup, the song file, set list and scenelist tools run on a real S5000, on test objects. | Every function of the samplers: song files, set lists and scenelists can be listed, selected, renamed and deleted, but saving and loading them, effects and others are not offered yet |
+| MCP server (`juce/mcp`) | 50 tools, 66 with `--allow-disk`. Every tool but the settings, the MIDI setup, the song file, set list and scenelist tools run on a real S5000, on test objects. | Every function of the samplers: song files, set lists and scenelists can be listed, selected, renamed, deleted, saved and loaded; effects and others are not offered yet |
 | Editor (`juce/app`) | A bare placeholder window, there only to exercise the build | A real editor |
 
 ## The SysEx library (`juce/akm`)

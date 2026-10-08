@@ -427,6 +427,22 @@ namespace mcp
         std::string after;
     };
 
+    /// The kinds of item the sampler can delete all of at once. [RQ-MCP-051]
+    enum class BulkKind
+    {
+        Program,
+        Sample,
+        Multi,
+    };
+
+    /// A "delete all" of a kind: `done` is false when nothing was sent (the sampler held none, or `confirm` was not their number); `count` is
+    /// how many items of the kind the sampler held when it was asked. [RQ-MCP-051]
+    struct BulkDeletion
+    {
+        bool done = true;
+        int count = 0;
+    };
+
     /// A song file, set list or scenelist deletion: `done` is false when `confirm` was not its exact name (nothing was sent); `remaining` is what
     /// the list holds after. [RQ-MCP-049]
     struct NamedDeletion
@@ -743,6 +759,10 @@ namespace mcp
 
         /// Deletes the set list found by `name` (as `renameSetList` finds it), and only when `confirm` is exactly its name. [RQ-MCP-049]
         [[nodiscard]] Outcome<NamedDeletion> deleteSetList(std::string_view name, std::string_view confirm);
+
+        /// Deletes every program, sample or multi in memory, and only when `confirm` is exactly how many the sampler holds now (read just before);
+        /// otherwise, and when it holds none, nothing is sent and the answer gives the count. [RQ-MCP-051, RQ-MCP-042]
+        [[nodiscard]] Outcome<BulkDeletion> deleteAllMemoryItems(BulkKind kind, int confirm);
 
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();

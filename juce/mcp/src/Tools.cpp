@@ -3060,6 +3060,65 @@ namespace mcp
         return tools;
     }
 
+    // Delete ALL programs, samples or multis, each only with the count as `confirm`. [TASK-MCP-050, RQ-MCP-051, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    namespace
+    {
+        // The most items a kind can hold (the sampler numbers programs, samples and multis with two 7-bit bytes at most).
+        constexpr std::int64_t MAX_BULK_COUNT = 16383;
+
+        struct BulkTool
+        {
+            BulkKind kind;
+            const char* name;
+            const char* noun;
+            const char* listTool;
+        };
+
+        constexpr BulkTool BULK_TOOLS[] = {
+            {BulkKind::Program, "delete_all_programs", "program", "list_programs"},
+            {BulkKind::Sample, "delete_all_samples", "sample", "list_samples"},
+            {BulkKind::Multi, "delete_all_multis", "multi", "list_multis"},
+        };
+    }
+
+    std::vector<Tool> makeBulkDeleteTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+        for (const BulkTool& bulk : BULK_TOOLS)
+        {
+            const std::string noun = bulk.noun;
+            ToolDefinition removal = definition(
+                bulk.name, ("Delete every " + noun).c_str(),
+                "Deletes EVERY " + noun + " in the sampler's memory, and only if 'confirm' is exactly how many " + noun + "s the sampler holds now (see " +
+                    bulk.listTool + "): otherwise nothing is deleted and the answer gives the number. IRREVERSIBLE: what is not saved to a disk is lost. " +
+                    MEMORY_NOTICE,
+                objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "integer"}, {"minimum", 1}, {"description", "How many " + noun + "s the sampler holds now."}}}},
+                             json::array({ARGUMENT_CONFIRM})),
+                false, false);
+            removal.annotations.destructive = true;
+            tools.push_back(Tool{std::move(removal), [&gateway, kind = bulk.kind, noun, listTool = std::string(bulk.listTool)](const json& arguments) {
+                                     if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
+                                         return *refused;
+                                     if (!arguments.contains(ARGUMENT_CONFIRM))
+                                         return failure("Give 'confirm', the number of " + noun + "s the sampler holds now (see " + listTool + ").");
+                                     const auto confirm = arguments.at(ARGUMENT_CONFIRM).is_number() ? wholeNumber(arguments.at(ARGUMENT_CONFIRM)) : std::nullopt;
+                                     if (!confirm || *confirm < 1 || *confirm > MAX_BULK_COUNT)
+                                         return failure("The argument 'confirm' must be a whole number from 1: how many " + noun + "s the sampler holds now.");
+                                     const auto deletion = gateway.deleteAllMemoryItems(kind, static_cast<int>(*confirm));
+                                     if (!deletion.ok())
+                                         return failure(deletion.problem);
+                                     if (deletion.value->count == 0)
+                                         return failure("The sampler holds no " + noun + ": nothing to delete.");
+                                     if (!deletion.value->done)
+                                         return failure("The sampler holds " + plural(deletion.value->count, noun) + ", not " + std::to_string(*confirm) +
+                                                        ": nothing was deleted. Give the number there are as 'confirm'.");
+                                     return ok("Deleted all " + plural(deletion.value->count, noun) + " from the sampler's memory. The sampler now holds no " + noun +
+                                               ". They are lost unless they were saved to a disk.");
+                                 }});
+        }
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -3079,6 +3138,8 @@ namespace mcp
         for (Tool& tool : makeMidiSetupTools(gateway))
             tools.push_back(std::move(tool));
         for (Tool& tool : makeNamedListTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeBulkDeleteTools(gateway))
             tools.push_back(std::move(tool));
         if (options.allowDisk)
         {

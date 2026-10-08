@@ -475,7 +475,7 @@ TEST_CASE("Given list_parameters with the domain multi, When it is called, Then 
     CHECK(contains(textOf(unknown), "multi"));
 }
 
-TEST_CASE("Given the multi tools, When the tools are listed, Then none deletes every multi, the multi tools carry their tiers and Delete ALL Multis is never sent [RQ-MCP-021, RQ-MCP-013, RQ-MCP-014, RQ-MCP-037]",
+TEST_CASE("Given the multi tools, When the tools are listed, Then delete_all_multis is offered as a destructive tool, the multi tools carry their tiers and nothing is sent by listing them [RQ-MCP-021, RQ-MCP-013, RQ-MCP-014, RQ-MCP-037, RQ-MCP-051]",
           "[mcp][multi][tools]")
 {
     Rig rig;
@@ -492,17 +492,16 @@ TEST_CASE("Given the multi tools, When the tools are listed, Then none deletes e
         names.insert(tool["name"].get<std::string>());
     for (const char* tool : {"list_multis", "select_multi", "get_multi_parameters", "set_multi_parameter"})
         CHECK(names.count(tool) == 1);
-    for (const std::string& name : names)
-    {
-        // create_multi, rename_multi, delete_multi (of the current multi) and the part tools are offered since ADR-MCP-004
-        // (DEC-MCP-024); deleting every multi is not.
-        CHECK(name.find("delete_all_multis") == std::string::npos);
-    }
+    // create_multi, rename_multi, delete_multi (of the current multi) and the part tools are offered since ADR-MCP-004 (DEC-MCP-024), and
+    // deleting every multi since ADR-MCP-005 (DEC-MCP-029): delete_all_multis is checked below.
+    CHECK(names.count("delete_all_multis") == 1);
     for (const json& tool : list["result"]["tools"])
     {
         const std::string name = tool["name"].get<std::string>();
         if (name == "list_multis")
             CHECK(tool["annotations"]["readOnlyHint"].get<bool>());
+        if (name == "delete_all_multis")
+            CHECK(tool["annotations"]["destructiveHint"].get<bool>());
         if (name == "set_multi_parameter")
         {
             CHECK_FALSE(tool["annotations"]["readOnlyHint"].get<bool>());

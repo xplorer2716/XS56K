@@ -143,4 +143,8 @@
 {"jsonrpc":"2.0","id":111,"method":"tools/call","params":{"name":"clear_part","arguments":{"part":1,"confirm":"WRONG"}}}
 {"jsonrpc":"2.0","id":112,"method":"tools/call","params":{"name":"rename_multi","arguments":{"name":"STAGE2"}}}
 {"jsonrpc":"2.0","id":113,"method":"tools/call","params":{"name":"delete_multi","arguments":{"confirm":"STAGE"}}}
+{"jsonrpc":"2.0","id":1032,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":1}}}
+{"jsonrpc":"2.0","id":1033,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":3}}}
+{"jsonrpc":"2.0","id":1034,"method":"tools/call","params":{"name":"list_multis","arguments":{}}}
+{"jsonrpc":"2.0","id":1035,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":3}}}
 {"jsonrpc":"2.0","id":114,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}
