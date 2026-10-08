@@ -132,15 +132,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-051: Clear the sampler's memory
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `clear_sampler_memory`, with `confirm` = the total number of programs, samples and multis held (DEC-MCP-029), refused with nothing sent when the sampler holds none of the three, destructive annotation, the AKM primitive allowed in the gateway's memory unit only. Not run on the real sampler unless the owner decides.
 - **Requirement refs**: RQ-MCP-052, RQ-MCP-042, RQ-MCP-057
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)
 - **Acceptance Criteria** (Gherkin): *Given* a simulated sampler with 2 programs, 1 sample and 1 multi, *When* `clear_sampler_memory` is called with "3", *Then* nothing is sent and the answer says 4; *when* called with "4", *then* the three lists are empty; *given* an empty memory, *then* nothing is sent and the answer says so.
 - **Dependencies**: TASK-MCP-050
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None yet.
+- **Verification**: DONE on 2026-10-08, from the tools' own output, on the simulated sampler only. Red first: `xs56k_mcp_tests "[clearmemory]"`: 5 test cases, 0 passed. Green: "All tests passed (104 assertions in 5 test cases)" (`ClearMemoryToolTests.cpp`: annotations; with 2 programs, 1 sample and 1 multi no `confirm`, 3 and 4 (the answer says 4, nothing sent, then the three lists empty); a second call on an empty memory; song files, set lists and scenelists still held; confirm that is not a whole number from 1). Full `ctest` on Linux (GCC 13, `-Wno-dangling-reference`): 1043 of 1043 pass (the source check allows `akm::clearSamplerMemory` and its typed confirmation in `SamplerGateway.cpp` only). The scripted conversation gained 4 calls (`EXPECT_LINES` 149 to 153); expected outputs regenerated and the diff read. 51 tools, 67 with `--allow-disk`. NOT run on the real sampler, and `AGENTS.md` now says not to without the owner's word.
+- **Assumptions**: (1) As in DEC-MCP-029 the total counts programs, samples and multis only; the song files, set lists and scenelists are NOT counted and the simulated sampler keeps them, but the real sampler's Clear Sampler Memory may clear them too (the spec says "every program, multi and sample", RQ-AKM-056): unobserved, to review before any real run. (2) The AKM primitive takes no timeout of its own and the sampler's time to answer has never been observed (no run is allowed to send it), so the session's command timeout applies; a real sampler that takes longer will be reported as not answering, and the tool description and the README say it may have to be switched off and on. Nothing is retried. (3) The counts are read just before the command and again after it; a count other than zero afterwards is reported as a failure. (4) `confirm` is an integer from 1 (a text is refused), as for the delete-all tools. (5) The primitive and its typed confirmation are called from `SamplerGateway.cpp` (the memory unit) and `CheckNoDestructiveCalls.cmake` allows exactly those two names there. (6) `AGENTS.md` gains the rule "never call `clear_sampler_memory` or a `delete_all_*` tool on the owner's sampler unless he says so", the existing `&32` rule being about the probe. (7) Not run on the real sampler: "unless the owner decides" (TASK-MCP-051 text) was read as: the owner decides in TASK-MCP-055.
 
 ### TASK-MCP-052: The effects board
 - **Tier**: L

@@ -443,6 +443,18 @@ namespace mcp
         int count = 0;
     };
 
+    /// A Clear Sampler Memory: `done` is false when nothing was sent (the memory held none of the three, or `confirm` was not their total); the
+    /// counts are what the sampler held when it was asked. [RQ-MCP-052]
+    struct MemoryClearing
+    {
+        bool done = true;
+        int programs = 0;
+        int samples = 0;
+        int multis = 0;
+
+        [[nodiscard]] int total() const { return programs + samples + multis; }
+    };
+
     /// A song file, set list or scenelist deletion: `done` is false when `confirm` was not its exact name (nothing was sent); `remaining` is what
     /// the list holds after. [RQ-MCP-049]
     struct NamedDeletion
@@ -764,6 +776,11 @@ namespace mcp
         /// otherwise, and when it holds none, nothing is sent and the answer gives the count. [RQ-MCP-051, RQ-MCP-042]
         [[nodiscard]] Outcome<BulkDeletion> deleteAllMemoryItems(BulkKind kind, int confirm);
 
+        /// Clears the sampler's memory (every program, sample and multi), and only when `confirm` is exactly how many of the three the sampler holds
+        /// now (read just before); otherwise, and when it holds none, nothing is sent and the answer gives the counts. Song files, set lists and
+        /// scenelists are not counted. [RQ-MCP-052, RQ-MCP-042]
+        [[nodiscard]] Outcome<MemoryClearing> clearSamplerMemory(int confirm);
+
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();
 
@@ -808,6 +825,8 @@ namespace mcp
 
         /// One read each of a song file, set list or scenelist list, on the open session. [RQ-MCP-048]
         [[nodiscard]] Outcome<int> readNamedCount(NamedListKind kind);
+        /// How many programs, samples or multis the sampler holds. [RQ-MCP-051, RQ-MCP-052]
+        [[nodiscard]] Outcome<int> readMemoryCount(BulkKind kind);
         [[nodiscard]] Outcome<std::string> readNamedName(NamedListKind kind, int index);
         /// The position of the current song file or scenelist; empty when none is current. [RQ-MCP-048]
         [[nodiscard]] Outcome<std::optional<int>> readCurrentNamedIndex(NamedListKind kind);

@@ -1440,29 +1440,31 @@ namespace mcp
         return Outcome<DeletedItem>::success(DeletedItem{true, current.value->name, static_cast<int>(after.value->multis.size())});
     }
 
+    Outcome<int> SamplerGateway::readMemoryCount(BulkKind kind)
+    {
+        switch (kind)
+        {
+            case BulkKind::Program: {
+                const auto programs = listPrograms();
+                return programs.ok() ? Outcome<int>::success(static_cast<int>(programs.value->size())) : Outcome<int>::failure(programs.problem);
+            }
+            case BulkKind::Sample: {
+                const auto samples = listSamples();
+                return samples.ok() ? Outcome<int>::success(static_cast<int>(samples.value->samples.size())) : Outcome<int>::failure(samples.problem);
+            }
+            case BulkKind::Multi:
+                break;
+        }
+        const auto multis = listMultis();
+        return multis.ok() ? Outcome<int>::success(static_cast<int>(multis.value->multis.size())) : Outcome<int>::failure(multis.problem);
+    }
+
     // Delete ALL of a kind, with the count that proves the caller means it. [TASK-MCP-050, RQ-MCP-051, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
     Outcome<BulkDeletion> SamplerGateway::deleteAllMemoryItems(BulkKind kind, int confirm)
     {
         if (const auto problem = connect())
             return Outcome<BulkDeletion>::failure(*problem);
-        const auto countOf = [this, kind]() -> Outcome<int> {
-            switch (kind)
-            {
-                case BulkKind::Program: {
-                    const auto programs = listPrograms();
-                    return programs.ok() ? Outcome<int>::success(static_cast<int>(programs.value->size())) : Outcome<int>::failure(programs.problem);
-                }
-                case BulkKind::Sample: {
-                    const auto samples = listSamples();
-                    return samples.ok() ? Outcome<int>::success(static_cast<int>(samples.value->samples.size())) : Outcome<int>::failure(samples.problem);
-                }
-                case BulkKind::Multi:
-                    break;
-            }
-            const auto multis = listMultis();
-            return multis.ok() ? Outcome<int>::success(static_cast<int>(multis.value->multis.size())) : Outcome<int>::failure(multis.problem);
-        };
-        const auto before = countOf();
+        const auto before = readMemoryCount(kind);
         if (!before.ok())
             return Outcome<BulkDeletion>::failure(before.problem);
         if (*before.value == 0 || *before.value != confirm)
@@ -1486,12 +1488,54 @@ namespace mcp
             return Outcome<BulkDeletion>::failure("The sampler session did not complete the command in time.");
         if (!akm::succeeded(*deleted))
             return Outcome<BulkDeletion>::failure(explain(*deleted, "deleting every item of the kind", _config, false));
-        const auto after = countOf();
+        const auto after = readMemoryCount(kind);
         if (!after.ok())
             return Outcome<BulkDeletion>::failure("The sampler accepted the deletion but the memory could not be read afterwards: " + after.problem);
         if (*after.value != 0)
             return Outcome<BulkDeletion>::failure("The sampler accepted the deletion but still holds " + numberText(*after.value) + " of them: check its memory.");
         return Outcome<BulkDeletion>::success(BulkDeletion{true, *before.value});
+    }
+
+    // Clear Sampler Memory, with the total that proves the caller means it. [TASK-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    Outcome<MemoryClearing> SamplerGateway::clearSamplerMemory(int confirm)
+    {
+        if (const auto problem = connect())
+            return Outcome<MemoryClearing>::failure(*problem);
+        MemoryClearing held;
+        for (const auto& [kind, target] : {std::pair{BulkKind::Program, &held.programs}, std::pair{BulkKind::Sample, &held.samples},
+                                           std::pair{BulkKind::Multi, &held.multis}})
+        {
+            const auto count = readMemoryCount(kind);
+            if (!count.ok())
+                return Outcome<MemoryClearing>::failure(count.problem);
+            *target = *count.value;
+        }
+        if (held.total() == 0 || held.total() != confirm)
+        {
+            held.done = false;
+            return Outcome<MemoryClearing>::success(held);
+        }
+
+        // The sampler's time to answer has never been observed (no run is allowed to send this), and the AKM primitive takes no timeout of its own:
+        // the session's command timeout applies.
+        const auto cleared = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::clearSamplerMemory(_connection->session, akm::ConfirmClearSamplerMemory::IUnderstandThisDeletesEveryProgramMultiAndSampleInMemory,
+                                    std::move(done));
+        });
+        if (!cleared)
+            return Outcome<MemoryClearing>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*cleared))
+            return Outcome<MemoryClearing>::failure(explain(*cleared, "clearing the sampler's memory", _config, false));
+        for (const BulkKind kind : {BulkKind::Program, BulkKind::Sample, BulkKind::Multi})
+        {
+            const auto after = readMemoryCount(kind);
+            if (!after.ok())
+                return Outcome<MemoryClearing>::failure("The sampler accepted the command but its memory could not be read afterwards: " + after.problem);
+            if (*after.value != 0)
+                return Outcome<MemoryClearing>::failure("The sampler accepted the command but still holds " + numberText(*after.value) +
+                                                        " item(s) of a kind: check its memory.");
+        }
+        return Outcome<MemoryClearing>::success(held);
     }
 
     Outcome<PartPrograms> SamplerGateway::readPartPrograms()

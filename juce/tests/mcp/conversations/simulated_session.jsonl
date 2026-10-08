@@ -147,4 +147,8 @@
 {"jsonrpc":"2.0","id":1033,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":3}}}
 {"jsonrpc":"2.0","id":1034,"method":"tools/call","params":{"name":"list_multis","arguments":{}}}
 {"jsonrpc":"2.0","id":1035,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":3}}}
+{"jsonrpc":"2.0","id":1036,"method":"tools/call","params":{"name":"clear_sampler_memory","arguments":{"confirm":1}}}
+{"jsonrpc":"2.0","id":1037,"method":"tools/call","params":{"name":"clear_sampler_memory","arguments":{"confirm":6}}}
+{"jsonrpc":"2.0","id":1038,"method":"tools/call","params":{"name":"list_programs","arguments":{}}}
+{"jsonrpc":"2.0","id":1039,"method":"tools/call","params":{"name":"clear_sampler_memory","arguments":{"confirm":6}}}
 {"jsonrpc":"2.0","id":114,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

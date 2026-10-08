@@ -1,7 +1,7 @@
 # Fails when a source or header under SOURCE_DIR names an AKM primitive or item that creates, renames, deletes, saves,
 # loads, clears, ejects or formats something, except in the units that may:
 #   - SamplerGateway.cpp: the program structure primitives (create a program with keygroups, rename the current
-#     program, delete the current program, delete a keygroup, rename or delete the current sample, create, rename or delete a multi, remove a part's program, delete ALL programs, samples or multis with their typed confirmations), all in memory (ADR-MCP-002 DEC-MCP-010,
+#     program, delete the current program, delete a keygroup, rename or delete the current sample, create, rename or delete a multi, remove a part's program, delete ALL programs, samples or multis and clear the sampler's memory, with their typed confirmations), all in memory (ADR-MCP-002 DEC-MCP-010,
 #     ADR-MCP-004 DEC-MCP-023, ADR-MCP-005 DEC-MCP-029);
 #   - SamplerGatewayDisk.cpp: the disk primitives of loading and saving, of creating a folder, of renaming and deleting a file or a
 #     folder (the deletions with their typed confirmations), and their types (ADR-MCP-003 DEC-MCP-019, DEC-MCP-021, ADR-MCP-004
@@ -13,8 +13,8 @@
 #
 # The words are looked for as the names of the AKM layer's own functions (`akm::createProgram`, `deleteAllPrograms`,
 # `deleteFile`, ...) and of its items (`ItemId::ProgramCreate`, `ItemId::DiskSaveMemoryItem`, ...). Delete ALL is allowed in the
-# gateway's memory unit for programs, samples and multis only; Clear Sampler Memory (until TASK-MCP-051) and the eject and format primitives
-# of the disk are never allowed anywhere.
+# gateway's memory unit for programs, samples and multis only, and so is Clear Sampler Memory; the eject and format primitives of the disk are
+# never allowed anywhere.
 # [RQ-MCP-008, RQ-MCP-014, RQ-MCP-028, ADR-MCP-001 (DEC-MCP-007), ADR-MCP-002 (DEC-MCP-010), ADR-MCP-003 (DEC-MCP-019)]
 
 # A script run with -P sets no policy of its own: before CMake 4 the operator IN_LIST (used below) is then read as a plain
@@ -38,7 +38,7 @@ set(verbs "[Cc]reate|[Dd]elete|[Rr]ename|[Ss]ave|[Ll]oad|[Cc]lear|[Ee]ject|[Ff]o
 set(pattern "(ItemId::|akm::)[A-Za-z]*(${verbs})")
 # What each allowed file may call. A file that is not listed may call none of the names that carry a verb.
 set(allowed_files "SamplerGateway.cpp" "SamplerGatewayDisk.cpp" "SamplerGatewayLists.cpp")
-set(allowed_calls_SamplerGateway.cpp "akm::createProgramWithKeygroups|akm::renameCurrentProgram|akm::deleteCurrentProgram|akm::deleteKeygroupFromProgram|akm::renameCurrentSample|akm::deleteCurrentSample|akm::createMulti|akm::renameCurrentMulti|akm::deleteCurrentMulti|akm::deleteMultiPart|akm::deleteAllPrograms|akm::deleteAllSamples|akm::deleteAllMultis|akm::ConfirmDeleteAllPrograms|akm::ConfirmDeleteAllSamples|akm::ConfirmDeleteAllMultis")
+set(allowed_calls_SamplerGateway.cpp "akm::createProgramWithKeygroups|akm::renameCurrentProgram|akm::deleteCurrentProgram|akm::deleteKeygroupFromProgram|akm::renameCurrentSample|akm::deleteCurrentSample|akm::createMulti|akm::renameCurrentMulti|akm::deleteCurrentMulti|akm::deleteMultiPart|akm::deleteAllPrograms|akm::deleteAllSamples|akm::deleteAllMultis|akm::ConfirmDeleteAllPrograms|akm::ConfirmDeleteAllSamples|akm::ConfirmDeleteAllMultis|akm::clearSamplerMemory|akm::ConfirmClearSamplerMemory")
 set(allowed_calls_SamplerGatewayDisk.cpp "akm::renameFile|akm::renameFolder|akm::deleteFile|akm::deleteSubFolder|akm::ConfirmDeleteFile|akm::ConfirmDeleteSubFolder|akm::createFolder|akm::loadFileWithDependents|akm::loadFile|akm::loadFolder|akm::saveMemoryItem|akm::saveAllMemoryItems|akm::SaveableMemoryType|akm::SampleLoadOption")
 set(allowed_calls_SamplerGatewayLists.cpp "akm::renameCurrentSong|akm::renameSetList|akm::renameCurrentSceneList|akm::deleteCurrentSong|akm::deleteSetList|akm::deleteCurrentSceneList")
 set(offenders "")

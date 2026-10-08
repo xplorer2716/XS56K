@@ -3116,6 +3116,44 @@ namespace mcp
                                                ". They are lost unless they were saved to a disk.");
                                  }});
         }
+
+        // clear_sampler_memory [TASK-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)]
+        const auto heldText = [](const MemoryClearing& held) {
+            return plural(held.programs, "program") + ", " + plural(held.samples, "sample") + " and " + plural(held.multis, "multi");
+        };
+        ToolDefinition clearing = definition(
+            "clear_sampler_memory", "Clear the sampler's memory",
+            std::string("Deletes EVERY program, sample and multi in the sampler's memory in one command, and only if 'confirm' is exactly how many of the "
+                        "three the sampler holds now, in all (see list_programs, list_samples and list_multis): otherwise nothing is sent and the answer "
+                        "gives the number. The song files, set lists and scenelists are not counted and not touched. IRREVERSIBLE: what is not saved to "
+                        "a disk is lost. The command can take long, and a sampler that stops answering may have to be switched off and on; nothing is "
+                        "retried. ") +
+                MEMORY_NOTICE,
+            objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "integer"}, {"minimum", 1}, {"description", "How many programs, samples and multis the sampler holds now, in all."}}}},
+                         json::array({ARGUMENT_CONFIRM})),
+            false, false);
+        clearing.annotations.destructive = true;
+        tools.push_back(Tool{std::move(clearing), [&gateway, heldText](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
+                                     return *refused;
+                                 if (!arguments.contains(ARGUMENT_CONFIRM))
+                                     return failure("Give 'confirm', the number of programs, samples and multis the sampler holds now, in all.");
+                                 const auto confirm = arguments.at(ARGUMENT_CONFIRM).is_number() ? wholeNumber(arguments.at(ARGUMENT_CONFIRM)) : std::nullopt;
+                                 if (!confirm || *confirm < 1 || *confirm > MAX_BULK_COUNT)
+                                     return failure("The argument 'confirm' must be a whole number from 1: how many programs, samples and multis the sampler holds now, in all.");
+                                 const auto cleared = gateway.clearSamplerMemory(static_cast<int>(*confirm));
+                                 if (!cleared.ok())
+                                     return failure(cleared.problem);
+                                 const MemoryClearing& held = *cleared.value;
+                                 if (held.total() == 0)
+                                     return failure("The sampler's memory holds no program, sample or multi: nothing to clear.");
+                                 if (!held.done)
+                                     return failure("The sampler holds " + plural(held.total(), "item") + " in its memory (" + heldText(held) + "), not " +
+                                                    std::to_string(*confirm) + ": nothing was cleared. Give the total as 'confirm'.");
+                                 return ok("Cleared the sampler's memory: " + heldText(held) + " are gone (" + plural(held.total(), "item") +
+                                           "). The sampler now holds no program, sample or multi. They are lost unless they were saved to a disk. Song files, "
+                                           "set lists and scenelists are not part of it and are still held.");
+                             }});
         return tools;
     }
 
