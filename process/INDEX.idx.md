@@ -313,6 +313,7 @@ DEC-MCP-034|81-88||The order of the work follows the risk, from reading to keys
 @process/3.plan/CHECKPOINT-MCP-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-05.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-06.md
+@process/3.plan/CHECKPOINT-MCP-2026-10-08.md
 @process/3.plan/PLAN-AKM-001-transport-and-sysex-config.md
 PLAN-AKM-001|1-210||Transport and SysEx Configuration (Phase A, lots A0+A1)
 TASK-AKM-001|30-43|Done|Author the Phase A feature files
