@@ -443,6 +443,41 @@ namespace mcp
         int count = 0;
     };
 
+    /// The effects board the sampler reports (section 12). [RQ-MCP-053]
+    enum class FxCardKind
+    {
+        None,
+        Eb20,
+    };
+
+    /// The layout of the board: the card, and for each channel how many modules it has (empty when there is no board). [RQ-MCP-053]
+    struct FxLayoutInfo
+    {
+        FxCardKind card = FxCardKind::None;
+        std::vector<int> moduleCounts;
+    };
+
+    /// One module: the code of its type (Table 24) and whether it is enabled (not bypassed). [RQ-MCP-053]
+    struct FxModuleState
+    {
+        int type = 0;
+        bool enabled = true;
+    };
+
+    /// One channel: whether it is muted, and its modules in order. [RQ-MCP-053]
+    struct FxChannelState
+    {
+        bool muted = false;
+        std::vector<FxModuleState> modules;
+    };
+
+    /// The whole board of the current multi; `channels` is empty when the sampler reports no board. [RQ-MCP-053]
+    struct FxBoardState
+    {
+        FxLayoutInfo layout;
+        std::vector<FxChannelState> channels;
+    };
+
     /// A Clear Sampler Memory: `done` is false when nothing was sent (the memory held none of the three, or `confirm` was not their total); the
     /// counts are what the sampler held when it was asked. [RQ-MCP-052]
     struct MemoryClearing
@@ -775,6 +810,20 @@ namespace mcp
         /// Deletes every program, sample or multi in memory, and only when `confirm` is exactly how many the sampler holds now (read just before);
         /// otherwise, and when it holds none, nothing is sent and the answer gives the count. [RQ-MCP-051, RQ-MCP-042]
         [[nodiscard]] Outcome<BulkDeletion> deleteAllMemoryItems(BulkKind kind, int confirm);
+
+        /// The effects board of the current multi (section 12; the effects belong to the multi that is current). The card and the layout are read
+        /// first and, when the sampler reports no board, nothing else is sent. A sampler with no current multi answers ERROR 04 to the rest, which
+        /// is reported as "select a multi first". [RQ-MCP-053]
+        [[nodiscard]] Outcome<FxLayoutInfo> readFxLayout();
+        [[nodiscard]] Outcome<FxBoardState> readFxBoard();
+        [[nodiscard]] Outcome<FxModuleState> readFxModule(int channel, int module);
+        [[nodiscard]] Outcome<int> readFxParameter(int channel, int module, int parameter);
+
+        /// Each of these sends the Set of section 12 and answers what the sampler then reports. The caller checks the values against the layout and
+        /// the module's parameters first; the AKM layer refuses a number outside 0 to 127 and a value beyond 16383 in magnitude. [RQ-MCP-053]
+        [[nodiscard]] Outcome<bool> setFxChannelMute(int channel, bool muted);
+        [[nodiscard]] Outcome<FxModuleState> setFxModule(int channel, int module, std::optional<int> type, std::optional<bool> enabled);
+        [[nodiscard]] Outcome<int> setFxParameter(int channel, int module, int parameter, int value);
 
         /// Clears the sampler's memory (every program, sample and multi), and only when `confirm` is exactly how many of the three the sampler holds
         /// now (read just before); otherwise, and when it holds none, nothing is sent and the answer gives the counts. Song files, set lists and

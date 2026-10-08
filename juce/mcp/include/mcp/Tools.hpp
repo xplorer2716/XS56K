@@ -92,6 +92,11 @@ namespace mcp
     // tools. [RQ-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
     [[nodiscard]] std::vector<Tool> makeBulkDeleteTools(SamplerGateway& gateway);
 
+    // The effects board: `get_fx_board`, `set_fx_channel_mute`, `set_fx_module`, `get_fx_parameter` and `set_fx_parameter`. The values are checked against
+    // the layout the sampler reports and against Table 25, and a sampler that reports no board is told so. Run on the simulated sampler only. The
+    // gateway must outlive the tools. [RQ-MCP-053, ADR-MCP-005 (DEC-MCP-033)]
+    [[nodiscard]] std::vector<Tool> makeFxTools(SamplerGateway& gateway);
+
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions
     {

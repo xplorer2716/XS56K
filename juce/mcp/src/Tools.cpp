@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <utility>
 
+#include "mcp/FxCatalogue.hpp"
+
 using nlohmann::json;
 
 namespace mcp
@@ -37,6 +39,8 @@ namespace mcp
         constexpr std::int64_t FIRST_ZONE = 1;
         constexpr std::int64_t LAST_ZONE = 4;
         constexpr std::int64_t MAX_PROGRAM_INDEX = 16383;
+        // A channel, a module and a parameter of the effects board travel as one 7-bit byte. [RQ-MCP-053]
+        constexpr std::int64_t MAX_FX_INDEX = 127;
         // The sampler's program names are 12 characters on its screen; the wire takes up to 20 (the AKM item), and
         // whether the sampler keeps more is observed on the real sampler. [ADR-MCP-002 (DEC-MCP-011)]
         constexpr std::size_t MAX_PROGRAM_NAME_LENGTH = 12;
@@ -3157,6 +3161,331 @@ namespace mcp
         return tools;
     }
 
+    // The effects board: its card, channels and modules, a channel's mute, a module's type and state, and the parameters of a module, all on the
+    // simulated sampler only. [TASK-MCP-052, RQ-MCP-053, ADR-MCP-005 (DEC-MCP-033)]
+    namespace
+    {
+        constexpr const char* ARGUMENT_MODULE = "module";
+        constexpr const char* ARGUMENT_MUTED = "muted";
+        constexpr const char* ARGUMENT_TYPE = "type";
+        constexpr const char* ARGUMENT_ENABLED = "enabled";
+        constexpr const char* ARGUMENT_PARAMETER = "parameter";
+        constexpr const char* NO_FX_BOARD =
+            "The sampler reports no effects board, so the effects tools have nothing to act on. They need a sampler with an EB20 board and act on the "
+            "current multi (see select_multi).";
+        constexpr const char* FX_NOTICE =
+            "The effects belong to the CURRENT multi (see select_multi). These tools have been run on the simulated sampler only: no effects board has "
+            "been available to try them on.";
+
+        /// A channel or module number from an argument, or the reason it is not one.
+        std::optional<std::string> fxIndexArgument(const json& arguments, const char* key, int& index)
+        {
+            const auto given = arguments.find(key);
+            if (given == arguments.end())
+                return "Give the '" + std::string(key) + "' as a whole number from 0.";
+            const auto whole = given->is_number() ? wholeNumber(*given) : std::nullopt;
+            if (!whole || *whole < 0 || *whole > MAX_FX_INDEX)
+                return "The argument '" + std::string(key) + "' must be a whole number from 0 to " + std::to_string(MAX_FX_INDEX) + ".";
+            index = static_cast<int>(*whole);
+            return std::nullopt;
+        }
+
+        /// What is wrong with a channel and a module against the layout the sampler reports, or nothing. `module` is negative to check the channel only.
+        std::optional<std::string> fxLayoutProblem(const FxLayoutInfo& layout, int channel, int module)
+        {
+            if (layout.card == FxCardKind::None)
+                return std::string(NO_FX_BOARD);
+            const int channels = static_cast<int>(layout.moduleCounts.size());
+            if (channel >= channels)
+                return "The board has the channels 0 to " + std::to_string(channels - 1) + ", not " + std::to_string(channel) + ".";
+            const int modules = layout.moduleCounts[static_cast<std::size_t>(channel)];
+            if (module >= modules)
+                return "The effects channel " + std::to_string(channel) + " has the modules 0 to " + std::to_string(modules - 1) + ", not " +
+                       std::to_string(module) + ".";
+            return std::nullopt;
+        }
+
+        std::string fxKindLabel(int code)
+        {
+            const FxModuleKind* kind = fxKindByCode(code);
+            return kind != nullptr ? kind->name : "type " + std::to_string(code);
+        }
+
+        std::string fxWhere(int channel, int module)
+        {
+            return "Effects channel " + std::to_string(channel) + ", module " + std::to_string(module);
+        }
+    }
+
+    std::vector<Tool> makeFxTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+
+        // get_fx_board
+        tools.push_back(Tool{
+            definition("get_fx_board", "Read the effects board",
+                       std::string("Reads the sampler's effects board: the card, and for each channel whether it is muted and, for each module, its type and "
+                                   "whether it is enabled or bypassed. When the sampler reports no board it says so and sends nothing more. ") +
+                           FX_NOTICE,
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto board = gateway.readFxBoard();
+                if (!board.ok())
+                    return failure(board.problem);
+                if (board.value->layout.card == FxCardKind::None)
+                    return failure(NO_FX_BOARD);
+                std::string text = "Effects board: EB20, " + std::to_string(board.value->channels.size()) + " channels.\n";
+                for (std::size_t channel = 0; channel < board.value->channels.size(); ++channel)
+                {
+                    const FxChannelState& state = board.value->channels[channel];
+                    text += "Channel " + std::to_string(channel) + (state.muted ? " (muted):" : " (on):") + "\n";
+                    for (std::size_t module = 0; module < state.modules.size(); ++module)
+                        text += "  module " + std::to_string(module) + ": " + fxKindLabel(state.modules[module].type) +
+                                (state.modules[module].enabled ? " (enabled)" : " (bypassed)") + "\n";
+                }
+                return ok(std::move(text));
+            }});
+
+        // set_fx_channel_mute
+        tools.push_back(Tool{
+            definition("set_fx_channel_mute", "Mute or unmute an effects channel",
+                       std::string("Mutes or unmutes a channel of the effects board (channels count from 0) and reads the state back. ") + FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MUTED, {{"type", "boolean"}, {"description", "true to mute the channel, false to unmute it."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MUTED})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MUTED}))
+                    return *refused;
+                int channel = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (!arguments.contains(ARGUMENT_MUTED) || !arguments.at(ARGUMENT_MUTED).is_boolean())
+                    return failure("Give 'muted' as true or false.");
+                const auto layout = gateway.readFxLayout();
+                if (!layout.ok())
+                    return failure(layout.problem);
+                if (const auto problem = fxLayoutProblem(*layout.value, channel, -1))
+                    return failure(*problem);
+                const auto muted = gateway.setFxChannelMute(channel, arguments.at(ARGUMENT_MUTED).get<bool>());
+                if (!muted.ok())
+                    return failure(muted.problem);
+                return ok("The effects channel " + std::to_string(channel) + (*muted.value ? " is muted" : " is on") + " (read back from the sampler).");
+            }});
+
+        // set_fx_module
+        tools.push_back(Tool{
+            definition("set_fx_module", "Set the type or the state of an effects module",
+                       std::string("Sets the type of a module of the effects board and/or enables or bypasses it, then reads it back. Give 'type' or "
+                                   "'enabled', or both. With the EB20 only modules 2 and 3 of channels 0 and 1 may change type: module 2 takes ") +
+                           fxKindNames(eb20KindsFor(0, 2)) + ", module 3 takes " + fxKindNames(eb20KindsFor(0, 3)) + ". " + FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MODULE, {{"type", "integer"}, {"minimum", 0}, {"description", "The module of the channel, from 0."}}},
+                                         {ARGUMENT_TYPE, {{"type", "string"}, {"description", "The module type, as get_fx_board names them."}}},
+                                         {ARGUMENT_ENABLED, {{"type", "boolean"}, {"description", "true to enable the module, false to bypass it."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MODULE})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_TYPE, ARGUMENT_ENABLED}))
+                    return *refused;
+                int channel = 0;
+                int module = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                    return failure(*problem);
+                if (arguments.contains(ARGUMENT_TYPE) && !arguments.at(ARGUMENT_TYPE).is_string())
+                    return failure("The argument 'type' must be a string.");
+                if (arguments.contains(ARGUMENT_ENABLED) && !arguments.at(ARGUMENT_ENABLED).is_boolean())
+                    return failure("The argument 'enabled' must be true or false.");
+                if (!arguments.contains(ARGUMENT_TYPE) && !arguments.contains(ARGUMENT_ENABLED))
+                    return failure("Give the 'type' to set, the 'enabled' state, or both.");
+                const auto layout = gateway.readFxLayout();
+                if (!layout.ok())
+                    return failure(layout.problem);
+                if (const auto problem = fxLayoutProblem(*layout.value, channel, module))
+                    return failure(*problem);
+
+                std::optional<int> type;
+                if (arguments.contains(ARGUMENT_TYPE))
+                {
+                    const std::string said = arguments.at(ARGUMENT_TYPE).get<std::string>();
+                    const FxModuleKind* kind = fxKindByName(said);
+                    if (kind == nullptr)
+                    {
+                        std::vector<int> all;
+                        for (const FxModuleKind& known : fxModuleKinds())
+                            all.push_back(known.code);
+                        return failure("The module type \"" + said + "\" is not one the sampler names. The types are: " + fxKindNames(all) + ".");
+                    }
+                    const std::vector<int> allowed = eb20KindsFor(channel, module);
+                    if (allowed.empty())
+                        return failure("With the EB20 only the modules 2 and 3 of channels 0 and 1 may change type (the specification, p. 35): the module " +
+                                       std::to_string(module) + " of the effects channel " + std::to_string(channel) + " may not.");
+                    if (std::find(allowed.begin(), allowed.end(), kind->code) == allowed.end())
+                        return failure("The module " + std::to_string(module) + " of the effects channel " + std::to_string(channel) +
+                                       " takes one of these types: " + fxKindNames(allowed) + ", not " + kind->name + ".");
+                    type = kind->code;
+                }
+                std::optional<bool> enabled;
+                if (arguments.contains(ARGUMENT_ENABLED))
+                    enabled = arguments.at(ARGUMENT_ENABLED).get<bool>();
+                const auto state = gateway.setFxModule(channel, module, type, enabled);
+                if (!state.ok())
+                    return failure(state.problem);
+                return ok(fxWhere(channel, module) + ": type " + fxKindLabel(state.value->type) + ", " + (state.value->enabled ? "enabled" : "bypassed") +
+                          " (read back from the sampler).");
+            }});
+
+        // get_fx_parameter and set_fx_parameter share the way a parameter is found.
+        struct FoundParameter
+        {
+            const FxModuleKind* kind = nullptr;
+            const FxParameter* parameter = nullptr;
+            std::string problem;
+        };
+        const auto findParameter = [&gateway](int channel, int module, const json& arguments, bool required) {
+            FoundParameter found;
+            const auto layout = gateway.readFxLayout();
+            if (!layout.ok())
+            {
+                found.problem = layout.problem;
+                return found;
+            }
+            if (const auto problem = fxLayoutProblem(*layout.value, channel, module))
+            {
+                found.problem = *problem;
+                return found;
+            }
+            const auto state = gateway.readFxModule(channel, module);
+            if (!state.ok())
+            {
+                found.problem = state.problem;
+                return found;
+            }
+            found.kind = fxKindByCode(state.value->type);
+            if (found.kind == nullptr)
+            {
+                found.problem = fxWhere(channel, module) + " is of the type code " + std::to_string(state.value->type) +
+                                ", which Table 24 does not name: its parameters are not known to this server.";
+                return found;
+            }
+            if (found.kind->parameters.empty())
+            {
+                found.problem = fxWhere(channel, module) + " is of the type " + found.kind->name + " and has no parameter.";
+                return found;
+            }
+            if (arguments.contains(ARGUMENT_PARAMETER))
+            {
+                const json& which = arguments.at(ARGUMENT_PARAMETER);
+                const std::string text = which.is_string() ? which.get<std::string>() : std::to_string(wholeNumber(which).value_or(-1));
+                found.parameter = fxParameterOf(*found.kind, text);
+                if (found.parameter == nullptr)
+                    found.problem = fxWhere(channel, module) + " is a " + found.kind->name + ": it has no parameter \"" + text + "\". Its parameters are: " +
+                                    fxParameterNames(*found.kind) + ".";
+            }
+            else if (required)
+                found.problem = "Give the 'parameter': one of " + fxParameterNames(*found.kind) + ".";
+            return found;
+        };
+        const auto parameterArgumentProblem = [](const json& arguments) -> std::optional<std::string> {
+            if (!arguments.contains(ARGUMENT_PARAMETER))
+                return std::nullopt;
+            const json& which = arguments.at(ARGUMENT_PARAMETER);
+            if (which.is_string() || (which.is_number() && wholeNumber(which)))
+                return std::nullopt;
+            return std::string("The argument 'parameter' must be a name or a whole number.");
+        };
+
+        // get_fx_parameter
+        tools.push_back(Tool{
+            definition("get_fx_parameter", "Read the parameters of an effects module",
+                       std::string("Reads one parameter of a module of the effects board, by name or index, or every parameter of the module when 'parameter' "
+                                   "is left out. The values are the raw numbers the sampler takes (a rate of 15 is 1.5 where the range reads 0 to 99 = 0.0 "
+                                   "to 9.9). ") +
+                           FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MODULE, {{"type", "integer"}, {"minimum", 0}, {"description", "The module of the channel, from 0."}}},
+                                         {ARGUMENT_PARAMETER, {{"type", json::array({"string", "integer"})}, {"description", "The parameter's name or index; all of them if left out."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MODULE})),
+                       true, true),
+            [&gateway, findParameter, parameterArgumentProblem](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER}))
+                    return *refused;
+                int channel = 0;
+                int module = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                    return failure(*problem);
+                if (const auto problem = parameterArgumentProblem(arguments))
+                    return failure(*problem);
+                const FoundParameter found = findParameter(channel, module, arguments, false);
+                if (!found.problem.empty())
+                    return failure(found.problem);
+                std::string text = fxWhere(channel, module) + " (" + found.kind->name + "):\n";
+                for (const FxParameter& parameter : found.kind->parameters)
+                {
+                    if (found.parameter != nullptr && found.parameter->index != parameter.index)
+                        continue;
+                    const auto value = gateway.readFxParameter(channel, module, parameter.index);
+                    if (!value.ok())
+                        return failure(value.problem);
+                    text += std::string(parameter.name) + " = " + std::to_string(*value.value) + " (" + fxRangeText(parameter) + ")\n";
+                }
+                return ok(std::move(text));
+            }});
+
+        // set_fx_parameter
+        tools.push_back(Tool{
+            definition("set_fx_parameter", "Set a parameter of an effects module",
+                       std::string("Sets one parameter of a module of the effects board, by name or index (see get_fx_parameter), to a whole number inside its "
+                                   "range, and reads it back. A value outside the range is refused and nothing is sent. The value is the raw number the "
+                                   "sampler takes (a rate of 15 is 1.5 where the range reads 0 to 99 = 0.0 to 9.9). ") +
+                           FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MODULE, {{"type", "integer"}, {"minimum", 0}, {"description", "The module of the channel, from 0."}}},
+                                         {ARGUMENT_PARAMETER, {{"type", json::array({"string", "integer"})}, {"description", "The parameter's name or index."}}},
+                                         {ARGUMENT_VALUE, {{"type", "integer"}, {"description", "The new value, inside the parameter's range."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER, ARGUMENT_VALUE})),
+                       false, true),
+            [&gateway, findParameter, parameterArgumentProblem](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER, ARGUMENT_VALUE}))
+                    return *refused;
+                int channel = 0;
+                int module = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                    return failure(*problem);
+                if (!arguments.contains(ARGUMENT_PARAMETER))
+                    return failure("Give the 'parameter', by name or index.");
+                if (const auto problem = parameterArgumentProblem(arguments))
+                    return failure(*problem);
+                const auto value = arguments.contains(ARGUMENT_VALUE) && arguments.at(ARGUMENT_VALUE).is_number() ? wholeNumber(arguments.at(ARGUMENT_VALUE)) : std::nullopt;
+                if (!value)
+                    return failure("Give the 'value' as a whole number.");
+                const FoundParameter found = findParameter(channel, module, arguments, true);
+                if (!found.problem.empty())
+                    return failure(found.problem);
+                if (*value < found.parameter->minimum || *value > found.parameter->maximum)
+                    return failure("The value " + std::to_string(*value) + " is outside the range of the parameter " + found.parameter->name + " of the " +
+                                   found.kind->name + ": " + fxRangeText(*found.parameter) + ". Nothing was sent.");
+                const auto read = gateway.setFxParameter(channel, module, found.parameter->index, static_cast<int>(*value));
+                if (!read.ok())
+                    return failure(read.problem);
+                if (*read.value != *value)
+                    return failure("The sampler accepted the value " + std::to_string(*value) + " but reports " + std::to_string(*read.value) + " for the parameter " +
+                                   found.parameter->name + ".");
+                return ok(fxWhere(channel, module) + " (" + found.kind->name + "): " + found.parameter->name + " set to " + std::to_string(*read.value) +
+                          " (read back from the sampler).");
+            }});
+
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -3178,6 +3507,8 @@ namespace mcp
         for (Tool& tool : makeNamedListTools(gateway))
             tools.push_back(std::move(tool));
         for (Tool& tool : makeBulkDeleteTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeFxTools(gateway))
             tools.push_back(std::move(tool));
         if (options.allowDisk)
         {

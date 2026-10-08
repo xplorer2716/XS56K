@@ -143,6 +143,13 @@
 {"jsonrpc":"2.0","id":111,"method":"tools/call","params":{"name":"clear_part","arguments":{"part":1,"confirm":"WRONG"}}}
 {"jsonrpc":"2.0","id":112,"method":"tools/call","params":{"name":"rename_multi","arguments":{"name":"STAGE2"}}}
 {"jsonrpc":"2.0","id":113,"method":"tools/call","params":{"name":"delete_multi","arguments":{"confirm":"STAGE"}}}
+{"jsonrpc":"2.0","id":1040,"method":"tools/call","params":{"name":"get_fx_board","arguments":{}}}
+{"jsonrpc":"2.0","id":1041,"method":"tools/call","params":{"name":"set_fx_channel_mute","arguments":{"channel":1,"muted":true}}}
+{"jsonrpc":"2.0","id":1042,"method":"tools/call","params":{"name":"set_fx_module","arguments":{"channel":0,"module":2,"type":"flange"}}}
+{"jsonrpc":"2.0","id":1043,"method":"tools/call","params":{"name":"set_fx_parameter","arguments":{"channel":0,"module":2,"parameter":"rate","value":15}}}
+{"jsonrpc":"2.0","id":1044,"method":"tools/call","params":{"name":"get_fx_parameter","arguments":{"channel":0,"module":2}}}
+{"jsonrpc":"2.0","id":1045,"method":"tools/call","params":{"name":"set_fx_parameter","arguments":{"channel":0,"module":2,"parameter":"rate","value":100}}}
+{"jsonrpc":"2.0","id":1046,"method":"tools/call","params":{"name":"set_fx_module","arguments":{"channel":0,"module":1,"type":"chorus"}}}
 {"jsonrpc":"2.0","id":1032,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":1}}}
 {"jsonrpc":"2.0","id":1033,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":3}}}
 {"jsonrpc":"2.0","id":1034,"method":"tools/call","params":{"name":"list_multis","arguments":{}}}

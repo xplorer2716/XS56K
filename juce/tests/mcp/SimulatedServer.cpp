@@ -71,6 +71,7 @@ int main(int argc, char** argv)
     sampler.setSongNames({"INTRO", "VERSE", "OUTRO"});
     sampler.setSetListNames({"TOUR", "HOME"});
     sampler.setSceneListNames({"LIVE SET", "STUDIO"});
+    sampler.setFxBoard(akm::harness::eb20Layout());
 
     // Two disks: HD1, a writable hard disk (MSDOS) whose root holds the program file INIT.AKP, the sample file KICK2.WAV, a
     // program BIG.AKP that depends on a sample file BIGSAMPLE.WAV, and the folders SYNTH (a program LEAD2 and a sample WAVE)

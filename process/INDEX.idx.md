@@ -525,7 +525,7 @@ TASK-MCP-048|97-108|Done|Song files, set lists and scenelists — deletion
 TASK-MCP-049|109-120|Done|Saving and loading song files, set lists and scenelists through the disk
 TASK-MCP-050|121-132|Done|Delete all programs, all samples, all multis
 TASK-MCP-051|133-144|Done|Clear the sampler's memory
-TASK-MCP-052|145-156|Not Started|The effects board
+TASK-MCP-052|145-156|Done|The effects board
 TASK-MCP-053|157-168|Not Started|The front-panel keys behind `--allow-front-panel`
 TASK-MCP-054|169-180|Not Started|README, scripted conversations, counts and closure
 TASK-MCP-055|181-191|Blocked|Real-sampler run of the new tools with the owner

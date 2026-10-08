@@ -4,10 +4,12 @@
 # ADR-MCP-001 (DEC-MCP-001)]
 
 add_library(xs56k_mcp STATIC
+    src/FxCatalogue.cpp
     src/McpServer.cpp
     src/ParameterCatalogue.cpp
     src/SamplerGateway.cpp
     src/SamplerGatewayDisk.cpp
+    src/SamplerGatewayFx.cpp
     src/SamplerGatewayLists.cpp
     src/ServerOptions.cpp
     src/StandardParameters.cpp
