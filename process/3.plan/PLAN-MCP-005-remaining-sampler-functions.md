@@ -168,15 +168,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-054: README, scripted conversations, counts and closure
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Bring `juce/mcp/README.md` (tool and option tables, what has and has not been tried, the exclusions now reduced to eject, format and the refresh), the scripted conversations, the tool counts in `README.md`, `AGENTS.md` and the mcp README, and the "what stays out" texts into line with what exists; check that the README test passes with all options on.
 - **Requirement refs**: RQ-MCP-043, RQ-MCP-055
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-028, DEC-MCP-034)
 - **Acceptance Criteria** (Gherkin): *Given* the README, *When* its tool tables and the server's list with every option on are compared, *Then* every tool and option is there and the counts in the three documents are the ones the server reports.
 - **Dependencies**: TASK-MCP-045 to TASK-MCP-053
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None yet.
+- **Verification**: DONE on 2026-10-08, from the tools' own output. Red first: `CheckReadmeCoversTools.cmake` extended to run the simulated server with no option, `--allow-disk`, `--allow-front-panel` and both, and to compare the counts with the two READMEs: `mcp_readme_names_every_tool_and_option` failed with "README.md should say: 56 tools, 72 with `--allow-disk`, 61 with `--allow-front-panel`, 77 with both". Green after the README fixes: full `ctest` on Linux (GCC 13, `-Wno-dangling-reference`): 1076 of 1076 pass, including `mcp_readme_names_every_tool_and_option` (every tool and every option of `--help` is in `juce/mcp/README.md`; the counts 56 / 72 / 61 / 77 are those the server lists) and the new `mcp_source_check_fails_on_an_eject_call`. Read and rewritten: the Safety section of `juce/mcp/README.md` (it still said that delete-all, clearing the memory, the keys, song files and the effects board were "never done"), the "what has been tried" row of the new tools (its markup was broken), the introduction and the simulated-server description. The scripted conversations were extended task by task (main session 160 lines, disk and keys session 58 lines) and their expected outputs read each time.
+- **Assumptions**: (1) **`AGENTS.md` states no tool count** (it was cut back in the commit of TASK-MCP-045) and none was added: the counts are in `README.md` and `juce/mcp/README.md`, the two documents the test now checks against the server; the task text names three. (2) The four counts (no option, `--allow-disk`, `--allow-front-panel`, both) are written in a fixed sentence in each README so that the test can search for it; changing the wording means changing the test. (3) The ejecting and formatting of a disk stay out as RQ-MCP-055 says; a third negative fixture proves the source check fails on an eject call. (4) The exclusions listed in the README are now: eject and format a disk, moving files between the computer and the sampler, and the refresh of the disk list without its option (DEC-MCP-028); it does NOT claim that every other function of the specification is offered: no item-by-item comparison of the specification with the tools was made. (5) The README's sentence about the keys "released before the server exits" is true for an orderly close only, and says so. (6) `ADR-MCP-002`, `-003` and `-004` and `-005` are still "Proposed" for the owner's review: this task changed no ADR. (7) The closing artifacts of the session (checkpoint note, metrics row) are written after this task, as END SESSION asks.
 
 ### TASK-MCP-055: Real-sampler run of the new tools with the owner
 - **Tier**: M

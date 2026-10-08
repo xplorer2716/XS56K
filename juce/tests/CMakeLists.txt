@@ -211,6 +211,13 @@ add_test(NAME mcp_source_check_fails_on_a_front_panel_call_in_a_tool_file
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
 set_tests_properties(mcp_source_check_fails_on_a_front_panel_call_in_a_tool_file PROPERTIES
     PASS_REGULAR_EXPRESSION "A forbidden AKM call in the MCP server:.*akm::holdKey")
+# ... and on any file that ejects a disk, which the server never does. [TASK-MCP-054, RQ-MCP-055]
+add_test(NAME mcp_source_check_fails_on_an_eject_call
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/mcp/forbidden_eject_fixture
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
+set_tests_properties(mcp_source_check_fails_on_an_eject_call PROPERTIES
+    PASS_REGULAR_EXPRESSION "A forbidden AKM call in the MCP server:.*akm::ejectDisk")
 
 # The README of the MCP server names every tool the server lists and every option of its usage text: it is the reference for the person
 # who uses the server. [TASK-MCP-036, RQ-MCP-043, ADR-MCP-004 (DEC-MCP-026)]
@@ -219,6 +226,7 @@ add_test(NAME mcp_readme_names_every_tool_and_option
         -DSIMULATED_SERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
         -DREAL_SERVER=$<TARGET_FILE:xs56k_mcp_server>
         -DREADME=${PROJECT_SOURCE_DIR}/mcp/README.md
+        -DROOT_README=${PROJECT_SOURCE_DIR}/../README.md
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/list_tools.jsonl
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckReadmeCoversTools.cmake)
 

@@ -10,7 +10,7 @@ keygroup"*, *"build a multi with BASS on part 1 and LEAD on part 2"*, *"save the
 - the program `xs56k_mcp_server` (built with the rest of the project, see [Build](#build)).
 
 **What it does not do:** it does not record, edit audio, format a disk, eject a disk or touch the files of your computer. It works on
-what is in the **sampler's memory**, and — only if you ask for it — on the **sampler's own disks**.
+what is in the **sampler's memory**, and — only if you ask for it — on the **sampler's own disks** (`--allow-disk`) and its **front-panel keys** (`--allow-front-panel`).
 
 ## Contents
 1. [Start it](#1-start-it)
@@ -52,7 +52,7 @@ LCD on, Auto screen update off), **not to what you had set**. A server that is k
 switched off and on.
 
 **To try the tools without a sampler**, run `xs56k_mcp_server_simulated` instead (built with the tests): the same server over a
-simulated sampler holding three programs, three samples and two multis, and two disks when started with `--allow-disk`.
+simulated sampler holding three programs, three samples, two multis, three song files, two set lists, two scenelists and an EB20 effects board, and two disks when started with `--allow-disk`.
 
 ### Build
 
@@ -275,18 +275,23 @@ A program is saved as `<name>.AKP`, a sample as `<name>.WAV`; the extension of a
 ## 5. Safety
 
 **Every deletion asks for a confirmation.** A tool that deletes something takes a `confirm` argument that must be the **exact name**
-of what is deleted (for `delete_keygroup`, the program's name; for `save_all_memory_items`, the number of items). If it is
+of what is deleted (for `delete_keygroup`, the program's name; for `save_all_memory_items`, `delete_all_programs`, `delete_all_samples`
+and `delete_all_multis`, the number of items; for `clear_sampler_memory`, the total number of programs, samples and multis). If it is
 missing or wrong, **nothing is sent to the sampler** and the answer says what to give. The destructive tools say so in their
-annotations, so a client can ask you before it calls them.
+annotations, so a client can ask you before it calls them. `clear_sampler_memory` and the `delete_all_*` tools are the largest losses
+the server can cause: ask yourself before letting an assistant call them on a sampler that holds work you have not saved.
 
 **Never done, whatever the options:**
-- deleting *all* programs, samples or multis, and clearing the sampler's memory;
-- formatting or ejecting a disk;
-- the sampler's front-panel keys, its name, clock, play mode, panel lock and MIDI setup;
-- song files, set lists, scenelists and the effects board.
+- ejecting or formatting a disk (the owner's decision of 2026-10-07; formatting and moving files between the computer and the sampler are not in
+  the SysEx specification either);
+- the refresh of the disk list, unless `--allow-disk-refresh` is given (and even then it hung a real S5000);
+- anything a `confirm` would have guarded, without the `confirm`.
 
-(Some of these exist in the sampler's protocol and may be added later; none is offered today. They are listed with their reasons in
-`process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md`.)
+(The reasons are in `process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md` and `ADR-MCP-005-remaining-sampler-functions.md`.)
+
+**The front-panel keys are opt-in and not guarded.** Without `--allow-front-panel` the five key tools do not exist. With it, a key acts on
+whatever the sampler's screen shows: `ent_play` on a delete or save screen does it, and no `confirm` of this server stands in the way. The sampler
+only queues what it is sent. A key held when the server's input closes is released before the server exits; a server that is killed leaves it down.
 
 **The changes are in the sampler's memory** and are lost when it is switched off, unless they are saved to a disk (`save_memory_item`,
 `save_all_memory_items`) or from the front panel.
@@ -296,7 +301,9 @@ command has once left a real S5000 answering nothing until it was switched off a
 timeout of their own, are never retried, and the refresh of the disk list is a separate option that should stay off.
 
 **It is checked by a test.** A test (`mcp_sources_call_no_destructive_primitive`) searches the server's source for the commands that
-delete, rename, create, save, load, eject, format or clear, and allows each one in a single file only.
+delete, rename, create, save, load, eject, format or clear, and for the front-panel commands, and allows each one in the one unit that owns
+it; three other tests (`mcp_source_check_fails_on_...`) plant a delete, a key and an eject in a tool file and expect the check to fail. Another
+(`mcp_readme_names_every_tool_and_option`) fails when this README leaves out a tool or an option, or states a count of tools that is not the server's.
 
 ---
 
@@ -313,7 +320,7 @@ full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 | **Multis**: `create_multi` (32 parts), `rename_multi`, `delete_multi`, `set_part_program` by name and by position, `get_part_programs`, `clear_part`, `set_multi_program_number`, and **all 12 part parameters**; the part numbers are those of the front panel | |
 | **Disk**: browsing, `create_folder`, `rename_file` (a `.WAV` and a `.AKP`: the sampler adds the extension), `rename_folder`, `delete_file`, `delete_folder` with and without `delete_contents`, `audition_file` (heard, and the stop cuts the sound) | **`get_disk_space` says 0 bytes free** for this FAT32 disk: the S5000 does not seem to report it, so do not rely on it |
 | **Load and save**: `load_file` (a program, a 40 MB sample, a multi), the control of `with_dependents` (without it no sample is added, with it the program's samples are), `load_folder` (13 samples); `save_memory_item` (a program, a sample, a multi), `save_children` (the program and the samples it uses), `save_all_memory_items` (13 samples), the refusal to overwrite and the save with `overwrite` | a save of a very large sample |
-| **Information**: `get_system_info` | **`get_sampler_settings`, `set_sampler_setting`, `set_midi_setting`, `set_midi_filter` and the list, select, rename and delete tools of the song files, set lists and scenelists, the delete-all and clear-memory tools, **the five effects tools** (the owner has no effects board) and **the five key tools**: only run on the simulated sampler so far** (to run on the real one with the owner, TASK-MCP-055) |
+| **Information**: `get_system_info` | **Run on the simulated sampler only, not on a real one:** `get_sampler_settings`, `set_sampler_setting`, `set_midi_setting`, `set_midi_filter`; the list, select, rename and delete tools of the song files, set lists and scenelists, and their saving and loading; `delete_all_programs`, `delete_all_samples`, `delete_all_multis`; `clear_sampler_memory` (not to be run on the owner's sampler without his word); the five effects tools (the owner has no effects board); the five key tools. The real run is TASK-MCP-055 |
 | **Screen**: `--screen independent` (the owner's screen did not move), `--screen follow` (it followed the assistant and showed each edit), `--screen as-is` (nothing moved) | `independent` was not tried with the screen on the very program the assistant edits; `follow` does not change the page: with the screen on the file system page it stayed there when a multi was selected |
 
 A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`. The extension of a saved song file, set list or scenelist is **not known**: no run has saved one on a real sampler, so this server finds the file by the item's name whatever its extension, and `load_file` loads any file of the folder by the name `list_disk_contents` gives.
