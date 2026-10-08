@@ -342,6 +342,9 @@ namespace akm::harness
         constexpr std::uint8_t SAVE_TYPE_MULTI = 1;
         constexpr std::uint8_t SAVE_TYPE_PROGRAM = 2;
         constexpr std::uint8_t SAVE_TYPE_SAMPLE = 3;
+        constexpr std::uint8_t SAVE_TYPE_SMF = 4;
+        constexpr std::uint8_t SAVE_TYPE_SETLIST = 5;
+        constexpr std::uint8_t SAVE_TYPE_SCENELIST = 6;
         // Sample audition from disk items of TASK-AKM-065 (RQ-AKM-068).
         constexpr std::uint8_t ITEM_START_FILE_AUDITION = 0x30;
         constexpr std::uint8_t ITEM_STOP_FILE_AUDITION = 0x31;
@@ -1887,8 +1890,14 @@ namespace akm::harness
         // Appends what `file` materializes to `programs`/`samples` (RQ-AKM-066): a program, and/or a
         // sample typed RAM or VIRTUAL per `sampleLoadOption` (only meaningful for a sample).
         void materializeFile(const FileRecord& file, std::uint8_t sampleLoadOption, std::vector<ProgramRecord>& programs,
-                            std::vector<SampleRecord>& samples)
+                            std::vector<SampleRecord>& samples, SongState& songs, SceneListState& sceneLists)
         {
+            if (file.loadsSongNamed)
+                songs.songs.push_back(*file.loadsSongNamed);
+            if (file.loadsSetListNamed)
+                songs.setLists.push_back(*file.loadsSetListNamed);
+            if (file.loadsSceneListNamed)
+                sceneLists.scenes.push_back(*file.loadsSceneListNamed);
             if (file.loadsProgramNamed)
             {
                 ProgramRecord program;
@@ -1908,6 +1917,8 @@ namespace akm::harness
         // `.AKP` and a sample is `.WAV` (the owner's own statement, and what the real S5000 wrote on 2026-10-06 when a
         // sample was saved). A multi's `.AKM` is an ASSUMPTION: no multi has been saved on the real sampler yet and no
         // spec gives it. Empty for a type this model does not save content for.
+        // The extensions of a saved song file, set list and scenelist are PLACEHOLDERS, and so are their sizes: nothing in the spec or in a run on
+        // the real sampler gives them (TASK-MCP-049, to be observed in TASK-MCP-055). The tools find a file by the item's name whatever the extension.
         std::string extensionForSaveType(std::uint8_t type)
         {
             switch (type)
@@ -1918,6 +1929,12 @@ namespace akm::harness
                     return ".AKP";
                 case SAVE_TYPE_SAMPLE:
                     return ".WAV";
+                case SAVE_TYPE_SMF:
+                    return ".MID";
+                case SAVE_TYPE_SETLIST:
+                    return ".SET";
+                case SAVE_TYPE_SCENELIST:
+                    return ".SCN";
                 default:
                     return "";
             }
@@ -1932,6 +1949,7 @@ namespace akm::harness
         constexpr std::uint32_t SAVED_SAMPLE_HEADER_BYTES = 144;
         constexpr std::uint32_t SAVED_SAMPLE_BYTES_PER_POINT = 2;
         constexpr std::uint32_t SAVED_MULTI_BYTES = 2354;
+        constexpr std::uint32_t SAVED_NAMED_LIST_BYTES = 512;  // a placeholder for a song file, a set list and a scenelist
 
         std::uint32_t savedProgramBytes(const ProgramRecord& program)
         {
@@ -1959,6 +1977,12 @@ namespace akm::harness
                 file.loadsProgramNamed = itemName;
             else if (type == SAVE_TYPE_SAMPLE)
                 file.loadsSampleNamed = itemName;
+            else if (type == SAVE_TYPE_SMF)
+                file.loadsSongNamed = itemName;
+            else if (type == SAVE_TYPE_SETLIST)
+                file.loadsSetListNamed = itemName;
+            else if (type == SAVE_TYPE_SCENELIST)
+                file.loadsSceneListNamed = itemName;
             const auto found = findFileByName(*folder, file.name);
             if (found && !overwriteExisting)
                 return failure(error_number::COULD_NOT_CREATE);
@@ -1996,7 +2020,7 @@ namespace akm::harness
         Outcome executeDisk(std::uint8_t item, const Bytes& data, std::vector<DiskRecord>& disks,
                             std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
                             std::vector<ProgramRecord>& programs, std::vector<SampleRecord>& samples,
-                            const std::vector<MultiRecord>& multis)
+                            const std::vector<MultiRecord>& multis, SongState& songs, SceneListState& sceneLists)
         {
             switch (item)
             {
@@ -2324,7 +2348,7 @@ namespace akm::harness
                     const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
                     if (!found)
                         return failure(error_number::NOT_FOUND);
-                    materializeFile(folder->files[*found], *sampleLoadOption, programs, samples);
+                    materializeFile(folder->files[*found], *sampleLoadOption, programs, samples, songs, sceneLists);
                     return done();
                 }
                 case ITEM_LOAD_FILE_WITH_DEPENDENTS:
@@ -2339,12 +2363,12 @@ namespace akm::harness
                     const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
                     if (!found)
                         return failure(error_number::NOT_FOUND);
-                    materializeFile(folder->files[*found], SAMPLE_LOAD_OPTION_NORMAL, programs, samples);
+                    materializeFile(folder->files[*found], SAMPLE_LOAD_OPTION_NORMAL, programs, samples, songs, sceneLists);
                     for (const std::string& dependency : folder->files[*found].dependsOnFiles)
                     {
                         const auto dependencyIndex = findFileByName(*folder, dependency);
                         if (dependencyIndex)
-                            materializeFile(folder->files[*dependencyIndex], SAMPLE_LOAD_OPTION_NORMAL, programs, samples);
+                            materializeFile(folder->files[*dependencyIndex], SAMPLE_LOAD_OPTION_NORMAL, programs, samples, songs, sceneLists);
                     }
                     return done();
                 }
@@ -2381,6 +2405,16 @@ namespace akm::harness
                             return failure(error_number::NOT_FOUND);
                         itemName = multis[*index].name;
                         sizeBytes = SAVED_MULTI_BYTES;
+                    }
+                    else if (*type == SAVE_TYPE_SMF || *type == SAVE_TYPE_SETLIST || *type == SAVE_TYPE_SCENELIST)
+                    {
+                        const std::vector<std::string>& names = *type == SAVE_TYPE_SMF       ? songs.songs
+                                                                : *type == SAVE_TYPE_SETLIST ? songs.setLists
+                                                                                             : sceneLists.scenes;
+                        if (*index >= names.size())
+                            return failure(error_number::NOT_FOUND);
+                        itemName = names[*index];
+                        sizeBytes = SAVED_NAMED_LIST_BYTES;
                     }
                     else
                     {
@@ -2425,6 +2459,18 @@ namespace akm::harness
                         for (const MultiRecord& multi : multis)
                         {
                             const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, multi.name, SAVED_MULTI_BYTES);
+                            if (outcome.replyId == REPLY_ERROR)
+                                return outcome;
+                        }
+                    }
+                    else if (*type == SAVE_TYPE_SMF || *type == SAVE_TYPE_SETLIST || *type == SAVE_TYPE_SCENELIST)
+                    {
+                        const std::vector<std::string>& names = *type == SAVE_TYPE_SMF       ? songs.songs
+                                                                : *type == SAVE_TYPE_SETLIST ? songs.setLists
+                                                                                             : sceneLists.scenes;
+                        for (const std::string& name : names)
+                        {
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, name, SAVED_NAMED_LIST_BYTES);
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
@@ -2746,7 +2792,8 @@ namespace akm::harness
             if (section == SECTION_MULTI_FX)
                 return executeMultiFx(item, data, state.fx, state.multis.current.has_value());
             if (section == SECTION_DISK)
-                return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples, state.multis.multis);
+                return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples, state.multis.multis,
+                                   state.songs, state.sceneLists);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)

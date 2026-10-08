@@ -262,6 +262,9 @@ namespace mcp
         std::vector<std::string> programs;
         std::vector<std::string> samples;
         std::vector<std::string> multis;
+        std::vector<std::string> songFiles;
+        std::vector<std::string> setLists;
+        std::vector<std::string> sceneLists;
     };
 
     /// What a load did: the disk and folder it acted on and the memory before and after.
@@ -279,6 +282,9 @@ namespace mcp
         Program,
         Sample,
         Multi,
+        SongFile,
+        SetList,
+        SceneList,
     };
 
     /// What a save did: the disk and folder it acted on, the kind and name (one item) or the number of items (all), and the

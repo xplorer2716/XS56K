@@ -522,7 +522,7 @@ TASK-MCP-045|61-72|Done|The sampler's settings
 TASK-MCP-046|73-84|Done|The MIDI setup
 TASK-MCP-047|85-96|Done|Song files, set lists and scenelists — list, select, rename
 TASK-MCP-048|97-108|Done|Song files, set lists and scenelists — deletion
-TASK-MCP-049|109-120|Not Started|Saving and loading song files, set lists and scenelists through the disk
+TASK-MCP-049|109-120|Done|Saving and loading song files, set lists and scenelists through the disk
 TASK-MCP-050|121-132|Not Started|Delete all programs, all samples, all multis
 TASK-MCP-051|133-144|Not Started|Clear the sampler's memory
 TASK-MCP-052|145-156|Not Started|The effects board

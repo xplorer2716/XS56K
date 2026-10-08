@@ -1239,25 +1239,50 @@ namespace mcp
             return text + ")";
         }
 
-        /// "program", "sample" or "multi" as a client says it, and its name for a message.
+        /// A kind of memory item a save takes: the word a client gives, and the noun the answers use. [RQ-MCP-026, RQ-MCP-050]
+        struct SaveKindWord
+        {
+            SaveKind kind;
+            const char* argument;
+            const char* noun;
+        };
+
+        constexpr SaveKindWord SAVE_KINDS[] = {
+            {SaveKind::Program, "program", "program"},      {SaveKind::Sample, "sample", "sample"},
+            {SaveKind::Multi, "multi", "multi"},            {SaveKind::SongFile, "song_file", "song file"},
+            {SaveKind::SetList, "set_list", "set list"},    {SaveKind::SceneList, "scenelist", "scenelist"},
+        };
+        constexpr const char* SAVE_KIND_LIST = "\"program\", \"sample\", \"multi\", \"song_file\", \"set_list\" or \"scenelist\"";
+
+        /// A kind as the client says it, in other letters, with a space or a hyphen for the underscore. [RQ-MCP-050]
+        std::string kindWordKey(std::string word)
+        {
+            std::replace(word.begin(), word.end(), '_', ' ');
+            return normalizeText(word);
+        }
+
         std::optional<SaveKind> saveKindArgument(const json& arguments)
         {
             const auto given = arguments.find("kind");
             if (given == arguments.end() || !given->is_string())
                 return std::nullopt;
-            const std::string said = normalizeText(given->get<std::string>());
-            if (said == "program")
-                return SaveKind::Program;
-            if (said == "sample")
-                return SaveKind::Sample;
-            if (said == "multi")
-                return SaveKind::Multi;
+            const std::string said = kindWordKey(given->get<std::string>());
+            for (const SaveKindWord& word : SAVE_KINDS)
+            {
+                if (said == kindWordKey(word.argument))
+                    return word.kind;
+            }
             return std::nullopt;
         }
 
         const char* saveKindName(SaveKind kind)
         {
-            return kind == SaveKind::Program ? "program" : kind == SaveKind::Sample ? "sample" : "multi";
+            for (const SaveKindWord& word : SAVE_KINDS)
+            {
+                if (word.kind == kind)
+                    return word.noun;
+            }
+            return "item";
         }
 
         /// A boolean argument that defaults to false, or the reason it is not one.
@@ -1288,9 +1313,17 @@ namespace mcp
 
         std::string describeMemory(const LoadOutcome& outcome)
         {
-            return "Memory now: " + describeKind("programs", outcome.before.programs, outcome.after.programs) + ", " +
-                   describeKind("samples", outcome.before.samples, outcome.after.samples) + ", " +
-                   describeKind("multis", outcome.before.multis, outcome.after.multis) + ".";
+            std::string text = "Memory now: " + describeKind("programs", outcome.before.programs, outcome.after.programs) + ", " +
+                               describeKind("samples", outcome.before.samples, outcome.after.samples) + ", " +
+                               describeKind("multis", outcome.before.multis, outcome.after.multis);
+            // The song files, set lists and scenelists are spoken of only when the load changed them. [RQ-MCP-050]
+            if (outcome.before.songFiles != outcome.after.songFiles)
+                text += ", " + describeKind("song files", outcome.before.songFiles, outcome.after.songFiles);
+            if (outcome.before.setLists != outcome.after.setLists)
+                text += ", " + describeKind("set lists", outcome.before.setLists, outcome.after.setLists);
+            if (outcome.before.sceneLists != outcome.after.sceneLists)
+                text += ", " + describeKind("scenelists", outcome.before.sceneLists, outcome.after.sceneLists);
+            return text + ".";
         }
 
         std::string describeContents(const DiskContents& contents)
@@ -1633,7 +1666,7 @@ namespace mcp
         tools.push_back(Tool{
             definition("load_file", "Load a file",
                        std::string("Loads a file of the current folder of the current disk into the sampler's memory (see list_disk_contents; "
-                                   "its extension decides whether it is a program, a sample or a multi) and says what the memory holds "
+                                   "its extension decides whether it is a program, a sample, a multi, a song file, a set list or a scenelist) and says what the memory holds "
                                    "before and after. With with_dependents the files it depends on are loaded too (a program and its samples). "
                                    "sample_mode says how a sample is loaded: normal, ram or virtual. It can take long, and a sampler that stops "
                                    "answering may have to be switched off and on; nothing is retried. ") +
@@ -1703,15 +1736,15 @@ namespace mcp
 
         // save_memory_item
         tools.push_back(Tool{
-            markDestructive(definition("save_memory_item", "Save a program, sample or multi to the disk",
+            markDestructive(definition("save_memory_item", "Save a memory item to the disk",
                        std::string("Saves one item of the sampler's memory, found by its name, to the current folder of the current disk "
                                    "(see select_disk and open_folder), which must be writable, and says whether a file of its name is there "
                                    "afterwards. A file of the item's name that is already in the folder is NOT replaced unless overwrite is true: "
                                    "overwrite true loses the old file. save_children also saves what the item uses (a program's samples). It can "
                                    "take long, and a sampler that stops answering may have to be switched off and on; nothing is retried. ") +
                            DISK_FILES_NOTICE,
-                       objectSchema(json{{"kind", {{"type", "string"}, {"description", "\"program\", \"sample\" or \"multi\"."}}},
-                                         {"name", {{"type", "string"}, {"description", "The item's name, from list_programs, list_samples or list_multis."}}},
+                       objectSchema(json{{"kind", {{"type", "string"}, {"description", std::string(SAVE_KIND_LIST) + "."}}},
+                                         {"name", {{"type", "string"}, {"description", "The item's name, from list_programs, list_samples, list_multis, list_song_files, list_set_lists or list_scenelists."}}},
                                          {"overwrite", {{"type", "boolean"}, {"description", "Replace a file of that name already in the folder. Default false."}}},
                                          {"save_children", {{"type", "boolean"}, {"description", "Also save what the item depends on. Default false."}}}},
                                     json::array({"kind", "name"})),
@@ -1721,7 +1754,7 @@ namespace mcp
                     return *refused;
                 const auto kind = saveKindArgument(arguments);
                 if (!kind)
-                    return failure("Give the 'kind' of the item: \"program\", \"sample\" or \"multi\".");
+                    return failure(std::string("Give the 'kind' of the item: ") + SAVE_KIND_LIST + ".");
                 if (!arguments.contains("name") || !arguments.at("name").is_string())
                     return failure("Give the 'name' of the item to save.");
                 bool overwrite = false;
@@ -1749,14 +1782,14 @@ namespace mcp
 
         // save_all_memory_items
         tools.push_back(Tool{
-            markDestructive(definition("save_all_memory_items", "Save every program, sample or multi to the disk",
+            markDestructive(definition("save_all_memory_items", "Save every item of a kind to the disk",
                        std::string("Saves every item of a kind of the sampler's memory to the current folder of the current disk, which must be "
                                    "writable, and says how many files the folder gained. It is sent only when confirm is exactly the number of items "
-                                   "of that kind in memory (see list_programs, list_samples, list_multis). Files of the items' names already in the "
+                                   "of that kind in memory (see list_programs, list_samples, list_multis, list_song_files, list_set_lists, list_scenelists). Files of the items' names already in the "
                                    "folder are NOT replaced unless overwrite is true: overwrite true loses the old files. It can take long, and a "
                                    "sampler that stops answering may have to be switched off and on; nothing is retried. ") +
                            DISK_FILES_NOTICE,
-                       objectSchema(json{{"kind", {{"type", "string"}, {"description", "\"program\", \"sample\" or \"multi\"."}}},
+                       objectSchema(json{{"kind", {{"type", "string"}, {"description", std::string(SAVE_KIND_LIST) + "."}}},
                                          {"confirm", {{"type", "integer"}, {"minimum", 1}, {"description", "How many items of that kind are in memory."}}},
                                          {"overwrite", {{"type", "boolean"}, {"description", "Replace files of the same names already in the folder. Default false."}}},
                                          {"save_children", {{"type", "boolean"}, {"description", "Also save what the items depend on. Default false."}}}},
@@ -1767,7 +1800,7 @@ namespace mcp
                     return *refused;
                 const auto kind = saveKindArgument(arguments);
                 if (!kind)
-                    return failure("Give the 'kind' of the items: \"program\", \"sample\" or \"multi\".");
+                    return failure(std::string("Give the 'kind' of the items: ") + SAVE_KIND_LIST + ".");
                 if (!arguments.contains("confirm"))
                     return failure("Give 'confirm', the number of items of that kind in the sampler's memory.");
                 const auto confirm = arguments.at("confirm").is_number() ? wholeNumber(arguments.at("confirm")) : std::nullopt;

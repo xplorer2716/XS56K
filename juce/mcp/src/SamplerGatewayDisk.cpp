@@ -332,6 +332,16 @@ namespace mcp
             return Outcome<MemoryNames>::failure(multis.problem);
         for (const MultiEntry& multi : multis.value->multis)
             names.multis.push_back(multi.name);
+        const std::pair<NamedListKind, std::vector<std::string>*> lists[] = {
+            {NamedListKind::SongFile, &names.songFiles}, {NamedListKind::SetList, &names.setLists}, {NamedListKind::SceneList, &names.sceneLists}};
+        for (const auto& [kind, target] : lists)
+        {
+            const auto listing = listNamedItems(kind);
+            if (!listing.ok())
+                return Outcome<MemoryNames>::failure(listing.problem);
+            for (const NamedListEntry& entry : listing.value->entries)
+                target->push_back(entry.name);
+        }
         return Outcome<MemoryNames>::success(std::move(names));
     }
 
@@ -428,6 +438,12 @@ namespace mcp
                     return "sample";
                 case SaveKind::Multi:
                     return "multi";
+                case SaveKind::SongFile:
+                    return "song file";
+                case SaveKind::SetList:
+                    return "set list";
+                case SaveKind::SceneList:
+                    return "scenelist";
             }
             return "item";
         }
@@ -442,6 +458,12 @@ namespace mcp
                     return akm::SaveableMemoryType::Sample;
                 case SaveKind::Multi:
                     return akm::SaveableMemoryType::Multi;
+                case SaveKind::SongFile:
+                    return akm::SaveableMemoryType::Smf;
+                case SaveKind::SetList:
+                    return akm::SaveableMemoryType::Setlist;
+                case SaveKind::SceneList:
+                    return akm::SaveableMemoryType::Scenelist;
             }
             return akm::SaveableMemoryType::Program;
         }
@@ -456,6 +478,12 @@ namespace mcp
                     return memory.samples;
                 case SaveKind::Multi:
                     return memory.multis;
+                case SaveKind::SongFile:
+                    return memory.songFiles;
+                case SaveKind::SetList:
+                    return memory.setLists;
+                case SaveKind::SceneList:
+                    return memory.sceneLists;
             }
             return memory.programs;
         }

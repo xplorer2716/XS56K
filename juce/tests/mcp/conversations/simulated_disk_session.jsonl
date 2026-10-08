@@ -43,4 +43,10 @@
 {"jsonrpc":"2.0","id":43,"method":"tools/call","params":{"name":"delete_folder","arguments":{"name":"NEWDIR","confirm":"NEWDIR"}}}
 {"jsonrpc":"2.0","id":44,"method":"tools/call","params":{"name":"audition_file","arguments":{"action":"start","name":"KICK2.WAV"}}}
 {"jsonrpc":"2.0","id":45,"method":"tools/call","params":{"name":"audition_file","arguments":{"action":"stop"}}}
+{"jsonrpc":"2.0","id":47,"method":"tools/call","params":{"name":"save_memory_item","arguments":{"kind":"song_file","name":"VERSE"}}}
+{"jsonrpc":"2.0","id":48,"method":"tools/call","params":{"name":"save_memory_item","arguments":{"kind":"song_file","name":"VERSE"}}}
+{"jsonrpc":"2.0","id":49,"method":"tools/call","params":{"name":"save_all_memory_items","arguments":{"kind":"set_list","confirm":2}}}
+{"jsonrpc":"2.0","id":50,"method":"tools/call","params":{"name":"select_song_file","arguments":{"name":"VERSE"}}}
+{"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"delete_song_file","arguments":{"confirm":"VERSE"}}}
+{"jsonrpc":"2.0","id":52,"method":"tools/call","params":{"name":"load_file","arguments":{"name":"VERSE.MID"}}}
 {"jsonrpc":"2.0","id":46,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

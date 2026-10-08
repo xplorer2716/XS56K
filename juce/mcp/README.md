@@ -237,7 +237,7 @@ A large sample takes time: a 40 MB sample took about a minute.
 
 | Tool | What it does | Arguments | Confirm |
 |---|---|---|---|
-| `save_memory_item` | saves one program, sample or multi to the current folder, then checks the folder | `kind`\* (`program`, `sample`, `multi`), `name`\*, `overwrite`, `save_children` | |
+| `save_memory_item` | saves one program, sample, multi, song file, set list or scenelist to the current folder, then checks the folder | `kind`\* (`program`, `sample`, `multi`, `song_file`, `set_list`, `scenelist`), `name`\*, `overwrite`, `save_children` | |
 | `save_all_memory_items` | saves every item of a kind | `kind`\*, `confirm`\*, `overwrite`, `save_children` | **the number** of items of that kind in memory |
 
 A program is saved as `<name>.AKP`, a sample as `<name>.WAV`; the extension of a multi file has not been seen on a real sampler.
@@ -298,7 +298,7 @@ full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 | **Information**: `get_system_info` | **`get_sampler_settings`, `set_sampler_setting`, `set_midi_setting`, `set_midi_filter` and the list, select, rename and delete tools of the song files, set lists and scenelists: only run on the simulated sampler so far** (to run on the real one with the owner, TASK-MCP-055) |
 | **Screen**: `--screen independent` (the owner's screen did not move), `--screen follow` (it followed the assistant and showed each edit), `--screen as-is` (nothing moved) | `independent` was not tried with the screen on the very program the assistant edits; `follow` does not change the page: with the screen on the file system page it stayed there when a multi was selected |
 
-A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`.
+A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`. The extension of a saved song file, set list or scenelist is **not known**: no run has saved one on a real sampler, so this server finds the file by the item's name whatever its extension, and `load_file` loads any file of the folder by the name `list_disk_contents` gives.
 
 **Do not use the refresh of the disk list (`--allow-disk-refresh`):** on this sampler it never answered, and the sampler had to be
 switched off and on. It is not needed for a disk that was plugged in before the server started.
