@@ -368,6 +368,25 @@ namespace mcp
         SamplerPanel panel = SamplerPanel::Normal;
     };
 
+    /// The switches of the sampler's MIDI setup (section 04). The section has no Get: what a switch held before cannot be read. [RQ-MCP-047]
+    enum class MidiSwitch
+    {
+        ProgramChange,         ///< 0 off, 1 on
+        MultiSelect,           ///< 0 off, 1 program change, 2 bank
+        MultiSelectChannel,    ///< 0 to 31: 1A = 0 ... 16B = 31
+        ExternalApmController, ///< 0 to 127
+        Aftertouch,            ///< 0 channel, 1 polyphonic
+    };
+
+    /// The MIDI events a filter acts on, with the byte each travels as. [RQ-MCP-047]
+    enum class MidiFilterKind
+    {
+        NoteOn = 0,
+        Aftertouch = 1,
+        Wheels = 2,
+        Volume = 3,
+    };
+
     /// The free space of the current disk. [RQ-MCP-040]
     struct DiskSpace
     {
@@ -642,6 +661,12 @@ namespace mcp
         [[nodiscard]] Outcome<SamplerClock> setSamplerClock(const SamplerClock& clock);
         [[nodiscard]] Outcome<SamplerPlayMode> setSamplerPlayMode(SamplerPlayMode mode);
         [[nodiscard]] Outcome<SamplerPanel> setSamplerPanel(SamplerPanel panel);
+
+        /// Each of these sends one Set of section 04 and answers true once the sampler has accepted it; the section has no Get, so nothing
+        /// is read back. The caller checks the value (the range is in `MidiSwitch`); the AKM layer refuses one out of range and nothing is
+        /// then sent. [RQ-MCP-047]
+        [[nodiscard]] Outcome<bool> setMidiSwitch(MidiSwitch which, int value);
+        [[nodiscard]] Outcome<bool> setMidiFilter(MidiFilterKind event, int channel, bool allow);
 
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();

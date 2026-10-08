@@ -76,6 +76,11 @@ namespace mcp
     // [RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
     [[nodiscard]] std::vector<Tool> makeSamplerSettingsTools(SamplerGateway& gateway);
 
+    // The sampler's MIDI setup: `set_midi_setting` sets one of its five switches and `set_midi_filter` allows or ignores a type of event
+    // on a channel. Section 04 has no Get, so neither reads back and each answer says the previous value is unknown. Nothing is deleted.
+    // The gateway must outlive the tools. [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+    [[nodiscard]] std::vector<Tool> makeMidiSetupTools(SamplerGateway& gateway);
+
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions
     {

@@ -519,7 +519,7 @@ TASK-MCP-043|222-232|Done|The simulated sampler saves a program and a sample at 
 PLAN-MCP-005|1-191||MCP Server — The Remaining Sampler Functions
 TASK-MCP-044|49-60|Done|Author FTR-MCP-005, ADR-MCP-005 and PLAN-MCP-005, and amend the "never offered" texts
 TASK-MCP-045|61-72|Done|The sampler's settings
-TASK-MCP-046|73-84|Not Started|The MIDI setup
+TASK-MCP-046|73-84|Done|The MIDI setup
 TASK-MCP-047|85-96|Not Started|Song files, set lists and scenelists — list, select, rename
 TASK-MCP-048|97-108|Not Started|Song files, set lists and scenelists — deletion
 TASK-MCP-049|109-120|Not Started|Saving and loading song files, set lists and scenelists through the disk

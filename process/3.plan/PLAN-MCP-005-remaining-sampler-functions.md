@@ -72,15 +72,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-046: The MIDI setup
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `set_midi_setting` (program change, multi select mode and channel, external APM controller, aftertouch type) and `set_midi_filter` (allow or ignore a MIDI event on a channel). Each answer says what was sent and that the previous value could not be read and cannot be put back (§04 has no Get).
 - **Requirement refs**: RQ-MCP-047
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-030)
 - **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* each setting and a filter are set, *Then* the simulated sampler holds them and the answer says the previous value is unknown; *given* a channel of 17 or an unknown event, *Then* nothing is sent.
 - **Dependencies**: TASK-MCP-045
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None yet.
+- **Verification**: DONE on 2026-10-08, from the tools' own output. Red first: `xs56k_mcp_tests "[midi]"` ("test cases: 12 | 0 passed | 12 failed", "assertions: 213 | 57 passed | 156 failed": the tools did not exist). Green after the two gateway methods (`setMidiSwitch`, `setMidiFilter`) and the two tools: "All tests passed (308 assertions in 12 test cases)" (`MidiSetupToolsTests.cpp`: the tool annotations; each of the five switches set and held by the simulated sampler as the byte the sampler uses; the channel as 3, 3A, 3b, 16B, 10a and the integer form for a filter; 14 refused values for the switches and 6 refused channels, events and actions, each naming what is accepted, with nothing sent; the missing, unknown and badly typed arguments; the answer saying the previous value could not be read and cannot be put back). `ctest` excluding `bld_mutate_tool_script_tests`: every test that can be built here passes; the two scripted conversations were extended with six calls (`simulated_session.jsonl`, `EXPECT_LINES` 123 to 129) and their expected output regenerated, the differences read: the six new answers, and the two new tool definitions in the discovery answer of both conversations. The tool tables of `juce/mcp/README.md` and the counts (36 tools, 52 with `--allow-disk`) are up to date. **Not verified here:** `mcp_server_executable_*` (3 tests) and `mcp_readme_names_every_tool_and_option` need the real `xs56k_mcp_server`, which this Linux container cannot build (no ALSA headers, `libasound2-dev`), and `xs56k_akm_tests` was not built; the README names both new tools, but the test that checks it was not run. Not run on the real sampler yet (TASK-MCP-055).
+- **Assumptions**: the MIDI channel is the musician's 1 to 16 with a port letter, A (the default) or B, as the S5000 shows it (1A to 16B); the tool maps it to the sampler's 0 to 31 (1A = 0 ... 16B = 31, `MidiConfig.hpp`). So "the multi select channel set to 3" of RQ-MCP-047 is held by the simulated sampler as 2 (3A), not 3; the owner reviews this reading. The settings are `program_change`, `multi_select`, `multi_select_channel`, `external_apm_controller` and `aftertouch`; the filter's events are `note_on`, `aftertouch`, `wheels` and `volume`, its actions `allow` and `ignore`. `multi_select` takes `off`, `program_change` or `bank`, the three bytes of the AKM item. `CheckNoDestructiveCalls.cmake` needed no change (nothing the new primitives call deletes).
 
 ### TASK-MCP-047: Song files, set lists and scenelists — list, select, rename
 - **Tier**: M

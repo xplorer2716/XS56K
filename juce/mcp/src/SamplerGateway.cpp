@@ -29,6 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/DiagnosticSink.hpp"
 #include "akm/ItemRequest.hpp"
 #include "akm/KeygroupPrimitives.hpp"
+#include "akm/MidiConfig.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/MultiPrimitives.hpp"
 #include "akm/RealScheduler.hpp"
@@ -771,6 +772,58 @@ namespace mcp
         if (!akm::succeeded(*set))
             return Outcome<SamplerPanel>::failure(explain(*set, "setting the front-panel lock", _config, false));
         return readSamplerPanel();
+    }
+
+    // The sampler's MIDI setup (section 04): Set only. [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+    Outcome<bool> SamplerGateway::setMidiSwitch(MidiSwitch which, int value)
+    {
+        if (const auto problem = connect())
+            return Outcome<bool>::failure(*problem);
+        const char* what = "setting the MIDI setup";
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::Session& session = _connection->session;
+            switch (which)
+            {
+                case MidiSwitch::ProgramChange:
+                    akm::setProgramChangeEnabled(session, value != 0, std::move(done));
+                    break;
+                case MidiSwitch::MultiSelect:
+                    akm::setMultiSelect(session, static_cast<akm::MultiSelectMode>(value), std::move(done));
+                    break;
+                case MidiSwitch::MultiSelectChannel:
+                    akm::setMultiSelectChannel(session, value, std::move(done));
+                    break;
+                case MidiSwitch::ExternalApmController:
+                    akm::setExternalApmController(session, value, std::move(done));
+                    break;
+                case MidiSwitch::Aftertouch:
+                    akm::setAftertouch(session, static_cast<akm::AftertouchType>(value), std::move(done));
+                    break;
+            }
+        });
+        if (!set)
+            return Outcome<bool>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<bool>::failure(explain(*set, what, _config, false));
+        return Outcome<bool>::success(true);
+    }
+
+    Outcome<bool> SamplerGateway::setMidiFilter(MidiFilterKind event, int channel, bool allow)
+    {
+        if (const auto problem = connect())
+            return Outcome<bool>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            const auto type = static_cast<akm::MidiFilterEvent>(event);
+            if (allow)
+                akm::allowMidiEvents(_connection->session, type, channel, std::move(done));
+            else
+                akm::ignoreMidiEvents(_connection->session, type, channel, std::move(done));
+        });
+        if (!set)
+            return Outcome<bool>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<bool>::failure(explain(*set, "setting a MIDI filter", _config, false));
+        return Outcome<bool>::success(true);
     }
 
     Outcome<ZoneSamples> SamplerGateway::readZoneSamples(KeygroupSelection selection)

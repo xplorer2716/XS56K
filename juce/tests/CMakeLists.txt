@@ -103,6 +103,7 @@ add_executable(xs56k_mcp_tests
     mcp/ServerOptionsTests.cpp
     mcp/SystemInfoToolsTests.cpp
     mcp/SamplerSettingsToolsTests.cpp
+    mcp/MidiSetupToolsTests.cpp
     mcp/ToolsTests.cpp
     mcp/ZoneParameterTests.cpp
     mcp/ZoneSampleToolsTests.cpp)
@@ -159,7 +160,7 @@ add_test(NAME mcp_simulated_server_scripted_conversation
         -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
-        -DEXPECT_LINES=123
+        -DEXPECT_LINES=129
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The same server launched with --allow-disk and --allow-disk-refresh (the conversation sends a refresh), and a scripted conversation over the disk tools: browsing, loading, saving, what
 # a save refuses and a read-only disk. To regenerate the expected output after a deliberate change, run

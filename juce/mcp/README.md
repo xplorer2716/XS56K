@@ -106,14 +106,14 @@ real sampler; it is part of the planned real run.
 
 | Group of tools | Tools | Needs |
 |---|---|---|
-| Status, information and settings | 5 | nothing |
+| Status, information, settings and MIDI setup | 7 | nothing |
 | Programs, keygroups and zones | 11 | nothing |
 | Samples | 7 | nothing |
 | Multis | 11 | nothing |
 | **Disks and files** | **16** | **`--allow-disk`** |
 | The refresh of the disk list | an argument of `list_disks` | `--allow-disk` **and** `--allow-disk-refresh` |
 
-That is **34 tools without any option and 50 with `--allow-disk`**. A disk tool that is not enabled is absent from the server's list of
+That is **36 tools without any option and 52 with `--allow-disk`**. A disk tool that is not enabled is absent from the server's list of
 tools, and calling it is an error.
 
 **Tiers.** Every tool tells the client what it does to the sampler, in its MCP annotations:
@@ -143,6 +143,8 @@ In the tables, **\*** marks a required argument. **Confirm** says which exact te
 | `list_parameters` | the names of the parameters, what each accepts, and what it does | `domain` (`program`, `sample` or `multi`), `group` (to narrow the list) |
 | `get_sampler_settings` | the sampler's own settings: its name, its clock and date (with the day of the week), its play mode (`multi`, `program`, `sample` or `muted`) and whether its front panel is `normal` or `locked` | none |
 | `set_sampler_setting` | sets one of those settings and reads it back: `name` (1 to 20 characters of plain ASCII), `clock` (`YYYY-MM-DD HH:MM:SS`, years 1980 to 2079; the day of the week is worked out), `play_mode` (`multi`, `program`, `sample`, `muted`: muted plays nothing until another mode is set), `front_panel` (`normal` or `locked`: a locked panel is unlocked only by setting it to `normal`). A value that is not valid is refused and nothing is sent | `setting`\*, `value`\* |
+| `set_midi_setting` | sets one switch of the sampler's MIDI setup (UTILITIES, MIDI SETUP): `program_change` (`on` or `off`), `multi_select` (`off`, `program_change` or `bank`), `multi_select_channel` (a MIDI channel 1 to 16 with its port A or B, such as `3` or `3B`; no effect while `multi_select` is off), `external_apm_controller` (a MIDI controller number, 0 to 127) and `aftertouch` (`channel` or `polyphonic`). Section 04 of the sampler has no Get: **the answer cannot say what the switch held before, and the server cannot put it back**. A value that is not valid is refused and nothing is sent | `setting`\*, `value`\* |
+| `set_midi_filter` | makes the sampler `allow` or `ignore` a type of MIDI event (`note_on`, `aftertouch`, `wheels` or `volume`) on a channel (1 to 16 with its port A or B, such as `3` or `3B`). Like `set_midi_setting` it cannot read the previous state and cannot put it back | `event`\*, `channel`\*, `action`\* |
 
 ### 4.2 Programs, keygroups and zones (no option)
 
@@ -286,7 +288,7 @@ full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 | **Multis**: `create_multi` (32 parts), `rename_multi`, `delete_multi`, `set_part_program` by name and by position, `get_part_programs`, `clear_part`, `set_multi_program_number`, and **all 12 part parameters**; the part numbers are those of the front panel | |
 | **Disk**: browsing, `create_folder`, `rename_file` (a `.WAV` and a `.AKP`: the sampler adds the extension), `rename_folder`, `delete_file`, `delete_folder` with and without `delete_contents`, `audition_file` (heard, and the stop cuts the sound) | **`get_disk_space` says 0 bytes free** for this FAT32 disk: the S5000 does not seem to report it, so do not rely on it |
 | **Load and save**: `load_file` (a program, a 40 MB sample, a multi), the control of `with_dependents` (without it no sample is added, with it the program's samples are), `load_folder` (13 samples); `save_memory_item` (a program, a sample, a multi), `save_children` (the program and the samples it uses), `save_all_memory_items` (13 samples), the refusal to overwrite and the save with `overwrite` | a save of a very large sample |
-| **Information**: `get_system_info` | **`get_sampler_settings` and `set_sampler_setting`: only run on the simulated sampler so far** (to run on the real one with the owner, TASK-MCP-055) |
+| **Information**: `get_system_info` | **`get_sampler_settings`, `set_sampler_setting`, `set_midi_setting` and `set_midi_filter`: only run on the simulated sampler so far** (to run on the real one with the owner, TASK-MCP-055) |
 | **Screen**: `--screen independent` (the owner's screen did not move), `--screen follow` (it followed the assistant and showed each edit), `--screen as-is` (nothing moved) | `independent` was not tried with the screen on the very program the assistant edits; `follow` does not change the page: with the screen on the file system page it stayed there when a multi was selected |
 
 A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`.

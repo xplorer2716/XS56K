@@ -2518,6 +2518,209 @@ namespace mcp
         return tools;
     }
 
+    // The sampler's MIDI setup (section 04, Set only). [TASK-MCP-046, RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+    namespace
+    {
+        constexpr const char* MIDI_SETTING_LIST = "program_change, multi_select, multi_select_channel, external_apm_controller, aftertouch";
+        constexpr const char* MIDI_EVENT_LIST = "note_on, aftertouch, wheels, volume";
+        constexpr const char* MIDI_ACTION_LIST = "allow, ignore";
+        constexpr const char* MULTI_SELECT_LIST = "off, program_change, bank";
+        constexpr const char* AFTERTOUCH_LIST = "channel, polyphonic";
+        constexpr const char* ON_OFF_LIST = "on, off";
+        constexpr const char* MIDI_CHANNEL_FORMAT =
+            "A MIDI channel is 1 to 16 with its port, A or B (1A to 16B); the port is A when it is left out. For example 3, 3A or 16B.";
+        constexpr const char* PREVIOUS_VALUE_UNKNOWN =
+            "The previous value could not be read (section 04 of the sampler has no Get) and cannot be put back by this server: to restore it, set "
+            "it again.";
+        constexpr int MIDI_CHANNELS_PER_PORT = 16;
+        constexpr std::size_t MAX_MIDI_CHANNEL_DIGITS = 2;
+        constexpr int MAX_EXTERNAL_APM_CONTROLLER = 127;
+        constexpr std::size_t MAX_CONTROLLER_DIGITS = 3;
+
+        std::string midiChannelText(int channel)
+        {
+            return std::to_string(channel % MIDI_CHANNELS_PER_PORT + 1) + (channel >= MIDI_CHANNELS_PER_PORT ? "B" : "A");
+        }
+
+        struct MidiChannelArgument
+        {
+            std::optional<int> channel;  ///< the sampler's own number: 1A = 0 ... 16B = 31
+            std::string problem;
+        };
+
+        /// A MIDI channel from a whole number (1 to 16, port A) or a text such as "3", "3a" or "16B". [RQ-MCP-047]
+        MidiChannelArgument parseMidiChannel(const json& given)
+        {
+            std::string text;
+            if (given.is_string())
+                text = given.get<std::string>();
+            else if (const auto whole = given.is_number() ? wholeNumber(given) : std::nullopt)
+                text = std::to_string(*whole);
+            else
+                return {std::nullopt, std::string("The channel must be a whole number or a text such as 3B. ") + MIDI_CHANNEL_FORMAT};
+            const std::string refused = "The channel \"" + text + "\" is not one of the sampler's. " + MIDI_CHANNEL_FORMAT;
+            std::size_t digits = 0;
+            while (digits < text.size() && std::isdigit(static_cast<unsigned char>(text[digits])) != 0)
+                ++digits;
+            if (digits == 0 || digits > MAX_MIDI_CHANNEL_DIGITS || text.size() - digits > 1)
+                return {std::nullopt, refused};
+            const int number = std::stoi(text.substr(0, digits));
+            if (number < 1 || number > MIDI_CHANNELS_PER_PORT)
+                return {std::nullopt, refused};
+            int port = 0;
+            if (text.size() > digits)
+            {
+                const char letter = static_cast<char>(std::toupper(static_cast<unsigned char>(text[digits])));
+                if (letter != 'A' && letter != 'B')
+                    return {std::nullopt, refused};
+                port = letter == 'B' ? 1 : 0;
+            }
+            return {port * MIDI_CHANNELS_PER_PORT + number - 1, {}};
+        }
+
+        std::string midiSent(const std::string& what, const std::string& shown)
+        {
+            return "Sent to the sampler: " + what + " " + shown + ". " + PREVIOUS_VALUE_UNKNOWN;
+        }
+    }
+
+    std::vector<Tool> makeMidiSetupTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+
+        // set_midi_setting [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+        tools.push_back(Tool{
+            definition("set_midi_setting", "Set one switch of the sampler's MIDI setup",
+                       std::string("Sets one switch of the sampler's MIDI setup (UTILITIES, MIDI SETUP). 'program_change': ") + ON_OFF_LIST +
+                           " (remote selection of programs within parts). 'multi_select': " + MULTI_SELECT_LIST +
+                           " (how multis are selected remotely). 'multi_select_channel': a MIDI channel 1 to 16 with its port A or B, such as 3 "
+                           "or 3B (it has no effect while multi_select is off). 'external_apm_controller': a MIDI controller number, 0 to 127, "
+                           "the source in the APM matrix. 'aftertouch': " + AFTERTOUCH_LIST +
+                           ". The sampler cannot be asked what these held before, so the answer cannot say, and this server cannot put the "
+                           "previous value back. A value that is not valid is refused and nothing is sent.",
+                       objectSchema(json{{"setting", {{"type", "string"},
+                                                       {"enum", json::array({"program_change", "multi_select", "multi_select_channel",
+                                                                             "external_apm_controller", "aftertouch"})},
+                                                       {"description", "Which switch to set."}}},
+                                         {"value", {{"type", "string"}, {"description", "The new value, in the form the description gives for that switch."}}}},
+                                    json::array({"setting", "value"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"setting", "value"}))
+                    return *refused;
+                if (!arguments.contains("setting") || !arguments.at("setting").is_string())
+                    return failure(std::string("Give the 'setting' to change: ") + MIDI_SETTING_LIST + ".");
+                if (!arguments.contains("value") || !arguments.at("value").is_string())
+                    return failure("Give the 'value' as a string.");
+                const std::string setting = lowerCase(arguments.at("setting").get<std::string>());
+                const std::string given = arguments.at("value").get<std::string>();
+                const std::string value = lowerCase(given);
+                const auto send = [&gateway](MidiSwitch which, int raw, const std::string& name, const std::string& shown) {
+                    const auto set = gateway.setMidiSwitch(which, raw);
+                    return set.ok() ? ok(midiSent("MIDI " + name + " set to", shown)) : failure(set.problem);
+                };
+
+                if (setting == "program_change")
+                {
+                    if (value != "on" && value != "off")
+                        return failure("The program change switch \"" + given + "\" is not one the sampler has. The values are: " + ON_OFF_LIST + ".");
+                    return send(MidiSwitch::ProgramChange, value == "on" ? 1 : 0, setting, value);
+                }
+                if (setting == "multi_select")
+                {
+                    int mode = 0;
+                    if (value == "off")
+                        mode = 0;
+                    else if (value == "program_change")
+                        mode = 1;
+                    else if (value == "bank")
+                        mode = 2;
+                    else
+                        return failure("The multi select mode \"" + given + "\" is not one the sampler has. The modes are: " + MULTI_SELECT_LIST + ".");
+                    return send(MidiSwitch::MultiSelect, mode, setting, value);
+                }
+                if (setting == "multi_select_channel")
+                {
+                    const auto channel = parseMidiChannel(arguments.at("value"));
+                    if (!channel.channel)
+                        return failure(channel.problem);
+                    return send(MidiSwitch::MultiSelectChannel, *channel.channel, setting, midiChannelText(*channel.channel));
+                }
+                if (setting == "external_apm_controller")
+                {
+                    const bool digitsOnly = !value.empty() && value.size() <= MAX_CONTROLLER_DIGITS &&
+                                            std::all_of(value.begin(), value.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+                    const int controller = digitsOnly ? std::stoi(value) : -1;
+                    if (controller < 0 || controller > MAX_EXTERNAL_APM_CONTROLLER)
+                        return failure("The external APM controller \"" + given + "\" is not a MIDI controller number. Give a whole number from 0 to " +
+                                       std::to_string(MAX_EXTERNAL_APM_CONTROLLER) + ".");
+                    return send(MidiSwitch::ExternalApmController, controller, setting, std::to_string(controller));
+                }
+                if (setting == "aftertouch")
+                {
+                    if (value != "channel" && value != "polyphonic")
+                        return failure("The aftertouch type \"" + given + "\" is not one the sampler has. The types are: " + AFTERTOUCH_LIST + ".");
+                    return send(MidiSwitch::Aftertouch, value == "polyphonic" ? 1 : 0, setting, value);
+                }
+                return failure("The setting \"" + arguments.at("setting").get<std::string>() + "\" is not one this tool changes. The settings are: " +
+                               MIDI_SETTING_LIST + ".");
+            }});
+
+        // set_midi_filter [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+        tools.push_back(Tool{
+            definition("set_midi_filter", "Allow or ignore a type of MIDI event on a channel",
+                       std::string("Sets the sampler's MIDI filter for one type of event (") + MIDI_EVENT_LIST +
+                           ") on one MIDI channel: 'allow' lets the sampler respond to those messages, 'ignore' makes it ignore them. The channel is "
+                           "1 to 16 with its port A or B, such as 3 or 3B (the port is A when left out). The sampler cannot be asked what the "
+                           "filter was before, so the answer cannot say, and this server cannot put it back. A value that is not valid is refused "
+                           "and nothing is sent.",
+                       objectSchema(json{{"event", {{"type", "string"}, {"enum", json::array({"note_on", "aftertouch", "wheels", "volume"})},
+                                                    {"description", "The type of MIDI event."}}},
+                                         {"channel", {{"type", json::array({"integer", "string"})},
+                                                      {"description", "The MIDI channel: 1 to 16, or a text with its port such as \"3B\"."}}},
+                                         {"action", {{"type", "string"}, {"enum", json::array({"allow", "ignore"})},
+                                                     {"description", "allow or ignore those events."}}}},
+                                    json::array({"event", "channel", "action"})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {"event", "channel", "action"}))
+                    return *refused;
+                if (!arguments.contains("event") || !arguments.at("event").is_string())
+                    return failure(std::string("Give the 'event' to filter: ") + MIDI_EVENT_LIST + ".");
+                if (!arguments.contains("channel"))
+                    return failure("Give the 'channel': 1 to 16, with its port A or B if it is B (for example 3B).");
+                if (!arguments.contains("action") || !arguments.at("action").is_string())
+                    return failure(std::string("Give the 'action': ") + MIDI_ACTION_LIST + ".");
+                const std::string event = lowerCase(arguments.at("event").get<std::string>());
+                const std::string action = lowerCase(arguments.at("action").get<std::string>());
+
+                MidiFilterKind kind = MidiFilterKind::NoteOn;
+                if (event == "note_on")
+                    kind = MidiFilterKind::NoteOn;
+                else if (event == "aftertouch")
+                    kind = MidiFilterKind::Aftertouch;
+                else if (event == "wheels")
+                    kind = MidiFilterKind::Wheels;
+                else if (event == "volume")
+                    kind = MidiFilterKind::Volume;
+                else
+                    return failure("The event \"" + arguments.at("event").get<std::string>() + "\" is not one the sampler filters. The events are: " +
+                                   MIDI_EVENT_LIST + ".");
+                const auto channel = parseMidiChannel(arguments.at("channel"));
+                if (!channel.channel)
+                    return failure(channel.problem);
+                if (action != "allow" && action != "ignore")
+                    return failure("The action \"" + arguments.at("action").get<std::string>() + "\" is not one the filter has. The actions are: " +
+                                   MIDI_ACTION_LIST + ".");
+                const auto set = gateway.setMidiFilter(kind, *channel.channel, action == "allow");
+                if (!set.ok())
+                    return failure(set.problem);
+                return ok(midiSent("MIDI filter:", action + " " + event + " on channel " + midiChannelText(*channel.channel)));
+            }});
+
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -2533,6 +2736,8 @@ namespace mcp
         for (Tool& tool : makeMemoryExtraTools(gateway))
             tools.push_back(std::move(tool));
         for (Tool& tool : makeSamplerSettingsTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeMidiSetupTools(gateway))
             tools.push_back(std::move(tool));
         if (options.allowDisk)
         {
