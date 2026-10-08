@@ -114,10 +114,19 @@ int main(int argc, char** argv)
         identity.title = SERVER_TITLE;
         identity.version = XS56K_MCP_VERSION;
         identity.instructions = mcp::programEditingInstructions();
-        mcp::McpServer server(identity, mcp::makeProgramEditingTools(gateway, mcp::ParameterCatalogue::standard()));
+        mcp::ToolOptions toolOptions;
+        toolOptions.allowDisk = parsed.options.allowDisk;
+        toolOptions.allowDiskRefresh = parsed.options.allowDiskRefresh;
+        if (toolOptions.allowDisk)
+            identity.instructions += mcp::diskInstructions(toolOptions.allowDiskRefresh);
+        mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
         std::cerr << LOG_PREFIX << "version " << XS56K_MCP_VERSION << ", sampler input \"" << parsed.options.inputPort
                   << "\", output \"" << parsed.options.outputPort << "\", DeviceID " << parsed.options.deviceId << "\n";
+        if (toolOptions.allowDisk)
+            std::cerr << LOG_PREFIX << "the disk tools are offered (--allow-disk), disk timeout " << parsed.options.diskTimeout.count()
+                      << " ms" << (toolOptions.allowDiskRefresh ? ", the refresh of the disk list is allowed (--allow-disk-refresh)" : "")
+                      << "\n";
         server.serve(std::cin, std::cout);
 
         // The client closed standard input: whatever the session changed on the sampler is put back before the exit.

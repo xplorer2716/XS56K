@@ -37,7 +37,7 @@ namespace akm
     /// `getConnectedDisks` are not guaranteed to reflect the sampler's actual disks until this has
     /// completed at least once in the session (spec Table 20, footnote b) — a precondition the spec
     /// states, not one this layer enforces. [RQ-AKM-060]
-    void updateDiskList(Session& session, CommandCompletion completion);
+    void updateDiskList(Session& session, CommandCompletion completion, CommandOptions options = {});
 
     /// `count` is empty when the command did not complete on a REPLY of the length the catalogue gives
     /// it; `outcome` is the result of the command. [RQ-AKM-060]
@@ -248,7 +248,7 @@ namespace akm
     /// one real-hardware run of `&01` (the same section's other such item) left the sampler answering no
     /// SysEx at all (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`).
     /// [RQ-AKM-064, RQ-AKM-070]
-    void loadFolder(Session& session, std::string_view name, CommandCompletion completion);
+    void loadFolder(Session& session, std::string_view name, CommandCompletion completion, CommandOptions options = {});
 
     // File listing, info and rename (§10/&20-&24, &28) in the current folder. [RQ-AKM-065]
 
@@ -342,12 +342,13 @@ namespace akm
     /// is loaded automatically (spec footnote d); use `loadFileWithDependents` for that. SHALL NOT be
     /// sent to the real sampler except through the guard of `RQ-AKM-070`. [RQ-AKM-066, RQ-AKM-070]
     void loadFile(Session& session, std::string_view name, SampleLoadOption sampleLoadOption,
-                 CommandCompletion completion);
+                 CommandCompletion completion, CommandOptions options = {});
 
     /// Loads the file named `name` together with every file it depends on (§10/&2B, spec footnote e —
     /// e.g. a program's own samples). SHALL NOT be sent to the real sampler except through the guard of
     /// `RQ-AKM-070`. [RQ-AKM-066, RQ-AKM-070]
-    void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion);
+    void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion,
+                                CommandOptions options = {});
 
     // Save Memory Item(s) to disk (§10/&2C, &2D). [RQ-AKM-067]
 
@@ -369,13 +370,13 @@ namespace akm
     /// dependent files (e.g. a program's samples) to be saved alongside it. SHALL NOT be sent to the
     /// real sampler except through the guard of `RQ-AKM-070`. [RQ-AKM-067, RQ-AKM-070]
     void saveMemoryItem(Session& session, int index, SaveableMemoryType type, bool overwriteExisting,
-                        bool saveChildren, CommandCompletion completion);
+                        bool saveChildren, CommandCompletion completion, CommandOptions options = {});
 
     /// Saves every memory item of kind `type` to the current folder (§10/&2D), the same guarantees as
     /// `saveMemoryItem` about `overwriteExisting`. SHALL NOT be sent to the real sampler except through
     /// the guard of `RQ-AKM-070`. [RQ-AKM-067, RQ-AKM-070]
     void saveAllMemoryItems(Session& session, SaveableMemoryType type, bool overwriteExisting, bool saveChildren,
-                           CommandCompletion completion);
+                           CommandCompletion completion, CommandOptions options = {});
 
     // Sample audition from disk (§10/&30, &31) — a sample file played without being loaded into
     // memory, distinct from `startSampleAudition`/`stopSampleAudition` (SamplePrimitives.hpp, §0E),
@@ -419,9 +420,10 @@ namespace akm
     };
 
     /// Deletes the sub-folder named `name` of the current folder (§10/&17) — irreversible, and takes
-    /// everything inside it with it. No real-sampler test of any feature calls this. [RQ-AKM-069]
+    /// everything inside it with it. No real-sampler test of any feature calls this. `options` lets the caller wait longer than an
+    /// ordinary command: the real S5000 took more than 2 s to delete a folder of 7 files (TASK-MCP-042). [RQ-AKM-069]
     void deleteSubFolder(Session& session, std::string_view name, std::optional<ConfirmDeleteSubFolder> confirmation,
-                        CommandCompletion completion);
+                        CommandCompletion completion, CommandOptions options = {});
 
     /// Passed to `deleteFile` to prove the caller means it. No default: sent only when it is the
     /// enumerator; `std::nullopt` refuses the command as `NotConfirmed` without sending. [RQ-AKM-069]
@@ -433,5 +435,5 @@ namespace akm
     /// Deletes the file named `name` in the current folder (§10/&29) — irreversible. No real-sampler
     /// test of any feature calls this. [RQ-AKM-069]
     void deleteFile(Session& session, std::string_view name, std::optional<ConfirmDeleteFile> confirmation,
-                   CommandCompletion completion);
+                   CommandCompletion completion, CommandOptions options = {});
 }

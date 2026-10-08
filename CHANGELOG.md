@@ -11,13 +11,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - This section may be incomplete. for full history, please check git history.
 - Initial project structure.
-- MCP server (`juce/mcp`, `xs56k_mcp_server`): an MCP client such as Claude Code can edit a program of the sampler by
-  talking to it. Six tools (`get_status`, `list_programs`, `select_program`, `list_parameters`, `get_parameters`,
-  `set_parameter`) over 54 parameters of the filter, the amplitude envelope, the filter envelope and the two LFOs, named
-  in the musician's vocabulary and set in the sampler's own units, each Set read back from the sampler. The MIDI ports are
-  launch arguments of the server (`--in`, `--out`, `--list-ports` shows them). It edits the sampler's memory only; nothing is
-  created, renamed, deleted or saved. It speaks both eras of MCP over standard input and output. Tested against the
-  simulated sampler (`xs56k_mcp_server_simulated` lets you try it with no sampler); not yet run on a real S5000.
+- MCP server (`juce/mcp`, `xs56k_mcp_server`): an MCP client such as Claude Code can work on the sampler by talking to it, in the
+  musician's vocabulary and the sampler's own units, each Set read back from the sampler. **32 tools without any option**: programs
+  (list, select, create, rename, delete), 119 program parameters, keygroups (add, delete), the sample of each zone, samples (list,
+  select, 12 parameters, rename, delete, audition), multis (list, select, create, rename, delete, 12 part parameters, the program of
+  each part, the program number), and the sampler's model and free memory. **16 more with `--allow-disk`**: browse the sampler's own
+  disks, create, rename and delete folders and files, load a file or a folder, save one item or every item of a kind (never replacing a
+  file unless `overwrite` is true), free space, audition a file; `--disk-timeout-ms` sets how long the slow disk commands wait, and the
+  sampler's disk-list refresh needs `--allow-disk-refresh` as well (it hung a real S5000). **Every deletion asks for a `confirm` that is
+  the exact name of what is deleted**, and nothing is sent otherwise. The MIDI ports are launch arguments (`--in`, `--out`;
+  `--list-ports` shows them), and `--screen independent|follow|as-is` chooses how the sampler's screen behaves while the server runs
+  (`independent` by default; it replaces `--no-lcd`, which is now refused). It never deletes everything, never clears the memory, never formats or ejects. It speaks both eras of
+  MCP over standard input and output; `juce/mcp/README.md` is its reference. Run on a real S5000 (2026-10-05 and 06, on test objects): every tool, the
+  program and multi parameters, browsing, loading and saving on a real disk; the sampler reports 0 bytes free for its FAT32 disk, and
+  the three `--screen` modes behaved as designed against the sampler's screen (`xs56k_mcp_server_simulated` lets you try the server with
+  no sampler).
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
   closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard

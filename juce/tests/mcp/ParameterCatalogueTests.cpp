@@ -51,7 +51,9 @@ namespace
 
     std::size_t valueArgumentCount(const ParameterDefinition& parameter)
     {
-        return parameter.kind == ParameterKind::Signed ? 2 : 1;
+        if (parameter.kind != ParameterKind::Signed)
+            return 1;
+        return parameter.magnitudeBytes == 2 ? 3 : 2;
     }
 }
 
@@ -68,7 +70,7 @@ TEST_CASE("Given the catalogue in five groups, When the 24 parameters of lot 1 a
         {"lfo 1", {"lfo 1 rate", "lfo 1 delay", "lfo 1 depth", "lfo 1 waveform", "lfo 1 sync"}},
         {"lfo 2", {"lfo 2 rate", "lfo 2 delay", "lfo 2 depth", "lfo 2 waveform", "lfo 2 retrigger"}}};
 
-    REQUIRE(catalogue.groups().size() == 5);
+    REQUIRE(catalogue.groups().size() >= 5);  // lot 3 adds six groups
     std::size_t found = 0;
     for (const auto& [group, names] : lot1)
     {
@@ -96,18 +98,20 @@ TEST_CASE("Given every row of the catalogue, When it is compared with the AKM it
         CHECK(get.kind == akm::ItemKind::Get);
         CHECK(set.section == get.section);
 
-        const std::size_t leading = parameter.leadingArguments.size();
+        // A zone parameter's items take the zone first, said at each call: it is not one of the row's leading arguments.
+        const std::size_t zoneArgument = parameter.scope == ParameterScope::Zone ? 1 : 0;
+        const std::size_t leading = parameter.leadingArguments.size() + zoneArgument;
         const std::size_t values = valueArgumentCount(parameter);
         REQUIRE(set.args.size() == leading + values);
         REQUIRE(get.args.size() == leading);
         REQUIRE(get.reply.size() == values);
 
-        for (std::size_t i = 0; i < leading; ++i)
+        for (std::size_t i = 0; i < parameter.leadingArguments.size(); ++i)
         {
-            CHECK(parameter.leadingArguments[i] >= set.args[i].min);
-            CHECK(parameter.leadingArguments[i] <= set.args[i].max);
-            CHECK(parameter.leadingArguments[i] >= get.args[i].min);
-            CHECK(parameter.leadingArguments[i] <= get.args[i].max);
+            CHECK(parameter.leadingArguments[i] >= set.args[zoneArgument + i].min);
+            CHECK(parameter.leadingArguments[i] <= set.args[zoneArgument + i].max);
+            CHECK(parameter.leadingArguments[i] >= get.args[zoneArgument + i].min);
+            CHECK(parameter.leadingArguments[i] <= get.args[zoneArgument + i].max);
         }
 
         // The sampler's own range of the value, and the same one on the way back.
@@ -118,14 +122,23 @@ TEST_CASE("Given every row of the catalogue, When it is compared with the AKM it
         switch (parameter.kind)
         {
             case ParameterKind::Number:
-                CHECK(parameter.min == wireMagnitude.min * parameter.step);
-                CHECK(parameter.max == wireMagnitude.max * parameter.step);
+                CHECK(parameter.min == wireMagnitude.min * parameter.step + parameter.offset);
+                CHECK(parameter.max == wireMagnitude.max * parameter.step + parameter.offset);
                 break;
             case ParameterKind::Signed:
                 CHECK(setValue[0].min == 0);
                 CHECK(setValue[0].max == 1);
-                CHECK(parameter.min == -wireMagnitude.max);
-                CHECK(parameter.max == wireMagnitude.max);
+                if (parameter.magnitudeBytes == 2)
+                {
+                    // A magnitude of two 7-bit bytes holds up to MSB * 128 + LSB: the row's range fits in it.
+                    CHECK(parameter.min == -parameter.max);
+                    CHECK(parameter.max <= setValue[1].max * 128 + setValue[2].max);
+                }
+                else
+                {
+                    CHECK(parameter.min == -wireMagnitude.max);
+                    CHECK(parameter.max == wireMagnitude.max);
+                }
                 break;
             case ParameterKind::Choice:
                 CHECK(wireMagnitude.min == 0);

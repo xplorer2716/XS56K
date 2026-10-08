@@ -35,7 +35,10 @@ namespace mcp
         std::string outputPort;  ///< --out: what the sampler receives on
         std::uint32_t deviceId = 0;
         std::chrono::milliseconds commandTimeout = std::chrono::duration_cast<std::chrono::milliseconds>(akm::DEFAULT_COMMAND_TIMEOUT);
-        bool touchLcdSettings = true;  ///< false with --no-lcd
+        ScreenMode screen = ScreenMode::Independent;  ///< --screen independent | follow | as-is (ADR-MCP-004 DEC-MCP-027)
+        bool allowDisk = false;        ///< --allow-disk: the disk tools are offered (ADR-MCP-003 DEC-MCP-015)
+        bool allowDiskRefresh = false;  ///< --allow-disk-refresh: list_disks may send the refresh of the disk list (DEC-MCP-020)
+        std::chrono::milliseconds diskTimeout{120000};  ///< --disk-timeout-ms: how long a slow section 10 command waits
         bool listPorts = false;
         bool help = false;
     };
@@ -50,7 +53,8 @@ namespace mcp
     };
 
     /// Reads the arguments (without the program's name): `--in <port>` and `--out <port>` (required, except with
-    /// `--list-ports` or `--help`), `--device-id <0-31>`, `--timeout-ms <1-60000>`, `--no-lcd`, `--list-ports`, `--help`.
+    /// `--list-ports` or `--help`), `--device-id <0-31>`, `--timeout-ms <1-60000>`, `--no-lcd`, `--allow-disk`, `--allow-disk-refresh` (an error
+    /// without `--allow-disk`), `--disk-timeout-ms <1-1800000>`, `--list-ports`, `--help`.
     /// Each option also takes the `--name=value` form. [RQ-MCP-002]
     [[nodiscard]] ParsedArguments parseArguments(const std::vector<std::string>& arguments);
 

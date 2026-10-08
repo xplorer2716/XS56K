@@ -104,7 +104,7 @@ TEST_CASE("Given the lot 2 catalogue, When it is counted, Then it holds 54 param
 {
     const auto& catalogue = ParameterCatalogue::standard();
 
-    CHECK(catalogue.parameters().size() == 54);
+    CHECK(catalogue.parameters().size() >= 54);  // lot 3 adds to the catalogue, see ParameterCatalogueLot3Tests
     for (const auto& [group, expected] : std::vector<std::pair<const char*, std::size_t>>{
              {"filter", 11}, {"amplitude envelope", 8}, {"filter envelope", 9}, {"lfo 1", 13}, {"lfo 2", 13}})
     {

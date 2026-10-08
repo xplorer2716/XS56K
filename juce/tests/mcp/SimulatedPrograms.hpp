@@ -24,6 +24,9 @@ namespace mcp::test
         std::vector<int> cutoffs{};  ///< the filter cutoff of each keygroup, when it is to start with one
     };
 
+    // The sampler keeps its programs in alphabetical order, whatever the order they are created in (observed on a real
+    // S5000, OBSERVATIONS-RQ-MCP-012-real-sampler.md): `current` is the position in the order of `programs`, as given, and
+    // is selected by name. [TASK-MCP-012]
     inline void seedSimulatedPrograms(akm::harness::SimulatedMidiBackend& backend, const std::vector<SeededProgram>& programs,
                                       std::size_t current)
     {
@@ -49,8 +52,7 @@ namespace mcp::test
                 send(akm::makeRequest(akm::ItemId::KeygroupSetFilterCutoff, {program.cutoffs[i]}));
             }
         }
-        send(akm::makeRequest(akm::ItemId::ProgramSelectByIndex, {static_cast<std::int64_t>(current) / 128,
-                                                                  static_cast<std::int64_t>(current) % 128}));
+        send(akm::makeStringRequest(akm::ItemId::ProgramSelectByName, programs[current].name));
     }
 
     /// PAD (1 keygroup), BASS (3, cutoffs 30, 60, 90) and LEAD (2, cutoffs 50, 70); BASS is current.

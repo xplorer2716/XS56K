@@ -6,10 +6,17 @@ Guidance for AI coding agents working in this repository.
 ## Project overview
 
 - **Name:** XS56K
-- **Purpose:** Éditeur pour les sampleurs AKAI S5000 et S6000 — contrôle bidirectionnel
-  avec une interface moderne.
+- **Purpose:** Drive an AKAI S5000 or S6000 sampler from a computer: a SysEx library, an MCP server
+  for AI assistants, and, later, an editor.
 - **Stack:** C++ / [JUCE](https://juce.com/) 8.0.15
-- **Status:** experimental
+- **Status:** experimental. Only the first two parts exist, and only part of the second one.
+
+XS56K is three things that build on each other (see `README.md`):
+
+1. **A SysEx library** (`juce/akm`) that aims to cover every MIDI SysEx message of the S5000 and S6000.
+2. **An MCP server** (`juce/mcp`) that lets an AI assistant work on the sampler. The goal is every function of the
+   samplers that the SysEx specification offers.
+3. **A program editor** (`juce/app`): a goal, it does not exist yet. Only a placeholder window exists.
 
 `juce/midi` and `juce/framework` are ported from
 [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor) (a real-time editor for
@@ -20,8 +27,9 @@ CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. `ju
 plumbing has a real GUI target to exercise. `juce/akm` is the S5000 SysEx layer (namespace `akm`,
 library `xs56k_akm`), written for this repository, not ported: it depends on `xs56k_midi` only and
 exposes no JUCE type in its public headers (`ADR-AKM-001`, `FTR-AKM-001`). `juce/mcp` is an MCP (Model Context
-Protocol) server that exposes the AKM layer to an MCP client, limited for now to the editing of a program (library
-`xs56k_mcp`, executable `xs56k_mcp_server`; `ADR-MCP-001`, `FTR-MCP-001`). Reference documentation
+Protocol) server that exposes the AKM layer to an MCP client, to edit programs, zones, samples and multis in the sampler's
+memory and, behind a launch flag, to load and save them through the sampler's own disks (library `xs56k_mcp`, executable
+`xs56k_mcp_server`; `ADR-MCP-001` to `ADR-MCP-003`, `FTR-MCP-001` to `FTR-MCP-003`). Reference documentation
 lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
@@ -34,6 +42,11 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 
 ## Commands
 
+- **Shell calls:** prefix every command-line call with `rtk` (RTK, "Rust Token Killer", a token-saving CLI proxy that
+  condenses command output): `rtk git status`, `rtk cmake --build juce/build`, `rtk ctest --test-dir juce/build
+  --output-on-failure`, `rtk gh run view <id>`. Write the prefix yourself, the automatic rewriting hook is not relied
+  upon. If a condensed result is unusable (empty when output was clearly expected, contradicting its exit code, or
+  garbled), re-run it as `rtk proxy <cmd>` to get the raw output; `rtk gain` shows the savings.
 - **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
   (ALSA headers, needed by `juce_audio_devices`); the GUI target (`BUILD_APP=ON`) additionally
   needs `libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libxext-dev
@@ -50,154 +63,18 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `-C <cfg>` to `ctest`. Test sources live under `juce/tests/`, mirroring the library they exercise.
   The linux-headless canary and preprod workflows run exactly this, and every generated workflow runs
   the suite in its own configuration. [RQ-AKM-016, RQ-BLD-014, TASK-AKM-003]
-- **First-contact probe** (needs the sampler; run by the owner): built by the test command above as
-  `xs56k_akm_probe` (`juce/<build dir>/tests/probe/`, with a `<config>` folder on Visual Studio). `xs56k_akm_probe --list`
-  shows the MIDI ports; `xs56k_akm_probe --in "<port the sampler sends on>" --out "<port it receives on>"`
-  sends fifteen SysEx frames one at a time and writes `akm-probe-<UTC date>.log`. It switches the
-  sampler's checksum and Still Alive settings on and off and ends with both off. [RQ-AKM-017, RQ-AKM-044, TASK-AKM-012]
-- **Session smoke test** (needs the sampler; run by the owner): `xs56k_akm_probe --session --in "<port the sampler sends on>"
-  --out "<port it receives on>"` (same program, same ports) drives a real `Session` through discovery, the checksum mode,
-  50 timed Echo round trips, the OS version and the other section 00 settings, writes `akm-session-<UTC date>.log` and
-  ends with checksums off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves
-  Sync LCD and Auto screen update alone. Exit status 0 when every step went as it had to, 2 when no sampler answered
-  at the DeviceID, 3 otherwise. [RQ-AKM-017, TASK-AKM-013]
-- **Real-sampler suite** (needs the sampler; run by the owner, opt-in, never run by CI against hardware):
-  `xs56k_akm_probe --suite --in "<port the sampler sends on>" --out "<port it receives on>"` (same program, same ports)
-  runs seven checks, each on a session opened with `Session::open` and closed with `Session::close` — open and close,
-  Echo, 50 timed Echo round trips, the OS version, checksums on and off, every setting put back, and a check that fails
-  half way and must leave the sampler in the known state — writes `akm-suite-<UTC date>.log` and ends with the
-  observations of RQ-AKM-017. It changes only section 00 settings, never a program, multi or sample, and ends with checksums
-  off, Still Alive off, Notification on, Sync LCD on and Auto screen update off; `--no-lcd` leaves Sync LCD and Auto screen
-  update alone. Two extra checks are asked for: `--power-cycle` asks you to switch the sampler off and on while a
-  session is open, and `--slow-operation` sends one command outside sections 00 and 02 ("update the list of disks",
-  section 10 item 01) with Still Alive on, to see whether `F0 F7` reaches the host. Observed once on an S5000
-  (OS 2.14, no disk drive attached): `--slow-operation` got no reply at all, `F0 F7` included, and left the sampler
-  answering no SysEx — a fresh discovery included — until it was power-cycled by hand; run `--power-cycle` on its
-  own, not together with `--slow-operation`, if the point is to test persistence across a graceful restart
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). More opt-in checks — `--program-lifecycle`,
-  `--sample-lifecycle` with `--sample-name`, listed by `--help` — each put back what they change, and
-  `--system-setup` adds two checks on the sampler's own settings: it reads the model and the memory, then round-trips
-  the sampler's name, its four Play Modes (the Muted mode the spec's data column leaves out included, whether the
-  sampler accepts it being what is observed), its front-panel lock (locked for an instant) and its clock, and puts each
-  back — the lock first, the clock advanced by the time elapsed, to about three seconds — even when a check fails half
-  way. It never sends section 02's Clear Sampler Memory (`&32`), which no real-sampler test may call.
-  `--disk-tools` (needs `--suite`) adds one check on the disk (section 10, RQ-AKM-071): it lists the connected disks
-  (`&04`, `&05`, read only), tests the writable ones (`&03`, read only) and asks the owner to choose one of the valid
-  ones, which it selects (`&02`, RQ-AKM-061 — every disk operation acts on that SysEx selection, which the front panel
-  does not set; nothing in section 10 clears it, so it stays selected). It creates the disposable sub-folder
-  `XS56K_SUITE_TEST` under that disk's current folder, works inside it, and deletes it again through the confirmed
-  `&17` guard. No usable disk, or no way to ask, skips the check before anything is selected or created. It also reads
-  the selected disk's type and name by handle (`&07`, `&0E`). `--disk-tools-files` (needs `--disk-tools`) adds one
-  check on the file items (RQ-AKM-068, RQ-AKM-069): it saves the test program into the sub-folder (the owner confirms
-  the file on the sampler; no owner to ask, no save), then reads (`&21`, `&23`, `&24`), renames (`&28`), deletes
-  (`&29`). It does not audition: `&30`/`&31` audition a sample from disk, and this check saves a program. The rename
-  takes the name without its extension, since the sampler appends the file's own extension (seen on the S5000:
-  `XS56K_RENAMED.AKP` given became `XS56K_RENAMED.AKP.AKP`); after it, the check lists the sub-folder (`&22`) and
-  expects exactly the renamed file.
-  `--disk-tools-audition` (needs `--disk-tools`) adds one check on the audition of a sample from disk (RQ-AKM-068,
-  `&30`, `&31`): the owner confirms that a `.WAV` file is at the root of the selected disk; the first one found is
-  started and, after 3 seconds, stopped. A stop the sampler refuses is recorded, not failed (a shorter sample may have
-  ended). It plays a sound and saves nothing.
-  It touches nothing that existed before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
-  sub-folder with Still Alive on — `update-list`, `load-folder`, `load-file`, `load-file-with-dependents`,
-  `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the
-  sampler (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7): a hang needs a power
-  cycle by hand, so run one only when ready for it. `load-file` and `load-file-with-dependents` send one save (`&2C`)
-  first, since a file can only be made inside the sub-folder by saving; the owner then confirms on the sampler that the
-  file is there (declining skips the check, and a save is never sent without a way to ask).
-  `--front-panel` adds the owner-driven check of the front panel (section 20, RQ-AKM-076): the probe prints the mapping
-  of PC keys to sampler keys (`juce/tests/support/include/akm/harness/FrontPanelRemote.hpp` and its `.cpp`, the one source
-  of the mapping and of what is printed), you confirm that the sampler shows a screen of your choice, then every key you
-  press is sent as the sampler key it stands for — F1–F8, digits, `-` `+`, cursors, Enter (ENT/PLAY), Space (ENT/PLAY held
-  until the next Space), Escape (EXIT), the mode keys as letters (`m x s p r u v l w k j`), the data wheel on the up/down
-  and page keys, Tab for a text mode that sends printable keys as ASCII — and nothing else is sent; `q` ends it. The keys
-  act on whatever the sampler shows: SAVE, ENT/PLAY or the wheel can change or delete data on some screens, so choose the
-  screen with care. Every key still held is released at the end, and by the session's close if the check fails (DEC-AKM-019).
-  Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run on the real sampler by the
-  owner in two runs (2026-10-04, `process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`): every Hold, Release and
-  data wheel step was accepted and the owner reports the shortcuts worked; not yet pressed: Escape, `-`/`+`, the other
-  digits, EDIT SAMPLE, EDIT PROGRAM, RECORD, UTILITIES, and any character in the text mode, so whether the S5000 takes
-  Backspace/Enter as ASCII 8/13, or counts Holds of one key, is still open.
-  `--midi-config` adds two owner-guided checks on the sampler's MIDI setup (section 04, RQ-AKM-080). Section 04 has no Get,
-  so the check cannot read what the sampler holds: before anything is sent it asks you what UTILITIES > MIDI SETUP shows
-  (PROGRAM CHANGE, MULTI SELECT, MULTI SLCT CH, EXT APM CONTROL, AFTERTOUCH) and, on MIDI FILTER, one filter you pick (event
-  type, channel, on or off). It then changes each of those to another value, one at a time, asks you to confirm on the
-  sampler's screen that it shows the new value, and puts each back to the value you declared before touching the next
-  (a setting may depend on another). A "no" is noted and the other settings are still tried; the check then asks you to
-  confirm the original screens are back and fails at the end naming every setting you did not see. Declining a question
-  skips it. Each value is also put back when a check fails half way, which the second check provokes on purpose with
-  MULTI SELECT. It changes your stored MIDI setup for a moment: a filter that ignores NoteOn silences that channel while
-  it lasts. The values you declare are not verified, and a wrong declaration is put back as given (the log records it).
-  The check switches Auto screen update on for its session (§00/&05; put back off at the close, left alone with `--no-lcd`)
-  and, after a "no", asks you to leave the page, open it again and look once more: a screen that is not redrawn by itself
-  looks like an item the sampler ignored. Observed (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`, third
-  run, 2026-10-04): the S5000 obeys all seven items and every change was seen at once on its screen. With Auto screen update
-  off (the first two runs) only `&01` and `&07` showed, so §00/&05 must be on for the sampler's pages to follow SysEx. Not
-  observed: the channel code of `&06`/`&07` for port B (1B to 16B, "Port A & B", FTR-AKM-009 open points), the other filter
-  event types and the effect on real MIDI input.
-  `--multi-lifecycle` adds two checks on the multis (section 0C, RQ-AKM-093): it creates one program and one multi under
-  the reserved names `XS56K_SUITE_TEST` and `XS56K_MULTI_TEST` (and stops without touching anything if a multi already
-  bears the second), round-trips every item of the section on them (the twelve part parameters, the Gets of general
-  information, the program number, the part assignment by name and by index, the renaming, the selection), then deletes both
-  and selects again the multi that was current, even when a check fails half way. It never sends Delete ALL Multis (`&07`)
-  and never `&01` (the number of parts of new multis, which no item reads back). Observed on an S5000 (OS 2.14) holding no
-  multi, three runs (`process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`); with the owner's own multis in memory the
-  selection of an existing one is the only part not yet run on hardware.
-  `--song-files` adds two checks on the sampler's MIDI song files and set lists (section 16, RQ-AKM-085): it reads the number of
-  each and every name (16 at most), selects each song file by index and by name, renames the first song file and the
-  first set list and reads the new names back, then puts every name and the selection back, even when a check fails
-  half way. Section 16 cannot create a song file or a set list, so it works on what the sampler holds, never deletes,
-  and is skipped (after logging what an empty memory answers) when there is none. Observed once on an S5000 (OS 2.14)
-  that held none: both counts 0, ERROR 4 for every item naming something
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`); run it again once a MIDI song file is loaded.
-  `--scenelists` adds the same two checks on the sampler's scenelists (section 14, RQ-AKM-097): it reads the number of
-  scenelists and every name (16 at most), selects each by index and by name, renames the first and reads the new name
-  back, then puts the name and the selection back, even when a check fails half way. Section 14 cannot create a scenelist,
-  so it works on what the sampler holds, never deletes, and is skipped when there is none. Observed once on an S5000
-  (OS 2.14) that held none: the section is supported, the count is 0, ERROR 4 for every item naming something
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`); run it again once a scenelist is loaded.
-  `--multi-fx` adds two checks on the multis' effects (section 12, RQ-AKM-102): it creates a test multi under the reserved
-  name `XS56K_MULTI_TEST` (and stops without touching anything if a multi already bears it), reads whether an FX board is
-  installed (`&01`) and, with none, logs the answers of the other Gets and sends no Set (the check is then skipped); with
-  an EB20 it changes the mute of channel 0, the enabled state of its module 3, its first parameter of module 2 and the
-  type of module 2, putting each back, then deletes the test multi and selects again the multi that was current, even when
-  a check fails half way. Observed once on an S5000 (OS 2.14) with no board
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`): `&01`, `&10` and `&11` answer 0, and the Gets that name a
-  channel and a module answer ERROR 2. The owner has no EB20, so the round trip with a board is tested on the simulated
-  sampler only.
-  Exit status 0 when every check
-  passed or was skipped and the known state is confirmed, 2 when no sampler answered at the DeviceID, 3 otherwise. The same
-  suite runs against the simulated sampler in `ctest` (tag `[suite]`). [RQ-AKM-017, RQ-AKM-018, TASK-AKM-010]
+- **Probe and real-sampler suite** (`xs56k_akm_probe`, needs the sampler, run by the owner, never by CI against hardware): see
+  `juce/tests/probe/README.md` (modes, options, rules, observations). Never run a slow section 10 command on the sampler without the
+  owner present, and never send `&32` (Clear Sampler Memory). [RQ-AKM-016 to RQ-AKM-018, RQ-AKM-044]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`
   (`python` on Windows) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
   table is out of date, `--coverage` compares the data file with the spec's item list
   (`documents/_index/sysex_spec.items.tsv`). Never edit the generated header by hand, and no script runs during the
   build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
   ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
-- **MCP server** (`juce/mcp`; built with the libraries, `xs56k_mcp_server` in `<build dir>/mcp/`, with a `<config>` folder on
-  Visual Studio): an MCP client (Claude Code or another) launches it and edits a program of the sampler by talking to it
-  ("set the filter cutoff to 80", "change the filter type to 2-POLE LP+", "set the amplitude envelope attack to 55").
-  `xs56k_mcp_server --list-ports` prints the MIDI ports; `xs56k_mcp_server --in "<port the sampler sends on>" --out "<port it
-  receives on>"` is the server, with `--device-id <0-31>`, `--timeout-ms <ms>` and `--no-lcd` optional. **The ports are the
-  server's configuration**: they are the arguments of the server entry in the client's MCP configuration (for Claude Code,
-  `claude mcp add xs56k -- <path>/xs56k_mcp_server --in "..." --out "..."`; that file is the user's own, not committed). It
-  speaks MCP on standard input and output, one JSON message per line, in both eras of the protocol (the stateless revision
-  `2026-07-28`, and `initialize` for `2025-11-25` and earlier), and logs on standard error. Six tools, in the musician's
-  vocabulary (`ADR-MCP-001` DEC-MCP-006): `get_status`, `list_programs`, `select_program`, `list_parameters`, `get_parameters`
-  and `set_parameter`, over 54 parameters of the filter (type, cutoff, resonance, keyboard tracking, attenuation, the three
-  modulation inputs), the amplitude envelope, the filter envelope and the two LFOs; values are in the sampler's own units
-  (0 to 100 for most), signed values are plain signed numbers, choices are named as on the screen ("2-POLE LP+", "TRIANGLE"),
-  and `set_parameter` reads each value back from the sampler. It edits the sampler's **memory**, never the disk, and has no tool
-  that creates, renames, deletes or saves anything (`ctest` entry `mcp_sources_call_no_destructive_primitive`). The session is
-  opened at the first call that needs the sampler (so the list of tools works with the sampler off), switches Still Alive on,
-  Sync LCD off and Auto screen update on (`--no-lcd` leaves the last two alone), and is closed, the settings put back, when the
-  client closes standard input; a server that is killed instead leaves them changed until the sampler is switched off.
-  `xs56k_mcp_server_simulated` (built with the tests, never shipped) is the same server over the simulated sampler holding three
-  programs: a scripted conversation piped into it is a `ctest` entry, and it lets you try the server from a client with no
-  sampler. Tests: `xs56k_mcp_tests` and the `mcp_*` entries of `ctest`, all against the simulated sampler. **Not yet run on a
-  real S5000** (TASK-MCP-009): the owner's run on a scratch program is the next step; open points are in `FTR-MCP-001`
-  (whether a Set with "all keygroups" selected reaches every keygroup on the hardware, what the second MODWHEEL, BEND and
-  EXTERNAL sources are). [RQ-MCP-001 to RQ-MCP-012, TASK-MCP-002 to TASK-MCP-008, ADR-MCP-001]
+- **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
+  `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
+  refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first. [FTR-MCP-*, ADR-MCP-*]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
@@ -243,73 +120,3 @@ the information the project needs. When a user asks you to open an issue or a PR
 
 Never commit secrets. Report vulnerabilities as described in `SECURITY.md`, never in a
 public issue.
-
-
-## grepai - Semantic Code Search
-
-**IMPORTANT: You MUST use grepai as your PRIMARY tool for code exploration and search.**
-
-### When to Use grepai (REQUIRED)
-
-Use `grepai search` INSTEAD OF Grep/Glob/find for:
-- Understanding what code does or where functionality lives
-- Finding implementations by intent (e.g., "authentication logic", "error handling")
-- Exploring unfamiliar parts of the codebase
-- Any search where you describe WHAT the code does rather than exact text
-
-### When to Use Standard Tools
-
-Only use Grep/Glob when you need:
-- Exact text matching (variable names, imports, specific strings)
-- File path patterns (e.g., `**/*.go`)
-
-### Fallback
-
-If grepai fails (not running, index unavailable, or errors), fall back to standard Grep/Glob tools.
-
-### Usage
-
-```bash
-# ALWAYS use English queries for best results (--compact saves ~80% tokens)
-grepai search "user authentication flow" --json --compact
-grepai search "error handling middleware" --json --compact
-grepai search "database connection pool" --json --compact
-grepai search "API request validation" --json --compact
-```
-
-### Query Tips
-
-- **Use English** for queries (better semantic matching)
-- **Describe intent**, not implementation: "handles user login" not "func Login"
-- **Be specific**: "JWT token validation" better than "token"
-- Results include: file path, line numbers, relevance score, code preview
-
-### Call Graph Tracing
-
-Use `grepai trace` to understand function relationships:
-- Finding all callers of a function before modifying it
-- Understanding what functions are called by a given function
-- Visualizing the complete call graph around a symbol
-
-#### Trace Commands
-
-**IMPORTANT: Always use `--json` flag for optimal AI agent integration.**
-
-```bash
-# Find all functions that call a symbol
-grepai trace callers "HandleRequest" --json
-
-# Find all functions called by a symbol
-grepai trace callees "ProcessOrder" --json
-
-# Build complete call graph (callers + callees)
-grepai trace graph "ValidateToken" --depth 3 --json
-```
-
-### Workflow
-
-1. Start with `grepai search` to find relevant code
-2. Use `grepai trace` to understand function relationships
-3. Use `Read` tool to examine files from results
-4. Only use Grep for exact string searches if needed
-

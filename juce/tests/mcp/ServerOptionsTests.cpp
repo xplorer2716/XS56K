@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <chrono>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "mcp/ServerOptions.hpp"
@@ -48,7 +49,7 @@ TEST_CASE("Given the arguments --in A --out B --device-id 2 --timeout-ms 3000, W
     CHECK(parsed.options.outputPort == "B");
     CHECK(parsed.options.deviceId == 2);
     CHECK(parsed.options.commandTimeout == std::chrono::milliseconds(3000));
-    CHECK(parsed.options.touchLcdSettings);
+    CHECK(parsed.options.screen == mcp::ScreenMode::Independent);
     CHECK_FALSE(parsed.options.listPorts);
     CHECK_FALSE(parsed.options.help);
 }
@@ -68,13 +69,13 @@ TEST_CASE("Given only the two ports, When they are parsed, Then the DeviceID is 
 TEST_CASE("Given the option form --in=A, When it is parsed, Then it is the same as --in A [RQ-MCP-002]",
           "[mcp][options]")
 {
-    const ParsedArguments parsed = parseArguments({"--in=A", "--out=B", "--device-id=3", "--no-lcd"});
+    const ParsedArguments parsed = parseArguments({"--in=A", "--out=B", "--device-id=3", "--screen=as-is"});
 
     REQUIRE(parsed.ok());
     CHECK(parsed.options.inputPort == "A");
     CHECK(parsed.options.outputPort == "B");
     CHECK(parsed.options.deviceId == 3);
-    CHECK_FALSE(parsed.options.touchLcdSettings);
+    CHECK(parsed.options.screen == mcp::ScreenMode::AsIs);
 }
 
 TEST_CASE("Given no --out or no --in, When parsed, Then the result is a usage error naming it [RQ-MCP-002]",
@@ -118,14 +119,51 @@ TEST_CASE("Given a timeout that is not a positive number of milliseconds up to a
     CHECK(parseArguments({"--in", "A", "--out", "B", "--timeout-ms", "60000"}).ok());
 }
 
-TEST_CASE("Given --no-lcd, When parsed, Then the sampler's screen settings are left alone [RQ-MCP-002]",
+TEST_CASE("Given --screen with each of its three values, When parsed, Then the mode is carried to the gateway's configuration [RQ-MCP-045]",
+          "[mcp][options]")
+{
+    const std::vector<std::pair<const char*, mcp::ScreenMode>> modes{{"independent", mcp::ScreenMode::Independent},
+                                                                     {"follow", mcp::ScreenMode::Follow},
+                                                                     {"as-is", mcp::ScreenMode::AsIs}};
+    for (const auto& [name, mode] : modes)
+    {
+        CAPTURE(name);
+        const ParsedArguments spaced = parseArguments({"--in", "A", "--out", "B", "--screen", name});
+        REQUIRE(spaced.ok());
+        CHECK(spaced.options.screen == mode);
+        CHECK(mcp::gatewayConfigFrom(spaced.options).screen == mode);
+        const ParsedArguments joined = parseArguments({"--in", "A", "--out", "B", std::string("--screen=") + name});
+        REQUIRE(joined.ok());
+        CHECK(joined.options.screen == mode);
+    }
+}
+
+TEST_CASE("Given a --screen value that is none of the three, or none, When parsed, Then the result is a usage error naming the three values [RQ-MCP-045]",
+          "[mcp][options]")
+{
+    for (const char* bad : {"sideways", "", "Follow", "asis", "off", "1"})
+    {
+        CAPTURE(bad);
+        const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--screen", bad});
+        CHECK_FALSE(parsed.ok());
+        CHECK(contains(parsed.error, "--screen"));
+        CHECK(contains(parsed.error, "independent"));
+        CHECK(contains(parsed.error, "follow"));
+        CHECK(contains(parsed.error, "as-is"));
+    }
+    const ParsedArguments missing = parseArguments({"--in", "A", "--out", "B", "--screen"});
+    CHECK_FALSE(missing.ok());
+    CHECK(contains(missing.error, "--screen"));
+}
+
+TEST_CASE("Given the former --no-lcd, When parsed, Then it is refused and the message names --screen as-is [RQ-MCP-045]",
           "[mcp][options]")
 {
     const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--no-lcd"});
 
-    REQUIRE(parsed.ok());
-    CHECK_FALSE(parsed.options.touchLcdSettings);
-    CHECK_FALSE(mcp::gatewayConfigFrom(parsed.options).touchLcdSettings);
+    CHECK_FALSE(parsed.ok());
+    CHECK(contains(parsed.error, "--no-lcd"));
+    CHECK(contains(parsed.error, "--screen as-is"));
 }
 
 TEST_CASE("Given --list-ports or --help alone, When parsed, Then the ports are not required [RQ-MCP-002]",
@@ -171,7 +209,7 @@ TEST_CASE("Given parsed options, When the gateway configuration is built, Then i
     CHECK(config.outputPort == "B");
     CHECK(config.deviceId == 4);
     CHECK(config.commandTimeout == std::chrono::milliseconds(1500));
-    CHECK(config.touchLcdSettings);
+    CHECK(config.screen == mcp::ScreenMode::Independent);
 }
 
 TEST_CASE("Given the usage text, When it is read, Then it names every option and says that the ports are the configuration [RQ-MCP-002]",
@@ -179,9 +217,105 @@ TEST_CASE("Given the usage text, When it is read, Then it names every option and
 {
     const std::string usage = mcp::usageText();
 
-    for (const char* option : {"--in", "--out", "--device-id", "--timeout-ms", "--no-lcd", "--list-ports", "--help"})
+    for (const char* option : {"--in", "--out", "--device-id", "--timeout-ms", "--screen", "--list-ports", "--help"})
     {
         CAPTURE(option);
         CHECK(contains(usage, option));
     }
+    CHECK_FALSE(contains(usage, "--no-lcd"));
+}
+
+TEST_CASE("Given the usage text, When it is read, Then it gives the three values of --screen, the default, and what the close puts back [RQ-MCP-045]",
+          "[mcp][options]")
+{
+    const std::string usage = mcp::usageText();
+
+    for (const char* word : {"independent", "follow", "as-is", "default", "puts"})
+    {
+        CAPTURE(word);
+        CHECK(contains(usage, word));
+    }
+}
+
+TEST_CASE("Given no disk argument, When the arguments are parsed, Then the disk tools are off and the disk timeout is 120000 ms [RQ-MCP-023, RQ-MCP-029]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B"});
+
+    REQUIRE(parsed.ok());
+    CHECK_FALSE(parsed.options.allowDisk);
+    CHECK_FALSE(parsed.options.allowDiskRefresh);
+    CHECK(parsed.options.diskTimeout == std::chrono::milliseconds(120000));
+    CHECK(mcp::gatewayConfigFrom(parsed.options).diskTimeout == std::chrono::milliseconds(120000));
+}
+
+TEST_CASE("Given --allow-disk and --disk-timeout-ms 500, When the arguments are parsed, Then the disk tools are on, with a 500 ms disk timeout the gateway carries [RQ-MCP-023, RQ-MCP-029]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--allow-disk", "--disk-timeout-ms", "500"});
+
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.allowDisk);
+    CHECK(parsed.options.diskTimeout == std::chrono::milliseconds(500));
+    CHECK(mcp::gatewayConfigFrom(parsed.options).diskTimeout == std::chrono::milliseconds(500));
+    CHECK(parseArguments({"--in=A", "--out=B", "--allow-disk", "--disk-timeout-ms=900000"}).options.diskTimeout ==
+          std::chrono::milliseconds(900000));
+}
+
+TEST_CASE("Given a bad disk timeout or a value given to --allow-disk, When the arguments are parsed, Then the error names the argument [RQ-MCP-029]",
+          "[mcp][options]")
+{
+    for (const char* bad : {"0", "-5", "abc", "1800001", ""})
+    {
+        const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--disk-timeout-ms", bad});
+        INFO(bad);
+        CHECK_FALSE(parsed.ok());
+        CHECK(contains(parsed.error, "--disk-timeout-ms"));
+    }
+    const ParsedArguments value = parseArguments({"--in", "A", "--out", "B", "--allow-disk=yes"});
+    CHECK_FALSE(value.ok());
+    CHECK(contains(value.error, "--allow-disk"));
+    CHECK_FALSE(parseArguments({"--in", "A", "--out", "B", "--disk-timeout-ms"}).ok());
+}
+
+TEST_CASE("Given --allow-disk and --allow-disk-refresh, When the arguments are parsed, Then both are on [RQ-MCP-031]",
+          "[mcp][options]")
+{
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--allow-disk", "--allow-disk-refresh"});
+
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.allowDisk);
+    CHECK(parsed.options.allowDiskRefresh);
+    // either order
+    CHECK(parseArguments({"--in", "A", "--out", "B", "--allow-disk-refresh", "--allow-disk"}).options.allowDiskRefresh);
+}
+
+TEST_CASE("Given --allow-disk-refresh without --allow-disk or with a value, When the arguments are parsed, Then the error names the options [RQ-MCP-031]",
+          "[mcp][options]")
+{
+    const ParsedArguments alone = parseArguments({"--in", "A", "--out", "B", "--allow-disk-refresh"});
+    CHECK_FALSE(alone.ok());
+    CHECK(contains(alone.error, "--allow-disk-refresh"));
+    CHECK(contains(alone.error, "--allow-disk"));
+
+    const ParsedArguments value = parseArguments({"--in", "A", "--out", "B", "--allow-disk", "--allow-disk-refresh=yes"});
+    CHECK_FALSE(value.ok());
+    CHECK(contains(value.error, "--allow-disk-refresh"));
+}
+
+TEST_CASE("Given the usage text, When it is read, Then it names --allow-disk-refresh and says what the refresh did to a real sampler [RQ-MCP-031]",
+          "[mcp][options]")
+{
+    const std::string usage = mcp::usageText();
+    CHECK(contains(usage, "--allow-disk-refresh"));
+    CHECK(contains(usage, "SCSI2SD"));
+}
+
+TEST_CASE("Given the usage text, When it is read, Then it names --allow-disk and --disk-timeout-ms and warns about the hang [RQ-MCP-023, RQ-MCP-029]",
+          "[mcp][options]")
+{
+    const std::string usage = mcp::usageText();
+    CHECK(contains(usage, "--allow-disk"));
+    CHECK(contains(usage, "--disk-timeout-ms"));
+    CHECK(contains(usage, "switched off and on"));
 }

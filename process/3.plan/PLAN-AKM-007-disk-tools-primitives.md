@@ -295,7 +295,7 @@ This plan implements the tasks in the format specified below.
   satisfying RQ-AKM-067's "no silent default" acceptance criterion by construction (a caller must always
   write something at that argument position; there is nothing to verify at runtime beyond this). The
   simulated sampler saves a Program or a Sample (by index for `&2C`, every one in memory for `&2D`) as a
-  new or replaced `FileRecord` named `<itemName>.AKP`/`.AKS` in the current folder, loadable the same
+  new or replaced `FileRecord` named `<itemName>.AKP`/`.WAV` in the current folder, loadable the same
   way `&2A` already materializes one; the other four memory types are not modelled (no Multi/SMF/
   Setlist/Scenelist section exists yet) and are accepted as a no-op `Done`, same choice as Load
   Folder's own scope. 3 new cases in `DiskPrimitivesTests.cpp` (`ctest -R RQ-AKM-067`): an existing file
@@ -308,7 +308,7 @@ This plan implements the tasks in the format specified below.
 - **Assumptions**: `saveChildren` is read (for wire-format validation) but has no modelled effect — no
   dependent file is created or saved alongside the target, since no acceptance criterion exercises it
   and the model has no "child of a save" concept beyond `&2B`'s own, unrelated, `dependsOnFiles`. The
-  file extension a save gives its target (`.AKP`/`.AKS`) is an internal modelling choice with no wire
+  file extension a save gives its target (`.AKP`/`.WAV`: a program is `.AKP` and a sample `.WAV`, corrected on 2026-10-06; `.AKS` had been an invention of the assistant, in no spec) is an internal modelling choice with no wire
   significance; a disk whose free space or format the save might plausibly affect is left untouched,
   since the spec gives no rule for how a save changes them and no criterion asks for it. `&2D`'s save
   stops at the first item that fails to save (mirrors `DEC-AKM-010`'s command-sequence-abort-on-failure

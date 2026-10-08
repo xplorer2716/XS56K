@@ -28,6 +28,13 @@ namespace mcp
         constexpr const char* GROUP_FILTER_ENVELOPE = "filter envelope";
         constexpr const char* GROUP_LFO_1 = "lfo 1";
         constexpr const char* GROUP_LFO_2 = "lfo 2";
+        constexpr const char* GROUP_KEYGROUP = "keygroup";
+        constexpr const char* GROUP_PITCH_AMP = "pitch and amplitude";
+        constexpr const char* GROUP_AUX_ENVELOPE = "aux envelope";
+        constexpr const char* GROUP_OUTPUT = "output";
+        constexpr const char* GROUP_TUNING = "tuning";
+        constexpr const char* GROUP_PITCH_BEND = "pitch bend";
+        constexpr const char* GROUP_ZONE = "zone";
 
         // The sampler's own ranges (spec Tables 11 and 13), as the item catalogue gives them.
         constexpr std::int64_t LEVEL_MAX = 100;
@@ -38,6 +45,90 @@ namespace mcp
         constexpr const char* UNIT_DB = "dB";
         constexpr std::int64_t FIRST_LFO = 1;
         constexpr std::int64_t SECOND_LFO = 2;
+
+
+        // Zone ranges (spec Table 9). The pan is a code 14 to 114 with 64 at the centre.
+        constexpr std::int64_t ZONE_PAN_MAX = 50;
+        constexpr std::int64_t ZONE_PAN_CENTRE_CODE = 64;
+        constexpr std::int64_t VELOCITY_MAX = 127;
+        constexpr std::int64_t VELOCITY_TO_START_MAX = 9999;
+        constexpr std::int64_t ZONE_FILTER_MAX = 100;
+
+        // Table 9, item &04: 0 MULTI, 1 to 8 the stereo pairs op1/2 to op15/16, 9 to 24 the outputs op1 to op16.
+        const std::vector<std::string>& zoneOutputLabels()
+        {
+            static const std::vector<std::string> labels = [] {
+                constexpr int OUTPUT_PAIRS = 8;
+                constexpr int OUTPUTS = 16;
+                std::vector<std::string> made{"MULTI"};
+                for (int pair = 0; pair < OUTPUT_PAIRS; ++pair)
+                    made.push_back("OP" + std::to_string(2 * pair + 1) + "/" + std::to_string(2 * pair + 2));
+                for (int output = 1; output <= OUTPUTS; ++output)
+                    made.push_back("OP" + std::to_string(output));
+                return made;
+            }();
+            return labels;
+        }
+
+        // Table 9, item &09.
+        const std::vector<std::string>& zonePlaybackLabels()
+        {
+            static const std::vector<std::string> labels{"NO LOOPING",   "ONE SHOT",     "LOOP IN REL", "LOOP UNTIL REL",
+                                                         "LIR->RETRIG", "PLAY->RETRIG", "AS SAMPLE"};
+            return labels;
+        }
+
+        // Lot 3 ranges (spec Tables 11 and 13).
+        constexpr std::int64_t FIRST_NOTE = 21;  // A-1
+        constexpr std::int64_t LAST_NOTE = 127;  // G8
+        constexpr std::int64_t MUTE_GROUP_MAX = 32;
+        constexpr std::int64_t SEMITONE_TUNE_MAX = 36;
+        constexpr std::int64_t FINE_TUNE_MAX = 50;
+        constexpr std::int64_t KEYGROUP_LEVEL_MIN_DB = -30;
+        constexpr std::int64_t KEYGROUP_LEVEL_MAX_DB = 30;
+        constexpr std::int64_t KEYGROUP_LEVEL_STEP_DB = 6;
+        constexpr std::int64_t PITCH_BEND_MAX_SEMITONES = 24;
+        constexpr std::int64_t AFTERTOUCH_PITCH_MAX_SEMITONES = 12;
+        constexpr std::int64_t AUX_STAGES = 4;
+        constexpr std::int64_t LAST_AMP_MOD = 2;
+        constexpr std::int64_t LAST_PAN_MOD = 3;
+        constexpr std::int64_t LAST_PITCH_MOD = 2;
+        constexpr std::int64_t FIRST_AUX_RATE_WITH_VELOCITY = 1;
+        constexpr std::int64_t LAST_AUX_RATE_WITH_VELOCITY = 4;
+        constexpr std::int64_t AUX_OFF_VELOCITY_RATE = 4;
+
+        const std::vector<std::string>& fxOverrideLabels()
+        {
+            static const std::vector<std::string> labels{"OFF", "FX1", "FX2", "RV3", "RV4"};
+            return labels;
+        }
+
+        // Table 13, item &32.
+        const std::vector<std::string>& tuneTemplateLabels()
+        {
+            static const std::vector<std::string> labels{"USER",         "EVEN-TEMPERED", "ORCHESTRAL", "WERKMEISTER",
+                                                         "1/5 MEANTONE", "1/4 MEANTONE",  "JUST",       "ARABIAN"};
+            return labels;
+        }
+
+        // Table 13, item &34.
+        const std::vector<std::string>& tuneKeyLabels()
+        {
+            static const std::vector<std::string> labels{"C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B"};
+            return labels;
+        }
+
+        const std::vector<std::string>& bendModeLabels()
+        {
+            static const std::vector<std::string> labels{"NORMAL", "HELD"};
+            return labels;
+        }
+
+        const std::vector<std::string>& portamentoModeLabels()
+        {
+            static const std::vector<std::string> labels{"TIME", "RATE"};
+            return labels;
+        }
 
         // The 26 filter types in code order, as the sampler's screen names them (user manual, EDIT PROGRAM, FILTER
         // MODE; spec Table 11, item &20).
@@ -244,6 +335,228 @@ namespace mcp
         }
     }
 
+    namespace
+    {
+        // A MIDI note limit of a keygroup: the item carries the note number as it is.
+        ParameterDefinition keygroupNote(const char* name, const char* description, akm::ItemId setItem, akm::ItemId getItem)
+        {
+            ParameterDefinition row =
+                number(name, {}, GROUP_KEYGROUP, description, ParameterScope::Keygroup, setItem, getItem, LAST_NOTE);
+            row.min = FIRST_NOTE;
+            return row;
+        }
+
+        // The tuning of a keygroup or of a program: a signed number of semitones and a signed number of cents.
+        void addTuning(std::vector<ParameterDefinition>& rows, const char* group, const std::string& owner, ParameterScope scope,
+                       akm::ItemId setSemitone, akm::ItemId getSemitone, akm::ItemId setFine, akm::ItemId getFine)
+        {
+            rows.push_back(signedNumber(owner + " semitone tune", {}, group, "How far the " + owner + " is tuned, in semitones, up or down.",
+                                        scope, setSemitone, getSemitone, SEMITONE_TUNE_MAX));
+            rows.push_back(signedNumber(owner + " fine tune", {}, group,
+                                        "A finer tuning of the " + owner + ", up or down (cents of a semitone).", scope, setFine, getFine,
+                                        FINE_TUNE_MAX));
+        }
+
+        // A source and an amount of an input that modulates the program or the keygroup.
+        void addModulationInput(std::vector<ParameterDefinition>& rows, const char* group, const std::string& name,
+                                const std::string& what, akm::ItemId setSource, akm::ItemId getSource, std::int64_t input,
+                                ParameterScope amountScope, akm::ItemId setAmount, akm::ItemId getAmount)
+        {
+            rows.push_back(sourceChoice(name + " source", {}, group, "The source routed to the " + what + ".", setSource, getSource, input));
+            rows.push_back(signedNumber(name + " amount", {}, group, "How much the source of the " + what + " moves it, as a signed amount.",
+                                        amountScope, setAmount, getAmount, LEVEL_MAX, {input}));
+        }
+
+        // Section 06: the parameters of a zone of the current keygroup. The zone is not a leading argument of the row:
+        // it is said at each call (1 to 4, or all), and goes first in the item's arguments.
+        void addZoneRows(std::vector<ParameterDefinition>& rows)
+        {
+            rows.push_back(signedNumber("zone level", {}, GROUP_ZONE, "The zone's level; negative values lower it.", ParameterScope::Zone,
+                                        akm::ItemId::ZoneSetLevel, akm::ItemId::ZoneGetLevel, LEVEL_MAX));
+            ParameterDefinition pan = number("zone pan", {"zone balance", "zone pan balance"}, GROUP_ZONE,
+                                             "The zone's pan, or balance for a stereo sample: -50 is fully left, 0 the centre, 50 fully right.",
+                                             ParameterScope::Zone, akm::ItemId::ZoneSetPanBalance, akm::ItemId::ZoneGetPanBalance, ZONE_PAN_MAX);
+            pan.min = -ZONE_PAN_MAX;
+            pan.offset = -ZONE_PAN_CENTRE_CODE;
+            rows.push_back(std::move(pan));
+            rows.push_back(choice("zone output", {}, GROUP_ZONE,
+                                  "Where the zone is sent: MULTI, a stereo pair of outputs (OP1/2 to OP15/16) or one output (OP1 to OP16).",
+                                  ParameterScope::Zone, akm::ItemId::ZoneSetOutput, akm::ItemId::ZoneGetOutput, zoneOutputLabels()));
+            rows.push_back(signedNumber("zone filter", {}, GROUP_ZONE, "How much the zone moves the filter's cutoff, as a signed amount.",
+                                        ParameterScope::Zone, akm::ItemId::ZoneSetFilter, akm::ItemId::ZoneGetFilter, ZONE_FILTER_MAX));
+            rows.push_back(signedNumber("zone fine tune", {}, GROUP_ZONE, "A finer tuning of the zone, up or down (cents of a semitone).",
+                                        ParameterScope::Zone, akm::ItemId::ZoneSetFineTune, akm::ItemId::ZoneGetFineTune, FINE_TUNE_MAX));
+            rows.push_back(signedNumber("zone semitone tune", {}, GROUP_ZONE, "How far the zone is tuned, in semitones, up or down.",
+                                        ParameterScope::Zone, akm::ItemId::ZoneSetSemitoneTune, akm::ItemId::ZoneGetSemitoneTune,
+                                        SEMITONE_TUNE_MAX));
+            rows.push_back(onOff("zone keyboard tracking", {"zone keyboard track"}, GROUP_ZONE,
+                                 "Whether the zone's pitch follows the keyboard.", ParameterScope::Zone, akm::ItemId::ZoneSetKeyboardTrack,
+                                 akm::ItemId::ZoneGetKeyboardTrack, {}));
+            rows.push_back(choice("zone playback", {"zone loop mode"}, GROUP_ZONE,
+                                  "How the zone's sample plays: NO LOOPING, ONE SHOT, LOOP IN REL, LOOP UNTIL REL, LIR->RETRIG, "
+                                  "PLAY->RETRIG or AS SAMPLE (the sample's own setting).",
+                                  ParameterScope::Zone, akm::ItemId::ZoneSetPlayback, akm::ItemId::ZoneGetPlayback, zonePlaybackLabels()));
+            ParameterDefinition start = signedNumber("zone velocity to start", {}, GROUP_ZONE,
+                                                     "How the note-on velocity moves the start of the zone's sample, as a signed amount "
+                                                     "up to 9999.",
+                                                     ParameterScope::Zone, akm::ItemId::ZoneSetVelocityToStart,
+                                                     akm::ItemId::ZoneGetVelocityToStart, VELOCITY_TO_START_MAX);
+            start.magnitudeBytes = 2;
+            rows.push_back(std::move(start));
+            rows.push_back(number("zone high velocity", {}, GROUP_ZONE, "The highest note-on velocity the zone plays.", ParameterScope::Zone,
+                                  akm::ItemId::ZoneSetHighVelocity, akm::ItemId::ZoneGetHighVelocity, VELOCITY_MAX));
+            rows.push_back(number("zone low velocity", {}, GROUP_ZONE, "The lowest note-on velocity the zone plays.", ParameterScope::Zone,
+                                  akm::ItemId::ZoneSetLowVelocity, akm::ItemId::ZoneGetLowVelocity, VELOCITY_MAX));
+            rows.push_back(onOff("zone mute", {}, GROUP_ZONE, "Whether the zone is muted.", ParameterScope::Zone, akm::ItemId::ZoneSetMute,
+                                 akm::ItemId::ZoneGetMute, {}));
+            rows.push_back(onOff("zone solo", {}, GROUP_ZONE, "Whether the zone is soloed.", ParameterScope::Zone, akm::ItemId::ZoneSetSolo,
+                                 akm::ItemId::ZoneGetSolo, {}));
+        }
+
+        // Lot 3: the rest of the keygroup (section 08, Table 11) and of the program (section 0A, Table 13).
+        void addLot3(std::vector<ParameterDefinition>& rows)
+        {
+            // Section 08 general options.
+            rows.push_back(keygroupNote("keygroup low note",
+                                        "The lowest note the keygroup plays, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.",
+                                        akm::ItemId::KeygroupSetLowNote, akm::ItemId::KeygroupGetLowNote));
+            rows.push_back(keygroupNote("keygroup high note",
+                                        "The highest note the keygroup plays, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.",
+                                        akm::ItemId::KeygroupSetHighNote, akm::ItemId::KeygroupGetHighNote));
+            rows.push_back(number("keygroup mute group", {"mute group"}, GROUP_KEYGROUP,
+                                  "The keygroup's mute group, 1 to 32; 0 is no mute group.", ParameterScope::Keygroup,
+                                  akm::ItemId::KeygroupSetMuteGroup, akm::ItemId::KeygroupGetMuteGroup, MUTE_GROUP_MAX));
+            rows.push_back(choice("keygroup fx override", {"fx override"}, GROUP_KEYGROUP,
+                                  "The effects bus the keygroup is sent to instead of the program's: OFF, FX1, FX2, RV3 or RV4.",
+                                  ParameterScope::Keygroup, akm::ItemId::KeygroupSetFxOverride, akm::ItemId::KeygroupGetFxOverride,
+                                  fxOverrideLabels()));
+            rows.push_back(number("keygroup fx send level", {"fx send level"}, GROUP_KEYGROUP,
+                                  "How much of the keygroup is sent to the effects.", ParameterScope::Keygroup,
+                                  akm::ItemId::KeygroupSetFxSendLevel, akm::ItemId::KeygroupGetFxSendLevel, LEVEL_MAX));
+            rows.push_back(onOff("keygroup zone crossfade", {"zone crossfade"}, GROUP_KEYGROUP, "Whether the zones of the keygroup crossfade.",
+                                 ParameterScope::Keygroup, akm::ItemId::KeygroupSetZoneCrossfade,
+                                 akm::ItemId::KeygroupGetZoneCrossfade, {}));
+            rows.push_back(onOff("keygroup crossfade", {"program crossfade"}, GROUP_KEYGROUP,
+                                 "Whether the keygroups of the program crossfade where they overlap (a program value).",
+                                 ParameterScope::Program, akm::ItemId::ProgramSetCrossfade, akm::ItemId::ProgramGetCrossfade, {}));
+
+            // Section 08 pitch and amplitude of the keygroup, and the inputs that modulate them.
+            addTuning(rows, GROUP_PITCH_AMP, "keygroup", ParameterScope::Keygroup, akm::ItemId::KeygroupSetSemitoneTune,
+                      akm::ItemId::KeygroupGetSemitoneTune, akm::ItemId::KeygroupSetFineTune, akm::ItemId::KeygroupGetFineTune);
+            ParameterDefinition level = number("keygroup level", {}, GROUP_PITCH_AMP, "The keygroup's level, in dB, in steps of 6 dB.",
+                                               ParameterScope::Keygroup, akm::ItemId::KeygroupSetLevel, akm::ItemId::KeygroupGetLevel,
+                                               KEYGROUP_LEVEL_MAX_DB);
+            level.min = KEYGROUP_LEVEL_MIN_DB;
+            level.offset = KEYGROUP_LEVEL_MIN_DB;
+            level.step = KEYGROUP_LEVEL_STEP_DB;
+            level.unit = UNIT_DB;
+            rows.push_back(std::move(level));
+            for (std::int64_t input = 1; input <= LAST_PITCH_MOD; ++input)
+            {
+                const std::string which = std::to_string(input);
+                addModulationInput(rows, GROUP_PITCH_AMP, "pitch modulation " + which, "pitch modulation input " + which,
+                                   akm::ItemId::ProgramSetPitchModSource, akm::ItemId::ProgramGetPitchModSource, input,
+                                   ParameterScope::Keygroup, akm::ItemId::KeygroupSetPitchModValue, akm::ItemId::KeygroupGetPitchModValue);
+            }
+            addModulationInput(rows, GROUP_PITCH_AMP, "keygroup amp modulation", "keygroup's amplitude modulation input",
+                               akm::ItemId::ProgramSetKeygroupAmpModSource, akm::ItemId::ProgramGetKeygroupAmpModSource, 1,
+                               ParameterScope::Keygroup, akm::ItemId::KeygroupSetAmpModValue, akm::ItemId::KeygroupGetAmpModValue);
+
+            // Section 08 auxiliary envelope: four rates and four levels.
+            for (std::int64_t stage = 1; stage <= AUX_STAGES; ++stage)
+            {
+                const std::string which = std::to_string(stage);
+                rows.push_back(number("aux envelope rate " + which, {"aux env rate " + which}, GROUP_AUX_ENVELOPE,
+                                      "Rate " + which + " (R" + which + ") of the auxiliary envelope: how fast it moves to level " + which + ".",
+                                      ParameterScope::Keygroup, akm::ItemId::KeygroupSetAuxEnvRate, akm::ItemId::KeygroupGetAuxEnvRate,
+                                      LEVEL_MAX, {stage}));
+            }
+            for (std::int64_t stage = 1; stage <= AUX_STAGES; ++stage)
+            {
+                const std::string which = std::to_string(stage);
+                rows.push_back(number("aux envelope level " + which, {"aux env level " + which}, GROUP_AUX_ENVELOPE,
+                                      "Level " + which + " (L" + which + ") of the auxiliary envelope.", ParameterScope::Keygroup,
+                                      akm::ItemId::KeygroupSetAuxEnvLevel, akm::ItemId::KeygroupGetAuxEnvLevel, LEVEL_MAX, {stage}));
+            }
+            for (const std::int64_t rate : {FIRST_AUX_RATE_WITH_VELOCITY, LAST_AUX_RATE_WITH_VELOCITY})
+            {
+                const std::string which = std::to_string(rate);
+                rows.push_back(signedNumber("aux envelope velocity to rate " + which, {"aux env velocity to rate " + which},
+                                            GROUP_AUX_ENVELOPE,
+                                            "How the note-on velocity changes rate " + which + " of the auxiliary envelope, as a signed amount.",
+                                            ParameterScope::Keygroup, akm::ItemId::KeygroupSetAuxEnvVelocityToRate,
+                                            akm::ItemId::KeygroupGetAuxEnvVelocityToRate, LEVEL_MAX, {rate}));
+            }
+            rows.push_back(signedNumber("aux envelope keyboard to rate 2 and 4", {"aux env keyboard to rate"}, GROUP_AUX_ENVELOPE,
+                                        "How the note played changes rates 2 and 4 of the auxiliary envelope, as a signed amount.",
+                                        ParameterScope::Keygroup, akm::ItemId::KeygroupSetAuxEnvKeyboardToR2R4,
+                                        akm::ItemId::KeygroupGetAuxEnvKeyboardToR2R4, LEVEL_MAX));
+            rows.push_back(signedNumber("aux envelope off-velocity to rate 4", {"aux env off-velocity to rate 4"}, GROUP_AUX_ENVELOPE,
+                                        "How the note-off velocity changes rate 4 of the auxiliary envelope, as a signed amount.",
+                                        ParameterScope::Keygroup, akm::ItemId::KeygroupSetAuxEnvOffVelocityToRate,
+                                        akm::ItemId::KeygroupGetAuxEnvOffVelocityToRate, LEVEL_MAX, {AUX_OFF_VELOCITY_RATE}));
+
+            // Section 0A output: loudness, velocity sensitivity and the amplitude and pan modulation inputs.
+            rows.push_back(number("program loudness", {"loudness"}, GROUP_OUTPUT, "The program's loudness.", ParameterScope::Program,
+                                  akm::ItemId::ProgramSetLoudness, akm::ItemId::ProgramGetLoudness, LEVEL_MAX));
+            rows.push_back(signedNumber("program velocity sensitivity", {"velocity sensitivity"}, GROUP_OUTPUT,
+                                        "How much the note-on velocity changes the program's loudness; negative values reverse it.",
+                                        ParameterScope::Program, akm::ItemId::ProgramSetVelocitySensitivity,
+                                        akm::ItemId::ProgramGetVelocitySensitivity, LEVEL_MAX));
+            for (std::int64_t input = 1; input <= LAST_AMP_MOD; ++input)
+            {
+                const std::string which = std::to_string(input);
+                addModulationInput(rows, GROUP_OUTPUT, "program amp modulation " + which, "program's amplitude modulation input " + which,
+                                   akm::ItemId::ProgramSetAmpModSource, akm::ItemId::ProgramGetAmpModSource, input,
+                                   ParameterScope::Program, akm::ItemId::ProgramSetAmpModValue, akm::ItemId::ProgramGetAmpModValue);
+            }
+            for (std::int64_t input = 1; input <= LAST_PAN_MOD; ++input)
+            {
+                const std::string which = std::to_string(input);
+                addModulationInput(rows, GROUP_OUTPUT, "pan modulation " + which, "pan modulation input " + which,
+                                   akm::ItemId::ProgramSetPanModSource, akm::ItemId::ProgramGetPanModSource, input,
+                                   ParameterScope::Program, akm::ItemId::ProgramSetPanModValue, akm::ItemId::ProgramGetPanModValue);
+            }
+
+            // Section 0A tuning.
+            addTuning(rows, GROUP_TUNING, "program", ParameterScope::Program, akm::ItemId::ProgramSetSemitoneTune,
+                      akm::ItemId::ProgramGetSemitoneTune, akm::ItemId::ProgramSetFineTune, akm::ItemId::ProgramGetFineTune);
+            rows.push_back(choice("tune template", {"tuning template", "temperament"}, GROUP_TUNING,
+                                  "The tuning the program plays in: USER, EVEN-TEMPERED, ORCHESTRAL, WERKMEISTER, 1/5 MEANTONE, "
+                                  "1/4 MEANTONE, JUST or ARABIAN.",
+                                  ParameterScope::Program, akm::ItemId::ProgramSetTuneTemplate, akm::ItemId::ProgramGetTuneTemplate,
+                                  tuneTemplateLabels()));
+            rows.push_back(choice("tune key", {"tuning key"}, GROUP_TUNING, "The key the tuning template is rooted on, C to B.",
+                                  ParameterScope::Program, akm::ItemId::ProgramSetKey, akm::ItemId::ProgramGetKey, tuneKeyLabels()));
+
+            // Section 0A pitch bend, aftertouch, legato and portamento.
+            rows.push_back(number("pitch bend up", {"bend up", "bend range up"}, GROUP_PITCH_BEND,
+                                  "How far the pitch bend wheel bends the pitch up, in semitones.", ParameterScope::Program,
+                                  akm::ItemId::ProgramSetPitchBendUp, akm::ItemId::ProgramGetPitchBendUp, PITCH_BEND_MAX_SEMITONES));
+            rows.push_back(number("pitch bend down", {"bend down", "bend range down"}, GROUP_PITCH_BEND,
+                                  "How far the pitch bend wheel bends the pitch down, in semitones.", ParameterScope::Program,
+                                  akm::ItemId::ProgramSetPitchBendDown, akm::ItemId::ProgramGetPitchBendDown, PITCH_BEND_MAX_SEMITONES));
+            rows.push_back(choice("pitch bend mode", {"bend mode"}, GROUP_PITCH_BEND,
+                                  "The pitch bend mode, NORMAL or HELD (the sampler's own names).", ParameterScope::Program,
+                                  akm::ItemId::ProgramSetBendMode, akm::ItemId::ProgramGetBendMode, bendModeLabels()));
+            rows.push_back(signedNumber("aftertouch pitch", {"aftertouch value"}, GROUP_PITCH_BEND,
+                                        "How far aftertouch bends the pitch, in semitones, up or down.", ParameterScope::Program,
+                                        akm::ItemId::ProgramSetAftertouchValue, akm::ItemId::ProgramGetAftertouchValue,
+                                        AFTERTOUCH_PITCH_MAX_SEMITONES));
+            rows.push_back(onOff("legato", {}, GROUP_PITCH_BEND, "The program's legato setting, on or off.", ParameterScope::Program,
+                                 akm::ItemId::ProgramSetLegato, akm::ItemId::ProgramGetLegato, {}));
+            rows.push_back(onOff("portamento", {"glide"}, GROUP_PITCH_BEND, "Whether the pitch glides from one note to the next.",
+                                 ParameterScope::Program, akm::ItemId::ProgramSetPortamentoEnable,
+                                 akm::ItemId::ProgramGetPortamentoEnable, {}));
+            rows.push_back(choice("portamento mode", {"glide mode"}, GROUP_PITCH_BEND, "Whether the portamento is set by a TIME or by a RATE.",
+                                  ParameterScope::Program, akm::ItemId::ProgramSetPortamentoMode, akm::ItemId::ProgramGetPortamentoMode,
+                                  portamentoModeLabels()));
+            rows.push_back(number("portamento time", {"glide time"}, GROUP_PITCH_BEND, "The portamento's time (or rate, by its mode).",
+                                  ParameterScope::Program, akm::ItemId::ProgramSetPortamentoTime, akm::ItemId::ProgramGetPortamentoTime,
+                                  LEVEL_MAX));
+        }
+    }
+
     std::vector<GroupDefinition> standardGroups()
     {
         return {
@@ -256,6 +569,13 @@ namespace mcp
              "The keygroup's filter envelope: how the filter's cutoff moves during a note, and how deeply."},
             {GROUP_LFO_1, {"lfo"}, "The program's first low-frequency oscillator."},
             {GROUP_LFO_2, {"lfo"}, "The program's second low-frequency oscillator."},
+            {GROUP_KEYGROUP, {}, "The keygroup's note range, mute group, effects routing and crossfades."},
+            {GROUP_PITCH_AMP, {"pitch", "amplitude"}, "The keygroup's tuning and level and the inputs that modulate its pitch and amplitude."},
+            {GROUP_AUX_ENVELOPE, {"aux env", "auxiliary envelope"}, "The keygroup's auxiliary envelope: four rates and four levels."},
+            {GROUP_OUTPUT, {}, "The program's loudness, velocity sensitivity and the inputs that modulate its amplitude and pan."},
+            {GROUP_TUNING, {"tune"}, "The program's tuning: semitones, cents, tuning template and key."},
+            {GROUP_PITCH_BEND, {"bend", "portamento"}, "The program's pitch bend, aftertouch, legato and portamento."},
+            {GROUP_ZONE, {"zones"}, "The keygroup's zones: level, pan, output, tuning, playback and velocity range, per zone."},
         };
     }
 
@@ -408,6 +728,214 @@ namespace mcp
                               "per cycle (LFO 2 only).",
                               ParameterScope::Program, akm::ItemId::ProgramSetLfoMidiClockSyncDivision,
                               akm::ItemId::ProgramGetLfoMidiClockSyncDivision, clockDivisionLabels(), {SECOND_LFO}));
+
+        addLot3(rows);
+        addZoneRows(rows);
+        return rows;
+    }
+
+    namespace
+    {
+        constexpr const char* GROUP_SAMPLE_PLAYBACK = "playback";
+        constexpr const char* GROUP_SAMPLE_PITCH = "pitch";
+        constexpr const char* GROUP_SAMPLE_INFO = "info";
+
+        // A position in the sample, or its length, is a compound double word of four 7-bit bytes (spec, data encodings).
+        constexpr std::int64_t SAMPLE_POSITION_BYTES = 4;
+        constexpr std::int64_t SAMPLE_POSITION_MAX = (1LL << (7 * SAMPLE_POSITION_BYTES)) - 1;
+        constexpr std::int64_t SAMPLE_CHANNELS_MIN = 1;
+        constexpr std::int64_t SAMPLE_CHANNELS_MAX = 2;
+        constexpr const char* UNIT_HZ = "Hz";
+
+        // Table 18, item &28: the sample's own modes (the zone adds AS SAMPLE).
+        const std::vector<std::string>& samplePlaybackLabels()
+        {
+            static const std::vector<std::string> labels{"NO LOOPING", "ONE SHOT", "LOOP IN REL", "LOOP UNTIL REL", "LIR->RETRIG", "PLAY->RETRIG"};
+            return labels;
+        }
+
+        // Table 18, item &30.
+        const std::vector<std::string>& sampleTypeLabels()
+        {
+            static const std::vector<std::string> labels{"RAM", "VIRTUAL"};
+            return labels;
+        }
+
+        ParameterDefinition samplePosition(const char* name, const char* description, akm::ItemId setItem, akm::ItemId getItem)
+        {
+            ParameterDefinition row = number(name, {}, GROUP_SAMPLE_PLAYBACK, description, ParameterScope::Sample, setItem, getItem,
+                                             SAMPLE_POSITION_MAX);
+            row.magnitudeBytes = SAMPLE_POSITION_BYTES;
+            row.unit = "sample points";
+            return row;
+        }
+
+        ParameterDefinition readOnlyRow(ParameterDefinition row)
+        {
+            row.readOnly = true;
+            return row;
+        }
+    }
+
+    std::vector<GroupDefinition> sampleGroups()
+    {
+        return {
+            {GROUP_SAMPLE_PLAYBACK, {"loop", "positions"}, "Where the sample starts and ends, where its loop starts and ends, and how it plays."},
+            {GROUP_SAMPLE_PITCH, {"tuning"}, "The sample's original pitch and its tuning."},
+            {GROUP_SAMPLE_INFO, {"information", "attributes"}, "What the sampler reports about the sample and that cannot be changed: its type, channels, length and rate."},
+        };
+    }
+
+    std::vector<ParameterDefinition> sampleParameters()
+    {
+        std::vector<ParameterDefinition> rows;
+        rows.push_back(samplePosition("sample start position", "Where the sample starts playing, in sample points from its beginning.",
+                                      akm::ItemId::SampleSetStartPosition, akm::ItemId::SampleGetStartPosition));
+        rows.push_back(samplePosition("sample end position", "Where the sample stops playing, in sample points from its beginning.",
+                                      akm::ItemId::SampleSetEndPosition, akm::ItemId::SampleGetEndPosition));
+        rows.push_back(samplePosition("sample loop start",
+                                      "Where the sample's loop starts, in sample points. Setting the loop end can move the loop start (seen on "
+                                      "the S5000): read both back.",
+                                      akm::ItemId::SampleSetLoopStart, akm::ItemId::SampleGetLoopStart));
+        rows.push_back(samplePosition("sample loop end", "Where the sample's loop ends, in sample points. Set it before the loop start.",
+                                      akm::ItemId::SampleSetLoopEnd, akm::ItemId::SampleGetLoopEnd));
+        rows.push_back(choice("sample playback mode", {"sample loop mode", "playback mode"}, GROUP_SAMPLE_PLAYBACK,
+                              "How the sample plays: NO LOOPING, ONE SHOT, LOOP IN REL, LOOP UNTIL REL, LIR->RETRIG or PLAY->RETRIG.",
+                              ParameterScope::Sample, akm::ItemId::SampleSetPlaybackMode, akm::ItemId::SampleGetPlaybackMode,
+                              samplePlaybackLabels()));
+
+        ParameterDefinition pitch = number("sample original pitch", {"original pitch", "sample root note"}, GROUP_SAMPLE_PITCH,
+                                           "The note the sample was recorded at, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.",
+                                           ParameterScope::Sample, akm::ItemId::SampleSetOriginalPitch, akm::ItemId::SampleGetOriginalPitch,
+                                           LAST_NOTE);
+        pitch.min = FIRST_NOTE;
+        rows.push_back(std::move(pitch));
+        rows.push_back(signedNumber("sample semitone tune", {}, GROUP_SAMPLE_PITCH, "How far the sample is tuned, in semitones, up or down.",
+                                    ParameterScope::Sample, akm::ItemId::SampleSetSemitoneTune, akm::ItemId::SampleGetSemitoneTune,
+                                    SEMITONE_TUNE_MAX));
+        rows.push_back(signedNumber("sample fine tune", {}, GROUP_SAMPLE_PITCH, "A finer tuning of the sample, up or down (cents of a semitone).",
+                                    ParameterScope::Sample, akm::ItemId::SampleSetFineTune, akm::ItemId::SampleGetFineTune, FINE_TUNE_MAX));
+
+        rows.push_back(readOnlyRow(choice("sample type", {}, GROUP_SAMPLE_INFO, "Whether the sample is RAM or VIRTUAL. Read-only.",
+                                          ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetType, sampleTypeLabels())));
+        ParameterDefinition channels = number("sample channels", {}, GROUP_SAMPLE_INFO, "How many channels the sample has: 1 is mono, 2 is stereo. Read-only.",
+                                              ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetChannels, SAMPLE_CHANNELS_MAX);
+        channels.min = SAMPLE_CHANNELS_MIN;
+        rows.push_back(readOnlyRow(std::move(channels)));
+        ParameterDefinition length = number("sample length", {}, GROUP_SAMPLE_INFO, "The sample's length, in sample points. Read-only.",
+                                            ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetLength, SAMPLE_POSITION_MAX);
+        length.magnitudeBytes = SAMPLE_POSITION_BYTES;
+        length.unit = "sample points";
+        rows.push_back(readOnlyRow(std::move(length)));
+        ParameterDefinition rate = number("sample rate", {"sampling rate"}, GROUP_SAMPLE_INFO, "The sample's sampling rate, in Hz. Read-only.",
+                                          ParameterScope::Sample, akm::ItemId{}, akm::ItemId::SampleGetRate, SAMPLE_POSITION_MAX);
+        rate.magnitudeBytes = SAMPLE_POSITION_BYTES;
+        rate.unit = UNIT_HZ;
+        rows.push_back(readOnlyRow(std::move(rate)));
+        return rows;
+    }
+
+    namespace
+    {
+        constexpr const char* GROUP_MULTI_MIX = "mix";
+        constexpr const char* GROUP_MULTI_SETUP = "setup";
+
+        constexpr int MIDI_CHANNELS_PER_PORT = 16;
+        constexpr int MULTI_OUTPUT_PAIRS = 8;
+        constexpr int MULTI_OUTPUTS = 16;
+        constexpr std::int64_t PART_TRANSPOSE_MAX = 36;
+        constexpr std::int64_t PART_FINE_TUNE_MAX = 50;
+        constexpr std::int64_t PART_PAN_MAX = 50;
+        constexpr std::int64_t PART_PAN_CENTRE_CODE = 64;
+
+        // Table 16, item &10: 1A to 16A are codes 0 to 15, 1B to 16B codes 16 to 31 (the sampler's two MIDI ports).
+        const std::vector<std::string>& partMidiChannelLabels()
+        {
+            static const std::vector<std::string> labels = [] {
+                std::vector<std::string> made;
+                for (const char port : {'A', 'B'})
+                {
+                    for (int channel = 1; channel <= MIDI_CHANNELS_PER_PORT; ++channel)
+                        made.push_back(std::to_string(channel) + port);
+                }
+                return made;
+            }();
+            return labels;
+        }
+
+        // Table 16, item &14: 0 to 7 the stereo pairs op1/2 to op15/16, 8 to 23 the outputs op1 to op16.
+        const std::vector<std::string>& partOutputLabels()
+        {
+            static const std::vector<std::string> labels = [] {
+                std::vector<std::string> made;
+                for (int pair = 0; pair < MULTI_OUTPUT_PAIRS; ++pair)
+                    made.push_back("OP" + std::to_string(2 * pair + 1) + "/" + std::to_string(2 * pair + 2));
+                for (int output = 1; output <= MULTI_OUTPUTS; ++output)
+                    made.push_back("OP" + std::to_string(output));
+                return made;
+            }();
+            return labels;
+        }
+
+        // A part value that is a centred code: -max to max over the codes 0 to 2 * max (the pan's codes 14 to 114).
+        ParameterDefinition centred(ParameterDefinition row, std::int64_t max, std::int64_t offset)
+        {
+            row.min = -max;
+            row.offset = offset;
+            return row;
+        }
+    }
+
+    std::vector<GroupDefinition> multiGroups()
+    {
+        return {
+            {GROUP_MULTI_MIX, {"levels"}, "How a part sounds in the mix: mute, solo, level, output, pan, effects channel and FX send level."},
+            {GROUP_MULTI_SETUP, {"range"}, "A part's MIDI channel, tuning and key range."},
+        };
+    }
+
+    std::vector<ParameterDefinition> multiParameters()
+    {
+        const ParameterScope part = ParameterScope::MultiPart;
+        std::vector<ParameterDefinition> rows;
+        rows.push_back(onOff("part mute", {}, GROUP_MULTI_MIX, "Whether the part is muted.", part, akm::ItemId::MultiSetMute,
+                             akm::ItemId::MultiGetMute, {}));
+        rows.push_back(onOff("part solo", {}, GROUP_MULTI_MIX, "Whether the part is soloed.", part, akm::ItemId::MultiSetSolo,
+                             akm::ItemId::MultiGetSolo, {}));
+        rows.push_back(number("part level", {}, GROUP_MULTI_MIX, "The part's level.", part, akm::ItemId::MultiSetLevel,
+                              akm::ItemId::MultiGetLevel, LEVEL_MAX));
+        rows.push_back(choice("part output", {}, GROUP_MULTI_MIX,
+                              "Where the part is sent: a stereo pair of outputs (OP1/2 to OP15/16) or one output (OP1 to OP16).", part,
+                              akm::ItemId::MultiSetOutput, akm::ItemId::MultiGetOutput, partOutputLabels()));
+        rows.push_back(centred(number("part pan", {"part balance", "part pan balance"}, GROUP_MULTI_MIX,
+                                      "The part's pan, or balance for a stereo part: -50 is fully left, 0 the centre, 50 fully right.",
+                                      part, akm::ItemId::MultiSetPanBalance, akm::ItemId::MultiGetPanBalance, PART_PAN_MAX),
+                               PART_PAN_MAX, -PART_PAN_CENTRE_CODE));
+        rows.push_back(choice("part effects channel", {"part fx channel"}, GROUP_MULTI_MIX,
+                              "The effects bus the part is sent to: OFF, FX1, FX2, RV3 or RV4.", part, akm::ItemId::MultiSetEffectsChannel,
+                              akm::ItemId::MultiGetEffectsChannel, fxOverrideLabels()));
+        rows.push_back(number("part fx send level", {"part fx send"}, GROUP_MULTI_MIX, "How much of the part is sent to the effects.", part,
+                              akm::ItemId::MultiSetFxSendLevel, akm::ItemId::MultiGetFxSendLevel, LEVEL_MAX));
+
+        rows.push_back(choice("part midi channel", {"part channel"}, GROUP_MULTI_SETUP,
+                              "The MIDI channel the part listens on: 1A to 16A (the first MIDI port) or 1B to 16B (the second).", part,
+                              akm::ItemId::MultiSetMidiChannel, akm::ItemId::MultiGetMidiChannel, partMidiChannelLabels()));
+        rows.push_back(centred(number("part fine tune", {}, GROUP_MULTI_SETUP, "A fine tuning of the part, in cents: -50 to 50.", part,
+                                      akm::ItemId::MultiSetFineTune, akm::ItemId::MultiGetFineTune, PART_FINE_TUNE_MAX),
+                               PART_FINE_TUNE_MAX, -PART_FINE_TUNE_MAX));
+        rows.push_back(centred(number("part transpose", {}, GROUP_MULTI_SETUP, "How far the part is transposed, in semitones: -36 to 36.",
+                                      part, akm::ItemId::MultiSetTranspose, akm::ItemId::MultiGetTranspose, PART_TRANSPOSE_MAX),
+                               PART_TRANSPOSE_MAX, -PART_TRANSPOSE_MAX));
+        ParameterDefinition low = number("part low note", {}, GROUP_MULTI_SETUP,
+                                         "The lowest note the part plays, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.", part,
+                                         akm::ItemId::MultiSetLowNote, akm::ItemId::MultiGetLowNote, LAST_NOTE);
+        low.min = FIRST_NOTE;
+        rows.push_back(std::move(low));
+        ParameterDefinition high = number("part high note", {}, GROUP_MULTI_SETUP,
+                                          "The highest note the part plays, as a MIDI note number from 21 (A-1) to 127 (G8); 60 is C3.", part,
+                                          akm::ItemId::MultiSetHighNote, akm::ItemId::MultiGetHighNote, LAST_NOTE);
+        high.min = FIRST_NOTE;
+        rows.push_back(std::move(high));
         return rows;
     }
 }

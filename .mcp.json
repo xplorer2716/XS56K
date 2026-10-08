@@ -8,7 +8,9 @@
       "command": "C:/dev/repos/xplorer2716/public/XS56K/juce/build/mcp/Debug/xs56k_mcp_server.exe",
       "args": [
         "--in", "MIDIIN2 (ESI M8U eX)",
-        "--out", "LoopBe Internal MIDI"
+        "--out", "MIDIOUT15 (ESI M8U eX)",
+        "--screen", "follow",
+        "--allow-disk"
       ]
     }
   }

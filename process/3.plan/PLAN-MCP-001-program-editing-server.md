@@ -2,6 +2,10 @@
 
 ## Overview
 
+*Later amendments:* PLAN-MCP-002 to PLAN-MCP-004 extended the server well beyond this plan (structure, samples, multis, the disks, more
+tools), and the `--no-lcd` argument that TASK-MCP-004 delivered became `--screen` in TASK-MCP-039. The text below describes the state
+of this plan when it was written.
+
 Implements `FTR-MCP-001`: an MCP server in `juce/mcp` that exposes the AKM layer to an MCP client, limited to the editing
 of a program (filter, amplitude envelope, filter envelope, the two LFOs) in the musician's vocabulary. The work is cut
 bottom-up along the four units of `ADR-MCP-001` (protocol, parameter catalogue, sampler gateway, tools), then the
@@ -127,12 +131,12 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-009: Real-sampler run, observations and documentation
 - **Tier**: M
-- **Status**: Blocked
+- **Status**: Done
 - **Description**: With the owner, run the server on the real S5000 against a scratch program the owner has prepared (a scripted conversation, then, if the owner wishes, an MCP client): every lot 1 parameter read, set and put back; the observations recorded in `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md` and the simulated sampler corrected for what it had wrong; the "all keygroups" Set and the current-keygroup open points of the FTR settled; `AGENTS.md` (commands, a server configuration example that is not committed as `.mcp.json`) and `CHANGELOG.md` updated.
 - **Requirement refs**: RQ-MCP-012, RQ-MCP-002, RQ-MCP-003
 - **ADR refs**: ADR-MCP-001 (DEC-MCP-004, DEC-MCP-006, DEC-MCP-009)
 - **Acceptance Criteria** (Gherkin): *Given* the real sampler and the scratch program, *When* each lot 1 parameter is read, set to another value, read back and put back, *Then* each read-back equals the value set and the program ends with the values it began with. *Given* the run's end, *When* the server's input closes, *Then* the sampler's section 00 settings are in the known state. *Given* every answer the real sampler gave that the simulated one did not, *When* the task closes, *Then* it is in the observations file and the simulator matches it.
 - **Dependencies**: TASK-MCP-007 (and TASK-MCP-008 if it is done)
 - **Assignee**: Human and AI
-- **Verification**: Documentation part done and verified: AGENTS.md (overview and the MCP server command bullet), CHANGELOG.md (Unreleased) and juce/mcp/README.md written, line endings LF; the procedure of the run, what to look for and the decisions to remember are in process/3.plan/CHECKPOINT-MCP-2026-10-04.md. NOT DONE: the run on the real S5000, its observations file and the simulated sampler corrections. Blocked on the owner, who runs it in a dedicated session on a scratch program.
+- **Verification**: Documentation part done and verified: AGENTS.md (overview and the MCP server command bullet), CHANGELOG.md (Unreleased) and juce/mcp/README.md written, line endings LF; the procedure of the run, what to look for and the decisions to remember are in process/3.plan/CHECKPOINT-MCP-2026-10-04.md. NOT DONE: the run on the real S5000, its observations file and the simulated sampler corrections. Blocked on the owner, who runs it in a dedicated session on a scratch program. CLOSED 2026-10-05 in session MCP (PLAN-MCP-002 TASK-MCP-012): the run on the real S5000 was made by the assistant under the owner's authorization, on a program created by the server (the owner did not prepare one: the memory was empty); all 54 parameters read, set, read back and put back, 0 failures; observations in `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`; the simulated sampler corrected.
 - **Assumptions**: The owner asked, for this session, to implement the tasks and test them on the simulated sampler; the real run is therefore left for a dedicated session, as for the AKM sections. No claim about the real S5000 is made in the documentation beyond what the AKM observations already established.

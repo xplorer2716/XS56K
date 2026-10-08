@@ -195,21 +195,21 @@ TEST_CASE("Given a sampler with nothing in memory, When get_status and list_prog
     CHECK(contains(textOf(programs), "no program"));
 }
 
-TEST_CASE("Given three programs, When list_programs runs, Then the names are listed in memory order with their positions [RQ-MCP-007]",
+TEST_CASE("Given three programs, When list_programs runs, Then the names are listed in the sampler's alphabetical order with their positions [RQ-MCP-007]",
           "[mcp][tools]")
 {
     Rig rig;
 
     const std::string text = textOf(rig.call("list_programs"));
 
-    const auto pad = text.find("0: PAD");
-    const auto bass = text.find("1: BASS");
-    const auto lead = text.find("2: LEAD");
+    const auto bass = text.find("0: BASS");
+    const auto lead = text.find("1: LEAD");
+    const auto pad = text.find("2: PAD");
     REQUIRE(pad != std::string::npos);
     REQUIRE(bass != std::string::npos);
     REQUIRE(lead != std::string::npos);
-    CHECK(pad < bass);
     CHECK(bass < lead);
+    CHECK(lead < pad);
 }
 
 TEST_CASE("Given select_program with the name LEAD, When get_status runs, Then the current program is LEAD; a name or an index that does not exist is an error saying so; giving both or neither is refused [RQ-MCP-007]",
@@ -223,7 +223,7 @@ TEST_CASE("Given select_program with the name LEAD, When get_status runs, Then t
     CHECK(contains(textOf(selected), "2 keygroups"));
     CHECK(contains(textOf(rig.call("get_status")), "LEAD"));
 
-    const json byIndex = rig.call("select_program", {{"index", 0}});
+    const json byIndex = rig.call("select_program", {{"index", 2}});
     CHECK_FALSE(isError(byIndex));
     CHECK(contains(textOf(byIndex), "PAD"));
 
@@ -239,7 +239,7 @@ TEST_CASE("Given select_program with the name LEAD, When get_status runs, Then t
     CHECK(isError(rig.call("select_program", {{"name", 7}})));
 }
 
-TEST_CASE("Given the catalogue, When list_parameters runs, Then it lists its 54 parameters and, for filter type, its 26 labels; a group narrows it and an unknown group is an error naming the groups [RQ-MCP-004]",
+TEST_CASE("Given the catalogue, When list_parameters runs, Then it lists its 119 parameters and, for filter type, its 26 labels; a group narrows it and an unknown group is an error naming the groups [RQ-MCP-004]",
           "[mcp][tools]")
 {
     Rig rig;
@@ -248,7 +248,7 @@ TEST_CASE("Given the catalogue, When list_parameters runs, Then it lists its 54 
     std::size_t parameterLines = 0;
     for (std::size_t at = all.find("\n- "); at != std::string::npos; at = all.find("\n- ", at + 1))
         ++parameterLines;
-    CHECK(parameterLines == 54);
+    CHECK(parameterLines == 119);
     CHECK(contains(all, "filter cutoff"));
     CHECK(contains(all, "0 to 100"));
     CHECK(contains(all, "2-POLE LP+ (2)"));

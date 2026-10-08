@@ -30,42 +30,37 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/ItemRequest.hpp"
 #include "akm/KeygroupPrimitives.hpp"
 #include "akm/ProgramPrimitives.hpp"
+#include "akm/MultiPrimitives.hpp"
 #include "akm/RealScheduler.hpp"
+#include "akm/SamplePrimitives.hpp"
 #include "akm/SamplerError.hpp"
+#include "akm/SystemSetup.hpp"
+#include "akm/SystemVersion.hpp"
 #include "akm/ThreadExecutor.hpp"
+#include "akm/ZonePrimitives.hpp"
+#include "GatewayDetail.hpp"
 
 namespace mcp
 {
+    using detail::WAIT_MARGIN;
+    using detail::await;
+    using detail::explain;
+    using detail::numberText;
+
     namespace
     {
-        // What is added to the session's own timeouts before the gateway gives up waiting for a completion that
-        // should always come (a session completes every command, DEC-AKM-004): it only guards against a lost one.
-        constexpr std::chrono::milliseconds WAIT_MARGIN{3000};
         // The opening sends up to this many commands (the checksum mode and the settings) after the discovery.
         constexpr int OPENING_COMMAND_BUDGET = 8;
         constexpr int CLOSING_COMMAND_BUDGET = 8;
         constexpr std::int64_t ALL_KEYGROUPS = 0;
+        constexpr std::int64_t ALL_ZONES = 0;
+        constexpr int ZONES_PER_KEYGROUP = 4;
+        // A program has 1 to 99 keygroups. [RQ-MCP-035]
+        constexpr int MIN_KEYGROUPS_ADDED = 1;
+        constexpr int MAX_KEYGROUPS_IN_PROGRAM = 99;
         constexpr std::uint32_t MAX_DEVICE_ID = 31;
 
         constexpr std::span<const std::int64_t> NO_VALUES{};
-
-        std::string numberText(std::int64_t value)
-        {
-            return std::to_string(value);
-        }
-
-        /// Waits for the one completion of an asynchronous AKM call, with a deadline; nothing when it did not come.
-        template <typename Result>
-        std::optional<Result> await(std::chrono::milliseconds deadline,
-                                    const std::function<void(std::function<void(const Result&)>)>& start)
-        {
-            auto promise = std::make_shared<std::promise<Result>>();
-            std::future<Result> future = promise->get_future();
-            start([promise](const Result& result) { promise->set_value(result); });
-            if (future.wait_for(deadline) != std::future_status::ready)
-                return std::nullopt;
-            return future.get();
-        }
 
         std::string portList(const std::vector<std::string>& names)
         {
@@ -113,31 +108,6 @@ namespace mcp
             }
             return std::string("The connection to the sampler failed: ") + std::string(akm::describe(opened.status)) + ".";
         }
-
-        /// What a command's outcome says when it did not succeed, as one sentence for the person.
-        std::string explain(const akm::CommandResult& outcome, const std::string& doing, const GatewayConfig& config,
-                            bool needsCurrentProgram)
-        {
-            if (std::holds_alternative<akm::Timeout>(outcome))
-                return "The sampler did not answer while " + doing + " (no reply within " + numberText(config.commandTimeout.count()) +
-                       " ms). Check that it is on and connected.";
-            if (const auto* refusal = std::get_if<akm::Refused>(&outcome))
-                return "The command was not sent while " + doing + ": " + std::string(akm::describe(refusal->reason)) + ".";
-            if (const auto* error = std::get_if<akm::Error>(&outcome))
-            {
-                const akm::ErrorInfo info = akm::describeError(error->number);
-                std::string text = "The sampler refused while " + doing + ": " + std::string(info.meaning) + " (error " +
-                                   numberText(error->number) + ").";
-                if (error->number == akm::error_number::KEYGROUP_NOT_IN_PROGRAM)
-                    text += " The current program does not have that keygroup.";
-                else if (needsCurrentProgram && error->number == akm::error_number::NOT_FOUND)
-                    text += " Is a program selected? Use select_program first.";
-                return text;
-            }
-            if (std::holds_alternative<akm::Cancelled>(outcome))
-                return "The command was cancelled while " + doing + ": the connection is closing.";
-            return "The sampler's answer to the command while " + doing + " was not understood.";
-        }
     }
 
     // The ports, the executor and the scheduler outlive the session, which is destroyed first (members are destroyed
@@ -158,6 +128,11 @@ namespace mcp
         akm::NullDiagnosticSink diagnostics;
         akm::Session session;
     };
+
+    akm::Session& SamplerGateway::session()
+    {
+        return _connection->session;
+    }
 
     SamplerGateway::SamplerGateway(common::midi::MidiBackend& backend, GatewayConfig config)
         : _config(std::move(config)), _backend(backend)
@@ -189,10 +164,21 @@ namespace mcp
 
         akm::SessionConfig sessionConfig;
         sessionConfig.targetDeviceId = _config.deviceId;
-        if (_config.touchLcdSettings)
-            sessionConfig.autoScreenUpdate = akm::SettingChoice::On;
-        else
-            sessionConfig.syncLcd = akm::SettingChoice::Unchanged;
+        switch (_config.screen)
+        {
+            case ScreenMode::Independent:
+                sessionConfig.syncLcd = akm::SettingChoice::Off;
+                sessionConfig.autoScreenUpdate = akm::SettingChoice::On;
+                break;
+            case ScreenMode::Follow:
+                sessionConfig.syncLcd = akm::SettingChoice::On;
+                sessionConfig.autoScreenUpdate = akm::SettingChoice::On;
+                break;
+            case ScreenMode::AsIs:
+                sessionConfig.syncLcd = akm::SettingChoice::Unchanged;
+                sessionConfig.autoScreenUpdate = akm::SettingChoice::Unchanged;
+                break;
+        }
 
         const auto deadline = akm::DEFAULT_DISCOVERY_WINDOW + _config.commandTimeout * OPENING_COMMAND_BUDGET + WAIT_MARGIN;
         const auto opened = await<akm::OpenResult>(
@@ -243,7 +229,7 @@ namespace mcp
 
     Outcome<std::vector<std::vector<std::uint8_t>>> SamplerGateway::runSequence(std::vector<akm::CommandRequest> requests,
                                                                                const std::vector<std::string>& steps,
-                                                                               bool needsCurrentProgram)
+                                                                               bool needsCurrentProgram, const char* currentObject)
     {
         using Replies = std::vector<std::vector<std::uint8_t>>;
         if (const auto problem = connect())
@@ -259,7 +245,7 @@ namespace mcp
         {
             const std::size_t failed = *result->failureIndex;
             return Outcome<Replies>::failure(explain(result->results[failed], steps[std::min(failed, steps.size() - 1)], _config,
-                                                     needsCurrentProgram));
+                                                     needsCurrentProgram, currentObject));
         }
 
         Replies replies;
@@ -284,6 +270,18 @@ namespace mcp
         if (count < 1)
             return Outcome<int>::failure("The current program has no keygroup.");
         return Outcome<int>::success(count);
+    }
+
+    Outcome<std::string> SamplerGateway::currentProgramName()
+    {
+        const auto name = await<akm::ProgramNameResult>(waitFor(1), [&](std::function<void(const akm::ProgramNameResult&)> done) {
+            akm::getCurrentProgramName(_connection->session, std::move(done));
+        });
+        if (!name)
+            return Outcome<std::string>::failure("The sampler session did not complete the command in time.");
+        if (!name->name)
+            return Outcome<std::string>::failure(explain(name->outcome, "reading the name of the current program", _config, true));
+        return Outcome<std::string>::success(*name->name);
     }
 
     Outcome<ProgramInfo> SamplerGateway::currentProgramInfo()
@@ -398,6 +396,72 @@ namespace mcp
         return currentProgramInfo();
     }
 
+    Outcome<ProgramInfo> SamplerGateway::createProgram(std::string_view name, int keygroups)
+    {
+        if (const auto problem = connect())
+            return Outcome<ProgramInfo>::failure(*problem);
+
+        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::createProgramWithKeygroups(_connection->session, keygroups, name, std::move(done));
+        });
+        if (!created)
+            return Outcome<ProgramInfo>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*created))
+            return Outcome<ProgramInfo>::failure(explain(*created, "creating the program \"" + std::string(name) + "\"", _config, false));
+        return currentProgramInfo();
+    }
+
+    Outcome<ProgramRename> SamplerGateway::renameCurrentProgram(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<ProgramRename>::failure(*problem);
+
+        const auto before = currentProgramName();
+        if (!before.ok())
+            return Outcome<ProgramRename>::failure(before.problem);
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameCurrentProgram(_connection->session, name, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<ProgramRename>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<ProgramRename>::failure(explain(*renamed, "renaming the program \"" + *before.value + "\"", _config, true));
+
+        const auto after = currentProgramName();
+        if (!after.ok())
+            return Outcome<ProgramRename>::failure(after.problem);
+        return Outcome<ProgramRename>::success(ProgramRename{*before.value, *after.value});
+    }
+
+    Outcome<ProgramDeletion> SamplerGateway::deleteCurrentProgram(std::string_view confirm)
+    {
+        if (const auto problem = connect())
+            return Outcome<ProgramDeletion>::failure(*problem);
+
+        const auto current = currentProgramName();
+        if (!current.ok())
+            return Outcome<ProgramDeletion>::failure(current.problem);
+        if (*current.value != confirm)
+            return Outcome<ProgramDeletion>::success(ProgramDeletion{false, *current.value, std::nullopt});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteCurrentProgram(_connection->session, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<ProgramDeletion>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<ProgramDeletion>::failure(explain(*deleted, "deleting the program \"" + *current.value + "\"", _config, true));
+
+        ProgramDeletion deletion{true, *current.value, std::nullopt};
+        const auto count = await<akm::ProgramCountResult>(waitFor(1), [&](std::function<void(const akm::ProgramCountResult&)> done) {
+            akm::getProgramCount(_connection->session, std::move(done));
+        });
+        if (count && count->count)
+            deletion.remaining = *count->count;
+        return Outcome<ProgramDeletion>::success(std::move(deletion));
+    }
+
     namespace
     {
         akm::CommandRequest selectKeygroupRequest(std::int64_t keygroup)
@@ -405,19 +469,29 @@ namespace mcp
             return akm::makeRequest(akm::ItemId::KeygroupSelect, {keygroup});
         }
 
-        // A Get while "all keygroups" is selected answers one record per keygroup, which only a session that knows its
-        // checksum mode can delimit (DEC-AKM-014, RQ-AKM-031).
-        akm::CommandRequest getRequest(const ParameterDefinition& parameter, bool answersPerKeygroup)
+        // The arguments that come before the value: for a zone parameter the zone first (0 is all four), then the row's own.
+        std::vector<std::int64_t> leadingArguments(const ParameterDefinition& parameter, ZoneSelection zones)
         {
-            akm::CommandOptions options;
-            if (answersPerKeygroup)
-                options.expectedReply = akm::ExpectedReply::NeedsKnownChecksumMode;
-            return akm::makeRequest(parameter.getItem, parameter.leadingArguments, options);
+            std::vector<std::int64_t> leading;
+            if (parameter.scope == ParameterScope::Zone)
+                leading.push_back(zones.zone.value_or(static_cast<int>(ALL_ZONES)));
+            leading.insert(leading.end(), parameter.leadingArguments.begin(), parameter.leadingArguments.end());
+            return leading;
         }
 
-        akm::CommandRequest setRequest(const ParameterDefinition& parameter, std::int64_t value)
+        // A Get that answers several records (one per keygroup while "all keygroups" is selected, one per zone for zone 0)
+        // can only be delimited by a session that knows its checksum mode (DEC-AKM-014, RQ-AKM-031, RQ-AKM-036).
+        akm::CommandRequest getRequest(const ParameterDefinition& parameter, ZoneSelection zones, bool answersSeveralRecords)
         {
-            std::vector<std::int64_t> values = parameter.leadingArguments;
+            akm::CommandOptions options;
+            if (answersSeveralRecords)
+                options.expectedReply = akm::ExpectedReply::NeedsKnownChecksumMode;
+            return akm::makeRequest(parameter.getItem, leadingArguments(parameter, zones), options);
+        }
+
+        akm::CommandRequest setRequest(const ParameterDefinition& parameter, std::int64_t value, ZoneSelection zones)
+        {
+            std::vector<std::int64_t> values = leadingArguments(parameter, zones);
             const std::vector<std::int64_t> wire = toItemValues(parameter, value);
             values.insert(values.end(), wire.begin(), wire.end());
             return akm::makeRequest(parameter.setItem, values);
@@ -429,13 +503,449 @@ namespace mcp
         }
     }
 
+    Outcome<std::string> SamplerGateway::startSampleAudition()
+    {
+        const auto listing = listSamples();
+        if (!listing.ok())
+            return Outcome<std::string>::failure(listing.problem);
+        if (!listing.value->current)
+            return Outcome<std::string>::failure("No sample is current: use select_sample first.");
+        const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
+        const auto started = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::startSampleAudition(_connection->session, std::move(done));
+        });
+        if (!started)
+            return Outcome<std::string>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*started))
+            return Outcome<std::string>::failure(explain(*started, "starting the audition of the sample \"" + name + "\"", _config, true, "sample"));
+        return Outcome<std::string>::success(name);
+    }
+
+    Outcome<bool> SamplerGateway::stopSampleAudition()
+    {
+        if (const auto problem = connect())
+            return Outcome<bool>::failure(*problem);
+        const auto stopped = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::stopSampleAudition(_connection->session, std::move(done));
+        });
+        if (!stopped)
+            return Outcome<bool>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*stopped))
+            return Outcome<bool>::failure(explain(*stopped, "stopping the audition of the sample", _config, true, "sample"));
+        return Outcome<bool>::success(true);
+    }
+
+    Outcome<SystemInfo> SamplerGateway::readSystemInfo()
+    {
+        if (const auto problem = connect())
+            return Outcome<SystemInfo>::failure(*problem);
+        SystemInfo info;
+
+        const auto model = await<akm::SamplerModelResult>(waitFor(1), [&](std::function<void(const akm::SamplerModelResult&)> done) {
+            akm::getSamplerModel(_connection->session, std::move(done));
+        });
+        if (!model)
+            return Outcome<SystemInfo>::failure("The sampler session did not complete the command in time.");
+        if (model->model)
+            info.model = *model->model == akm::SamplerModel::S5000 ? "AKAI S5000" : "AKAI S6000";
+        else if (!akm::succeeded(model->outcome))
+            return Outcome<SystemInfo>::failure(explain(model->outcome, "reading the sampler's model", _config, false));
+
+        const auto version = await<akm::OsVersionResult>(waitFor(2), [&](std::function<void(const akm::OsVersionResult&)> done) {
+            akm::queryOsVersion(_connection->session, std::move(done));
+        });
+        if (!version)
+            return Outcome<SystemInfo>::failure("The sampler session did not complete the command in time.");
+        if (version->version)
+            info.osVersion = numberText(version->version->major) + "." + numberText(version->version->minor);
+
+        const auto percentOf = [&](void (*get)(akm::Session&, akm::MemoryPercentCompletion), const char* what) -> Outcome<int> {
+            const auto read = await<akm::MemoryPercentResult>(waitFor(1), [&](std::function<void(const akm::MemoryPercentResult&)> done) {
+                get(_connection->session, std::move(done));
+            });
+            if (!read)
+                return Outcome<int>::failure("The sampler session did not complete the command in time.");
+            if (!read->percent)
+                return Outcome<int>::failure(explain(read->outcome, what, _config, false));
+            return Outcome<int>::success(*read->percent);
+        };
+        const auto bytesOf = [&](void (*get)(akm::Session&, akm::MemoryBytesCompletion), const char* what) -> Outcome<std::uint32_t> {
+            const auto read = await<akm::MemoryBytesResult>(waitFor(1), [&](std::function<void(const akm::MemoryBytesResult&)> done) {
+                get(_connection->session, std::move(done));
+            });
+            if (!read)
+                return Outcome<std::uint32_t>::failure("The sampler session did not complete the command in time.");
+            if (!read->bytes)
+                return Outcome<std::uint32_t>::failure(explain(read->outcome, what, _config, false));
+            return Outcome<std::uint32_t>::success(*read->bytes);
+        };
+
+        const auto freeWavePercent = percentOf(akm::getFreeWaveMemoryPercent, "reading the free wave memory");
+        if (!freeWavePercent.ok())
+            return Outcome<SystemInfo>::failure(freeWavePercent.problem);
+        const auto freeWaveBytes = bytesOf(akm::getFreeWaveMemoryBytes, "reading the free wave memory in bytes");
+        if (!freeWaveBytes.ok())
+            return Outcome<SystemInfo>::failure(freeWaveBytes.problem);
+        const auto totalWaveBytes = bytesOf(akm::getTotalWaveMemoryBytes, "reading the total wave memory");
+        if (!totalWaveBytes.ok())
+            return Outcome<SystemInfo>::failure(totalWaveBytes.problem);
+        const auto freeMpksPercent = percentOf(akm::getFreeMpksMemoryPercent, "reading the free program and sample memory");
+        if (!freeMpksPercent.ok())
+            return Outcome<SystemInfo>::failure(freeMpksPercent.problem);
+        info.freeWavePercent = *freeWavePercent.value;
+        info.freeWaveBytes = *freeWaveBytes.value;
+        info.totalWaveBytes = *totalWaveBytes.value;
+        info.freeMpksPercent = *freeMpksPercent.value;
+        return Outcome<SystemInfo>::success(std::move(info));
+    }
+
+    // The sampler's own settings (section 02). [RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
+    namespace
+    {
+        constexpr const char* SESSION_TIMED_OUT = "The sampler session did not complete the command in time.";
+
+        SamplerPlayMode playModeOf(akm::PlayMode mode)
+        {
+            switch (mode)
+            {
+                case akm::PlayMode::Multi:
+                    return SamplerPlayMode::Multi;
+                case akm::PlayMode::Program:
+                    return SamplerPlayMode::Program;
+                case akm::PlayMode::Sample:
+                    return SamplerPlayMode::Sample;
+                case akm::PlayMode::Muted:
+                    break;
+            }
+            return SamplerPlayMode::Muted;
+        }
+
+        akm::PlayMode playModeOf(SamplerPlayMode mode)
+        {
+            switch (mode)
+            {
+                case SamplerPlayMode::Multi:
+                    return akm::PlayMode::Multi;
+                case SamplerPlayMode::Program:
+                    return akm::PlayMode::Program;
+                case SamplerPlayMode::Sample:
+                    return akm::PlayMode::Sample;
+                case SamplerPlayMode::Muted:
+                    break;
+            }
+            return akm::PlayMode::Muted;
+        }
+    }
+
+    Outcome<std::string> SamplerGateway::readSamplerName()
+    {
+        const auto read = await<akm::SamplerNameResult>(waitFor(1), [&](std::function<void(const akm::SamplerNameResult&)> done) {
+            akm::getSamplerName(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<std::string>::failure(SESSION_TIMED_OUT);
+        if (!read->name)
+            return Outcome<std::string>::failure(explain(read->outcome, "reading the sampler's name", _config, false));
+        return Outcome<std::string>::success(*read->name);
+    }
+
+    Outcome<SamplerClock> SamplerGateway::readSamplerClock()
+    {
+        const auto read = await<akm::ClockDateResult>(waitFor(1), [&](std::function<void(const akm::ClockDateResult&)> done) {
+            akm::getClockDate(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<SamplerClock>::failure(SESSION_TIMED_OUT);
+        if (!read->clock)
+            return Outcome<SamplerClock>::failure(explain(read->outcome, "reading the sampler's clock", _config, false));
+        const akm::ClockDate& clock = *read->clock;
+        return Outcome<SamplerClock>::success(
+            SamplerClock{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds});
+    }
+
+    Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode()
+    {
+        const auto read = await<akm::PlayModeResult>(waitFor(1), [&](std::function<void(const akm::PlayModeResult&)> done) {
+            akm::getPlayMode(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<SamplerPlayMode>::failure(SESSION_TIMED_OUT);
+        if (!read->mode)
+            return Outcome<SamplerPlayMode>::failure(akm::succeeded(read->outcome)
+                                                          ? std::string("The sampler answered a play mode this server does not know.")
+                                                          : explain(read->outcome, "reading the sampler's play mode", _config, false));
+        return Outcome<SamplerPlayMode>::success(playModeOf(*read->mode));
+    }
+
+    Outcome<SamplerPanel> SamplerGateway::readSamplerPanel()
+    {
+        const auto read = await<akm::FrontPanelLockResult>(waitFor(1), [&](std::function<void(const akm::FrontPanelLockResult&)> done) {
+            akm::getFrontPanelLock(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<SamplerPanel>::failure(SESSION_TIMED_OUT);
+        if (!read->lock)
+            return Outcome<SamplerPanel>::failure(akm::succeeded(read->outcome)
+                                                       ? std::string("The sampler answered a front-panel state this server does not know.")
+                                                       : explain(read->outcome, "reading the front-panel lock", _config, false));
+        return Outcome<SamplerPanel>::success(*read->lock == akm::FrontPanelLock::Locked ? SamplerPanel::Locked : SamplerPanel::Normal);
+    }
+
+    Outcome<SamplerSettings> SamplerGateway::readSamplerSettings()
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerSettings>::failure(*problem);
+        SamplerSettings settings;
+        const auto name = readSamplerName();
+        if (!name.ok())
+            return Outcome<SamplerSettings>::failure(name.problem);
+        const auto clock = readSamplerClock();
+        if (!clock.ok())
+            return Outcome<SamplerSettings>::failure(clock.problem);
+        const auto playMode = readSamplerPlayMode();
+        if (!playMode.ok())
+            return Outcome<SamplerSettings>::failure(playMode.problem);
+        const auto panel = readSamplerPanel();
+        if (!panel.ok())
+            return Outcome<SamplerSettings>::failure(panel.problem);
+        settings.name = *name.value;
+        settings.clock = *clock.value;
+        settings.playMode = *playMode.value;
+        settings.panel = *panel.value;
+        return Outcome<SamplerSettings>::success(std::move(settings));
+    }
+
+    Outcome<std::string> SamplerGateway::setSamplerName(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<std::string>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setSamplerName(_connection->session, name, std::move(done));
+        });
+        if (!set)
+            return Outcome<std::string>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<std::string>::failure(explain(*set, "setting the sampler's name", _config, false));
+        return readSamplerName();
+    }
+
+    Outcome<SamplerClock> SamplerGateway::setSamplerClock(const SamplerClock& clock)
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerClock>::failure(*problem);
+        const akm::ClockDate wanted{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds};
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setClockDate(_connection->session, wanted, std::move(done));
+        });
+        if (!set)
+            return Outcome<SamplerClock>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<SamplerClock>::failure(explain(*set, "setting the sampler's clock", _config, false));
+        return readSamplerClock();
+    }
+
+    Outcome<SamplerPlayMode> SamplerGateway::setSamplerPlayMode(SamplerPlayMode mode)
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerPlayMode>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setPlayMode(_connection->session, playModeOf(mode), std::move(done));
+        });
+        if (!set)
+            return Outcome<SamplerPlayMode>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<SamplerPlayMode>::failure(explain(*set, "setting the sampler's play mode", _config, false));
+        return readSamplerPlayMode();
+    }
+
+    Outcome<SamplerPanel> SamplerGateway::setSamplerPanel(SamplerPanel panel)
+    {
+        if (const auto problem = connect())
+            return Outcome<SamplerPanel>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setFrontPanelLock(_connection->session, panel == SamplerPanel::Locked ? akm::FrontPanelLock::Locked : akm::FrontPanelLock::Normal,
+                                   std::move(done));
+        });
+        if (!set)
+            return Outcome<SamplerPanel>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<SamplerPanel>::failure(explain(*set, "setting the front-panel lock", _config, false));
+        return readSamplerPanel();
+    }
+
+    Outcome<ZoneSamples> SamplerGateway::readZoneSamples(KeygroupSelection selection)
+    {
+        const auto count = keygroupCount();
+        if (!count.ok())
+            return Outcome<ZoneSamples>::failure(count.problem);
+        if (selection.keygroup && (*selection.keygroup < 1 || *selection.keygroup > *count.value))
+            return Outcome<ZoneSamples>::failure("The current program has " + numberText(*count.value) + " keygroup" +
+                                                 (*count.value == 1 ? "" : "s") + "; keygroup " + numberText(*selection.keygroup) +
+                                                 " does not exist.");
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<ZoneSamples>::failure(program.problem);
+
+        ZoneSamples result;
+        result.program = *program.value;
+        const int first = selection.keygroup.value_or(1);
+        const int last = selection.keygroup.value_or(*count.value);
+        for (int keygroup = first; keygroup <= last; ++keygroup)
+        {
+            const auto selected = runSequence({selectKeygroupRequest(keygroup)}, {"selecting keygroup " + numberText(keygroup)}, true);
+            if (!selected.ok())
+                return Outcome<ZoneSamples>::failure(selected.problem);
+            for (int zone = 1; zone <= ZONES_PER_KEYGROUP; ++zone)
+            {
+                const auto read = await<akm::ZoneSampleResult>(waitFor(1), [&](std::function<void(const akm::ZoneSampleResult&)> done) {
+                    akm::getZoneSample(_connection->session, zone, std::move(done));
+                });
+                if (!read)
+                    return Outcome<ZoneSamples>::failure("The sampler session did not complete the command in time.");
+                if (!read->name)
+                    return Outcome<ZoneSamples>::failure(explain(read->outcome, "reading the sample of zone " + numberText(zone) +
+                                                                                    " of keygroup " + numberText(keygroup),
+                                                                 _config, true));
+                result.entries.push_back(ZoneSampleEntry{keygroup, zone, *read->name});
+            }
+        }
+        return Outcome<ZoneSamples>::success(std::move(result));
+    }
+
+    Outcome<ZoneSamples> SamplerGateway::assignZoneSample(int keygroup, int zone, std::string_view sample)
+    {
+        if (zone < 1 || zone > ZONES_PER_KEYGROUP)
+            return Outcome<ZoneSamples>::failure("Zone " + numberText(zone) + " does not exist: a keygroup has zones 1 to " +
+                                                 numberText(ZONES_PER_KEYGROUP) + ".");
+        const auto count = keygroupCount();
+        if (!count.ok())
+            return Outcome<ZoneSamples>::failure(count.problem);
+        if (keygroup < 1 || keygroup > *count.value)
+            return Outcome<ZoneSamples>::failure("The current program has " + numberText(*count.value) + " keygroup" +
+                                                 (*count.value == 1 ? "" : "s") + "; keygroup " + numberText(keygroup) +
+                                                 " does not exist.");
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<ZoneSamples>::failure(program.problem);
+
+        const auto samples = listSamples();
+        if (!samples.ok())
+            return Outcome<ZoneSamples>::failure(samples.problem);
+        const std::string wanted = normalizeText(sample);
+        const auto found = std::find_if(samples.value->samples.begin(), samples.value->samples.end(),
+                                        [&wanted](const SampleEntry& entry) { return normalizeText(entry.name) == wanted; });
+        if (found == samples.value->samples.end())
+        {
+            std::string text = "No sample is named \"" + std::string(sample) + "\" in the sampler's memory.";
+            if (samples.value->samples.empty())
+                return Outcome<ZoneSamples>::failure(text + " The memory holds none: load one first.");
+            text += " It holds: ";
+            for (std::size_t i = 0; i < samples.value->samples.size(); ++i)
+                text += (i == 0 ? "" : ", ") + std::string("\"") + samples.value->samples[i].name + "\"";
+            return Outcome<ZoneSamples>::failure(text + ".");
+        }
+        const std::string listed = found->name;
+
+        const auto selected = runSequence({selectKeygroupRequest(keygroup)}, {"selecting keygroup " + numberText(keygroup)}, true);
+        if (!selected.ok())
+            return Outcome<ZoneSamples>::failure(selected.problem);
+        const auto assigned = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setZoneSample(_connection->session, zone, listed, std::move(done));
+        });
+        if (!assigned)
+            return Outcome<ZoneSamples>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*assigned))
+            return Outcome<ZoneSamples>::failure(explain(*assigned, "assigning the sample \"" + listed + "\" to zone " + numberText(zone) +
+                                                                        " of keygroup " + numberText(keygroup),
+                                                         _config, true));
+        const auto read = await<akm::ZoneSampleResult>(waitFor(1), [&](std::function<void(const akm::ZoneSampleResult&)> done) {
+            akm::getZoneSample(_connection->session, zone, std::move(done));
+        });
+        if (!read)
+            return Outcome<ZoneSamples>::failure("The sampler session did not complete the command in time.");
+        if (!read->name)
+            return Outcome<ZoneSamples>::failure(explain(read->outcome, "reading back the sample of zone " + numberText(zone), _config, true));
+        if (*read->name != listed)
+            return Outcome<ZoneSamples>::failure("The sampler accepted the assignment but reports that zone " + numberText(zone) + " of keygroup " +
+                                                 numberText(keygroup) + " plays " +
+                                                 (read->name->empty() ? std::string("no sample") : "\"" + *read->name + "\"") + ", not \"" + listed +
+                                                 "\".");
+        ZoneSamples result;
+        result.program = *program.value;
+        result.entries.push_back(ZoneSampleEntry{keygroup, zone, *read->name});
+        return Outcome<ZoneSamples>::success(std::move(result));
+    }
+
+    Outcome<KeygroupChange> SamplerGateway::addKeygroups(int count)
+    {
+        const auto before = keygroupCount();
+        if (!before.ok())
+            return Outcome<KeygroupChange>::failure(before.problem);
+        if (count < MIN_KEYGROUPS_ADDED || *before.value + count > MAX_KEYGROUPS_IN_PROGRAM)
+            return Outcome<KeygroupChange>::failure("A program has at most " + numberText(MAX_KEYGROUPS_IN_PROGRAM) + " keygroups and the current one has " +
+                                                    numberText(*before.value) + ": " + numberText(MAX_KEYGROUPS_IN_PROGRAM - *before.value) +
+                                                    " can still be added, not " + numberText(count) + ".");
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<KeygroupChange>::failure(program.problem);
+
+        const auto added = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::addKeygroupsToProgram(_connection->session, count, std::move(done));
+        });
+        if (!added)
+            return Outcome<KeygroupChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*added))
+            return Outcome<KeygroupChange>::failure(explain(*added, "adding " + numberText(count) + " keygroups to the program \"" + *program.value + "\"", _config, true));
+
+        const auto after = keygroupCount();
+        if (!after.ok())
+            return Outcome<KeygroupChange>::failure(after.problem);
+        return Outcome<KeygroupChange>::success(KeygroupChange{true, *program.value, *after.value});
+    }
+
+    Outcome<KeygroupChange> SamplerGateway::deleteKeygroup(int keygroup, std::string_view confirm)
+    {
+        const auto count = keygroupCount();
+        if (!count.ok())
+            return Outcome<KeygroupChange>::failure(count.problem);
+        const auto program = currentProgramName();
+        if (!program.ok())
+            return Outcome<KeygroupChange>::failure(program.problem);
+        if (keygroup < 1 || keygroup > *count.value)
+            return Outcome<KeygroupChange>::failure("The current program \"" + *program.value + "\" has " + numberText(*count.value) + " keygroup" +
+                                                    (*count.value == 1 ? "" : "s") + "; keygroup " + numberText(keygroup) + " does not exist.");
+        if (*count.value == 1)
+            return Outcome<KeygroupChange>::failure("Keygroup 1 is the last keygroup of the program \"" + *program.value +
+                                                    "\": a program keeps at least one, so nothing was deleted. Delete the program (delete_program) instead.");
+        if (*program.value != confirm)
+            return Outcome<KeygroupChange>::success(KeygroupChange{false, *program.value, *count.value});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteKeygroupFromProgram(_connection->session, keygroup - 1, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<KeygroupChange>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<KeygroupChange>::failure(explain(*deleted, "deleting keygroup " + numberText(keygroup) + " of the program \"" + *program.value + "\"", _config, true));
+
+        const auto after = keygroupCount();
+        if (!after.ok())
+            return Outcome<KeygroupChange>::failure(after.problem);
+        return Outcome<KeygroupChange>::success(KeygroupChange{true, *program.value, *after.value});
+    }
+
     Outcome<std::vector<ParameterValue>> SamplerGateway::editParameter(const ParameterDefinition& parameter,
                                                                        std::optional<std::int64_t> valueToSet,
-                                                                       KeygroupSelection selection)
+                                                                       KeygroupSelection selection, ZoneSelection zones)
     {
         using Values = std::vector<ParameterValue>;
-        const bool onKeygroups = parameter.scope == ParameterScope::Keygroup;
+        const bool onZones = parameter.scope == ParameterScope::Zone;
+        const bool onKeygroups = parameter.scope == ParameterScope::Keygroup || onZones;
         int keygroups = 0;
+
+        if (onZones && zones.zone && (*zones.zone < 1 || *zones.zone > ZONES_PER_KEYGROUP))
+            return Outcome<Values>::failure("Zone " + numberText(*zones.zone) + " does not exist: a keygroup has zones 1 to " +
+                                            numberText(ZONES_PER_KEYGROUP) + " (or all of them).");
 
         if (onKeygroups)
         {
@@ -459,11 +969,15 @@ namespace mcp
         }
         if (valueToSet)
         {
-            requests.push_back(setRequest(parameter, *valueToSet));
+            requests.push_back(setRequest(parameter, *valueToSet, zones));
             steps.push_back("setting " + parameter.name);
         }
-        const bool repeated = onKeygroups && !selection.keygroup.has_value();
-        requests.push_back(getRequest(parameter, repeated));
+        // How many records the Get answers: one per keygroup while "all keygroups" is selected, times one per zone for
+        // zone 0 (keygroup-major, zone-minor, RQ-MCP-019).
+        const int keygroupRecords = onKeygroups && !selection.keygroup ? keygroups : 1;
+        const int zoneRecords = onZones && !zones.zone ? ZONES_PER_KEYGROUP : 1;
+        const int records = keygroupRecords * zoneRecords;
+        requests.push_back(getRequest(parameter, zones, records > 1));
         steps.push_back("reading " + parameter.name);
 
         const auto replies = runSequence(std::move(requests), steps, true);
@@ -472,17 +986,23 @@ namespace mcp
 
         Values values;
         const std::vector<std::uint8_t>& answer = replies.value->back();
-        if (repeated)
+        if (records > 1)
         {
             const auto sets = akm::decodeRepeatedReply(parameter.getItem, answer);
-            if (!sets || static_cast<int>(sets->size()) != keygroups)
+            if (!sets || static_cast<int>(sets->size()) != records)
                 return Outcome<Values>::failure(unreadable(parameter));
             for (std::size_t i = 0; i < sets->size(); ++i)
             {
                 const auto value = fromItemValues(parameter, (*sets)[i]);
                 if (!value)
                     return Outcome<Values>::failure(unreadable(parameter));
-                values.push_back(ParameterValue{static_cast<int>(i) + 1, *value});
+                ParameterValue read;
+                read.value = *value;
+                if (onKeygroups)
+                    read.keygroup = selection.keygroup ? selection.keygroup : std::optional<int>(static_cast<int>(i) / zoneRecords + 1);
+                if (onZones)
+                    read.zone = zones.zone ? zones.zone : std::optional<int>(static_cast<int>(i) % zoneRecords + 1);
+                values.push_back(read);
             }
         }
         else
@@ -491,7 +1011,13 @@ namespace mcp
             const auto value = set ? fromItemValues(parameter, *set) : std::nullopt;
             if (!value)
                 return Outcome<Values>::failure(unreadable(parameter));
-            values.push_back(ParameterValue{onKeygroups ? selection.keygroup : std::nullopt, *value});
+            ParameterValue read;
+            read.value = *value;
+            if (onKeygroups)
+                read.keygroup = selection.keygroup;
+            if (onZones)
+                read.zone = zones.zone;
+            values.push_back(read);
         }
 
         if (valueToSet)
@@ -502,21 +1028,652 @@ namespace mcp
                     return Outcome<Values>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
                                                     describeValue(parameter, *valueToSet) + " but reads " +
                                                     describeValue(parameter, read.value) +
-                                                    (read.keygroup ? " for keygroup " + numberText(*read.keygroup) : "") + ".");
+                                                    (read.keygroup ? " for keygroup " + numberText(*read.keygroup) : "") +
+                                                    (read.zone ? " zone " + numberText(*read.zone) : "") + ".");
             }
         }
         return Outcome<Values>::success(std::move(values));
     }
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::readParameter(const ParameterDefinition& parameter,
-                                                                       KeygroupSelection selection)
+                                                                       KeygroupSelection selection, ZoneSelection zones)
     {
-        return editParameter(parameter, std::nullopt, selection);
+        return editParameter(parameter, std::nullopt, selection, zones);
     }
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::writeParameter(const ParameterDefinition& parameter, std::int64_t value,
-                                                                        KeygroupSelection selection)
+                                                                        KeygroupSelection selection, ZoneSelection zones)
     {
-        return editParameter(parameter, value, selection);
+        return editParameter(parameter, value, selection, zones);
+    }
+
+    // ---- Samples (section 0E): the sampler's own "current sample", like the current program. [RQ-MCP-020] ----
+
+    Outcome<SampleEntry> SamplerGateway::currentSampleEntry()
+    {
+        const auto index = await<akm::SampleIndexResult>(waitFor(1), [&](std::function<void(const akm::SampleIndexResult&)> done) {
+            akm::getCurrentSampleIndex(_connection->session, std::move(done));
+        });
+        if (!index)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        if (!index->index)
+            return Outcome<SampleEntry>::failure(explain(index->outcome, "reading the position of the current sample", _config, true, "sample"));
+        const auto name = await<akm::SampleNameResult>(waitFor(1), [&](std::function<void(const akm::SampleNameResult&)> done) {
+            akm::getCurrentSampleName(_connection->session, std::move(done));
+        });
+        if (!name)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        if (!name->name)
+            return Outcome<SampleEntry>::failure(explain(name->outcome, "reading the name of the current sample", _config, true, "sample"));
+        return Outcome<SampleEntry>::success(SampleEntry{*index->index, *name->name});
+    }
+
+    Outcome<SampleListing> SamplerGateway::listSamples()
+    {
+        if (const auto problem = connect())
+            return Outcome<SampleListing>::failure(*problem);
+
+        // The count first: with no sample in memory the Get of all the names answers ERROR 3 (seen on a real S5000, not an empty
+        // list), so it is only asked when there is one to name. [OBSERVATIONS-RQ-MCP-012-real-sampler.md]
+        const auto count = await<akm::SampleCountResult>(waitFor(1), [&](std::function<void(const akm::SampleCountResult&)> done) {
+            akm::getSampleCount(_connection->session, std::move(done));
+        });
+        if (!count)
+            return Outcome<SampleListing>::failure("The sampler session did not complete the command in time.");
+        if (!count->count)
+            return Outcome<SampleListing>::failure(explain(count->outcome, "counting the samples", _config, false));
+        SampleListing listing;
+        if (*count->count == 0)
+            return Outcome<SampleListing>::success(std::move(listing));
+
+        const auto names = await<akm::AllSampleNamesResult>(waitFor(1), [&](std::function<void(const akm::AllSampleNamesResult&)> done) {
+            akm::getAllSampleNames(_connection->session, std::move(done));
+        });
+        if (!names)
+            return Outcome<SampleListing>::failure("The sampler session did not complete the command in time.");
+        if (!names->names)
+            return Outcome<SampleListing>::failure(explain(names->outcome, "reading the sample names", _config, false));
+        for (std::size_t i = 0; i < names->names->size(); ++i)
+            listing.samples.push_back(SampleEntry{static_cast<int>(i), (*names->names)[i]});
+        if (listing.samples.empty())
+            return Outcome<SampleListing>::success(std::move(listing));
+
+        const auto index = await<akm::SampleIndexResult>(waitFor(1), [&](std::function<void(const akm::SampleIndexResult&)> done) {
+            akm::getCurrentSampleIndex(_connection->session, std::move(done));
+        });
+        if (!index)
+            return Outcome<SampleListing>::failure("The sampler session did not complete the command in time.");
+        if (index->index)
+            listing.current = *index->index;
+        else
+        {
+            const auto* error = std::get_if<akm::Error>(&index->outcome);
+            if (error == nullptr || error->number != akm::error_number::NOT_FOUND)
+                return Outcome<SampleListing>::failure(explain(index->outcome, "reading the current sample", _config, false));
+        }
+        return Outcome<SampleListing>::success(std::move(listing));
+    }
+
+    Outcome<RenamedItem> SamplerGateway::renameCurrentSample(std::string_view name)
+    {
+        const auto listing = listSamples();
+        if (!listing.ok())
+            return Outcome<RenamedItem>::failure(listing.problem);
+        if (!listing.value->current)
+            return Outcome<RenamedItem>::failure("No sample is current: use select_sample first.");
+        const std::size_t current = static_cast<std::size_t>(*listing.value->current);
+        const std::string before = listing.value->samples[current].name;
+        const std::string wanted = normalizeText(name);
+        for (std::size_t i = 0; i < listing.value->samples.size(); ++i)
+        {
+            if (i != current && normalizeText(listing.value->samples[i].name) == wanted)
+                return Outcome<RenamedItem>::failure("The sampler already holds a sample named \"" + listing.value->samples[i].name +
+                                                      "\": nothing was renamed. Choose another name.");
+        }
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameCurrentSample(_connection->session, name, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<RenamedItem>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<RenamedItem>::failure(explain(*renamed, "renaming the sample \"" + before + "\"", _config, true, "sample"));
+
+        const auto after = listSamples();
+        if (!after.ok())
+            return Outcome<RenamedItem>::failure(after.problem);
+        if (!after.value->current)
+            return Outcome<RenamedItem>::failure("The sampler accepted the new name but no sample is current afterwards.");
+        return Outcome<RenamedItem>::success(RenamedItem{before, after.value->samples[static_cast<std::size_t>(*after.value->current)].name});
+    }
+
+    Outcome<DeletedItem> SamplerGateway::deleteCurrentSample(std::string_view confirm)
+    {
+        const auto listing = listSamples();
+        if (!listing.ok())
+            return Outcome<DeletedItem>::failure(listing.problem);
+        if (!listing.value->current)
+            return Outcome<DeletedItem>::failure("No sample is current: use select_sample first.");
+        const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
+        if (name != confirm)
+            return Outcome<DeletedItem>::success(DeletedItem{false, name, static_cast<int>(listing.value->samples.size())});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteCurrentSample(_connection->session, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<DeletedItem>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<DeletedItem>::failure(explain(*deleted, "deleting the sample \"" + name + "\"", _config, true, "sample"));
+
+        const auto after = listSamples();
+        if (!after.ok())
+            return Outcome<DeletedItem>::failure(after.problem);
+        return Outcome<DeletedItem>::success(DeletedItem{true, name, static_cast<int>(after.value->samples.size())});
+    }
+
+    Outcome<SampleEntry> SamplerGateway::selectSampleByName(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<SampleEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectSampleByName(_connection->session, name, std::move(done));
+        });
+        if (!selected)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<SampleEntry>::failure("No sample is named \"" + std::string(name) + "\". Use list_samples to see the names.");
+        if (!akm::succeeded(*selected))
+            return Outcome<SampleEntry>::failure(explain(*selected, "selecting the sample \"" + std::string(name) + "\"", _config, false));
+        return currentSampleEntry();
+    }
+
+    Outcome<SampleEntry> SamplerGateway::selectSampleByIndex(int index)
+    {
+        if (const auto problem = connect())
+            return Outcome<SampleEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectSampleByIndex(_connection->session, index, std::move(done));
+        });
+        if (!selected)
+            return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<SampleEntry>::failure("No sample is at index " + numberText(index) + ". Use list_samples to see the positions.");
+        if (!akm::succeeded(*selected))
+            return Outcome<SampleEntry>::failure(explain(*selected, "selecting the sample at index " + numberText(index), _config, false));
+        return currentSampleEntry();
+    }
+
+    Outcome<std::int64_t> SamplerGateway::readSampleParameter(const ParameterDefinition& parameter)
+    {
+        const auto replies = runSequence({getRequest(parameter, ZoneSelection::all(), false)}, {"reading " + parameter.name}, true, "sample");
+        if (!replies.ok())
+            return Outcome<std::int64_t>::failure(replies.problem);
+        const auto set = akm::decodeReply(parameter.getItem, replies.value->front());
+        const auto value = set ? fromItemValues(parameter, *set) : std::nullopt;
+        if (!value)
+            return Outcome<std::int64_t>::failure("The sampler's answer for " + parameter.name + " could not be read.");
+        return Outcome<std::int64_t>::success(*value);
+    }
+
+    Outcome<std::int64_t> SamplerGateway::writeSampleParameter(const ParameterDefinition& parameter, std::int64_t value)
+    {
+        if (parameter.readOnly)
+            return Outcome<std::int64_t>::failure(parameter.name + " is read-only: the sampler reports it and it cannot be set.");
+        const auto replies = runSequence({setRequest(parameter, value, ZoneSelection::all()), getRequest(parameter, ZoneSelection::all(), false)},
+                                         {"setting " + parameter.name, "reading " + parameter.name}, true, "sample");
+        if (!replies.ok())
+            return Outcome<std::int64_t>::failure(replies.problem);
+        const auto set = akm::decodeReply(parameter.getItem, replies.value->back());
+        const auto read = set ? fromItemValues(parameter, *set) : std::nullopt;
+        if (!read)
+            return Outcome<std::int64_t>::failure("The sampler's answer for " + parameter.name + " could not be read.");
+        if (*read != value)
+            return Outcome<std::int64_t>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
+                                                  describeValue(parameter, value) + " but reads " + describeValue(parameter, *read) + ".");
+        return Outcome<std::int64_t>::success(*read);
+    }
+
+    // ---- Multis (section 0C): the sampler's own "current multi", and the parts of it. [RQ-MCP-021] ----
+
+    Outcome<MultiEntry> SamplerGateway::currentMultiEntry()
+    {
+        // The tools that act on the current multi may be the first call of a session. [RQ-MCP-037, RQ-MCP-038]
+        if (const auto problem = connect())
+            return Outcome<MultiEntry>::failure(*problem);
+        const auto index = await<akm::MultiIndexResult>(waitFor(1), [&](std::function<void(const akm::MultiIndexResult&)> done) {
+            akm::getCurrentMultiIndex(_connection->session, std::move(done));
+        });
+        if (!index)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        if (!index->index)
+            return Outcome<MultiEntry>::failure(explain(index->outcome, "reading the position of the current multi", _config, true, "multi"));
+        const auto name = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getCurrentMultiName(_connection->session, std::move(done));
+        });
+        if (!name)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        if (!name->name)
+            return Outcome<MultiEntry>::failure(explain(name->outcome, "reading the name of the current multi", _config, true, "multi"));
+        const auto parts = await<akm::MultiPartCountResult>(waitFor(1), [&](std::function<void(const akm::MultiPartCountResult&)> done) {
+            akm::getCurrentMultiPartCount(_connection->session, std::move(done));
+        });
+        if (!parts)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        if (!parts->partCount)
+            return Outcome<MultiEntry>::failure(explain(parts->outcome, "counting the parts of the current multi", _config, true, "multi"));
+        return Outcome<MultiEntry>::success(MultiEntry{*index->index, *name->name, *parts->partCount});
+    }
+
+    Outcome<MultiListing> SamplerGateway::listMultis()
+    {
+        if (const auto problem = connect())
+            return Outcome<MultiListing>::failure(*problem);
+
+        // The count first, as for the samples: an empty memory is then "no multi", whatever the Get of the names answers.
+        const auto count = await<akm::MultiCountResult>(waitFor(1), [&](std::function<void(const akm::MultiCountResult&)> done) {
+            akm::getMultiCount(_connection->session, std::move(done));
+        });
+        if (!count)
+            return Outcome<MultiListing>::failure("The sampler session did not complete the command in time.");
+        if (!count->count)
+            return Outcome<MultiListing>::failure(explain(count->outcome, "counting the multis", _config, false));
+        MultiListing listing;
+        if (*count->count == 0)
+            return Outcome<MultiListing>::success(std::move(listing));
+
+        const auto names = await<akm::MultiNameListResult>(waitFor(1), [&](std::function<void(const akm::MultiNameListResult&)> done) {
+            akm::getAllMultiNames(_connection->session, std::move(done));
+        });
+        if (!names)
+            return Outcome<MultiListing>::failure("The sampler session did not complete the command in time.");
+        if (!names->names)
+            return Outcome<MultiListing>::failure(explain(names->outcome, "reading the multi names", _config, false));
+        for (std::size_t i = 0; i < names->names->size(); ++i)
+            listing.multis.push_back(MultiEntry{static_cast<int>(i), (*names->names)[i], 0});
+        if (listing.multis.empty())
+            return Outcome<MultiListing>::success(std::move(listing));
+
+        const auto current = currentMultiEntry();
+        if (current.ok())
+        {
+            listing.current = current.value->index;
+            listing.currentPartCount = current.value->partCount;
+        }
+        return Outcome<MultiListing>::success(std::move(listing));
+    }
+
+    Outcome<MultiCreation> SamplerGateway::createMulti(std::string_view name)
+    {
+        const auto listing = listMultis();
+        if (!listing.ok())
+            return Outcome<MultiCreation>::failure(listing.problem);
+        const std::string wanted = normalizeText(name);
+        for (const MultiEntry& multi : listing.value->multis)
+        {
+            if (normalizeText(multi.name) == wanted)
+                return Outcome<MultiCreation>::failure("The sampler already holds a multi named \"" + multi.name + "\": nothing was created. Choose another name.");
+        }
+
+        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::createMulti(_connection->session, name, std::move(done));
+        });
+        if (!created)
+            return Outcome<MultiCreation>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*created))
+            return Outcome<MultiCreation>::failure(explain(*created, "creating the multi \"" + std::string(name) + "\"", _config, false));
+
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<MultiCreation>::failure(current.problem);
+        const auto after = listMultis();
+        if (!after.ok())
+            return Outcome<MultiCreation>::failure(after.problem);
+        return Outcome<MultiCreation>::success(MultiCreation{current.value->name, current.value->partCount, static_cast<int>(after.value->multis.size())});
+    }
+
+    Outcome<RenamedItem> SamplerGateway::renameCurrentMulti(std::string_view name)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<RenamedItem>::failure(current.problem);
+        const auto listing = listMultis();
+        if (!listing.ok())
+            return Outcome<RenamedItem>::failure(listing.problem);
+        const std::string wanted = normalizeText(name);
+        for (const MultiEntry& multi : listing.value->multis)
+        {
+            if (multi.index != current.value->index && normalizeText(multi.name) == wanted)
+                return Outcome<RenamedItem>::failure("The sampler already holds a multi named \"" + multi.name + "\": nothing was renamed. Choose another name.");
+        }
+
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::renameCurrentMulti(_connection->session, name, std::move(done));
+        });
+        if (!renamed)
+            return Outcome<RenamedItem>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*renamed))
+            return Outcome<RenamedItem>::failure(explain(*renamed, "renaming the multi \"" + current.value->name + "\"", _config, true, "multi"));
+
+        const auto after = currentMultiEntry();
+        if (!after.ok())
+            return Outcome<RenamedItem>::failure(after.problem);
+        return Outcome<RenamedItem>::success(RenamedItem{current.value->name, after.value->name});
+    }
+
+    Outcome<DeletedItem> SamplerGateway::deleteCurrentMulti(std::string_view confirm)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<DeletedItem>::failure(current.problem);
+        if (current.value->name != confirm)
+            return Outcome<DeletedItem>::success(DeletedItem{false, current.value->name, 0});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteCurrentMulti(_connection->session, std::move(done));
+        });
+        if (!deleted)
+            return Outcome<DeletedItem>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<DeletedItem>::failure(explain(*deleted, "deleting the multi \"" + current.value->name + "\"", _config, true, "multi"));
+
+        const auto after = listMultis();
+        if (!after.ok())
+            return Outcome<DeletedItem>::failure(after.problem);
+        return Outcome<DeletedItem>::success(DeletedItem{true, current.value->name, static_cast<int>(after.value->multis.size())});
+    }
+
+    Outcome<PartPrograms> SamplerGateway::readPartPrograms()
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<PartPrograms>::failure(current.problem);
+        const auto names = await<akm::MultiNameListResult>(waitFor(1), [&](std::function<void(const akm::MultiNameListResult&)> done) {
+            akm::getAllMultiPartNames(_connection->session, std::move(done));
+        });
+        if (!names)
+            return Outcome<PartPrograms>::failure("The sampler session did not complete the command in time.");
+        if (!names->names)
+            return Outcome<PartPrograms>::failure(explain(names->outcome, "reading what the parts of the multi play", _config, true, "multi"));
+        PartPrograms result;
+        result.multi = current.value->name;
+        result.partCount = static_cast<int>(names->names->size());
+        for (std::size_t i = 0; i < names->names->size(); ++i)
+        {
+            if (!(*names->names)[i].empty())
+                result.assigned.push_back(PartProgram{static_cast<int>(i) + 1, (*names->names)[i]});
+        }
+        return Outcome<PartPrograms>::success(std::move(result));
+    }
+
+    namespace
+    {
+        // The message of a part that the current multi does not have. [RQ-MCP-038]
+        std::string noSuchPart(const MultiEntry& multi, int part)
+        {
+            return "The multi \"" + multi.name + "\" has " + numberText(multi.partCount) + " parts, numbered 1 to " + numberText(multi.partCount) +
+                   "; part " + numberText(part) + " does not exist.";
+        }
+    }
+
+    Outcome<PartAssignment> SamplerGateway::assignPartProgram(int part, const ProgramReference& program)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<PartAssignment>::failure(current.problem);
+        if (part < 1 || part > current.value->partCount)
+            return Outcome<PartAssignment>::failure(noSuchPart(*current.value, part));
+
+        const auto programs = listPrograms();
+        if (!programs.ok())
+            return Outcome<PartAssignment>::failure(programs.problem);
+        std::string listed;
+        int position = 0;
+        if (program.name)
+        {
+            const std::string wanted = normalizeText(*program.name);
+            const auto found = std::find_if(programs.value->begin(), programs.value->end(),
+                                            [&wanted](const ProgramEntry& entry) { return normalizeText(entry.name) == wanted; });
+            if (found == programs.value->end())
+            {
+                std::string text = "No program is named \"" + *program.name + "\" in the sampler's memory.";
+                if (programs.value->empty())
+                    return Outcome<PartAssignment>::failure(text + " The memory holds none.");
+                text += " It holds: ";
+                for (std::size_t i = 0; i < programs.value->size(); ++i)
+                    text += (i == 0 ? "" : ", ") + std::string("\"") + (*programs.value)[i].name + "\"";
+                return Outcome<PartAssignment>::failure(text + ".");
+            }
+            listed = found->name;
+        }
+        else
+        {
+            position = program.position.value_or(-1);
+            if (position < 0 || position >= static_cast<int>(programs.value->size()))
+                return Outcome<PartAssignment>::failure("There is no program at position " + numberText(position) + ": the sampler holds " +
+                                                     numberText(programs.value->size()) + " (positions 0 to " +
+                                                     numberText(static_cast<int>(programs.value->size()) - 1) + "; see list_programs).");
+            listed = (*programs.value)[static_cast<std::size_t>(position)].name;
+        }
+
+        const int wirePart = part - 1;
+        const auto assigned = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            if (program.name)
+                akm::setMultiPartByName(_connection->session, wirePart, listed, std::move(done));
+            else
+                akm::setMultiPartByIndex(_connection->session, wirePart, position, std::move(done));
+        });
+        if (!assigned)
+            return Outcome<PartAssignment>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*assigned))
+            return Outcome<PartAssignment>::failure(explain(*assigned, "assigning the program \"" + listed + "\" to part " + numberText(part), _config, true, "multi"));
+
+        const auto read = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getMultiPartName(_connection->session, wirePart, std::move(done));
+        });
+        if (!read)
+            return Outcome<PartAssignment>::failure("The sampler session did not complete the command in time.");
+        if (!read->name)
+            return Outcome<PartAssignment>::failure(explain(read->outcome, "reading back part " + numberText(part), _config, true, "multi"));
+        if (*read->name != listed)
+            return Outcome<PartAssignment>::failure("The sampler accepted the assignment but reports that part " + numberText(part) + " plays " +
+                                                 (read->name->empty() ? std::string("no program") : "\"" + *read->name + "\"") + ", not \"" + listed + "\".");
+        return Outcome<PartAssignment>::success(PartAssignment{current.value->name, part, listed});
+    }
+
+    Outcome<PartClearing> SamplerGateway::clearPart(int part, std::string_view confirm)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<PartClearing>::failure(current.problem);
+        if (part < 1 || part > current.value->partCount)
+            return Outcome<PartClearing>::failure(noSuchPart(*current.value, part));
+        if (current.value->name != confirm)
+            return Outcome<PartClearing>::success(PartClearing{false, current.value->name, part, ""});
+
+        const int wirePart = part - 1;
+        const auto before = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getMultiPartName(_connection->session, wirePart, std::move(done));
+        });
+        if (!before)
+            return Outcome<PartClearing>::failure("The sampler session did not complete the command in time.");
+        if (!before->name)
+            return Outcome<PartClearing>::failure(explain(before->outcome, "reading part " + numberText(part), _config, true, "multi"));
+        if (before->name->empty())
+            return Outcome<PartClearing>::failure("Part " + numberText(part) + " of the multi \"" + current.value->name +
+                                                  "\" plays no program: nothing to clear.");
+
+        const auto cleared = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::deleteMultiPart(_connection->session, wirePart, std::move(done));
+        });
+        if (!cleared)
+            return Outcome<PartClearing>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*cleared))
+            return Outcome<PartClearing>::failure(explain(*cleared, "clearing part " + numberText(part), _config, true, "multi"));
+
+        const auto after = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+            akm::getMultiPartName(_connection->session, wirePart, std::move(done));
+        });
+        if (!after)
+            return Outcome<PartClearing>::failure("The sampler session did not complete the command in time.");
+        if (!after->name)
+            return Outcome<PartClearing>::failure(explain(after->outcome, "reading back part " + numberText(part), _config, true, "multi"));
+        if (!after->name->empty())
+            return Outcome<PartClearing>::failure("The sampler accepted the removal but reports that part " + numberText(part) + " still plays \"" +
+                                                  *after->name + "\".");
+        return Outcome<PartClearing>::success(PartClearing{true, current.value->name, part, *before->name});
+    }
+
+    Outcome<MultiProgramNumber> SamplerGateway::setMultiProgramNumber(std::optional<int> number)
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<MultiProgramNumber>::failure(current.problem);
+
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::setMultiProgramNumber(_connection->session, number, std::move(done));
+        });
+        if (!set)
+            return Outcome<MultiProgramNumber>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*set))
+            return Outcome<MultiProgramNumber>::failure(explain(*set, "setting the program number of the multi \"" + current.value->name + "\"", _config, true, "multi"));
+
+        const auto read = await<akm::MultiProgramNumberResult>(waitFor(1), [&](std::function<void(const akm::MultiProgramNumberResult&)> done) {
+            akm::getMultiProgramNumber(_connection->session, std::move(done));
+        });
+        if (!read)
+            return Outcome<MultiProgramNumber>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&read->outcome);
+        if (!read->frontPanelNumber && (error != nullptr || !akm::succeeded(read->outcome)))
+            return Outcome<MultiProgramNumber>::failure(explain(read->outcome, "reading back the program number", _config, true, "multi"));
+        if (read->frontPanelNumber != number)
+            return Outcome<MultiProgramNumber>::failure("The sampler accepted the program number but reports " +
+                                                        (read->frontPanelNumber ? numberText(*read->frontPanelNumber) : std::string("none")) + ".");
+        return Outcome<MultiProgramNumber>::success(MultiProgramNumber{current.value->name, read->frontPanelNumber});
+    }
+
+    Outcome<MultiEntry> SamplerGateway::selectMultiByName(std::string_view name)
+    {
+        if (const auto problem = connect())
+            return Outcome<MultiEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectMultiByName(_connection->session, name, std::move(done));
+        });
+        if (!selected)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<MultiEntry>::failure("No multi is named \"" + std::string(name) + "\". Use list_multis to see the names.");
+        if (!akm::succeeded(*selected))
+            return Outcome<MultiEntry>::failure(explain(*selected, "selecting the multi \"" + std::string(name) + "\"", _config, false));
+        return currentMultiEntry();
+    }
+
+    Outcome<MultiEntry> SamplerGateway::selectMultiByIndex(int index)
+    {
+        if (const auto problem = connect())
+            return Outcome<MultiEntry>::failure(*problem);
+
+        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::selectMultiByIndex(_connection->session, index, std::move(done));
+        });
+        if (!selected)
+            return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
+        const auto* error = std::get_if<akm::Error>(&*selected);
+        if (error != nullptr && error->number == akm::error_number::NOT_FOUND)
+            return Outcome<MultiEntry>::failure("No multi is at index " + numberText(index) + ". Use list_multis to see the positions.");
+        if (!akm::succeeded(*selected))
+            return Outcome<MultiEntry>::failure(explain(*selected, "selecting the multi at index " + numberText(index), _config, false));
+        return currentMultiEntry();
+    }
+
+    Outcome<std::vector<PartValue>> SamplerGateway::editMultiParameter(const ParameterDefinition& parameter,
+                                                                       std::optional<std::int64_t> valueToSet, PartSelection parts)
+    {
+        using Values = std::vector<PartValue>;
+        if (const auto problem = connect())
+            return Outcome<Values>::failure(*problem);
+
+        const auto count = await<akm::MultiPartCountResult>(waitFor(1), [&](std::function<void(const akm::MultiPartCountResult&)> done) {
+            akm::getCurrentMultiPartCount(_connection->session, std::move(done));
+        });
+        if (!count)
+            return Outcome<Values>::failure("The sampler session did not complete the command in time.");
+        if (!count->partCount)
+            return Outcome<Values>::failure(explain(count->outcome, "counting the parts of the current multi", _config, true, "multi"));
+        const int partCount = *count->partCount;
+        if (parts.part && (*parts.part < 1 || *parts.part > partCount))
+            return Outcome<Values>::failure("The current multi has " + numberText(partCount) + " parts: parts 1 to " + numberText(partCount) +
+                                            " exist, part " + numberText(*parts.part) + " does not.");
+
+        std::vector<int> wanted;
+        if (parts.part)
+            wanted.push_back(*parts.part);
+        else
+        {
+            for (int part = 1; part <= partCount; ++part)
+                wanted.push_back(part);
+        }
+
+        // The wire's part number starts at 0 where the front panel's starts at 1 (an assumption, see the tests).
+        std::vector<akm::CommandRequest> requests;
+        std::vector<std::string> steps;
+        for (const int part : wanted)
+        {
+            const std::int64_t wirePart = part - 1;
+            if (valueToSet)
+            {
+                std::vector<std::int64_t> values{wirePart};
+                const std::vector<std::int64_t> wire = toItemValues(parameter, *valueToSet);
+                values.insert(values.end(), wire.begin(), wire.end());
+                requests.push_back(akm::makeRequest(parameter.setItem, values));
+                steps.push_back("setting " + parameter.name + " of part " + numberText(part));
+            }
+            requests.push_back(akm::makeRequest(parameter.getItem, {wirePart}));
+            steps.push_back("reading " + parameter.name + " of part " + numberText(part));
+        }
+
+        const auto replies = runSequence(std::move(requests), steps, true, "multi");
+        if (!replies.ok())
+            return Outcome<Values>::failure(replies.problem);
+
+        Values values;
+        const std::size_t stride = valueToSet ? 2 : 1;
+        for (std::size_t i = 0; i < wanted.size(); ++i)
+        {
+            const auto set = akm::decodeReply(parameter.getItem, (*replies.value)[i * stride + stride - 1]);
+            const auto value = set ? fromItemValues(parameter, *set) : std::nullopt;
+            if (!value)
+                return Outcome<Values>::failure("The sampler's answer for " + parameter.name + " of part " + numberText(wanted[i]) +
+                                                " could not be read.");
+            values.push_back(PartValue{wanted[i], *value});
+        }
+        if (valueToSet)
+        {
+            for (const PartValue& read : values)
+            {
+                if (read.value != *valueToSet)
+                    return Outcome<Values>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
+                                                    describeValue(parameter, *valueToSet) + " but reads " + describeValue(parameter, read.value) +
+                                                    " for part " + numberText(read.part) + ".");
+            }
+        }
+        return Outcome<Values>::success(std::move(values));
+    }
+
+    Outcome<std::vector<PartValue>> SamplerGateway::readMultiParameter(const ParameterDefinition& parameter, PartSelection parts)
+    {
+        return editMultiParameter(parameter, std::nullopt, parts);
+    }
+
+    Outcome<std::vector<PartValue>> SamplerGateway::writeMultiParameter(const ParameterDefinition& parameter, std::int64_t value,
+                                                                        PartSelection parts)
+    {
+        return editMultiParameter(parameter, value, parts);
     }
 }
