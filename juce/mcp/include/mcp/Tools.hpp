@@ -97,11 +97,17 @@ namespace mcp
     // gateway must outlive the tools. [RQ-MCP-053, ADR-MCP-005 (DEC-MCP-033)]
     [[nodiscard]] std::vector<Tool> makeFxTools(SamplerGateway& gateway);
 
+    // The front-panel keys: `press_key`, `hold_key`, `release_key`, `turn_data_wheel` and `send_ascii_key`, offered only when the server is launched
+    // with `--allow-front-panel`: a key can answer "ENT" to a delete or save screen, which no `confirm` of this server guards. The gateway must
+    // outlive the tools. [RQ-MCP-054, ADR-MCP-005 (DEC-MCP-032)]
+    [[nodiscard]] std::vector<Tool> makeFrontPanelTools(SamplerGateway& gateway);
+
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions
     {
         bool allowDisk = false;  ///< `--allow-disk`: the disk tools are offered
         bool allowDiskRefresh = false;  ///< `--allow-disk-refresh`: `list_disks` may send the refresh of the disk list
+        bool allowFrontPanel = false;  ///< `--allow-front-panel`: the front-panel key tools are offered [ADR-MCP-005 (DEC-MCP-032)]
     };
 
     /// Every tool the server offers: the editing tools, the structure tools, the sample and multi tools, and the disk tools
@@ -113,4 +119,7 @@ namespace mcp
 
     /// What the server adds to its guidance when the disk tools are offered (`--allow-disk`). [ADR-MCP-003 (DEC-MCP-015)]
     [[nodiscard]] std::string diskInstructions(bool refreshOffered = false);
+
+    /// What the server adds to its guidance when the front-panel key tools are offered (`--allow-front-panel`). [ADR-MCP-005 (DEC-MCP-032)]
+    [[nodiscard]] std::string frontPanelInstructions();
 }

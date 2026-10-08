@@ -7,7 +7,9 @@
 #     folder (the deletions with their typed confirmations), and their types (ADR-MCP-003 DEC-MCP-019, DEC-MCP-021, ADR-MCP-004
 #     DEC-MCP-023);
 #   - SamplerGatewayLists.cpp: the rename and delete primitives of the current song file, of a set list and of the current scenelist
-#     (ADR-MCP-005 DEC-MCP-031, ADR-MCP-004 DEC-MCP-023).
+#     (ADR-MCP-005 DEC-MCP-031, ADR-MCP-004 DEC-MCP-023);
+#   - SamplerGatewayKeys.cpp: the front-panel primitives of section 20 (hold, release and press a key, the data wheel, an ASCII key), which carry
+#     no destructive verb but can answer "ENT" to a delete or save screen; no other file may name them (ADR-MCP-005 DEC-MCP-032).
 #
 # Usage: cmake -DSOURCE_DIR=<dir> -P CheckNoDestructiveCalls.cmake
 #
@@ -42,9 +44,16 @@ set(allowed_calls_SamplerGateway.cpp "akm::createProgramWithKeygroups|akm::renam
 set(allowed_calls_SamplerGatewayDisk.cpp "akm::renameFile|akm::renameFolder|akm::deleteFile|akm::deleteSubFolder|akm::ConfirmDeleteFile|akm::ConfirmDeleteSubFolder|akm::createFolder|akm::loadFileWithDependents|akm::loadFile|akm::loadFolder|akm::saveMemoryItem|akm::saveAllMemoryItems|akm::SaveableMemoryType|akm::SampleLoadOption")
 set(allowed_calls_SamplerGatewayLists.cpp "akm::renameCurrentSong|akm::renameSetList|akm::renameCurrentSceneList|akm::deleteCurrentSong|akm::deleteSetList|akm::deleteCurrentSceneList")
 set(offenders "")
+# The front-panel primitives (section 20) and their types: only the keys unit may name them.
+set(key_pattern "(ItemId::FrontPanel|akm::(holdKey|releaseKey|pressKey|moveDataWheel|sendAsciiKey|FrontPanelKey|DataWheelDirection|frontPanelKeyFromCode|KeyPress))")
+set(key_files "SamplerGatewayKeys.cpp")
 foreach(source IN LISTS sources)
-    file(STRINGS "${source}" lines REGEX "${pattern}")
     get_filename_component(source_name "${source}" NAME)
+    file(STRINGS "${source}" key_lines REGEX "${key_pattern}")
+    if(key_lines AND NOT source_name IN_LIST key_files)
+        list(APPEND offenders "${source}: ${key_lines}")
+    endif()
+    file(STRINGS "${source}" lines REGEX "${pattern}")
     if(source_name IN_LIST allowed_files)
         set(remaining "")
         foreach(line IN LISTS lines)
@@ -66,4 +75,4 @@ if(offenders)
 endif()
 
 list(LENGTH sources source_count)
-message(STATUS "${source_count} file(s) under ${SOURCE_DIR}: no create, delete, rename, save, load, clear, eject or format call beyond the program structure primitives of the gateway and the load and save primitives of its disk unit")
+message(STATUS "${source_count} file(s) under ${SOURCE_DIR}: no create, delete, rename, save, load, clear, eject, format or front-panel call beyond the primitives of the gateway's units")

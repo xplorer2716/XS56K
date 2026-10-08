@@ -4,7 +4,7 @@
 #
 # Usage: cmake -DSIMULATED_SERVER=<exe> -DREAL_SERVER=<exe> -DREADME=<path> -DINPUT_FILE=<jsonl with one tools/list request> -P CheckReadmeCoversTools.cmake
 #
-# The tools are read from the simulated server launched with every option that adds tools (--allow-disk, --allow-disk-refresh); the
+# The tools are read from the simulated server launched with every option that adds tools (--allow-disk, --allow-disk-refresh, --allow-front-panel); the
 # options are read from the usage text of the shipped server (--help).
 # [RQ-MCP-043, ADR-MCP-004 (DEC-MCP-026)]
 
@@ -17,7 +17,7 @@ endforeach()
 file(READ "${README}" readme)
 
 execute_process(
-    COMMAND "${SIMULATED_SERVER}" --allow-disk --allow-disk-refresh
+    COMMAND "${SIMULATED_SERVER}" --allow-disk --allow-disk-refresh --allow-front-panel
     INPUT_FILE "${INPUT_FILE}"
     OUTPUT_VARIABLE listing
     RESULT_VARIABLE listing_status

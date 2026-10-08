@@ -490,6 +490,17 @@ namespace mcp
         [[nodiscard]] int total() const { return programs + samples + multis; }
     };
 
+    /// The directions of the data wheel. [RQ-MCP-054]
+    enum class WheelDirection
+    {
+        Forwards,
+        Backwards,
+    };
+
+    /// The names of the front-panel keys a client may give, in the order of Table 31 of the specification: the mode keys, F1 to F16, the digits 0 to 9
+    /// and the other keys. [RQ-MCP-054]
+    [[nodiscard]] std::vector<std::string> panelKeyNames();
+
     /// A song file, set list or scenelist deletion: `done` is false when `confirm` was not its exact name (nothing was sent); `remaining` is what
     /// the list holds after. [RQ-MCP-049]
     struct NamedDeletion
@@ -824,6 +835,16 @@ namespace mcp
         [[nodiscard]] Outcome<bool> setFxChannelMute(int channel, bool muted);
         [[nodiscard]] Outcome<FxModuleState> setFxModule(int channel, int module, std::optional<int> type, std::optional<bool> enabled);
         [[nodiscard]] Outcome<int> setFxParameter(int channel, int module, int parameter, int value);
+
+        /// The front-panel keys (section 20), behind `--allow-front-panel`. A key is found by its name (`panelKeyNames`), in other letters or with a
+        /// space or a hyphen for the underscore; an unknown one is a problem and nothing is sent. The sampler only QUEUES what it receives: `true`/the
+        /// name answered means the command was accepted, not that the sampler acted on it. A key held is released when the session closes.
+        /// [RQ-MCP-054, ADR-MCP-005 (DEC-MCP-032)]
+        [[nodiscard]] Outcome<std::string> pressPanelKey(std::string_view key);
+        [[nodiscard]] Outcome<std::string> holdPanelKey(std::string_view key);
+        [[nodiscard]] Outcome<std::string> releasePanelKey(std::string_view key);
+        [[nodiscard]] Outcome<bool> turnDataWheel(WheelDirection direction, int clicks);
+        [[nodiscard]] Outcome<bool> sendAsciiKey(int ascii);
 
         /// Clears the sampler's memory (every program, sample and multi), and only when `confirm` is exactly how many of the three the sampler holds
         /// now (read just before); otherwise, and when it holds none, nothing is sent and the answer gives the counts. Song files, set lists and

@@ -37,6 +37,7 @@ namespace mcp
         constexpr const char* SCREEN_AS_IS = "as-is";
         constexpr const char* OPTION_ALLOW_DISK = "--allow-disk";
         constexpr const char* OPTION_ALLOW_DISK_REFRESH = "--allow-disk-refresh";
+        constexpr const char* OPTION_ALLOW_FRONT_PANEL = "--allow-front-panel";
         constexpr const char* OPTION_DISK_TIMEOUT = "--disk-timeout-ms";
         constexpr const char* OPTION_LIST_PORTS = "--list-ports";
         constexpr const char* OPTION_HELP = "--help";
@@ -99,8 +100,8 @@ namespace mcp
                 return usageError(std::string(OPTION_FORMER_NO_LCD) + " was replaced by " + OPTION_SCREEN + " " + SCREEN_AS_IS +
                                   " (leave the sampler's screen settings alone); see " + OPTION_HELP + ".");
 
-            if (name == OPTION_ALLOW_DISK || name == OPTION_ALLOW_DISK_REFRESH || name == OPTION_LIST_PORTS || name == OPTION_HELP ||
-                name == OPTION_HELP_SHORT)
+            if (name == OPTION_ALLOW_DISK || name == OPTION_ALLOW_DISK_REFRESH || name == OPTION_ALLOW_FRONT_PANEL || name == OPTION_LIST_PORTS ||
+                name == OPTION_HELP || name == OPTION_HELP_SHORT)
             {
                 if (inlineValue)
                     return usageError(name + " takes no value.");
@@ -108,6 +109,8 @@ namespace mcp
                     options.allowDisk = true;
                 else if (name == OPTION_ALLOW_DISK_REFRESH)
                     options.allowDiskRefresh = true;
+                else if (name == OPTION_ALLOW_FRONT_PANEL)
+                    options.allowFrontPanel = true;
                 else if (name == OPTION_LIST_PORTS)
                     options.listPorts = true;
                 else
@@ -203,6 +206,7 @@ namespace mcp
                "Usage: xs56k_mcp_server --in <port> --out <port> [--device-id <0-31>] [--timeout-ms <ms>]\n"
                "                        [--screen independent|follow|as-is]\n"
                "                        [--allow-disk [--allow-disk-refresh] [--disk-timeout-ms <ms>]]\n"
+               "                        [--allow-front-panel]\n"
                "       xs56k_mcp_server --list-ports\n"
                "\n"
                "  --in <port>         the MIDI input port the sampler sends on (required)\n"
@@ -222,6 +226,8 @@ namespace mcp
                "  --allow-disk-refresh  let list_disks send the sampler's refresh of its disk list (needs --allow-disk). Off\n"
                "                      unless you ask: it hung a real S5000 whose disk is a SCSI2SD, until it was switched off and on\n"
                "  --disk-timeout-ms <n>  how long a slow disk command waits, 1 to 1800000 (default 120000)\n"
+               "  --allow-front-panel  offer the front-panel key tools (press, hold, release, data wheel, ASCII key). A key answers\n"
+               "                      \"ENT\" to any delete or save screen with no confirm to stop it: off unless you ask for it\n"
                "  --list-ports        print the MIDI ports and exit\n"
                "  --help              print this text and exit\n"
                "\n"

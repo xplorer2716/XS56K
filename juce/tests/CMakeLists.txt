@@ -94,6 +94,7 @@ add_executable(xs56k_mcp_tests
     mcp/DiskSaveTests.cpp
     mcp/FxCatalogueTests.cpp
     mcp/FxToolsTests.cpp
+    mcp/FrontPanelToolsTests.cpp
     mcp/KeygroupToolsTests.cpp
     mcp/McpServerTests.cpp
     mcp/ParameterCatalogueLot2Tests.cpp
@@ -169,17 +170,17 @@ add_test(NAME mcp_simulated_server_scripted_conversation
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_session.expected.jsonl
         -DEXPECT_LINES=160
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
-# The same server launched with --allow-disk and --allow-disk-refresh (the conversation sends a refresh), and a scripted conversation over the disk tools: browsing, loading, saving, what
+# The same server launched with --allow-disk, --allow-disk-refresh (the conversation sends a refresh) and --allow-front-panel, and a scripted conversation over the disk tools and the keys: browsing, loading, saving, what
 # a save refuses and a read-only disk. To regenerate the expected output after a deliberate change, run
-#   xs56k_mcp_server_simulated --allow-disk --allow-disk-refresh < mcp/conversations/simulated_disk_session.jsonl > mcp/conversations/simulated_disk_session.expected.jsonl
+#   xs56k_mcp_server_simulated --allow-disk --allow-disk-refresh --allow-front-panel < mcp/conversations/simulated_disk_session.jsonl > mcp/conversations/simulated_disk_session.expected.jsonl
 # [TASK-MCP-022, RQ-MCP-023, RQ-MCP-030, ADR-MCP-003 (DEC-MCP-015)]
 add_test(NAME mcp_simulated_server_disk_conversation
     COMMAND ${CMAKE_COMMAND}
         -DSERVER=$<TARGET_FILE:xs56k_mcp_server_simulated>
-        "-DSERVER_ARGS=--allow-disk;--allow-disk-refresh"
+        "-DSERVER_ARGS=--allow-disk;--allow-disk-refresh;--allow-front-panel"
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_disk_session.jsonl
         -DEXPECTED_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/simulated_disk_session.expected.jsonl
-        -DEXPECT_LINES=51
+        -DEXPECT_LINES=58
         -P ${CMAKE_CURRENT_SOURCE_DIR}/RunServerConversation.cmake)
 # The shipped server must not link the simulated sampler or anything else of the test support: checked when CMake
 # configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
@@ -203,6 +204,13 @@ add_test(NAME mcp_source_check_fails_on_a_delete_call_in_a_tool_file
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
 set_tests_properties(mcp_source_check_fails_on_a_delete_call_in_a_tool_file PROPERTIES
     PASS_REGULAR_EXPRESSION "A forbidden AKM call in the MCP server:.*akm::deleteSetList")
+# ... and on a tool file that names a front-panel primitive. [TASK-MCP-053, RQ-MCP-054, RQ-MCP-057]
+add_test(NAME mcp_source_check_fails_on_a_front_panel_call_in_a_tool_file
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIR=${CMAKE_CURRENT_SOURCE_DIR}/mcp/forbidden_key_fixture
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoDestructiveCalls.cmake)
+set_tests_properties(mcp_source_check_fails_on_a_front_panel_call_in_a_tool_file PROPERTIES
+    PASS_REGULAR_EXPRESSION "A forbidden AKM call in the MCP server:.*akm::holdKey")
 
 # The README of the MCP server names every tool the server lists and every option of its usage text: it is the reference for the person
 # who uses the server. [TASK-MCP-036, RQ-MCP-043, ADR-MCP-004 (DEC-MCP-026)]

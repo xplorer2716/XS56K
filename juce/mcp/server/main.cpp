@@ -117,8 +117,11 @@ int main(int argc, char** argv)
         mcp::ToolOptions toolOptions;
         toolOptions.allowDisk = parsed.options.allowDisk;
         toolOptions.allowDiskRefresh = parsed.options.allowDiskRefresh;
+        toolOptions.allowFrontPanel = parsed.options.allowFrontPanel;
         if (toolOptions.allowDisk)
             identity.instructions += mcp::diskInstructions(toolOptions.allowDiskRefresh);
+        if (toolOptions.allowFrontPanel)
+            identity.instructions += mcp::frontPanelInstructions();
         mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
         std::cerr << LOG_PREFIX << "version " << XS56K_MCP_VERSION << ", sampler input \"" << parsed.options.inputPort
@@ -127,6 +130,8 @@ int main(int argc, char** argv)
             std::cerr << LOG_PREFIX << "the disk tools are offered (--allow-disk), disk timeout " << parsed.options.diskTimeout.count()
                       << " ms" << (toolOptions.allowDiskRefresh ? ", the refresh of the disk list is allowed (--allow-disk-refresh)" : "")
                       << "\n";
+        if (toolOptions.allowFrontPanel)
+            std::cerr << LOG_PREFIX << "the front-panel key tools are offered (--allow-front-panel)\n";
         server.serve(std::cin, std::cout);
 
         // The client closed standard input: whatever the session changed on the sampler is put back before the exit.

@@ -319,3 +319,17 @@ TEST_CASE("Given the usage text, When it is read, Then it names --allow-disk and
     CHECK(contains(usage, "--disk-timeout-ms"));
     CHECK(contains(usage, "switched off and on"));
 }
+
+TEST_CASE("Given no front-panel argument, When the arguments are parsed, Then the key tools are off; with --allow-front-panel they are on, and a value given to it is an error [RQ-MCP-054]",
+          "[mcp][options]")
+{
+    CHECK_FALSE(parseArguments({"--in", "A", "--out", "B"}).options.allowFrontPanel);
+    const ParsedArguments parsed = parseArguments({"--in", "A", "--out", "B", "--allow-front-panel"});
+    REQUIRE(parsed.ok());
+    CHECK(parsed.options.allowFrontPanel);
+    CHECK_FALSE(parsed.options.allowDisk);
+    const ParsedArguments value = parseArguments({"--in", "A", "--out", "B", "--allow-front-panel=yes"});
+    CHECK_FALSE(value.ok());
+    CHECK(contains(value.error, "--allow-front-panel"));
+    CHECK(contains(mcp::usageText(), "--allow-front-panel"));
+}

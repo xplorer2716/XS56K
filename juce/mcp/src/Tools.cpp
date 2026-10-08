@@ -3486,6 +3486,144 @@ namespace mcp
         return tools;
     }
 
+    // The front-panel keys, behind --allow-front-panel. [TASK-MCP-053, RQ-MCP-054, ADR-MCP-005 (DEC-MCP-032)]
+    namespace
+    {
+        constexpr const char* ARGUMENT_KEY = "key";
+        constexpr const char* ARGUMENT_DIRECTION = "direction";
+        constexpr const char* ARGUMENT_CLICKS = "clicks";
+        constexpr const char* ARGUMENT_ASCII = "ascii";
+        constexpr const char* DIRECTION_FORWARDS = "forwards";
+        constexpr const char* DIRECTION_BACKWARDS = "backwards";
+        constexpr std::int64_t FIRST_WHEEL_CLICK = 1;
+        constexpr std::int64_t LAST_WHEEL_CLICK = 8;
+        constexpr std::int64_t LAST_ASCII = 127;
+        constexpr const char* PANEL_WARNING =
+            "WARNING: a key acts on whatever screen the sampler shows, and ENT answers yes to a delete or save screen: no 'confirm' of this server "
+            "stands between a key and the loss. The sampler only QUEUES what it is sent: an accepted command does not say the sampler acted on it. "
+            "Use it only when the person asked for that key.";
+
+        const Word<WheelDirection> WHEEL_DIRECTIONS[] = {{DIRECTION_FORWARDS, WheelDirection::Forwards}, {DIRECTION_BACKWARDS, WheelDirection::Backwards}};
+
+        /// A single ASCII character from a number (0 to 127) or a one-character text, or the reason it is not one. [RQ-MCP-054]
+        std::optional<std::string> asciiArgument(const json& given, int& ascii)
+        {
+            const std::string accepted = "Give 'ascii' as a number from 0 to " + std::to_string(LAST_ASCII) + ", or as one ASCII character.";
+            if (given.is_string())
+            {
+                const std::string text = given.get<std::string>();
+                if (text.size() != 1 || static_cast<unsigned char>(text.front()) > LAST_ASCII)
+                    return accepted;
+                ascii = static_cast<unsigned char>(text.front());
+                return std::nullopt;
+            }
+            const auto whole = given.is_number() ? wholeNumber(given) : std::nullopt;
+            if (!whole || *whole < 0 || *whole > LAST_ASCII)
+                return accepted;
+            ascii = static_cast<int>(*whole);
+            return std::nullopt;
+        }
+    }
+
+    std::string frontPanelInstructions()
+    {
+        return std::string(" The front-panel key tools (press_key, hold_key, release_key, turn_data_wheel, send_ascii_key) are on because the person "
+                           "launched this server with --allow-front-panel. ") +
+               PANEL_WARNING + " Do not press a key unless the person asked for it, and release a key you hold.";
+    }
+
+    std::vector<Tool> makeFrontPanelTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+        const json keySchema = objectSchema(json{{ARGUMENT_KEY, {{"type", "string"}, {"description", "The key: " + [] {
+                                                                                          std::string list;
+                                                                                          for (const std::string& name : panelKeyNames())
+                                                                                              list += (list.empty() ? "" : ", ") + name;
+                                                                                          return list;
+                                                                                      }() + "."}}}},
+                                            json::array({ARGUMENT_KEY}));
+
+        const auto keyTool = [&](const char* name, const char* title, const std::string& what, auto call) {
+            ToolDefinition definitionOfKey = definition(name, title, what + " " + PANEL_WARNING, keySchema, false, false);
+            definitionOfKey.annotations.destructive = true;
+            tools.push_back(Tool{std::move(definitionOfKey), [&gateway, call](const json& arguments) {
+                                     if (const auto refused = unknownArguments(arguments, {ARGUMENT_KEY}))
+                                         return *refused;
+                                     if (!arguments.contains(ARGUMENT_KEY) || !arguments.at(ARGUMENT_KEY).is_string())
+                                         return failure("Give the 'key' as a string.");
+                                     return call(gateway, arguments.at(ARGUMENT_KEY).get<std::string>());
+                                 }});
+        };
+        keyTool("press_key", "Press a front-panel key", "Presses a key of the sampler's front panel and releases it at once.",
+                [](SamplerGateway& panel, const std::string& key) {
+                    const auto pressed = panel.pressPanelKey(key);
+                    return pressed.ok() ? ok("Pressed the key \"" + *pressed.value + "\" (held then released). The sampler only queued it.") : failure(pressed.problem);
+                });
+        keyTool("hold_key", "Hold a front-panel key down",
+                "Holds a key of the sampler's front panel down until release_key; a key still held when the session closes is released then.",
+                [](SamplerGateway& panel, const std::string& key) {
+                    const auto held = panel.holdPanelKey(key);
+                    return held.ok() ? ok("Holding the key \"" + *held.value + "\" down. It stays down until release_key, or until the session closes. The sampler only queued it.")
+                                     : failure(held.problem);
+                });
+        keyTool("release_key", "Release a front-panel key", "Releases a key of the sampler's front panel.",
+                [](SamplerGateway& panel, const std::string& key) {
+                    const auto released = panel.releasePanelKey(key);
+                    return released.ok() ? ok("Released the key \"" + *released.value + "\". The sampler only queued it.") : failure(released.problem);
+                });
+
+        // turn_data_wheel
+        ToolDefinition wheel = definition(
+            "turn_data_wheel", "Turn the data wheel",
+            std::string("Turns the sampler's data wheel by 1 to 8 clicks, forwards or backwards. ") + PANEL_WARNING,
+            objectSchema(json{{ARGUMENT_DIRECTION, {{"type", "string"}, {"enum", wordArray(WHEEL_DIRECTIONS)}, {"description", "The direction."}}},
+                              {ARGUMENT_CLICKS, {{"type", "integer"}, {"minimum", FIRST_WHEEL_CLICK}, {"maximum", LAST_WHEEL_CLICK}, {"description", "How many clicks, 1 to 8."}}}},
+                         json::array({ARGUMENT_DIRECTION, ARGUMENT_CLICKS})),
+            false, false);
+        wheel.annotations.destructive = true;
+        tools.push_back(Tool{std::move(wheel), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_DIRECTION, ARGUMENT_CLICKS}))
+                                     return *refused;
+                                 if (!arguments.contains(ARGUMENT_DIRECTION) || !arguments.at(ARGUMENT_DIRECTION).is_string())
+                                     return failure("Give the 'direction': " + wordList(WHEEL_DIRECTIONS) + ".");
+                                 const auto direction = meaningOf(WHEEL_DIRECTIONS, lowerCase(arguments.at(ARGUMENT_DIRECTION).get<std::string>()));
+                                 if (!direction)
+                                     return failure("The direction \"" + arguments.at(ARGUMENT_DIRECTION).get<std::string>() + "\" is not one the wheel has. The directions are: " +
+                                                    wordList(WHEEL_DIRECTIONS) + ".");
+                                 const auto clicks = arguments.contains(ARGUMENT_CLICKS) && arguments.at(ARGUMENT_CLICKS).is_number() ? wholeNumber(arguments.at(ARGUMENT_CLICKS)) : std::nullopt;
+                                 if (!clicks || *clicks < FIRST_WHEEL_CLICK || *clicks > LAST_WHEEL_CLICK)
+                                     return failure("Give 'clicks' as a whole number from " + std::to_string(FIRST_WHEEL_CLICK) + " to " + std::to_string(LAST_WHEEL_CLICK) + ".");
+                                 const auto turned = gateway.turnDataWheel(*direction, static_cast<int>(*clicks));
+                                 if (!turned.ok())
+                                     return failure(turned.problem);
+                                 return ok("Turned the data wheel " + lowerCase(arguments.at(ARGUMENT_DIRECTION).get<std::string>()) + " by " + plural(*clicks, "click") +
+                                           ". The sampler only queued it.");
+                             }});
+
+        // send_ascii_key
+        ToolDefinition ascii = definition(
+            "send_ascii_key", "Send an ASCII character",
+            std::string("Sends one character of ASCII keyboard data (0 to 127) to the sampler, as when a name is typed. ") + PANEL_WARNING,
+            objectSchema(json{{ARGUMENT_ASCII, {{"type", json::array({"integer", "string"})}, {"description", "The character: its number, 0 to 127, or the character itself."}}}},
+                         json::array({ARGUMENT_ASCII})),
+            false, false);
+        ascii.annotations.destructive = true;
+        tools.push_back(Tool{std::move(ascii), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_ASCII}))
+                                     return *refused;
+                                 if (!arguments.contains(ARGUMENT_ASCII))
+                                     return failure("Give 'ascii' as a number from 0 to " + std::to_string(LAST_ASCII) + ", or as one ASCII character.");
+                                 int value = 0;
+                                 if (const auto problem = asciiArgument(arguments.at(ARGUMENT_ASCII), value))
+                                     return failure(*problem);
+                                 const auto sent = gateway.sendAsciiKey(value);
+                                 if (!sent.ok())
+                                     return failure(sent.problem);
+                                 return ok("Sent the ASCII character " + std::to_string(value) + ". The sampler only queued it.");
+                             }});
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -3513,6 +3651,11 @@ namespace mcp
         if (options.allowDisk)
         {
             for (Tool& tool : makeDiskTools(gateway, options.allowDiskRefresh))
+                tools.push_back(std::move(tool));
+        }
+        if (options.allowFrontPanel)
+        {
+            for (Tool& tool : makeFrontPanelTools(gateway))
                 tools.push_back(std::move(tool));
         }
         return tools;

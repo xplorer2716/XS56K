@@ -80,6 +80,7 @@ Each row says what happens **if you leave the option out** and **if you give it*
 | `--allow-disk` | no disk tool exists: the server can neither read nor write a disk | the **16 disk tools** exist: browse the sampler's disks, load, save, rename, delete, create folders, free space, audition files |
 | `--allow-disk-refresh` | `list_disks` cannot ask the sampler to refresh its list of disks (**recommended**: it hung the owner's S5000 until it was switched off and on) | `list_disks` has a `refresh` argument that does it. Only with `--allow-disk` |
 | `--disk-timeout-ms <ms>` | a slow disk command (a load, a save) waits `120000` ms; after that the sampler may have to be switched off and on, and nothing is retried | that many ms (1 to 1800000) |
+| `--allow-front-panel` | no key tool exists: the server cannot press a key of the sampler | the **5 key tools** exist: press, hold and release a front-panel key, turn the data wheel, send an ASCII character. **A key answers "ENT" to any delete or save screen, and no `confirm` of this server stands in the way**: give it only if you mean it |
 | `--list-ports` | the server starts normally | prints the MIDI ports and exits |
 | `--help` | the server starts normally | prints the options and exits |
 
@@ -100,6 +101,10 @@ real sampler; it is part of the planned real run.
 
 `--allow-disk-refresh` without `--allow-disk` is an error. With none of the two, the server never touches a disk.
 
+`--allow-front-panel` is independent of the disk options. A tool that is not enabled is absent from the server's list of tools, and calling it is an error
+("unknown tool"). The keys act on whatever the sampler's screen shows: ENT on a "delete" or "save" screen does it. The sampler only **queues** what it is
+sent, so an accepted key does not say it was acted on. A key held when the session closes is released by the server before it exits.
+
 ---
 
 ## 3. Which tools need which option
@@ -110,13 +115,14 @@ real sampler; it is part of the planned real run.
 | Song files, set lists and scenelists | 11 | nothing |
 | Delete all programs, samples or multis, and clear the memory | 4 | nothing |
 | Effects board | 5 | nothing |
+| **Front-panel keys** | **5** | **`--allow-front-panel`** |
 | Programs, keygroups and zones | 11 | nothing |
 | Samples | 7 | nothing |
 | Multis | 11 | nothing |
 | **Disks and files** | **16** | **`--allow-disk`** |
 | The refresh of the disk list | an argument of `list_disks` | `--allow-disk` **and** `--allow-disk-refresh` |
 
-That is **56 tools without any option and 72 with `--allow-disk`**. A disk tool that is not enabled is absent from the server's list of
+That is **56 tools without any option, 72 with `--allow-disk`, 61 with `--allow-front-panel` and 77 with both**. A disk tool that is not enabled is absent from the server's list of
 tools, and calling it is an error.
 
 **Tiers.** Every tool tells the client what it does to the sampler, in its MCP annotations:
@@ -161,6 +167,9 @@ In the tables, **\*** marks a required argument. **Confirm** says which exact te
 | `set_fx_module` | sets the type of a module and/or enables or bypasses it, and reads it back. With the EB20 only modules 2 (chorus, flange, phase, rotary_speaker, fmod_autopan, pitch_shift, pitch_shift_feedback) and 3 (mono_delay, mono_left_right, mono_crossover, stereo_delay) of channels 0 and 1 may change type | `channel`\*, `module`\*, `type`, `enabled` |
 | `get_fx_parameter` | one parameter of a module by name or index, or all of them, with their ranges (Table 25 of the specification); the values are the raw numbers the sampler takes (a rate of 15 is 1.5) | `channel`\*, `module`\*, `parameter` |
 | `set_fx_parameter` | sets a parameter to a whole number inside its range and reads it back; a value outside the range is refused and nothing is sent | `channel`\*, `module`\*, `parameter`\*, `value`\* |
+| `press_key`, `hold_key`, `release_key` | **only with `--allow-front-panel`**: presses a key of the front panel (hold then release), holds it down, releases it. `key` is one of `multi`, `fx`, `edit_sample`, `edit_program`, `record`, `utilities`, `save`, `load`, `f1` to `f16`, `0` to `9`, `minus`, `plus`, `cursor_left`, `cursor_right`, `window`, `mark`, `jump`, `exit`, `ent_play`. **`ent_play` on a delete or save screen does it** | `key`\* |
+| `turn_data_wheel` | **only with `--allow-front-panel`**: turns the data wheel 1 to 8 clicks, `forwards` or `backwards` | `direction`\*, `clicks`\* |
+| `send_ascii_key` | **only with `--allow-front-panel`**: sends one ASCII character (0 to 127, as a number or the character) as typed text | `ascii`\* |
 
 ### 4.2 Programs, keygroups and zones (no option)
 
@@ -304,7 +313,7 @@ full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 | **Multis**: `create_multi` (32 parts), `rename_multi`, `delete_multi`, `set_part_program` by name and by position, `get_part_programs`, `clear_part`, `set_multi_program_number`, and **all 12 part parameters**; the part numbers are those of the front panel | |
 | **Disk**: browsing, `create_folder`, `rename_file` (a `.WAV` and a `.AKP`: the sampler adds the extension), `rename_folder`, `delete_file`, `delete_folder` with and without `delete_contents`, `audition_file` (heard, and the stop cuts the sound) | **`get_disk_space` says 0 bytes free** for this FAT32 disk: the S5000 does not seem to report it, so do not rely on it |
 | **Load and save**: `load_file` (a program, a 40 MB sample, a multi), the control of `with_dependents` (without it no sample is added, with it the program's samples are), `load_folder` (13 samples); `save_memory_item` (a program, a sample, a multi), `save_children` (the program and the samples it uses), `save_all_memory_items` (13 samples), the refusal to overwrite and the save with `overwrite` | a save of a very large sample |
-| **Information**: `get_system_info` | **`get_sampler_settings`, `set_sampler_setting`, `set_midi_setting`, `set_midi_filter` and the list, select, rename and delete tools of the song files, set lists and scenelists, the delete-all and clear-memory tools, and **the five effects tools** (the owner has no effects board): only run on the simulated sampler so far** (to run on the real one with the owner, TASK-MCP-055) |
+| **Information**: `get_system_info` | **`get_sampler_settings`, `set_sampler_setting`, `set_midi_setting`, `set_midi_filter` and the list, select, rename and delete tools of the song files, set lists and scenelists, the delete-all and clear-memory tools, **the five effects tools** (the owner has no effects board) and **the five key tools**: only run on the simulated sampler so far** (to run on the real one with the owner, TASK-MCP-055) |
 | **Screen**: `--screen independent` (the owner's screen did not move), `--screen follow` (it followed the assistant and showed each edit), `--screen as-is` (nothing moved) | `independent` was not tried with the screen on the very program the assistant edits; `follow` does not change the page: with the screen on the file system page it stayed there when a multi was selected |
 
 A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`. The extension of a saved song file, set list or scenelist is **not known**: no run has saved one on a real sampler, so this server finds the file by the item's name whatever its extension, and `load_file` loads any file of the folder by the name `list_disk_contents` gives.

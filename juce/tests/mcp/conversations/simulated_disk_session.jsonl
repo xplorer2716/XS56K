@@ -49,4 +49,11 @@
 {"jsonrpc":"2.0","id":50,"method":"tools/call","params":{"name":"select_song_file","arguments":{"name":"VERSE"}}}
 {"jsonrpc":"2.0","id":51,"method":"tools/call","params":{"name":"delete_song_file","arguments":{"confirm":"VERSE"}}}
 {"jsonrpc":"2.0","id":52,"method":"tools/call","params":{"name":"load_file","arguments":{"name":"VERSE.MID"}}}
+{"jsonrpc":"2.0","id":53,"method":"tools/call","params":{"name":"press_key","arguments":{"key":"f1"}}}
+{"jsonrpc":"2.0","id":54,"method":"tools/call","params":{"name":"hold_key","arguments":{"key":"ent_play"}}}
+{"jsonrpc":"2.0","id":55,"method":"tools/call","params":{"name":"turn_data_wheel","arguments":{"direction":"forwards","clicks":3}}}
+{"jsonrpc":"2.0","id":56,"method":"tools/call","params":{"name":"send_ascii_key","arguments":{"ascii":"A"}}}
+{"jsonrpc":"2.0","id":57,"method":"tools/call","params":{"name":"release_key","arguments":{"key":"ent_play"}}}
+{"jsonrpc":"2.0","id":58,"method":"tools/call","params":{"name":"press_key","arguments":{"key":"enter"}}}
+{"jsonrpc":"2.0","id":59,"method":"tools/call","params":{"name":"turn_data_wheel","arguments":{"direction":"forwards","clicks":9}}}
 {"jsonrpc":"2.0","id":46,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

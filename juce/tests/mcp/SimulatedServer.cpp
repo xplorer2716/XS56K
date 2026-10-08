@@ -54,6 +54,7 @@ int main(int argc, char** argv)
     {
         toolOptions.allowDisk = toolOptions.allowDisk || std::string(argv[i]) == "--allow-disk";
         toolOptions.allowDiskRefresh = toolOptions.allowDiskRefresh || std::string(argv[i]) == "--allow-disk-refresh";
+        toolOptions.allowFrontPanel = toolOptions.allowFrontPanel || std::string(argv[i]) == "--allow-front-panel";
     }
 
 #ifdef _WIN32
@@ -115,6 +116,8 @@ int main(int argc, char** argv)
     identity.instructions = mcp::programEditingInstructions();
     if (toolOptions.allowDisk)
         identity.instructions += mcp::diskInstructions(toolOptions.allowDiskRefresh);
+    if (toolOptions.allowFrontPanel)
+        identity.instructions += mcp::frontPanelInstructions();
     mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
     std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current), the samples KICK, SNARE and PAD and the multis LIVE and STUDIO\n";

@@ -10,6 +10,7 @@ add_library(xs56k_mcp STATIC
     src/SamplerGateway.cpp
     src/SamplerGatewayDisk.cpp
     src/SamplerGatewayFx.cpp
+    src/SamplerGatewayKeys.cpp
     src/SamplerGatewayLists.cpp
     src/ServerOptions.cpp
     src/StandardParameters.cpp
