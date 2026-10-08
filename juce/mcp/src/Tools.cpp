@@ -2595,16 +2595,15 @@ namespace mcp
             return array;
         }
 
-        constexpr const char* MIDI_CHANNEL_SUMMARY = "a MIDI channel 1 to 16 with its port A or B (the port is A when left out), such as 3 or 3B";
-        constexpr const char* MIDI_CHANNEL_FORMAT =
-            "A MIDI channel is 1 to 16 with its port, A or B (1A to 16B); the port is A when it is left out. For example 3, 3A or 16B.";
         constexpr const char* PREVIOUS_VALUE_UNKNOWN =
             "The previous value could not be read (section 04 of the sampler has no Get) and cannot be put back by this server: to restore it, set "
             "it again.";
-        constexpr int FIRST_MIDI_CHANNEL = 1;
+        // The sampler numbers its MIDI channels 0 to 31: 1A = 0 ... 16A = 15, 1B = 16 ... 16B = 31 (`MidiConfig.hpp`). The tools take that
+        // number, as the spec gives it; the answers add the name the channel has on the sampler.
+        constexpr int MIN_MIDI_CHANNEL = 0;
+        constexpr int MAX_MIDI_CHANNEL = 31;
         constexpr int MIDI_CHANNELS_PER_PORT = 16;
-        constexpr int PORT_A = 0;
-        constexpr int PORT_B = 1;
+        constexpr int FIRST_CHANNEL_NAME = 1;
         constexpr char PORT_A_LETTER = 'A';
         constexpr char PORT_B_LETTER = 'B';
         constexpr std::size_t MAX_MIDI_CHANNEL_DIGITS = 2;
@@ -2613,10 +2612,25 @@ namespace mcp
         constexpr int NOT_A_CONTROLLER = -1;
         constexpr std::size_t MAX_CONTROLLER_DIGITS = 3;
 
+        /// The channels the tools take, as "0 to 31". [RQ-MCP-047]
+        std::string midiChannelRange()
+        {
+            return std::to_string(MIN_MIDI_CHANNEL) + " to " + std::to_string(MAX_MIDI_CHANNEL);
+        }
+
+        /// What a channel argument is, in one sentence, for the descriptions and the refusals. [RQ-MCP-047]
+        std::string midiChannelFormat()
+        {
+            return "A MIDI channel is a whole number from " + midiChannelRange() + ", as the sampler numbers them: 1A is " +
+                   std::to_string(MIN_MIDI_CHANNEL) + ", 16A is " + std::to_string(MIDI_CHANNELS_PER_PORT - 1) + ", 1B is " +
+                   std::to_string(MIDI_CHANNELS_PER_PORT) + " and 16B is " + std::to_string(MAX_MIDI_CHANNEL) + ".";
+        }
+
+        /// A channel as the answers give it: its number and its name on the sampler, such as "3 (= 4A)". [RQ-MCP-047]
         std::string midiChannelText(int channel)
         {
             const char port = channel >= MIDI_CHANNELS_PER_PORT ? PORT_B_LETTER : PORT_A_LETTER;
-            return std::to_string(channel % MIDI_CHANNELS_PER_PORT + FIRST_MIDI_CHANNEL) + port;
+            return std::to_string(channel) + " (= " + std::to_string(channel % MIDI_CHANNELS_PER_PORT + FIRST_CHANNEL_NAME) + port + ")";
         }
 
         struct MidiChannelArgument
@@ -2625,7 +2639,7 @@ namespace mcp
             std::string problem;
         };
 
-        /// A MIDI channel from a whole number (1 to 16, port A) or a text such as "3", "3a" or "16B". [RQ-MCP-047]
+        /// A MIDI channel from a whole number or a text of digits, 0 to 31. [RQ-MCP-047]
         MidiChannelArgument parseMidiChannel(const json& given)
         {
             std::string text;
@@ -2634,25 +2648,13 @@ namespace mcp
             else if (const auto whole = given.is_number() ? wholeNumber(given) : std::nullopt)
                 text = std::to_string(*whole);
             else
-                return {std::nullopt, std::string("The channel must be a whole number or a text such as 3B. ") + MIDI_CHANNEL_FORMAT};
-            const std::string refused = "The channel \"" + text + "\" is not one of the sampler's. " + MIDI_CHANNEL_FORMAT;
-            std::size_t digits = 0;
-            while (digits < text.size() && std::isdigit(static_cast<unsigned char>(text[digits])) != 0)
-                ++digits;
-            if (digits == 0 || digits > MAX_MIDI_CHANNEL_DIGITS || text.size() - digits > 1)
-                return {std::nullopt, refused};
-            const int number = std::stoi(text.substr(0, digits));
-            if (number < FIRST_MIDI_CHANNEL || number > MIDI_CHANNELS_PER_PORT)
-                return {std::nullopt, refused};
-            int port = PORT_A;
-            if (text.size() > digits)
-            {
-                const char letter = static_cast<char>(std::toupper(static_cast<unsigned char>(text[digits])));
-                if (letter != PORT_A_LETTER && letter != PORT_B_LETTER)
-                    return {std::nullopt, refused};
-                port = letter == PORT_B_LETTER ? PORT_B : PORT_A;
-            }
-            return {port * MIDI_CHANNELS_PER_PORT + number - FIRST_MIDI_CHANNEL, {}};
+                return {std::nullopt, "The channel must be a whole number. " + midiChannelFormat()};
+            const bool digitsOnly = !text.empty() && text.size() <= MAX_MIDI_CHANNEL_DIGITS &&
+                                    std::all_of(text.begin(), text.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+            const int channel = digitsOnly ? std::stoi(text) : MAX_MIDI_CHANNEL + 1;
+            if (channel < MIN_MIDI_CHANNEL || channel > MAX_MIDI_CHANNEL)
+                return {std::nullopt, "The channel \"" + text + "\" is not one of the sampler's, which are " + midiChannelRange() + ". " + midiChannelFormat()};
+            return {channel, {}};
         }
 
         /// A controller number from a text of digits only, or `NOT_A_CONTROLLER`; the range is checked by the caller. [RQ-MCP-047]
@@ -2679,7 +2681,7 @@ namespace mcp
                        std::string("Sets one switch of the sampler's MIDI setup (UTILITIES, MIDI SETUP). '") + SWITCH_PROGRAM_CHANGE + "': " +
                            wordList(PROGRAM_CHANGE_VALUES) + " (remote selection of programs within parts). '" + SWITCH_MULTI_SELECT + "': " +
                            wordList(MULTI_SELECT_MODES) + " (how multis are selected remotely). '" + SWITCH_MULTI_SELECT_CHANNEL + "': " +
-                           MIDI_CHANNEL_SUMMARY + " (it has no effect while " + SWITCH_MULTI_SELECT + " is off). '" + SWITCH_EXTERNAL_APM_CONTROLLER +
+                           "a MIDI channel, " + midiChannelRange() + " (it has no effect while " + SWITCH_MULTI_SELECT + " is off). '" + SWITCH_EXTERNAL_APM_CONTROLLER +
                            "': a MIDI controller number, " + std::to_string(MIN_EXTERNAL_APM_CONTROLLER) + " to " +
                            std::to_string(MAX_EXTERNAL_APM_CONTROLLER) + ", the source in the APM matrix. '" + SWITCH_AFTERTOUCH + "': " +
                            wordList(AFTERTOUCH_TYPES) +
@@ -2745,12 +2747,12 @@ namespace mcp
             definition("set_midi_filter", "Allow or ignore a type of MIDI event on a channel",
                        "Sets the sampler's MIDI filter for one type of event (" + wordList(FILTER_EVENTS) + ") on one MIDI channel: '" +
                            ACTION_ALLOW + "' lets the sampler respond to those messages, '" + ACTION_IGNORE +
-                           "' makes it ignore them. The channel is " + MIDI_CHANNEL_SUMMARY +
-                           ". The sampler cannot be asked what the filter was before, so the answer cannot say, and this server cannot put it "
+                           "' makes it ignore them. " + midiChannelFormat() +
+                           " The sampler cannot be asked what the filter was before, so the answer cannot say, and this server cannot put it "
                            "back. A value that is not valid is refused and nothing is sent.",
                        objectSchema(json{{ARGUMENT_EVENT, {{"type", "string"}, {"enum", wordArray(FILTER_EVENTS)}, {"description", "The type of MIDI event."}}},
                                          {ARGUMENT_CHANNEL, {{"type", json::array({"integer", "string"})},
-                                                             {"description", "The MIDI channel: 1 to 16, or a text with its port such as \"3B\"."}}},
+                                                             {"description", "The MIDI channel, " + midiChannelRange() + " (see the tool's description)."}}},
                                          {ARGUMENT_ACTION, {{"type", "string"}, {"enum", wordArray(FILTER_ACTIONS)},
                                                             {"description", "Whether the sampler allows or ignores those events."}}}},
                                     json::array({ARGUMENT_EVENT, ARGUMENT_CHANNEL, ARGUMENT_ACTION})),
@@ -2761,7 +2763,7 @@ namespace mcp
                 if (!arguments.contains(ARGUMENT_EVENT) || !arguments.at(ARGUMENT_EVENT).is_string())
                     return failure("Give the '" + std::string(ARGUMENT_EVENT) + "' to filter: " + wordList(FILTER_EVENTS) + ".");
                 if (!arguments.contains(ARGUMENT_CHANNEL))
-                    return failure("Give the '" + std::string(ARGUMENT_CHANNEL) + "': " + MIDI_CHANNEL_SUMMARY + ".");
+                    return failure("Give the '" + std::string(ARGUMENT_CHANNEL) + "': " + midiChannelFormat());
                 if (!arguments.contains(ARGUMENT_ACTION) || !arguments.at(ARGUMENT_ACTION).is_string())
                     return failure("Give the '" + std::string(ARGUMENT_ACTION) + "': " + wordList(FILTER_ACTIONS) + ".");
                 const std::string event = lowerCase(arguments.at(ARGUMENT_EVENT).get<std::string>());

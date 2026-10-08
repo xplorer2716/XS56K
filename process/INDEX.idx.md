@@ -185,19 +185,19 @@ RQ-MCP-042|132-142||Every deletion is confirmed by the exact name
 RQ-MCP-043|143-153||The README is a reference for a person
 RQ-MCP-044|154-166||Tried on the real sampler, on objects made for the test
 @process/1.requirements/FTR-MCP-005-remaining-sampler-functions.md
-FTR-MCP-005|1-153||MCP Server — The Remaining Sampler Functions (Settings, MIDI Setup, Song Files, Set Lists, Scenelists, Delete All, Effects Board, Front Panel)
+FTR-MCP-005|1-154||MCP Server — The Remaining Sampler Functions (Settings, MIDI Setup, Song Files, Set Lists, Scenelists, Delete All, Effects Board, Front Panel)
 RQ-MCP-046|39-47||Reading and setting the sampler's own settings
-RQ-MCP-047|48-56||Setting the sampler's MIDI setup
-RQ-MCP-048|57-65||Listing, selecting and renaming song files, set lists and scenelists
-RQ-MCP-049|66-74||Deleting a song file, a set list or a scenelist
-RQ-MCP-050|75-83||Saving and loading song files, set lists and scenelists through the disk
-RQ-MCP-051|84-92||Deleting all programs, all samples or all multis
-RQ-MCP-052|93-101||Clearing the sampler's memory
-RQ-MCP-053|102-110||The effects board
-RQ-MCP-054|111-119||The front-panel keys, behind a launch option of their own
-RQ-MCP-055|120-130||What stays not offered
-RQ-MCP-056|133-143||Verified on the simulator, then on the real sampler with test data
-RQ-MCP-057|144-153||Each new destructive primitive is called from one place only
+RQ-MCP-047|48-57||Setting the sampler's MIDI setup
+RQ-MCP-048|58-66||Listing, selecting and renaming song files, set lists and scenelists
+RQ-MCP-049|67-75||Deleting a song file, a set list or a scenelist
+RQ-MCP-050|76-84||Saving and loading song files, set lists and scenelists through the disk
+RQ-MCP-051|85-93||Deleting all programs, all samples or all multis
+RQ-MCP-052|94-102||Clearing the sampler's memory
+RQ-MCP-053|103-111||The effects board
+RQ-MCP-054|112-120||The front-panel keys, behind a launch option of their own
+RQ-MCP-055|121-131||What stays not offered
+RQ-MCP-056|134-144||Verified on the simulator, then on the real sampler with test data
+RQ-MCP-057|145-154||Each new destructive primitive is called from one place only
 @process/1.requirements/RQ-BLD-build-tooling.md
 RQ-BLD-001|24-32||CMake build fetching a pinned JUCE
 RQ-BLD-002|33-41||Headless layered libraries, GUI application deferred

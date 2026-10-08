@@ -121,16 +121,16 @@ TEST_CASE("Given each multi select mode, When it is set, Then the simulated samp
     CHECK(rig.accepted(akm::ItemId::MidiMultiSelect) == 3);
 }
 
-TEST_CASE("Given the multi select channel 3, When it is set, Then the simulated sampler holds channel 3A, the answer says 3A and that the previous value is unknown; 3B, 1A and 16B are held as 18, 0 and 31 [RQ-MCP-047]",
+TEST_CASE("Given the multi select channel 3, When it is set, Then the simulated sampler holds 3, the answer gives it as 3 (= 4A) and says the previous value is unknown; 0, 15, 16 and 31 are held as they are [RQ-MCP-047]",
           "[mcp][midi]")
 {
     ToolRig rig;
     const std::string three = toolText(setting(rig, SWITCH_MULTI_SELECT_CHANNEL, "3"));
-    CHECK(hasText(three, "3A"));
+    CHECK(hasText(three, "3 (= 4A)"));
     checkPreviousValueSaid(three);
-    CHECK(rig.sampler->midiConfig().multiSelectChannel == 2);
+    CHECK(rig.sampler->midiConfig().multiSelectChannel == 3);
 
-    const std::vector<std::pair<const char*, std::uint8_t>> channels = {{"3b", 18}, {"1A", 0}, {"16B", 31}, {"16", 15}, {"10a", 9}};
+    const std::vector<std::pair<const char*, std::uint8_t>> channels = {{"0", 0}, {"15", 15}, {"16", 16}, {"31", 31}};
     for (const auto& [channel, byte] : channels)
     {
         const json answer = setting(rig, SWITCH_MULTI_SELECT_CHANNEL, channel);
@@ -138,7 +138,7 @@ TEST_CASE("Given the multi select channel 3, When it is set, Then the simulated 
         CHECK_FALSE(toolFailed(answer));
         CHECK(rig.sampler->midiConfig().multiSelectChannel == byte);
     }
-    CHECK(rig.accepted(akm::ItemId::MidiMultiSelectChannel) == 6);
+    CHECK(rig.accepted(akm::ItemId::MidiMultiSelectChannel) == 5);
 }
 
 TEST_CASE("Given the external APM controller, When 0, 74 and 127 are set, Then the simulated sampler holds each [RQ-MCP-047]",
@@ -179,13 +179,13 @@ TEST_CASE("Given a value the sampler does not take, When a MIDI setting is set, 
     const std::vector<Case> cases = {
         {SWITCH_PROGRAM_CHANGE, "maybe", "on, off"},
         {SWITCH_MULTI_SELECT, "loud", "off, program_change, bank"},
-        {SWITCH_MULTI_SELECT_CHANNEL, "17", "1 to 16"},
-        {SWITCH_MULTI_SELECT_CHANNEL, "0", "1 to 16"},
-        {SWITCH_MULTI_SELECT_CHANNEL, "17A", "1 to 16"},
-        {SWITCH_MULTI_SELECT_CHANNEL, "3C", "A or B"},
-        {SWITCH_MULTI_SELECT_CHANNEL, "", "1 to 16"},
-        {SWITCH_MULTI_SELECT_CHANNEL, "A", "1 to 16"},
-        {SWITCH_MULTI_SELECT_CHANNEL, "-1", "1 to 16"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "32", "0 to 31"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "100", "0 to 31"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "-1", "0 to 31"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "3A", "0 to 31"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "", "0 to 31"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "A", "0 to 31"},
+        {SWITCH_MULTI_SELECT_CHANNEL, "3.5", "0 to 31"},
         {SWITCH_EXTERNAL_APM_CONTROLLER, "128", "0 to 127"},
         {SWITCH_EXTERNAL_APM_CONTROLLER, "-1", "0 to 127"},
         {SWITCH_EXTERNAL_APM_CONTROLLER, "cutoff", "0 to 127"},
@@ -218,7 +218,7 @@ TEST_CASE("Given a setting the tool does not have, a missing or a badly typed ar
     CHECK(midiItemsSent(rig) == 0);
 }
 
-TEST_CASE("Given each event type, When it is ignored and then allowed on channel 5, Then the simulated sampler holds the filter as set, and the answer names the event, the channel and that the previous value is unknown [RQ-MCP-047]",
+TEST_CASE("Given each event type, When it is ignored and then allowed on channel 5, Then the simulated sampler holds the filter on that channel only, and the answer names the event, the channel as 5 (= 6A) and that the previous value is unknown [RQ-MCP-047]",
           "[mcp][midi]")
 {
     const std::vector<const char*> events = {EVENT_NOTE_ON, EVENT_AFTERTOUCH, EVENT_WHEELS, EVENT_VOLUME};
@@ -228,42 +228,43 @@ TEST_CASE("Given each event type, When it is ignored and then allowed on channel
         const std::string ignored = toolText(filter(rig, events[type], 5, ACTION_IGNORE));
         INFO(events[type]);
         CHECK(hasText(ignored, events[type]));
-        CHECK(hasText(ignored, "5A"));
+        CHECK(hasText(ignored, "channel 5 (= 6A)"));
         CHECK(hasText(ignored, ACTION_IGNORE));
         checkPreviousValueSaid(ignored);
-        CHECK_FALSE(rig.sampler->midiConfig().filterAllowed[type][4]);
-        CHECK(rig.sampler->midiConfig().filterAllowed[type][5]);
+        CHECK_FALSE(rig.sampler->midiConfig().filterAllowed[type][5]);
+        CHECK(rig.sampler->midiConfig().filterAllowed[type][4]);
+        CHECK(rig.sampler->midiConfig().filterAllowed[type][6]);
 
         CHECK_FALSE(toolFailed(filter(rig, events[type], 5, ACTION_ALLOW)));
-        CHECK(rig.sampler->midiConfig().filterAllowed[type][4]);
+        CHECK(rig.sampler->midiConfig().filterAllowed[type][5]);
     }
     CHECK(rig.accepted(akm::ItemId::MidiFilterIgnore) == FILTER_EVENT_TYPES);
     CHECK(rig.accepted(akm::ItemId::MidiFilterAllow) == FILTER_EVENT_TYPES);
 }
 
-TEST_CASE("Given the channels 1A, 16A, 1B and 16B as text, When a filter is set, Then the simulated sampler holds the filter on channels 0, 15, 16 and 31 [RQ-MCP-047]",
+TEST_CASE("Given the channels 0, 15, 16 and 31 as numbers or as text, When a filter is set, Then the simulated sampler holds the filter on those channels [RQ-MCP-047]",
           "[mcp][midi]")
 {
     ToolRig rig;
-    const std::vector<std::pair<const char*, std::size_t>> channels = {{"1A", 0}, {"16A", 15}, {"1b", 16}, {"16B", 31}};
+    const std::vector<std::pair<json, std::size_t>> channels = {{0, 0}, {"15", 15}, {16, 16}, {"31", 31}};
     for (const auto& [channel, index] : channels)
     {
-        INFO(channel);
+        INFO(channel.dump());
         CHECK_FALSE(toolFailed(filter(rig, EVENT_WHEELS, channel, ACTION_IGNORE)));
         CHECK_FALSE(rig.sampler->midiConfig().filterAllowed[2][index]);
     }
 }
 
-TEST_CASE("Given a channel of 17 or 0, an unknown event or action, When a filter is set, Then nothing is sent and the answer says what is accepted [RQ-MCP-047]",
+TEST_CASE("Given a channel of 32 or -1, a channel with a letter, an unknown event or action, When a filter is set, Then nothing is sent and the answer says what is accepted [RQ-MCP-047]",
           "[mcp][midi]")
 {
     ToolRig rig;
-    const json tooHigh = filter(rig, EVENT_NOTE_ON, 17, ACTION_IGNORE);
+    const json tooHigh = filter(rig, EVENT_NOTE_ON, 32, ACTION_IGNORE);
     CHECK(toolFailed(tooHigh));
-    CHECK(hasText(toolText(tooHigh), "1 to 16"));
-    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, 0, ACTION_IGNORE)));
-    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, "17B", ACTION_IGNORE)));
-    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, "3C", ACTION_IGNORE)));
+    CHECK(hasText(toolText(tooHigh), "0 to 31"));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, -1, ACTION_IGNORE)));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, "3A", ACTION_IGNORE)));
+    CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, "16B", ACTION_IGNORE)));
     CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, 2.5, ACTION_IGNORE)));
     CHECK(toolFailed(filter(rig, EVENT_NOTE_ON, true, ACTION_IGNORE)));
 

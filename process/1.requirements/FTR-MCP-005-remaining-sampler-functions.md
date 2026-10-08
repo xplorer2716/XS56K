@@ -51,7 +51,8 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 - **Statement**: WHEN a client calls `set_midi_setting` with a setting (program change enabled, multi select mode, multi select channel, external APM controller, aftertouch type) and a value, or `set_midi_filter` with an event, a channel and allow or ignore, the server SHALL check the value, send it and answer what it sent; because §04 has no Get, the answer SHALL say that the previous value could not be read and cannot be put back by the server; IF the value is not valid, THEN it SHALL send nothing and say what is accepted.
 - **Rationale**: the owner asked for the MIDI setup to be implemented; the section has Set items only, so what the server cannot do is said, not hidden.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* the multi select channel is set to 3, *Then* the simulated sampler holds 3 and the answer says the previous value is unknown. *Given* a channel of 17, *Then* nothing is sent.
+- **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* the multi select channel is set to 3, *Then* the simulated sampler holds 3 and the answer says the previous value is unknown. *Given* a channel of 32, *Then* nothing is sent.
+- **Amended 2026-10-08**: the owner chose the sampler's own channel numbers, 0 to 31 (1A = 0 ... 16B = 31, FTR-AKM-009), over the front-panel names 1A to 16B. Channel 3 is therefore held as 3 (the front-panel channel 4A, which the answer also says), and 17 is a valid channel; the first value refused is 32. TASK-MCP-046.
 - **Dependencies**: FTR-AKM-009 (the MIDI configuration primitives); ADR-MCP-005 (DEC-MCP-030)
 
 ### RQ-MCP-048: Listing, selecting and renaming song files, set lists and scenelists
