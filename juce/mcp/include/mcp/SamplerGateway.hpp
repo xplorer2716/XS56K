@@ -387,6 +387,40 @@ namespace mcp
         Volume = 3,
     };
 
+    /// The three lists of named things the sampler keeps besides its programs, samples and multis. Song files and scenelists have a
+    /// current one; the sampler has no current set list. [RQ-MCP-048]
+    enum class NamedListKind
+    {
+        SongFile,
+        SetList,
+        SceneList,
+    };
+
+    /// What a kind of list is called in the answers: "song file", "set list" or "scenelist". [RQ-MCP-048]
+    [[nodiscard]] const char* namedListNoun(NamedListKind kind);
+
+    /// One item of such a list: its position (from 0) and its name. [RQ-MCP-048]
+    struct NamedListEntry
+    {
+        int index = 0;
+        std::string name;
+    };
+
+    /// A list in the sampler's order, and the position of the current item when the kind has one and one is selected. [RQ-MCP-048]
+    struct NamedListing
+    {
+        std::vector<NamedListEntry> entries;
+        std::optional<int> current;
+    };
+
+    /// A set list renamed: its position, its name before and the name the sampler then gives it. [RQ-MCP-048]
+    struct SetListRenaming
+    {
+        int index = 0;
+        std::string before;
+        std::string after;
+    };
+
     /// The free space of the current disk. [RQ-MCP-040]
     struct DiskSpace
     {
@@ -668,6 +702,25 @@ namespace mcp
         [[nodiscard]] Outcome<bool> setMidiSwitch(MidiSwitch which, int value);
         [[nodiscard]] Outcome<bool> setMidiFilter(MidiFilterKind event, int channel, bool allow);
 
+        /// The song files, the set lists or the scenelists in the sampler's order, with the current one when the kind has one. The names are
+        /// read one by one: the AKM layer has no read of them all for these kinds. [RQ-MCP-048]
+        [[nodiscard]] Outcome<NamedListing> listNamedItems(NamedListKind kind);
+
+        /// Makes a song file or a scenelist the current one, by name or by position (from 0), and answers the current one read back; a name
+        /// or a position the sampler does not have is a problem and the selection is unchanged. A set list has no current one: refused.
+        /// [RQ-MCP-048]
+        [[nodiscard]] Outcome<NamedListEntry> selectNamedItemByName(NamedListKind kind, std::string_view name);
+        [[nodiscard]] Outcome<NamedListEntry> selectNamedItemByIndex(NamedListKind kind, int index);
+
+        /// Renames the current song file or scenelist and answers its name before and the name read back; nothing is sent when none is
+        /// current or when another item of the list already bears the name (without regard to case, spaces or hyphens). [RQ-MCP-048]
+        [[nodiscard]] Outcome<RenamedItem> renameCurrentNamedItem(NamedListKind kind, std::string_view newName);
+
+        /// Renames the set list called `name` (exactly, else the only one that differs by case, spaces or hyphens only) and answers its
+        /// position and the names; nothing is sent when no set list or several have that name, or when another already bears the new name.
+        /// [RQ-MCP-048]
+        [[nodiscard]] Outcome<SetListRenaming> renameSetList(std::string_view name, std::string_view newName);
+
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();
 
@@ -709,6 +762,13 @@ namespace mcp
                                                                                   const char* currentObject = "program");
         [[nodiscard]] Outcome<SampleEntry> currentSampleEntry();
         [[nodiscard]] Outcome<MultiEntry> currentMultiEntry();
+
+        /// One read each of a song file, set list or scenelist list, on the open session. [RQ-MCP-048]
+        [[nodiscard]] Outcome<int> readNamedCount(NamedListKind kind);
+        [[nodiscard]] Outcome<std::string> readNamedName(NamedListKind kind, int index);
+        /// The position of the current song file or scenelist; empty when none is current. [RQ-MCP-048]
+        [[nodiscard]] Outcome<std::optional<int>> readCurrentNamedIndex(NamedListKind kind);
+        [[nodiscard]] Outcome<NamedListEntry> currentNamedEntry(NamedListKind kind);
 
         /// One Get of section 02 each, on the open session. [RQ-MCP-046]
         [[nodiscard]] Outcome<std::string> readSamplerName();

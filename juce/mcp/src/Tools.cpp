@@ -2789,6 +2789,167 @@ namespace mcp
         return tools;
     }
 
+    // The song files, the set lists and the scenelists: list, select and rename. [TASK-MCP-047, RQ-MCP-048, ADR-MCP-005 (DEC-MCP-031)]
+    namespace
+    {
+        // The position of a song file or a scenelist travels as two 7-bit data bytes (the AKM items), so 0 to 16383.
+        constexpr std::int64_t MAX_LIST_INDEX = 16383;
+        // The sampler's names are up to 20 characters (the manual, "A name can consist of up to 20 characters"); the AKM items take up to 255.
+        constexpr std::size_t MAX_LIST_NAME_LENGTH = 20;
+        constexpr const char* ARGUMENT_NAME = "name";
+        constexpr const char* ARGUMENT_INDEX = "index";
+        constexpr const char* ARGUMENT_NEW_NAME = "new_name";
+
+        /// A kind of list and the names of its tools; a set list has no current item, so no select tool.
+        struct ListTools
+        {
+            NamedListKind kind;
+            const char* list;
+            const char* select;
+            const char* rename;
+        };
+
+        constexpr ListTools SONG_FILE_TOOLS{NamedListKind::SongFile, "list_song_files", "select_song_file", "rename_song_file"};
+        constexpr ListTools SET_LIST_TOOLS{NamedListKind::SetList, "list_set_lists", nullptr, "rename_set_list"};
+        constexpr ListTools SCENELIST_TOOLS{NamedListKind::SceneList, "list_scenelists", "select_scenelist", "rename_scenelist"};
+
+        std::string capitalized(std::string text)
+        {
+            if (!text.empty())
+                text.front() = static_cast<char>(std::toupper(static_cast<unsigned char>(text.front())));
+            return text;
+        }
+    }
+
+    std::vector<Tool> makeNamedListTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+        for (const ListTools& names : {SONG_FILE_TOOLS, SET_LIST_TOOLS, SCENELIST_TOOLS})
+        {
+            const NamedListKind kind = names.kind;
+            const std::string noun = namedListNoun(kind);
+            const bool hasCurrent = names.select != nullptr;
+
+            // list_song_files, list_set_lists, list_scenelists
+            tools.push_back(Tool{
+                definition(names.list, capitalized("List " + noun + "s").c_str(),
+                           "Lists the " + noun + "s in the sampler's memory, in the sampler's order, with their positions (from 0)" +
+                               (hasCurrent ? " and the current one marked." : "; the sampler has no current " + noun + ".") + " It changes nothing.",
+                           objectSchema(), true, true),
+                [&gateway, kind, noun, hasCurrent, selectTool = names.select](const json& arguments) {
+                    if (const auto refused = unknownArguments(arguments, {}))
+                        return *refused;
+                    const auto listing = gateway.listNamedItems(kind);
+                    if (!listing.ok())
+                        return failure(listing.problem);
+                    if (listing.value->entries.empty())
+                        return ok("The sampler holds no " + noun + ".");
+                    std::string text = capitalized(noun) + "s in memory (" + std::to_string(listing.value->entries.size()) + "):\n";
+                    for (const NamedListEntry& entry : listing.value->entries)
+                    {
+                        text += std::to_string(entry.index) + ": " + entry.name;
+                        if (listing.value->current && *listing.value->current == entry.index)
+                            text += " (current)";
+                        text += "\n";
+                    }
+                    if (hasCurrent && !listing.value->current)
+                        text += "No " + noun + " is selected: use " + selectTool + ".\n";
+                    return ok(std::move(text));
+                }});
+
+            // select_song_file, select_scenelist
+            if (hasCurrent)
+            {
+                tools.push_back(Tool{
+                    definition(names.select, capitalized("Select a " + noun).c_str(),
+                               "Makes a " + noun + " of the sampler's memory the current one, by its name or its position (from 0, see " +
+                                   names.list + "), and reads the current one back. Give exactly one of name and index. " + MEMORY_NOTICE,
+                               objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The " + noun + "'s name."}}},
+                                                 {ARGUMENT_INDEX,
+                                                  {{"type", "integer"}, {"minimum", 0}, {"maximum", MAX_LIST_INDEX}, {"description", "The " + noun + "'s position, from 0."}}}}),
+                               false, true),
+                    [&gateway, kind, noun](const json& arguments) {
+                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_INDEX}))
+                            return *refused;
+                        const bool hasName = arguments.contains(ARGUMENT_NAME);
+                        const bool hasIndex = arguments.contains(ARGUMENT_INDEX);
+                        if (hasName == hasIndex)
+                            return failure(hasName ? "Give either 'name' or 'index', not both." : "Give either 'name' or 'index'.");
+                        Outcome<NamedListEntry> selected;
+                        if (hasName)
+                        {
+                            if (!arguments.at(ARGUMENT_NAME).is_string())
+                                return failure("The argument 'name' must be a string.");
+                            selected = gateway.selectNamedItemByName(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
+                        }
+                        else
+                        {
+                            const auto index = wholeNumber(arguments.at(ARGUMENT_INDEX));
+                            if (!index || *index < 0 || *index > MAX_LIST_INDEX)
+                                return failure("The argument 'index' must be a whole number from 0 to " + std::to_string(MAX_LIST_INDEX) + ".");
+                            selected = gateway.selectNamedItemByIndex(kind, static_cast<int>(*index));
+                        }
+                        if (!selected.ok())
+                            return failure(selected.problem);
+                        return ok("Selected the " + noun + " \"" + selected.value->name + "\" (position " + std::to_string(selected.value->index) + ").");
+                    }});
+            }
+
+            // rename_song_file, rename_scenelist: the current one; rename_set_list: by name
+            if (hasCurrent)
+            {
+                tools.push_back(Tool{
+                    definition(names.rename, capitalized("Rename the current " + noun).c_str(),
+                               "Renames the CURRENT " + noun + " (see " + names.list + " and " + names.select +
+                                   ") and reads the new name back. A name another " + noun + " bears is refused. " + MEMORY_NOTICE,
+                               objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_LIST_NAME_LENGTH) + " characters."}}}},
+                                            json::array({ARGUMENT_NAME})),
+                               false, true),
+                    [&gateway, kind, noun](const json& arguments) {
+                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME}))
+                            return *refused;
+                        if (!arguments.contains(ARGUMENT_NAME))
+                            return failure("Give the 'name' to give the current " + noun + ".");
+                        if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NAME), ARGUMENT_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
+                            return failure(*problem);
+                        const auto renamed = gateway.renameCurrentNamedItem(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
+                        if (!renamed.ok())
+                            return failure(renamed.problem);
+                        return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" to \"" + renamed.value->after + "\".");
+                    }});
+            }
+            else
+            {
+                tools.push_back(Tool{
+                    definition(names.rename, capitalized("Rename a " + noun).c_str(),
+                               "Renames the " + noun + " called 'name' (see " + names.list + ") to 'new_name' and reads the new name back; the sampler has no current " +
+                                   noun + ", so it is found by its name. Two " + noun + "s of the same name, or a new name another " + noun + " bears, are refused. " +
+                                   MEMORY_NOTICE,
+                               objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The " + noun + "'s name now."}}},
+                                                 {ARGUMENT_NEW_NAME, {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_LIST_NAME_LENGTH) + " characters."}}}},
+                                            json::array({ARGUMENT_NAME, ARGUMENT_NEW_NAME})),
+                               false, true),
+                    [&gateway, noun](const json& arguments) {
+                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_NEW_NAME}))
+                            return *refused;
+                        if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
+                            return failure("Give the 'name' of the " + noun + " to rename, as a string.");
+                        if (!arguments.contains(ARGUMENT_NEW_NAME))
+                            return failure("Give the 'new_name' to give the " + noun + ".");
+                        if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NEW_NAME), ARGUMENT_NEW_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
+                            return failure(*problem);
+                        const auto renamed = gateway.renameSetList(arguments.at(ARGUMENT_NAME).get<std::string>(),
+                                                                   arguments.at(ARGUMENT_NEW_NAME).get<std::string>());
+                        if (!renamed.ok())
+                            return failure(renamed.problem);
+                        return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" (position " + std::to_string(renamed.value->index) + ") to \"" +
+                                  renamed.value->after + "\".");
+                    }});
+            }
+        }
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -2806,6 +2967,8 @@ namespace mcp
         for (Tool& tool : makeSamplerSettingsTools(gateway))
             tools.push_back(std::move(tool));
         for (Tool& tool : makeMidiSetupTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeNamedListTools(gateway))
             tools.push_back(std::move(tool));
         if (options.allowDisk)
         {

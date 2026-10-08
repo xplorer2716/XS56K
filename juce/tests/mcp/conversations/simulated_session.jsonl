@@ -110,6 +110,17 @@
 {"jsonrpc":"2.0","id":1013,"method":"tools/call","params":{"name":"set_midi_filter","arguments":{"event":"note_on","channel":5,"action":"ignore"}}}
 {"jsonrpc":"2.0","id":1014,"method":"tools/call","params":{"name":"set_midi_setting","arguments":{"setting":"multi_select_channel","value":"32"}}}
 {"jsonrpc":"2.0","id":1015,"method":"tools/call","params":{"name":"set_midi_filter","arguments":{"event":"pitch_bend","channel":1,"action":"allow"}}}
+{"jsonrpc":"2.0","id":1016,"method":"tools/call","params":{"name":"list_song_files","arguments":{}}}
+{"jsonrpc":"2.0","id":1017,"method":"tools/call","params":{"name":"select_song_file","arguments":{"name":"VERSE"}}}
+{"jsonrpc":"2.0","id":1018,"method":"tools/call","params":{"name":"rename_song_file","arguments":{"name":"VERSE TWO"}}}
+{"jsonrpc":"2.0","id":1019,"method":"tools/call","params":{"name":"list_song_files","arguments":{}}}
+{"jsonrpc":"2.0","id":1020,"method":"tools/call","params":{"name":"select_song_file","arguments":{"name":"MISSING"}}}
+{"jsonrpc":"2.0","id":1021,"method":"tools/call","params":{"name":"list_set_lists","arguments":{}}}
+{"jsonrpc":"2.0","id":1022,"method":"tools/call","params":{"name":"rename_set_list","arguments":{"name":"HOME","new_name":"STUDIO DAYS"}}}
+{"jsonrpc":"2.0","id":1023,"method":"tools/call","params":{"name":"list_scenelists","arguments":{}}}
+{"jsonrpc":"2.0","id":1024,"method":"tools/call","params":{"name":"select_scenelist","arguments":{"index":1}}}
+{"jsonrpc":"2.0","id":1025,"method":"tools/call","params":{"name":"rename_scenelist","arguments":{"name":"GIG"}}}
+{"jsonrpc":"2.0","id":1026,"method":"tools/call","params":{"name":"rename_scenelist","arguments":{"name":"live set"}}}
 {"jsonrpc":"2.0","id":97,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"BASS"}}}
 {"jsonrpc":"2.0","id":98,"method":"tools/call","params":{"name":"set_zone_sample","arguments":{"sample":"KICK","zone":1,"keygroup":1}}}
 {"jsonrpc":"2.0","id":99,"method":"tools/call","params":{"name":"get_zone_samples","arguments":{"keygroup":1}}}

@@ -520,7 +520,7 @@ PLAN-MCP-005|1-191||MCP Server — The Remaining Sampler Functions
 TASK-MCP-044|49-60|Done|Author FTR-MCP-005, ADR-MCP-005 and PLAN-MCP-005, and amend the "never offered" texts
 TASK-MCP-045|61-72|Done|The sampler's settings
 TASK-MCP-046|73-84|Done|The MIDI setup
-TASK-MCP-047|85-96|Not Started|Song files, set lists and scenelists — list, select, rename
+TASK-MCP-047|85-96|Done|Song files, set lists and scenelists — list, select, rename
 TASK-MCP-048|97-108|Not Started|Song files, set lists and scenelists — deletion
 TASK-MCP-049|109-120|Not Started|Saving and loading song files, set lists and scenelists through the disk
 TASK-MCP-050|121-132|Not Started|Delete all programs, all samples, all multis
