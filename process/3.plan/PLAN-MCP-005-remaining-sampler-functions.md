@@ -37,9 +37,9 @@ subject the `agnos-git-workflow` skill computes. Each task adds its tools to the
 - **ADRs**: ADR-MCP-005 (Proposed): DEC-MCP-028 to DEC-MCP-034; ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
   DEC-MCP-019 (amended earlier)
 
-The plan has 12 tasks (TASK-MCP-044 to TASK-MCP-055), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
+The plan has 13 tasks (TASK-MCP-044 to TASK-MCP-056; 056 was added on 2026-10-09), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
 sessions, with a checkpoint note in `process/3.plan/` at the end of each, unless the owner lifts the limit as he did on 2026-10-05.
-Tier S for 044, M for 045 to 051 and 054 to 055, L for 052 and 053 (many tools, a new unit or a new launch option). Every task is
+Tier S for 044, M for 045 to 051 and 054 to 056, L for 052 and 053 (many tools, a new unit or a new launch option). Every task is
 presented to the owner and waits for his approval before it starts (Definition of Ready).
 
 ---
@@ -189,3 +189,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 - **Assignee**: Human and AI
 - **Verification**: Not started (Blocked: needs the owner).
 - **Assumptions**: **Test data the owner is asked to put on the sampler** before the run, listed here so that nothing is invented: at least two song files, two set lists and two scenelists in the sampler's memory, and one saved file of each kind on the disk (the owner says how he made them and what the extensions are); programs, samples and multis made for the run are made by the assistant and deleted by it. The set lists, song files and scenelists the owner already has must not be used for a deletion test: only copies made for the run.
+
+### TASK-MCP-056: `CHANGELOG.md` says what the server offers today
+- **Tier**: M
+- **Status**: Done
+- **Description**: Rewrite the "MCP server" entry of `[Unreleased]` in `CHANGELOG.md`, left untouched by TASK-MCP-045 to TASK-MCP-054: the counts 56 / 72 / 61 / 77, the new tools, the confirmation by count, the keys behind `--allow-front-panel`, eject and format still out, and which tools have run on the real sampler.
+- **Requirement refs**: RQ-MCP-043, RQ-MCP-055
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-028, DEC-MCP-029)
+- **Acceptance Criteria** (Gherkin): *Given* the updated `CHANGELOG.md`, *When* its MCP entry is compared with the counts `ctest` checks and with the Safety section of `juce/mcp/README.md`, *Then* the counts are 56, 72, 61 and 77, no sentence says the server never deletes everything or never clears the memory, and ejecting and formatting a disk stay out.
+- **Dependencies**: TASK-MCP-054
+- **Assignee**: AI
+- **Verification**: DONE on 2026-10-09, from the file re-read and searched: the entry has "**56 tools", "**16 more" (`--allow-disk`), "**5 more" (`--allow-front-panel`), "61 tools with this option, 77 with both"; 0 match for "never deletes everything", "never clears", "32 tools"; "It never formats or ejects a disk" agrees with the README's "does not ... format a disk, eject a disk"; the 24 tools added to the 32 (2 settings, 2 MIDI, 8 list, 3 delete, 3 delete-all, 1 clear, 5 effects) are each named in `juce/mcp/src/Tools.cpp`.
+- **Assumptions**: (1) The AKM entries are not touched; the §02 system setup primitives have no entry and none is added (out of scope). (2) Tier M by the tier table (more than 5 lines), but no code changes: no unit test, verification by re-reading and searching the file. (3) The session-state change of this session (`platform: windows`) goes into this task's commit.
