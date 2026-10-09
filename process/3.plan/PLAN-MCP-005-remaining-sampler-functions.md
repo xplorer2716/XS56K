@@ -22,7 +22,16 @@ the earlier ones is in place, the keys last, then the README and the real run:
 | 8 | TASK-MCP-052 | the effects board | many tools, simulator only, no loss |
 | 9 | TASK-MCP-053 | the front-panel keys behind `--allow-front-panel` | the one class that bypasses every confirmation: last |
 | 10 | TASK-MCP-054 | README, scripted conversations, counts, closure | after the tools exist |
-| 11 | TASK-MCP-055 | the real-sampler run with the owner | after everything is implemented; needs the owner's test data |
+| 11 | TASK-MCP-056 | `CHANGELOG.md` | it had been left behind |
+| 12 | TASK-MCP-057 | the plan of the real run of every tool | the owner's decision of 2026-10-09 |
+| 13 | TASK-MCP-055 | real run: settings and MIDI setup | nothing is lost, every value is put back |
+| 14 | TASK-MCP-058 | real run: song files, set lists, scenelists in memory | on copies only |
+| 15 | TASK-MCP-059 | real run: their saving and loading through the disk | in a folder made for the run |
+| 16 | TASK-MCP-060 | real run: the effects board | no board: the "no board" answers only |
+| 17 | TASK-MCP-061 | real run: delete all programs, samples, multis | on test objects only |
+| 18 | TASK-MCP-062 | real run: clear the sampler's memory | the largest loss, after 061 |
+| 19 | TASK-MCP-063 | real run: the front-panel keys | the class that bypasses every confirmation: last |
+| 20 | TASK-MCP-064 | README, observations, simulated sampler, closure | after every run |
 
 **Safety note.** The new tools delete or clear memory items, song files, set lists and scenelists, and can press the sampler's keys.
 Every `ctest` run is against the simulated sampler. The real run (TASK-MCP-055) is made with the owner present, on test data listed
@@ -31,15 +40,27 @@ answers a delete or save screen unless the owner says so (AGENTS.md). Every comm
 subject the `agnos-git-workflow` skill computes. Each task adds its tools to the README tables in the same commit
 (`mcp_readme_names_every_tool_and_option` fails otherwise) and widens `CheckNoDestructiveCalls.cmake` only for the primitive it adds.
 
+**Real-sampler runs (TASK-MCP-055, TASK-MCP-058 to TASK-MCP-063; the owner's decision of 2026-10-09: every tool of this plan is run on
+the real S5000).** Each run is made with the owner present, with `xs56k_mcp_server` built from this branch and registered in the MCP
+client with only the options the task names (`--allow-disk-refresh` never), one tool call at a time, its answer written to a file and
+never cut by a pipe (a killed client once left the S5000 silent). Each destructive call (a deletion, a delete-all, clearing the memory,
+a key) is sent only after the owner says so for that call. Every value a run changes is read or declared first and put back. What the
+sampler did is written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, and the simulated sampler is corrected in the same task when it
+differs. **Test data the owner is asked to put on the sampler** before TASK-MCP-058: at least two song files, two set lists and two
+scenelists in memory, and one saved file of each kind on the disk (the owner says how he made them and what the extensions are);
+programs, samples and multis made for a run are made by the assistant and deleted by it. The set lists, song files and scenelists the
+owner already has are not used for a deletion: only copies made for the run. Before TASK-MCP-061 and TASK-MCP-062 the owner saves what
+he wants to keep: the memory then holds only what the runs made.
+
 ## References
-- **Requirements**: RQ-MCP-046 to RQ-MCP-057 (`FTR-MCP-005`); RQ-MCP-042, RQ-MCP-043, RQ-MCP-044 (`FTR-MCP-004`); RQ-MCP-014 (`FTR-MCP-002`)
+- **Requirements**: RQ-MCP-046 to RQ-MCP-057 (`FTR-MCP-005`; RQ-MCP-056 amended 2026-10-09); RQ-MCP-042, RQ-MCP-043, RQ-MCP-044 (`FTR-MCP-004`); RQ-MCP-014 (`FTR-MCP-002`)
   and RQ-MCP-025 to RQ-MCP-028, RQ-MCP-031 (`FTR-MCP-003`)
-- **ADRs**: ADR-MCP-005 (Proposed): DEC-MCP-028 to DEC-MCP-034; ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
+- **ADRs**: ADR-MCP-005 (Proposed): DEC-MCP-028 to DEC-MCP-034 (DEC-MCP-033 amended 2026-10-09); ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
   DEC-MCP-019 (amended earlier)
 
-The plan has 13 tasks (TASK-MCP-044 to TASK-MCP-056; 056 was added on 2026-10-09), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
+The plan has 21 tasks (TASK-MCP-044 to TASK-MCP-064; 056 to 064 were added on 2026-10-09 and 055 reworked the same day), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
 sessions, with a checkpoint note in `process/3.plan/` at the end of each, unless the owner lifts the limit as he did on 2026-10-05.
-Tier S for 044, M for 045 to 051 and 054 to 056, L for 052 and 053 (many tools, a new unit or a new launch option). Every task is
+Tier S for 044, M for 045 to 051 and 054 to 064, L for 052 and 053 (many tools, a new unit or a new launch option). Every task is
 presented to the owner and waits for his approval before it starts (Definition of Ready).
 
 ---
@@ -178,17 +199,17 @@ presented to the owner and waits for his approval before it starts (Definition o
 - **Verification**: DONE on 2026-10-08, from the tools' own output. Red first: `CheckReadmeCoversTools.cmake` extended to run the simulated server with no option, `--allow-disk`, `--allow-front-panel` and both, and to compare the counts with the two READMEs: `mcp_readme_names_every_tool_and_option` failed with "README.md should say: 56 tools, 72 with `--allow-disk`, 61 with `--allow-front-panel`, 77 with both". Green after the README fixes: full `ctest` on Linux (GCC 13, `-Wno-dangling-reference`): 1076 of 1076 pass, including `mcp_readme_names_every_tool_and_option` (every tool and every option of `--help` is in `juce/mcp/README.md`; the counts 56 / 72 / 61 / 77 are those the server lists) and the new `mcp_source_check_fails_on_an_eject_call`. Read and rewritten: the Safety section of `juce/mcp/README.md` (it still said that delete-all, clearing the memory, the keys, song files and the effects board were "never done"), the "what has been tried" row of the new tools (its markup was broken), the introduction and the simulated-server description. The scripted conversations were extended task by task (main session 160 lines, disk and keys session 58 lines) and their expected outputs read each time.
 - **Assumptions**: (1) **`AGENTS.md` states no tool count** (it was cut back in the commit of TASK-MCP-045) and none was added: the counts are in `README.md` and `juce/mcp/README.md`, the two documents the test now checks against the server; the task text names three. (2) The four counts (no option, `--allow-disk`, `--allow-front-panel`, both) are written in a fixed sentence in each README so that the test can search for it; changing the wording means changing the test. (3) The ejecting and formatting of a disk stay out as RQ-MCP-055 says; a third negative fixture proves the source check fails on an eject call. (4) The exclusions listed in the README are now: eject and format a disk, moving files between the computer and the sampler, and the refresh of the disk list without its option (DEC-MCP-028); it does NOT claim that every other function of the specification is offered: no item-by-item comparison of the specification with the tools was made. (5) The README's sentence about the keys "released before the server exits" is true for an orderly close only, and says so. (6) `ADR-MCP-002`, `-003` and `-004` and `-005` are still "Proposed" for the owner's review: this task changed no ADR. (7) The closing artifacts of the session (checkpoint note, metrics row) are written after this task, as END SESSION asks.
 
-### TASK-MCP-055: Real-sampler run of the new tools with the owner
+### TASK-MCP-055: Real-sampler run — the sampler's settings and the MIDI setup
 - **Tier**: M
-- **Status**: Blocked
-- **Description**: With the owner present, run each new tool on the real S5000, one at a time, on test data (below), write up what the sampler did in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, update the README's table "what has been tried", and correct the simulated sampler for what it had wrong. Exceptions, listed in the README: the effects board (no board), `clear_sampler_memory` (unless the owner decides), the front-panel keys other than harmless ones the owner watches.
-- **Requirement refs**: RQ-MCP-056, RQ-MCP-044
-- **ADR refs**: ADR-MCP-005 (DEC-MCP-033)
-- **Acceptance Criteria** (Gherkin): *Given* the owner present and the test data on the sampler, *When* each tool is run alone, *Then* its answer and what the sampler did are in the observations file, the objects made for the run are removed or listed, and the simulated sampler matches what was seen.
-- **Dependencies**: TASK-MCP-054 (and the owner's test data)
+- **Status**: Not Started
+- **Description**: With the owner present and the server launched with no option (see "Real-sampler runs" in the Overview), run `get_sampler_settings`, then `set_sampler_setting` on each of `name`, `clock`, `play_mode` and `front_panel`, each read first and put back; run `set_midi_setting` on each of its five settings and `set_midi_filter` on each of its four events, the owner declaring what the MIDI SETUP and MIDI FILTER pages show before, checking the screen after each call, and each value being put back as declared. Write it up and correct the simulated sampler where it differs.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-046, RQ-MCP-047, RQ-MCP-044
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-030, DEC-MCP-033)
+- **Acceptance Criteria** (Gherkin): *Given* the owner present and every setting read or declared first, *When* each tool is run alone on each setting, *Then* its answer and what the sampler's screen showed are in the observations file, and every setting is back to its first value.
+- **Dependencies**: TASK-MCP-054, TASK-MCP-057
 - **Assignee**: Human and AI
-- **Verification**: Not started (Blocked: needs the owner).
-- **Assumptions**: **Test data the owner is asked to put on the sampler** before the run, listed here so that nothing is invented: at least two song files, two set lists and two scenelists in the sampler's memory, and one saved file of each kind on the disk (the owner says how he made them and what the extensions are); programs, samples and multis made for the run are made by the assistant and deleted by it. The set lists, song files and scenelists the owner already has must not be used for a deletion test: only copies made for the run.
+- **Verification**: Not started (needs the owner).
+- **Assumptions**: (1) The clock keeps running during the run: it is put back to the time read first plus the time elapsed, or set by the owner. (2) The front-panel lock is set only if the owner agrees, the tool's answer saying how to unlock; it is left as it was found. (3) Whether the sampler keeps a name of 20 characters is observed here (TASK-MCP-045, assumptions). (4) Reworked on 2026-10-09 (TASK-MCP-057): it was the single real run of every new tool, with exceptions; the test data it listed moved to "Real-sampler runs" in the Overview.
 
 ### TASK-MCP-056: `CHANGELOG.md` says what the server offers today
 - **Tier**: M
@@ -201,3 +222,99 @@ presented to the owner and waits for his approval before it starts (Definition o
 - **Assignee**: AI
 - **Verification**: DONE on 2026-10-09, from the file re-read and searched: the entry has "**56 tools", "**16 more" (`--allow-disk`), "**5 more" (`--allow-front-panel`), "61 tools with this option, 77 with both"; 0 match for "never deletes everything", "never clears", "32 tools"; "It never formats or ejects a disk" agrees with the README's "does not ... format a disk, eject a disk"; the 24 tools added to the 32 (2 settings, 2 MIDI, 8 list, 3 delete, 3 delete-all, 1 clear, 5 effects) are each named in `juce/mcp/src/Tools.cpp`.
 - **Assumptions**: (1) The AKM entries are not touched; the §02 system setup primitives have no entry and none is added (out of scope). (2) Tier M by the tier table (more than 5 lines), but no code changes: no unit test, verification by re-reading and searching the file. (3) The session-state change of this session (`platform: windows`) goes into this task's commit.
+
+### TASK-MCP-057: Plan the real-sampler run of every tool of this plan
+- **Tier**: M
+- **Status**: Done
+- **Description**: From the owner's decision of 2026-10-09 ("every tool implemented in PLAN-MCP-005 is tested on the real sampler"), rework TASK-MCP-055, add TASK-MCP-058 to TASK-MCP-064, and amend RQ-MCP-056 and DEC-MCP-033, which excluded the effects board, `clear_sampler_memory` and most keys.
+- **Requirement refs**: RQ-MCP-056
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-033)
+- **Acceptance Criteria** (Gherkin): *Given* the tools of TASK-MCP-045 to TASK-MCP-053 (24 with no option, 3 disk tools given new kinds, 5 keys), *When* the tasks of the real run are read, *Then* each tool is named in one of them, and the process index lists them with no duplicate ID.
+- **Dependencies**: TASK-MCP-056
+- **Assignee**: AI
+- **Verification**: DONE on 2026-10-09, from the files re-read and searched: the 32 tool names (24 with no option, `save_memory_item`, `save_all_memory_items`, `load_file`, the 5 keys) are each found in TASK-MCP-055 or TASK-MCP-058 to TASK-MCP-063 (32 of 32); the `agnos-index` skill: 464 entries, no duplicate, TASK-MCP-055 and TASK-MCP-057 to TASK-MCP-064 listed; RQ-MCP-056 and DEC-MCP-033 carry an "Amended 2026-10-09" note.
+- **Assumptions**: (1) "Every tool" includes the effects tools, but the owner's S5000 has no EB20 (DEC-MCP-033): with no board they can only give their "no board" answer, so their Sets stay unverified on a real board and the README keeps saying so. (2) "Tested on the real sampler" includes `clear_sampler_memory`, the `delete_all_*` tools and every key tool; each such call still waits for the owner's word at the moment it is sent (`AGENTS.md`). (3) The run is split by risk into seven tasks, in the order of DEC-MCP-034, and closed by TASK-MCP-064; TASK-MCP-055 keeps its ID and becomes the first run. (4) The test data list of the former TASK-MCP-055 moved, unchanged, to "Real-sampler runs" in the Overview, with one addition: the owner saves what he keeps before TASK-MCP-061 and TASK-MCP-062.
+
+### TASK-MCP-058: Real-sampler run — song files, set lists and scenelists in memory
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: With the server launched with no option, on the owner's test data and on copies made for the run, run `list_song_files`, `select_song_file`, `rename_song_file`, `list_set_lists`, `rename_set_list`, `list_scenelists`, `select_scenelist`, `rename_scenelist`, then `delete_song_file`, `delete_set_list` and `delete_scenelist` on copies only. Observe what TASK-MCP-047 and TASK-MCP-048 left unknown: a rename to a name already taken, a select by an unknown name or position, the answer when none is current, the selection after a deletion, a name of 20 characters. Write it up and correct the simulated sampler.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-048, RQ-MCP-049, RQ-MCP-042
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-031, DEC-MCP-033); ADR-MCP-004 (DEC-MCP-023)
+- **Acceptance Criteria** (Gherkin): *Given* the owner's test data in memory, *When* each of the 11 tools is run alone, *Then* its answer and what the sampler did are in the observations file, every name changed is put back, and only copies made for the run have been deleted.
+- **Dependencies**: TASK-MCP-055 and the owner's test data
+- **Assignee**: Human and AI
+- **Verification**: Not started (needs the owner).
+- **Assumptions**: (1) If the sampler accepts a duplicate name, the server's refusal (TASK-MCP-047, assumption 1) is reviewed with the owner, not changed by this task. (2) A copy is made by saving and loading a test item, or by the owner at the panel; the observations say which.
+
+### TASK-MCP-059: Real-sampler run — saving and loading song files, set lists and scenelists through the disk
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: With `--allow-disk` (never `--allow-disk-refresh`), in a folder made for the run with `create_folder`, run `save_memory_item` and `save_all_memory_items` with the kinds `song_file`, `set_list` and `scenelist`, then `load_file` on each saved file. Observe the file extensions and sizes (placeholders `.MID`, `.SET`, `.SCN` and 512 bytes in the simulated sampler), a second save without `overwrite`, and loading a file whose item is already in memory. Replace the placeholders in the simulated sampler; delete the folder and the copies afterwards.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-050, RQ-MCP-025, RQ-MCP-026, RQ-MCP-027
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-031, DEC-MCP-033); ADR-MCP-003 (DEC-MCP-018)
+- **Acceptance Criteria** (Gherkin): *Given* a writable disk and a folder made for the run, *When* each kind is saved alone, saved in bulk and loaded back, *Then* the answers, the listing and the memory are in the observations file, the simulated sampler writes the observed extensions and sizes, and the folder is removed.
+- **Dependencies**: TASK-MCP-058
+- **Assignee**: Human and AI
+- **Verification**: Not started (needs the owner).
+- **Assumptions**: (1) The bulk save of a kind is run only when what it saves is test data or the owner agrees to save all of it into the test folder. (2) If loading an item already in memory replaces it instead of adding one, the simulated sampler is corrected and the tool's answer reviewed.
+
+### TASK-MCP-060: Real-sampler run — the effects board
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: With the server launched with no option, on a test multi made for the run, run `get_fx_board`, `set_fx_channel_mute`, `set_fx_module`, `get_fx_parameter` and `set_fx_parameter`. With no board (the owner's S5000 today), each must say there is none and send nothing after the card query; with a board installed, each Set is read back and put back. Write it up.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-053
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-033)
+- **Acceptance Criteria** (Gherkin): *Given* the sampler with no board, *When* each of the 5 tools is run alone, *Then* each answer says there is no board and the observations file records it; *given* a board, *Then* each Set is read back as set and put back.
+- **Dependencies**: TASK-MCP-059
+- **Assignee**: Human and AI
+- **Verification**: Not started (needs the owner).
+- **Assumptions**: (1) The owner has no EB20 (DEC-MCP-033): the round trip on a real board stays undone, and the README keeps saying so, until one is installed. (2) The AKM suite already observed the card query with no board (TASK-AKM-104); this run checks the MCP tools' answers.
+
+### TASK-MCP-061: Real-sampler run — deleting all programs, all samples, all multis
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: On a memory that holds only objects made for the run (the owner having saved what he keeps), run `delete_all_programs`, `delete_all_samples` and `delete_all_multis`, each first with a wrong count (nothing must be sent), then with the right one after the owner's word. Observe what happens to the parts of a multi when all programs go and to the zones of a program when all samples go (TASK-MCP-050, assumption 7). Write it up and correct the simulated sampler.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-051, RQ-MCP-042
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)
+- **Acceptance Criteria** (Gherkin): *Given* a memory of test objects only and the owner's word for each call, *When* each tool is run with a wrong count and then with the right one, *Then* the first sends nothing, the second leaves none of its kind, and the answers and what the sampler did are in the observations file.
+- **Dependencies**: TASK-MCP-060
+- **Assignee**: Human and AI
+- **Verification**: Not started (needs the owner).
+- **Assumptions**: (1) Test objects of every kind are made again between the three calls, so that each observation is of one command on a known memory.
+
+### TASK-MCP-062: Real-sampler run — clearing the sampler's memory
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: On a memory that holds only objects made for the run, test copies of song files, set lists and scenelists included, run `clear_sampler_memory` with a wrong count (nothing must be sent), then with the right one after the owner's word. Observe whether the song files, set lists and scenelists are cleared too (TASK-MCP-051, assumption 1) and how long the sampler takes to answer. Write it up and correct the simulated sampler; if the three lists are cleared, the count of DEC-MCP-029 is reviewed with the owner.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-052, RQ-MCP-042
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)
+- **Acceptance Criteria** (Gherkin): *Given* a memory of test objects only and the owner's word, *When* `clear_sampler_memory` is run with a wrong count and then with the right one, *Then* the first sends nothing, the second leaves no program, sample or multi, and what happened to the song files, set lists and scenelists and the time taken are in the observations file.
+- **Dependencies**: TASK-MCP-061
+- **Assignee**: Human and AI
+- **Verification**: Not started (needs the owner).
+- **Assumptions**: (1) The command has no timeout of its own (TASK-MCP-051, assumption 2): if the sampler takes longer than the session's command timeout, the tool reports it as not answering and the owner may have to switch the sampler off and on; that risk is said to the owner before the call.
+
+### TASK-MCP-063: Real-sampler run — the front-panel keys
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: With `--allow-front-panel` (and no other option), the owner watching the screen, run `press_key`, `hold_key`, `release_key`, `turn_data_wheel` and `send_ascii_key` at least once each, from screens and on keys the owner chooses as harmless (never ENT/PLAY on a delete, save or clear screen); hold a key and close the session in order to see the release; turn the data wheel on a value the owner watches and puts back; send ASCII keys into the name of a test item. Write it up.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-054
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-032, DEC-MCP-033)
+- **Acceptance Criteria** (Gherkin): *Given* the owner at the sampler and a screen he chose, *When* each of the 5 tools is run alone, *Then* what the screen did is in the observations file; *when* a key is held and the session closes in order, *then* the sampler shows the key released.
+- **Dependencies**: TASK-MCP-062
+- **Assignee**: Human and AI
+- **Verification**: Not started (needs the owner).
+- **Assumptions**: (1) "Every tool" is read as every key tool, not every one of the 43 keys: the keys pressed are those the owner names. (2) A server killed with a key held does not release it (TASK-MCP-053, assumption 4); this is not tried.
+
+### TASK-MCP-064: Closure of the real runs — README, observations and simulated sampler
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: After TASK-MCP-055 and TASK-MCP-058 to TASK-MCP-063, update the table "what has been tried" and the Safety section of `juce/mcp/README.md`, the sentences of `README.md` and `CHANGELOG.md` saying which tools ran on the simulated sampler only, regenerate the scripted conversations if the simulated sampler changed (their differences read line by line), and run the full `ctest`.
+- **Requirement refs**: RQ-MCP-056, RQ-MCP-043
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-033)
+- **Acceptance Criteria** (Gherkin): *Given* the observations file after the runs, *When* the READMEs and `CHANGELOG.md` are read, *Then* each tool of this plan is said to have run on the real S5000, the effects tools with the limit of the missing board, and `ctest` passes.
+- **Dependencies**: TASK-MCP-055, TASK-MCP-058 to TASK-MCP-063
+- **Assignee**: AI
+- **Verification**: Not started.
+- **Assumptions**: None

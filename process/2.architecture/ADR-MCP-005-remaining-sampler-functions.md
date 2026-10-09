@@ -77,6 +77,7 @@ verified in `ctest` against the simulated sampler, which models a board; the own
 has not been run on a real sampler, as it does for every untried item. `clear_sampler_memory` is implemented and tested on the
 simulator; it is not run on the real sampler unless the owner decides it (AGENTS.md: never send `&32` to the owner's sampler without
 asking). The real run of everything else uses test data the owner puts on the sampler or that the run makes. [RQ-MCP-053, RQ-MCP-056]
+*Amended 2026-10-09 (the owner):* every tool of PLAN-MCP-005 is run on the real S5000, `clear_sampler_memory`, the `delete_all_*` tools and every key tool included, each destructive call only with the owner's word at the moment it is sent (TASK-MCP-055, TASK-MCP-058 to TASK-MCP-064). With no board, the effects tools are run for their "no board" answer; their Sets stay verified on the simulated sampler only until a board is installed. [RQ-MCP-056]
 
 ### DEC-MCP-034: The order of the work follows the risk, from reading to keys
 The order is in PLAN-MCP-005: settings first (a Set and a Get each, no data lost), the MIDI setup (Set only), song files, set lists

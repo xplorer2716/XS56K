@@ -135,11 +135,11 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 - **Category**: Non-Functional
 - **NFR Type**: Reliability
 - **EARS Type**: Ubiquitous
-- **Statement**: Every requirement of this feature SHALL be verified in `ctest` against the simulated sampler; the tools SHALL then be run on the real S5000 with the owner present, on test data that is made for the run or that the owner puts on the sampler and lists beforehand (song files, set lists and scenelists in memory and on the disk, programs, samples and multis made for the run), with these exceptions, which the README SHALL list: the effects board (no board), `clear_sampler_memory` (not run on the real sampler unless the owner decides it), and the front-panel keys other than ones the owner watches doing nothing harmful.
-- **Metric**: each new tool run on the real sampler, or each exception listed.
+- **Statement**: Every requirement of this feature SHALL be verified in `ctest` against the simulated sampler; EVERY tool of this feature SHALL then be run on the real S5000 with the owner present, on test data that is made for the run or that the owner puts on the sampler and lists beforehand (song files, set lists and scenelists in memory and on the disk, programs, samples and multis made for the run), `clear_sampler_memory`, the `delete_all_*` tools and the front-panel keys included, each destructive call only with the owner's word at the moment it is sent; WHILE the sampler has no effects board, the effects tools SHALL be run for their "no board" answer and the README SHALL say that their Sets are unverified on a real board. *Amended 2026-10-09 (the owner): every tool of PLAN-MCP-005 is run on the real sampler; the earlier exceptions (effects board, `clear_sampler_memory`, keys other than harmless ones) are withdrawn, the effects board remaining limited by the hardware (TASK-MCP-057).*
+- **Metric**: each new tool run on the real sampler (the effects tools: their "no board" answer while the sampler has none).
 - **Measurement Method**: `ctest`; scripted runs on the real sampler, written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the observations file, *When* it is read after the real run, *Then* each new tool has its answer and what the sampler did, or is in the list of exceptions with the reason.
+- **Acceptance Criteria** (Gherkin): *Given* the observations file, *When* it is read after the real run, *Then* each new tool has its answer and what the sampler did; the effects tools, while there is no board, their "no board" answer.
 - **Dependencies**: RQ-MCP-044; ADR-MCP-005 (DEC-MCP-033)
 
 ### RQ-MCP-057: Each new destructive primitive is called from one place only
