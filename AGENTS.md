@@ -32,6 +32,11 @@ memory and, behind a launch flag, to load and save them through the sampler's ow
 `xs56k_mcp_server`; `ADR-MCP-001` to `ADR-MCP-003`, `FTR-MCP-001` to `FTR-MCP-003`). Reference documentation
 lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
 
+**The AGNOS process is in `.github/instructions/agnos-sw-eng.instructions.md`: read it in full, every line, before any session that plans,
+implements or commits a task** (its START SESSION step 1 requires it; a partial read has already cost a session). Its skills are
+`agnos-git-workflow` (branch and commit format) and `agnos-index` (the index of `process/`); `process/_sessionstate/session.yaml` must say
+the session's real platform and `unit_tests` before the first task.
+
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
 `documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
 
