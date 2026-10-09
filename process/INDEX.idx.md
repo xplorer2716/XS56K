@@ -309,6 +309,7 @@ DEC-MCP-034|81-88||The order of the work follows the risk, from reading to keys
 @process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
+@process/3.plan/20261009-claude-code-cloud-for-claude-on-prem-handover.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-05.md
