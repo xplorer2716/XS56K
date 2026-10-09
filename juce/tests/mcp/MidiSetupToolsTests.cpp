@@ -21,6 +21,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <utility>
 #include <vector>
@@ -145,7 +146,7 @@ TEST_CASE("Given the external APM controller, When 0, 74 and 127 are set, Then t
           "[mcp][midi]")
 {
     ToolRig rig;
-    for (const std::uint8_t controller : {0, 74, 127})
+    for (const std::uint8_t controller : std::initializer_list<std::uint8_t>{0, 74, 127})
     {
         const json answer = setting(rig, SWITCH_EXTERNAL_APM_CONTROLLER, std::to_string(controller));
         INFO(static_cast<int>(controller));

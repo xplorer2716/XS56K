@@ -2297,6 +2297,8 @@ namespace mcp
         constexpr const char* PLAYING_MODE_LIST = "multi, program or sample";
         constexpr const char* PANEL_LIST = "normal, locked";
         constexpr const char* CLOCK_FORMAT = "YYYY-MM-DD HH:MM:SS";
+        // What get_sampler_settings says in place of a play mode the sampler refused to give. [TASK-MCP-055]
+        constexpr const char* PLAY_MODE_NOT_REPORTED = "not reported. ";
         // The sampler's name is 20 characters on the wire (the AKM item). [RQ-AKM-052]
         constexpr std::size_t MAX_SAMPLER_NAME_LENGTH = 20;
         // The sampler's clock takes the years 1980 to 2079 (the AKM item). [RQ-AKM-054]
@@ -2465,7 +2467,9 @@ namespace mcp
                     return failure(settings.problem);
                 std::string text = "Name: " + settings.value->name + "\n";
                 text += "Clock: " + clockText(settings.value->clock) + "\n";
-                text += "Play mode: " + playModeText(settings.value->playMode) + "\n";
+                text += "Play mode: " + (settings.value->playMode ? playModeText(*settings.value->playMode)
+                                                                 : PLAY_MODE_NOT_REPORTED + settings.value->playModeProblem) +
+                        "\n";
                 text += "Front panel: " + panelText(settings.value->panel) + "\n";
                 return ok(std::move(text));
             }});

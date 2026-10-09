@@ -20,12 +20,14 @@
 // session and the simulated sampler. [TASK-MCP-045, RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
 #include "ToolRig.hpp"
+#include "akm/SamplerError.hpp"
 
 using json = nlohmann::json;
 using mcp::test::hasText;
@@ -44,6 +46,24 @@ namespace
     json set(ToolRig& rig, const char* setting, const std::string& value)
     {
         return rig.call("set_sampler_setting", {{"setting", setting}, {"value", value}});
+    }
+
+    // A simulated sampler that answers the Get of the play mode (section 02, &20) with an ERROR of this number.
+    akm::harness::SamplerBehaviour refusingPlayMode(std::uint16_t number)
+    {
+        const akm::ItemDescriptor& getPlayMode = akm::descriptor(akm::ItemId::SystemGetPlayMode);
+        akm::harness::SamplerBehaviour behaviour;
+        behaviour.itemErrors.push_back({getPlayMode.section, getPlayMode.item, number});
+        return behaviour;
+    }
+
+    // A simulated sampler that answers nothing to the Get of the play mode.
+    akm::harness::SamplerBehaviour silentOnPlayMode()
+    {
+        const akm::ItemDescriptor& getPlayMode = akm::descriptor(akm::ItemId::SystemGetPlayMode);
+        akm::harness::SamplerBehaviour behaviour;
+        behaviour.silentItems.push_back({getPlayMode.section, getPlayMode.item});
+        return behaviour;
     }
 }
 
@@ -223,4 +243,48 @@ TEST_CASE("Given a missing, an unknown or a badly typed argument, When set_sampl
     CHECK(rig.accepted(akm::ItemId::SystemSetClock) == 0);
     CHECK(rig.accepted(akm::ItemId::SystemSetPlayMode) == 0);
     CHECK(rig.accepted(akm::ItemId::SystemSetFrontPanelLock) == 0);
+}
+
+TEST_CASE("Given a sampler that answers ERROR 03 to the Get of the play mode, as the real S5000 did on its UTILITIES MIDI SETUP and MIDI FILTER pages, When get_sampler_settings is called, Then the name, the clock and the front panel are given and the play mode is said not reported, with the page to leave [RQ-MCP-046, TASK-MCP-055]",
+          "[mcp][settings]")
+{
+    ToolRig rig;
+    rig.sampler->setBehaviour(refusingPlayMode(akm::error_number::UNKNOWN_ERROR));
+    const json answer = rig.call("get_sampler_settings");
+    CHECK_FALSE(toolFailed(answer));
+    const std::string text = toolText(answer);
+    INFO(text);
+    CHECK(hasText(text, "Name: "));
+    CHECK(hasText(text, "Clock: "));
+    CHECK(hasText(text, "Front panel: normal"));
+    CHECK(hasText(text, "Play mode: not reported"));
+    CHECK(hasText(text, "error 3"));
+    CHECK(hasText(text, "UTILITIES"));
+    CHECK(hasText(text, "MULTI"));
+}
+
+TEST_CASE("Given a sampler that answers another ERROR to the Get of the play mode, When get_sampler_settings is called, Then the other settings are given and the play mode is said not reported with the sampler's reason, no page being named [RQ-MCP-046, TASK-MCP-055]",
+          "[mcp][settings]")
+{
+    ToolRig rig;
+    rig.sampler->setBehaviour(refusingPlayMode(akm::error_number::NOT_SUPPORTED));
+    const json answer = rig.call("get_sampler_settings");
+    CHECK_FALSE(toolFailed(answer));
+    const std::string text = toolText(answer);
+    INFO(text);
+    CHECK(hasText(text, "Name: "));
+    CHECK(hasText(text, "Front panel: normal"));
+    CHECK(hasText(text, "Play mode: not reported"));
+    CHECK(hasText(text, "error 0"));
+    CHECK_FALSE(hasText(text, "UTILITIES"));
+}
+
+TEST_CASE("Given a sampler that answers nothing to the Get of the play mode, When get_sampler_settings is called, Then the tool fails and says the sampler did not answer [RQ-MCP-046, RQ-MCP-009, TASK-MCP-055]",
+          "[mcp][settings]")
+{
+    ToolRig rig;
+    rig.sampler->setBehaviour(silentOnPlayMode());
+    const json answer = rig.call("get_sampler_settings");
+    CHECK(toolFailed(answer));
+    CHECK_FALSE(hasText(toolText(answer), "Play mode: not reported"));
 }

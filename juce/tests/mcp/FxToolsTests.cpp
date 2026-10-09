@@ -255,7 +255,8 @@ TEST_CASE("Given the chorus on channel 0, When its parameters are set by name an
     CHECK(hasText(toolText(rate), "rate set to 15"));
     CHECK_FALSE(toolFailed(parameter(rig, 0, MODULATION, CHORUS_DEPTH, 60)));
     CHECK_FALSE(toolFailed(parameter(rig, 0, MODULATION, "Feedback", -20)));
-    const auto& values = rig.sampler->fxState().channels[0].modules[MODULATION].parameters;
+    const auto fx = rig.sampler->fxState();
+    const auto& values = fx.channels[0].modules[MODULATION].parameters;
     CHECK(values.at(CHORUS_RATE) == 15);
     CHECK(values.at(CHORUS_DEPTH) == 60);
     CHECK(values.at(CHORUS_FEEDBACK) == -20);

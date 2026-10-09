@@ -370,7 +370,10 @@ namespace mcp
     {
         std::string name;
         SamplerClock clock;
-        SamplerPlayMode playMode = SamplerPlayMode::Multi;
+        /// Empty when the sampler answered an ERROR to the Get of the play mode, which a real S5000 does on some pages of its
+        /// screen; `playModeProblem` then says why. [TASK-MCP-055]
+        std::optional<SamplerPlayMode> playMode;
+        std::string playModeProblem;
         SamplerPanel panel = SamplerPanel::Normal;
     };
 
@@ -775,7 +778,8 @@ namespace mcp
         /// The sampler's model, operating system and free memory (section 02). [RQ-MCP-040]
         [[nodiscard]] Outcome<SystemInfo> readSystemInfo();
 
-        /// The sampler's name, clock, play mode and front-panel lock (section 02). [RQ-MCP-046]
+        /// The sampler's name, clock, play mode and front-panel lock (section 02). An ERROR answered to the Get of the play mode leaves
+        /// the play mode out, with the reason, instead of failing the whole read. [RQ-MCP-046, TASK-MCP-055]
         [[nodiscard]] Outcome<SamplerSettings> readSamplerSettings();
 
         /// Each of these sends one Set of section 02 and answers what the sampler reports afterwards for that setting. The caller checks
@@ -905,7 +909,8 @@ namespace mcp
         /// One Get of section 02 each, on the open session. [RQ-MCP-046]
         [[nodiscard]] Outcome<std::string> readSamplerName();
         [[nodiscard]] Outcome<SamplerClock> readSamplerClock();
-        [[nodiscard]] Outcome<SamplerPlayMode> readSamplerPlayMode();
+        /// `samplerError`, when given, receives the number of an ERROR the sampler answered. [TASK-MCP-055]
+        [[nodiscard]] Outcome<SamplerPlayMode> readSamplerPlayMode(std::optional<std::uint16_t>* samplerError = nullptr);
         [[nodiscard]] Outcome<SamplerPanel> readSamplerPanel();
 
         /// The open session, for the units of the gateway; only called while a connection is open.

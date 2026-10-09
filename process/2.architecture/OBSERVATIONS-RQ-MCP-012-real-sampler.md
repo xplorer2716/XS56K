@@ -323,3 +323,35 @@ claim in a test comment that the source file of a loaded sample is "100 bytes sh
 the oboe file is 32 bytes shorter than its saved copy (1344 and 1376) and the stereo file is the same size as its copy (368084). Left
 as it was, after the run: the free wave memory read 99 % afterwards (158131378 of 158548694 bytes) with no sample in memory, bytes not
 given back after the deletions, as already noted for 786432 bytes in TASK-MCP-037.
+
+## The sampler's settings and the MIDI setup (TASK-MCP-055), run on 2026-10-09 and 10 with the owner present
+
+The owner's S5000 (OS 2.14, no FX board); `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with no
+option (`--screen independent` by default) once per tool call, by a script that writes each answer to a file; every run ended with
+"settings put back: checksum mode, Still Alive, Sync LCD, Auto screen update; not put back: none". Before the MIDI calls the owner
+declared what the MIDI SETUP and MIDI FILTER pages showed: PROGRAM CHANGE on, MULTI SELECT off, MULTI SELECT CHANNEL 1A, EXTERNAL APM
+CONTROLLER 0, AFTERTOUCH channel, and every filter of channel 1A allowing. Every value changed was put back and checked. Traceability:
+RQ-MCP-056, RQ-MCP-046, RQ-MCP-047, TASK-MCP-055 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `get_sampler_settings`, the screen on UTILITIES → MIDI SETUP / MIDI FILTER | **refused**: the name and the clock were read, then the Get of the play mode (§02/&20) was answered **ERROR 03** ("unknown error"), so the tool answered nothing but the error. The same with `--screen as-is` and `--screen follow` |
+| `get_sampler_settings`, the screen on MULTI | answered: `AKAI S5000`, `2026-10-10 00:06:29 (Saturday)`, play mode `multi`, front panel `normal` |
+| `set_sampler_setting` `name` = `XS56K TEST 20 CHARS!` (20 characters) | set and read back as given, all 20 characters kept; `AKAI S5000` put back and read back |
+| `set_sampler_setting` `clock` = `2030-06-15 12:34:56` | set and read back with the day worked out (Saturday); the sampler's own clock had been 52.6 s behind the PC's, and it was put back to the PC's time minus that offset: 52.8 s behind afterwards |
+| `set_sampler_setting` `play_mode` = `program`, `sample`, `muted`, then `multi` | each set and read back; `muted` with its warning that the sampler plays nothing |
+| `set_sampler_setting` `front_panel` = `locked`, then `normal` | each set and read back (`get_sampler_settings` in between read `locked`) |
+| `set_midi_setting`: `program_change` off, `multi_select` bank, `multi_select_channel` 3 (= 4A), `external_apm_controller` 74, `aftertouch` polyphonic | each accepted; **the MIDI SETUP page showed the five values** (the owner, at the page); the five declared values sent back and seen on the page |
+| `set_midi_filter` `ignore` on channel 0 (= 1A) for `note_on`, `aftertouch`, `wheels`, `volume` | each accepted; **the MIDI FILTER page showed the four ignored** on 1A (the page shows one event type at a time, chosen by a field: the owner first saw aftertouch only, then the other three by changing the field); the four set back to `allow` and seen on the page |
+| `get_sampler_settings` again, after the MIDI calls, the screen on UTILITIES → MIDI SETUP, then on MIDI FILTER (the server rebuilt with the change below) | **answered** both times: play mode `multi`, no error |
+
+What this changes: the Get of the play mode was refused (ERROR 03) three times in a row while the screen was on UTILITIES → MIDI
+SETUP / MIDI FILTER, read from the MULTI page, and read again later from both MIDI pages: **the cause of the refusal is not known**
+and the page alone does not reproduce it (it was read without error on 2026-10-01 too, TASK-AKM-053). `get_sampler_settings` now gives
+the name, the clock and the front panel when the sampler answers an ERROR to the play mode, says "not reported" with the sampler's
+reason, and for error 3 says what was seen here; a sampler that answers nothing still makes the tool fail. The simulated sampler
+already refuses an item on demand (`SamplerBehaviour::itemErrors`), which the new tests use; it models no page.
+The MIDI SETUP and MIDI FILTER pages showed each change here with automatic screen updating off (`--screen independent`), whereas on
+2026-10-04 only `&01` and `&07` showed in that state (`OBSERVATIONS-RQ-AKM-080-midi-config.md`); the owner may have left and re-entered
+the page, which this run did not record call by call. The three filter events other than aftertouch, never tried before, are now seen
+obeyed. A name of 20 characters is kept (TASK-MCP-045, assumption).

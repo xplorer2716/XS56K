@@ -109,6 +109,14 @@ namespace mcp
             }
             return std::string("The connection to the sampler failed: ") + std::string(akm::describe(opened.status)) + ".";
         }
+
+        // What a real S5000 (OS 2.14) did once with the Get of the play mode (2026-10-10): ERROR 03 three times while its screen showed
+        // UTILITIES, MIDI SETUP or MIDI FILTER, then the play mode from the MULTI page and, later, from both MIDI pages too; the cause
+        // is not known. [TASK-MCP-055, RQ-MCP-046]
+        constexpr std::uint16_t PLAY_MODE_REFUSED_ON_A_PAGE = akm::error_number::UNKNOWN_ERROR;
+        constexpr const char* PLAY_MODE_PAGE_HINT =
+            " A real S5000 has answered this error while its screen showed UTILITIES, MIDI SETUP or MIDI FILTER, and then gave its play mode "
+            "from the MULTI page; the cause is not known: ask again, from another page such as MULTI if it is refused again.";
     }
 
     // The ports, the executor and the scheduler outlive the session, which is destroyed first (members are destroyed
@@ -664,13 +672,15 @@ namespace mcp
             SamplerClock{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds});
     }
 
-    Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode()
+    Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode(std::optional<std::uint16_t>* samplerError)
     {
         const auto read = await<akm::PlayModeResult>(waitFor(1), [&](std::function<void(const akm::PlayModeResult&)> done) {
             akm::getPlayMode(_connection->session, std::move(done));
         });
         if (!read)
             return Outcome<SamplerPlayMode>::failure(SESSION_TIMED_OUT);
+        if (const auto* error = std::get_if<akm::Error>(&read->outcome); error != nullptr && samplerError != nullptr)
+            *samplerError = error->number;
         if (!read->mode)
             return Outcome<SamplerPlayMode>::failure(akm::succeeded(read->outcome)
                                                           ? std::string("The sampler answered a play mode this server does not know.")
@@ -703,15 +713,18 @@ namespace mcp
         const auto clock = readSamplerClock();
         if (!clock.ok())
             return Outcome<SamplerSettings>::failure(clock.problem);
-        const auto playMode = readSamplerPlayMode();
-        if (!playMode.ok())
+        std::optional<std::uint16_t> playModeError;
+        const auto playMode = readSamplerPlayMode(&playModeError);
+        if (!playMode.ok() && !playModeError)
             return Outcome<SamplerSettings>::failure(playMode.problem);
         const auto panel = readSamplerPanel();
         if (!panel.ok())
             return Outcome<SamplerSettings>::failure(panel.problem);
         settings.name = *name.value;
         settings.clock = *clock.value;
-        settings.playMode = *playMode.value;
+        settings.playMode = playMode.value;
+        if (!playMode.ok())
+            settings.playModeProblem = playMode.problem + (*playModeError == PLAY_MODE_REFUSED_ON_A_PAGE ? PLAY_MODE_PAGE_HINT : "");
         settings.panel = *panel.value;
         return Outcome<SamplerSettings>::success(std::move(settings));
     }

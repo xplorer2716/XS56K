@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   without any option**: programs (list, select, create, rename, delete, delete all), 119 program parameters, keygroups (add, delete), the
   sample of each zone, samples (list, select, 12 parameters, rename, delete, delete all, audition), multis (list, select, create, rename,
   delete, delete all, 12 part parameters, the program of each part, the program number), the sampler's model and free memory, its
-  settings (name, clock, play mode, front-panel lock), its MIDI setup and filters (the sampler cannot read them back, and the tools say
+  settings (name, clock, play mode, front-panel lock; the other three are still given when the sampler refuses its play mode, as a
+  real S5000 once did), its MIDI setup and filters (the sampler cannot read them back, and the tools say
   so), song files, set lists and scenelists (list, select, rename, delete), the effects board (channel mute, module type and state,
   module parameters) and clearing the sampler's memory. **16 more with `--allow-disk`**: browse the sampler's own disks, create, rename
   and delete folders and files, load a file or a folder, save one item or every item of a kind, song files, set lists and scenelists

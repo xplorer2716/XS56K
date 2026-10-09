@@ -530,7 +530,7 @@ TASK-MCP-051|154-165|Done|Clear the sampler's memory
 TASK-MCP-052|166-177|Done|The effects board
 TASK-MCP-053|178-189|Done|The front-panel keys behind `--allow-front-panel`
 TASK-MCP-054|190-201|Done|README, scripted conversations, counts and closure
-TASK-MCP-055|202-213|Not Started|Real-sampler run — the sampler's settings and the MIDI setup
+TASK-MCP-055|202-213|Done|Real-sampler run — the sampler's settings and the MIDI setup
 TASK-MCP-056|214-225|Done|`CHANGELOG.md` says what the server offers today
 TASK-MCP-057|226-237|Done|Plan the real-sampler run of every tool of this plan
 TASK-MCP-058|238-249|Not Started|Real-sampler run — song files, set lists and scenelists in memory
