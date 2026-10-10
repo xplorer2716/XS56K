@@ -18,11 +18,12 @@
 
 // Saving and loading song files, set lists and scenelists through the disk: the kinds song_file, set_list and scenelist of
 // save_memory_item and save_all_memory_items, and load_file on their files, over a real session and the simulated sampler. The extensions of
-// their files are the simulator's placeholders (.MID, .SET, .SCN): the tools find a file by the item's name whatever the extension.
+// their files are what a real S5000 wrote (TASK-MCP-059, 2026-10-10): .MID, .SET and .ASC, 34681, 2304 and 26 bytes here.
 // [TASK-MCP-049, RQ-MCP-050, RQ-MCP-025, RQ-MCP-026, RQ-MCP-027, ADR-MCP-005 (DEC-MCP-031), ADR-MCP-003 (DEC-MCP-019, DEC-MCP-021)]
 #include "DiskRig.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -49,7 +50,7 @@ namespace
     constexpr const char* LOAD = "load_file";
     constexpr const char* SONG_FILE = "VERSE.MID";
     constexpr const char* SET_LIST_FILE = "HOME.SET";
-    constexpr const char* SCENELIST_FILE = "STUDIO.SCN";
+    constexpr const char* SCENELIST_FILE = "STUDIO.ASC";
 
     const std::vector<std::string> SONGS = {"INTRO", "VERSE", "OUTRO"};
     const std::vector<std::string> SET_LISTS = {"TOUR", "HOME"};
@@ -185,7 +186,7 @@ TEST_CASE("Given three song files, two set lists and two scenelists, When each k
     CHECK(sent[1].front() == TYPE_SETLIST);
     CHECK(sent[2].front() == TYPE_SCENELIST);
     const std::string folder = textOf(rig.call("list_disk_contents"));
-    for (const char* file : {"INTRO.MID", "VERSE.MID", "OUTRO.MID", "TOUR.SET", "HOME.SET", "LIVE SET.SCN", "STUDIO.SCN"})
+    for (const char* file : {"INTRO.MID", "VERSE.MID", "OUTRO.MID", "TOUR.SET", "HOME.SET", "LIVE SET.ASC", "STUDIO.ASC"})
         CHECK(contains(folder, file));
 }
 
@@ -249,4 +250,70 @@ TEST_CASE("Given a set list in memory and the file of another set list, When it 
     CHECK(rig.sampler->setListNames() == std::vector<std::string>{"HOME"});
     CHECK(contains(textOf(afterNone), "set lists 1 (was 0, added HOME)"));
     CHECK_FALSE(contains(textOf(afterNone), "no longer held"));
+}
+
+TEST_CASE("Given a song file, a set list and a scenelist in memory, When each is saved, Then the folder lists the extension and the size a real S5000 wrote: .MID, .SET and .ASC [RQ-MCP-050, TASK-MCP-059]",
+          "[mcp][disk][namedlists]")
+{
+    const auto holder = makeRig();
+    DiskRig& rig = *holder;
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SONG, "VERSE")));
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SET_LIST, "HOME")));
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SCENELIST, "STUDIO")));
+
+    const std::string folder = textOf(rig.call("list_disk_contents"));
+    CHECK(contains(folder, "VERSE.MID (34681 bytes)"));
+    CHECK(contains(folder, "HOME.SET (2304 bytes)"));
+    CHECK(contains(folder, "STUDIO.ASC (26 bytes)"));
+}
+
+TEST_CASE("Given a song file and a scenelist saved and still in memory, When each file is loaded, Then the sampler replaces the item instead of adding one: the song keeps its place in the sorted list, the scenelist goes to the end, the position selected stays selected and the answer speaks of no change of names [RQ-MCP-025, TASK-MCP-059]",
+          "[mcp][disk][load][namedlists]")
+{
+    const auto holder = makeRig();
+    DiskRig& rig = *holder;
+    rig.sampler->setSongNames({"INTRO", "OUTRO", "VERSE"});
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SONG, "OUTRO")));
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SCENELIST, "LIVE SET")));
+    REQUIRE_FALSE(isError(rig.call("select_song_file", {{"name", "OUTRO"}})));
+    REQUIRE_FALSE(isError(rig.call("select_scenelist", {{"name", "STUDIO"}})));
+
+    const json song = rig.call(LOAD, {{"name", "OUTRO.MID"}});
+    CHECK_FALSE(isError(song));
+    CHECK_FALSE(contains(textOf(song), "song files"));
+    CHECK(rig.sampler->songNames() == std::vector<std::string>{"INTRO", "OUTRO", "VERSE"});
+    CHECK(rig.sampler->currentSong() == std::optional<std::size_t>{1});
+
+    const json scenelist = rig.call(LOAD, {{"name", "LIVE SET.ASC"}});
+    CHECK_FALSE(isError(scenelist));
+    CHECK(contains(textOf(scenelist), "scenelists 2 (was 2)"));
+    CHECK(rig.sampler->sceneListNames() == std::vector<std::string>{"STUDIO", "LIVE SET"});
+    CHECK(rig.sampler->currentSceneList() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given a song file and a scenelist renamed aside after being saved, When their files are loaded, Then the song is added in its sorted place and the scenelist at the end, and the position selected stays selected [RQ-MCP-025, TASK-MCP-059]",
+          "[mcp][disk][load][namedlists]")
+{
+    const auto holder = makeRig();
+    DiskRig& rig = *holder;
+    rig.sampler->setSongNames({"a_woman_in_love", "AIMER", "alors_regarde", "assassine"});
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SONG, "assassine")));
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SCENELIST, "STUDIO")));
+    REQUIRE_FALSE(isError(rig.call("select_song_file", {{"name", "assassine"}})));
+    REQUIRE_FALSE(isError(rig.call("rename_song_file", {{"name", "assassine-ORIG"}})));
+    REQUIRE_FALSE(isError(rig.call("select_scenelist", {{"name", "STUDIO"}})));
+    REQUIRE_FALSE(isError(rig.call("rename_scenelist", {{"name", "STUDIO-ORIG"}})));
+
+    const json song = rig.call(LOAD, {{"name", "assassine.MID"}});
+    CHECK_FALSE(isError(song));
+    CHECK(contains(textOf(song), "song files 5 (was 4, added assassine)"));
+    CHECK(rig.sampler->songNames() ==
+          std::vector<std::string>{"a_woman_in_love", "AIMER", "alors_regarde", "assassine", "assassine-ORIG"});
+    CHECK(rig.sampler->currentSong() == std::optional<std::size_t>{3});
+
+    const json scenelist = rig.call(LOAD, {{"name", SCENELIST_FILE}});
+    CHECK_FALSE(isError(scenelist));
+    CHECK(contains(textOf(scenelist), "scenelists 3 (was 2, added STUDIO)"));
+    CHECK(rig.sampler->sceneListNames() == std::vector<std::string>{"LIVE SET", "STUDIO-ORIG", "STUDIO"});
+    CHECK(rig.sampler->currentSceneList() == std::optional<std::size_t>{1});
 }

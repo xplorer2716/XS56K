@@ -252,15 +252,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-059: Real-sampler run — saving and loading song files, set lists and scenelists through the disk
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: With `--allow-disk` (never `--allow-disk-refresh`), in a folder made for the run with `create_folder`, run `save_memory_item` and `save_all_memory_items` with the kinds `song_file`, `set_list` and `scenelist`, then `load_file` on each saved file. Observe the file extensions and sizes (placeholders `.MID`, `.SET`, `.SCN` and 512 bytes in the simulated sampler), a second save without `overwrite`, and loading a file whose item is already in memory. Replace the placeholders in the simulated sampler; delete the folder and the copies afterwards.
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-050, RQ-MCP-025, RQ-MCP-026, RQ-MCP-027
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-031, DEC-MCP-033); ADR-MCP-003 (DEC-MCP-018)
 - **Acceptance Criteria** (Gherkin): *Given* a writable disk and a folder made for the run, *When* each kind is saved alone, saved in bulk and loaded back, *Then* the answers, the listing and the memory are in the observations file, the simulated sampler writes the observed extensions and sizes, and the folder is removed.
 - **Dependencies**: TASK-MCP-058
 - **Assignee**: Human and AI
-- **Verification**: Not started (needs the owner).
-- **Assumptions**: (1) The bulk save of a kind is run only when what it saves is test data or the owner agrees to save all of it into the test folder. (2) If loading an item already in memory replaces it instead of adding one, the simulated sampler is corrected and the tool's answer reviewed.
+- **Verification**: Run on 2026-10-10 on the S5000 and its disk `S5K` with `--allow-disk` only; the 63 answers are in the scratchpad's `run059`, written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "Saving and loading song files, set lists and scenelists through the disk (TASK-MCP-059)". Each kind saved alone (`AIMER.MID` 36839 bytes, `Set 1.SET` 2304, `Scene  1.ASC` 26), saved again with and without `overwrite`, saved in bulk (3 files gained, the other kinds refused then saved with `overwrite`), and loaded back with the name in memory (replaced) and with the item renamed aside (added: the song sorted, the scenelist at the end; the set list replaced); the copies deleted by exact name and every name and selection put back; the folder `MCPLIST` and its 7 files deleted, the owner's root as before (9 folders, 10 files). Corrected in the simulated sampler, test first (6 tests, 18 assertions failed before the code): `.ASC` for a scenelist (the `.SCN` placeholder), the three sizes, a load that replaces or adds in order, the selected position kept; `xs56k_mcp_tests "[namedlists]"` 30 of 30 cases, 654 assertions; the disk conversation regenerated, one line changed (512 → 34681 bytes); README line on the extensions rewritten; full `ctest` on Windows (MSVC, Debug) 1097 of 1097, no warning.
+- **Assumptions**: (1) The run was made by the assistant alone, the owner having said the data were test data and left it to the assistant (the plan said "with the owner present"): the disk was never refreshed, the folder was made for the run and the owner's files were not touched. (2) The bulk save of each kind saved the sampler's own songs, set list and scenelists into the test folder, the owner agreeing that they are test data. (3) A song loaded under a name the sampler holds is read as replaced, not ignored, for the scenelist's reordering shows the replacement; for a song the names cannot tell. (4) The song size is one of four observed values.
 
 ### TASK-MCP-060: Real-sampler run — the effects board
 - **Tier**: M

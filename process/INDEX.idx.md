@@ -535,7 +535,7 @@ TASK-MCP-055|205-216|Done|Real-sampler run — the sampler's settings and the MI
 TASK-MCP-056|217-228|Done|`CHANGELOG.md` says what the server offers today
 TASK-MCP-057|229-240|Done|Plan the real-sampler run of every tool of this plan
 TASK-MCP-058|241-252|Done|Real-sampler run — song files, set lists and scenelists in memory
-TASK-MCP-059|253-264|Not Started|Real-sampler run — saving and loading song files, set lists and scenelists through the disk
+TASK-MCP-059|253-264|Done|Real-sampler run — saving and loading song files, set lists and scenelists through the disk
 TASK-MCP-060|265-276|Not Started|Real-sampler run — the effects board
 TASK-MCP-061|277-288|Not Started|Real-sampler run — deleting all programs, all samples, all multis
 TASK-MCP-062|289-300|Not Started|Real-sampler run — clearing the sampler's memory

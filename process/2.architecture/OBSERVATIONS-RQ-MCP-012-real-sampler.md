@@ -414,3 +414,40 @@ longer holds ("set lists 1 (was 1, added HOME, no longer held TOUR)"). The probe
 scenelist when a file is loaded; why two reads got no answer; whether set lists are sorted (there is only one); the effect of the SET
 LIST page on the selection beyond the two cases seen. The deletion of a set list was run on a set list reloaded from the disk, the
 owner saying it was a test set; no set list can be duplicated, since the sampler holds one.
+
+## Saving and loading song files, set lists and scenelists through the disk (TASK-MCP-059), run on 2026-10-10
+
+The owner's S5000 (OS 2.14) with its SCSI2SD disk `S5K` (hard disk, FAT32, writable; the floppy drive 128 held no disk); the real
+`xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with `--allow-disk` only (**never** `--allow-disk-refresh`:
+`list_disks` was called without `refresh`), once per tool call, each answer written to a file (63 answer files, none with a "from the
+sampler: rejected message" line on standard error, TASK-MCP-066). The owner, who had said the data were test data, left the run to the
+assistant, who made it alone. The songs, the set list and the scenelists saved are those of the sampler (`a_woman_in_love`, `AIMER`,
+`alors_regarde`, `assassine`; `Set 1`; `Scene  1`, `Scene  2`), saved into a folder `MCPLIST` made at the root of the disk by `create_folder`
+and deleted at the end with its 7 files by `delete_folder` (the exact name as `confirm`, `delete_contents` true); the 9 folders and
+the 10 files the owner's root held before were there after. Every name and selection of the memory was put back (the last reading: the
+four songs with `a_woman_in_love` current, `Set 1`, `Scene  1` current then `Scene  2`). Traceability: RQ-MCP-056, RQ-MCP-050,
+RQ-MCP-025, RQ-MCP-026, RQ-MCP-027, TASK-MCP-059 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `list_disks` (no refresh), `select_disk` `S5K`, `list_disk_contents` | two disks, 128 (no disk) and 129 `S5K`; the root held 9 folders and 10 files, among them **`Set 1.SET` (2304 bytes)** and **`Scene  1.ASC`, `Scene  2.ASC` (26 bytes each)**: the extensions of a set list and of a scenelist, written by the sampler itself |
+| `create_folder` `MCPLIST`, `open_folder` | created empty, opened |
+| `save_memory_item` `song_file` `AIMER` | `AIMER.MID`, **36839 bytes** |
+| `save_memory_item` `set_list` `Set 1`, `scenelist` `Scene  1` | `Set 1.SET`, **2304 bytes**; `Scene  1.ASC`, **26 bytes** |
+| `save_memory_item` `AIMER` again | refused **by the server**, nothing sent ("already holds the file ... Pass overwrite true"); with `overwrite` true saved again, "replacing the file of that name", the same 36839 bytes |
+| `save_all_memory_items` `song_file` (confirm 4), `scenelist` (2), `set_list` (1), without `overwrite` | each refused **by the server** because a file of one of the names was already there, nothing sent |
+| the same with `overwrite` true | songs: "the folder gained 3 files" (`a_woman_in_love.MID` 34681, `alors_regarde.MID` 31492, `assassine.MID` 36087 bytes; `AIMER.MID` replaced); scenelists: gained `Scene  2.ASC`; set list: "gained no new file (files of the same names may have been replaced)" |
+| `load_file` `AIMER.MID` with `AIMER` in memory | accepted; the 4 songs, their order and the selection **unchanged**; the answer says nothing of song files (the names did not change) |
+| `load_file` `Scene  1.ASC` with `Scene  1` in memory | accepted; still 2 scenelists, but the order became `Scene  2`, `Scene  1`: the scenelist was **replaced and put at the end**, the position selected (0) stayed selected and so became `Scene  2`. `load_file` `Scene  2.ASC` put the order back |
+| `load_file` `Set 1.SET` with `Set 1` in memory | accepted; one set list, `Set 1` |
+| `rename_song_file` `assassine` → `assassine-ORIG`, then `load_file` `assassine.MID` | "song files 5 (was 4, added assassine)": the copy **sorted** into position 3, before `assassine-ORIG`; the position selected (3) stayed selected and now held the copy. `delete_song_file` on the copy (selected by name, exact `confirm`), `rename_song_file` back, selection to position 0 |
+| `rename_scenelist` `Scene  2` → `Scene  2-ORIG`, then `load_file` `Scene  2.ASC` | "scenelists 3 (was 2, added Scene  2)": the copy **at the end** (position 2); the position selected (1, `Scene  2-ORIG`) stayed, whereas the loads from the front panel of TASK-MCP-058 had moved it. `delete_scenelist` on the copy, rename back, selection to position 0 |
+| `rename_set_list` `Set 1` → `Set 1-ORIG`, then `load_file` `Set 1.SET` | "set lists 1 (was 1, added Set 1, no longer held Set 1-ORIG)": the loaded set list **replaced** the other, as the sampler holds one |
+| `close_folder`, `delete_folder` `MCPLIST` (`confirm` `MCPLIST`, `delete_contents`) | "Deleted the folder and the 7 items it held"; the root as before |
+
+What this changes: the simulated sampler writes `.MID`, `.SET` and `.ASC` (the placeholder `.SCN` was wrong) with 34681 (one of the four
+song sizes, which follow the song), 2304 and 26 bytes (the placeholders were 512), a loaded song replaces the one of its name or is
+added in its sorted place, a loaded scenelist replaces the one of its name and goes to the end, and the position selected stays selected;
+the README says it. **Not established:** whether a song loaded under a name the sampler holds is reloaded or ignored (the names cannot
+tell); what decides the size of a saved song; `save_children`, a read-only disk and a very slow save were not tried; the front-panel loads
+moved the selected item and the SysEx loads did not, the rule being unknown.

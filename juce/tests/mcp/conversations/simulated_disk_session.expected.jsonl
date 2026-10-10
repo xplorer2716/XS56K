@@ -42,7 +42,7 @@
 {"id":43,"jsonrpc":"2.0","result":{"content":[{"text":"Deleted the empty folder \"NEWDIR\" from the disk \"HD1\" (folder (root)).","type":"text"}],"isError":false}}
 {"id":44,"jsonrpc":"2.0","result":{"content":[{"text":"Started the audition of the file \"KICK2.WAV\": it plays until it is stopped (call audition_file with action \"stop\").","type":"text"}],"isError":false}}
 {"id":45,"jsonrpc":"2.0","result":{"content":[{"text":"Stopped the audition of the file.","type":"text"}],"isError":false}}
-{"id":47,"jsonrpc":"2.0","result":{"content":[{"text":"Saved the song file \"VERSE\" to the disk \"HD1\" (folder (root)): the file VERSE.MID (512 bytes) is in the folder.","type":"text"}],"isError":false}}
+{"id":47,"jsonrpc":"2.0","result":{"content":[{"text":"Saved the song file \"VERSE\" to the disk \"HD1\" (folder (root)): the file VERSE.MID (34681 bytes) is in the folder.","type":"text"}],"isError":false}}
 {"id":48,"jsonrpc":"2.0","result":{"content":[{"text":"The current folder of the disk \"HD1\" already holds the file \"VERSE.MID\": nothing was saved. Pass overwrite true to replace it.","type":"text"}],"isError":true}}
 {"id":49,"jsonrpc":"2.0","result":{"content":[{"text":"Saved the 2 set lists to the disk \"HD1\" (folder (root)): the folder gained 2 files (TOUR.SET, HOME.SET).","type":"text"}],"isError":false}}
 {"id":50,"jsonrpc":"2.0","result":{"content":[{"text":"Selected the song file \"VERSE\" (position 1).","type":"text"}],"isError":false}}

@@ -1919,13 +1919,24 @@ namespace akm::harness
         void materializeFile(const FileRecord& file, std::uint8_t sampleLoadOption, std::vector<ProgramRecord>& programs,
                             std::vector<SampleRecord>& samples, SongState& songs, SceneListState& sceneLists)
         {
+            // A song file loaded whose name the sampler holds replaces it, and one it does not hold is added in its sorted place; a scenelist
+            // replaces the one of its name and goes to the end of the list; the position selected stays selected whatever it now holds (a real
+            // S5000, TASK-MCP-059, 2026-10-10).
             if (file.loadsSongNamed)
+            {
+                songs.songs.erase(std::remove(songs.songs.begin(), songs.songs.end(), *file.loadsSongNamed), songs.songs.end());
                 songs.songs.push_back(*file.loadsSongNamed);
+                std::stable_sort(songs.songs.begin(), songs.songs.end(), beforeInSongOrder);
+            }
             // The sampler holds one set list at a time: loading one replaces the one in memory (a real S5000, TASK-MCP-058, 2026-10-10).
             if (file.loadsSetListNamed)
                 songs.setLists = {*file.loadsSetListNamed};
             if (file.loadsSceneListNamed)
+            {
+                sceneLists.scenes.erase(std::remove(sceneLists.scenes.begin(), sceneLists.scenes.end(), *file.loadsSceneListNamed),
+                                        sceneLists.scenes.end());
                 sceneLists.scenes.push_back(*file.loadsSceneListNamed);
+            }
             if (file.loadsProgramNamed)
             {
                 ProgramRecord program;
@@ -1945,8 +1956,8 @@ namespace akm::harness
         // `.AKP` and a sample is `.WAV` (the owner's own statement, and what the real S5000 wrote on 2026-10-06 when a
         // sample was saved). A multi's `.AKM` is an ASSUMPTION: no multi has been saved on the real sampler yet and no
         // spec gives it. Empty for a type this model does not save content for.
-        // The extensions of a saved song file, set list and scenelist are PLACEHOLDERS, and so are their sizes: nothing in the spec or in a run on
-        // the real sampler gives them (TASK-MCP-049, to be observed in TASK-MCP-055). The tools find a file by the item's name whatever the extension.
+        // The extensions of a saved song file, set list and scenelist are what a real S5000 wrote (TASK-MCP-059, 2026-10-10): `.MID`, `.SET` and
+        // `.ASC`, the owner's own files being `Set 1.SET` and `Scene  1.ASC`.
         std::string extensionForSaveType(std::uint8_t type)
         {
             switch (type)
@@ -1962,7 +1973,7 @@ namespace akm::harness
                 case SAVE_TYPE_SETLIST:
                     return ".SET";
                 case SAVE_TYPE_SCENELIST:
-                    return ".SCN";
+                    return ".ASC";
                 default:
                     return "";
             }
@@ -1977,7 +1988,24 @@ namespace akm::harness
         constexpr std::uint32_t SAVED_SAMPLE_HEADER_BYTES = 144;
         constexpr std::uint32_t SAVED_SAMPLE_BYTES_PER_POINT = 2;
         constexpr std::uint32_t SAVED_MULTI_BYTES = 2354;
-        constexpr std::uint32_t SAVED_NAMED_LIST_BYTES = 512;  // a placeholder for a song file, a set list and a scenelist
+        // A saved set list was 2304 bytes and a scenelist 26 (the owner's files and the files saved by the run, 2026-10-10). A saved song file
+        // differs with the song: 31492, 34681, 36087 and 36839 bytes for four songs; one of them is used for every song.
+        constexpr std::uint32_t SAVED_SONG_BYTES = 34681;
+        constexpr std::uint32_t SAVED_SET_LIST_BYTES = 2304;
+        constexpr std::uint32_t SAVED_SCENELIST_BYTES = 26;
+
+        std::uint32_t savedNamedListBytes(std::uint8_t type)
+        {
+            switch (type)
+            {
+                case SAVE_TYPE_SETLIST:
+                    return SAVED_SET_LIST_BYTES;
+                case SAVE_TYPE_SCENELIST:
+                    return SAVED_SCENELIST_BYTES;
+                default:
+                    return SAVED_SONG_BYTES;
+            }
+        }
 
         std::uint32_t savedProgramBytes(const ProgramRecord& program)
         {
@@ -2442,7 +2470,7 @@ namespace akm::harness
                         if (*index >= names.size())
                             return failure(error_number::NOT_FOUND);
                         itemName = names[*index];
-                        sizeBytes = SAVED_NAMED_LIST_BYTES;
+                        sizeBytes = savedNamedListBytes(*type);
                     }
                     else
                     {
@@ -2498,7 +2526,7 @@ namespace akm::harness
                                                                                              : sceneLists.scenes;
                         for (const std::string& name : names)
                         {
-                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, name, SAVED_NAMED_LIST_BYTES);
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, name, savedNamedListBytes(*type));
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
