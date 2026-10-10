@@ -16,7 +16,16 @@
     ]
   },
   "not_offered": [
-    {"item": "DiskEjectDisk", "decision": "DEC-MCP-028", "reason": "Eject Disk is a message of the specification that the owner decided not to offer: it was never run on the real sampler, by design (DEC-MCP-025, amended by DEC-MCP-028)"}
+    {"item": "DiskEjectDisk", "decision": "DEC-MCP-028", "reason": "Eject Disk is a message of the specification that the owner decided not to offer: it was never run on the real sampler, by design (DEC-MCP-025, amended by DEC-MCP-028)"},
+    {"item": "ProgramSetNumber", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "ProgramGetNumber", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "ProgramGetAllNumbers", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "ProgramGetIndex", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "ProgramSetUserTuneTemplate", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "ProgramGetUserTuneTemplate", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "MultiSetPartCount", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "MultiGetAllProgramNumbers", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"},
+    {"item": "MultiGetAllPartCounts", "decision": "DEC-MCP-041", "reason": "The owner decided on 2026-10-11 not to offer the nine messages that no tool sent and that nothing covered (DEC-MCP-041); he gave no other reason. The note of the message says what exists of it and what is missing"}
   ],
   "sent_by_the_session": {
     "reason": "The server's own session sends these at its opening and its closing, from the launch option --screen (and the checksum mode): they are the sampler's SysEx configuration for the session, not something an assistant asks for, so no tool carries them",

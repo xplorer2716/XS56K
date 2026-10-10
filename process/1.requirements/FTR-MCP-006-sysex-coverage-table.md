@@ -162,7 +162,8 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
   the file is generated, *Then* its MCP cell says `covered by list_disks (--allow-disk)` and its note column gives the reason; *given* a note
   that names a message the tool does not send, *then* the script fails and names the note; *given* a note on a message a tool sends, *then* it
   fails as stale; *given* `Set Program Number`, *then* its cell stays `none` and its note says that AKM has `setProgramNumber` and that the
-  server has `set_multi_program_number` for multis only.
+  server has `set_multi_program_number` for multis only. *Amended 2026-10-11:* once the owner has decided (`ADR-MCP-006` DEC-MCP-041, `RQ-MCP-055`),
+  the cell of `Set Program Number` reads `not offered (DEC-MCP-041)` and the note stays.
 - **Dependencies**: RQ-MCP-060, RQ-MCP-063
 
 ## Non-Functional Requirements

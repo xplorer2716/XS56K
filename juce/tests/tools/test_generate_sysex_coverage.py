@@ -1292,6 +1292,15 @@ class TheNotesOnMessagesWithNoTool(unittest.TestCase):
         self.assertEqual(script.mcp_cell([], None), "none")
 
 
+# The messages the owner declared not offered on 2026-10-11 (DEC-MCP-041): no tool, and nothing covers them.
+DECLINED_ON_2026_10_11 = [
+    "Set Program Number (Set)", "Get Current Program's Program Number (Get)", "Get the Program Numbers of all Programs in memory (Get)",
+    "Get Current Program Index (Get)", "Set User Tune Template (Set)", "Get User Tune Template (Get)",
+    "Set the number of parts for new multis (Set)", "Get the Multi Numbers of All Multis in memory (Get)",
+    "Get the Number of Parts in All the Multis in memory (Get)",
+]
+
+
 class TheNotesInTheFile(ScriptTest):
     def row(self, text, message):
         return next(line for line in text.splitlines() if line.startswith("| `&") and message in line)
@@ -1317,22 +1326,30 @@ class TheNotesInTheFile(ScriptTest):
         self.assertIn("covered by create_program", row)
         self.assertIn("&03", row)
 
-    def test_given_the_program_number_when_generated_then_it_stays_none_and_the_note_says_what_exists_and_what_is_missing(self):
+    def test_given_the_program_number_when_generated_then_it_is_not_offered_and_the_note_says_what_exists_and_what_is_missing(self):
         self.generate()
         row = self.row(self.output.read_text(encoding="utf-8"), "Set Program Number (Set)")
 
-        self.assertIn("| none |", row)
+        self.assertIn("| not offered (DEC-MCP-041) |", row)
         self.assertIn("setProgramNumber", row)
         self.assertIn("set_multi_program_number", row)
 
-    def test_given_the_three_reads_the_owner_corrected_when_generated_then_each_is_a_gap_and_not_covered(self):
+    def test_given_the_nine_messages_the_owner_declined_when_generated_then_each_says_not_offered_with_the_decision_and_is_not_covered(self):
         self.generate()
         text = self.output.read_text(encoding="utf-8")
 
-        for message in ("Get Current Program Index", "Get the Multi Numbers of All Multis", "Get the Number of Parts in All the Multis"):
+        for message in DECLINED_ON_2026_10_11:
             row = self.row(text, message)
-            self.assertIn("| none |", row, message)
+            self.assertIn("| not offered (DEC-MCP-041) |", row, message)
             self.assertNotIn("covered by", row, message)
+        self.assertEqual(text.count("not offered (DEC-MCP-041)"), len(DECLINED_ON_2026_10_11))
+
+    def test_given_the_real_declarations_when_generated_then_no_message_of_the_section_tables_is_left_with_none(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+        sections = text.split("## Table 32")[0]
+
+        self.assertNotIn(" | none | ", sections)
 
     def test_given_a_note_on_a_message_a_tool_sends_when_generated_then_it_fails_and_says_stale(self):
         declared = json.loads(DECLARED.read_text(encoding="utf-8"))

@@ -9,7 +9,10 @@ keygroup"*, *"build a multi with BASS on part 1 and LEAD on part 2"*, *"save the
 - an MCP client that can start a program and talk to it on its standard input and output;
 - the program `xs56k_mcp_server` (built with the rest of the project, see [Build](#build)).
 
-**What it does not do:** it does not record, edit audio, format a disk, eject a disk or touch the files of your computer. It works on
+**What it does not do:** it does not record, edit audio, format a disk, eject a disk or touch the files of your computer. It offers no tool
+for nine messages of the SysEx specification that the owner decided to leave out (the MIDI program number of a program, a program's user tune
+template, the number of parts of new multis, the position of the current program, and the program numbers and part counts of all the multis;
+each is listed with what exists of it in [`documents/SYSEX-COVERAGE.md`](../../documents/SYSEX-COVERAGE.md)). It works on
 what is in the **sampler's memory**, and — only if you ask for it — on the **sampler's own disks** (`--allow-disk`) and its **front-panel keys** (`--allow-front-panel`).
 
 ## Contents

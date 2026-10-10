@@ -2,7 +2,7 @@
 
 # SysEx coverage: the specification's messages, the AKM function and the MCP tool of each
 
-One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the order of its Table 4), one row per message (an item of the Control tables: a Set or a Get). The AKM column names the function of the library (`juce/akm`) that sends the message; when no named function does, the message is still in the item catalogue and the library builds it with its generic builder (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` for an item that takes names): any code can send it, and the MCP column tells whether a tool does. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option it needs, `not offered` with the decision when it was left out on purpose, `server session` when the server sends it itself, at the opening or the closing of its session, and no tool does, `covered by` the tools that get its information or function through other messages, or `none`, which is a gap. The Note column says why, for each message with no tool: what covers it, or what exists of it and what is missing. Generated from `juce/akm/data/items.json`, the sources and `juce/tools/sysex_coverage_declared.json` (`ADR-MCP-006`, `FTR-MCP-006`).
+One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the order of its Table 4), one row per message (an item of the Control tables: a Set or a Get). The AKM column names the function of the library (`juce/akm`) that sends the message; when no named function does, the message is still in the item catalogue and the library builds it with its generic builder (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` for an item that takes names): any code can send it, and the MCP column tells whether a tool does. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option it needs, `not offered` with the decision when it was left out on purpose, `server session` when the server sends it itself, at the opening or the closing of its session, and no tool does, `covered by` the tools that get its information or function through other messages, or `none`, a gap on which no decision has been taken. The Note column says why, for each message with no tool: what covers it, or what exists of it and what is missing. Generated from `juce/akm/data/items.json`, the sources and `juce/tools/sysex_coverage_declared.json` (`ADR-MCP-006`, `FTR-MCP-006`).
 
 ## Counts per section
 
@@ -13,15 +13,15 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 | §04 MIDI Configuration | 7 | 7 | 0 | 7 | 0 | 0 | 0 | 0 |
 | §06 Keygroup Zone | 28 | 15 | 13 | 28 | 0 | 0 | 0 | 0 |
 | §08 Keygroup | 80 | 41 | 39 | 79 | 0 | 0 | 1 | 0 |
-| §0A Program | 95 | 19 | 76 | 88 | 0 | 0 | 1 | 6 |
-| §0C Multi | 47 | 23 | 24 | 42 | 0 | 0 | 2 | 3 |
+| §0A Program | 95 | 19 | 76 | 88 | 6 | 0 | 1 | 0 |
+| §0C Multi | 47 | 23 | 24 | 42 | 3 | 0 | 2 | 0 |
 | §0E Sample | 34 | 12 | 22 | 31 | 0 | 0 | 3 | 0 |
 | §10 Disk | 35 | 35 | 0 | 26 | 1 | 0 | 8 | 0 |
 | §12 Multi FX | 11 | 11 | 0 | 11 | 0 | 0 | 0 | 0 |
 | §14 Scenelist | 8 | 8 | 0 | 7 | 0 | 0 | 1 | 0 |
 | §16 MIDI Song Files | 12 | 12 | 0 | 11 | 0 | 0 | 1 | 0 |
 | §20 Front Panel | 4 | 4 | 0 | 4 | 0 | 0 | 0 | 0 |
-| All | 384 | 210 | 174 | 350 | 1 | 6 | 18 | 9 |
+| All | 384 | 210 | 174 | 350 | 10 | 6 | 18 | 0 |
 
 ## §00 SysEx Configuration (Table 5, p. 10)
 
@@ -213,12 +213,12 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 | `&30{48}` Set Semitone Tune (Set) | makeRequest | set_parameter |  |
 | `&31{49}` Set Fine Tune (Set) | makeRequest | set_parameter |  |
 | `&32{50}` Set Tune Template (Set) | makeRequest | set_parameter |  |
-| `&33{51}` Set User Tune Template (Set) | makeRequest | none | The user tuning of a program: a tuning offset for each of the 12 notes (24 data bytes), used when its tune template is USER. Described in the catalogue; no AKM function and no tool. |
+| `&33{51}` Set User Tune Template (Set) | makeRequest | not offered (DEC-MCP-041) | The user tuning of a program: a tuning offset for each of the 12 notes (24 data bytes), used when its tune template is USER. Described in the catalogue; no AKM function and no tool. |
 | `&34{52}` Set Key (Set) | makeRequest | set_parameter |  |
 | `&38{56}` Get Semitone Tune (Get) | makeRequest | get_parameters |  |
 | `&39{57}` Get Fine Tune (Get) | makeRequest | get_parameters |  |
 | `&3A{58}` Get Tune Template (Get) | makeRequest | get_parameters |  |
-| `&3B{59}` Get User Tune Template (Get) | makeRequest | none | Reads the user tuning of the current program (the tuning offset of each of the 12 notes). Described in the catalogue; no AKM function and no tool. |
+| `&3B{59}` Get User Tune Template (Get) | makeRequest | not offered (DEC-MCP-041) | Reads the user tuning of the current program (the tuning offset of each of the 12 notes). Described in the catalogue; no AKM function and no tool. |
 | `&3C{60}` Get Key (Get) | makeRequest | get_parameters |  |
 | `&40{64}` Set Pitch Bend Up (Set) | makeRequest | set_parameter |  |
 | `&41{65}` Set Pitch Bend Down (Set) | makeRequest | set_parameter |  |
@@ -274,15 +274,15 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 | `&74{116}` Get Pitch Mod Source (Get) | makeRequest | get_parameters |  |
 | `&75{117}` Get Amp Mod Source (Keygroup Modulation Sources) (Get) | makeRequest | get_parameters |  |
 | `&76{118}` Get Filter Mod Input Source (Get) | makeRequest | get_parameters |  |
-| `&0A{10}` Set Program Number (Set) | setProgramNumber | none | The number by which a MIDI program change selects the program (1 to 128), or off. AKM has setProgramNumber; the server has set_multi_program_number for multis only. |
+| `&0A{10}` Set Program Number (Set) | setProgramNumber | not offered (DEC-MCP-041) | The number by which a MIDI program change selects the program (1 to 128), or off. AKM has setProgramNumber; the server has set_multi_program_number for multis only. |
 | `&0B{11}` Add Keygroups to Program (Set) | addKeygroupsToProgram | add_keygroups |  |
 | `&0C{12}` Delete Keygroup from Program (Set) | deleteKeygroupFromProgram | delete_keygroup |  |
 | `&0D{13}` Set Keygroup Crossfade (Set) | setKeygroupCrossfade | set_parameter |  |
-| `&11{17}` Get Current Program's Program Number (Get) | getProgramNumber | none | Reads the number by which a MIDI program change selects the current program. AKM has getProgramNumber; the server has no tool that reads a program's number. |
+| `&11{17}` Get Current Program's Program Number (Get) | getProgramNumber | not offered (DEC-MCP-041) | Reads the number by which a MIDI program change selects the current program. AKM has getProgramNumber; the server has no tool that reads a program's number. |
 | `&14{20}` Get Number of Keygroups in Current Program (Get) | getProgramKeygroupCount | add_keygroups, create_program, delete_keygroup, get_parameters, get_status, get_zone_samples, select_program, set_parameter, set_zone_sample |  |
 | `&15{21}` Get Keygroup Crossfade (Get) | getKeygroupCrossfade | get_parameters |  |
-| `&12{18}` Get Current Program Index (Get) | getProgramIndex | none | The position of the current program in memory. list_programs gives the positions from Get the names of all Programs (&19) and the server finds the current program by its name (&13); for samples, multis, scenelists and song files the server sends a message that gives the position of the current one (&13, &42, &13, &13), and for programs it does not. AKM has getProgramIndex. |
-| `&18{24}` Get the Program Numbers of all Programs in memory (Get) | getAllProgramNumbers | none | Reads the number of every program in memory. AKM has getAllProgramNumbers; the server has no tool that reads a program's number. |
+| `&12{18}` Get Current Program Index (Get) | getProgramIndex | not offered (DEC-MCP-041) | The position of the current program in memory. list_programs gives the positions from Get the names of all Programs (&19) and the server finds the current program by its name (&13); for samples, multis, scenelists and song files the server sends a message that gives the position of the current one (&13, &42, &13, &13), and for programs it does not. AKM has getProgramIndex. |
+| `&18{24}` Get the Program Numbers of all Programs in memory (Get) | getAllProgramNumbers | not offered (DEC-MCP-041) | Reads the number of every program in memory. AKM has getAllProgramNumbers; the server has no tool that reads a program's number. |
 | `&19{25}` Get the names of all Programs in memory (Get) | getAllProgramNames | list_programs |  |
 | `&07{7}` Delete ALL programs from memory (Set) | deleteAllPrograms | delete_all_programs |  |
 
@@ -290,7 +290,7 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 
 | Message | AKM function | MCP tool | Note |
 |---|---|---|---|
-| `&01{1}` Set the number of parts for new multis (Set) | setNewMultiPartCount | none | How many parts (32, 64 or 128) the multis created afterwards have. AKM has setNewMultiPartCount; create_multi does not set it, so a new multi has the number of parts the sampler is set to (32 on the sampler tried). |
+| `&01{1}` Set the number of parts for new multis (Set) | setNewMultiPartCount | not offered (DEC-MCP-041) | How many parts (32, 64 or 128) the multis created afterwards have. AKM has setNewMultiPartCount; create_multi does not set it, so a new multi has the number of parts the sampler is set to (32 on the sampler tried). |
 | `&02{2}` Create Multi (Set) | createMulti | create_multi |  |
 | `&05{5}` Select Multi by name (Set) | selectMultiByName | select_multi |  |
 | `&06{6}` Select Multi by index (Set) | selectMultiByIndex | select_multi |  |
@@ -329,9 +329,9 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 | `&46{70}` Get the Names of all of the Parts in the multi (Get) | getAllMultiPartNames | get_part_programs |  |
 | `&47{71}` Get all of the params of a Part in a single message (Get) | getAllMultiPartParameters | covered by get_multi_parameters | A batch read: the spec's &47 reads the parameters &20 to &2B of one part in a single message. get_multi_parameters sends one message per parameter asked for (&20 to &2B), so the values are the same and the messages more numerous. |
 | `&48{72}` Get the Mute and Solo status of all the parts (Get) | getMultiMuteSoloStatus | covered by get_multi_parameters | A batch read: the spec's &48 reads the mute and solo of all the parts in a single message. get_multi_parameters sends Get Part Mute (&21) and Get Part Solo (&22) for each part asked for. |
-| `&50{80}` Get the Multi Numbers of All Multis in memory (Get) | getAllMultiProgramNumbers | none | The program number of every multi. The server gives it for the current multi only, as the read-back of set_multi_program_number, so reading another multi's number means selecting it first. AKM has getAllMultiProgramNumbers. |
+| `&50{80}` Get the Multi Numbers of All Multis in memory (Get) | getAllMultiProgramNumbers | not offered (DEC-MCP-041) | The program number of every multi. The server gives it for the current multi only, as the read-back of set_multi_program_number, so reading another multi's number means selecting it first. AKM has getAllMultiProgramNumbers. |
 | `&51{81}` Get the Names of All Multis in memory (Get) | getAllMultiNames | list_multis |  |
-| `&52{82}` Get the Number of Parts in All the Multis in memory (Get) | getAllMultiPartCounts | none | The number of parts of every multi. list_multis gives it for the current multi only (Get the Number of Parts in the Current Multi, &44), so reading another multi's count means selecting it first. AKM has getAllMultiPartCounts. |
+| `&52{82}` Get the Number of Parts in All the Multis in memory (Get) | getAllMultiPartCounts | not offered (DEC-MCP-041) | The number of parts of every multi. list_multis gives it for the current multi only (Get the Number of Parts in the Current Multi, &44), so reading another multi's count means selecting it first. AKM has getAllMultiPartCounts. |
 | `&30{48}` Rename Multi (Set) | renameCurrentMulti | rename_multi |  |
 | `&31{49}` Set Multi Program Number (Set) | setMultiProgramNumber | set_multi_program_number |  |
 | `&32{50}` Set Multi Part by index (Set) | setMultiPartByIndex | set_part_program |  |

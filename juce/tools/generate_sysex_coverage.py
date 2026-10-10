@@ -109,7 +109,7 @@ INTRO = [
     "an item that takes names): any code can send it, and the MCP column tells whether a tool does. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option "
     "it needs, `not offered` with the decision when it was left out on purpose, `server session` when the server sends it "
     "itself, at the opening or the closing of its session, and no tool does, `covered by` the tools that get its information "
-    "or function through other messages, or `none`, which is a gap. The Note column says why, for each message with no tool: "
+    "or function through other messages, or `none`, a gap on which no decision has been taken. The Note column says why, for each message with no tool: "
     "what covers it, or what exists of it and what is missing. Generated from "
     "`juce/akm/data/items.json`, the sources and `juce/tools/sysex_coverage_declared.json` "
     "(`ADR-MCP-006`, `FTR-MCP-006`).",

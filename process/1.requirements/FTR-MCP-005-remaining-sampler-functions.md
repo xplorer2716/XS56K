@@ -125,7 +125,8 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 - **Rationale**: the owner decided each of the three; the source check keeps them true.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the sources of `juce/mcp`, *When* searched for the eject and format primitives, *Then* there is no call. *Given* the server without `--allow-disk-refresh`, *Then* `list_disks` has no `refresh` argument.
-- **Dependencies**: RQ-MCP-028, RQ-MCP-031; ADR-MCP-005 (DEC-MCP-028)
+- **Amended 2026-10-11 (the owner, `ADR-MCP-006` DEC-MCP-041)**: the server also SHALL expose no tool that sends one of nine messages of the SysEx specification: `Set Program Number`, `Get Current Program's Program Number`, `Get the Program Numbers of all Programs in memory` and `Get Current Program Index` (section 0A), `Set User Tune Template` and `Get User Tune Template` (section 0A), `Set the number of parts for new multis`, `Get the Multi Numbers of All Multis in memory` and `Get the Number of Parts in All the Multis in memory` (section 0C). *Given* the generated `documents/SYSEX-COVERAGE.md`, *Then* each of the nine reads `not offered (DEC-MCP-041)`; *given* a tool that sends one of them, *then* `generate_sysex_coverage.py --check` fails and says the entry is stale.
+- **Dependencies**: RQ-MCP-028, RQ-MCP-031; ADR-MCP-005 (DEC-MCP-028); ADR-MCP-006 (DEC-MCP-041)
 
 ---
 

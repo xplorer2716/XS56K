@@ -108,6 +108,24 @@ table that no reading of the code proves, and a wrong pairing would leave the ta
 records the frames it accepts, so the ground truth costs one option and one conversation, not new production code. **Limit:** it proves that a
 tool does not send a message its row omits, and not that a message of its row is sent by it, since a conversation may not take every branch.
 
+### DEC-MCP-041: The owner's decision of 2026-10-11: the nine messages that no tool sends and nothing covers are not offered
+The table showed 27 messages with no MCP tool (TASK-MCP-074). Reading them with the owner, 18 were found to be covered by other messages that
+the tools send (TASK-MCP-076) and 9 were not: `Set Program Number` (`&0A`), `Get Current Program's Program Number` (`&11`), `Get the Program
+Numbers of all Programs in memory` (`&18`) and `Get Current Program Index` (`&12`) of section 0A; `Set User Tune Template` (`&33`) and `Get User
+Tune Template` (`&3B`) of section 0A; `Set the number of parts for new multis` (`&01`), `Get the Multi Numbers of All Multis in memory` (`&50`)
+and `Get the Number of Parts in All the Multis in memory` (`&52`) of section 0C. **The owner decided to declare all nine not offered**: the
+server gets no tool for them. He gave no other reason and none is recorded here. What follows from it:
+- each of the nine is in `not_offered` of `juce/tools/sysex_coverage_declared.json` with this decision's ID, so its MCP cell reads
+  `not offered (DEC-MCP-041)`; its entry in `notes` stays, and its Note column says what exists of it (seven have an AKM function:
+  `setProgramNumber`, `getProgramNumber`, `getAllProgramNumbers`, `getProgramIndex`, `setNewMultiPartCount`, `getAllMultiProgramNumbers`,
+  `getAllMultiPartCounts`; the two of the user tune template have none, and none is written) and what the server does instead;
+- the AKM library is unchanged: the seven functions stay, and nothing is written there for the user tune template;
+- the table has no `none` left in its 13 section tables; `none` stays the state of a message that nobody has decided about;
+- if a tool is added that sends one of the nine, `--check` fails, saying the entry of that message is stale, until the entry is removed from
+  `not_offered`: the decision is read again, not forgotten;
+- the eight sections of Table 32 are not part of this decision: they stay as they are (in no catalogue and in no code), and are listed in
+  the Verification of TASK-MCP-074 as left open.
+
 ## Consequences
 
 - The table answers the owner's question for the 13 catalogued sections, and for Table 32 shows eight sections with nothing behind them. What
@@ -123,6 +141,8 @@ tool does not send a message its row omits, and not that a message of its row is
   pairing that is declared wrong is caught by the trace if a conversation calls the tool. It is not a table that needs no hand: the hand is where
   the code gives a text scan nothing to read.
 - The simulated server gains an option and a third conversation; the shipped server is unchanged.
+- Nine messages of the specification are out of the server by the owner's decision (DEC-MCP-041): the table says so by their ID, and a tool that
+  later sends one makes `--check` fail until that decision is changed.
 
 ## Alternatives Considered
 
@@ -173,6 +193,6 @@ flowchart TD
 | `not offered` | no MCP tool sends it by a decision of the owner or of an ADR, cited by its ID |
 | `server session` | the server's own session sends it, at its opening or closing, and no tool does (section 00) |
 | `covered by` | no tool sends the message, but the tools named get its information or function through other messages, named in the note |
-| gap | a message with no tool and nothing that covers it: `none` in the MCP column, with a note saying what exists and what is missing |
+| gap | a message with no tool and nothing that covers it: `none` in the MCP column while nobody has decided about it, `not offered` once the owner has, with a note saying what exists and what is missing |
 | declared data file | `juce/tools/sysex_coverage_declared.json`: the facts no scan can read, each with its reason |
 | Table 32 sections | the index forms `2A 2C 2E 32` and the blocked multi-requests `38 3A 3C 3E` of the specification |
