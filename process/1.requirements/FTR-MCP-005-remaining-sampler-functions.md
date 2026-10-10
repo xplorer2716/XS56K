@@ -94,10 +94,10 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 ### RQ-MCP-052: Clearing the sampler's memory
 - **Category**: Functional
 - **EARS Type**: Unwanted-behavior
-- **Statement**: IF a client calls `clear_sampler_memory` and its `confirm` argument is missing or is not the total number of programs, samples and multis the sampler holds now, THEN the server SHALL send nothing and SHALL answer the number to give; IF the sampler holds none of the three, THEN it SHALL send nothing and say so; otherwise it SHALL send Clear Sampler Memory and answer what the sampler holds afterwards; the tool SHALL declare itself destructive.
-- **Rationale**: the owner asked for it with the standard confirmation mechanism; it is the largest loss the server can cause, so the figure to give is the one a person can check with `list_programs`, `list_samples` and `list_multis`.
+- **Statement**: IF a client calls `clear_sampler_memory` and its `confirm` argument is missing or is not the total number of programs, samples, multis, song files, set lists and scenelists the sampler holds now, THEN the server SHALL send nothing and SHALL answer the number to give and the count of each kind; IF the sampler holds none of the six, THEN it SHALL send nothing and say so; otherwise it SHALL send Clear Sampler Memory and answer what it cleared; the tool SHALL declare itself destructive.
+- **Rationale**: the owner asked for it with the standard confirmation mechanism; it is the largest loss the server can cause, so the figure to give is the one a person can check with `list_programs`, `list_samples`, `list_multis`, `list_song_files`, `list_set_lists` and `list_scenelists`. *Amended 2026-10-10 (the owner):* the command clears the song files, set lists and scenelists too (seen on a real S5000, TASK-MCP-062), so the total counts them (TASK-MCP-068); it counted programs, samples and multis only.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler with 2 programs, 1 sample and 1 multi, *When* `clear_sampler_memory` is called with "3", *Then* nothing is sent and the answer says 4. *When* it is called with "4", *Then* the three lists are empty.
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler with 2 programs, 1 sample, 1 multi, 3 song files, 2 set lists and 2 scenelists, *When* `clear_sampler_memory` is called with "4", *Then* nothing is sent and the answer says 11 with the six counts. *When* it is called with "11", *Then* the six lists are empty.
 - **Dependencies**: RQ-MCP-042, RQ-MCP-051; ADR-MCP-005 (DEC-MCP-029)
 
 ### RQ-MCP-053: The effects board

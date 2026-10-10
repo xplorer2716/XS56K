@@ -16,10 +16,11 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Clearing the sampler's memory: clear_sampler_memory, only with a `confirm` that is the total number of programs, samples and multis the
-// sampler holds now, over a real session and the simulated sampler. Never run on a real sampler by a test. The song files, set lists and
-// scenelists are not counted by `confirm` but are cleared too, as a real S5000 did (TASK-MCP-062, 2026-10-10). [TASK-MCP-051, TASK-MCP-062,
-// RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)]
+// Clearing the sampler's memory: clear_sampler_memory, only with a `confirm` that is the total number of programs, samples, multis, song files,
+// set lists and scenelists the sampler holds now, over a real session and the simulated sampler. Never run on a real sampler by a test. The song
+// files, set lists and scenelists are cleared by the command, as a real S5000 showed (TASK-MCP-062, 2026-10-10), and the owner decided the same day
+// that `confirm` counts them (TASK-MCP-068). [TASK-MCP-051, TASK-MCP-062, TASK-MCP-068, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029,
+// DEC-MCP-033)]
 #include <catch2/catch_test_macros.hpp>
 
 #include <string>
@@ -38,7 +39,9 @@ using mcp::test::toolText;
 namespace
 {
     constexpr const char* CLEAR = "clear_sampler_memory";
-    constexpr int TOTAL = 4;
+    constexpr int MEMORY_ITEMS = 4;  // 2 programs, 1 sample and 1 multi: what `confirm` counted before the owner's decision of 2026-10-10
+    constexpr int LIST_ITEMS = 7;    // 3 song files, 2 set lists and 2 scenelists
+    constexpr int TOTAL = MEMORY_ITEMS + LIST_ITEMS;
 
     /// A rig whose sampler holds 2 programs, 1 sample and 1 multi (4 in all), and also 3 song files, 2 set lists and 2 scenelists.
     struct SmallMemoryRig : ToolRig
@@ -72,35 +75,32 @@ TEST_CASE("Given the server, When the tools are listed, Then clear_sampler_memor
     CHECK_FALSE(tool["annotations"]["idempotentHint"].get<bool>());
 }
 
-TEST_CASE("Given 2 programs, 1 sample and 1 multi, When clear_sampler_memory is called with no confirm, with 3 and with 4, Then the first two send nothing and the answer says 4, and the third empties the three lists [RQ-MCP-052]",
+TEST_CASE("Given 2 programs, 1 sample, 1 multi, 3 song files, 2 set lists and 2 scenelists, When clear_sampler_memory is called with no confirm, with 4 (the old count) and with 11, Then the first two send nothing and the answer says 11 with the six counts, and the third empties everything [RQ-MCP-052, TASK-MCP-068]",
           "[mcp][clearmemory]")
 {
     SmallMemoryRig rig;
     const json missing = rig.call(CLEAR);
     CHECK(toolFailed(missing));
     CHECK(hasText(toolText(missing), "confirm"));
-    const json wrong = clear(rig, TOTAL - 1);
+    const json wrong = clear(rig, MEMORY_ITEMS);
     CHECK(toolFailed(wrong));
-    CHECK(hasText(toolText(wrong), "holds 4 items"));
-    CHECK(hasText(toolText(wrong), "2 programs, 1 sample and 1 multi"));
+    CHECK(hasText(toolText(wrong), "holds 11 items"));
+    CHECK(hasText(toolText(wrong), "2 programs, 1 sample, 1 multi, 3 song files, 2 set lists and 2 scenelists"));
     CHECK(hasText(toolText(wrong), "nothing was cleared"));
-    // What the count does not cover is said before anything is sent: the three lists go too.
-    CHECK(hasText(toolText(wrong), "also clears the song files, set lists and scenelists"));
-    CHECK(hasText(toolText(wrong), "3 song files, 2 set lists and 2 scenelists"));
     CHECK(rig.accepted(akm::ItemId::SystemClearMemory) == 0);
     CHECK(hasText(toolText(rig.call("list_programs")), "BASS"));
 
     const json cleared = clear(rig, TOTAL);
     CHECK_FALSE(toolFailed(cleared));
     CHECK(hasText(toolText(cleared), "Cleared the sampler's memory"));
-    CHECK(hasText(toolText(cleared), "2 programs, 1 sample and 1 multi"));
-    CHECK(hasText(toolText(cleared), "went too"));
-    CHECK(hasText(toolText(cleared), "3 song files, 2 set lists and 2 scenelists are lost"));
+    CHECK(hasText(toolText(cleared), "2 programs, 1 sample, 1 multi, 3 song files, 2 set lists and 2 scenelists are gone (11 items)"));
+    CHECK_FALSE(hasText(toolText(cleared), "went too"));
     CHECK_FALSE(hasText(toolText(cleared), "still held"));
     CHECK(rig.accepted(akm::ItemId::SystemClearMemory) == 1);
     CHECK(hasText(toolText(rig.call("list_programs")), "The sampler holds no program."));
     CHECK(hasText(toolText(rig.call("list_samples")), "The sampler holds no sample."));
     CHECK(hasText(toolText(rig.call("list_multis")), "The sampler holds no multi."));
+    CHECK(hasText(toolText(rig.call("list_song_files")), "The sampler holds no song file."));
 }
 
 TEST_CASE("Given the memory was cleared, When clear_sampler_memory is called again, Then nothing is sent and the answer says the memory holds none [RQ-MCP-052]",
@@ -110,11 +110,11 @@ TEST_CASE("Given the memory was cleared, When clear_sampler_memory is called aga
     REQUIRE_FALSE(toolFailed(clear(rig, TOTAL)));
     const json again = clear(rig, TOTAL);
     CHECK(toolFailed(again));
-    CHECK(hasText(toolText(again), "holds no program, sample or multi"));
+    CHECK(hasText(toolText(again), "holds no program, sample, multi, song file, set list or scenelist"));
     CHECK(rig.accepted(akm::ItemId::SystemClearMemory) == 1);
 }
 
-TEST_CASE("Given song files, set lists and scenelists, When the memory is cleared, Then they are cleared too although the total counts programs, samples and multis only, as a real S5000 did [RQ-MCP-052, TASK-MCP-062]",
+TEST_CASE("Given song files, set lists and scenelists, When the memory is cleared, Then they are cleared too, as a real S5000 did, and the total counts them [RQ-MCP-052, TASK-MCP-062, TASK-MCP-068]",
           "[mcp][clearmemory]")
 {
     SmallMemoryRig rig;
@@ -129,7 +129,7 @@ TEST_CASE("Given song files, set lists and scenelists, When the memory is cleare
     CHECK_FALSE(rig.sampler->currentSceneList().has_value());
 }
 
-TEST_CASE("Given a memory with no song file, set list or scenelist, When it is cleared, Then the answers do not speak of them [RQ-MCP-052, TASK-MCP-062]",
+TEST_CASE("Given a memory with no song file, set list or scenelist, When it is cleared, Then the total is the programs, samples and multis and the answers do not speak of the lists [RQ-MCP-052, TASK-MCP-062, TASK-MCP-068]",
           "[mcp][clearmemory]")
 {
     ToolRig rig;
@@ -156,4 +156,24 @@ TEST_CASE("Given a confirm that is not a whole number from 1, or an unknown argu
     CHECK(toolFailed(clear(rig, true)));
     CHECK(toolFailed(rig.call(CLEAR, {{"confirm", TOTAL}, {"extra", 1}})));
     CHECK(rig.accepted(akm::ItemId::SystemClearMemory) == 0);
+}
+
+TEST_CASE("Given a memory that holds song files, set lists and scenelists and no program, sample or multi, When clear_sampler_memory is called with their number, Then they are cleared; the count is the number of them [RQ-MCP-052, TASK-MCP-068]",
+          "[mcp][clearmemory]")
+{
+    SmallMemoryRig rig;
+    REQUIRE_FALSE(toolFailed(rig.call("delete_all_programs", {{"confirm", 2}})));
+    REQUIRE_FALSE(toolFailed(rig.call("delete_all_samples", {{"confirm", 1}})));
+    REQUIRE_FALSE(toolFailed(rig.call("delete_all_multis", {{"confirm", 1}})));
+
+    const json wrong = clear(rig, MEMORY_ITEMS);
+    CHECK(toolFailed(wrong));
+    CHECK(hasText(toolText(wrong), "holds 7 items"));
+    CHECK(hasText(toolText(wrong), "3 song files, 2 set lists and 2 scenelists"));
+    CHECK(rig.accepted(akm::ItemId::SystemClearMemory) == 0);
+
+    const json cleared = clear(rig, LIST_ITEMS);
+    CHECK_FALSE(toolFailed(cleared));
+    CHECK(rig.accepted(akm::ItemId::SystemClearMemory) == 1);
+    CHECK(hasText(toolText(rig.call("list_set_lists")), "The sampler holds no set list."));
 }

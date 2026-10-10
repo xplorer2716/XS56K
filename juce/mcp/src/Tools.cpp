@@ -410,8 +410,8 @@ namespace mcp
                "rename_scenelist; delete_song_file, delete_set_list and delete_scenelist. A real S5000 keeps the position selected, not the "
                "item, and holds one set list at a time: after a renaming or a deletion read the answer to see which one is current. "
                "Every deletion asks for a 'confirm' that is the exact name of what is deleted; delete_all_programs, delete_all_samples, "
-               "delete_all_multis and clear_sampler_memory (every program, sample and multi) ask for the number of items that would be lost "
-               "instead; nothing is sent without it. Nothing here formats or ejects a disk. The tools above change the sampler's memory, "
+               "delete_all_multis and clear_sampler_memory (every program, sample, multi, song file, set list and scenelist) ask for the number of "
+               "items that would be lost instead; nothing is sent without it. Nothing here formats or ejects a disk. The tools above change the sampler's memory, "
                "not its disks: what is not saved to a disk is lost when the sampler is switched off.";
     }
 
@@ -3174,21 +3174,35 @@ namespace mcp
         }
 
         // clear_sampler_memory [TASK-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)]
-        const auto heldText = [](const MemoryClearing& held) {
-            return plural(held.programs, "program") + ", " + plural(held.samples, "sample") + " and " + plural(held.multis, "multi");
+        // The programs, samples and multis always, then the song files, set lists and scenelists the sampler holds, as a list ("a, b and c").
+        const auto countsText = [](const std::vector<std::string>& parts) {
+            std::string text;
+            for (std::size_t i = 0; i < parts.size(); ++i)
+                text += (i == 0 ? "" : i + 1 == parts.size() ? " and " : ", ") + parts[i];
+            return text;
+        };
+        const auto heldText = [countsText](const MemoryClearing& held) {
+            std::vector<std::string> parts = {plural(held.programs, "program"), plural(held.samples, "sample"), plural(held.multis, "multi")};
+            if (held.listsBefore.songFiles > 0)
+                parts.push_back(plural(held.listsBefore.songFiles, "song file"));
+            if (held.listsBefore.setLists > 0)
+                parts.push_back(plural(held.listsBefore.setLists, "set list"));
+            if (held.listsBefore.sceneLists > 0)
+                parts.push_back(plural(held.listsBefore.sceneLists, "scenelist"));
+            return countsText(parts);
         };
         const auto listsText = [](const NamedListCounts& counts) {
             return plural(counts.songFiles, "song file") + ", " + plural(counts.setLists, "set list") + " and " + plural(counts.sceneLists, "scenelist");
         };
         ToolDefinition clearing = definition(
             "clear_sampler_memory", "Clear the sampler's memory",
-            std::string("Deletes EVERY program, sample and multi in the sampler's memory in one command, and only if 'confirm' is exactly how many of the "
-                        "three the sampler holds now, in all (see list_programs, list_samples and list_multis): otherwise nothing is sent and the answer "
-                        "gives the number. The song files, set lists and scenelists are NOT counted in 'confirm' but are cleared TOO (a real S5000 did, "
-                        "2026-10-10): the answer says how many of them the sampler holds. IRREVERSIBLE: what is not saved to a disk is lost. The "
+            std::string("Deletes EVERY program, sample, multi, song file, set list and scenelist in the sampler's memory in one command (a real S5000 "
+                        "clears the three lists with the rest, 2026-10-10), and only if 'confirm' is exactly how many items of the six kinds the sampler "
+                        "holds now, in all (see list_programs, list_samples, list_multis, list_song_files, list_set_lists and list_scenelists): "
+                        "otherwise nothing is sent and the answer gives the number and the counts. IRREVERSIBLE: what is not saved to a disk is lost. The "
                         "command can take long, and a sampler that stops answering may have to be switched off and on; nothing is retried. ") +
                 MEMORY_NOTICE,
-            objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "integer"}, {"minimum", 1}, {"description", "How many programs, samples and multis the sampler holds now, in all."}}}},
+            objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "integer"}, {"minimum", 1}, {"description", "How many programs, samples, multis, song files, set lists and scenelists the sampler holds now, in all."}}}},
                          json::array({ARGUMENT_CONFIRM})),
             false, false);
         clearing.annotations.destructive = true;
@@ -3196,36 +3210,24 @@ namespace mcp
                                  if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
                                      return *refused;
                                  if (!arguments.contains(ARGUMENT_CONFIRM))
-                                     return failure("Give 'confirm', the number of programs, samples and multis the sampler holds now, in all.");
+                                     return failure("Give 'confirm', the number of programs, samples, multis, song files, set lists and scenelists the sampler holds now, in all.");
                                  const auto confirm = arguments.at(ARGUMENT_CONFIRM).is_number() ? wholeNumber(arguments.at(ARGUMENT_CONFIRM)) : std::nullopt;
                                  if (!confirm || *confirm < 1 || *confirm > MAX_BULK_COUNT)
-                                     return failure("The argument 'confirm' must be a whole number from 1: how many programs, samples and multis the sampler holds now, in all.");
+                                     return failure("The argument 'confirm' must be a whole number from 1: how many programs, samples, multis, song files, set lists and scenelists the sampler holds now, in all.");
                                  const auto cleared = gateway.clearSamplerMemory(static_cast<int>(*confirm));
                                  if (!cleared.ok())
                                      return failure(cleared.problem);
                                  const MemoryClearing& held = *cleared.value;
                                  if (held.total() == 0)
-                                     return failure("The sampler's memory holds no program, sample or multi: nothing to clear.");
+                                     return failure("The sampler's memory holds no program, sample, multi, song file, set list or scenelist: nothing to clear.");
                                  if (!held.done)
-                                 {
-                                     std::string refusal = "The sampler holds " + plural(held.total(), "item") + " in its memory (" + heldText(held) + "), not " +
-                                                           std::to_string(*confirm) + ": nothing was cleared. Give the total as 'confirm'.";
-                                     // The command takes more than 'confirm' counts: said before it is sent.
-                                     if (held.listsBefore.total() > 0)
-                                         refusal += " The command also clears the song files, set lists and scenelists, which 'confirm' does not count: the "
-                                                    "sampler holds " + listsText(held.listsBefore) + ".";
-                                     return failure(refusal);
-                                 }
+                                     return failure("The sampler holds " + plural(held.total(), "item") + " in its memory (" + heldText(held) + "), not " +
+                                                    std::to_string(*confirm) + ": nothing was cleared. Give the total as 'confirm'.");
                                  std::string text = "Cleared the sampler's memory: " + heldText(held) + " are gone (" + plural(held.total(), "item") +
-                                                    "). The sampler now holds no program, sample or multi. They are lost unless they were saved to a disk.";
-                                 if (held.listsBefore.total() > 0)
-                                 {
-                                     if (held.listsAfter.total() == 0)
-                                         text += " The song files, set lists and scenelists went too, as a real S5000 does: " + listsText(held.listsBefore) +
-                                                 " are lost unless they were saved to a disk.";
-                                     else
-                                         text += " The song files, set lists and scenelists were not cleared: the sampler holds " + listsText(held.listsAfter) + ".";
-                                 }
+                                                    "). They are lost unless they were saved to a disk.";
+                                 // A sampler that kept its lists is told: the S5000 tried does not.
+                                 if (held.listsBefore.total() > 0 && held.listsAfter.total() > 0)
+                                     text += " The song files, set lists and scenelists were not cleared: the sampler holds " + listsText(held.listsAfter) + ".";
                                  return ok(text);
                              }});
         return tools;

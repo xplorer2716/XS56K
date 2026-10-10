@@ -48,10 +48,9 @@ exists (DEC-MCP-023 extended, not replaced). **No launch option** is added for t
 mechanism, and DEC-MCP-025's suggestion of an option of their own is not taken. The annotations declare the four tools destructive.
 The primitives are called from the gateway's memory unit only; the source check allows them there and nowhere else. Assumption, to
 review: the total counts programs, samples and multis only, not song files, set lists or scenelists. [RQ-MCP-051, RQ-MCP-052, RQ-MCP-057]
-*Amended 2026-10-10 (TASK-MCP-062, a real S5000):* `clear_sampler_memory` clears the song files, set lists and scenelists too, which the total
-does not count. The tool now says so in its description, in its refusal (with how many of them the sampler holds) and in its answer. The
-total is unchanged, **to be decided by the owner**: keep it as the three kinds of the command's own name, or make it count the three lists
-as well, so that a caller has to know everything that is lost.
+*Amended 2026-10-10 (TASK-MCP-062, a real S5000, then the owner's decision, TASK-MCP-068):* `clear_sampler_memory` clears the song files, set lists
+and scenelists too; **the owner decided that its `confirm` counts them**: it is the total number of programs, samples, multis, song files, set
+lists and scenelists the sampler holds now, and the refusal gives the count of each. The assumption "to review" above is closed.
 
 ### DEC-MCP-030: The sampler's settings in two tools, the MIDI setup in two tools with no read-back
 `get_sampler_settings` reads name, clock, play mode and front-panel lock; `set_sampler_setting` takes a setting and a value, checks it,

@@ -25,8 +25,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disk commands wait, and the sampler's disk-list refresh needs `--allow-disk-refresh` as well (it hung a real S5000). **5 more with
   `--allow-front-panel`**: press, hold and release a front-panel key, turn the data wheel, send ASCII keys (61 tools with this option, 77
   with both). **Every deletion asks for a `confirm` that is the exact name of what is deleted; deleting every item of a kind and clearing
-  the memory ask for the number of items that would be lost** (clearing the memory also clears the song files, set lists and scenelists, which
-  the number does not count, and its answers say how many), and nothing is sent otherwise. The MIDI ports are launch arguments
+  the memory ask for the number of items that would be lost** (clearing the memory takes the programs, samples, multis, song files, set lists and
+  scenelists, and all six are in the number), and nothing is sent otherwise. The MIDI ports are launch arguments
   (`--in`, `--out`; `--list-ports` shows them), and `--screen independent|follow|as-is` chooses how the sampler's screen behaves while
   the server runs (`independent` by default; it replaces `--no-lcd`, which is now refused). It never formats or ejects a disk. It speaks
   both eras of MCP over standard input and output; `juce/mcp/README.md` is its reference. Run on a real S5000 (2026-10-05 to 10, on test

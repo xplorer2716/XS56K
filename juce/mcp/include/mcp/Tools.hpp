@@ -88,7 +88,7 @@ namespace mcp
     [[nodiscard]] std::vector<Tool> makeNamedListTools(SamplerGateway& gateway);
 
     // Delete ALL: `delete_all_programs`, `delete_all_samples` and `delete_all_multis`, destructive, each only with a `confirm` that is the number
-    // of items of that kind the sampler holds now; and `clear_sampler_memory`, only with the total of the three. The gateway must outlive the
+    // of items of that kind the sampler holds now; and `clear_sampler_memory`, only with the total of the programs, samples, multis, song files, set lists and scenelists. The gateway must outlive the
     // tools. [RQ-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
     [[nodiscard]] std::vector<Tool> makeBulkDeleteTools(SamplerGateway& gateway);
 

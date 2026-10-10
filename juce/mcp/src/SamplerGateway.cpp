@@ -1563,7 +1563,7 @@ namespace mcp
                 return Outcome<MemoryClearing>::failure(count.problem);
             *target = *count.value;
         }
-        // What the command takes besides the three: read before, so that the refusal can say it.
+        // The song files, set lists and scenelists the command takes too: they are part of the total, so they are read before it. [TASK-MCP-068]
         const auto readLists = [this](NamedListCounts& counts) -> std::optional<std::string> {
             for (const auto& [kind, target] : {std::pair{NamedListKind::SongFile, &counts.songFiles}, std::pair{NamedListKind::SetList, &counts.setLists},
                                                std::pair{NamedListKind::SceneList, &counts.sceneLists}})

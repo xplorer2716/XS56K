@@ -35,6 +35,7 @@ the earlier ones is in place, the keys last, then the README and the real run:
 | 20 | TASK-MCP-063 | real run: the front-panel keys | the class that bypasses every confirmation: last |
 | 21 | TASK-MCP-065 | the instructions the server gives at `initialize` | seen stale during TASK-MCP-058; before the closure |
 | 22 | TASK-MCP-064 | README, observations, simulated sampler, closure | after every run |
+| 23 | TASK-MCP-068 | `clear_sampler_memory` counts the three lists too | the owner's decision of 2026-10-10, after TASK-MCP-062 |
 
 **Safety note.** The new tools delete or clear memory items, song files, set lists and scenelists, and can press the sampler's keys.
 Every `ctest` run is against the simulated sampler. The real run (TASK-MCP-055) is made with the owner present, on test data listed
@@ -65,7 +66,7 @@ were left to him (TASK-MCP-063, Blocked).
 - **ADRs**: ADR-MCP-005 (Proposed): DEC-MCP-028 to DEC-MCP-034 (DEC-MCP-033 amended 2026-10-09); ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
   DEC-MCP-019 (amended earlier)
 
-The plan has 24 tasks (TASK-MCP-044 to TASK-MCP-067; 056 to 064 were added on 2026-10-09 and 055 reworked the same day, 065 to 067 on 2026-10-10), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
+The plan has 25 tasks (TASK-MCP-044 to TASK-MCP-068; 056 to 064 were added on 2026-10-09 and 055 reworked the same day, 065 to 068 on 2026-10-10), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
 sessions, with a checkpoint note in `process/3.plan/` at the end of each, unless the owner lifts the limit as he did on 2026-10-05.
 Tier S for 044, M for 045 to 051 and 054 to 064, L for 052 and 053 (many tools, a new unit or a new launch option). Every task is
 presented to the owner and waits for his approval before it starts (Definition of Ready).
@@ -300,7 +301,7 @@ presented to the owner and waits for his approval before it starts (Definition o
 - **Dependencies**: TASK-MCP-061
 - **Assignee**: Human and AI
 - **Verification**: Run on 2026-10-10 on the S5000 (answers in the scratchpad's `run062`; the whole memory saved before into `MCPSAVE`, reloaded after and read back as before: 2 programs, 2 multis, 4 songs, `Set 1`, 2 scenelists, the selections put back). Wrong count: refused, nothing sent; right count (4): accepted in 1.15 s for the whole call; no program, sample or multi left, **and no song, set list or scenelist either**; written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "Clearing the sampler's memory (TASK-MCP-062)". Corrected, test first (2 of 6 cases failed, 11 assertions): the tool says the three lists are cleared too (description, refusal with their counts, answer with what was lost), the gateway reads their counts before and after, the simulated sampler clears them; `xs56k_mcp_tests "[clearmemory]"` 6 of 6 cases, 134 assertions; the two scripted conversations regenerated (the tool list, and the 2 answers of `clear_sampler_memory`, read line by line); full `ctest` on Windows (MSVC, Debug) 1099 of 1099, no warning.
-- **Assumptions**: (1) The command has no timeout of its own (TASK-MCP-051, assumption 2): if the sampler takes longer than the session's command timeout, the tool reports it as not answering and the owner may have to switch the sampler off and on; that risk is said to the owner before the call. Read as: the call took 1.15 s on a memory of 4 items, so no timeout was seen; the risk on a large memory stays, and the owner was not told before the call (he was away: see the backup). (2) The owner's word for the call, that the plan and AGENTS.md ask for, was his instruction of 2026-10-10 to do the remaining tasks without him; the backup took the place of "the owner saves what he keeps". If that reading is not his, the call was one he had not allowed. (3) The count of DEC-MCP-029 is left as it is, the plan asking that it be reviewed with the owner once the lists are seen cleared: it is reviewed with him in the final report of the session.
+- **Assumptions**: (1) The command has no timeout of its own (TASK-MCP-051, assumption 2): if the sampler takes longer than the session's command timeout, the tool reports it as not answering and the owner may have to switch the sampler off and on; that risk is said to the owner before the call. Read as: the call took 1.15 s on a memory of 4 items, so no timeout was seen; the risk on a large memory stays, and the owner was not told before the call (he was away: see the backup). (2) The owner's word for the call, that the plan and AGENTS.md ask for, was his instruction of 2026-10-10 to do the remaining tasks without him; the backup took the place of "the owner saves what he keeps". If that reading is not his, the call was one he had not allowed. (3) The count of DEC-MCP-029 was left as it was, the plan asking that it be reviewed with the owner once the lists are seen cleared; he decided on 2026-10-10 that it counts them (TASK-MCP-068).
 
 ### TASK-MCP-063: Real-sampler run — the front-panel keys
 - **Tier**: M
@@ -377,3 +378,15 @@ presented to the owner and waits for his approval before it starts (Definition o
   seen, to be confirmed by the next renaming in TASK-MCP-058. Refuted the same day by two renamings, which kept the position selected:
   the simulated sampler is corrected in TASK-MCP-058. (2) The scenelists and the set lists are not sorted by the simulated
   sampler, nothing being seen of them yet; the gateway finds them by name whatever the sampler does.
+
+### TASK-MCP-068: `clear_sampler_memory` counts the song files, set lists and scenelists too
+- **Tier**: M
+- **Status**: Done
+- **Description**: TASK-MCP-062 showed that Clear Sampler Memory clears the song files, set lists and scenelists as well as the programs, samples and multis. The owner decided, on being told, that `confirm` of `clear_sampler_memory` counts all six kinds. The gateway's total is the six counts (the lists read before the command), the refusal gives the total and the count of each kind, the success says what is gone, and the description, the argument, the instructions given at `initialize`, `RQ-MCP-052`, `DEC-MCP-029`, the READMEs and the CHANGELOG say so.
+- **Requirement refs**: RQ-MCP-052, RQ-MCP-042, RQ-MCP-056
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-029)
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler with 2 programs, 1 sample, 1 multi, 3 song files, 2 set lists and 2 scenelists, *When* `clear_sampler_memory` is called with no `confirm`, with 4 (the old count) and with 11, *Then* the first two send nothing and the answer says 11 with the six counts, and the third empties everything; *given* a memory of song files, set lists and scenelists only, *then* their number is the count that clears; *given* a memory with no list, *then* the total is the programs, samples and multis and the answers say nothing of the lists.
+- **Dependencies**: TASK-MCP-062
+- **Assignee**: AI
+- **Verification**: Test first: `ClearMemoryToolTests.cpp` (7 cases) rewritten for the six-kind total and run on the old code, 4 of 7 cases failed, 16 assertions. After the change (`MemoryClearing::total()` over the six kinds, the tool's description, argument, refusal and answer, the sentence of the instructions at `initialize`): `xs56k_mcp_tests "[clearmemory],[instructions]"` 12 of 12 cases, 686 assertions; the scripted conversation's input now clears with 10 (3 programs, 3 samples, 2 song files, 1 set list, 1 scenelist) after a refusal with the old 6, and both conversations regenerated, their differences read line by line (the `initialize`, `tools/list` and `server/discover` texts, and the answers 1036, 1037 and 1039); full `ctest` on Windows (MSVC, Debug) passes with these changes.
+- **Assumptions**: (1) The wording "the count of each kind" lists the three of the memory always and a list only when the sampler holds some, so a sampler with no list has the same sentences as before. (2) The decision is the owner's words of 2026-10-10 ("les trois listes") in answer to the report of TASK-MCP-062; no new run on the real sampler was made, the command being the one run in TASK-MCP-062.

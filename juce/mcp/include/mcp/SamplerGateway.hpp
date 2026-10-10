@@ -508,10 +508,11 @@ namespace mcp
         [[nodiscard]] int total() const { return songFiles + setLists + sceneLists; }
     };
 
-    /// A Clear Sampler Memory: `done` is false when nothing was sent (the memory held none of the three, or `confirm` was not their total); the
-    /// counts are what the sampler held when it was asked. The song files, set lists and scenelists are not part of the total, but a real S5000
-    /// cleared them too (TASK-MCP-062, 2026-10-10): `listsBefore` is what it held, `listsAfter` what it held after the command (nothing was read
-    /// after when `done` is false). [RQ-MCP-052, TASK-MCP-062]
+    /// A Clear Sampler Memory: `done` is false when nothing was sent (the memory held nothing, or `confirm` was not the total); the counts are what
+    /// the sampler held when it was asked. The total is the programs, samples and multis and the song files, set lists and scenelists, which a real
+    /// S5000 cleared too (TASK-MCP-062, 2026-10-10) and which the owner decided the same day to count (TASK-MCP-068): `listsBefore` is what it
+    /// held of the three lists, `listsAfter` what it held after the command (nothing was read after when `done` is false). [RQ-MCP-052,
+    /// TASK-MCP-062, TASK-MCP-068]
     struct MemoryClearing
     {
         bool done = true;
@@ -521,7 +522,8 @@ namespace mcp
         NamedListCounts listsBefore;
         NamedListCounts listsAfter;
 
-        [[nodiscard]] int total() const { return programs + samples + multis; }
+        /// Every item the command takes: the three of the memory and the three lists.
+        [[nodiscard]] int total() const { return programs + samples + multis + listsBefore.total(); }
     };
 
     /// The directions of the data wheel. [RQ-MCP-054]
@@ -882,10 +884,9 @@ namespace mcp
         [[nodiscard]] Outcome<bool> turnDataWheel(WheelDirection direction, int clicks);
         [[nodiscard]] Outcome<bool> sendAsciiKey(int ascii);
 
-        /// Clears the sampler's memory (every program, sample and multi), and only when `confirm` is exactly how many of the three the sampler holds
-        /// now (read just before); otherwise, and when it holds none, nothing is sent and the answer gives the counts. Song files, set lists and
-        /// scenelists are not counted, and a real S5000 clears them too: the answer says how many it held before and after. [RQ-MCP-052,
-        /// RQ-MCP-042, TASK-MCP-062]
+        /// Clears the sampler's memory (every program, sample and multi, and the song files, set lists and scenelists, which a real S5000 clears too),
+        /// and only when `confirm` is exactly how many items of the six kinds the sampler holds now (read just before); otherwise, and when it holds
+        /// none, nothing is sent and the answer gives the counts. [RQ-MCP-052, RQ-MCP-042, TASK-MCP-062, TASK-MCP-068]
         [[nodiscard]] Outcome<MemoryClearing> clearSamplerMemory(int confirm);
 
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]

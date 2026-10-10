@@ -34,9 +34,8 @@ The owner's S5000 was left as it was found: 2 programs (`New Program  1` current
    `--allow-front-panel` only; `press_key` and `hold_key` on a cursor key, `press_key` on `multi` and `utilities`, the key held across the end of the
    session, `turn_data_wheel` on a value that can be put back, `send_ascii_key` in the name of a test program. Then TASK-MCP-064's rows of the keys, and
    the sentences of `README.md` and `CHANGELOG.md` on them, are rewritten from his results and both tasks become Done.
-2. **A decision on DEC-MCP-029**: `clear_sampler_memory` clears the song files, set lists and scenelists although its `confirm` counts only programs,
-   samples and multis. Either keep the count (the tool says what else is lost, in its description, its refusal and its answer) or make the count include
-   the three lists. The ADR carries an amendment note.
+2. ~~A decision on DEC-MCP-029~~ **Made by the owner on 2026-10-10 and done (TASK-MCP-068)**: `confirm` of `clear_sampler_memory` counts the
+   programs, samples, multis, song files, set lists and scenelists, which the command clears together.
 3. **The owner's word on the rule of AGENTS.md** ("never call `clear_sampler_memory` or a `delete_all_*` tool on the owner's sampler unless he says so"):
    they were called on 2026-10-10 on his general instruction to do the tasks without him, after the whole memory was saved to the disk and reloaded.
    He may want the rule stated in a way that says whether such an instruction is enough.
