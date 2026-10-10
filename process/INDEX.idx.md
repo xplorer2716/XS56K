@@ -541,7 +541,7 @@ TASK-MCP-061|277-288|Not Started|Real-sampler run — deleting all programs, all
 TASK-MCP-062|289-300|Not Started|Real-sampler run — clearing the sampler's memory
 TASK-MCP-063|301-312|Not Started|Real-sampler run — the front-panel keys
 TASK-MCP-064|313-324|Not Started|Closure of the real runs — README, observations and simulated sampler
-TASK-MCP-065|325-336|Not Started|The instructions the server gives at `initialize` say what it offers today
+TASK-MCP-065|325-336|Done|The instructions the server gives at `initialize` say what it offers today
 TASK-MCP-066|337-348|Done|The server writes the frames it rejects to standard error
 TASK-MCP-067|349-375|Done|A renamed song file, set list or scenelist is found again by its new name
 @process/3.plan/SUMMARY-akm-sections-coverage.md

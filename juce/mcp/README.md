@@ -357,6 +357,9 @@ switched off and on. It is not needed for a disk that was plugged in before the 
   conversations are piped into `xs56k_mcp_server_simulated` (one with `--allow-disk --allow-disk-refresh`) and compared with
   `*.expected.jsonl`; `mcp_readme_names_every_tool_and_option` checks that this README names every tool the server lists and every
   option of its usage text. To regenerate an expected conversation after a deliberate change, run the simulated server on the
-  `.jsonl` input and read the difference.
+  `.jsonl` input and read the difference. The text the server gives a client at `initialize` (`serverInstructions` in `src/Tools.cpp`)
+  is checked by `ServerInstructionsTests.cpp` against `tools/list` in each launch: it names a tool of every family offered, names no tool
+  that is not offered, and holds a table of every tool by family, so a new tool fails the test until it is placed in a family and the text
+  is read again.
 - **Process:** every change goes through the AGNOS process of `.github/instructions/agnos-sw-eng.instructions.md`; the tests are
   written first and run red before the code.

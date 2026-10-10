@@ -324,15 +324,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-065: The instructions the server gives at `initialize` say what it offers today
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The `instructions` text of the `initialize` answer (`programEditingInstructions()` in `juce/mcp/src/Tools.cpp`, seen during TASK-MCP-058 on 2026-10-10) still says "no tool creates, deletes or loads a sample", "no tool creates, deletes or renames a multi" and "nothing is saved by this server", and names none of the tools of PLAN-MCP-004 and of this plan. Rewrite it, with the disk and front-panel parts, so that it names every family of tools the launch options offer, says nothing a tool contradicts, and regenerate the scripted conversations that carry it.
 - **Requirement refs**: RQ-MCP-043, RQ-MCP-046 to RQ-MCP-054, RQ-MCP-001
 - **ADR refs**: ADR-MCP-004 (DEC-MCP-026); ADR-MCP-005 (DEC-MCP-030 to DEC-MCP-032)
 - **Acceptance Criteria** (Gherkin): *Given* the server launched with no option, with `--allow-disk`, with `--allow-front-panel` and with both, *When* `initialize` is answered, *Then* its `instructions` name a tool of each family that `tools/list` offers in that launch, name no tool that `tools/list` does not offer, and contain none of the three stale sentences; the tests are written first and fail on the current text, and `ctest` passes.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None
+- **Verification**: Test first: `ServerInstructionsTests.cpp` (5 cases) built against `serverInstructions(options)`, added over the old texts; run on them, 3 of 5 cases failed, 66 assertions (52 "no tool of this family named", 12 stale sentences, 2 on the confirm and the overwrite). After the rewrite of `programEditingInstructions` and `diskInstructions` (`src/Tools.cpp`): `xs56k_mcp_tests "[instructions]"` 5 of 5 cases, 525 assertions: the launches with no option, `--allow-disk`, `--allow-front-panel` and both list 56, 72, 61 and 77 tools, each in one family of the test's table of 19 families; the instructions name a tool of every family offered in 5 launches (the disk one with and without the refresh), name no tool that `tools/list` does not offer, and hold none of the three stale sentences. `main.cpp` and `SimulatedServer.cpp` now call `serverInstructions` (the same 6 lines written twice before). The two scripted conversations regenerated: only the answers to `initialize` and `server/discover` changed (4 lines). Full `ctest` on Windows (MSVC, Debug) 1094 of 1094, no warning.
+- **Assumptions**: (1) "A tool of each family" is read as at least one, the test's table of families holding every tool, so that a tool added without a family fails the test; the text names almost every tool. (2) The text is in English like the tool descriptions. (3) The two observations of the real S5000 that the text repeats (it keeps the position selected, not the item; it holds one set list at a time) are those of TASK-MCP-058, seen on one S5000 (OS 2.14).
 
 ### TASK-MCP-066: The server writes the frames it rejects to standard error
 - **Tier**: M

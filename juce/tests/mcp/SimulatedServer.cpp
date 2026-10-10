@@ -113,11 +113,7 @@ int main(int argc, char** argv)
     identity.name = SERVER_NAME;
     identity.title = SERVER_TITLE;
     identity.version = SERVER_VERSION;
-    identity.instructions = mcp::programEditingInstructions();
-    if (toolOptions.allowDisk)
-        identity.instructions += mcp::diskInstructions(toolOptions.allowDiskRefresh);
-    if (toolOptions.allowFrontPanel)
-        identity.instructions += mcp::frontPanelInstructions();
+    identity.instructions = mcp::serverInstructions(toolOptions);
     mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
     std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current), the samples KICK, SNARE and PAD and the multis LIVE and STUDIO\n";

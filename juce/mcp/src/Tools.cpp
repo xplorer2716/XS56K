@@ -381,32 +381,68 @@ namespace mcp
         }
     }
 
+    // What the tools offered with no launch option are, by family, and how they are confirmed: written from the tools, and checked against
+    // `tools/list` by ServerInstructionsTests. A sentence here that a tool contradicts, or a tool named that a launch does not offer,
+    // fails that test. [TASK-MCP-065, RQ-MCP-043, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023, DEC-MCP-026)]
     std::string programEditingInstructions()
     {
-        return "This server edits a program of an AKAI S5000/S6000 sampler. Call get_status to see which program is "
-               "current, list_programs and select_program to change it, and list_parameters to learn the parameter names "
-               "and what each accepts: the filter, the amplitude envelope, the filter envelope and the two LFOs. Use "
-               "get_parameters to read values and set_parameter to change one. Values are in the sampler's own units "
-               "(0 to 100 for most), signed values are plain signed numbers, and choices are named as the sampler's "
-               "screen names them (for example \"2-POLE LP+\"). create_program, rename_program and delete_program change the "
-               "list of programs: delete_program deletes only the current program and only when its name is given as "
-               "'confirm'. list_samples, select_sample, get_sample_parameters and set_sample_parameter edit the samples in the "
-               "same way (list_parameters with the domain \"sample\" names their parameters); no tool creates, deletes or "
-               "loads a sample. list_multis, select_multi, get_multi_parameters and set_multi_parameter edit the parts of a "
-               "multi (parts are numbered from 1; no tool creates, deletes or renames a multi). Changes act on the sampler's "
-               "memory, not on disk; nothing is saved by this server.";
+        return "This server works on an AKAI S5000/S6000 sampler, in the sampler's own terms. Start with get_status (does the sampler answer, "
+               "which program is current) and get_system_info (the model and the free memory). "
+               "Programs: list_programs and select_program choose the current program; create_program, rename_program and delete_program "
+               "change the list; delete_all_programs empties it. Call list_parameters to learn the parameter names and what each accepts "
+               "(the filter, the amplitude and filter envelopes, the two LFOs and the rest of the program and of its keygroups), then "
+               "get_parameters to read values and set_parameter to change one. Values are in the sampler's own units (0 to 100 for most), "
+               "signed values are plain signed numbers, and choices are named as the sampler's screen names them (for example "
+               "\"2-POLE LP+\"). add_keygroups and delete_keygroup change the keygroups; get_zone_samples and set_zone_sample say and "
+               "change the sample of each zone. "
+               "Samples: list_samples, select_sample, rename_sample, delete_sample and delete_all_samples; get_sample_parameters and "
+               "set_sample_parameter read and change the current sample (list_parameters with the domain \"sample\" names its parameters); "
+               "audition_sample plays it. "
+               "Multis: list_multis, select_multi, create_multi, rename_multi, delete_multi and delete_all_multis; get_multi_parameters and "
+               "set_multi_parameter edit a part of the current multi (parts are numbered from 1); set_part_program, get_part_programs and "
+               "clear_part say what the parts play; set_multi_program_number sets the number a MIDI program change selects the multi by. "
+               "The sampler itself: get_sampler_settings and set_sampler_setting (its name, clock, play mode and front-panel lock); "
+               "set_midi_setting and set_midi_filter change its MIDI setup, which the sampler cannot read back, so they say so. "
+               "get_fx_board, set_fx_channel_mute, set_fx_module, get_fx_parameter and set_fx_parameter work on the effects of the current "
+               "multi; a sampler with no effects board says so. "
+               "Song files, set lists and scenelists in memory: list_song_files, list_set_lists and list_scenelists; select_song_file and "
+               "select_scenelist (a set list has no current one, it is found by its name); rename_song_file, rename_set_list and "
+               "rename_scenelist; delete_song_file, delete_set_list and delete_scenelist. A real S5000 keeps the position selected, not the "
+               "item, and holds one set list at a time: after a renaming or a deletion read the answer to see which one is current. "
+               "Every deletion asks for a 'confirm' that is the exact name of what is deleted; delete_all_programs, delete_all_samples, "
+               "delete_all_multis and clear_sampler_memory (every program, sample and multi) ask for the number of items that would be lost "
+               "instead; nothing is sent without it. Nothing here formats or ejects a disk. The tools above change the sampler's memory, "
+               "not its disks: what is not saved to a disk is lost when the sampler is switched off.";
+    }
+
+    std::string serverInstructions(const ToolOptions& options)
+    {
+        std::string text = programEditingInstructions();
+        if (options.allowDisk)
+            text += diskInstructions(options.allowDiskRefresh);
+        if (options.allowFrontPanel)
+            text += frontPanelInstructions();
+        return text;
     }
 
     std::string diskInstructions(bool refreshOffered)
     {
-        const std::string browse =
-            " The disk tools (list_disks, select_disk, list_disk_contents, open_folder, close_folder) browse the sampler's own "
-            "disks, not the computer's files; ";
+        const std::string tools =
+            " The disk tools are on because the person launched this server with --allow-disk. list_disks, select_disk, "
+            "list_disk_contents, open_folder and close_folder browse the sampler's own disks, not the computer's files (select a disk, "
+            "then open folders); get_disk_space says how much is free. load_file and load_folder load what a folder holds into the "
+            "sampler's memory and say what the memory held before and after; a set list loaded replaces the set list in memory. "
+            "save_memory_item saves one item and save_all_memory_items every item of a kind (program, sample, multi, song file, set list "
+            "or scenelist; the second asks for their number as confirm) to the current folder, and neither replaces a file unless "
+            "overwrite is true. create_folder, rename_folder, delete_folder, rename_file and delete_file manage the folders and files, and "
+            "a deletion asks for the exact name as confirm. audition_file plays a sample of the folder without loading it. A load or a "
+            "save can be slow, and a sampler that stops answering during one may have to be switched off and on: nothing is retried. "
+            "This server never formats or ejects a disk; ";
         if (refreshOffered)
-            return browse +
+            return tools +
                    "list_disks refreshes the sampler's disk list only with refresh true, which is slow and "
                    "has left a real S5000 answering nothing until it was switched off and on.";
-        return browse + "this server never asks the sampler to refresh its disk list (it has left a real S5000 answering nothing).";
+        return tools + "this server never asks the sampler to refresh its disk list (it has left a real S5000 answering nothing).";
     }
 
     std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ExtraCatalogues extra)

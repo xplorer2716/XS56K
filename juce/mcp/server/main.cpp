@@ -116,15 +116,11 @@ int main(int argc, char** argv)
         identity.name = SERVER_NAME;
         identity.title = SERVER_TITLE;
         identity.version = XS56K_MCP_VERSION;
-        identity.instructions = mcp::programEditingInstructions();
         mcp::ToolOptions toolOptions;
         toolOptions.allowDisk = parsed.options.allowDisk;
         toolOptions.allowDiskRefresh = parsed.options.allowDiskRefresh;
         toolOptions.allowFrontPanel = parsed.options.allowFrontPanel;
-        if (toolOptions.allowDisk)
-            identity.instructions += mcp::diskInstructions(toolOptions.allowDiskRefresh);
-        if (toolOptions.allowFrontPanel)
-            identity.instructions += mcp::frontPanelInstructions();
+        identity.instructions = mcp::serverInstructions(toolOptions);
         mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
         std::cerr << LOG_PREFIX << "version " << XS56K_MCP_VERSION << ", sampler input \"" << parsed.options.inputPort

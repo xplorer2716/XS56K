@@ -112,6 +112,7 @@ add_executable(xs56k_mcp_tests
     mcp/MidiSetupToolsTests.cpp
     mcp/NamedListDeleteToolsTests.cpp
     mcp/NamedListToolsTests.cpp
+    mcp/ServerInstructionsTests.cpp
     mcp/ToolsTests.cpp
     mcp/ZoneParameterTests.cpp
     mcp/ZoneSampleToolsTests.cpp)

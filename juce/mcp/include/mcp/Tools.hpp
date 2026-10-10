@@ -114,6 +114,10 @@ namespace mcp
     /// when `options.allowDisk`. [ADR-MCP-002 (DEC-MCP-010), ADR-MCP-003 (DEC-MCP-015)]
     [[nodiscard]] std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options = {});
 
+    /// The guidance the server gives the model with its first answer: what the server is for and how to use the tools it offers with
+    /// `options`, and nothing about the tools it does not offer. [TASK-MCP-065, RQ-MCP-043, ADR-MCP-004 (DEC-MCP-026)]
+    [[nodiscard]] std::string serverInstructions(const ToolOptions& options);
+
     /// The guidance the server gives the model with its first answer: what the server is for and how to use the tools.
     [[nodiscard]] std::string programEditingInstructions();
 
