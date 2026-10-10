@@ -106,7 +106,8 @@ TEST_CASE("Given the current song file VERSE, When delete_song_file is called wi
     CHECK(hasText(toolText(deleted), "OUTRO"));
     CHECK(rig.accepted(akm::ItemId::SongDeleteCurrent) == 1);
     CHECK(rig.sampler->songNames() == std::vector<std::string>{"INTRO", "OUTRO"});
-    CHECK_FALSE(rig.sampler->currentSong().has_value());
+    // The position selected stays selected, on whatever song file it now holds (a real S5000, TASK-MCP-058, 2026-10-10).
+    CHECK(rig.sampler->currentSong() == std::optional<std::size_t>{1});
 }
 
 TEST_CASE("Given the current scenelist STUDIO, When delete_scenelist is called with no confirm, a wrong one and the right one, Then the first two send nothing and the third deletes it [RQ-MCP-049]",
@@ -205,4 +206,34 @@ TEST_CASE("Given an unknown, a missing or a badly typed argument, When a delete 
     CHECK(rig.accepted(akm::ItemId::SongDeleteCurrent) == 0);
     CHECK(rig.accepted(akm::ItemId::SceneListDeleteCurrent) == 0);
     CHECK(rig.accepted(akm::ItemId::SetListDelete) == 0);
+}
+
+TEST_CASE("Given the song file at the last position current, When it is deleted, Then no song file is selected, and when a song file before the last is deleted the position selected stays selected [RQ-MCP-049, TASK-MCP-058]",
+          "[mcp][deletelists]")
+{
+    ListRig rig;
+    REQUIRE_FALSE(toolFailed(rig.call(SELECT_SONG, {{"name", "OUTRO"}})));
+    REQUIRE_FALSE(toolFailed(remove(rig, DELETE_SONG, "OUTRO")));
+    CHECK(rig.sampler->songNames() == std::vector<std::string>{"INTRO", "VERSE"});
+    CHECK_FALSE(rig.sampler->currentSong().has_value());
+
+    REQUIRE_FALSE(toolFailed(rig.call(SELECT_SONG, {{"name", "INTRO"}})));
+    REQUIRE_FALSE(toolFailed(remove(rig, DELETE_SONG, "INTRO")));
+    CHECK(rig.sampler->songNames() == std::vector<std::string>{"VERSE"});
+    CHECK(rig.sampler->currentSong() == std::optional<std::size_t>{0});
+}
+
+TEST_CASE("Given the scenelist at the last position current, When it is deleted, Then no scenelist is selected, as the real S5000 answered; a scenelist before the last leaves the position selected [RQ-MCP-049, TASK-MCP-058]",
+          "[mcp][deletelists]")
+{
+    ListRig rig;
+    REQUIRE_FALSE(toolFailed(rig.call(SELECT_SCENELIST, {{"name", "STUDIO"}})));
+    REQUIRE_FALSE(toolFailed(remove(rig, DELETE_SCENELIST, "STUDIO")));
+    CHECK_FALSE(rig.sampler->currentSceneList().has_value());
+
+    ListRig other;
+    REQUIRE_FALSE(toolFailed(other.call(SELECT_SCENELIST, {{"name", "LIVE SET"}})));
+    REQUIRE_FALSE(toolFailed(remove(other, DELETE_SCENELIST, "LIVE SET")));
+    CHECK(other.sampler->sceneListNames() == std::vector<std::string>{"STUDIO"});
+    CHECK(other.sampler->currentSceneList() == std::optional<std::size_t>{0});
 }

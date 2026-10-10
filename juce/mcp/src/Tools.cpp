@@ -1224,7 +1224,8 @@ namespace mcp
             return format >= 0 && format < DISK_FORMAT_COUNT ? DISK_FORMATS[format] : "format " + std::to_string(format);
         }
 
-        /// "programs 4 (was 3, added INIT)" or "samples 0 (was 0)".
+        /// "programs 4 (was 3, added INIT)" or "samples 0 (was 0)"; what the memory held before and no longer holds is named, as when the
+        /// sampler replaces its set list by the one loaded: "set lists 1 (was 1, added HOME, no longer held TOUR)". [TASK-MCP-058]
         std::string describeKind(const char* kind, const std::vector<std::string>& before, const std::vector<std::string>& after)
         {
             std::vector<std::string> remaining = before;
@@ -1240,6 +1241,8 @@ namespace mcp
             std::string text = std::string(kind) + " " + std::to_string(after.size()) + " (was " + std::to_string(before.size());
             if (!added.empty())
                 text += ", added " + joined(added, ", ");
+            if (!remaining.empty())
+                text += ", no longer held " + joined(remaining, ", ");
             return text + ")";
         }
 

@@ -111,8 +111,8 @@
 {"id":1015,"jsonrpc":"2.0","result":{"content":[{"text":"The event \"pitch_bend\" is not one the sampler filters. The events are: note_on, aftertouch, wheels, volume.","type":"text"}],"isError":true}}
 {"id":1016,"jsonrpc":"2.0","result":{"content":[{"text":"Song files in memory (3):\n0: INTRO\n1: VERSE\n2: OUTRO\nNo song file is selected: use select_song_file.\n","type":"text"}],"isError":false}}
 {"id":1017,"jsonrpc":"2.0","result":{"content":[{"text":"Selected the song file \"VERSE\" (position 1).","type":"text"}],"isError":false}}
-{"id":1018,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the song file \"VERSE\" to \"VERSE TWO\" (now at position 2). The current song file is now \"INTRO\" (position 0): use select_song_file to make \"VERSE TWO\" current again before renaming or deleting it.","type":"text"}],"isError":false}}
-{"id":1019,"jsonrpc":"2.0","result":{"content":[{"text":"Song files in memory (3):\n0: INTRO (current)\n1: OUTRO\n2: VERSE TWO\n","type":"text"}],"isError":false}}
+{"id":1018,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the song file \"VERSE\" to \"VERSE TWO\" (now at position 2). The current song file is now \"OUTRO\" (position 1): use select_song_file to make \"VERSE TWO\" current again before renaming or deleting it.","type":"text"}],"isError":false}}
+{"id":1019,"jsonrpc":"2.0","result":{"content":[{"text":"Song files in memory (3):\n0: INTRO\n1: OUTRO (current)\n2: VERSE TWO\n","type":"text"}],"isError":false}}
 {"id":1020,"jsonrpc":"2.0","result":{"content":[{"text":"No song file is named \"MISSING\". Use list_song_files to see the names.","type":"text"}],"isError":true}}
 {"id":1021,"jsonrpc":"2.0","result":{"content":[{"text":"Set lists in memory (2):\n0: TOUR\n1: HOME\n","type":"text"}],"isError":false}}
 {"id":1022,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the set list \"HOME\" (position 1) to \"STUDIO DAYS\" (now at position 1).","type":"text"}],"isError":false}}

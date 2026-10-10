@@ -1609,6 +1609,9 @@ namespace akm::harness
                 const auto name = reader.readString();
                 if (!name)
                     return failure(error_number::INVALID_FORMAT);
+                // The real S5000 refuses to rename a set list to the name it has, with ERROR 04 (TASK-MCP-058, 2026-10-10).
+                if (*name == setLists[*index])
+                    return failure(error_number::NOT_FOUND);
                 setLists[*index] = *name;
                 return done();
             }
@@ -1639,8 +1642,8 @@ namespace akm::harness
         // the whole of §14, the scenelists (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097), whose items have the same codes.
         // A name or an index with none, and any "current" item with none current, fail with ERROR 04, as §0E does
         // (the spec is silent on both sections, so this is a modelling choice). A list `SortedOnRename` is sorted again after a
-        // renaming and its first item is then current: what the real S5000 answered once after a song file was renamed
-        // (TASK-MCP-058, seen once, its cause not known).
+        // renaming and the position selected stays selected, whatever item it now holds: what the real S5000 did twice after a song
+        // file was renamed, from the front panel and through SysEx (TASK-MCP-058, 2026-10-10).
         Outcome executeCurrentNamedList(std::uint8_t item, const Bytes& data, std::vector<std::string>& names,
                                         std::optional<std::size_t>& current, NameOrder order = NameOrder::AsKept)
         {
@@ -1673,7 +1676,10 @@ namespace akm::harness
                     if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     names.erase(names.begin() + static_cast<std::ptrdiff_t>(*current));
-                    current.reset();
+                    // The position selected stays selected, on whatever item it now holds; past the last item nothing is selected: what the
+                    // real S5000 did after a song file (position 1 of 5) and a scenelist (the last of 3) were deleted (TASK-MCP-058, 2026-10-10).
+                    if (*current >= names.size())
+                        current.reset();
                     return done();
                 case ITEM_LIST_RENAME_CURRENT:
                 {
@@ -1685,10 +1691,7 @@ namespace akm::harness
                         return failure(error_number::INVALID_FORMAT);
                     names[*current] = *name;
                     if (order == NameOrder::SortedOnRename)
-                    {
                         std::stable_sort(names.begin(), names.end(), beforeInSongOrder);
-                        current = 0;
-                    }
                     return done();
                 }
                 case ITEM_LIST_GET_COUNT:
@@ -1918,8 +1921,9 @@ namespace akm::harness
         {
             if (file.loadsSongNamed)
                 songs.songs.push_back(*file.loadsSongNamed);
+            // The sampler holds one set list at a time: loading one replaces the one in memory (a real S5000, TASK-MCP-058, 2026-10-10).
             if (file.loadsSetListNamed)
-                songs.setLists.push_back(*file.loadsSetListNamed);
+                songs.setLists = {*file.loadsSetListNamed};
             if (file.loadsSceneListNamed)
                 sceneLists.scenes.push_back(*file.loadsSceneListNamed);
             if (file.loadsProgramNamed)

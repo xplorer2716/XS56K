@@ -209,12 +209,13 @@ TEST_CASE("Given a saved song file, set list and scenelist that were deleted fro
     CHECK(contains(textOf(song), "song files 3 (was 2, added VERSE)"));
     const json setList = rig.call(LOAD, {{"name", SET_LIST_FILE}});
     CHECK_FALSE(isError(setList));
-    CHECK(contains(textOf(setList), "set lists 2 (was 1, added HOME)"));
+    // The sampler holds one set list at a time: loading one replaces the one in memory (a real S5000, TASK-MCP-058, 2026-10-10).
+    CHECK(contains(textOf(setList), "set lists 1 (was 1, added HOME, no longer held TOUR)"));
     const json scenelist = rig.call(LOAD, {{"name", SCENELIST_FILE}});
     CHECK_FALSE(isError(scenelist));
     CHECK(contains(textOf(scenelist), "scenelists 2 (was 1, added STUDIO)"));
     CHECK(rig.sampler->songNames() == std::vector<std::string>{"INTRO", "OUTRO", "VERSE"});
-    CHECK(rig.sampler->setListNames() == std::vector<std::string>{"TOUR", "HOME"});
+    CHECK(rig.sampler->setListNames() == std::vector<std::string>{"HOME"});
     CHECK(rig.sampler->sceneListNames() == std::vector<std::string>{"LIVE SET", "STUDIO"});
 }
 
@@ -228,4 +229,24 @@ TEST_CASE("Given a program file, When it is loaded, Then the answer does not spe
     CHECK_FALSE(contains(textOf(loaded), "song files"));
     CHECK_FALSE(contains(textOf(loaded), "set lists"));
     CHECK_FALSE(contains(textOf(loaded), "scenelists"));
+}
+
+TEST_CASE("Given a set list in memory and the file of another set list, When it is loaded, Then the sampler holds only the loaded one and the answer says which set list is no longer held; with none in memory nothing is said to be gone [RQ-MCP-025, RQ-MCP-050, TASK-MCP-058]",
+          "[mcp][disk][load][namedlists]")
+{
+    const auto holder = makeRig();
+    DiskRig& rig = *holder;
+    REQUIRE_FALSE(isError(saveOne(rig, KIND_SET_LIST, "HOME")));
+
+    const json replaced = rig.call(LOAD, {{"name", SET_LIST_FILE}});
+    CHECK_FALSE(isError(replaced));
+    CHECK(rig.sampler->setListNames() == std::vector<std::string>{"HOME"});
+    CHECK(contains(textOf(replaced), "no longer held TOUR"));
+
+    REQUIRE_FALSE(isError(rig.call("delete_set_list", {{"name", "HOME"}, {"confirm", "HOME"}})));
+    const json afterNone = rig.call(LOAD, {{"name", SET_LIST_FILE}});
+    CHECK_FALSE(isError(afterNone));
+    CHECK(rig.sampler->setListNames() == std::vector<std::string>{"HOME"});
+    CHECK(contains(textOf(afterNone), "set lists 1 (was 0, added HOME)"));
+    CHECK_FALSE(contains(textOf(afterNone), "no longer held"));
 }

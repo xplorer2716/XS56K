@@ -231,7 +231,7 @@ TEST_CASE("Given the current song file and the current scenelist, When each is r
     CHECK(rig.accepted(akm::ItemId::SceneListRenameCurrent) == 1);
 }
 
-TEST_CASE("Given the song files of the real run with AIMER current, When AIMER is renamed to a name that sorts last, Then the answer gives the new name and its new position, read from the list and not from the old position, and says which song file is current now [RQ-MCP-048, TASK-MCP-058]",
+TEST_CASE("Given the song files of the real run with AIMER current, When AIMER is renamed to a name that sorts last, Then the answer gives the new name and its new position, read from the list and not from the old position, and says which song file is current now, the sampler keeping the position selected [RQ-MCP-048, TASK-MCP-058]",
           "[mcp][namedlists]")
 {
     ListRig rig;
@@ -243,8 +243,9 @@ TEST_CASE("Given the song files of the real run with AIMER current, When AIMER i
     CHECK_FALSE(toolFailed(renamed));
     const std::string text = toolText(renamed);
     CHECK(hasText(text, "Renamed the song file \"AIMER\" to \"XS56K-RENAME-TEST-20\" (now at position 3)."));
-    CHECK_FALSE(hasText(text, "alors_regarde"));
-    CHECK(hasText(text, "The current song file is now \"a_woman_in_love\" (position 0)"));
+    CHECK_FALSE(hasText(text, "to \"alors_regarde\""));  // what the old read-back at the old position answered
+    // The real S5000 keeps the position selected, not the song file (TASK-MCP-058, seen twice on 2026-10-10).
+    CHECK(hasText(text, "The current song file is now \"alors_regarde\" (position 1)"));
     CHECK(hasText(text, SELECT_SONG));
     CHECK(rig.sampler->songNames() == std::vector<std::string>{"a_woman_in_love", "alors_regarde", "assassine", "XS56K-RENAME-TEST-20"});
 }
@@ -260,6 +261,7 @@ TEST_CASE("Given the song file XS56K-RENAME-TEST-20 current, When it is renamed 
 
     CHECK_FALSE(toolFailed(renamed));
     CHECK(hasText(toolText(renamed), "to \"AIMER\" (now at position 1)."));
+    CHECK(hasText(toolText(renamed), "The current song file is now \"assassine\" (position 3)"));
     CHECK(rig.sampler->songNames() == std::vector<std::string>{"a_woman_in_love", "AIMER", "alors_regarde", "assassine"});
 }
 
@@ -376,4 +378,14 @@ TEST_CASE("Given a missing, an unknown or a badly typed argument, When a rename 
     CHECK(rig.accepted(akm::ItemId::SongRenameCurrent) == 0);
     CHECK(rig.accepted(akm::ItemId::SceneListRenameCurrent) == 0);
     CHECK(rig.accepted(akm::ItemId::SetListRename) == 0);
+}
+
+TEST_CASE("Given the set list TOUR, When it is renamed to its own name, Then the simulated sampler refuses it with ERROR 4, as the real S5000 did, and the name is unchanged [RQ-MCP-048, TASK-MCP-058]",
+          "[mcp][namedlists]")
+{
+    ListRig rig;
+    const json renamed = rig.call(RENAME_SET_LIST, {{"name", "TOUR"}, {"new_name", "TOUR"}});
+    CHECK(toolFailed(renamed));
+    CHECK(hasText(toolText(renamed), "error 4"));
+    CHECK(rig.sampler->setListNames() == SET_LISTS);
 }

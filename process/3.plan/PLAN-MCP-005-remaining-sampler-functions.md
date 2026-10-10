@@ -240,15 +240,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-058: Real-sampler run — song files, set lists and scenelists in memory
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: With the server launched with no option, on the owner's test data and on copies made for the run, run `list_song_files`, `select_song_file`, `rename_song_file`, `list_set_lists`, `rename_set_list`, `list_scenelists`, `select_scenelist`, `rename_scenelist`, then `delete_song_file`, `delete_set_list` and `delete_scenelist` on copies only. Observe what TASK-MCP-047 and TASK-MCP-048 left unknown: a rename to a name already taken, a select by an unknown name or position, the answer when none is current, the selection after a deletion, a name of 20 characters. Write it up and correct the simulated sampler.
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-048, RQ-MCP-049, RQ-MCP-042
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-031, DEC-MCP-033); ADR-MCP-004 (DEC-MCP-023)
 - **Acceptance Criteria** (Gherkin): *Given* the owner's test data in memory, *When* each of the 11 tools is run alone, *Then* its answer and what the sampler did are in the observations file, every name changed is put back, and only copies made for the run have been deleted.
 - **Dependencies**: TASK-MCP-055 and the owner's test data
 - **Assignee**: Human and AI
-- **Verification**: Not started (needs the owner).
-- **Assumptions**: (1) If the sampler accepts a duplicate name, the server's refusal (TASK-MCP-047, assumption 1) is reviewed with the owner, not changed by this task. (2) A copy is made by saving and loading a test item, or by the owner at the panel; the observations say which.
+- **Verification**: Run on 2026-10-10 with the owner at the S5000 (OS 2.14); the answers are in the scratchpad's `run058` (72 answer files), written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "Song files, set lists and scenelists in memory (TASK-MCP-058)". The 11 tools ran: the 3 lists, `select_song_file` and `select_scenelist` (by name, by position, absent), `rename_song_file`, `rename_scenelist` and `rename_set_list` (20 characters, back), `delete_song_file` and `delete_scenelist` on copies loaded by the owner, `delete_set_list` on the one set list (a test set, reloaded from the disk, the owner agreeing). Every name and selection put back and the owner's SONG LIST, SET LIST and PLAY SHEET → SCENE LIST pages seen; the memory emptied by a power cycle during a break was reloaded by the owner and read again before the set list run. Found and corrected, test first: the renaming read the name back at the old position (TASK-MCP-067), the simulated sampler's selection after a renaming (kept, not reset to 0) and after a deletion (kept, none past the last), one set list at a time (a load replaces it, and `load_file` says "no longer held ..."), a renaming of a set list to its own name refused with ERROR 4; each of the 5 tests written for these failed before the code (8 assertions), then `xs56k_mcp_tests "[deletelists],[load]"` 20 of 20 cases, 406 assertions; two AKM tests whose expectation the real run refuted were corrected (`SongPrimitivesTests.cpp`, `SceneListPrimitivesTests.cpp`: after deleting position 0 of two, position 0 stays selected); full `ctest` on Windows (MSVC, Debug) 1089 of 1089, no warning; the disk conversation unchanged, the other one regenerated (1018 and 1019 only).
+- **Assumptions**: (1) The sampler's own answer to a duplicate name was not observed: the server refuses first, and sending one was not done; the refusal stays, reviewed with the owner later if wanted. (2) The copies were made by the owner at the panel, by loading the item's file while the item in memory was renamed `<name>-ORIG`, not by the server (RQ-MCP-050's save and load are TASK-MCP-059). (3) The set list deleted was the only one, since the sampler holds one; the owner called it a test set and kept its files on the disk. (4) The rule that moves the selection when a file is loaded, and the effect of opening the SET LIST page, are recorded as seen and not modelled.
 
 ### TASK-MCP-059: Real-sampler run — saving and loading song files, set lists and scenelists through the disk
 - **Tier**: M
@@ -370,5 +370,6 @@ presented to the owner and waits for his approval before it starts (Definition o
   deletions, whose answers are unchanged; without that selection the deletion was refused ("The song file is named "INTRO""), the
   exact-name confirmation keeping "INTRO". Full `ctest` on Windows (MSVC, Debug) 1085 of 1085, no warning.
 - **Assumptions**: (1) The first song file current after a renaming was seen once, after two reads that went unanswered: modelled as
-  seen, to be confirmed by the next renaming in TASK-MCP-058. (2) The scenelists and the set lists are not sorted by the simulated
+  seen, to be confirmed by the next renaming in TASK-MCP-058. Refuted the same day by two renamings, which kept the position selected:
+  the simulated sampler is corrected in TASK-MCP-058. (2) The scenelists and the set lists are not sorted by the simulated
   sampler, nothing being seen of them yet; the gateway finds them by name whatever the sampler does.

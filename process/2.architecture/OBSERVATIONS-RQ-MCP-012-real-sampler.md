@@ -355,3 +355,62 @@ The MIDI SETUP and MIDI FILTER pages showed each change here with automatic scre
 2026-10-04 only `&01` and `&07` showed in that state (`OBSERVATIONS-RQ-AKM-080-midi-config.md`); the owner may have left and re-entered
 the page, which this run did not record call by call. The three filter events other than aftertouch, never tried before, are now seen
 obeyed. A name of 20 characters is kept (TASK-MCP-045, assumption).
+
+## Song files, set lists and scenelists in memory (TASK-MCP-058), run on 2026-10-10 with the owner present
+
+Vocabulary: the SysEx specification and the tools say "song file" for a song held **in memory** (the pages SONG LIST, SET LIST and
+PLAY SHEET → SCENE LIST of the front panel show them), whereas a file on the disk is a "file"; a set list contains songs, a scene is a
+set of play sheets and a play sheet links to a multi. The owner's S5000 (OS 2.14, no FX board) held 4 songs (`a_woman_in_love`,
+`AIMER`, `alors_regarde`, `assassine`, sorted by name), the set list `Set 1` (3 songs: `a_woman_in_love`, `AIMER`, `alors_regarde`; a
+test set) and 2 scenelists (`Scene  1`, `Scene  2`, two spaces); the files of all of them were on the disk. `xs56k_mcp_server` was built
+from `feature/MCP` on Windows (MSVC, Debug), launched with no option (`--screen independent`), once per tool call, each answer written
+to a file; every run ended with "settings put back: ... not put back: none", and none wrote a "from the sampler: rejected message" line
+(TASK-MCP-066). A duplicate was made for each deletion by the owner at the front panel, by loading the file of the item after the item
+in memory had been renamed `<name>-ORIG` by `rename_*`; no duplicate was made by the server. Traceability: RQ-MCP-056, RQ-MCP-048,
+RQ-MCP-049, RQ-MCP-042, TASK-MCP-058 (`PLAN-MCP-005`), TASK-MCP-066, TASK-MCP-067, TASK-AKM-106.
+
+| Tool and call | What the sampler did |
+|---|---|
+| `list_song_files`, `list_set_lists`, `list_scenelists` | answered with names and positions; the current song and scenelist were marked (the first of each, position 0, after a reload by the owner) |
+| `select_song_file` / `select_scenelist` by an unknown name, by position 9 | **refused by the sampler**, the selection unchanged: the server turned ERROR NOT_FOUND into "No song file is named ..." / "No song file is at position 9" |
+| `select_song_file` `AIMER`; `select_scenelist` by position 1 and by name | selected, read back with its position |
+| `rename_song_file` to a name another song bears | refused **by the server**, nothing sent (the sampler's own answer to a duplicate name was not tried) |
+| `rename_song_file` `AIMER` → `XS56K-RENAME-TEST-20` (20 characters) | accepted; the **sampler sorted its songs again**, by name without regard to case (`a_woman_in_love`, `alors_regarde`, `assassine`, `XS56K-RENAME-TEST-20`), the new name at position 3, **the position selected (1) stayed selected**, and so `alors_regarde` became current. SONG LIST showed the new name fourth and highlighted |
+| `rename_song_file` back to `AIMER` | `AIMER` back at position 1 (after `a_woman_in_love`, before `alors_regarde`: letters compare without regard to case, `_` before the letters); the selection stayed at position 3, now `assassine`, where the screen also kept its highlight |
+| `rename_scenelist` `Scene  2` → `XS56K-RENAME-TEST-20`, then → `A-XS56K-TEST`, then back | **no sorting**: the scenelist stayed at position 1 each time, and stayed selected; PLAY SHEET → SCENE LIST showed the new name second |
+| `rename_set_list` `Set 1` → `XS56K-RENAME-TEST-20` (20 characters) and back | accepted, position 0 each time; the SET LIST page showed the new name |
+| `rename_set_list` `Set 1` → `Set 1` (its own name) | **refused by the sampler: ERROR 4** ("requested ... item could not be found"), nothing changed |
+| the owner loaded the file of `AIMER` while `AIMER-ORIG` was in memory | 5 songs, the copy `AIMER` sorted before `AIMER-ORIG`; **the song current moved** from `AIMER-ORIG` (position 1) to `alors_regarde` (position 3) |
+| `delete_song_file` on the copy `AIMER` (selected by name, position 1, `confirm` = `AIMER`) | deleted, 4 remain; **the position selected (1) stayed selected**: `AIMER-ORIG` became current |
+| the owner loaded the file of `Scene  2` while `Scene  2-ORIG` was in memory | 3 scenelists, the copy **appended at the end** (position 2), **the current moved** from `Scene  2-ORIG` (position 1) to `Scene  1` (position 0) |
+| `delete_scenelist` on the copy `Scene  2` (last, position 2, `confirm` = `Scene  2`) | deleted, 2 remain; **no scenelist selected** afterwards (`list_scenelists` said so) |
+| the owner loaded a `set 1` file (the `midi` folder's) while `Set 1-ORIG` was in memory | **one set list**: the loaded one **replaced** the other; the sampler holds one set list at a time (the SET LIST page edits that one) |
+| `delete_set_list` on that set list (`confirm` = `Set 1`) | deleted, "No set list remains"; the songs and scenelists unchanged |
+| a power cycle (the owner, during a break) | the memory held no song, no set list and no scenelist when read again; the owner reloaded them from the disk |
+
+Other findings of the run:
+
+- **The position, not the item, is what the sampler keeps selected** for songs: after a renaming that sorts, after a deletion, and from
+  the front panel (the fourth line stayed highlighted on SONG LIST). The old gateway read the new name at the old position and
+  answered a wrong name: TASK-MCP-067 reads the list again and finds the item by its new name, and the answers say which item is
+  current now.
+- **The song selected through SysEx and the one the screen highlights are two selections** with `--screen independent` (the sampler's
+  Sync LCD is off): the screen kept the fourth line while SysEx had the first, then another.
+- **Opening the SET LIST page of the front panel moved the song selected through SysEx** to `alors_regarde`, the last song of `Set 1`,
+  twice (the page showed no highlight, and moving its cursor to the first song changed nothing through SysEx). Selecting a scenelist
+  and renaming a set list to its own name (refused) did not move it; whether the two renamings of the set list moved it too was not
+  tried apart from the page. A load from the disk also moved the selection, of songs and of scenelists; the rule is not known.
+- **Two reads of the list of songs got no answer** (no reply within 2000 ms, at the name at position 3, the renamed song) while the
+  screen was on SONG LIST, right after the first renaming; the same read answered at once later, and never failed again in the 60 or
+  so calls that followed. The cause is not known; the rejected frames were not yet logged, so a refused reply is not excluded.
+- Windows did not see `MIDIIN2 (ESI M8U eX)` at the start (the interface was off): "The MIDI input port ... was not found. Available
+  input ports: LoopBe Internal MIDI".
+
+What this changes: the simulated sampler sorts its songs on a renaming and keeps the position selected (TASK-AKM-106, then here),
+keeps the position selected after a deletion and selects none past the last item, holds one set list at a time (a load replaces it)
+and refuses a set list renamed to its own name with ERROR 4; the scenelists stay unsorted. `load_file` now says what the memory no
+longer holds ("set lists 1 (was 1, added HOME, no longer held TOUR)"). The probe's song files check puts back by name (TASK-AKM-106).
+**Not established:** the sampler's answer to a duplicate name (the server refuses first); the rule that moves the selected song or
+scenelist when a file is loaded; why two reads got no answer; whether set lists are sorted (there is only one); the effect of the SET
+LIST page on the selection beyond the two cases seen. The deletion of a set list was run on a set list reloaded from the disk, the
+owner saying it was a test set; no set list can be duplicated, since the sampler holds one.

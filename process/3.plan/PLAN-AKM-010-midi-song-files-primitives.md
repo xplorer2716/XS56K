@@ -168,7 +168,7 @@ This plan implements the tasks in the format specified below.
   its first song file as current after it (TASK-MCP-058, 2026-10-10). `GuardedSongFiles` puts a name back by the position the song
   file had, and `songFileRoundTrips` reads the new name at the current song file and at position 0: on a sampler holding song files,
   the check would rename another song file than the one it changed. The simulated sampler sorts its song files on a renaming as the
-  real one does (and makes the first current); the guard finds the renamed song file and the renamed set list by the test name, puts
+  real one does (and made the first current, which the next real renamings refuted: TASK-MCP-058 keeps the position selected); the guard finds the renamed song file and the renamed set list by the test name, puts
   their names back and selects again, by name, the song file that was current; the round trip looks for the new name in the list.
 - **Requirement refs**: RQ-AKM-085, RQ-AKM-082, RQ-AKM-084, RQ-AKM-016
 - **ADR refs**: ADR-AKM-001 (DEC-AKM-008)

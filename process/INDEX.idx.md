@@ -519,7 +519,7 @@ TASK-MCP-041|198-209|Done|The simulated sampler matches what the real S5000 did
 TASK-MCP-042|210-221|Done|A deletion on the disk waits for the disk timeout
 TASK-MCP-043|222-232|Done|The simulated sampler saves a program and a sample at the real sizes
 @process/3.plan/PLAN-MCP-005-remaining-sampler-functions.md
-PLAN-MCP-005|1-374||MCP Server — The Remaining Sampler Functions
+PLAN-MCP-005|1-375||MCP Server — The Remaining Sampler Functions
 TASK-MCP-044|73-84|Done|Author FTR-MCP-005, ADR-MCP-005 and PLAN-MCP-005, and amend the "never offered" texts
 TASK-MCP-045|85-96|Done|The sampler's settings
 TASK-MCP-046|97-108|Done|The MIDI setup
@@ -534,7 +534,7 @@ TASK-MCP-054|193-204|Done|README, scripted conversations, counts and closure
 TASK-MCP-055|205-216|Done|Real-sampler run — the sampler's settings and the MIDI setup
 TASK-MCP-056|217-228|Done|`CHANGELOG.md` says what the server offers today
 TASK-MCP-057|229-240|Done|Plan the real-sampler run of every tool of this plan
-TASK-MCP-058|241-252|In Progress|Real-sampler run — song files, set lists and scenelists in memory
+TASK-MCP-058|241-252|Done|Real-sampler run — song files, set lists and scenelists in memory
 TASK-MCP-059|253-264|Not Started|Real-sampler run — saving and loading song files, set lists and scenelists through the disk
 TASK-MCP-060|265-276|Not Started|Real-sampler run — the effects board
 TASK-MCP-061|277-288|Not Started|Real-sampler run — deleting all programs, all samples, all multis
@@ -543,5 +543,5 @@ TASK-MCP-063|301-312|Not Started|Real-sampler run — the front-panel keys
 TASK-MCP-064|313-324|Not Started|Closure of the real runs — README, observations and simulated sampler
 TASK-MCP-065|325-336|Not Started|The instructions the server gives at `initialize` say what it offers today
 TASK-MCP-066|337-348|Done|The server writes the frames it rejects to standard error
-TASK-MCP-067|349-374|Done|A renamed song file, set list or scenelist is found again by its new name
+TASK-MCP-067|349-375|Done|A renamed song file, set list or scenelist is found again by its new name
 @process/3.plan/SUMMARY-akm-sections-coverage.md
