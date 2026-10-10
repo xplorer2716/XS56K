@@ -564,11 +564,11 @@ TASK-MCP-066|342-353|Done|The server writes the frames it rejects to standard er
 TASK-MCP-067|354-381|Done|A renamed song file, set list or scenelist is found again by its new name
 TASK-MCP-068|382-392|Done|`clear_sampler_memory` counts the song files, set lists and scenelists too
 @process/3.plan/PLAN-MCP-006-sysex-coverage-table.md
-PLAN-MCP-006|1-136||The Generated Table of SysEx Messages, AKM Functions and MCP Tools
-TASK-MCP-069|36-52|Not Started|The generator's skeleton — rows, Markdown, `--check`
-TASK-MCP-070|53-69|Not Started|The AKM column
-TASK-MCP-071|70-89|Not Started|The MCP column — the go or no-go on DEC-MCP-037
-TASK-MCP-072|90-106|Not Started|The declared data file
-TASK-MCP-073|107-122|Not Started|The counts, the real file, the `ctest` entries and the pointers
-TASK-MCP-074|123-136|Not Started|Read the table with the owner
+PLAN-MCP-006|1-135||The Generated Table of SysEx Messages, AKM Functions and MCP Tools
+TASK-MCP-069|36-51|Done|The generator's skeleton — rows, Markdown, `--check`
+TASK-MCP-070|52-68|Not Started|The AKM column
+TASK-MCP-071|69-88|Not Started|The MCP column — the go or no-go on DEC-MCP-037
+TASK-MCP-072|89-105|Not Started|The declared data file
+TASK-MCP-073|106-121|Not Started|The counts, the real file, the `ctest` entries and the pointers
+TASK-MCP-074|122-135|Not Started|Read the table with the owner
 @process/3.plan/SUMMARY-akm-sections-coverage.md

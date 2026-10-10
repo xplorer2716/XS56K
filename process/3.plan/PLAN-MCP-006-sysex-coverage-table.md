@@ -35,7 +35,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-069: The generator's skeleton — rows, Markdown, `--check`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `juce/tools/generate_sysex_coverage.py` reads `items.json` and the spec's item list, checks each section's item count against the
   TSV's command rows, and writes `documents/SYSEX-COVERAGE.md` with one table per section (message code, name, Set or Get) and the two
   other columns still `none`; `--check` compares the committed file with what would be written. The unit tests are written first.
@@ -46,9 +46,8 @@ This plan implements the tasks in the format specified below.
   `--check` exits non-zero and names the section; *given* a catalogue item removed, *then* the script fails on the count against the TSV.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: Pending (to be filled at closure from the real run of `python juce/tools/generate_sysex_coverage.py`, of `--check` and of the unit tests).
-- **Assumptions**: (1) The item code is written with the `&` and in hex as the spec writes it (`&19`); the catalogue stores it without. (2) The file
-  is not yet linked or run by `ctest`: that is TASK-MCP-073.
+- **Verification**: Test first: `juce/tests/tools/test_generate_sysex_coverage.py` written before the script, run with the script moved aside: 15 results, 7 failures and 8 errors (the 6 cell tests count as one error, their class not loading). After the script: `python -m unittest discover -s juce/tests/tools -p "test_generate_sysex_coverage.py"` 22 tests OK (21 first, plus the one added when the real output showed that `&2A` is both an item of section 06 and a section of Table 32, so Table 32's column is headed "Section"). Real run to a scratch file: "Wrote 384 messages", the second run with `--check` "is up to date", 392 rows starting with "| `&" (384 + the 8 sections of Table 32) under 14 headings (the 13 sections in Table 4's order, then Table 32); the file has LF ends. The catalogue's item codes equal the spec's command rows section by section (the script stops otherwise; tried by removing and adding an item in the tests). The file was written to the scratchpad, not to `documents/`: it is committed by TASK-MCP-073.
+- **Assumptions**: (1) The item code is written with the `&`, in upper-case hex, then the decimal in braces as the spec does (`&0A{10}`), followed by the catalogue's name and `(Set)` or `(Get)`. (2) The declared data file `juce/tools/sysex_coverage_declared.json` is created here with the eight sections of Table 32 only, because the Table 32 rows need them; TASK-MCP-072 adds the exclusions and the links the scans cannot read. (3) With no scan yet, every catalogued message reads `catalogue only` and `none`: the cell functions already give the three states of each column and are tested with given lists. (4) The script is not yet a `ctest` entry and the file is not linked: TASK-MCP-073.
 
 ### TASK-MCP-070: The AKM column
 - **Tier**: M
@@ -90,8 +89,8 @@ This plan implements the tasks in the format specified below.
 ### TASK-MCP-072: The declared data file
 - **Tier**: M
 - **Status**: Not Started
-- **Description**: `juce/tools/sysex_coverage_declared.json` holds the eight Table 32 sections, the messages decided not to be offered with the ID
-  of the decision (ejecting a disk, `DEC-MCP-028`, and whatever else the two scans show that an ADR excluded), and the links the scans could not
+- **Description**: `juce/tools/sysex_coverage_declared.json` (created by TASK-MCP-069 with the eight Table 32 sections) also holds the messages decided
+  not to be offered with the ID of the decision (ejecting a disk, `DEC-MCP-028`, and whatever else the two scans show that an ADR excluded), and the links the scans could not
   attribute, each with its reason. The script refuses a declared entry naming an unknown item, function or tool, and one that a scan now covers.
 - **Requirement refs**: RQ-MCP-058, RQ-MCP-060, RQ-MCP-063, RQ-MCP-065
 - **ADR refs**: ADR-MCP-006 (DEC-MCP-038), ADR-MCP-005 (DEC-MCP-028)

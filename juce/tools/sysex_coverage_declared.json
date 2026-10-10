@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "description": "Facts about the SysEx coverage table that no scan of the sources can read (ADR-MCP-006, DEC-MCP-038), read by juce/tools/generate_sysex_coverage.py. Each entry says why it is here. Do not list here what a scan finds by itself: the script refuses a stale entry.",
+  "table32": {
+    "spec": "Table 32, p. 42",
+    "note": "The alternative sections of the specification are in neither the item catalogue (juce/akm/data/items.json), nor the spec's item list, nor the code: the index forms (2A, 2C, 2E, 32) put the index of the item in the first two bytes and are otherwise the section they point to; the blocked forms (38, 3A, 3C, 3E) take several requests, three data bytes each, in one message and answer with one REPLY. They are rows of the table so that the gap is seen (RQ-MCP-058).",
+    "sections": [
+      {"section": "2A", "name": "Program manipulation by index", "uses": "the items of section 0A, Table 13"},
+      {"section": "2C", "name": "Multi manipulation by index", "uses": "the items of section 0C, Table 16"},
+      {"section": "2E", "name": "Sample tools by index", "uses": "the items of section 0E, Table 18"},
+      {"section": "32", "name": "Multi FX control by index", "uses": "the items of section 12, Table 22"},
+      {"section": "38", "name": "Blocked keygroup zone by index", "uses": "the requests of section 06, Table 9"},
+      {"section": "3A", "name": "Blocked keygroup by index", "uses": "the requests of section 08, Table 11"},
+      {"section": "3C", "name": "Blocked program by index", "uses": "the requests of section 0A, Table 13"},
+      {"section": "3E", "name": "Blocked multi by index", "uses": "the requests of section 0C, Table 16"}
+    ]
+  }
+}
