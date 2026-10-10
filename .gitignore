@@ -77,3 +77,5 @@ Testing/
 __pycache__/
 .mcp.json
 .claude/settings.json
+# Diagram output of the Archify skill (local evidence, not project files)
+.archify/

@@ -67,6 +67,7 @@ section (`ProgramPrimitives`, `SamplePrimitives`, `MultiPrimitives`, `DiskPrimit
 - "set the filter cutoff of the program BASS to 80";
 - "load the sample S1 and play it on zone 1 of the first keygroup";
 - "build a multi with BASS on part 1 and LEAD on part 2, then save the program".
+- "set the amplitude envelope to sound like strings"
 
 Driving the sampler by voice is one thing this makes possible: an assistant that takes spoken requests and calls these tools.
 XS56K has no voice feature of its own.
