@@ -67,6 +67,10 @@ CELL_SESSION = "server session"
 SESSION_FUNCTION_PREFIX = "Session::"
 DECISION_HEADING = re.compile(r"^### (DEC-[A-Z]{3}-\d{3}):", re.MULTILINE)
 
+COUNTS_HEADING = "## Counts per section"
+COUNTS_HEADER = ["| Section | Messages | Named AKM function | Generic builder | MCP tool | Not offered | Server session | None |",
+                 "|---|---:|---:|---:|---:|---:|---:|---:|"]
+COUNTS_TOTAL = "All"
 TABLE_32_HEADING = "## Table 32"
 SECTION_HEADING = "## §"
 HEADER_NAME = "the header"
@@ -747,6 +751,40 @@ def section_title(section):
     return f"{SECTION_HEADING}{section['section']} {section['name']} ({section['spec']})"
 
 
+def count_messages(items, akm_functions, mcp_tools, exclusions, session_items):
+    """[messages, with a named AKM function, built by a generic builder, with a tool, not offered, sent by the session, with none]."""
+    counts = [0] * 7
+    for item in items:
+        identifier = item["id"]
+        has_tool = bool(mcp_tools.get(identifier))
+        counts[0] += 1
+        counts[1 if akm_functions.get(identifier) else 2] += 1
+        if has_tool:
+            counts[3] += 1
+        elif identifier in exclusions:
+            counts[4] += 1
+        elif identifier in session_items:
+            counts[5] += 1
+        else:
+            counts[6] += 1
+    return counts
+
+
+def render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items):
+    """The table of counts that opens the file: for each section and for the whole (RQ-MCP-061)."""
+    sections = {section["section"]: section for section in catalogue["sections"]}
+    lines = [COUNTS_HEADING, ""] + COUNTS_HEADER
+    total = [0] * 7
+    for code in TABLE_4_ORDER:
+        counts = count_messages([item for item in catalogue["items"] if item["section"] == code], akm_functions, mcp_tools, exclusions,
+                                session_items)
+        total = [a + b for a, b in zip(total, counts)]
+        lines.append(f"| §{code} {sections[code]['name']} | " + " | ".join(str(count) for count in counts) + " |")
+    lines.append(f"| {COUNTS_TOTAL} | " + " | ".join(str(count) for count in total) + " |")
+    lines.append("")
+    return lines
+
+
 def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=None, session_items=None):
     """The text of the file. `akm_functions` maps an item ID to the AKM functions that send it, `mcp_tools` to
     [(tool, option or None)], `exclusions` to the decision that left it out; with none given, no scan has run."""
@@ -755,7 +793,7 @@ def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=N
     exclusions = exclusions or {}
     session_items = session_items or set()
     sections = {section["section"]: section for section in catalogue["sections"]}
-    lines = list(INTRO)
+    lines = list(INTRO) + render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items)
     for code in TABLE_4_ORDER:
         lines += [section_title(sections[code]), ""] + ROW_HEADER
         for item in catalogue["items"]:
@@ -779,6 +817,8 @@ def heading_of(lines, index):
             return lines[position][len("## "):len("## ") + 3]
         if lines[position].startswith(TABLE_32_HEADING):
             return "Table 32"
+        if lines[position].startswith(COUNTS_HEADING):
+            return "the counts"
     return HEADER_NAME
 
 

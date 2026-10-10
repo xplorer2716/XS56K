@@ -250,11 +250,18 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_akm_items.py --coverage)
     add_test(NAME akm_item_catalogue_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_generate_akm_items.py")
+    # The table of the spec's messages with the AKM function and the MCP tool of each (documents/SYSEX-COVERAGE.md): it matches what the
+    # sources say, and the script that writes it is itself tested. A new tool, function or item that the script cannot place fails the first.
+    # [TASK-MCP-073, RQ-MCP-062, RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-039)]
+    add_test(NAME sysex_coverage_table_is_up_to_date
+        COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_sysex_coverage.py --check)
+    add_test(NAME sysex_coverage_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_generate_sysex_coverage.py")
     # The mutation check tool (RQ-BLD-015): configures and builds the small fixture project of
     # tools/mutate_fixture/ several times over, so it is markedly slower than the catalogue's own
     # tests above. [TASK-BLD-012]
     add_test(NAME bld_mutate_tool_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_mutate.py")
 else()
-    message(STATUS "Python 3 not found: the item catalogue and mutation-tool checks of juce/tests/tools are not registered")
+    message(STATUS "Python 3 not found: the item catalogue, coverage table and mutation-tool checks of juce/tests/tools are not registered")
 endif()

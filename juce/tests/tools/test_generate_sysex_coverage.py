@@ -1,6 +1,6 @@
 """Tests of juce/tools/generate_sysex_coverage.py, run by ctest when Python 3 is available.
 
-Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
+Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, TASK-MCP-073, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
 RQ-MCP-062, RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import importlib.util
@@ -1016,6 +1016,71 @@ class TheDeclaredFactsInTheFile(ScriptTest):
 
         self.assertEqual(result.returncode, 1)
         self.assertIn("stale", result.stderr)
+
+
+# The counts that open the file (RQ-MCP-061): read back from the rows, they must be the rows' own.
+COUNT_COLUMNS = ["Messages", "Named AKM function", "Generic builder", "MCP tool", "Not offered", "Server session", "None"]
+GENERIC_BUILDERS = {"makeRequest", "makeStringRequest", "makeTwoStringRequest"}
+
+
+def count_rows(rows):
+    """The seven counts of a list of table rows [(message, akm cell, mcp cell)]."""
+    return [len(rows),
+            sum(1 for _, akm, _ in rows if akm not in GENERIC_BUILDERS and akm != "none"),
+            sum(1 for _, akm, _ in rows if akm in GENERIC_BUILDERS),
+            sum(1 for _, _, mcp in rows if mcp not in ("none", "server session") and not mcp.startswith("not offered")),
+            sum(1 for _, _, mcp in rows if mcp.startswith("not offered")),
+            sum(1 for _, _, mcp in rows if mcp == "server session"),
+            sum(1 for _, _, mcp in rows if mcp == "none")]
+
+
+class TheCountsOfTheFile(ScriptTest):
+    def read(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+        counts, sections, current = {}, {}, None
+        for line in text.splitlines():
+            if line.startswith("## "):
+                current = line[3:6] if line.startswith("## §") else line[3:].split(":")[0]
+                continue
+            if not line.startswith("|") or line.startswith("|---"):
+                continue
+            cells = [cell.strip() for cell in line.strip("|").split(" | ")]
+            if current == "Counts per section" and cells[0] not in ("Section",):
+                key = cells[0][:3] if cells[0].startswith("§") else cells[0]
+                counts[key] = [int(cell) for cell in cells[1:]]
+            elif current is not None and current.startswith("§") and cells[0] != "Message":
+                sections.setdefault(current, []).append(tuple(cells[:3]))
+        return text, counts, sections
+
+    def test_given_the_generated_file_when_it_is_read_then_it_opens_with_the_counts_before_the_first_section(self):
+        text, _, _ = self.read()
+
+        self.assertLess(text.index("## Counts per section"), text.index("## §00"))
+        for column in COUNT_COLUMNS:
+            self.assertIn(column, text[:text.index("## §00")])
+
+    def test_given_the_counts_when_they_are_compared_with_the_rows_then_each_section_has_the_counts_of_its_rows(self):
+        _, counts, sections = self.read()
+
+        for section, rows in sections.items():
+            self.assertEqual(counts[section], count_rows(rows), section)
+
+    def test_given_the_counts_when_the_total_is_read_then_it_is_the_sum_of_the_sections_and_the_catalogues_item_count(self):
+        _, counts, sections = self.read()
+        items = json.loads(DATA.read_text(encoding="utf-8"))["items"]
+
+        total = counts["All"]
+        self.assertEqual(total[0], len(items))
+        for column in range(len(COUNT_COLUMNS)):
+            self.assertEqual(total[column], sum(counts[section][column] for section in sections), COUNT_COLUMNS[column])
+
+    def test_given_the_counts_when_they_are_read_then_the_messages_split_into_a_tool_a_decision_a_session_and_none(self):
+        _, counts, _ = self.read()
+
+        total = counts["All"]
+        self.assertEqual(total[3] + total[4] + total[5] + total[6], total[0])
+        self.assertEqual(total[1] + total[2], total[0])
 
 
 if __name__ == "__main__":

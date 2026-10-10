@@ -111,7 +111,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-073: The counts, the real file, the `ctest` entries and the pointers
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The script writes the table of counts that opens the file (RQ-MCP-061); the real `documents/SYSEX-COVERAGE.md` is generated and
   committed; `juce/tests/CMakeLists.txt` gets `sysex_coverage_table_is_up_to_date` and `sysex_coverage_script_tests` beside the item catalogue's;
   the root `README.md` links the file, `documents/INDEX.md` lists it, `AGENTS.md` gets the command, `CHANGELOG.md` records it; the process index is rebuilt.
@@ -122,8 +122,8 @@ This plan implements the tasks in the format specified below.
   and names the tool (tried once on a scratch copy, not committed); *given* `ctest`, *then* the whole suite passes on Windows.
 - **Dependencies**: TASK-MCP-072
 - **Assignee**: AI
-- **Verification**: Pending (`ctest` output with the two new entries; the scratch trial of the failing case; the links read in the three documents).
-- **Assumptions**: (1) The two `ctest` entries run only where CMake finds Python, as the item catalogue's do; the CI configurations that have it run them.
+- **Verification**: Test first: 4 tests of the counts added to `test_generate_sysex_coverage.py` (the counts open the file before section 00, each section's counts equal its rows read back, the total is the catalogue's 384 and the sum of the sections, the four states of the MCP column and the two of the AKM column add up to the messages), run before the code: 86 tests, 4 errors. After the code: 86 tests OK. `python juce/tools/generate_sysex_coverage.py` wrote the real `documents/SYSEX-COVERAGE.md` (384 messages; 210 with a named AKM function, 174 built by a generic builder; 346 with a tool, 1 not offered, 6 server session, 31 none) and `--check` says "is up to date". `cmake -S juce -B juce/build-run` registered the two entries and `ctest -R sysex_coverage` passed both (`sysex_coverage_table_is_up_to_date`, `sysex_coverage_script_tests`). The failing case tried on a scratch copy of `juce/mcp` (not committed): a row `ghost_tool` added to its README made `--check` exit 1 with "the tool ghost_tool is in the README and has no declared entry"; renaming `hold_key` there also gave "SamplerGateway::holdPanelKey is called in Tools.cpp and no tool declares it". The links: `README.md` (the library section, the server section, "More documentation"), `documents/INDEX.md`, `AGENTS.md` (one bullet with the command) and `CHANGELOG.md`, read back. Full `ctest` on Windows (MSVC, Debug): 1102 of 1102 pass.
+- **Assumptions**: (1) The two entries are registered beside the item catalogue's, inside the same `if(Python3_FOUND)`; the message printed when Python is missing now names the coverage table too. (2) The counts add `Server session` as a column, which RQ-MCP-061 did not list, since RQ-MCP-060 gained that state in TASK-MCP-072. (3) The root `README.md` still says, in its safety paragraph of the server, that "the server never clears the whole memory, formats or ejects a disk": that has been untrue since TASK-MCP-051 and is not changed here (outside this task); it is left for the owner to see.
 
 ### TASK-MCP-075: The check against the simulated sampler
 - **Tier**: L

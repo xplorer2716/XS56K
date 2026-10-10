@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   effects are untried); the front-panel keys were seen on its screen (a cursor key, `multi` and `utilities`, a held key repeating until it is released
   or the session closes, the data wheel moving a character of a name by one, an ASCII character typed at the cursor)
   (`xs56k_mcp_server_simulated` lets you try the server with no sampler).
+- `documents/SYSEX-COVERAGE.md`, a generated table of every message of the SysEx specification by section, with the function of the AKM
+  library and the MCP tool that send it and a count per section, written by `juce/tools/generate_sysex_coverage.py` from the item
+  catalogue, the sources and a short declared file (`juce/tools/sysex_coverage_declared.json`), and kept up to date by two `ctest` entries
+  (`sysex_coverage_table_is_up_to_date`, `sysex_coverage_script_tests`). Of the 384 messages, 346 have an MCP tool, 1 is left out on
+  purpose (ejecting a disk), 6 are the server's own session, 31 have none; the eight alternative sections of the spec's Table 32 (by index,
+  blocked) have no code at all.
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
   closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard

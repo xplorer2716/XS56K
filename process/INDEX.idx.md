@@ -571,7 +571,7 @@ TASK-MCP-069|39-54|Done|The generator's skeleton — rows, Markdown, `--check`
 TASK-MCP-070|55-71|Done|The AKM column
 TASK-MCP-071|72-93|Done|The MCP column — the declared tool list, the scan of the gateway and of the parameters
 TASK-MCP-072|94-111|Done|The declared data file
-TASK-MCP-073|112-127|Not Started|The counts, the real file, the `ctest` entries and the pointers
+TASK-MCP-073|112-127|Done|The counts, the real file, the `ctest` entries and the pointers
 TASK-MCP-075|128-149|Not Started|The check against the simulated sampler
 TASK-MCP-074|150-163|Not Started|Read the table with the owner
 @process/3.plan/SUMMARY-akm-sections-coverage.md
