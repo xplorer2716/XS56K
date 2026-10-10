@@ -257,6 +257,11 @@ if(Python3_FOUND)
         COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_sysex_coverage.py --check)
     add_test(NAME sysex_coverage_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_generate_sysex_coverage.py")
+    # What each tool really sends, from the simulated server run on the scripted conversations (--trace-messages), against the table: a
+    # tool that sends a message neither its row nor the methods it calls give fails. [TASK-MCP-075, RQ-MCP-066, ADR-MCP-006 (DEC-MCP-040)]
+    add_test(NAME sysex_coverage_tools_match_the_simulated_sampler
+        COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_sysex_coverage.py --check-tools
+            --server $<TARGET_FILE:xs56k_mcp_server_simulated>)
     # The mutation check tool (RQ-BLD-015): configures and builds the small fixture project of
     # tools/mutate_fixture/ several times over, so it is markedly slower than the catalogue's own
     # tests above. [TASK-BLD-012]

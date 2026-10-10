@@ -21,7 +21,17 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // scripted conversation piped into it is a ctest entry, and a person can try the server from an MCP client with no
 // sampler. Test tooling, built only with BUILD_TESTS and never shipped: the shipped server does not link the simulated
 // sampler. [TASK-MCP-007, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
+//
+// `--trace-messages <file>` writes, for each `tools/call` of the conversation, one JSON line giving the tool and the section and item codes
+// of the commands the simulated sampler accepted during that call; `tools/generate_sysex_coverage.py --check-tools` reads it to check which
+// tool sends which message against the table of documents/SYSEX-COVERAGE.md. The session is opened by one untraced call first, so that the
+// messages of the session itself (section 00) are not given to a tool. The answers on standard output are the same with or without the
+// option. [TASK-MCP-075, RQ-MCP-066, ADR-MCP-006 (DEC-MCP-040)]
+#include <cstdint>
+#include <fstream>
 #include <iostream>
+#include <string>
+#include <nlohmann/json.hpp>
 
 #ifdef _WIN32
 #include <fcntl.h>
@@ -43,6 +53,63 @@ namespace
     // A fixed version, so that the expected output of the scripted conversation does not change with the build.
     constexpr const char* SERVER_VERSION = "simulated";
     constexpr std::chrono::milliseconds COMMAND_TIMEOUT{2000};
+
+    constexpr const char* TRACE_OPTION = "--trace-messages";
+    constexpr const char* TOOLS_CALL_METHOD = "tools/call";
+    // A call that only reads, made once before the first traced call so that the session opens (and sends its own messages) first.
+    constexpr const char* WARM_UP_CALL = R"({"jsonrpc":"2.0","id":0,"method":"tools/call","params":{"name":"get_status","arguments":{}}})";
+    constexpr int HEX_DIGITS = 2;
+
+    std::string hexByte(std::uint8_t value)
+    {
+        constexpr const char* DIGITS = "0123456789ABCDEF";
+        std::string text(HEX_DIGITS, '0');
+        text[0] = DIGITS[value >> 4];
+        text[1] = DIGITS[value & 0x0F];
+        return text;
+    }
+
+    bool isBlank(const std::string& line)
+    {
+        return line.find_first_not_of(" \t") == std::string::npos;
+    }
+
+    /// What `McpServer::serve` does, line by line, and after each `tools/call` one line of the trace: the tool and the commands the sampler accepted.
+    void serveWithTrace(mcp::McpServer& server, const akm::harness::SimulatedSampler& sampler, const std::string& tracePath)
+    {
+        std::ofstream trace(tracePath, std::ios::binary);
+        bool sessionOpened = false;
+        std::string line;
+        while (std::getline(std::cin, line))
+        {
+            if (!line.empty() && line.back() == '\r')
+                line.pop_back();
+            if (isBlank(line))
+                continue;
+            const nlohmann::json message = nlohmann::json::parse(line, nullptr, false);
+            const bool isCall = message.is_object() && message.value("method", "") == TOOLS_CALL_METHOD && message.contains("params") &&
+                                message.at("params").is_object();
+            if (isCall && !sessionOpened)
+            {
+                (void) server.handleLine(WARM_UP_CALL);
+                sessionOpened = true;
+            }
+            const std::size_t before = sampler.acceptedCommands().size();
+            if (const auto answer = server.handleLine(line))
+            {
+                std::cout << *answer << '\n';
+                std::cout.flush();
+            }
+            if (!isCall)
+                continue;
+            nlohmann::json record{{"tool", message.at("params").value("name", "")}, {"messages", nlohmann::json::array()}};
+            const auto accepted = sampler.acceptedCommands();
+            for (std::size_t i = before; i < accepted.size(); ++i)
+                record["messages"].push_back({{"section", hexByte(accepted[i].section)}, {"item", hexByte(accepted[i].item)}});
+            trace << record.dump() << '\n';
+            trace.flush();
+        }
+    }
 }
 
 int main(int argc, char** argv)
@@ -50,8 +117,11 @@ int main(int argc, char** argv)
     // --allow-disk offers the disk tools, as the shipped server does (ADR-MCP-003 DEC-MCP-015). The simulated sampler always
     // holds its two disks; only the tools are opt-in.
     mcp::ToolOptions toolOptions;
+    std::string tracePath;
     for (int i = 1; i < argc; ++i)
     {
+        if (std::string(argv[i]) == TRACE_OPTION && i + 1 < argc)
+            tracePath = argv[++i];
         toolOptions.allowDisk = toolOptions.allowDisk || std::string(argv[i]) == "--allow-disk";
         toolOptions.allowDiskRefresh = toolOptions.allowDiskRefresh || std::string(argv[i]) == "--allow-disk-refresh";
         toolOptions.allowFrontPanel = toolOptions.allowFrontPanel || std::string(argv[i]) == "--allow-front-panel";
@@ -117,7 +187,10 @@ int main(int argc, char** argv)
     mcp::McpServer server(identity, mcp::makeAllTools(gateway, mcp::ParameterCatalogue::standard(), toolOptions));
 
     std::cerr << "xs56k_mcp_server_simulated: a simulated sampler holding the programs PAD, BASS and LEAD (BASS current), the samples KICK, SNARE and PAD and the multis LIVE and STUDIO\n";
-    server.serve(std::cin, std::cout);
+    if (tracePath.empty())
+        server.serve(std::cin, std::cout);
+    else
+        serveWithTrace(server, sampler, tracePath);
     gateway.close();
     return 0;
 }

@@ -9,7 +9,7 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 | Section | Messages | Named AKM function | Generic builder | MCP tool | Not offered | Server session | None |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | §00 SysEx Configuration | 7 | 7 | 0 | 0 | 0 | 6 | 1 |
-| §02 System | 16 | 16 | 0 | 12 | 0 | 0 | 4 |
+| §02 System | 16 | 16 | 0 | 16 | 0 | 0 | 0 |
 | §04 MIDI Configuration | 7 | 7 | 0 | 7 | 0 | 0 | 0 |
 | §06 Keygroup Zone | 28 | 15 | 13 | 28 | 0 | 0 | 0 |
 | §08 Keygroup | 80 | 41 | 39 | 79 | 0 | 0 | 1 |
@@ -21,7 +21,7 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 | §14 Scenelist | 8 | 8 | 0 | 7 | 0 | 0 | 1 |
 | §16 MIDI Song Files | 12 | 12 | 0 | 11 | 0 | 0 | 1 |
 | §20 Front Panel | 4 | 4 | 0 | 4 | 0 | 0 | 0 |
-| All | 384 | 210 | 174 | 346 | 1 | 6 | 31 |
+| All | 384 | 210 | 174 | 350 | 1 | 6 | 27 |
 
 ## §00 SysEx Configuration (Table 5, p. 10)
 
@@ -51,10 +51,10 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 | `&20{32}` Get Play Mode (Get) | getPlayMode | get_sampler_settings, set_sampler_setting |
 | `&21{33}` Get front panel lock-out state (Get) | getFrontPanelLock | get_sampler_settings, set_sampler_setting |
 | `&32{50}` Clear Sampler Memory (Set) | clearSamplerMemory | clear_sampler_memory |
-| `&30{48}` Get percentage of free Wave memory (Get) | getFreeWaveMemoryPercent | none |
-| `&31{49}` Get percentage of free MPKS memory (Get) | getFreeMpksMemoryPercent | none |
-| `&33{51}` Get total bytes of Wave memory (Get) | getTotalWaveMemoryBytes | none |
-| `&34{52}` Get free bytes of Wave memory (Get) | getFreeWaveMemoryBytes | none |
+| `&30{48}` Get percentage of free Wave memory (Get) | getFreeWaveMemoryPercent | get_system_info |
+| `&31{49}` Get percentage of free MPKS memory (Get) | getFreeMpksMemoryPercent | get_system_info |
+| `&33{51}` Get total bytes of Wave memory (Get) | getTotalWaveMemoryBytes | get_system_info |
+| `&34{52}` Get free bytes of Wave memory (Get) | getFreeWaveMemoryBytes | get_system_info |
 
 ## §04 MIDI Configuration (Table 8, p. 12)
 
@@ -437,29 +437,29 @@ One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the or
 
 | Message | AKM function | MCP tool |
 |---|---|---|
-| `&05{5}` Select Scenelist by name (Set) | selectSceneListByName | clear_sampler_memory, delete_set_list, rename_set_list, select_scenelist |
-| `&06{6}` Select Scenelist by index (Set) | selectSceneListByIndex | clear_sampler_memory, delete_set_list, rename_set_list, select_scenelist |
-| `&08{8}` Delete the currently selected Scenelist (Set) | deleteCurrentSceneList | clear_sampler_memory, delete_scenelist, delete_set_list, rename_set_list |
-| `&09{9}` Rename the currently selected Scenelist (Set) | renameCurrentSceneList | clear_sampler_memory, delete_set_list, rename_scenelist, rename_set_list |
-| `&10{16}` Get the Number of Scenelists loaded into memory (Get) | getSceneListCount | clear_sampler_memory, delete_set_list, list_scenelists, rename_set_list |
-| `&11{17}` Get the name of Scenelist by index (Get) | getSceneListNameByIndex | clear_sampler_memory, delete_set_list, list_scenelists, rename_set_list |
-| `&13{19}` Get Current Scenelist's Index (Get) | getCurrentSceneListIndex | clear_sampler_memory, delete_set_list, list_scenelists, rename_set_list |
+| `&05{5}` Select Scenelist by name (Set) | selectSceneListByName | select_scenelist |
+| `&06{6}` Select Scenelist by index (Set) | selectSceneListByIndex | select_scenelist |
+| `&08{8}` Delete the currently selected Scenelist (Set) | deleteCurrentSceneList | delete_scenelist |
+| `&09{9}` Rename the currently selected Scenelist (Set) | renameCurrentSceneList | rename_scenelist |
+| `&10{16}` Get the Number of Scenelists loaded into memory (Get) | getSceneListCount | list_scenelists |
+| `&11{17}` Get the name of Scenelist by index (Get) | getSceneListNameByIndex | list_scenelists |
+| `&13{19}` Get Current Scenelist's Index (Get) | getCurrentSceneListIndex | list_scenelists |
 | `&14{20}` Get Current Scenelist's Name (Get) | getCurrentSceneListName | none |
 
 ## §16 MIDI Song Files (Tables 28 and 29, p. 40)
 
 | Message | AKM function | MCP tool |
 |---|---|---|
-| `&05{5}` Select Songfile by name (Set) | selectSongByName | clear_sampler_memory, delete_set_list, rename_set_list, select_song_file |
-| `&06{6}` Select Songfile by index (Set) | selectSongByIndex | clear_sampler_memory, delete_set_list, rename_set_list, select_song_file |
-| `&08{8}` Delete the currently selected Songfile (Set) | deleteCurrentSong | clear_sampler_memory, delete_set_list, delete_song_file, rename_set_list |
-| `&09{9}` Rename the currently selected Songfile (Set) | renameCurrentSong | clear_sampler_memory, delete_set_list, rename_set_list, rename_song_file |
-| `&10{16}` Get the Number of Songfiles loaded into memory (Get) | getSongCount | clear_sampler_memory, delete_set_list, list_song_files, rename_set_list |
-| `&11{17}` Get the name of Songfile by index (Get) | getSongNameByIndex | clear_sampler_memory, delete_set_list, list_song_files, rename_set_list |
-| `&13{19}` Get Current Songfile's Index (Get) | getCurrentSongIndex | clear_sampler_memory, delete_set_list, list_song_files, rename_set_list |
+| `&05{5}` Select Songfile by name (Set) | selectSongByName | select_song_file |
+| `&06{6}` Select Songfile by index (Set) | selectSongByIndex | select_song_file |
+| `&08{8}` Delete the currently selected Songfile (Set) | deleteCurrentSong | delete_song_file |
+| `&09{9}` Rename the currently selected Songfile (Set) | renameCurrentSong | rename_song_file |
+| `&10{16}` Get the Number of Songfiles loaded into memory (Get) | getSongCount | list_song_files |
+| `&11{17}` Get the name of Songfile by index (Get) | getSongNameByIndex | list_song_files |
+| `&13{19}` Get Current Songfile's Index (Get) | getCurrentSongIndex | list_song_files |
 | `&14{20}` Get Current Songfile's Name (Get) | getCurrentSongName | none |
-| `&20{32}` Get the Number of Set Lists loaded into memory (Get) | getSetListCount | clear_sampler_memory, delete_set_list, list_set_lists, rename_set_list |
-| `&21{33}` Get the name of Set List by index (Get) | getSetListNameByIndex | clear_sampler_memory, delete_set_list, list_set_lists, rename_set_list |
+| `&20{32}` Get the Number of Set Lists loaded into memory (Get) | getSetListCount | list_set_lists |
+| `&21{33}` Get the name of Set List by index (Get) | getSetListNameByIndex | list_set_lists |
 | `&22{34}` Delete the Set List by index (Set) | deleteSetList | delete_set_list |
 | `&23{35}` Rename the Set List by index (Set) | renameSetList | rename_set_list |
 

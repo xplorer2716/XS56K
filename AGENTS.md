@@ -80,7 +80,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 - **Coverage table:** `documents/SYSEX-COVERAGE.md` gives, for each message of the SysEx spec, the AKM function and the MCP tool that send it;
   `python3 juce/tools/generate_sysex_coverage.py` (`python` on Windows) writes it and `--check` fails if it is out of date or if an item,
   function or tool appears that the script cannot place (a new tool needs its gateway methods in `juce/tools/sysex_coverage_declared.json`).
-  Never edit the file by hand; both checks are `ctest` entries when CMake finds Python 3. [RQ-MCP-058 to RQ-MCP-066, ADR-MCP-006]
+  Never edit the file by hand; the checks, one of which runs the simulated server on the scripted conversations to see which tool sends what,
+  are `ctest` entries when CMake finds Python 3. [RQ-MCP-058 to RQ-MCP-066, ADR-MCP-006]
 - **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
   `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
   refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first, and never call `clear_sampler_memory` or a `delete_all_*`

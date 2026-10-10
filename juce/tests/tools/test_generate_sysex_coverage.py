@@ -1,6 +1,6 @@
 """Tests of juce/tools/generate_sysex_coverage.py, run by ctest when Python 3 is available.
 
-Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, TASK-MCP-073, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
+Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, TASK-MCP-073, TASK-MCP-075, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
 RQ-MCP-062, RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import importlib.util
@@ -479,6 +479,20 @@ namespace akm
         self.assertEqual(result.composed, {"pressIt": ["holdIt", "releaseIt"]})
         self.assertEqual(result.functions["KeyHold"], ["holdIt"])
 
+    def test_given_a_destructor_when_scanned_then_its_name_keeps_the_tilde_and_the_class(self):
+        source = """
+namespace akm
+{
+    Session::~Session()
+    {
+        session.submit(makeRequest(ItemId::DestructorItem, NO_VALUES), {});
+    }
+}
+"""
+        header = "namespace akm { class Session { public: ~Session(); }; }"
+
+        self.assertEqual(self.attribute(source, header).functions["DestructorItem"], ["Session::~Session"])
+
     def test_given_a_member_function_when_scanned_then_its_name_is_qualified(self):
         self.assertEqual(self.attribute().functions["FlushItem"], ["Session::flush"])
 
@@ -742,23 +756,30 @@ class TheMcpScan(unittest.TestCase):
     def test_given_a_tool_whose_method_calls_an_akm_function_when_modelled_then_the_message_is_the_tools(self):
         self.assertEqual(self.model().shown["delete_thing"], {"ThingDelete"})
 
-    def test_given_a_method_that_names_a_type_of_the_library_when_modelled_then_it_does_not_own_what_the_types_constructor_sends(self):
+    def test_given_a_function_passed_as_a_value_when_modelled_then_its_messages_are_the_tools(self):
         source = """
 namespace mcp
 {
     Outcome SamplerGateway::lookAt()
     {
-        akm::Session& held = session();
-        return Outcome{};
+        return percentOf(akm::getThingNames, "reading the names");
     }
 }
 """
         model = self.script.attribute_mcp(
             readme_text=FIXTURE_README, gateway_header=FIXTURE_GATEWAY_HEADER, gateway_sources={"Gateway.cpp": source},
             tools_source=FIXTURE_TOOLS_SOURCE, parameter_source=FIXTURE_STANDARD_PARAMETERS, declared_tools={"look": {"gateway": ["lookAt"]}},
-            akm_function_items={"Session": {"SessionItem"}}, akm_public_functions={"Session"}, item_sections=FIXTURE_ITEM_SECTIONS)
+            akm_function_items=FIXTURE_AKM_FUNCTION_ITEMS, akm_public_functions=set(FIXTURE_AKM_FUNCTION_ITEMS), item_sections=FIXTURE_ITEM_SECTIONS)
 
-        self.assertEqual(model.shown["look"], set())
+        self.assertEqual(model.shown["look"], {"ThingGetNames"})
+
+    def test_given_a_set_parameter_tool_when_modelled_then_it_may_also_send_the_get_items_it_reads_back(self):
+        model = self.model()
+
+        self.assertIn("ProgramGetLevel", model.allowed["set_parameter"])
+        self.assertIn("ZoneGetPan", model.allowed["set_parameter"])
+        self.assertNotIn("ProgramGetLevel", model.shown["set_parameter"])
+        self.assertNotIn("SampleGetLoop", model.allowed["set_parameter"])
 
     def test_given_a_tool_whose_method_sends_through_a_private_helper_when_modelled_then_the_helpers_message_is_the_tools(self):
         self.assertIn("HelperItem", self.model().shown["list_things"])
@@ -1081,6 +1102,125 @@ class TheCountsOfTheFile(ScriptTest):
         total = counts["All"]
         self.assertEqual(total[3] + total[4] + total[5] + total[6], total[0])
         self.assertEqual(total[1] + total[2], total[0])
+
+
+# The check against the simulated sampler (TASK-MCP-075): the trace of what each tool sent, read against the table.
+TRACE_ITEMS = [
+    {"id": "ProgramGetCount", "section": "0A", "item": "10", "name": "Get Number of Programs", "kind": "get", "args": []},
+    {"id": "ProgramRename", "section": "0A", "item": "09", "name": "Rename Program", "kind": "set", "args": []},
+    {"id": "ProgramDelete", "section": "0A", "item": "08", "name": "Delete Program", "kind": "set", "args": []},
+]
+
+
+def trace_model(shown=None, allowed=None, tools=None):
+    shown = shown if shown is not None else {"list_programs": {"ProgramGetCount"}, "rename_program": {"ProgramRename"}, "delete_program": {"ProgramDelete"}}
+    return types.SimpleNamespace(shown=shown, allowed=allowed if allowed is not None else {name: set(items) for name, items in shown.items()},
+                                 tools=tools if tools is not None else {name: None for name in shown})
+
+
+class TheTraceOfTheSimulatedServer(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.script = load_script()
+
+    def check(self, trace_text, model=None):
+        return self.script.check_trace(self.script.read_trace(trace_text), model or trace_model(), TRACE_ITEMS)
+
+    def test_given_the_lines_of_a_trace_when_read_then_each_gives_its_tool_and_the_codes_of_the_messages(self):
+        text = '{"tool": "list_programs", "messages": [{"section": "0A", "item": "10"}]}\n\n{"tool": "get_status", "messages": []}\n'
+
+        self.assertEqual(self.script.read_trace(text), [("list_programs", [("0A", "10")]), ("get_status", [])])
+
+    def test_given_a_tool_that_sent_what_its_row_gives_when_checked_then_there_is_no_problem(self):
+        result = self.check('{"tool": "rename_program", "messages": [{"section": "0A", "item": "09"}]}')
+
+        self.assertEqual(result.problems, [])
+
+    def test_given_a_tool_that_sent_a_message_its_row_does_not_give_when_checked_then_the_problem_names_the_tool_and_the_message(self):
+        result = self.check('{"tool": "rename_program", "messages": [{"section": "0A", "item": "08"}]}')
+
+        self.assertEqual(len(result.problems), 1)
+        self.assertIn("rename_program", result.problems[0])
+        self.assertIn("Delete Program", result.problems[0])
+        self.assertIn("&08", result.problems[0])
+
+    def test_given_a_message_the_tool_sends_through_another_method_when_checked_then_it_is_allowed(self):
+        model = trace_model(allowed={"rename_program": {"ProgramRename", "ProgramGetCount"}, "list_programs": set(), "delete_program": set()})
+
+        result = self.check('{"tool": "rename_program", "messages": [{"section": "0A", "item": "10"}]}', model)
+
+        self.assertEqual(result.problems, [])
+
+    def test_given_a_message_the_catalogue_does_not_have_when_checked_then_the_problem_says_so(self):
+        result = self.check('{"tool": "rename_program", "messages": [{"section": "7F", "item": "01"}]}')
+
+        self.assertTrue(any("7F" in problem and "catalogue" in problem for problem in result.problems), result.problems)
+
+    def test_given_a_trace_for_a_tool_the_table_does_not_know_when_checked_then_the_problem_names_it(self):
+        result = self.check('{"tool": "ghost_tool", "messages": []}')
+
+        self.assertTrue(any("ghost_tool" in problem for problem in result.problems), result.problems)
+
+    def test_given_tools_no_call_reached_when_checked_then_they_are_listed_and_do_not_fail_the_check(self):
+        result = self.check('{"tool": "list_programs", "messages": [{"section": "0A", "item": "10"}]}')
+
+        self.assertEqual(result.problems, [])
+        self.assertEqual(result.not_called, ["delete_program", "rename_program"])
+
+    def test_given_a_message_of_a_row_that_no_call_sent_when_checked_then_it_is_listed_and_does_not_fail_the_check(self):
+        result = self.check('{"tool": "rename_program", "messages": []}\n{"tool": "list_programs", "messages": [{"section": "0A", "item": "10"}]}')
+
+        self.assertEqual(result.problems, [])
+        self.assertEqual(result.unexercised, {"rename_program": ["ProgramRename"]})
+
+
+class TheConversationsAreRunThroughTheServer(ScriptTest):
+    """A stand-in for the simulated server (a Python script) that writes one trace line per tools/call of its input."""
+    FAKE_SERVER = """
+import json, sys
+trace = sys.argv[sys.argv.index("--trace-messages") + 1]
+with open(trace, "w") as out:
+    for line in sys.stdin:
+        line = line.strip()
+        if line and json.loads(line).get("method") == "tools/call":
+            out.write(json.dumps({"tool": json.loads(line)["params"]["name"], "messages": [{"section": "0A", "item": "10"}]}) + "\\n")
+"""
+
+    def setUp(self):
+        super().setUp()
+        self.script = load_script()
+        self.fake = self.directory / "fake_server.py"
+        self.fake.write_text(self.FAKE_SERVER, encoding="utf-8")
+        self.conversation = self.directory / "talk.jsonl"
+        self.conversation.write_text('{"jsonrpc":"2.0","id":1,"method":"initialize"}\n'
+                                     '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"list_programs"}}\n', encoding="utf-8")
+
+    def test_given_a_server_and_a_conversation_when_run_then_the_trace_has_a_line_for_each_tool_call(self):
+        trace = self.script.run_conversation([sys.executable, str(self.fake)], self.conversation, ["--allow-disk"], self.directory / "trace.jsonl")
+
+        self.assertEqual(trace, [("list_programs", [("0A", "10")])])
+
+    def test_given_a_server_that_does_not_write_a_trace_when_run_then_the_error_names_the_conversation(self):
+        silent = self.directory / "silent.py"
+        silent.write_text("import sys\nsys.stdin.read()\n", encoding="utf-8")
+
+        with self.assertRaises(self.script.InputError) as raised:
+            self.script.run_conversation([sys.executable, str(silent)], self.conversation, [], self.directory / "trace.jsonl")
+
+        self.assertIn("talk.jsonl", str(raised.exception))
+
+
+class TheCheckOfTheToolsOnTheRealServer(ScriptTest):
+    SERVER = pathlib.Path(os.environ.get("XS56K_SIMULATED_SERVER", ""))
+
+    def test_given_the_simulated_server_when_the_tools_are_checked_then_each_tool_sent_what_the_table_gives_it(self):
+        if not self.SERVER.is_file():
+            self.skipTest("XS56K_SIMULATED_SERVER does not name the simulated server: the ctest entry sysex_coverage_tools_match_the_simulated_sampler runs this check")
+
+        result = run_script("--check-tools", "--server", str(self.SERVER))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("tools were not called", result.stdout)
 
 
 if __name__ == "__main__":

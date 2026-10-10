@@ -99,8 +99,8 @@ The simulated server (`xs56k_mcp_server_simulated`, test tooling built only with
 and item codes of the commands the simulated sampler accepted during that call (the call that opens the session is made once beforehand and not
 traced, so that the messages of the session itself are not given to a tool). The scripted conversations call 75 of the 77 tools (read on
 2026-10-10); a third conversation, with no expected output to compare, calls what they do not. The script, in a `--check-tools` mode run by
-`ctest`, reads the trace and compares it with the table: **what a tool sent must be in its row or in what its declared methods send through the
-other methods they call**, else the check fails naming the tool and the message; the tools no conversation calls, and the messages of a row no call
+`ctest`, reads the trace and compares it with the table: **what a tool sent must be in its row, or in what its declared methods send through the
+other methods they call, or (for a parameter tool) among the items of either kind of the sections it names, a Set being read back**, else the check fails naming the tool and the message; the tools no conversation calls, and the messages of a row no call
 sent, are listed and do not fail it (a call exercises one path of a tool, not all of them). **Why:** the declared link is the one part of the
 table that no reading of the code proves, and a wrong pairing would leave the table false with every test green; the simulated sampler already
 records the frames it accepts, so the ground truth costs one option and one conversation, not new production code. **Limit:** it proves that a

@@ -17,13 +17,16 @@ and in the test suite (ctest), never during the build.
 Usage:
     python3 juce/tools/generate_sysex_coverage.py              # write the file
     python3 juce/tools/generate_sysex_coverage.py --check      # fail if the file is out of date
+    python3 juce/tools/generate_sysex_coverage.py --check-tools --server <xs56k_mcp_server_simulated>
+                                                               # fail if a tool sends a message the table does not give it
 
 (On Windows the interpreter is usually `python`.)
 
 Exit status: 0 when everything holds, 1 when the file is out of date or the catalogue disagrees with the spec,
 2 when an input cannot be read.
 
-[TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062, RQ-MCP-063,
+[TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, TASK-MCP-075, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062, RQ-MCP-063,
+RQ-MCP-066,
 ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import argparse
@@ -32,7 +35,9 @@ import dataclasses
 import json
 import pathlib
 import re
+import subprocess
 import sys
+import tempfile
 
 HERE = pathlib.Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
@@ -44,6 +49,15 @@ DEFAULT_AKM_SOURCES = ROOT / "juce" / "akm" / "src"
 DEFAULT_AKM_INCLUDE = ROOT / "juce" / "akm" / "include" / "akm"
 DEFAULT_MCP = ROOT / "juce" / "mcp"
 DEFAULT_ADRS = ROOT / "process" / "2.architecture"
+CONVERSATIONS_FOLDER = ROOT / "juce" / "tests" / "mcp" / "conversations"
+# The conversations the simulated server is run on, and the launch options each needs (TASK-MCP-075, ADR-MCP-006 DEC-MCP-040).
+CONVERSATIONS = [
+    ("simulated_session.jsonl", []),
+    ("simulated_disk_session.jsonl", ["--allow-disk", "--allow-disk-refresh", "--allow-front-panel"]),
+    ("tool_messages.jsonl", []),
+]
+TRACE_OPTION = "--trace-messages"
+CONVERSATION_TIMEOUT_SECONDS = 300
 
 EXIT_OK = 0
 EXIT_MISMATCH = 1
@@ -263,6 +277,8 @@ def function_name_of(header):
             return None
         elif token == "(" and angle == 0 and j > 0 and is_identifier(names[j - 1]) and names[j - 1] not in NOT_A_FUNCTION_NAME:
             start = j - 1
+            if start >= 1 and names[start - 1] == "~":  # a destructor: `Session::~Session`
+                start -= 1
             while start >= 2 and names[start - 1] == SCOPE_OPERATOR and is_identifier(names[start - 2]):
                 start -= 2
             depth, k = 1, j + 1
@@ -312,10 +328,9 @@ def collect(unit, tokens):
                 target.setdefault(tokens[i + 2][0], line)
             elif not (i >= 2 and tokens[i - 1][0] == SCOPE_OPERATOR and tokens[i - 2][0] == ITEM_ID_TYPE):
                 if i >= 2 and tokens[i - 1][0] == SCOPE_OPERATOR and tokens[i - 2][0] == AKM_NAMESPACE:
-                    # `akm::name(...)`, `akm::name<...>(...)` or `&akm::name`: a call or a pointer to a function, not a type
-                    following = tokens[i + 1][0] if i + 1 < len(tokens) else None
-                    if following in ("(", "<") or (i >= 3 and tokens[i - 3][0] == "&"):
-                        unit.akm_calls.add(token)
+                    # `akm::name(...)`, `&akm::name`, `percentOf(akm::name, ...)`: a function called or passed on; a type of the library
+                    # is named the same way and finds no function of that name
+                    unit.akm_calls.add(token)
                 else:
                     unit.mentions.add(token)
                 if is_request_builder(token) or token.startswith(SUBMIT_PREFIX):
@@ -399,7 +414,7 @@ class AkmAttribution:
 
 def is_public(unit, public):
     """A function defined at namespace scope whose name a public header declares."""
-    return unit.kind == KIND_FUNCTION and not unit.local and unit.last in public
+    return unit.kind == KIND_FUNCTION and not unit.local and unit.last.lstrip("~") in public
 
 
 def attribute_akm(sources, headers):
@@ -623,8 +638,9 @@ def attribute_mcp(readme_text, gateway_header, gateway_sources, tools_source, pa
         if parameter_entry:
             wanted = set(parameter_entry["sections"])
             problems += [f"{name}: the parameter section {section} is not a section of the catalogue" for section in sorted(wanted - sections)]
-            own_items |= {item for item in parameter_items if item_sections.get(item, (None, None))[0] in wanted
-                          and item_sections[item][1] == parameter_entry["kind"]}
+            in_sections = {item for item in parameter_items if item_sections.get(item, (None, None))[0] in wanted}
+            own_items |= {item for item in in_sections if item_sections[item][1] == parameter_entry["kind"]}
+            may_send |= in_sections  # a Set is read back, a Get may be asked after it: both kinds of the sections are allowed
         shown[name] = own_items
         allowed[name] = own_items | may_send | akm_items
     called = gateway_calls_of(tools_source, public)
@@ -712,6 +728,75 @@ def declared_facts(declared, items, akm, mcp, decisions):
             problems.append(f"tool_options: {entry['tool']} does not send {entry['item']}")
         options[(entry["item"], entry["tool"])] = entry["option"]
     return DeclaredFacts(not_offered, session, akm_extra, options, problems)
+
+
+# --- the check against the simulated sampler (ADR-MCP-006, DEC-MCP-040) --------------------------------------------------
+
+
+def read_trace(text):
+    """[(tool, [(section, item)])] from the lines the simulated server writes with `--trace-messages`: one per `tools/call`."""
+    trace = []
+    for line in text.splitlines():
+        if line.strip():
+            record = json.loads(line)
+            trace.append((record["tool"], [(message["section"].upper(), message["item"].upper()) for message in record["messages"]]))
+    return trace
+
+
+def run_conversation(command, conversation, arguments, trace_path):
+    """Runs the simulated server (`command`) on a conversation and returns the trace it wrote."""
+    conversation, trace_path = pathlib.Path(conversation), pathlib.Path(trace_path)
+    trace_path.unlink(missing_ok=True)
+    try:
+        with open(conversation, "rb") as stdin:
+            completed = subprocess.run([*command, *arguments, TRACE_OPTION, str(trace_path)], stdin=stdin, capture_output=True,
+                                       timeout=CONVERSATION_TIMEOUT_SECONDS)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise InputError(f"cannot run the simulated server on {conversation.name}: {error}") from error
+    if not trace_path.is_file():
+        raise InputError(f"the simulated server wrote no trace for {conversation.name} (exit {completed.returncode}): "
+                         f"{completed.stderr.decode('utf-8', 'replace').strip()[-300:]}")
+    return read_trace(trace_path.read_text(encoding="utf-8"))
+
+
+@dataclasses.dataclass
+class TraceCheck:
+    problems: list       # a message a tool sent that neither its row nor the methods it calls give
+    not_called: list     # the tools no conversation called
+    unexercised: dict    # a tool called -> the messages of its row that no call of it sent
+
+
+def check_trace(trace, model, items):
+    """Compares what each tool sent, in a trace, with the table: it must be in the tool's row or in what its declared methods send
+    through the others they call. What no call reached is reported, not failed: a call takes one path of a tool."""
+    by_code = {(item["section"].upper(), item["item"].upper()): item for item in items}
+    problems, observed = [], {}
+    for tool, messages in trace:
+        if tool not in model.allowed:
+            problems.append(f"the trace has a call of {tool}, which the table does not know")
+            continue
+        for code in messages:
+            item = by_code.get(code)
+            if item is None:
+                problems.append(f"{tool} sent the message {code[0]}/{code[1]}, which the catalogue does not have")
+            elif item["id"] not in model.allowed[tool]:
+                problems.append(f"{tool} sent {item['name']} (&{item['item'].upper()} of section {item['section'].upper()}), which neither its "
+                                f"row of the table nor the methods it calls give")
+            else:
+                observed.setdefault(tool, set()).add(item["id"])
+        observed.setdefault(tool, set())
+    called = {tool for tool, _ in trace}
+    unexercised = {tool: sorted(model.shown.get(tool, set()) - observed[tool]) for tool in sorted(called & set(model.shown))
+                   if model.shown.get(tool, set()) - observed[tool]}
+    return TraceCheck(problems, sorted(set(model.tools) - called), unexercised)
+
+
+def check_tools(server, model, items, scratch_folder):
+    """Runs the simulated server on the conversations and checks each tool's trace against the table."""
+    trace = []
+    for name, arguments in CONVERSATIONS:
+        trace += run_conversation([str(server)], CONVERSATIONS_FOLDER / name, arguments, pathlib.Path(scratch_folder) / (name + ".trace"))
+    return check_trace(trace, model, items)
 
 
 def code_cell(code):
@@ -838,6 +923,29 @@ def check_file(text, output):
     return EXIT_MISMATCH
 
 
+def run_check_tools(server, mcp, items):
+    """The `--check-tools` mode: what the tools really sent, against the table."""
+    if server is None or not server.is_file():
+        print("--check-tools needs --server, the path of the simulated server (xs56k_mcp_server_simulated)", file=sys.stderr)
+        return EXIT_UNREADABLE
+    try:
+        with tempfile.TemporaryDirectory() as scratch:
+            result = check_tools(server, mcp, items, scratch)
+    except InputError as error:
+        print(error, file=sys.stderr)
+        return EXIT_UNREADABLE
+    print(f"{len(result.not_called)} tools were not called by any conversation: {', '.join(result.not_called) or 'none'}")
+    print(f"{len(result.unexercised)} tools were called and have a message in their row that no call sent: "
+          f"{'; '.join(f'{tool} ({len(messages)})' for tool, messages in result.unexercised.items()) or 'none'}")
+    if result.problems:
+        print("a tool sent what the table does not give it:", file=sys.stderr)
+        for problem in result.problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
+    print("every message the tools sent is in the table")
+    return EXIT_OK
+
+
 def main():
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(errors="replace")
@@ -851,6 +959,9 @@ def main():
     parser.add_argument("--mcp", type=pathlib.Path, default=DEFAULT_MCP, help="the MCP server's folder")
     parser.add_argument("--adrs", type=pathlib.Path, default=DEFAULT_ADRS, help="the folder of the ADRs")
     parser.add_argument("--check", action="store_true", help="fail if the file is out of date")
+    parser.add_argument("--check-tools", action="store_true",
+                        help="run the simulated server on the conversations and fail if a tool sends a message the table does not give it")
+    parser.add_argument("--server", type=pathlib.Path, help="the simulated server (xs56k_mcp_server_simulated), for --check-tools")
     args = parser.parse_args()
 
     try:
@@ -907,6 +1018,8 @@ def main():
         for problem in facts.problems:
             print(f"  {problem}", file=sys.stderr)
         return EXIT_MISMATCH
+    if args.check_tools:
+        return run_check_tools(args.server, mcp, catalogue["items"])
     tools_of = {}
     for tool, items in sorted(mcp.shown.items()):
         for item in items:
