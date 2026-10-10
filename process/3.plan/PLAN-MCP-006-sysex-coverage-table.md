@@ -5,27 +5,30 @@
 Implements `FTR-MCP-006` as `ADR-MCP-006` decides: a script in `juce/tools` that writes `documents/SYSEX-COVERAGE.md` (one table per section of the
 specification, one row per message, with the AKM function and the MCP tool of each), a data file for what a scan cannot read, a check that
 fails when the file is behind the code, and the pointers from `README.md`, `documents/INDEX.md` and `AGENTS.md`. The owner asked for it on
-2026-10-10, and asked that the tool live in `juce/tools` with the others. No C++ changes: the plan reads the sources and changes none.
+2026-10-10, and asked that the tool live in `juce/tools` with the others. The script reads the sources and changes none; the one change to C++
+is an option of the simulated server, test tooling, for the check of TASK-MCP-075 (`DEC-MCP-040`).
 
 **Order of the work.** The rows first (they need nothing), then each column on its own because each has a different source and a different way to
-be wrong, then the declared file and the real result, then the pointers and the `ctest` entries. Each column task **measures how many of the 384
-messages its scan attributes by itself** and writes the figure in its `Verification`; if the MCP scan (TASK-MCP-071) cannot attribute most of
-them, the work stops there and `DEC-MCP-037` is amended with the owner before more is built (Ask-when-blocking rule, c).
+be wrong, then the declared file and the real result, then the pointers and the `ctest` entries, then the check against the simulated sampler. Each
+column task **measures how many of the 384 messages its scan attributes by itself** and writes the figure in its `Verification`. The measure of the
+MCP column (2026-10-10, before TASK-MCP-071 was built) said that a text scan of `Tools.cpp` does not hold; the owner then chose the declared
+tool-to-method list with a check against the simulated sampler, and `DEC-MCP-037` was rewritten and `DEC-MCP-040` added.
 
 | Step | Task | What | Why here |
 |---|---|---|---|
 | 1 | TASK-MCP-069 | the script's skeleton: the rows of the 13 sections and Table 32, the Markdown, `--check`, determinism | nothing to scan yet; fixes the shape |
 | 2 | TASK-MCP-070 | the AKM column | the simpler scan (one layer) |
-| 3 | TASK-MCP-071 | the MCP column | the long chain; the go or no-go on `DEC-MCP-037` |
-| 4 | TASK-MCP-072 | the declared data file: Table 32, the exclusions, what the scans leave | after both scans say what they leave |
+| 3 | TASK-MCP-071 | the MCP column: the declared list of tools and gateway methods, the scan of the gateway and of the parameters, the checks both ways | the long chain |
+| 4 | TASK-MCP-072 | the rest of the declared data file: the exclusions, what the generic functions apply to, what the scans leave | after both scans say what they leave |
 | 5 | TASK-MCP-073 | the counts, the real `documents/SYSEX-COVERAGE.md`, the `ctest` entries, the pointers | the result and its guard |
-| 6 | TASK-MCP-074 | read the table with the owner | what `none` and the generic builders hold is his to judge |
+| 6 | TASK-MCP-075 | the check against the simulated sampler: `--trace-messages`, a third conversation, `--check-tools` | the ground truth for the links that are declared |
+| 7 | TASK-MCP-074 | read the table with the owner | what `none` and the generic builders hold is his to judge |
 
-The plan has 6 tasks, under the limit of 10 per session.
+The plan has 7 tasks (TASK-MCP-075 was added on 2026-10-10 with the owner's choice), under the limit of 10 per session.
 
 ## References
-- **Requirements**: RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-061, RQ-MCP-062, RQ-MCP-063, RQ-MCP-064, RQ-MCP-065 (`FTR-MCP-006`)
-- **ADRs**: ADR-MCP-006 (Proposed): DEC-MCP-035 to DEC-MCP-039; ADR-AKM-001: DEC-AKM-003, DEC-AKM-012 (the item catalogue the rows come from);
+- **Requirements**: RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-061, RQ-MCP-062, RQ-MCP-063, RQ-MCP-064, RQ-MCP-065, RQ-MCP-066 (`FTR-MCP-006`)
+- **ADRs**: ADR-MCP-006 (Proposed): DEC-MCP-035 to DEC-MCP-040; ADR-AKM-001: DEC-AKM-003, DEC-AKM-012 (the item catalogue the rows come from);
   ADR-MCP-005: DEC-MCP-028 (what the owner excluded)
 
 This plan implements the tasks in the format specified below.
@@ -66,32 +69,39 @@ This plan implements the tasks in the format specified below.
 - **Verification**: Test first: 15 tests of the scan added to `juce/tests/tools/test_generate_sysex_coverage.py`, run before the scanner existed: 37 tests, 4 failures and 11 errors. After the scanner, and after the first run on the real sources showed what it missed (see Assumptions), `python -m unittest discover -s juce/tests/tools -p "test_generate_sysex_coverage.py"`: 40 tests OK. Real run (`python juce/tools/generate_sysex_coverage.py --output <scratch>`, then `--check` "is up to date"): **158 of the 384 messages are sent by a named AKM function, which is the 158 the text search of 2026-10-10 found in `juce/akm/src`**; 226 are `catalogue only`; no item is unattributed and none is missing from the catalogue; the functions that send the item their caller names are `getForAllKeygroups`, `getForAllZones` and `getForAllZonesAllKeygroups`. Eight messages have more than one function (`ejectDisk` and `ejectDiskDiscardingVirtualSamples`; `Session::open`, `Session::close` and the setters for the §00 settings).
 - **Assumptions**: (1) "Public" is "defined at namespace scope with a name that a header under `juce/akm/include/akm` writes before a `(`" (`detail/` excluded): a superset of the declared functions, which only matters for a helper that shares a name with a declared function, none today. (2) The first run found two things the tests then pinned: seven items (`DiskLoadFile`, `MultiSetPartByName`, `MultiSetProgramNumber`, `ProgramCreateWithKeygroups`, `ProgramSetNumber`, `SetListRename`, `ZoneSetSample`) are fetched with `descriptor(...)` and sent with `makeRequest(item, ...)`, so a descriptor counts as sending when the body also builds a request; and the session's own class (`Impl` in `Session.cpp`) gave its seven items to every public method of `Session`, so the methods of a local class are units of their own (DEC-MCP-036 amended). (3) The three generic functions are reported on standard output and not yet in the file: which messages they apply to is what TASK-MCP-072 declares. (4) `ItemId::X` named in a source and absent from the catalogue stops the script (it cannot happen in code that compiles, and is tested with a fixture). (5) *Amended 2026-10-10, at the owner's request:* the cell of a message that no named function sends names the generic builder that makes it (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` by the formats of the item's arguments) instead of saying `catalogue only`, which named nothing; the 226 messages are the same, all 226 take numbers only so all say `makeRequest`; 44 tests pass (the 4 new ones are on the three builders and on a message a function sends), and `--check` on the real run "is up to date".
 
-### TASK-MCP-071: The MCP column — the go or no-go on DEC-MCP-037
+### TASK-MCP-071: The MCP column — the declared tool list, the scan of the gateway and of the parameters
 - **Tier**: L
 - **Status**: Not Started
-- **Description**: The script reads the tool names and the gateway methods they call in `juce/mcp/src/Tools.cpp`, the AKM functions and item IDs each
-  gateway method uses in `SamplerGateway*.cpp`, the item pairs of the parameter catalogues (`StandardParameters.cpp` and the others), and the option of
-  each tool from `juce/mcp/README.md`; it fills the MCP column (tool names with their option, `not offered (<decision>)` from the declared file, or
-  `none`). **First it measures** how many of the 384 messages it attributes without a declaration, and stops with the figure if that is not most of them.
+- **Description**: The script reads the tools and their launch options from `juce/mcp/README.md`; the declared list of `sysex_coverage_declared.json`
+  (for each of the 77 tools, the gateway methods it calls, or for a family of kinds the AKM functions, or `none` with a reason); for each gateway
+  method, in `SamplerGateway*.cpp`, the AKM functions and items it reaches through its helpers, and the ones it reaches through other public
+  methods apart; and the parameter pairs of `StandardParameters.cpp` by scope. It fills the MCP column (tool names with their option, or `none`),
+  and stops, naming the difference, when a tool and its entry, or a method and `Tools.cpp`, do not match. The 77 entries are written here from a
+  reading of `Tools.cpp`, `SamplerGateway.hpp` and `SamplerGatewayLists.cpp`.
 - **Requirement refs**: RQ-MCP-060, RQ-MCP-063, RQ-MCP-065
 - **ADR refs**: ADR-MCP-006 (DEC-MCP-037, DEC-MCP-038)
-- **Acceptance Criteria** (Gherkin): *Given* a fixture in which the tool `rename_set_list` calls `gateway.renameSetList`, which calls
-  `akm::renameSetList`, which sends `SongSetListRename`, *When* the scan runs, *Then* the message's MCP cell is `rename_set_list`; *given* a tool
-  that needs `--allow-disk`, *then* its name is followed by `(--allow-disk)`; *given* a tool registered from a table, *then* it is found; *given* a
-  tool the scan cannot follow, *then* the script names it and fails; *given* the real sources, *then* the 77 tools of the server are each attributed or
-  named as unreadable, and the count is reported.
+- **Acceptance Criteria** (Gherkin): *Given* a fixture in which the declared entry of `rename_set_list` is the gateway method `renameSetList`, which
+  calls `akm::renameSetList`, which sends `SetListRename`, *When* the scan runs, *Then* the message's MCP cell is `rename_set_list`; *given* a tool
+  that needs `--allow-disk`, *then* its name is followed by `(--allow-disk)`; *given* a tool of the README with no declared entry, or an entry with
+  no tool, *then* the script fails and names it; *given* a declared method that does not exist, or a gateway method that `Tools.cpp` calls and no
+  entry declares, or a declared method that `Tools.cpp` never calls, *then* it fails and names it; *given* the real sources and the real entries,
+  *then* the 77 tools are each attributed or declared as sending nothing.
 - **Dependencies**: TASK-MCP-070
 - **Assignee**: AI
-- **Verification**: Pending (the figure of messages attributed without a declaration, and the list of tools or methods left; the go or no-go).
-- **Assumptions**: (1) Tier L because it is the cross-cutting scan and the point where an ADR decision may be amended. (2) If the measure says no-go,
-  the owner is asked before the column is built another way (Ask-when-blocking rule c).
+- **Verification**: Pending (the count of messages with a tool, the declared entries by kind, and the failures tried).
+- **Assumptions**: (1) Tier L because it is the cross-cutting scan and writes the 77 declared entries. (2) The measure of 2026-10-10 that led to the
+  declared list (62 of 77 tools got a gateway method by a text scan of `Tools.cpp`, 15 none; 89 of 112 gateway methods reach a message) is in
+  `DEC-MCP-037`. (3) A message that a tool's gateway method sends only by calling another public method is kept apart from the tool's own (it
+  is not in the table, and it is allowed by the check of TASK-MCP-075).
 
 ### TASK-MCP-072: The declared data file
 - **Tier**: M
 - **Status**: Not Started
-- **Description**: `juce/tools/sysex_coverage_declared.json` (created by TASK-MCP-069 with the eight Table 32 sections) also holds the messages decided
-  not to be offered with the ID of the decision (ejecting a disk, `DEC-MCP-028`, and whatever else the two scans show that an ADR excluded), and the links the scans could not
-  attribute, each with its reason. The script refuses a declared entry naming an unknown item, function or tool, and one that a scan now covers.
+- **Description**: `juce/tools/sysex_coverage_declared.json` (created by TASK-MCP-069 with the eight Table 32 sections, and given the tool list by
+  TASK-MCP-071) also holds the messages decided not to be offered with the ID of the decision (ejecting a disk, `DEC-MCP-028`, and whatever else the
+  scans show that an ADR excluded), which messages `getForAllKeygroups`, `getForAllZones` and `getForAllZonesAllKeygroups` apply to, and the links the scans
+  could not attribute, each with its reason. The script refuses a declared entry naming an unknown item, function or tool, and one that a scan now
+  covers.
 - **Requirement refs**: RQ-MCP-058, RQ-MCP-060, RQ-MCP-063, RQ-MCP-065
 - **ADR refs**: ADR-MCP-006 (DEC-MCP-038), ADR-MCP-005 (DEC-MCP-028)
 - **Acceptance Criteria** (Gherkin): *Given* a declared entry for an item that does not exist, *When* the script runs, *Then* it fails and names the entry;
@@ -119,6 +129,28 @@ This plan implements the tasks in the format specified below.
 - **Verification**: Pending (`ctest` output with the two new entries; the scratch trial of the failing case; the links read in the three documents).
 - **Assumptions**: (1) The two `ctest` entries run only where CMake finds Python, as the item catalogue's do; the CI configurations that have it run them.
 
+### TASK-MCP-075: The check against the simulated sampler
+- **Tier**: L
+- **Status**: Not Started
+- **Description**: `xs56k_mcp_server_simulated` gets an option `--trace-messages <file>` that writes, for each `tools/call`, the tool and the section and
+  item codes of the commands the simulated sampler accepted (the session is opened by one untraced call first); a third conversation with no
+  expected output calls the tools the two scripted conversations do not (`delete_all_programs` and `delete_all_samples` at the time of writing);
+  `generate_sysex_coverage.py --check-tools <trace>` compares the trace with the table and fails on a message that a tool sent and its row, with what
+  its declared methods send through other methods, does not give; it lists the tools no call reached and the messages of a row no call sent. A
+  `ctest` entry runs the simulated server on the three conversations and then the check. The tests come first.
+- **Requirement refs**: RQ-MCP-066, RQ-MCP-063, RQ-MCP-065
+- **ADR refs**: ADR-MCP-006 (DEC-MCP-040)
+- **Acceptance Criteria** (Gherkin): *Given* the simulated server run with `--trace-messages` on a conversation that calls `rename_file`, *When* the
+  trace is read, *Then* it has a line for that call giving the file-rename item and no other tool's; *given* a declared entry that gives `rename_file`
+  the method of `rename_folder`, *then* `--check-tools` fails and names `rename_file` and the message; *given* the real declarations, *then* the
+  check passes and lists the tools no conversation calls; *given* `ctest`, *then* the whole suite passes.
+- **Dependencies**: TASK-MCP-071, TASK-MCP-073
+- **Assignee**: AI
+- **Verification**: Pending (the trace of the three conversations, the failing case tried on a scratch declaration, the lists printed, `ctest`).
+- **Assumptions**: (1) Tier L: it changes C++ (the simulated server's `main`, test tooling that is never shipped) and adds a conversation. (2) The
+  messages of the session itself (§00, sent at its opening and closing) are kept out of the trace by the untraced first call and the close after the
+  last line. (3) The scripted conversations' expected outputs are not changed: the option is off unless asked.
+
 ### TASK-MCP-074: Read the table with the owner
 - **Tier**: S
 - **Status**: Not Started
@@ -129,7 +161,7 @@ This plan implements the tasks in the format specified below.
 - **ADR refs**: ADR-MCP-006
 - **Acceptance Criteria** (Gherkin): *Given* the generated table, *When* it is read with the owner, *Then* each `none` row is either planned, declared
   `not offered` with his decision, or left open and listed.
-- **Dependencies**: TASK-MCP-073
+- **Dependencies**: TASK-MCP-073, TASK-MCP-075
 - **Assignee**: Human and AI
 - **Verification**: N/A (Tier S)
 - **Assumptions**: None

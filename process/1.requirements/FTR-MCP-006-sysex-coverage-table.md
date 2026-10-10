@@ -126,6 +126,22 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **Acceptance Criteria** (Gherkin): *Given* the repository, *When* `README.md` is read, *Then* a link to the file is there and the file exists.
 - **Dependencies**: RQ-MCP-062
 
+### RQ-MCP-066: The links between tools and messages are checked against the simulated sampler
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF a tool, called by the scripted conversations against the simulated sampler, sends a message that the table gives neither as
+  that tool's own nor as one that its declared gateway methods send through the other methods they call, THEN the check SHALL exit with a non-zero
+  code and name the tool and the message; the check SHALL list the tools the conversations never call, and the messages of a tool's row that no
+  call of it sent. The check SHALL be a `ctest` entry.
+- **Rationale**: which tool calls which gateway method is the one link of the table that no reading of the code proves (`ADR-MCP-006`, DEC-MCP-037:
+  15 of the 77 tools are registered through shared code); the simulated sampler records what each tool really sent. Added 2026-10-10 on the owner's
+  choice of the declared list with this check.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* a declared entry that gives `rename_file` the gateway method of `rename_folder`, *When* the check runs on
+  a conversation that renames a file, *Then* it fails and names `rename_file` and the file-rename message; *given* the real declarations, *then* it
+  passes and lists the tools no conversation calls.
+- **Dependencies**: RQ-MCP-060, RQ-MCP-063
+
 ## Non-Functional Requirements
 
 ### RQ-MCP-065: The script is tested
@@ -134,10 +150,10 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **EARS Type**: Ubiquitous
 - **Statement**: The script SHALL have unit tests in `juce/tests/tools`, named in Gherkin, run by `ctest`, over small fixture inputs: the rows of
   a section, the attribution of a message to a function and to a tool, the three cell states of each column, the counts, the determinism of the
-  output and the two failures of RQ-MCP-063.
+  output and the failures of RQ-MCP-063 and RQ-MCP-066.
 - **Metric**: every cell state and every failure of RQ-MCP-058 to RQ-MCP-063 has at least one test; the suite passes.
 - **Measurement Method**: `ctest -R sysex_coverage` on the three platforms of the CI; the test names are read against the Gherkin criteria above.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the test file, *When* `ctest` runs, *Then* the cases of the unit tests pass and each one cites its
   RQ ID.
-- **Dependencies**: RQ-MCP-062, RQ-MCP-063
+- **Dependencies**: RQ-MCP-062, RQ-MCP-063, RQ-MCP-066
