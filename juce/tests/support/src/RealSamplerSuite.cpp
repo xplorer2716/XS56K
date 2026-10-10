@@ -933,11 +933,32 @@ namespace akm::harness
             return snapshot;
         }
 
+        // The position of the first set list named `name`, read from the sampler (up to the read limit), or nothing. [TASK-AKM-106]
+        std::optional<int> setListIndexNamed(Rig& rig, Session& session, std::string_view name)
+        {
+            const auto count = awaitCompletion<SetListCountResult>(
+                rig.driver, rig.commandPatience(), [&session](SetListCountCompletion done) { getSetListCount(session, std::move(done)); });
+            if (!count || !count->result.count)
+                return std::nullopt;
+            for (int index = 0; index < std::min(*count->result.count, SONG_FILES_NAME_READ_LIMIT); ++index)
+            {
+                const auto read = awaitCompletion<SetListNameResult>(rig.driver, rig.commandPatience(), [&session, index](SetListNameCompletion done) {
+                    getSetListNameByIndex(session, index, std::move(done));
+                });
+                if (read && read->result.name && *read->result.name == name)
+                    return index;
+            }
+            return std::nullopt;
+        }
+
         // Wraps the sampler's song files and set lists for the life of one check (RQ-AKM-085): the check says which name it
         // is about to change, before it changes it, and on destruction, even when the check throws half way, the guard puts
         // each such name back and selects again the song file that was current. Logged, best effort, nothing let out of the
         // destructor, mirroring GuardedSystemSetup. It never sends a deletion: nothing in this class can, there is no method
         // that does. A sampler that had no song file current cannot be put back to that: the selection has no "none".
+        // The real S5000 sorts its song files by name when one is renamed and then has another one current (TASK-MCP-058): the renamed
+        // song file and set list are found again by the test name, and the song file that was current is selected again by its name,
+        // never by a position the renaming may have changed. [TASK-AKM-106]
         class GuardedSongFiles
         {
         public:
@@ -979,25 +1000,41 @@ namespace akm::harness
             {
                 if (_renamedSetList)
                 {
-                    const int index = *_renamedSetList;
-                    const std::string name = _original.setListNames.at(static_cast<std::size_t>(index));
-                    restoreStep("the name of set list " + std::to_string(index) + " (\"" + name + "\")",
-                                [this, index, &name](CommandCompletion done) { renameSetList(_session, index, name, std::move(done)); });
+                    const std::string name = _original.setListNames.at(static_cast<std::size_t>(*_renamedSetList));
+                    if (const auto index = setListIndexNamed(_rig, _session, TEST_SONG_FILES_NAME))
+                        restoreStep("the name of set list " + std::to_string(*index) + " (\"" + name + "\")",
+                                    [this, index = *index, &name](CommandCompletion done) { renameSetList(_session, index, name, std::move(done)); });
+                    else
+                        _rig.log.note("  restore the name of set list \"" + name + "\": no set list is named \"" + std::string(TEST_SONG_FILES_NAME) +
+                                      "\", so nothing was renamed back");
                 }
                 if (_renamedSong)
                 {
-                    const int index = *_renamedSong;
-                    const std::string name = _original.songNames.at(static_cast<std::size_t>(index));
-                    restoreStep("the selection of song file " + std::to_string(index),
-                                [this, index](CommandCompletion done) { selectSongByIndex(_session, index, std::move(done)); });
-                    restoreStep("the name of song file " + std::to_string(index) + " (\"" + name + "\")",
-                                [this, &name](CommandCompletion done) { renameCurrentSong(_session, name, std::move(done)); });
+                    const std::string name = _original.songNames.at(static_cast<std::size_t>(*_renamedSong));
+                    // Only the song file found by the test name is renamed back: when none is, the renaming was not applied.
+                    const auto selected = awaitCompletion<CommandResult>(_rig.driver, _rig.commandPatience(), [this](CommandCompletion done) {
+                        selectSongByName(_session, TEST_SONG_FILES_NAME, std::move(done));
+                    });
+                    _rig.log.note("  restore the selection of the song file named \"" + std::string(TEST_SONG_FILES_NAME) + "\": " +
+                                  (selected && succeeded(selected->result) ? "done" : "failed (" + timedOutcomeText(selected) + ")"));
+                    if (selected && succeeded(selected->result))
+                        restoreStep("the name of that song file (\"" + name + "\")",
+                                    [this, &name](CommandCompletion done) { renameCurrentSong(_session, name, std::move(done)); });
+                    else
+                        _rig.log.note("  no song file is named \"" + std::string(TEST_SONG_FILES_NAME) + "\", so nothing was renamed back");
                 }
                 if (_original.currentSong)
                 {
                     const int index = *_original.currentSong;
-                    restoreStep("the current song file (" + std::to_string(index) + ")",
-                                [this, index](CommandCompletion done) { selectSongByIndex(_session, index, std::move(done)); });
+                    if (static_cast<std::size_t>(index) < _original.songNames.size())
+                    {
+                        const std::string name = _original.songNames[static_cast<std::size_t>(index)];
+                        restoreStep("the current song file (\"" + name + "\")",
+                                    [this, &name](CommandCompletion done) { selectSongByName(_session, name, std::move(done)); });
+                    }
+                    else
+                        restoreStep("the current song file (" + std::to_string(index) + ")",
+                                    [this, index](CommandCompletion done) { selectSongByIndex(_session, index, std::move(done)); });
                 }
                 else if (_renamedSong)
                 {
@@ -4225,8 +4262,15 @@ namespace akm::harness
                 guard.noteSongRenamed(0);
                 expectCommand(guarded, "rename the current song file to \"" + std::string(TEST_SONG_FILES_NAME) + "\"",
                               [](Session& session, CommandCompletion done) { renameCurrentSong(session, TEST_SONG_FILES_NAME, std::move(done)); });
-                expect(currentSongNameOf(guarded) == TEST_SONG_FILES_NAME, "the current song file's name reads the new name");
-                expect(songNameAt(guarded, 0) == TEST_SONG_FILES_NAME, "the name of song file 0 reads the new name");
+                // The sampler may have sorted its song files again: the new name is looked for in the list, and where it is, and which
+                // song file is current now, are observations. [TASK-AKM-106]
+                std::string problem;
+                const auto renamed = readSongFiles(_rig, guarded.session(), problem);
+                if (!renamed)
+                    throw CheckFailure("could not read the song files after the renaming: " + problem);
+                const int position = firstIndexNamed(renamed->songNames, std::string(TEST_SONG_FILES_NAME));
+                expect(position < static_cast<int>(renamed->songNames.size()), "a song file reads the new name");
+                finding("after the renaming: " + songFilesText(*renamed) + "; the new name at position " + std::to_string(position));
             }
 
             void setListRoundTrips(GuardedSession& guarded, const SongFilesSnapshot& before, GuardedSongFiles& guard)
@@ -4241,7 +4285,11 @@ namespace akm::harness
                 guard.noteSetListRenamed(0);
                 expectCommand(guarded, "rename set list 0 to \"" + std::string(TEST_SONG_FILES_NAME) + "\"",
                               [](Session& session, CommandCompletion done) { renameSetList(session, 0, TEST_SONG_FILES_NAME, std::move(done)); });
-                expect(setListNameAt(guarded, 0) == TEST_SONG_FILES_NAME, "the name of set list 0 reads the new name");
+                // Whether the sampler sorts its set lists is not known: the new name is looked for in the list. [TASK-AKM-106]
+                const auto position = setListIndexNamed(_rig, guarded.session(), TEST_SONG_FILES_NAME);
+                expect(position.has_value(), "a set list reads the new name");
+                if (position)
+                    finding("after the renaming the new set list name is at position " + std::to_string(*position));
             }
 
             void expectSongFilesRestored(GuardedSession& guarded, const SongFilesSnapshot& before)

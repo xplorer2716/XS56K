@@ -1617,13 +1617,32 @@ namespace akm::harness
             return reply(writer.bytes());
         }
 
+        // How a list keeps its names after a renaming: as they were, or sorted by name as the real S5000 (OS 2.14) sorts its song
+        // files (2026-10-10, TASK-MCP-058: "AIMER" renamed "XS56K-RENAME-TEST-20" moved from position 1 to the last, and back to 1
+        // between "a_woman_in_love" and "alors_regarde", so letters compare without regard to case and "_" comes before them).
+        enum class NameOrder
+        {
+            AsKept,
+            SortedOnRename
+        };
+
+        // Whether `a` comes before `b` in the order of the real S5000's song files: plain ASCII, each letter taken in lower case.
+        bool beforeInSongOrder(const std::string& a, const std::string& b)
+        {
+            return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](char left, char right) {
+                return std::tolower(static_cast<unsigned char>(left)) < std::tolower(static_cast<unsigned char>(right));
+            });
+        }
+
         // The eight items a list of named things with a current one has: select by name/index, delete/rename the
         // current one and the four Gets. It is the song file half of §16 (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084) and
         // the whole of §14, the scenelists (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097), whose items have the same codes.
         // A name or an index with none, and any "current" item with none current, fail with ERROR 04, as §0E does
-        // (the spec is silent on both sections, so this is a modelling choice).
+        // (the spec is silent on both sections, so this is a modelling choice). A list `SortedOnRename` is sorted again after a
+        // renaming and its first item is then current: what the real S5000 answered once after a song file was renamed
+        // (TASK-MCP-058, seen once, its cause not known).
         Outcome executeCurrentNamedList(std::uint8_t item, const Bytes& data, std::vector<std::string>& names,
-                                        std::optional<std::size_t>& current)
+                                        std::optional<std::size_t>& current, NameOrder order = NameOrder::AsKept)
         {
             switch (item)
             {
@@ -1665,6 +1684,11 @@ namespace akm::harness
                     if (!name)
                         return failure(error_number::INVALID_FORMAT);
                     names[*current] = *name;
+                    if (order == NameOrder::SortedOnRename)
+                    {
+                        std::stable_sort(names.begin(), names.end(), beforeInSongOrder);
+                        current = 0;
+                    }
                     return done();
                 }
                 case ITEM_LIST_GET_COUNT:
@@ -1723,7 +1747,7 @@ namespace akm::harness
                 case ITEM_RENAME_SET_LIST:
                     return executeSetListByIndex(item, data, state.setLists);
                 default:
-                    return executeCurrentNamedList(item, data, state.songs, state.current);
+                    return executeCurrentNamedList(item, data, state.songs, state.current, NameOrder::SortedOnRename);
             }
         }
 

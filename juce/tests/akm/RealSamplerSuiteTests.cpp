@@ -1727,12 +1727,16 @@ namespace
     constexpr std::uint8_t ITEM_DELETE_SET_LIST = 0x22;
 
     // A sampler that holds song files and set lists, one of the song files being the current one, as an owner's would.
+    // Sorted by name, as the real S5000 always holds its song files (TASK-AKM-106, seen during TASK-MCP-058).
     void seedSongFiles(SimulatedSampler& sampler)
     {
-        sampler.setSongNames({"VERSE", "CHORUS", "BRIDGE"});
+        sampler.setSongNames({"BRIDGE", "CHORUS", "VERSE"});
         sampler.setCurrentSong(1);
         sampler.setSetListNames({"GIG A", "GIG B"});
     }
+
+    // The song files the real S5000 held during TASK-MCP-058 (2026-10-10), "AIMER" current. [TASK-AKM-106]
+    const std::vector<std::string> REAL_RUN_SONGS = {"a_woman_in_love", "AIMER", "alors_regarde", "assassine"};
 }
 
 TEST_CASE("Given a sampler holding song files and set lists, When the suite runs with the song files checks, Then every read and selection agrees, the names and the selection are put back, and nothing is deleted [TASK-AKM-086, RQ-AKM-082, RQ-AKM-083, RQ-AKM-084, RQ-AKM-085]",
@@ -1752,7 +1756,7 @@ TEST_CASE("Given a sampler holding song files and set lists, When the suite runs
     CHECK_THAT(detail, ContainsSubstring("3 song file(s)"));
     CHECK_THAT(detail, ContainsSubstring("2 set list(s)"));
     CHECK_THAT(log.str(), ContainsSubstring("the set lists are back to what they were"));
-    CHECK(rig.sampler.songNames() == std::vector<std::string>{"VERSE", "CHORUS", "BRIDGE"});
+    CHECK(rig.sampler.songNames() == std::vector<std::string>{"BRIDGE", "CHORUS", "VERSE"});
     CHECK(rig.sampler.setListNames() == std::vector<std::string>{"GIG A", "GIG B"});
     CHECK(rig.sampler.currentSong() == std::optional<std::size_t>{1});
     for (const auto& command : rig.sampler.acceptedCommands())
@@ -1795,8 +1799,31 @@ TEST_CASE("Given a check made to fail after a song file was renamed, When the su
     REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
     CHECK(reportOf(result, "song files check that fails half way").outcome == CheckOutcome::Passed);
     CHECK_THAT(log.str(), ContainsSubstring("this check fails on purpose, with a song file renamed"));
-    CHECK(rig.sampler.songNames().front() == "VERSE");
+    CHECK(rig.sampler.songNames() == std::vector<std::string>{"BRIDGE", "CHORUS", "VERSE"});
     CHECK(rig.sampler.currentSong() == std::optional<std::size_t>{1});
+}
+
+TEST_CASE("Given the song files of the real run, sorted by the sampler on each renaming, with AIMER current, When the suite runs with the song files checks, Then both pass, every song file has its name and its place back, AIMER is current again, and nothing is deleted [TASK-AKM-106, RQ-AKM-085]",
+          "[akm][suite][song]")
+{
+    Rig rig;
+    rig.sampler.setSongNames(REAL_RUN_SONGS);
+    rig.sampler.setCurrentSong(1);
+    rig.sampler.setSetListNames({"Set 1"});
+    RealSuiteOptions options = rig.options();
+    options.songFiles = true;
+    std::ostringstream log;
+
+    const RealSuiteResult result = akm::harness::runRealSamplerSuite(rig.backend, rig.driver, options, log);
+
+    REQUIRE(result.checks.size() == AUTOMATIC_CHECKS + SONG_FILES_EXTRA_CHECKS);
+    checkAllPassed(result);
+    CHECK(rig.sampler.songNames() == REAL_RUN_SONGS);
+    CHECK(rig.sampler.setListNames() == std::vector<std::string>{"Set 1"});
+    CHECK(rig.sampler.currentSong() == std::optional<std::size_t>{1});
+    for (const auto& command : rig.sampler.acceptedCommands())
+        CHECK_FALSE((command.section == SECTION_SONG_FILES
+                     && (command.item == ITEM_DELETE_CURRENT_SONG || command.item == ITEM_DELETE_SET_LIST)));
 }
 
 TEST_CASE("Given a sampler with a set list but no song file, When the suite runs with the song files checks, Then the set list is renamed and put back and the song file check is skipped [TASK-AKM-086, RQ-AKM-084, RQ-AKM-085]",
