@@ -287,14 +287,14 @@ DEC-MCP-025|57-72||What stays not offered, and the owner decides
 DEC-MCP-026|73-83||The README is the human reference, organised by what a person needs to ask
 DEC-MCP-027|84-98||`--screen independent | follow | as-is` replaces `--no-lcd`
 @process/2.architecture/ADR-MCP-005-remaining-sampler-functions.md
-ADR-MCP-005|1-143|Proposed — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what|MCP Server — The Remaining Sampler Functions, the Confirmation by Count, a Launch Option for the Front Panel and the Order of the Work
+ADR-MCP-005|1-147|Proposed — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what|MCP Server — The Remaining Sampler Functions, the Confirmation by Count, a Launch Option for the Front Panel and the Order of the Work
 DEC-MCP-028|33-41||The owner's decisions of 2026-10-07 amend the list of what is not offered
-DEC-MCP-029|42-51||Delete all and clear memory: the `confirm` is a count, with no launch option
-DEC-MCP-030|52-58||The sampler's settings in two tools, the MIDI setup in two tools with no read-back
-DEC-MCP-031|59-66||Song files, set lists and scenelists: one family of tools per kind, and the disk kinds
-DEC-MCP-032|67-73||The front-panel keys behind `--allow-front-panel`
-DEC-MCP-033|74-81||The effects board is implemented and verified on the simulated sampler only
-DEC-MCP-034|82-89||The order of the work follows the risk, from reading to keys
+DEC-MCP-029|42-55||Delete all and clear memory: the `confirm` is a count, with no launch option
+DEC-MCP-030|56-62||The sampler's settings in two tools, the MIDI setup in two tools with no read-back
+DEC-MCP-031|63-70||Song files, set lists and scenelists: one family of tools per kind, and the disk kinds
+DEC-MCP-032|71-77||The front-panel keys behind `--allow-front-panel`
+DEC-MCP-033|78-85||The effects board is implemented and verified on the simulated sampler only
+DEC-MCP-034|86-93||The order of the work follows the risk, from reading to keys
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
@@ -538,7 +538,7 @@ TASK-MCP-058|241-252|Done|Real-sampler run — song files, set lists and sceneli
 TASK-MCP-059|253-264|Done|Real-sampler run — saving and loading song files, set lists and scenelists through the disk
 TASK-MCP-060|265-276|Done|Real-sampler run — the effects board
 TASK-MCP-061|277-288|Done|Real-sampler run — deleting all programs, all samples, all multis
-TASK-MCP-062|289-300|Not Started|Real-sampler run — clearing the sampler's memory
+TASK-MCP-062|289-300|Done|Real-sampler run — clearing the sampler's memory
 TASK-MCP-063|301-312|Not Started|Real-sampler run — the front-panel keys
 TASK-MCP-064|313-324|Not Started|Closure of the real runs — README, observations and simulated sampler
 TASK-MCP-065|325-336|Done|The instructions the server gives at `initialize` say what it offers today

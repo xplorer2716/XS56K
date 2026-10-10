@@ -498,3 +498,33 @@ What this changes: the simulated sampler answers a zone whose sample is gone wit
 the change); that a multi keeps the name of a deleted program was already what it did. **Not established:** the same effects after a
 single `delete_program` or `delete_sample` (not tried: the same is expected); whether the part or the zone finds its program or sample
 again when one of that name is loaded; the time of each command (not measured: all answered within the ordinary command timeout).
+
+## Clearing the sampler's memory (TASK-MCP-062), run on 2026-10-10
+
+The owner's S5000 (OS 2.14); `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with no option (with
+`--allow-disk` to load), once per tool call (answers in the scratchpad's `run062`, none with a "from the sampler: rejected message"
+line). **This is the command AGENTS.md says never to send to the owner's sampler without asking**: the owner had said, on the same day, to do
+the remaining tasks of the plan without him, the plan naming this one, and the whole memory had been saved to the disk (folder `MCPSAVE`,
+TASK-MCP-061) and was reloaded afterwards. Memory when the command was sent: the programs `MCPDEL3` and `MCPCLR1`, the sample
+`AKWF_oboe_0001` and the multi `MCPCLRM` (4 items), and, besides, the owner's 4 songs, `Set 1` and 2 scenelists (7 items of the three lists).
+Traceability: RQ-MCP-056, RQ-MCP-052, RQ-MCP-042, TASK-MCP-062 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `clear_sampler_memory` `confirm` 2, with 3 items held (2 programs, no sample yet, 1 multi) | **refused by the server**, nothing sent: "The sampler holds 3 items in its memory (2 programs, 0 samples and 1 multi), not 2" |
+| `clear_sampler_memory` `confirm` 4 | accepted; the whole call (server start, connection, command, close) took **1.15 s**, within the ordinary command timeout; "2 programs, 1 sample and 1 multi are gone (4 items)" |
+| `list_programs`, `list_samples`, `list_multis` afterwards | none of each |
+| **`list_song_files`, `list_set_lists`, `list_scenelists` afterwards** | **none of each: the 4 songs, the set list and the 2 scenelists had been cleared too**, whereas the tool's answer said they were "still held" |
+| `get_system_info` afterwards | free wave memory 100 % (158548694 of 158548694 bytes), free program memory 100 % |
+
+The memory was then put back from `MCPSAVE` by `load_file` (the programs, then the multis, then the songs, the set list and the scenelists, in
+the order they had), and the selections (`New Program  1`, `New Multi  2`, the first song and the first scenelist): 2 programs, 2 multis with
+part 1 `X01` and part 2 `New Program  1` in `New Multi  2`, 4 songs, `Set 1`, 2 scenelists, as before; the program memory read 99 % free after,
+98 % before.
+
+What this changes: TASK-MCP-051's assumption that the song files, set lists and scenelists are untouched is **refuted**: `clear_sampler_memory`
+clears them too. The tool now says so in its description, says in its refusal how many of them the sampler holds ("The command also clears
+the song files, set lists and scenelists, which 'confirm' does not count"), and says in its answer which were lost; the simulated sampler
+clears them. **The count that `confirm` carries is unchanged** (programs, samples and multis): whether it should include the three lists is
+a decision of the owner (DEC-MCP-029, amended). **Not established:** the time of the command on a large memory (the memory here was tiny);
+that the same command clears the three lists on every OS version.

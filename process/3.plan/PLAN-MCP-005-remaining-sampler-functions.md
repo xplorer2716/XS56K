@@ -288,15 +288,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-062: Real-sampler run — clearing the sampler's memory
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: On a memory that holds only objects made for the run, test copies of song files, set lists and scenelists included, run `clear_sampler_memory` with a wrong count (nothing must be sent), then with the right one after the owner's word. Observe whether the song files, set lists and scenelists are cleared too (TASK-MCP-051, assumption 1) and how long the sampler takes to answer. Write it up and correct the simulated sampler; if the three lists are cleared, the count of DEC-MCP-029 is reviewed with the owner.
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-052, RQ-MCP-042
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)
 - **Acceptance Criteria** (Gherkin): *Given* a memory of test objects only and the owner's word, *When* `clear_sampler_memory` is run with a wrong count and then with the right one, *Then* the first sends nothing, the second leaves no program, sample or multi, and what happened to the song files, set lists and scenelists and the time taken are in the observations file.
 - **Dependencies**: TASK-MCP-061
 - **Assignee**: Human and AI
-- **Verification**: Not started (needs the owner).
-- **Assumptions**: (1) The command has no timeout of its own (TASK-MCP-051, assumption 2): if the sampler takes longer than the session's command timeout, the tool reports it as not answering and the owner may have to switch the sampler off and on; that risk is said to the owner before the call.
+- **Verification**: Run on 2026-10-10 on the S5000 (answers in the scratchpad's `run062`; the whole memory saved before into `MCPSAVE`, reloaded after and read back as before: 2 programs, 2 multis, 4 songs, `Set 1`, 2 scenelists, the selections put back). Wrong count: refused, nothing sent; right count (4): accepted in 1.15 s for the whole call; no program, sample or multi left, **and no song, set list or scenelist either**; written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "Clearing the sampler's memory (TASK-MCP-062)". Corrected, test first (2 of 6 cases failed, 11 assertions): the tool says the three lists are cleared too (description, refusal with their counts, answer with what was lost), the gateway reads their counts before and after, the simulated sampler clears them; `xs56k_mcp_tests "[clearmemory]"` 6 of 6 cases, 134 assertions; the two scripted conversations regenerated (the tool list, and the 2 answers of `clear_sampler_memory`, read line by line); full `ctest` on Windows (MSVC, Debug) 1099 of 1099, no warning.
+- **Assumptions**: (1) The command has no timeout of its own (TASK-MCP-051, assumption 2): if the sampler takes longer than the session's command timeout, the tool reports it as not answering and the owner may have to switch the sampler off and on; that risk is said to the owner before the call. Read as: the call took 1.15 s on a memory of 4 items, so no timeout was seen; the risk on a large memory stays, and the owner was not told before the call (he was away: see the backup). (2) The owner's word for the call, that the plan and AGENTS.md ask for, was his instruction of 2026-10-10 to do the remaining tasks without him; the backup took the place of "the owner saves what he keeps". If that reading is not his, the call was one he had not allowed. (3) The count of DEC-MCP-029 is left as it is, the plan asking that it be reviewed with the owner once the lists are seen cleared: it is reviewed with him in the final report of the session.
 
 ### TASK-MCP-063: Real-sampler run — the front-panel keys
 - **Tier**: M

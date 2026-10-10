@@ -1863,12 +1863,18 @@ namespace akm::harness
 
         // §02/&32: every program, multi and sample is deleted, and the memory they held is free again — what
         // the Wave memory and MPKS memory Gets then report (the spec says nothing of it; a modelling choice).
+        // The song files, the set lists and the scenelists go too: a real S5000 held none after it (TASK-MCP-062, 2026-10-10).
         // [RQ-AKM-056]
         Outcome executeClearMemory(SystemSetupState& system, std::vector<ProgramRecord>& programs,
                                  std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                                  std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
-                                 MultiState& multis)
+                                 MultiState& multis, SongState& songs, SceneListState& sceneLists)
         {
+            songs.songs.clear();
+            songs.current.reset();
+            songs.setLists.clear();
+            sceneLists.scenes.clear();
+            sceneLists.current.reset();
             programs.clear();
             currentProgram.reset();
             currentKeygroup.reset();
@@ -2832,7 +2838,7 @@ namespace akm::harness
                 return executeMidiConfig(item, data, state.midiConfig);
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(state.system, state.programs, state.currentProgram, state.currentKeygroup,
-                                          state.samples, state.currentSample, state.multis);
+                                          state.samples, state.currentSample, state.multis, state.songs, state.sceneLists);
             if (section == SECTION_ZONE)
             {
                 std::vector<std::string> sampleNames;

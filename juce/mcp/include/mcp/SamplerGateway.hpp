@@ -498,14 +498,28 @@ namespace mcp
         std::vector<FxChannelState> channels;
     };
 
+    /// How many song files, set lists and scenelists the sampler holds. [RQ-MCP-052, TASK-MCP-062]
+    struct NamedListCounts
+    {
+        int songFiles = 0;
+        int setLists = 0;
+        int sceneLists = 0;
+
+        [[nodiscard]] int total() const { return songFiles + setLists + sceneLists; }
+    };
+
     /// A Clear Sampler Memory: `done` is false when nothing was sent (the memory held none of the three, or `confirm` was not their total); the
-    /// counts are what the sampler held when it was asked. [RQ-MCP-052]
+    /// counts are what the sampler held when it was asked. The song files, set lists and scenelists are not part of the total, but a real S5000
+    /// cleared them too (TASK-MCP-062, 2026-10-10): `listsBefore` is what it held, `listsAfter` what it held after the command (nothing was read
+    /// after when `done` is false). [RQ-MCP-052, TASK-MCP-062]
     struct MemoryClearing
     {
         bool done = true;
         int programs = 0;
         int samples = 0;
         int multis = 0;
+        NamedListCounts listsBefore;
+        NamedListCounts listsAfter;
 
         [[nodiscard]] int total() const { return programs + samples + multis; }
     };
@@ -870,7 +884,8 @@ namespace mcp
 
         /// Clears the sampler's memory (every program, sample and multi), and only when `confirm` is exactly how many of the three the sampler holds
         /// now (read just before); otherwise, and when it holds none, nothing is sent and the answer gives the counts. Song files, set lists and
-        /// scenelists are not counted. [RQ-MCP-052, RQ-MCP-042]
+        /// scenelists are not counted, and a real S5000 clears them too: the answer says how many it held before and after. [RQ-MCP-052,
+        /// RQ-MCP-042, TASK-MCP-062]
         [[nodiscard]] Outcome<MemoryClearing> clearSamplerMemory(int confirm);
 
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]

@@ -1563,6 +1563,20 @@ namespace mcp
                 return Outcome<MemoryClearing>::failure(count.problem);
             *target = *count.value;
         }
+        // What the command takes besides the three: read before, so that the refusal can say it.
+        const auto readLists = [this](NamedListCounts& counts) -> std::optional<std::string> {
+            for (const auto& [kind, target] : {std::pair{NamedListKind::SongFile, &counts.songFiles}, std::pair{NamedListKind::SetList, &counts.setLists},
+                                               std::pair{NamedListKind::SceneList, &counts.sceneLists}})
+            {
+                const auto count = readNamedCount(kind);
+                if (!count.ok())
+                    return count.problem;
+                *target = *count.value;
+            }
+            return std::nullopt;
+        };
+        if (const auto problem = readLists(held.listsBefore))
+            return Outcome<MemoryClearing>::failure(*problem);
         if (held.total() == 0 || held.total() != confirm)
         {
             held.done = false;
@@ -1588,6 +1602,9 @@ namespace mcp
                 return Outcome<MemoryClearing>::failure("The sampler accepted the command but still holds " + numberText(*after.value) +
                                                         " item(s) of a kind: check its memory.");
         }
+        if (const auto problem = readLists(held.listsAfter))
+            return Outcome<MemoryClearing>::failure("The sampler accepted the command but its song files, set lists and scenelists could not be read afterwards: " +
+                                                    *problem);
         return Outcome<MemoryClearing>::success(held);
     }
 
