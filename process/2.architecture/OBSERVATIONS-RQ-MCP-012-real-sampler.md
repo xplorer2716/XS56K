@@ -548,3 +548,32 @@ What this establishes, and no more: the three key tools are accepted by the samp
 `OBSERVATIONS-RQ-AKM-076-front-panel.md`: OK then DONE for every §20 frame, the owner seeing the shortcuts work). **Not established, and left to
 the owner at the screen:** what each key did on the screen, the release of a key still held when the session closes, `turn_data_wheel` (the
 direction and the amount of a click), `send_ascii_key` (a character in a name), and the five tools together on a page the owner chooses.
+
+### Run with the owner at the screen, the same day (TASK-MCP-063, finished)
+
+The owner then sat at the sampler and said what the screen did after each call. Same server, `--allow-front-panel` only, one session per call
+(answers in the scratchpad's `run063b`; none of the stderr files has a "from the sampler: rejected message" line). The pages were chosen by him:
+nothing was pressed that can delete, save, load or leave a screen with a yes (`ent_play`, `save`, `load` and `exit` were never sent by the
+server; he pressed EXIT himself, once, to leave the rename page without validating).
+
+| Step | Call | What the owner saw |
+|---|---|---|
+| 1 | `press_key` `cursor_right`, on MIDI SETUP with the cursor on "program change: ON" | **nothing moved**, and his own right button moved nothing there either (a field with one place): no conclusion, a page with a cursor that moves was asked for |
+| 2 | `press_key` `cursor_right`, then `cursor_left`, on RENAME PROG with the cursor in the name field | the cursor went one character to the right, then back one to its place |
+| 3 | `hold_key` `cursor_right`, 3.8 s, then `release_key` | the cursor ran on to the **right end of the name**: the sampler repeats a held key |
+| 4 | `hold_key` `cursor_left`, about 1 s, then `release_key` (from the right end) | the cursor stopped **just behind the last "1" of "New Program  1" and stayed** there: it did not run on to the start |
+| 5 | `hold_key` `cursor_left`, about 1 s, then the session closed **with no `release_key`** (end of input) | from behind the "1" the cursor went to the "a" of "Program" and **stayed**: closing the session released the key |
+| 6 | a test program made by `create_program` (`MCP063TEST`, 1 keygroup), RENAME PROG opened on it by the owner, cursor on the first character "M"; `turn_data_wheel` `forwards` 1 click, then `backwards` 1 click | "M" became **"N"**, then **"M"** again: one click forwards is the next character, one click backwards the previous one |
+| 7 | `press_key` `cursor_right` (the cursor on the "C"), then `send_ascii_key` 65 | the name read **`MAP063TEST`**: the "C" was replaced by an "A" |
+| 8 | the owner pressed EXIT (no ENT); `list_programs`, then `delete_program` with `confirm` "MCP063TEST" | the list still said `MCP063TEST`: the name typed on the screen was **never validated**, so the memory did not change; the program was deleted, 2 programs are left (`New Program  1`, `X01`) as before the run |
+| 9 | `press_key` `multi`, then `press_key` `utilities` | the screen went to a **multi page** (on `New Multi  2`), then to the **UTILITIES page** |
+
+The server refused `turn_data_wheel` with the direction "forward" (the words are `forwards` and `backwards`), sending nothing.
+
+What this establishes: the five key tools each did on the real S5000 what their description says, seen on the screen: a cursor key moves the cursor one place;
+a key held repeats until it is released, by the tool or by the session closing; one click of the wheel moves a character of a name by one place in the
+table, forwards or backwards; an ASCII character is typed at the cursor; `multi` and `utilities` change the page. **Not established:** the keys other
+than `cursor_left`, `cursor_right`, `multi` and `utilities` (the owner named these; the other 39 were not tried, and `ent_play`, `save`, `load` and
+`exit` on purpose), the rate of the repetition of a held key and how many characters a second of holding moves (not counted: it was one character in one
+run and several in another, the start of a hold not being timed), whether the cursor advances after the ASCII character (not asked), and the release of a
+key when the server is killed rather than closed (not tried, `TASK-MCP-053`, assumption 4).

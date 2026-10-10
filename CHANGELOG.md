@@ -35,7 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lists and scenelists in memory and through the disk (the sampler keeps its song files sorted and the position selected, and holds one set
   list), the three delete-all tools and the clearing of the memory; the sampler reports 0 bytes free for its FAT32 disk, and the three
   `--screen` modes behaved as designed against the sampler's screen. The five effects tools answered "no board" (the S5000 has none, so the
-  effects are untried) and the front-panel keys were accepted on a cursor key but not yet seen on the screen
+  effects are untried); the front-panel keys were seen on its screen (a cursor key, `multi` and `utilities`, a held key repeating until it is released
+  or the session closes, the data wheel moving a character of a name by one, an ASCII character typed at the cursor)
   (`xs56k_mcp_server_simulated` lets you try the server with no sampler).
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it

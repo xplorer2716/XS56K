@@ -540,8 +540,8 @@ TASK-MCP-059|258-269|Done|Real-sampler run — saving and loading song files, se
 TASK-MCP-060|270-281|Done|Real-sampler run — the effects board
 TASK-MCP-061|282-293|Done|Real-sampler run — deleting all programs, all samples, all multis
 TASK-MCP-062|294-305|Done|Real-sampler run — clearing the sampler's memory
-TASK-MCP-063|306-317|Blocked|Real-sampler run — the front-panel keys
-TASK-MCP-064|318-329|In Progress|Closure of the real runs — README, observations and simulated sampler
+TASK-MCP-063|306-317|Done|Real-sampler run — the front-panel keys
+TASK-MCP-064|318-329|Done|Closure of the real runs — README, observations and simulated sampler
 TASK-MCP-065|330-341|Done|The instructions the server gives at `initialize` say what it offers today
 TASK-MCP-066|342-353|Done|The server writes the frames it rejects to standard error
 TASK-MCP-067|354-381|Done|A renamed song file, set list or scenelist is found again by its new name
