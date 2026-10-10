@@ -451,3 +451,25 @@ added in its sorted place, a loaded scenelist replaces the one of its name and g
 the README says it. **Not established:** whether a song loaded under a name the sampler holds is reloaded or ignored (the names cannot
 tell); what decides the size of a saved song; `save_children`, a read-only disk and a very slow save were not tried; the front-panel loads
 moved the selected item and the SysEx loads did not, the rule being unknown.
+
+## The effects board (TASK-MCP-060), run on 2026-10-10 with no board
+
+The owner's S5000 (OS 2.14) has no effects board (no EB20). `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched
+with no option, once per tool call (answers in the scratchpad's `run060`, none with a "from the sampler: rejected message" line). The owner
+left the run to the assistant. A test multi `MCPFX` was made by `create_multi` ("with 32 parts; it is now the current multi") and selected,
+the five tools were called on it, then it was deleted by `delete_multi` with its exact name and `New Multi  2` was made current again; the
+memory was as before (programs `New Program  1` and `X01`, multis `New Multi  1` and `New Multi  2`, no sample, 99 % of the wave memory
+free). Traceability: RQ-MCP-056, RQ-MCP-053, TASK-MCP-060 (`PLAN-MCP-005`).
+
+| Tool and call | What the tool answered |
+|---|---|
+| `get_fx_board` | an error: "The sampler reports no effects board, so the effects tools have nothing to act on. They need a sampler with an EB20 board and act on the current multi" |
+| `set_fx_channel_mute` channel 0, muted true | the same error |
+| `set_fx_module` channel 0, module 0, enabled true | the same error |
+| `get_fx_parameter` channel 0, module 0 | the same error |
+| `set_fx_parameter` channel 0, module 0, parameter 0, value 0 | the same error |
+
+What this changes: nothing in the code. The five answers are those the simulated sampler gives with no board (`FxToolsTests.cpp`, "a sampler
+that reports no effects board": it also checks that nothing but the card query is sent, which a real run cannot show, the server logging no
+frame it sends). **Not established**, and so kept in the README: every Set and Get of the effects on a **real board**, the values read back
+and put back, the layout of a real EB20 against Table 24 and Table 25; it needs a sampler with an EB20.

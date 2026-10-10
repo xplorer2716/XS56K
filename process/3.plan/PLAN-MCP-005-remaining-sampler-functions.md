@@ -264,15 +264,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-060: Real-sampler run — the effects board
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: With the server launched with no option, on a test multi made for the run, run `get_fx_board`, `set_fx_channel_mute`, `set_fx_module`, `get_fx_parameter` and `set_fx_parameter`. With no board (the owner's S5000 today), each must say there is none and send nothing after the card query; with a board installed, each Set is read back and put back. Write it up.
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-053
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-033)
 - **Acceptance Criteria** (Gherkin): *Given* the sampler with no board, *When* each of the 5 tools is run alone, *Then* each answer says there is no board and the observations file records it; *given* a board, *Then* each Set is read back as set and put back.
 - **Dependencies**: TASK-MCP-059
 - **Assignee**: Human and AI
-- **Verification**: Not started (needs the owner).
-- **Assumptions**: (1) The owner has no EB20 (DEC-MCP-033): the round trip on a real board stays undone, and the README keeps saying so, until one is installed. (2) The AKM suite already observed the card query with no board (TASK-AKM-104); this run checks the MCP tools' answers.
+- **Verification**: Run on 2026-10-10 on the S5000 with no board, on a test multi `MCPFX` made and deleted for the run (answers in the scratchpad's `run060`): `get_fx_board`, `set_fx_channel_mute`, `set_fx_module`, `get_fx_parameter` and `set_fx_parameter` each answered the error "The sampler reports no effects board ..." (5 of 5), no frame was rejected, and the memory was as before (2 programs, 2 multis `New Multi  1` and `New Multi  2` current, no sample); written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "The effects board (TASK-MCP-060)". No code changed: the no-board test of `FxToolsTests.cpp` (the answer of each of the five tools, and nothing but the card query sent) already passes in the suite (1097 of 1097 on Windows, TASK-MCP-059). The round trip on a board was not run: no board.
+- **Assumptions**: (1) The owner has no EB20 (DEC-MCP-033): the round trip on a real board stays undone, and the README keeps saying so, until one is installed. (2) The AKM suite already observed the card query with no board (TASK-AKM-104); this run checks the MCP tools' answers. (3) That nothing but the card query is sent cannot be seen in a real run (the server logs no frame it sends): it rests on the simulator's test. (4) The run was made by the assistant alone, as the owner asked for the remaining tasks to be done without him.
 
 ### TASK-MCP-061: Real-sampler run — deleting all programs, all samples, all multis
 - **Tier**: M
