@@ -138,6 +138,22 @@ namespace mcp
             return nullptr;
         }
 
+        /// After a renaming: the entry of the list read again that bears `newName`, exactly or else as `positionsNamed` finds it, since the
+        /// sampler may have moved it (the real S5000 sorts its song files, TASK-MCP-058); nothing when no entry or several do.
+        std::optional<NamedListEntry> renamedEntry(const NamedListing& listing, std::string_view newName)
+        {
+            const std::vector<int> found = positionsNamed(listing, newName);
+            if (found.size() != 1)
+                return std::nullopt;
+            return listing.entries[static_cast<std::size_t>(found.front())];
+        }
+
+        std::string notFoundAfterRenaming(const char* noun, std::string_view newName, const char* listTool)
+        {
+            return std::string("The sampler accepted the renaming, but its list then holds no single ") + noun + " named \"" + std::string(newName) +
+                   "\": use " + listTool + " to see what it holds.";
+        }
+
         std::string alreadyHolds(const char* noun, const NamedListEntry& entry)
         {
             return std::string("The sampler already holds a ") + noun + " named \"" + entry.name + "\": nothing was renamed. Choose another name.";
@@ -276,34 +292,41 @@ namespace mcp
         return currentNamedEntry(kind);
     }
 
-    Outcome<RenamedItem> SamplerGateway::renameCurrentNamedItem(NamedListKind kind, std::string_view newName)
+    Outcome<NamedRenaming> SamplerGateway::renameCurrentNamedItem(NamedListKind kind, std::string_view newName)
     {
         const ListCalls& calls = callsOf(kind);
         if (calls.renameCurrent == nullptr)
-            return Outcome<RenamedItem>::failure(std::string("The sampler has no current ") + calls.noun + ": a " + calls.noun + " is renamed by its name.");
+            return Outcome<NamedRenaming>::failure(std::string("The sampler has no current ") + calls.noun + ": a " + calls.noun + " is renamed by its name.");
         if (const auto problem = connect())
-            return Outcome<RenamedItem>::failure(*problem);
+            return Outcome<NamedRenaming>::failure(*problem);
         const auto current = currentNamedEntry(kind);
         if (!current.ok())
-            return Outcome<RenamedItem>::failure(std::string("No ") + calls.noun + " is selected: use " + calls.selectTool + " first.");
+            return Outcome<NamedRenaming>::failure(std::string("No ") + calls.noun + " is selected: use " + calls.selectTool + " first.");
         const auto listing = listNamedItems(kind);
         if (!listing.ok())
-            return Outcome<RenamedItem>::failure(listing.problem);
+            return Outcome<NamedRenaming>::failure(listing.problem);
         if (const NamedListEntry* bearer = otherBearing(*listing.value, current.value->index, newName))
-            return Outcome<RenamedItem>::failure(alreadyHolds(calls.noun, *bearer));
+            return Outcome<NamedRenaming>::failure(alreadyHolds(calls.noun, *bearer));
 
         const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
             calls.renameCurrent(session(), newName, std::move(done));
         });
         if (!renamed)
-            return Outcome<RenamedItem>::failure(SESSION_TIMED_OUT);
+            return Outcome<NamedRenaming>::failure(SESSION_TIMED_OUT);
         if (!akm::succeeded(*renamed))
-            return Outcome<RenamedItem>::failure(
+            return Outcome<NamedRenaming>::failure(
                 explain(*renamed, std::string("renaming the ") + calls.noun + " \"" + current.value->name + "\"", _config, false));
-        const auto after = readNamedName(kind, current.value->index);
+        // The list is read again: the renamed item may no longer be where it was. [TASK-MCP-058]
+        const auto after = listNamedItems(kind);
         if (!after.ok())
-            return Outcome<RenamedItem>::failure(after.problem);
-        return Outcome<RenamedItem>::success(RenamedItem{current.value->name, *after.value});
+            return Outcome<NamedRenaming>::failure(after.problem);
+        const auto entry = renamedEntry(*after.value, newName);
+        if (!entry)
+            return Outcome<NamedRenaming>::failure(notFoundAfterRenaming(calls.noun, newName, calls.listTool));
+        NamedRenaming result{current.value->name, *entry, std::nullopt};
+        if (after.value->current)
+            result.current = after.value->entries[static_cast<std::size_t>(*after.value->current)];
+        return Outcome<NamedRenaming>::success(std::move(result));
     }
 
     Outcome<SetListRenaming> SamplerGateway::renameSetList(std::string_view name, std::string_view newName)
@@ -330,10 +353,14 @@ namespace mcp
             return Outcome<SetListRenaming>::failure(SESSION_TIMED_OUT);
         if (!akm::succeeded(*renamed))
             return Outcome<SetListRenaming>::failure(explain(*renamed, std::string("renaming the ") + noun + " \"" + target.name + "\"", _config, false));
-        const auto after = readNamedName(NamedListKind::SetList, target.index);
+        // The list is read again: the renamed set list may no longer be where it was. [TASK-MCP-058]
+        const auto after = listNamedItems(NamedListKind::SetList);
         if (!after.ok())
             return Outcome<SetListRenaming>::failure(after.problem);
-        return Outcome<SetListRenaming>::success(SetListRenaming{target.index, target.name, *after.value});
+        const auto entry = renamedEntry(*after.value, newName);
+        if (!entry)
+            return Outcome<SetListRenaming>::failure(notFoundAfterRenaming(noun, newName, callsOf(NamedListKind::SetList).listTool));
+        return Outcome<SetListRenaming>::success(SetListRenaming{target.index, target.name, entry->name, entry->index});
     }
 
     Outcome<NamedDeletion> SamplerGateway::deleteCurrentNamedItem(NamedListKind kind, std::string_view confirm)

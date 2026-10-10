@@ -111,15 +111,16 @@
 {"id":1015,"jsonrpc":"2.0","result":{"content":[{"text":"The event \"pitch_bend\" is not one the sampler filters. The events are: note_on, aftertouch, wheels, volume.","type":"text"}],"isError":true}}
 {"id":1016,"jsonrpc":"2.0","result":{"content":[{"text":"Song files in memory (3):\n0: INTRO\n1: VERSE\n2: OUTRO\nNo song file is selected: use select_song_file.\n","type":"text"}],"isError":false}}
 {"id":1017,"jsonrpc":"2.0","result":{"content":[{"text":"Selected the song file \"VERSE\" (position 1).","type":"text"}],"isError":false}}
-{"id":1018,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the song file \"VERSE\" to \"VERSE TWO\".","type":"text"}],"isError":false}}
-{"id":1019,"jsonrpc":"2.0","result":{"content":[{"text":"Song files in memory (3):\n0: INTRO\n1: VERSE TWO (current)\n2: OUTRO\n","type":"text"}],"isError":false}}
+{"id":1018,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the song file \"VERSE\" to \"VERSE TWO\" (now at position 2). The current song file is now \"INTRO\" (position 0): use select_song_file to make \"VERSE TWO\" current again before renaming or deleting it.","type":"text"}],"isError":false}}
+{"id":1019,"jsonrpc":"2.0","result":{"content":[{"text":"Song files in memory (3):\n0: INTRO (current)\n1: OUTRO\n2: VERSE TWO\n","type":"text"}],"isError":false}}
 {"id":1020,"jsonrpc":"2.0","result":{"content":[{"text":"No song file is named \"MISSING\". Use list_song_files to see the names.","type":"text"}],"isError":true}}
 {"id":1021,"jsonrpc":"2.0","result":{"content":[{"text":"Set lists in memory (2):\n0: TOUR\n1: HOME\n","type":"text"}],"isError":false}}
-{"id":1022,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the set list \"HOME\" (position 1) to \"STUDIO DAYS\".","type":"text"}],"isError":false}}
+{"id":1022,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the set list \"HOME\" (position 1) to \"STUDIO DAYS\" (now at position 1).","type":"text"}],"isError":false}}
 {"id":1023,"jsonrpc":"2.0","result":{"content":[{"text":"Scenelists in memory (2):\n0: LIVE SET\n1: STUDIO\nNo scenelist is selected: use select_scenelist.\n","type":"text"}],"isError":false}}
 {"id":1024,"jsonrpc":"2.0","result":{"content":[{"text":"Selected the scenelist \"STUDIO\" (position 1).","type":"text"}],"isError":false}}
-{"id":1025,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the scenelist \"STUDIO\" to \"GIG\".","type":"text"}],"isError":false}}
+{"id":1025,"jsonrpc":"2.0","result":{"content":[{"text":"Renamed the scenelist \"STUDIO\" to \"GIG\" (now at position 1).","type":"text"}],"isError":false}}
 {"id":1026,"jsonrpc":"2.0","result":{"content":[{"text":"The sampler already holds a scenelist named \"LIVE SET\": nothing was renamed. Choose another name.","type":"text"}],"isError":true}}
+{"id":1047,"jsonrpc":"2.0","result":{"content":[{"text":"Selected the song file \"VERSE TWO\" (position 2).","type":"text"}],"isError":false}}
 {"id":1027,"jsonrpc":"2.0","result":{"content":[{"text":"The song file is named \"VERSE TWO\" and 'confirm' was \"verse two\": nothing was deleted. Give 'confirm' exactly as the song file is named.","type":"text"}],"isError":true}}
 {"id":1028,"jsonrpc":"2.0","result":{"content":[{"text":"Deleted the song file \"VERSE TWO\". Song files that remain (2): INTRO, OUTRO.","type":"text"}],"isError":false}}
 {"id":1029,"jsonrpc":"2.0","result":{"content":[{"text":"Deleted the set list \"TOUR\" (position 0). Set lists that remain (1): STUDIO DAYS.","type":"text"}],"isError":false}}

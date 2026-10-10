@@ -428,12 +428,23 @@ namespace mcp
         std::optional<int> current;
     };
 
-    /// A set list renamed: its position, its name before and the name the sampler then gives it. [RQ-MCP-048]
+    /// A set list renamed: its position, its name before, and the name and position the sampler then lists it with. [RQ-MCP-048, TASK-MCP-058]
     struct SetListRenaming
     {
         int index = 0;
         std::string before;
         std::string after;
+        int afterIndex = 0;
+    };
+
+    /// A song file or a scenelist renamed: its name before, the name and position the sampler then lists it with, and the current one
+    /// after the renaming, if any. The real S5000 sorts its song files by name when one is renamed, and was seen with its first song file
+    /// current after it (TASK-MCP-058): the renamed item is found again in the list, by its new name. [RQ-MCP-048, TASK-MCP-058]
+    struct NamedRenaming
+    {
+        std::string before;
+        NamedListEntry after;
+        std::optional<NamedListEntry> current;
     };
 
     /// The kinds of item the sampler can delete all of at once. [RQ-MCP-051]
@@ -812,12 +823,13 @@ namespace mcp
         [[nodiscard]] Outcome<NamedListEntry> selectNamedItemByName(NamedListKind kind, std::string_view name);
         [[nodiscard]] Outcome<NamedListEntry> selectNamedItemByIndex(NamedListKind kind, int index);
 
-        /// Renames the current song file or scenelist and answers its name before and the name read back; nothing is sent when none is
-        /// current or when another item of the list already bears the name (without regard to case, spaces or hyphens). [RQ-MCP-048]
-        [[nodiscard]] Outcome<RenamedItem> renameCurrentNamedItem(NamedListKind kind, std::string_view newName);
+        /// Renames the current song file or scenelist and answers its name before, where the list read again holds the new name, and the
+        /// current one then; nothing is sent when none is current or when another item of the list already bears the name (without regard
+        /// to case, spaces or hyphens). [RQ-MCP-048, TASK-MCP-058]
+        [[nodiscard]] Outcome<NamedRenaming> renameCurrentNamedItem(NamedListKind kind, std::string_view newName);
 
         /// Renames the set list called `name` (exactly, else the only one that differs by case, spaces or hyphens only) and answers its
-        /// position and the names; nothing is sent when no set list or several have that name, or when another already bears the new name.
+        /// position, the names and where the list read again holds the new name; nothing is sent when no set list or several have that name, or when another already bears the new name.
         /// [RQ-MCP-048]
         [[nodiscard]] Outcome<SetListRenaming> renameSetList(std::string_view name, std::string_view newName);
 

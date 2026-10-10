@@ -209,25 +209,58 @@ TEST_CASE("Given a missing, a double, an unknown or a badly typed argument, When
     CHECK(rig.accepted(akm::ItemId::SceneListSelectByIndex) == 0);
 }
 
-TEST_CASE("Given the current song file and the current scenelist, When each is renamed, Then the simulated sampler holds the new name, the answer gives the old and the new, and the name read back is the new one [RQ-MCP-048]",
+TEST_CASE("Given the current song file and the current scenelist, When each is renamed, Then the simulated sampler holds the new name, the answer gives the old and the new name and where the sampler now lists it [RQ-MCP-048, TASK-MCP-058]",
           "[mcp][namedlists]")
 {
     ListRig rig;
     REQUIRE_FALSE(toolFailed(byName(rig, SELECT_SONG, "VERSE")));
     const json song = byName(rig, RENAME_SONG, "VERSE TWO");
     CHECK_FALSE(toolFailed(song));
-    CHECK(hasText(toolText(song), "Renamed the song file \"VERSE\" to \"VERSE TWO\"."));
-    CHECK(rig.sampler->songNames() == std::vector<std::string>{"INTRO", "VERSE TWO", "OUTRO"});
-    CHECK(hasText(toolText(rig.call(LIST_SONGS)), "1: VERSE TWO (current)"));
+    CHECK(hasText(toolText(song), "Renamed the song file \"VERSE\" to \"VERSE TWO\" (now at position 2)."));
+    // The real S5000 sorts its song files by name when one is renamed (TASK-MCP-058).
+    CHECK(rig.sampler->songNames() == std::vector<std::string>{"INTRO", "OUTRO", "VERSE TWO"});
 
     REQUIRE_FALSE(toolFailed(byName(rig, SELECT_SCENELIST, "LIVE SET")));
     const json scenelist = byName(rig, RENAME_SCENELIST, "GIG");
     CHECK_FALSE(toolFailed(scenelist));
-    CHECK(hasText(toolText(scenelist), "Renamed the scenelist \"LIVE SET\" to \"GIG\"."));
+    CHECK(hasText(toolText(scenelist), "Renamed the scenelist \"LIVE SET\" to \"GIG\" (now at position 0)."));
+    CHECK_FALSE(hasText(toolText(scenelist), "is now"));
     CHECK(rig.sampler->sceneListNames() == std::vector<std::string>{"GIG", "STUDIO"});
 
     CHECK(rig.accepted(akm::ItemId::SongRenameCurrent) == 1);
     CHECK(rig.accepted(akm::ItemId::SceneListRenameCurrent) == 1);
+}
+
+TEST_CASE("Given the song files of the real run with AIMER current, When AIMER is renamed to a name that sorts last, Then the answer gives the new name and its new position, read from the list and not from the old position, and says which song file is current now [RQ-MCP-048, TASK-MCP-058]",
+          "[mcp][namedlists]")
+{
+    ListRig rig;
+    rig.sampler->setSongNames({"a_woman_in_love", "AIMER", "alors_regarde", "assassine"});
+    REQUIRE_FALSE(toolFailed(byName(rig, SELECT_SONG, "AIMER")));
+
+    const json renamed = byName(rig, RENAME_SONG, "XS56K-RENAME-TEST-20");
+
+    CHECK_FALSE(toolFailed(renamed));
+    const std::string text = toolText(renamed);
+    CHECK(hasText(text, "Renamed the song file \"AIMER\" to \"XS56K-RENAME-TEST-20\" (now at position 3)."));
+    CHECK_FALSE(hasText(text, "alors_regarde"));
+    CHECK(hasText(text, "The current song file is now \"a_woman_in_love\" (position 0)"));
+    CHECK(hasText(text, SELECT_SONG));
+    CHECK(rig.sampler->songNames() == std::vector<std::string>{"a_woman_in_love", "alors_regarde", "assassine", "XS56K-RENAME-TEST-20"});
+}
+
+TEST_CASE("Given the song file XS56K-RENAME-TEST-20 current, When it is renamed back to AIMER, Then the sampler sorts it without regard to case, the underscore before the letters [RQ-MCP-048, TASK-MCP-058]",
+          "[mcp][namedlists]")
+{
+    ListRig rig;
+    rig.sampler->setSongNames({"a_woman_in_love", "alors_regarde", "assassine", "XS56K-RENAME-TEST-20"});
+    REQUIRE_FALSE(toolFailed(byName(rig, SELECT_SONG, "XS56K-RENAME-TEST-20")));
+
+    const json renamed = byName(rig, RENAME_SONG, "AIMER");
+
+    CHECK_FALSE(toolFailed(renamed));
+    CHECK(hasText(toolText(renamed), "to \"AIMER\" (now at position 1)."));
+    CHECK(rig.sampler->songNames() == std::vector<std::string>{"a_woman_in_love", "AIMER", "alors_regarde", "assassine"});
 }
 
 TEST_CASE("Given no current song file or scenelist, When one is renamed, Then the answer says to select one first and nothing is sent [RQ-MCP-048]",
@@ -295,7 +328,7 @@ TEST_CASE("Given the set list TOUR, When it is renamed by name, Then the simulat
     ListRig rig;
     const json renamed = rig.call(RENAME_SET_LIST, {{"name", "HOME"}, {"new_name", "STUDIO DAYS"}});
     CHECK_FALSE(toolFailed(renamed));
-    CHECK(hasText(toolText(renamed), "Renamed the set list \"HOME\" (position 1) to \"STUDIO DAYS\"."));
+    CHECK(hasText(toolText(renamed), "Renamed the set list \"HOME\" (position 1) to \"STUDIO DAYS\" (now at position 1)."));
     CHECK(rig.sampler->setListNames() == std::vector<std::string>{"TOUR", "STUDIO DAYS"});
     CHECK(rig.accepted(akm::ItemId::SetListRename) == 1);
     CHECK(rig.sentData(akm::ItemId::SetListRename).front().size() > 2);  // the two index bytes, then the name

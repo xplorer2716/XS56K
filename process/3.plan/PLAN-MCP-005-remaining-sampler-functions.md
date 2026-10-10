@@ -26,6 +26,7 @@ the earlier ones is in place, the keys last, then the README and the real run:
 | 12 | TASK-MCP-057 | the plan of the real run of every tool | the owner's decision of 2026-10-09 |
 | 13 | TASK-MCP-055 | real run: settings and MIDI setup | nothing is lost, every value is put back |
 | 14 | TASK-MCP-066 | the server writes the frames it rejects to standard error | a silence seen during TASK-MCP-058 must be told from a rejected reply |
+| 14b | TASK-MCP-067 | a renamed song file, set list or scenelist is found again by its new name | the real S5000 sorts its song files, seen during TASK-MCP-058 |
 | 15 | TASK-MCP-058 | real run: song files, set lists, scenelists in memory | on copies only |
 | 16 | TASK-MCP-059 | real run: their saving and loading through the disk | in a folder made for the run |
 | 17 | TASK-MCP-060 | real run: the effects board | no board: the "no board" answers only |
@@ -60,7 +61,7 @@ he wants to keep: the memory then holds only what the runs made.
 - **ADRs**: ADR-MCP-005 (Proposed): DEC-MCP-028 to DEC-MCP-034 (DEC-MCP-033 amended 2026-10-09); ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
   DEC-MCP-019 (amended earlier)
 
-The plan has 23 tasks (TASK-MCP-044 to TASK-MCP-066; 056 to 064 were added on 2026-10-09 and 055 reworked the same day, 065 and 066 on 2026-10-10), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
+The plan has 24 tasks (TASK-MCP-044 to TASK-MCP-067; 056 to 064 were added on 2026-10-09 and 055 reworked the same day, 065 to 067 on 2026-10-10), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
 sessions, with a checkpoint note in `process/3.plan/` at the end of each, unless the owner lifts the limit as he did on 2026-10-05.
 Tier S for 044, M for 045 to 051 and 054 to 064, L for 052 and 053 (many tools, a new unit or a new launch option). Every task is
 presented to the owner and waits for his approval before it starts (Definition of Ready).
@@ -344,3 +345,30 @@ presented to the owner and waits for his approval before it starts (Definition o
 - **Assignee**: AI
 - **Verification**: Test first: `SamplerGatewayTests.cpp` failed to build (C2039, `diagnosticLog` not a member of `GatewayConfig`) before the code. After: `xs56k_mcp_tests "[diagnostics]"` 3 of 3 cases, 9 assertions passed (the two rejections named with their reasons, the command answered with and without a log, no line for a clean session); full `ctest` on Windows (MSVC, Debug) 1082 of 1082, no warning. On the real S5000 (2026-10-10) `list_song_files` through the new server: standard output 2 lines, both protocol, standard error with no rejected message.
 - **Assumptions**: (1) The checksum-mode changes of the opening and the closing are not logged: they happen at every connection and say nothing about a lost reply. (2) The raw bytes of a rejected message are not logged: `akm::Rejected` carries only the reason, and adding the bytes changes the AKM public API, which this task does not need to tell a silence from a rejection.
+
+### TASK-MCP-067: A renamed song file, set list or scenelist is found again by its new name
+- **Tier**: M
+- **Status**: Done
+- **Description**: During TASK-MCP-058 (2026-10-10) `rename_song_file` answered "Renamed the song file "AIMER" to "alors_regarde"" when it had
+  renamed "AIMER" to "XS56K-RENAME-TEST-20": the real S5000 sorts its song files by name when one is renamed (without regard to case, "_"
+  before the letters), and the gateway read the name back at the old position. It then answered its first song file as current. The
+  gateway reads the list again and finds the renamed item by its new name; `rename_song_file` and `rename_scenelist` give the new
+  position and say when the current one is no longer the renamed one; `rename_set_list` gives the new position. The simulated sampler
+  sorts its song files on a renaming and makes the first one current (TASK-AKM-106), and the scripted conversation selects the renamed
+  song file again before deleting it.
+- **Requirement refs**: RQ-MCP-048, RQ-MCP-049, RQ-MCP-042, RQ-MCP-056
+- **ADR refs**: ADR-MCP-005 (DEC-MCP-031); ADR-MCP-004 (DEC-MCP-023)
+- **Acceptance Criteria** (Gherkin): *Given* the song files of the real run with "AIMER" current, *When* "AIMER" is renamed to
+  "XS56K-RENAME-TEST-20", *Then* the answer gives the new name at position 3, names no other song file as the renamed one, and says that
+  "a_woman_in_love" is current now; *When* it is renamed back to "AIMER", *Then* it is at position 1; *Given* a scenelist and a set list,
+  *When* each is renamed, *Then* the answer gives its new position; `ctest` passes.
+- **Dependencies**: TASK-AKM-106
+- **Assignee**: AI
+- **Verification**: Test first: `xs56k_mcp_tests "[namedlists]"` 4 of 25 cases failed (10 assertions) on the old read-back. After: 25 of 25
+  cases, 542 assertions. The scripted conversation regenerated (161 lines): the 3 rename answers with their new position, the song file
+  answer saying "INTRO" is current now, the list after it sorted, and the new `select_song_file "VERSE TWO"` (id 1047) before the
+  deletions, whose answers are unchanged; without that selection the deletion was refused ("The song file is named "INTRO""), the
+  exact-name confirmation keeping "INTRO". Full `ctest` on Windows (MSVC, Debug) 1085 of 1085, no warning.
+- **Assumptions**: (1) The first song file current after a renaming was seen once, after two reads that went unanswered: modelled as
+  seen, to be confirmed by the next renaming in TASK-MCP-058. (2) The scenelists and the set lists are not sorted by the simulated
+  sampler, nothing being seen of them yet; the gateway finds them by name whatever the sampler does.

@@ -2959,7 +2959,7 @@ namespace mcp
                                objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_LIST_NAME_LENGTH) + " characters."}}}},
                                             json::array({ARGUMENT_NAME})),
                                false, true),
-                    [&gateway, kind, noun](const json& arguments) {
+                    [&gateway, kind, noun, select = std::string(names.select)](const json& arguments) {
                         if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME}))
                             return *refused;
                         if (!arguments.contains(ARGUMENT_NAME))
@@ -2969,7 +2969,16 @@ namespace mcp
                         const auto renamed = gateway.renameCurrentNamedItem(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
                         if (!renamed.ok())
                             return failure(renamed.problem);
-                        return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" to \"" + renamed.value->after + "\".");
+                        std::string text = "Renamed the " + noun + " \"" + renamed.value->before + "\" to \"" + renamed.value->after.name +
+                                           "\" (now at position " + std::to_string(renamed.value->after.index) + ").";
+                        // The real S5000 moved the current song file when it sorted its list after a renaming. [TASK-MCP-058]
+                        if (!renamed.value->current)
+                            text += " No " + noun + " is current now: use " + select + " before renaming or deleting one.";
+                        else if (renamed.value->current->index != renamed.value->after.index)
+                            text += " The current " + noun + " is now \"" + renamed.value->current->name + "\" (position " +
+                                    std::to_string(renamed.value->current->index) + "): use " + select + " to make \"" +
+                                    renamed.value->after.name + "\" current again before renaming or deleting it.";
+                        return ok(text);
                     }});
             }
             else
@@ -2997,7 +3006,7 @@ namespace mcp
                         if (!renamed.ok())
                             return failure(renamed.problem);
                         return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" (position " + std::to_string(renamed.value->index) + ") to \"" +
-                                  renamed.value->after + "\".");
+                                  renamed.value->after + "\" (now at position " + std::to_string(renamed.value->afterIndex) + ").");
                     }});
             }
 
