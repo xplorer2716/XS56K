@@ -9,8 +9,11 @@ keygroup"*, *"build a multi with BASS on part 1 and LEAD on part 2"*, *"save the
 - an MCP client that can start a program and talk to it on its standard input and output;
 - the program `xs56k_mcp_server` (built with the rest of the project, see [Build](#build)).
 
-**What it does not do:** it does not record, edit audio, format a disk, eject a disk or touch the files of your computer. It works on
-what is in the **sampler's memory**, and — only if you ask for it — on the **sampler's own disks**.
+**What it does not do:** it does not record, edit audio, format a disk, eject a disk or touch the files of your computer. It offers no tool
+for nine messages of the SysEx specification that the owner decided to leave out (the MIDI program number of a program, a program's user tune
+template, the number of parts of new multis, the position of the current program, and the program numbers and part counts of all the multis;
+each is listed with what exists of it in [`documents/SYSEX-COVERAGE.md`](../../documents/SYSEX-COVERAGE.md)). It works on
+what is in the **sampler's memory**, and — only if you ask for it — on the **sampler's own disks** (`--allow-disk`) and its **front-panel keys** (`--allow-front-panel`).
 
 ## Contents
 1. [Start it](#1-start-it)
@@ -52,7 +55,7 @@ LCD on, Auto screen update off), **not to what you had set**. A server that is k
 switched off and on.
 
 **To try the tools without a sampler**, run `xs56k_mcp_server_simulated` instead (built with the tests): the same server over a
-simulated sampler holding three programs, three samples and two multis, and two disks when started with `--allow-disk`.
+simulated sampler holding three programs, three samples, two multis, three song files, two set lists, two scenelists and an EB20 effects board, and two disks when started with `--allow-disk`.
 
 ### Build
 
@@ -80,6 +83,7 @@ Each row says what happens **if you leave the option out** and **if you give it*
 | `--allow-disk` | no disk tool exists: the server can neither read nor write a disk | the **16 disk tools** exist: browse the sampler's disks, load, save, rename, delete, create folders, free space, audition files |
 | `--allow-disk-refresh` | `list_disks` cannot ask the sampler to refresh its list of disks (**recommended**: it hung the owner's S5000 until it was switched off and on) | `list_disks` has a `refresh` argument that does it. Only with `--allow-disk` |
 | `--disk-timeout-ms <ms>` | a slow disk command (a load, a save) waits `120000` ms; after that the sampler may have to be switched off and on, and nothing is retried | that many ms (1 to 1800000) |
+| `--allow-front-panel` | no key tool exists: the server cannot press a key of the sampler | the **5 key tools** exist: press, hold and release a front-panel key, turn the data wheel, send an ASCII character. **A key answers "ENT" to any delete or save screen, and no `confirm` of this server stands in the way**: give it only if you mean it |
 | `--list-ports` | the server starts normally | prints the MIDI ports and exits |
 | `--help` | the server starts normally | prints the options and exits |
 
@@ -95,10 +99,14 @@ redraws its screen when it processes an edit received over MIDI).
 
 When the server stops it puts the settings it changed back to the sampler's **standard values** (Sync LCD on, Auto screen update off),
 not to what you had set; with `as-is` it changed nothing, so it puts nothing back. On the S5000 the pages do not follow the edits
-with Auto screen update off (seen on 2026-10-04). What the screen shows in each of the three cases has not yet been observed on a
-real sampler; it is part of the planned real run.
+with Auto screen update off (seen on 2026-10-04). What the screen shows in each of the three cases was seen on a real
+sampler on 2026-10-06 (section 6).
 
 `--allow-disk-refresh` without `--allow-disk` is an error. With none of the two, the server never touches a disk.
+
+`--allow-front-panel` is independent of the disk options. A tool that is not enabled is absent from the server's list of tools, and calling it is an error
+("unknown tool"). The keys act on whatever the sampler's screen shows: ENT on a "delete" or "save" screen does it. The sampler only **queues** what it is
+sent, so an accepted key does not say it was acted on. A key held when the session closes is released by the server before it exits.
 
 ---
 
@@ -106,14 +114,18 @@ real sampler; it is part of the planned real run.
 
 | Group of tools | Tools | Needs |
 |---|---|---|
-| Status, information and settings | 5 | nothing |
+| Status, information, settings and MIDI setup | 7 | nothing |
+| Song files, set lists and scenelists | 11 | nothing |
+| Delete all programs, samples or multis, and clear the memory | 4 | nothing |
+| Effects board | 5 | nothing |
+| **Front-panel keys** | **5** | **`--allow-front-panel`** |
 | Programs, keygroups and zones | 11 | nothing |
 | Samples | 7 | nothing |
 | Multis | 11 | nothing |
 | **Disks and files** | **16** | **`--allow-disk`** |
 | The refresh of the disk list | an argument of `list_disks` | `--allow-disk` **and** `--allow-disk-refresh` |
 
-That is **34 tools without any option and 50 with `--allow-disk`**. A disk tool that is not enabled is absent from the server's list of
+That is **56 tools without any option, 72 with `--allow-disk`, 61 with `--allow-front-panel` and 77 with both**. A disk tool that is not enabled is absent from the server's list of
 tools, and calling it is an error.
 
 **Tiers.** Every tool tells the client what it does to the sampler, in its MCP annotations:
@@ -134,15 +146,33 @@ reported as the sampler holds it. Zones are numbered 1 to 4, keygroups and multi
 
 In the tables, **\*** marks a required argument. **Confirm** says which exact text a destructive tool needs.
 
-### 4.1 Status, information and settings (no option)
+### 4.1 Status, information, settings, MIDI setup and lists (no option)
 
 | Tool | What it does | Arguments |
 |---|---|---|
 | `get_status` | whether the sampler answers, how many programs it holds, which one is current and how many keygroups it has | none |
 | `get_system_info` | the model (S5000 or S6000), the operating system version, the free wave memory (percent and bytes: check it before loading a large sample) and the free program, keygroup, sample and multi memory | none |
 | `list_parameters` | the names of the parameters, what each accepts, and what it does | `domain` (`program`, `sample` or `multi`), `group` (to narrow the list) |
-| `get_sampler_settings` | the sampler's own settings: its name, its clock and date (with the day of the week), its play mode (`multi`, `program`, `sample` or `muted`) and whether its front panel is `normal` or `locked` | none |
+| `get_sampler_settings` | the sampler's own settings: its name, its clock and date (with the day of the week), its play mode (`multi`, `program`, `sample` or `muted`) and whether its front panel is `normal` or `locked`. If the sampler refuses to give its play mode, the answer still gives the other three, with the sampler's reason: a real S5000 refused it (error 3, cause unknown) while its screen showed UTILITIES, MIDI SETUP or MIDI FILTER, then gave it from the MULTI page and later from those pages too | none |
 | `set_sampler_setting` | sets one of those settings and reads it back: `name` (1 to 20 characters of plain ASCII), `clock` (`YYYY-MM-DD HH:MM:SS`, years 1980 to 2079; the day of the week is worked out), `play_mode` (`multi`, `program`, `sample`, `muted`: muted plays nothing until another mode is set), `front_panel` (`normal` or `locked`: a locked panel is unlocked only by setting it to `normal`). A value that is not valid is refused and nothing is sent | `setting`\*, `value`\* |
+| `set_midi_setting` | sets one switch of the sampler's MIDI setup (UTILITIES, MIDI SETUP): `program_change` (`on` or `off`), `multi_select` (`off`, `program_change` or `bank`), `multi_select_channel` (a MIDI channel as the sampler numbers them, 0 to 31: `0` is channel 1A, `15` is 16A, `16` is 1B and `31` is 16B; the answer gives the name too, such as `3 (= 4A)`; no effect while `multi_select` is off), `external_apm_controller` (a MIDI controller number, 0 to 127) and `aftertouch` (`channel` or `polyphonic`). Section 04 of the sampler has no Get: **the answer cannot say what the switch held before, and the server cannot put it back**. A value that is not valid is refused and nothing is sent | `setting`\*, `value`\* |
+| `set_midi_filter` | makes the sampler `allow` or `ignore` a type of MIDI event (`note_on`, `aftertouch`, `wheels` or `volume`) on a channel (0 to 31, numbered as for `multi_select_channel`). Like `set_midi_setting` it cannot read the previous state and cannot put it back | `event`\*, `channel`\*, `action`\* |
+| `list_song_files`, `list_set_lists`, `list_scenelists` | the song files, the set lists or the scenelists in the sampler's memory, in the sampler's order with their positions (from 0); for the song files and the scenelists the current one is marked (the sampler has no current set list) | none |
+| `select_song_file`, `select_scenelist` | makes a song file or a scenelist the current one, by `name` or by `index` (exactly one of the two), and reads the current one back; a name or a position the sampler does not have is refused by the sampler and the selection is unchanged | `name` or `index` |
+| `rename_song_file`, `rename_scenelist` | renames the current song file or scenelist (select it first), reads the list again and gives the new name and the position it is now at; 1 to 20 characters of plain ASCII; a name another one of the list bears (in other letters too) is refused and nothing is sent. A real S5000 sorts its song files by name (without regard to case) when one is renamed and was then seen with its first song file current: the answer says when the current one is no longer the renamed one, so select it again before renaming or deleting it | `name`\* |
+| `rename_set_list` | renames the set list called `name` (the sampler has no current set list) to `new_name`, reads the list again and gives the position the new name is at; two set lists of the same name, or a new name another bears, are refused and nothing is sent | `name`\*, `new_name`\* |
+| `delete_song_file`, `delete_scenelist` | **deletes the current song file or scenelist from memory** (it is lost unless it is on a disk); only if `confirm` is exactly its name, otherwise nothing is sent and the answer says which one is current; answers the names that remain. The real S5000 keeps the **position** selected: after the deletion the item that took its place is current, and when the last one was deleted none is | `confirm`\* (its exact name) |
+| `delete_set_list` | **deletes the set list called `name` from memory**; only if `confirm` is exactly its name as `list_set_lists` gives it (`name` may differ in letters, `confirm` may not); answers the names that remain. The sampler holds **one set list at a time** | `name`\*, `confirm`\* |
+| `delete_all_programs`, `delete_all_samples`, `delete_all_multis` | **deletes EVERY program, sample or multi from memory** (lost unless saved to a disk); only if `confirm` is exactly how many the sampler holds now, otherwise nothing is sent and the answer gives the number; a sampler that holds none sends nothing | `confirm`\* (the number of items) |
+| `clear_sampler_memory` | **clears the sampler's memory: deletes EVERY program, sample, multi, song file, set list and scenelist in one command** (lost unless saved to a disk; a real S5000 clears the three lists with the rest, 2026-10-10); only if `confirm` is exactly how many items of the six kinds the sampler holds now, in all, otherwise nothing is sent and the answer gives the total and the count of each kind; a sampler that holds none sends nothing. The command can take long on a large memory (1.15 s on a memory of 4 items) | `confirm`\* (the total) |
+| `get_fx_board` | the effects board of the **current multi**: the card (EB20), the channels (muted or on) and their modules with type and state (enabled or bypassed); a sampler with no board is told so and nothing more is sent | none |
+| `set_fx_channel_mute` | mutes or unmutes an effects channel (from 0) and reads it back | `channel`\*, `muted`\* |
+| `set_fx_module` | sets the type of a module and/or enables or bypasses it, and reads it back. With the EB20 only modules 2 (chorus, flange, phase, rotary_speaker, fmod_autopan, pitch_shift, pitch_shift_feedback) and 3 (mono_delay, mono_left_right, mono_crossover, stereo_delay) of channels 0 and 1 may change type | `channel`\*, `module`\*, `type`, `enabled` |
+| `get_fx_parameter` | one parameter of a module by name or index, or all of them, with their ranges (Table 25 of the specification); the values are the raw numbers the sampler takes (a rate of 15 is 1.5) | `channel`\*, `module`\*, `parameter` |
+| `set_fx_parameter` | sets a parameter to a whole number inside its range and reads it back; a value outside the range is refused and nothing is sent | `channel`\*, `module`\*, `parameter`\*, `value`\* |
+| `press_key`, `hold_key`, `release_key` | **only with `--allow-front-panel`**: presses a key of the front panel (hold then release), holds it down, releases it. `key` is one of `multi`, `fx`, `edit_sample`, `edit_program`, `record`, `utilities`, `save`, `load`, `f1` to `f16`, `0` to `9`, `minus`, `plus`, `cursor_left`, `cursor_right`, `window`, `mark`, `jump`, `exit`, `ent_play`. **`ent_play` on a delete or save screen does it** | `key`\* |
+| `turn_data_wheel` | **only with `--allow-front-panel`**: turns the data wheel 1 to 8 clicks, `forwards` or `backwards` | `direction`\*, `clicks`\* |
+| `send_ascii_key` | **only with `--allow-front-panel`**: sends one ASCII character (0 to 127, as a number or the character) as typed text | `ascii`\* |
 
 ### 4.2 Programs, keygroups and zones (no option)
 
@@ -219,7 +249,7 @@ and `close_folder` move down and up.
 
 | Tool | What it does | Arguments |
 |---|---|---|
-| `load_file` | loads a program, a sample or a multi file of the current folder | `name`\*, `with_dependents` (also load the samples a program uses), `sample_mode` (`normal`, `ram` or `virtual`) |
+| `load_file` | loads a program, a sample, a multi, a song file, a set list or a scenelist file of the current folder, and answers what the memory held before and after; **the real S5000 holds one set list, so loading a set list replaces the one in memory** (the answer says "no longer held ...") | `name`\*, `with_dependents` (also load the samples a program uses), `sample_mode` (`normal`, `ram` or `virtual`) |
 | `load_folder` | loads a sub-folder and everything in it | `name`\* |
 
 A large sample takes time: a 40 MB sample took about a minute.
@@ -228,10 +258,11 @@ A large sample takes time: a 40 MB sample took about a minute.
 
 | Tool | What it does | Arguments | Confirm |
 |---|---|---|---|
-| `save_memory_item` | saves one program, sample or multi to the current folder, then checks the folder | `kind`\* (`program`, `sample`, `multi`), `name`\*, `overwrite`, `save_children` | |
+| `save_memory_item` | saves one program, sample, multi, song file, set list or scenelist to the current folder, then checks the folder | `kind`\* (`program`, `sample`, `multi`, `song_file`, `set_list`, `scenelist`), `name`\*, `overwrite`, `save_children` | |
 | `save_all_memory_items` | saves every item of a kind | `kind`\*, `confirm`\*, `overwrite`, `save_children` | **the number** of items of that kind in memory |
 
-A program is saved as `<name>.AKP`, a sample as `<name>.WAV`; the extension of a multi file has not been seen on a real sampler.
+A program is saved as `<name>.AKP`, a sample as `<name>.WAV`, a multi as `<name>.AKM`, a song file as `<name>.MID`, a set list as `<name>.SET` and a
+scenelist as `<name>.ASC`.
 
 **Organising the disk** (needs a writable disk)
 
@@ -248,18 +279,25 @@ A program is saved as `<name>.AKP`, a sample as `<name>.WAV`; the extension of a
 ## 5. Safety
 
 **Every deletion asks for a confirmation.** A tool that deletes something takes a `confirm` argument that must be the **exact name**
-of what is deleted (for `delete_keygroup`, the program's name; for `save_all_memory_items`, the number of items). If it is
+of what is deleted (for `delete_keygroup`, the program's name; for `save_all_memory_items`, `delete_all_programs`, `delete_all_samples`
+and `delete_all_multis`, the number of items; for `clear_sampler_memory`, the total number of programs, samples, multis, song files, set lists and
+scenelists, all of which it clears). If it is
 missing or wrong, **nothing is sent to the sampler** and the answer says what to give. The destructive tools say so in their
-annotations, so a client can ask you before it calls them.
+annotations, so a client can ask you before it calls them. `clear_sampler_memory` and the `delete_all_*` tools are the largest losses
+the server can cause: ask yourself before letting an assistant call them on a sampler that holds work you have not saved (the memory
+was saved to the disk before they were run on a real S5000, and reloaded after).
 
 **Never done, whatever the options:**
-- deleting *all* programs, samples or multis, and clearing the sampler's memory;
-- formatting or ejecting a disk;
-- the sampler's front-panel keys, its name, clock, play mode, panel lock and MIDI setup;
-- song files, set lists, scenelists and the effects board.
+- ejecting or formatting a disk (the owner's decision of 2026-10-07; formatting and moving files between the computer and the sampler are not in
+  the SysEx specification either);
+- the refresh of the disk list, unless `--allow-disk-refresh` is given (and even then it hung a real S5000);
+- anything a `confirm` would have guarded, without the `confirm`.
 
-(Some of these exist in the sampler's protocol and may be added later; none is offered today. They are listed with their reasons in
-`process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md`.)
+(The reasons are in `process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md` and `ADR-MCP-005-remaining-sampler-functions.md`.)
+
+**The front-panel keys are opt-in and not guarded.** Without `--allow-front-panel` the five key tools do not exist. With it, a key acts on
+whatever the sampler's screen shows: `ent_play` on a delete or save screen does it, and no `confirm` of this server stands in the way. The sampler
+only queues what it is sent. A key held when the server's input closes is released before the server exits (seen on a real S5000: the cursor stopped); a server that is killed leaves it down.
 
 **The changes are in the sampler's memory** and are lost when it is switched off, unless they are saved to a disk (`save_memory_item`,
 `save_all_memory_items`) or from the front panel.
@@ -269,14 +307,16 @@ command has once left a real S5000 answering nothing until it was switched off a
 timeout of their own, are never retried, and the refresh of the disk list is a separate option that should stay off.
 
 **It is checked by a test.** A test (`mcp_sources_call_no_destructive_primitive`) searches the server's source for the commands that
-delete, rename, create, save, load, eject, format or clear, and allows each one in a single file only.
+delete, rename, create, save, load, eject, format or clear, and for the front-panel commands, and allows each one in the one unit that owns
+it; three other tests (`mcp_source_check_fails_on_...`) plant a delete, a key and an eject in a tool file and expect the check to fail. Another
+(`mcp_readme_names_every_tool_and_option`) fails when this README leaves out a tool or an option, or states a count of tools that is not the server's.
 
 ---
 
 ## 6. What has been tried on a real sampler
 
-On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, 2026-10-05 and 2026-10-06, with the owner present, on objects made for the test; the
-full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
+On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, from 2026-10-05 to 2026-10-10, with the owner present, then, for the last runs, on test data
+left to the assistant, with the memory saved to the disk before it was erased; the full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 
 | Tried and worked | Not tried, or with a known limit |
 |---|---|
@@ -286,10 +326,15 @@ full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 | **Multis**: `create_multi` (32 parts), `rename_multi`, `delete_multi`, `set_part_program` by name and by position, `get_part_programs`, `clear_part`, `set_multi_program_number`, and **all 12 part parameters**; the part numbers are those of the front panel | |
 | **Disk**: browsing, `create_folder`, `rename_file` (a `.WAV` and a `.AKP`: the sampler adds the extension), `rename_folder`, `delete_file`, `delete_folder` with and without `delete_contents`, `audition_file` (heard, and the stop cuts the sound) | **`get_disk_space` says 0 bytes free** for this FAT32 disk: the S5000 does not seem to report it, so do not rely on it |
 | **Load and save**: `load_file` (a program, a 40 MB sample, a multi), the control of `with_dependents` (without it no sample is added, with it the program's samples are), `load_folder` (13 samples); `save_memory_item` (a program, a sample, a multi), `save_children` (the program and the samples it uses), `save_all_memory_items` (13 samples), the refusal to overwrite and the save with `overwrite` | a save of a very large sample |
-| **Information**: `get_system_info` | **`get_sampler_settings` and `set_sampler_setting`: only run on the simulated sampler so far** (to run on the real one with the owner, TASK-MCP-055) |
+| **Information and settings**: `get_system_info`; `get_sampler_settings` and `set_sampler_setting` (a name of 20 characters is kept, the clock set and put back, each play mode, the front-panel lock); `set_midi_setting` and `set_midi_filter` (the MIDI SETUP and MIDI FILTER pages showed each change) | the sampler refused its play mode once (ERROR 03, three times in a row, then answered) and the cause is not known: `get_sampler_settings` then gives the other three settings and says so; the sampler cannot read the MIDI setup back |
+| **Song files, set lists and scenelists in memory**: list, select (by name and by position, refusals included), rename, delete (on copies loaded for the run, by exact name) | the sampler keeps its song files sorted by name and keeps the **position** selected, not the item, so the answers say which one is current after a renaming or a deletion; it holds **one** set list at a time; scenelists are not sorted. Its own answer to a duplicate name was not tried (the server refuses first) |
+| **Saving and loading them through the disk**: `save_memory_item` and `save_all_memory_items` of the three kinds, with and without `overwrite`; `load_file` of each, with the name in memory (it **replaces** it) and with the item renamed aside (it is **added**) | the sizes: a song file is 31 to 37 KB, the song deciding, a set list 2304 bytes, a scenelist 26 |
+| **Deleting everything**: `delete_all_programs`, `delete_all_samples`, `delete_all_multis` and `clear_sampler_memory`, each first with a wrong count (nothing sent), then with the right one, after the whole memory was saved to the disk and reloaded; **`clear_sampler_memory` also cleared the song files, set lists and scenelists**, which its `confirm` counts since the owner's decision of the same day. A multi keeps the name of a deleted program, a zone shows a deleted sample behind a question mark | the time on a large memory (1.15 s for 4 items); a single `delete_program` or `delete_sample` was not tried for its effect on parts and zones |
+| **Effects board**: the five effects tools each answered that the sampler has no board | **everything else about the effects**: no run with an EB20, the owner having none |
+| **Front-panel keys**, seen on the screen by the owner: `press_key` of `cursor_left` and `cursor_right` (the cursor moves one place), of `multi` and `utilities` (the page changes); `hold_key` (the sampler repeats the key until it is released, and a key still held when the session closes is released by the close); `turn_data_wheel` (one click forwards is the next character of a name, one click backwards the previous one); `send_ascii_key` (the character is typed at the cursor); an unknown key refused with the list | the other 39 keys (and `ent_play`, `save`, `load` and `exit`, left alone on purpose); how fast a held key repeats; a server **killed** with a key held (the orderly close was seen, not the kill); the wheel on a value that is not a character |
 | **Screen**: `--screen independent` (the owner's screen did not move), `--screen follow` (it followed the assistant and showed each edit), `--screen as-is` (nothing moved) | `independent` was not tried with the screen on the very program the assistant edits; `follow` does not change the page: with the screen on the file system page it stayed there when a multi was selected |
 
-A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`.
+A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`. A saved song file is `<name>.MID` (31 to 37 KB for the four songs tried, the size following the song), a set list `<name>.SET` (2304 bytes) and a scenelist `<name>.ASC` (26 bytes): seen on a real S5000 (OS 2.14) on 2026-10-10. This server finds the file by the item's name whatever its extension, and `load_file` loads any file of the folder by the name `list_disk_contents` gives. A file loaded whose name the sampler already holds **replaces** that song file, scenelist or set list instead of adding one (a scenelist then goes to the end of the list, a song file keeps its place in the sorted list); a set list loaded replaces the one in memory, since the sampler holds one.
 
 **Do not use the refresh of the disk list (`--allow-disk-refresh`):** on this sampler it never answered, and the sampler had to be
 switched off and on. It is not needed for a disk that was plugged in before the server started.
@@ -301,7 +346,7 @@ switched off and on. It is not needed for a disk that was plugged in before the 
 | What you see | What it means | What to do |
 |---|---|---|
 | "No sampler answered at DeviceID 0" | nothing answered on the MIDI ports | check the sampler is on, the cable, the two ports (`--list-ports`), and that no other program holds the ports (another copy of the server, a MIDI editor) |
-| "The sampler did not answer while ... (no reply within 2000 ms)" | one command got no answer | try again; if it keeps happening, switch the sampler off and on |
+| "The sampler did not answer while ... (no reply within 2000 ms)" | one command got no answer, or got one the server could not read | look at the server's standard error (the client's MCP log): a line "from the sampler: rejected message: ..." means the sampler did answer and names why the answer was refused; no such line means it was silent. Try again; if it keeps happening, switch the sampler off and on |
 | the same after a **load, save or other disk command** ("... may have to be switched off and on") | the sampler stopped answering during a slow disk command | switch the sampler **off and on**, then let the client call the tool again (the server opens a new session by itself). Nothing was retried |
 | "Is a disk selected? Use select_disk first." | no disk is current | `list_disks`, then `select_disk` |
 | "Is a program / sample / multi selected?" | the tool acts on the current one and there is none | `select_program`, `select_sample` or `select_multi` |
@@ -323,6 +368,14 @@ switched off and on. It is not needed for a disk that was plugged in before the 
   conversations are piped into `xs56k_mcp_server_simulated` (one with `--allow-disk --allow-disk-refresh`) and compared with
   `*.expected.jsonl`; `mcp_readme_names_every_tool_and_option` checks that this README names every tool the server lists and every
   option of its usage text. To regenerate an expected conversation after a deliberate change, run the simulated server on the
-  `.jsonl` input and read the difference.
+  `.jsonl` input and read the difference. The text the server gives a client at `initialize` (`serverInstructions` in `src/Tools.cpp`)
+  is checked by `ServerInstructionsTests.cpp` against `tools/list` in each launch: it names a tool of every family offered, names no tool
+  that is not offered, and holds a table of every tool by family, so a new tool fails the test until it is placed in a family and the text
+  is read again.
+- **Coverage table:** `documents/SYSEX-COVERAGE.md` says which tool sends which message of the SysEx specification, generated by
+  `juce/tools/generate_sysex_coverage.py`. A new tool, or a tool that calls another gateway method, needs its line in
+  `juce/tools/sysex_coverage_declared.json` (`mcp_tools`: the gateway methods it calls), or `sysex_coverage_table_is_up_to_date` fails and
+  says which. `sysex_coverage_tools_match_the_simulated_sampler` runs `xs56k_mcp_server_simulated --trace-messages` on the conversations
+  (the two above and `tool_messages.jsonl`, which calls the tools they do not) and fails if a tool sends a message that its row does not give.
 - **Process:** every change goes through the AGNOS process of `.github/instructions/agnos-sw-eng.instructions.md`; the tests are
   written first and run red before the code.

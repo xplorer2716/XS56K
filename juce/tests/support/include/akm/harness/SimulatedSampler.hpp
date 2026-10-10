@@ -336,6 +336,10 @@ namespace akm::harness
         /// follows these, spec footnotes d/e): one level, not modelled recursively beyond it, since
         /// nothing in RQ-AKM-066 needs more.
         std::vector<std::string> dependsOnFiles{};
+        /// (After the fields the aggregate initializers of the tests fill by position.) A song file, a set list or a scenelist (TASK-MCP-049): loading this file adds one of that name to the lists of §16/§14.
+        std::optional<std::string> loadsSongNamed{};
+        std::optional<std::string> loadsSetListNamed{};
+        std::optional<std::string> loadsSceneListNamed{};
     };
 
     struct FolderRecord

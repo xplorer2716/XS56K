@@ -2,3 +2,6 @@
 process/INDEX.idx.md text eol=lf
 .github/skills/agnos-index/scripts/*.sh text eol=lf
 .github/skills/agnos-index/tests/** -text
+
+# RQ-MCP-058 / ADR-MCP-006: the generated coverage table is compared byte for byte, so it is LF on every checkout (Windows included)
+documents/SYSEX-COVERAGE.md text eol=lf

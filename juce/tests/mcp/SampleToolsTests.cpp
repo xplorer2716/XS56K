@@ -406,7 +406,7 @@ TEST_CASE("Given list_parameters with a domain, When it is called, Then it lists
     CHECK(contains(textOf(unknown), "sample"));
 }
 
-TEST_CASE("Given the sources of the sample tools, When the tools are listed, Then no tool creates or loads a sample from memory or deletes every sample, and the sample tools carry their tiers [RQ-MCP-020, RQ-MCP-013, RQ-MCP-036]",
+TEST_CASE("Given the sources of the sample tools, When the tools are listed, Then no tool creates or loads a sample from memory, delete_all_samples is offered as a destructive tool, and the sample tools carry their tiers [RQ-MCP-020, RQ-MCP-013, RQ-MCP-036, RQ-MCP-051]",
           "[mcp][sample][tools]")
 {
     Rig rig;
@@ -423,10 +423,11 @@ TEST_CASE("Given the sources of the sample tools, When the tools are listed, The
         names.insert(tool["name"].get<std::string>());
     for (const char* tool : {"list_samples", "select_sample", "get_sample_parameters", "set_sample_parameter"})
         CHECK(names.count(tool) == 1);
+    CHECK(names.count("delete_all_samples") == 1);
     for (const std::string& name : names)
     {
-        // delete_sample and rename_sample (of the current sample) are offered since ADR-MCP-004 (DEC-MCP-024); deleting every sample is not.
-        CHECK(name.find("delete_all_samples") == std::string::npos);
+        // delete_sample and rename_sample (of the current sample) are offered since ADR-MCP-004 (DEC-MCP-024), and deleting every sample since
+        // ADR-MCP-005 (DEC-MCP-029): delete_all_samples is checked below.
         CHECK(name.find("load_sample") == std::string::npos);
         CHECK(name.find("create_sample") == std::string::npos);
     }
@@ -435,6 +436,8 @@ TEST_CASE("Given the sources of the sample tools, When the tools are listed, The
         const std::string name = tool["name"].get<std::string>();
         if (name == "list_samples")
             CHECK(tool["annotations"]["readOnlyHint"].get<bool>());
+        if (name == "delete_all_samples")
+            CHECK(tool["annotations"]["destructiveHint"].get<bool>());
         if (name == "set_sample_parameter")
         {
             CHECK_FALSE(tool["annotations"]["readOnlyHint"].get<bool>());

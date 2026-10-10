@@ -19,9 +19,10 @@ the sampler holds: it never deletes, renames only to put back, and restores the 
 - **ADRs**: ADR-AKM-001 (Accepted): DEC-AKM-003, DEC-AKM-012, DEC-AKM-013. No new decision is expected; one is
   added to the existing file, as `DEC-AKM-012` to `019` were, if the work shows one is needed.
 
-The plan has 5 tasks (TASK-AKM-083 to TASK-AKM-087): 083 authors the artifacts; 084 delivers the song file items;
+The plan has 6 tasks (TASK-AKM-083 to TASK-AKM-087, and TASK-AKM-106): 083 authors the artifacts; 084 delivers the song file items;
 085 the set list items (after 084, which adds the section to the simulated sampler); 086 is the real-sampler check
-(after 084, 085); 087 closes the coverage (after 084 to 086).
+(after 084, 085); 087 closes the coverage (after 084 to 086); 106 (added 2026-10-10, during TASK-MCP-058) makes the check put back by
+name, the real S5000 having been seen sorting its song files when one is renamed.
 
 This plan implements the tasks in the format specified below.
 
@@ -157,3 +158,34 @@ This plan implements the tasks in the format specified below.
 - **Assumptions**: `complete` is flipped on the strength of the catalogue matching the spec's rows, as for §20 and §04
   before it, not on a real-sampler run that exercised everything: the sampler held no song file or set list (see
   TASK-AKM-086).
+
+---
+
+### TASK-AKM-106: The song files check puts back by name, the sampler sorting its song files
+- **Tier**: M
+- **Status**: Done
+- **Description**: The real S5000 (OS 2.14) sorts its song files by name when one is renamed, without regard to case, and answered
+  its first song file as current after it (TASK-MCP-058, 2026-10-10). `GuardedSongFiles` puts a name back by the position the song
+  file had, and `songFileRoundTrips` reads the new name at the current song file and at position 0: on a sampler holding song files,
+  the check would rename another song file than the one it changed. The simulated sampler sorts its song files on a renaming as the
+  real one does (and made the first current, which the next real renamings refuted: TASK-MCP-058 keeps the position selected); the guard finds the renamed song file and the renamed set list by the test name, puts
+  their names back and selects again, by name, the song file that was current; the round trip looks for the new name in the list.
+- **Requirement refs**: RQ-AKM-085, RQ-AKM-082, RQ-AKM-084, RQ-AKM-016
+- **ADR refs**: ADR-AKM-001 (DEC-AKM-008)
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler holding song files sorted by name, the second current, and two set
+  lists, *When* the suite runs with `--song-files`, *Then* both checks pass, every name and the current song file are what they were,
+  and nothing is deleted; *Given* the song files of the real run ("a_woman_in_love", "AIMER", "alors_regarde", "assassine", "AIMER"
+  current), *When* the song files checks run, *Then* the song file they renamed has its name back, every song file is at its place, and "AIMER" is
+  current again.
+- **Dependencies**: TASK-AKM-086
+- **Assignee**: AI
+- **Verification**: Test first: with the simulated sampler sorting on a renaming, `xs56k_akm_tests "[song]"` 3 of 13 cases failed (11
+  assertions; the old guard left "CHORUS", "XS56K TEST", "XS56K TEST": it put the name back on another song file). After the guard and
+  the round trip find the renamed item by the test name: 13 of 13 cases, 627 assertions, the real-run case included ("AIMER" current
+  again, every name at its place, no deletion); full `ctest` on Windows (MSVC, Debug) 1085 of 1085, no warning. The guard renames back
+  only the song file it finds by the test name, and logs that nothing was renamed back when none bears it.
+- **Assumptions**: (1) The real sampler always holds its song files sorted, so the seeds of the probe's tests are sorted
+  ({"VERSE", "CHORUS", "BRIDGE"} becomes {"BRIDGE", "CHORUS", "VERSE"}): a test change that follows the observed behaviour.
+  (2) Whether the set lists and the scenelists are sorted too is not known (one set list on the sampler, the scenelists not yet
+  renamed): the simulated sampler keeps them as they are, the guard of the set lists finds its set list by name all the same, and the
+  scenelists check is left for TASK-MCP-058 to show.

@@ -26,6 +26,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <sstream>
 #include <utility>
 
+#include "mcp/FxCatalogue.hpp"
+
 using nlohmann::json;
 
 namespace mcp
@@ -37,6 +39,8 @@ namespace mcp
         constexpr std::int64_t FIRST_ZONE = 1;
         constexpr std::int64_t LAST_ZONE = 4;
         constexpr std::int64_t MAX_PROGRAM_INDEX = 16383;
+        // A channel, a module and a parameter of the effects board travel as one 7-bit byte. [RQ-MCP-053]
+        constexpr std::int64_t MAX_FX_INDEX = 127;
         // The sampler's program names are 12 characters on its screen; the wire takes up to 20 (the AKM item), and
         // whether the sampler keeps more is observed on the real sampler. [ADR-MCP-002 (DEC-MCP-011)]
         constexpr std::size_t MAX_PROGRAM_NAME_LENGTH = 12;
@@ -377,32 +381,68 @@ namespace mcp
         }
     }
 
+    // What the tools offered with no launch option are, by family, and how they are confirmed: written from the tools, and checked against
+    // `tools/list` by ServerInstructionsTests. A sentence here that a tool contradicts, or a tool named that a launch does not offer,
+    // fails that test. [TASK-MCP-065, RQ-MCP-043, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023, DEC-MCP-026)]
     std::string programEditingInstructions()
     {
-        return "This server edits a program of an AKAI S5000/S6000 sampler. Call get_status to see which program is "
-               "current, list_programs and select_program to change it, and list_parameters to learn the parameter names "
-               "and what each accepts: the filter, the amplitude envelope, the filter envelope and the two LFOs. Use "
-               "get_parameters to read values and set_parameter to change one. Values are in the sampler's own units "
-               "(0 to 100 for most), signed values are plain signed numbers, and choices are named as the sampler's "
-               "screen names them (for example \"2-POLE LP+\"). create_program, rename_program and delete_program change the "
-               "list of programs: delete_program deletes only the current program and only when its name is given as "
-               "'confirm'. list_samples, select_sample, get_sample_parameters and set_sample_parameter edit the samples in the "
-               "same way (list_parameters with the domain \"sample\" names their parameters); no tool creates, deletes or "
-               "loads a sample. list_multis, select_multi, get_multi_parameters and set_multi_parameter edit the parts of a "
-               "multi (parts are numbered from 1; no tool creates, deletes or renames a multi). Changes act on the sampler's "
-               "memory, not on disk; nothing is saved by this server.";
+        return "This server works on an AKAI S5000/S6000 sampler, in the sampler's own terms. Start with get_status (does the sampler answer, "
+               "which program is current) and get_system_info (the model and the free memory). "
+               "Programs: list_programs and select_program choose the current program; create_program, rename_program and delete_program "
+               "change the list; delete_all_programs empties it. Call list_parameters to learn the parameter names and what each accepts "
+               "(the filter, the amplitude and filter envelopes, the two LFOs and the rest of the program and of its keygroups), then "
+               "get_parameters to read values and set_parameter to change one. Values are in the sampler's own units (0 to 100 for most), "
+               "signed values are plain signed numbers, and choices are named as the sampler's screen names them (for example "
+               "\"2-POLE LP+\"). add_keygroups and delete_keygroup change the keygroups; get_zone_samples and set_zone_sample say and "
+               "change the sample of each zone. "
+               "Samples: list_samples, select_sample, rename_sample, delete_sample and delete_all_samples; get_sample_parameters and "
+               "set_sample_parameter read and change the current sample (list_parameters with the domain \"sample\" names its parameters); "
+               "audition_sample plays it. "
+               "Multis: list_multis, select_multi, create_multi, rename_multi, delete_multi and delete_all_multis; get_multi_parameters and "
+               "set_multi_parameter edit a part of the current multi (parts are numbered from 1); set_part_program, get_part_programs and "
+               "clear_part say what the parts play; set_multi_program_number sets the number a MIDI program change selects the multi by. "
+               "The sampler itself: get_sampler_settings and set_sampler_setting (its name, clock, play mode and front-panel lock); "
+               "set_midi_setting and set_midi_filter change its MIDI setup, which the sampler cannot read back, so they say so. "
+               "get_fx_board, set_fx_channel_mute, set_fx_module, get_fx_parameter and set_fx_parameter work on the effects of the current "
+               "multi; a sampler with no effects board says so. "
+               "Song files, set lists and scenelists in memory: list_song_files, list_set_lists and list_scenelists; select_song_file and "
+               "select_scenelist (a set list has no current one, it is found by its name); rename_song_file, rename_set_list and "
+               "rename_scenelist; delete_song_file, delete_set_list and delete_scenelist. A real S5000 keeps the position selected, not the "
+               "item, and holds one set list at a time: after a renaming or a deletion read the answer to see which one is current. "
+               "Every deletion asks for a 'confirm' that is the exact name of what is deleted; delete_all_programs, delete_all_samples, "
+               "delete_all_multis and clear_sampler_memory (every program, sample, multi, song file, set list and scenelist) ask for the number of "
+               "items that would be lost instead; nothing is sent without it. Nothing here formats or ejects a disk. The tools above change the sampler's memory, "
+               "not its disks: what is not saved to a disk is lost when the sampler is switched off.";
+    }
+
+    std::string serverInstructions(const ToolOptions& options)
+    {
+        std::string text = programEditingInstructions();
+        if (options.allowDisk)
+            text += diskInstructions(options.allowDiskRefresh);
+        if (options.allowFrontPanel)
+            text += frontPanelInstructions();
+        return text;
     }
 
     std::string diskInstructions(bool refreshOffered)
     {
-        const std::string browse =
-            " The disk tools (list_disks, select_disk, list_disk_contents, open_folder, close_folder) browse the sampler's own "
-            "disks, not the computer's files; ";
+        const std::string tools =
+            " The disk tools are on because the person launched this server with --allow-disk. list_disks, select_disk, "
+            "list_disk_contents, open_folder and close_folder browse the sampler's own disks, not the computer's files (select a disk, "
+            "then open folders); get_disk_space says how much is free. load_file and load_folder load what a folder holds into the "
+            "sampler's memory and say what the memory held before and after; a set list loaded replaces the set list in memory. "
+            "save_memory_item saves one item and save_all_memory_items every item of a kind (program, sample, multi, song file, set list "
+            "or scenelist; the second asks for their number as confirm) to the current folder, and neither replaces a file unless "
+            "overwrite is true. create_folder, rename_folder, delete_folder, rename_file and delete_file manage the folders and files, and "
+            "a deletion asks for the exact name as confirm. audition_file plays a sample of the folder without loading it. A load or a "
+            "save can be slow, and a sampler that stops answering during one may have to be switched off and on: nothing is retried. "
+            "This server never formats or ejects a disk; ";
         if (refreshOffered)
-            return browse +
+            return tools +
                    "list_disks refreshes the sampler's disk list only with refresh true, which is slow and "
                    "has left a real S5000 answering nothing until it was switched off and on.";
-        return browse + "this server never asks the sampler to refresh its disk list (it has left a real S5000 answering nothing).";
+        return tools + "this server never asks the sampler to refresh its disk list (it has left a real S5000 answering nothing).";
     }
 
     std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ExtraCatalogues extra)
@@ -1220,7 +1260,8 @@ namespace mcp
             return format >= 0 && format < DISK_FORMAT_COUNT ? DISK_FORMATS[format] : "format " + std::to_string(format);
         }
 
-        /// "programs 4 (was 3, added INIT)" or "samples 0 (was 0)".
+        /// "programs 4 (was 3, added INIT)" or "samples 0 (was 0)"; what the memory held before and no longer holds is named, as when the
+        /// sampler replaces its set list by the one loaded: "set lists 1 (was 1, added HOME, no longer held TOUR)". [TASK-MCP-058]
         std::string describeKind(const char* kind, const std::vector<std::string>& before, const std::vector<std::string>& after)
         {
             std::vector<std::string> remaining = before;
@@ -1236,28 +1277,55 @@ namespace mcp
             std::string text = std::string(kind) + " " + std::to_string(after.size()) + " (was " + std::to_string(before.size());
             if (!added.empty())
                 text += ", added " + joined(added, ", ");
+            if (!remaining.empty())
+                text += ", no longer held " + joined(remaining, ", ");
             return text + ")";
         }
 
-        /// "program", "sample" or "multi" as a client says it, and its name for a message.
+        /// A kind of memory item a save takes: the word a client gives, and the noun the answers use. [RQ-MCP-026, RQ-MCP-050]
+        struct SaveKindWord
+        {
+            SaveKind kind;
+            const char* argument;
+            const char* noun;
+        };
+
+        constexpr SaveKindWord SAVE_KINDS[] = {
+            {SaveKind::Program, "program", "program"},      {SaveKind::Sample, "sample", "sample"},
+            {SaveKind::Multi, "multi", "multi"},            {SaveKind::SongFile, "song_file", "song file"},
+            {SaveKind::SetList, "set_list", "set list"},    {SaveKind::SceneList, "scenelist", "scenelist"},
+        };
+        constexpr const char* SAVE_KIND_LIST = "\"program\", \"sample\", \"multi\", \"song_file\", \"set_list\" or \"scenelist\"";
+
+        /// A kind as the client says it, in other letters, with a space or a hyphen for the underscore. [RQ-MCP-050]
+        std::string kindWordKey(std::string word)
+        {
+            std::replace(word.begin(), word.end(), '_', ' ');
+            return normalizeText(word);
+        }
+
         std::optional<SaveKind> saveKindArgument(const json& arguments)
         {
             const auto given = arguments.find("kind");
             if (given == arguments.end() || !given->is_string())
                 return std::nullopt;
-            const std::string said = normalizeText(given->get<std::string>());
-            if (said == "program")
-                return SaveKind::Program;
-            if (said == "sample")
-                return SaveKind::Sample;
-            if (said == "multi")
-                return SaveKind::Multi;
+            const std::string said = kindWordKey(given->get<std::string>());
+            for (const SaveKindWord& word : SAVE_KINDS)
+            {
+                if (said == kindWordKey(word.argument))
+                    return word.kind;
+            }
             return std::nullopt;
         }
 
         const char* saveKindName(SaveKind kind)
         {
-            return kind == SaveKind::Program ? "program" : kind == SaveKind::Sample ? "sample" : "multi";
+            for (const SaveKindWord& word : SAVE_KINDS)
+            {
+                if (word.kind == kind)
+                    return word.noun;
+            }
+            return "item";
         }
 
         /// A boolean argument that defaults to false, or the reason it is not one.
@@ -1288,9 +1356,17 @@ namespace mcp
 
         std::string describeMemory(const LoadOutcome& outcome)
         {
-            return "Memory now: " + describeKind("programs", outcome.before.programs, outcome.after.programs) + ", " +
-                   describeKind("samples", outcome.before.samples, outcome.after.samples) + ", " +
-                   describeKind("multis", outcome.before.multis, outcome.after.multis) + ".";
+            std::string text = "Memory now: " + describeKind("programs", outcome.before.programs, outcome.after.programs) + ", " +
+                               describeKind("samples", outcome.before.samples, outcome.after.samples) + ", " +
+                               describeKind("multis", outcome.before.multis, outcome.after.multis);
+            // The song files, set lists and scenelists are spoken of only when the load changed them. [RQ-MCP-050]
+            if (outcome.before.songFiles != outcome.after.songFiles)
+                text += ", " + describeKind("song files", outcome.before.songFiles, outcome.after.songFiles);
+            if (outcome.before.setLists != outcome.after.setLists)
+                text += ", " + describeKind("set lists", outcome.before.setLists, outcome.after.setLists);
+            if (outcome.before.sceneLists != outcome.after.sceneLists)
+                text += ", " + describeKind("scenelists", outcome.before.sceneLists, outcome.after.sceneLists);
+            return text + ".";
         }
 
         std::string describeContents(const DiskContents& contents)
@@ -1633,7 +1709,7 @@ namespace mcp
         tools.push_back(Tool{
             definition("load_file", "Load a file",
                        std::string("Loads a file of the current folder of the current disk into the sampler's memory (see list_disk_contents; "
-                                   "its extension decides whether it is a program, a sample or a multi) and says what the memory holds "
+                                   "its extension decides whether it is a program, a sample, a multi, a song file, a set list or a scenelist) and says what the memory holds "
                                    "before and after. With with_dependents the files it depends on are loaded too (a program and its samples). "
                                    "sample_mode says how a sample is loaded: normal, ram or virtual. It can take long, and a sampler that stops "
                                    "answering may have to be switched off and on; nothing is retried. ") +
@@ -1703,15 +1779,15 @@ namespace mcp
 
         // save_memory_item
         tools.push_back(Tool{
-            markDestructive(definition("save_memory_item", "Save a program, sample or multi to the disk",
+            markDestructive(definition("save_memory_item", "Save a memory item to the disk",
                        std::string("Saves one item of the sampler's memory, found by its name, to the current folder of the current disk "
                                    "(see select_disk and open_folder), which must be writable, and says whether a file of its name is there "
                                    "afterwards. A file of the item's name that is already in the folder is NOT replaced unless overwrite is true: "
                                    "overwrite true loses the old file. save_children also saves what the item uses (a program's samples). It can "
                                    "take long, and a sampler that stops answering may have to be switched off and on; nothing is retried. ") +
                            DISK_FILES_NOTICE,
-                       objectSchema(json{{"kind", {{"type", "string"}, {"description", "\"program\", \"sample\" or \"multi\"."}}},
-                                         {"name", {{"type", "string"}, {"description", "The item's name, from list_programs, list_samples or list_multis."}}},
+                       objectSchema(json{{"kind", {{"type", "string"}, {"description", std::string(SAVE_KIND_LIST) + "."}}},
+                                         {"name", {{"type", "string"}, {"description", "The item's name, from list_programs, list_samples, list_multis, list_song_files, list_set_lists or list_scenelists."}}},
                                          {"overwrite", {{"type", "boolean"}, {"description", "Replace a file of that name already in the folder. Default false."}}},
                                          {"save_children", {{"type", "boolean"}, {"description", "Also save what the item depends on. Default false."}}}},
                                     json::array({"kind", "name"})),
@@ -1721,7 +1797,7 @@ namespace mcp
                     return *refused;
                 const auto kind = saveKindArgument(arguments);
                 if (!kind)
-                    return failure("Give the 'kind' of the item: \"program\", \"sample\" or \"multi\".");
+                    return failure(std::string("Give the 'kind' of the item: ") + SAVE_KIND_LIST + ".");
                 if (!arguments.contains("name") || !arguments.at("name").is_string())
                     return failure("Give the 'name' of the item to save.");
                 bool overwrite = false;
@@ -1749,14 +1825,14 @@ namespace mcp
 
         // save_all_memory_items
         tools.push_back(Tool{
-            markDestructive(definition("save_all_memory_items", "Save every program, sample or multi to the disk",
+            markDestructive(definition("save_all_memory_items", "Save every item of a kind to the disk",
                        std::string("Saves every item of a kind of the sampler's memory to the current folder of the current disk, which must be "
                                    "writable, and says how many files the folder gained. It is sent only when confirm is exactly the number of items "
-                                   "of that kind in memory (see list_programs, list_samples, list_multis). Files of the items' names already in the "
+                                   "of that kind in memory (see list_programs, list_samples, list_multis, list_song_files, list_set_lists, list_scenelists). Files of the items' names already in the "
                                    "folder are NOT replaced unless overwrite is true: overwrite true loses the old files. It can take long, and a "
                                    "sampler that stops answering may have to be switched off and on; nothing is retried. ") +
                            DISK_FILES_NOTICE,
-                       objectSchema(json{{"kind", {{"type", "string"}, {"description", "\"program\", \"sample\" or \"multi\"."}}},
+                       objectSchema(json{{"kind", {{"type", "string"}, {"description", std::string(SAVE_KIND_LIST) + "."}}},
                                          {"confirm", {{"type", "integer"}, {"minimum", 1}, {"description", "How many items of that kind are in memory."}}},
                                          {"overwrite", {{"type", "boolean"}, {"description", "Replace files of the same names already in the folder. Default false."}}},
                                          {"save_children", {{"type", "boolean"}, {"description", "Also save what the items depend on. Default false."}}}},
@@ -1767,7 +1843,7 @@ namespace mcp
                     return *refused;
                 const auto kind = saveKindArgument(arguments);
                 if (!kind)
-                    return failure("Give the 'kind' of the items: \"program\", \"sample\" or \"multi\".");
+                    return failure(std::string("Give the 'kind' of the items: ") + SAVE_KIND_LIST + ".");
                 if (!arguments.contains("confirm"))
                     return failure("Give 'confirm', the number of items of that kind in the sampler's memory.");
                 const auto confirm = arguments.at("confirm").is_number() ? wholeNumber(arguments.at("confirm")) : std::nullopt;
@@ -2260,6 +2336,8 @@ namespace mcp
         constexpr const char* PLAYING_MODE_LIST = "multi, program or sample";
         constexpr const char* PANEL_LIST = "normal, locked";
         constexpr const char* CLOCK_FORMAT = "YYYY-MM-DD HH:MM:SS";
+        // What get_sampler_settings says in place of a play mode the sampler refused to give. [TASK-MCP-055]
+        constexpr const char* PLAY_MODE_NOT_REPORTED = "not reported. ";
         // The sampler's name is 20 characters on the wire (the AKM item). [RQ-AKM-052]
         constexpr std::size_t MAX_SAMPLER_NAME_LENGTH = 20;
         // The sampler's clock takes the years 1980 to 2079 (the AKM item). [RQ-AKM-054]
@@ -2428,7 +2506,9 @@ namespace mcp
                     return failure(settings.problem);
                 std::string text = "Name: " + settings.value->name + "\n";
                 text += "Clock: " + clockText(settings.value->clock) + "\n";
-                text += "Play mode: " + playModeText(settings.value->playMode) + "\n";
+                text += "Play mode: " + (settings.value->playMode ? playModeText(*settings.value->playMode)
+                                                                 : PLAY_MODE_NOT_REPORTED + settings.value->playModeProblem) +
+                        "\n";
                 text += "Front panel: " + panelText(settings.value->panel) + "\n";
                 return ok(std::move(text));
             }});
@@ -2518,6 +2598,1104 @@ namespace mcp
         return tools;
     }
 
+    // The sampler's MIDI setup (section 04, Set only). [TASK-MCP-046, RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+    namespace
+    {
+        // The arguments of the two tools.
+        constexpr const char* ARGUMENT_SETTING = "setting";
+        constexpr const char* ARGUMENT_VALUE = "value";
+        constexpr const char* ARGUMENT_EVENT = "event";
+        constexpr const char* ARGUMENT_CHANNEL = "channel";
+        constexpr const char* ARGUMENT_ACTION = "action";
+
+        // The two actions of a filter.
+        constexpr const char* ACTION_ALLOW = "allow";
+        constexpr const char* ACTION_IGNORE = "ignore";
+
+        // The names of the five switches.
+        constexpr const char* SWITCH_PROGRAM_CHANGE = "program_change";
+        constexpr const char* SWITCH_MULTI_SELECT = "multi_select";
+        constexpr const char* SWITCH_MULTI_SELECT_CHANNEL = "multi_select_channel";
+        constexpr const char* SWITCH_EXTERNAL_APM_CONTROLLER = "external_apm_controller";
+        constexpr const char* SWITCH_AFTERTOUCH = "aftertouch";
+
+        /// A word the caller may give and what the sampler is sent for it: one table per kind of value, so that the words of the schema, the
+        /// lists in the answers and the comparisons all come from the same place. The bytes are those of the AKM items (`MidiConfig.hpp`).
+        template <typename Meaning>
+        struct Word
+        {
+            const char* text;
+            Meaning meaning;
+        };
+
+        constexpr Word<MidiSwitch> MIDI_SWITCHES[] = {
+            {SWITCH_PROGRAM_CHANGE, MidiSwitch::ProgramChange},
+            {SWITCH_MULTI_SELECT, MidiSwitch::MultiSelect},
+            {SWITCH_MULTI_SELECT_CHANNEL, MidiSwitch::MultiSelectChannel},
+            {SWITCH_EXTERNAL_APM_CONTROLLER, MidiSwitch::ExternalApmController},
+            {SWITCH_AFTERTOUCH, MidiSwitch::Aftertouch},
+        };
+        constexpr Word<int> PROGRAM_CHANGE_VALUES[] = {{"on", 1}, {"off", 0}};
+        constexpr Word<int> MULTI_SELECT_MODES[] = {{"off", 0}, {"program_change", 1}, {"bank", 2}};
+        constexpr Word<int> AFTERTOUCH_TYPES[] = {{"channel", 0}, {"polyphonic", 1}};
+        constexpr Word<MidiFilterKind> FILTER_EVENTS[] = {
+            {"note_on", MidiFilterKind::NoteOn},
+            {"aftertouch", MidiFilterKind::Aftertouch},
+            {"wheels", MidiFilterKind::Wheels},
+            {"volume", MidiFilterKind::Volume},
+        };
+        constexpr Word<bool> FILTER_ACTIONS[] = {{ACTION_ALLOW, true}, {ACTION_IGNORE, false}};
+
+        template <typename Meaning, std::size_t Count>
+        std::optional<Meaning> meaningOf(const Word<Meaning> (&words)[Count], const std::string& text)
+        {
+            for (const Word<Meaning>& word : words)
+            {
+                if (text == word.text)
+                    return word.meaning;
+            }
+            return std::nullopt;
+        }
+
+        template <typename Meaning, std::size_t Count>
+        std::string wordList(const Word<Meaning> (&words)[Count])
+        {
+            std::vector<std::string> texts;
+            for (const Word<Meaning>& word : words)
+                texts.emplace_back(word.text);
+            return joined(texts, ", ");
+        }
+
+        template <typename Meaning, std::size_t Count>
+        json wordArray(const Word<Meaning> (&words)[Count])
+        {
+            json array = json::array();
+            for (const Word<Meaning>& word : words)
+                array.push_back(word.text);
+            return array;
+        }
+
+        constexpr const char* PREVIOUS_VALUE_UNKNOWN =
+            "The previous value could not be read (section 04 of the sampler has no Get) and cannot be put back by this server: to restore it, set "
+            "it again.";
+        // The sampler numbers its MIDI channels 0 to 31: 1A = 0 ... 16A = 15, 1B = 16 ... 16B = 31 (`MidiConfig.hpp`). The tools take that
+        // number, as the spec gives it; the answers add the name the channel has on the sampler.
+        constexpr int MIN_MIDI_CHANNEL = 0;
+        constexpr int MAX_MIDI_CHANNEL = 31;
+        constexpr int MIDI_CHANNELS_PER_PORT = 16;
+        constexpr int FIRST_CHANNEL_NAME = 1;
+        constexpr char PORT_A_LETTER = 'A';
+        constexpr char PORT_B_LETTER = 'B';
+        constexpr std::size_t MAX_MIDI_CHANNEL_DIGITS = 2;
+        constexpr int MIN_EXTERNAL_APM_CONTROLLER = 0;
+        constexpr int MAX_EXTERNAL_APM_CONTROLLER = 127;
+        constexpr int NOT_A_CONTROLLER = -1;
+        constexpr std::size_t MAX_CONTROLLER_DIGITS = 3;
+
+        /// The channels the tools take, as "0 to 31". [RQ-MCP-047]
+        std::string midiChannelRange()
+        {
+            return std::to_string(MIN_MIDI_CHANNEL) + " to " + std::to_string(MAX_MIDI_CHANNEL);
+        }
+
+        /// What a channel argument is, in one sentence, for the descriptions and the refusals. [RQ-MCP-047]
+        std::string midiChannelFormat()
+        {
+            return "A MIDI channel is a whole number from " + midiChannelRange() + ", as the sampler numbers them: 1A is " +
+                   std::to_string(MIN_MIDI_CHANNEL) + ", 16A is " + std::to_string(MIDI_CHANNELS_PER_PORT - 1) + ", 1B is " +
+                   std::to_string(MIDI_CHANNELS_PER_PORT) + " and 16B is " + std::to_string(MAX_MIDI_CHANNEL) + ".";
+        }
+
+        /// A channel as the answers give it: its number and its name on the sampler, such as "3 (= 4A)". [RQ-MCP-047]
+        std::string midiChannelText(int channel)
+        {
+            const char port = channel >= MIDI_CHANNELS_PER_PORT ? PORT_B_LETTER : PORT_A_LETTER;
+            return std::to_string(channel) + " (= " + std::to_string(channel % MIDI_CHANNELS_PER_PORT + FIRST_CHANNEL_NAME) + port + ")";
+        }
+
+        struct MidiChannelArgument
+        {
+            std::optional<int> channel;  ///< the sampler's own number: 1A = 0 ... 16B = 31
+            std::string problem;
+        };
+
+        /// A MIDI channel from a whole number or a text of digits, 0 to 31. [RQ-MCP-047]
+        MidiChannelArgument parseMidiChannel(const json& given)
+        {
+            std::string text;
+            if (given.is_string())
+                text = given.get<std::string>();
+            else if (const auto whole = given.is_number() ? wholeNumber(given) : std::nullopt)
+                text = std::to_string(*whole);
+            else
+                return {std::nullopt, "The channel must be a whole number. " + midiChannelFormat()};
+            const bool digitsOnly = !text.empty() && text.size() <= MAX_MIDI_CHANNEL_DIGITS &&
+                                    std::all_of(text.begin(), text.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+            const int channel = digitsOnly ? std::stoi(text) : MAX_MIDI_CHANNEL + 1;
+            if (channel < MIN_MIDI_CHANNEL || channel > MAX_MIDI_CHANNEL)
+                return {std::nullopt, "The channel \"" + text + "\" is not one of the sampler's, which are " + midiChannelRange() + ". " + midiChannelFormat()};
+            return {channel, {}};
+        }
+
+        /// A controller number from a text of digits only, or `NOT_A_CONTROLLER`; the range is checked by the caller. [RQ-MCP-047]
+        int parseControllerNumber(const std::string& text)
+        {
+            const bool digitsOnly = !text.empty() && text.size() <= MAX_CONTROLLER_DIGITS &&
+                                    std::all_of(text.begin(), text.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+            return digitsOnly ? std::stoi(text) : NOT_A_CONTROLLER;
+        }
+
+        std::string midiSent(const std::string& what, const std::string& shown)
+        {
+            return "Sent to the sampler: " + what + " " + shown + ". " + PREVIOUS_VALUE_UNKNOWN;
+        }
+    }
+
+    std::vector<Tool> makeMidiSetupTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+
+        // set_midi_setting [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+        tools.push_back(Tool{
+            definition("set_midi_setting", "Set one switch of the sampler's MIDI setup",
+                       std::string("Sets one switch of the sampler's MIDI setup (UTILITIES, MIDI SETUP). '") + SWITCH_PROGRAM_CHANGE + "': " +
+                           wordList(PROGRAM_CHANGE_VALUES) + " (remote selection of programs within parts). '" + SWITCH_MULTI_SELECT + "': " +
+                           wordList(MULTI_SELECT_MODES) + " (how multis are selected remotely). '" + SWITCH_MULTI_SELECT_CHANNEL + "': " +
+                           "a MIDI channel, " + midiChannelRange() + " (it has no effect while " + SWITCH_MULTI_SELECT + " is off). '" + SWITCH_EXTERNAL_APM_CONTROLLER +
+                           "': a MIDI controller number, " + std::to_string(MIN_EXTERNAL_APM_CONTROLLER) + " to " +
+                           std::to_string(MAX_EXTERNAL_APM_CONTROLLER) + ", the source in the APM matrix. '" + SWITCH_AFTERTOUCH + "': " +
+                           wordList(AFTERTOUCH_TYPES) +
+                           ". The sampler cannot be asked what these held before, so the answer cannot say, and this server cannot put the "
+                           "previous value back. A value that is not valid is refused and nothing is sent.",
+                       objectSchema(json{{ARGUMENT_SETTING, {{"type", "string"}, {"enum", wordArray(MIDI_SWITCHES)}, {"description", "Which switch to set."}}},
+                                         {ARGUMENT_VALUE, {{"type", "string"}, {"description", "The new value, in the form the description gives for that switch."}}}},
+                                    json::array({ARGUMENT_SETTING, ARGUMENT_VALUE})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_SETTING, ARGUMENT_VALUE}))
+                    return *refused;
+                if (!arguments.contains(ARGUMENT_SETTING) || !arguments.at(ARGUMENT_SETTING).is_string())
+                    return failure("Give the '" + std::string(ARGUMENT_SETTING) + "' to change: " + wordList(MIDI_SWITCHES) + ".");
+                if (!arguments.contains(ARGUMENT_VALUE) || !arguments.at(ARGUMENT_VALUE).is_string())
+                    return failure("Give the '" + std::string(ARGUMENT_VALUE) + "' as a string.");
+                const std::string setting = lowerCase(arguments.at(ARGUMENT_SETTING).get<std::string>());
+                const std::string given = arguments.at(ARGUMENT_VALUE).get<std::string>();
+                const std::string value = lowerCase(given);
+                const auto which = meaningOf(MIDI_SWITCHES, setting);
+                if (!which)
+                    return failure("The setting \"" + arguments.at(ARGUMENT_SETTING).get<std::string>() + "\" is not one this tool changes. The settings are: " +
+                                   wordList(MIDI_SWITCHES) + ".");
+                const auto send = [&gateway, &which, &setting](int sent, const std::string& shown) {
+                    const auto set = gateway.setMidiSwitch(*which, sent);
+                    return set.ok() ? ok(midiSent("MIDI " + setting + " set to", shown)) : failure(set.problem);
+                };
+                const auto notOneOf = [&given](const char* what, const std::string& accepted) {
+                    return failure("The " + std::string(what) + " \"" + given + "\" is not one the sampler has. The values are: " + accepted + ".");
+                };
+
+                switch (*which)
+                {
+                    case MidiSwitch::ProgramChange: {
+                        const auto sent = meaningOf(PROGRAM_CHANGE_VALUES, value);
+                        return sent ? send(*sent, value) : notOneOf("program change switch", wordList(PROGRAM_CHANGE_VALUES));
+                    }
+                    case MidiSwitch::MultiSelect: {
+                        const auto sent = meaningOf(MULTI_SELECT_MODES, value);
+                        return sent ? send(*sent, value) : notOneOf("multi select mode", wordList(MULTI_SELECT_MODES));
+                    }
+                    case MidiSwitch::MultiSelectChannel: {
+                        const auto channel = parseMidiChannel(arguments.at(ARGUMENT_VALUE));
+                        return channel.channel ? send(*channel.channel, midiChannelText(*channel.channel)) : failure(channel.problem);
+                    }
+                    case MidiSwitch::ExternalApmController: {
+                        const int controller = parseControllerNumber(value);
+                        if (controller < MIN_EXTERNAL_APM_CONTROLLER || controller > MAX_EXTERNAL_APM_CONTROLLER)
+                            return failure("The external APM controller \"" + given + "\" is not a MIDI controller number. Give a whole number from " +
+                                           std::to_string(MIN_EXTERNAL_APM_CONTROLLER) + " to " + std::to_string(MAX_EXTERNAL_APM_CONTROLLER) + ".");
+                        return send(controller, std::to_string(controller));
+                    }
+                    case MidiSwitch::Aftertouch: {
+                        const auto sent = meaningOf(AFTERTOUCH_TYPES, value);
+                        return sent ? send(*sent, value) : notOneOf("aftertouch type", wordList(AFTERTOUCH_TYPES));
+                    }
+                }
+                return failure("The setting \"" + setting + "\" is not one this tool changes.");
+            }});
+
+        // set_midi_filter [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+        tools.push_back(Tool{
+            definition("set_midi_filter", "Allow or ignore a type of MIDI event on a channel",
+                       "Sets the sampler's MIDI filter for one type of event (" + wordList(FILTER_EVENTS) + ") on one MIDI channel: '" +
+                           ACTION_ALLOW + "' lets the sampler respond to those messages, '" + ACTION_IGNORE +
+                           "' makes it ignore them. " + midiChannelFormat() +
+                           " The sampler cannot be asked what the filter was before, so the answer cannot say, and this server cannot put it "
+                           "back. A value that is not valid is refused and nothing is sent.",
+                       objectSchema(json{{ARGUMENT_EVENT, {{"type", "string"}, {"enum", wordArray(FILTER_EVENTS)}, {"description", "The type of MIDI event."}}},
+                                         {ARGUMENT_CHANNEL, {{"type", json::array({"integer", "string"})},
+                                                             {"description", "The MIDI channel, " + midiChannelRange() + " (see the tool's description)."}}},
+                                         {ARGUMENT_ACTION, {{"type", "string"}, {"enum", wordArray(FILTER_ACTIONS)},
+                                                            {"description", "Whether the sampler allows or ignores those events."}}}},
+                                    json::array({ARGUMENT_EVENT, ARGUMENT_CHANNEL, ARGUMENT_ACTION})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_EVENT, ARGUMENT_CHANNEL, ARGUMENT_ACTION}))
+                    return *refused;
+                if (!arguments.contains(ARGUMENT_EVENT) || !arguments.at(ARGUMENT_EVENT).is_string())
+                    return failure("Give the '" + std::string(ARGUMENT_EVENT) + "' to filter: " + wordList(FILTER_EVENTS) + ".");
+                if (!arguments.contains(ARGUMENT_CHANNEL))
+                    return failure("Give the '" + std::string(ARGUMENT_CHANNEL) + "': " + midiChannelFormat());
+                if (!arguments.contains(ARGUMENT_ACTION) || !arguments.at(ARGUMENT_ACTION).is_string())
+                    return failure("Give the '" + std::string(ARGUMENT_ACTION) + "': " + wordList(FILTER_ACTIONS) + ".");
+                const std::string event = lowerCase(arguments.at(ARGUMENT_EVENT).get<std::string>());
+                const std::string action = lowerCase(arguments.at(ARGUMENT_ACTION).get<std::string>());
+
+                const auto kind = meaningOf(FILTER_EVENTS, event);
+                if (!kind)
+                    return failure("The event \"" + arguments.at(ARGUMENT_EVENT).get<std::string>() + "\" is not one the sampler filters. The events are: " +
+                                   wordList(FILTER_EVENTS) + ".");
+                const auto channel = parseMidiChannel(arguments.at(ARGUMENT_CHANNEL));
+                if (!channel.channel)
+                    return failure(channel.problem);
+                const auto allow = meaningOf(FILTER_ACTIONS, action);
+                if (!allow)
+                    return failure("The action \"" + arguments.at(ARGUMENT_ACTION).get<std::string>() + "\" is not one the filter has. The actions are: " +
+                                   wordList(FILTER_ACTIONS) + ".");
+                const auto set = gateway.setMidiFilter(*kind, *channel.channel, *allow);
+                if (!set.ok())
+                    return failure(set.problem);
+                return ok(midiSent("MIDI filter:", action + " " + event + " on channel " + midiChannelText(*channel.channel)));
+            }});
+
+        return tools;
+    }
+
+    // The song files, the set lists and the scenelists: list, select and rename. [TASK-MCP-047, RQ-MCP-048, ADR-MCP-005 (DEC-MCP-031)]
+    namespace
+    {
+        // The position of a song file or a scenelist travels as two 7-bit data bytes (the AKM items), so 0 to 16383.
+        constexpr std::int64_t MAX_LIST_INDEX = 16383;
+        // The sampler's names are up to 20 characters (the manual, "A name can consist of up to 20 characters"); the AKM items take up to 255.
+        constexpr std::size_t MAX_LIST_NAME_LENGTH = 20;
+        constexpr const char* ARGUMENT_NAME = "name";
+        constexpr const char* ARGUMENT_INDEX = "index";
+        constexpr const char* ARGUMENT_NEW_NAME = "new_name";
+        constexpr const char* ARGUMENT_CONFIRM = "confirm";
+
+        /// A kind of list and the names of its tools; a set list has no current item, so no select tool.
+        struct ListTools
+        {
+            NamedListKind kind;
+            const char* list;
+            const char* select;
+            const char* rename;
+            const char* remove;
+        };
+
+        constexpr ListTools SONG_FILE_TOOLS{NamedListKind::SongFile, "list_song_files", "select_song_file", "rename_song_file", "delete_song_file"};
+        constexpr ListTools SET_LIST_TOOLS{NamedListKind::SetList, "list_set_lists", nullptr, "rename_set_list", "delete_set_list"};
+        constexpr ListTools SCENELIST_TOOLS{NamedListKind::SceneList, "list_scenelists", "select_scenelist", "rename_scenelist", "delete_scenelist"};
+
+        std::string capitalized(std::string text)
+        {
+            if (!text.empty())
+                text.front() = static_cast<char>(std::toupper(static_cast<unsigned char>(text.front())));
+            return text;
+        }
+
+        /// What a list holds after a deletion, as the end of the answer. [RQ-MCP-049]
+        std::string remainingText(const std::string& noun, const std::vector<NamedListEntry>& remaining)
+        {
+            if (remaining.empty())
+                return "No " + noun + " remains.";
+            std::vector<std::string> kept;
+            for (const NamedListEntry& entry : remaining)
+                kept.push_back(entry.name);
+            return capitalized(noun) + "s that remain (" + std::to_string(remaining.size()) + "): " + joined(kept, ", ") + ".";
+        }
+    }
+
+    std::vector<Tool> makeNamedListTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+        for (const ListTools& names : {SONG_FILE_TOOLS, SET_LIST_TOOLS, SCENELIST_TOOLS})
+        {
+            const NamedListKind kind = names.kind;
+            const std::string noun = namedListNoun(kind);
+            const bool hasCurrent = names.select != nullptr;
+
+            // list_song_files, list_set_lists, list_scenelists
+            tools.push_back(Tool{
+                definition(names.list, capitalized("List " + noun + "s").c_str(),
+                           "Lists the " + noun + "s in the sampler's memory, in the sampler's order, with their positions (from 0)" +
+                               (hasCurrent ? " and the current one marked." : "; the sampler has no current " + noun + ".") + " It changes nothing.",
+                           objectSchema(), true, true),
+                [&gateway, kind, noun, hasCurrent, selectTool = names.select](const json& arguments) {
+                    if (const auto refused = unknownArguments(arguments, {}))
+                        return *refused;
+                    const auto listing = gateway.listNamedItems(kind);
+                    if (!listing.ok())
+                        return failure(listing.problem);
+                    if (listing.value->entries.empty())
+                        return ok("The sampler holds no " + noun + ".");
+                    std::string text = capitalized(noun) + "s in memory (" + std::to_string(listing.value->entries.size()) + "):\n";
+                    for (const NamedListEntry& entry : listing.value->entries)
+                    {
+                        text += std::to_string(entry.index) + ": " + entry.name;
+                        if (listing.value->current && *listing.value->current == entry.index)
+                            text += " (current)";
+                        text += "\n";
+                    }
+                    if (hasCurrent && !listing.value->current)
+                        text += "No " + noun + " is selected: use " + selectTool + ".\n";
+                    return ok(std::move(text));
+                }});
+
+            // select_song_file, select_scenelist
+            if (hasCurrent)
+            {
+                tools.push_back(Tool{
+                    definition(names.select, capitalized("Select a " + noun).c_str(),
+                               "Makes a " + noun + " of the sampler's memory the current one, by its name or its position (from 0, see " +
+                                   names.list + "), and reads the current one back. Give exactly one of name and index. " + MEMORY_NOTICE,
+                               objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The " + noun + "'s name."}}},
+                                                 {ARGUMENT_INDEX,
+                                                  {{"type", "integer"}, {"minimum", 0}, {"maximum", MAX_LIST_INDEX}, {"description", "The " + noun + "'s position, from 0."}}}}),
+                               false, true),
+                    [&gateway, kind, noun](const json& arguments) {
+                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_INDEX}))
+                            return *refused;
+                        const bool hasName = arguments.contains(ARGUMENT_NAME);
+                        const bool hasIndex = arguments.contains(ARGUMENT_INDEX);
+                        if (hasName == hasIndex)
+                            return failure(hasName ? "Give either 'name' or 'index', not both." : "Give either 'name' or 'index'.");
+                        Outcome<NamedListEntry> selected;
+                        if (hasName)
+                        {
+                            if (!arguments.at(ARGUMENT_NAME).is_string())
+                                return failure("The argument 'name' must be a string.");
+                            selected = gateway.selectNamedItemByName(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
+                        }
+                        else
+                        {
+                            const auto index = wholeNumber(arguments.at(ARGUMENT_INDEX));
+                            if (!index || *index < 0 || *index > MAX_LIST_INDEX)
+                                return failure("The argument 'index' must be a whole number from 0 to " + std::to_string(MAX_LIST_INDEX) + ".");
+                            selected = gateway.selectNamedItemByIndex(kind, static_cast<int>(*index));
+                        }
+                        if (!selected.ok())
+                            return failure(selected.problem);
+                        return ok("Selected the " + noun + " \"" + selected.value->name + "\" (position " + std::to_string(selected.value->index) + ").");
+                    }});
+            }
+
+            // rename_song_file, rename_scenelist: the current one; rename_set_list: by name
+            if (hasCurrent)
+            {
+                tools.push_back(Tool{
+                    definition(names.rename, capitalized("Rename the current " + noun).c_str(),
+                               "Renames the CURRENT " + noun + " (see " + names.list + " and " + names.select +
+                                   ") and reads the new name back. A name another " + noun + " bears is refused. " + MEMORY_NOTICE,
+                               objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_LIST_NAME_LENGTH) + " characters."}}}},
+                                            json::array({ARGUMENT_NAME})),
+                               false, true),
+                    [&gateway, kind, noun, select = std::string(names.select)](const json& arguments) {
+                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME}))
+                            return *refused;
+                        if (!arguments.contains(ARGUMENT_NAME))
+                            return failure("Give the 'name' to give the current " + noun + ".");
+                        if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NAME), ARGUMENT_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
+                            return failure(*problem);
+                        const auto renamed = gateway.renameCurrentNamedItem(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
+                        if (!renamed.ok())
+                            return failure(renamed.problem);
+                        std::string text = "Renamed the " + noun + " \"" + renamed.value->before + "\" to \"" + renamed.value->after.name +
+                                           "\" (now at position " + std::to_string(renamed.value->after.index) + ").";
+                        // The real S5000 moved the current song file when it sorted its list after a renaming. [TASK-MCP-058]
+                        if (!renamed.value->current)
+                            text += " No " + noun + " is current now: use " + select + " before renaming or deleting one.";
+                        else if (renamed.value->current->index != renamed.value->after.index)
+                            text += " The current " + noun + " is now \"" + renamed.value->current->name + "\" (position " +
+                                    std::to_string(renamed.value->current->index) + "): use " + select + " to make \"" +
+                                    renamed.value->after.name + "\" current again before renaming or deleting it.";
+                        return ok(text);
+                    }});
+            }
+            else
+            {
+                tools.push_back(Tool{
+                    definition(names.rename, capitalized("Rename a " + noun).c_str(),
+                               "Renames the " + noun + " called 'name' (see " + names.list + ") to 'new_name' and reads the new name back; the sampler has no current " +
+                                   noun + ", so it is found by its name. Two " + noun + "s of the same name, or a new name another " + noun + " bears, are refused. " +
+                                   MEMORY_NOTICE,
+                               objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The " + noun + "'s name now."}}},
+                                                 {ARGUMENT_NEW_NAME, {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_LIST_NAME_LENGTH) + " characters."}}}},
+                                            json::array({ARGUMENT_NAME, ARGUMENT_NEW_NAME})),
+                               false, true),
+                    [&gateway, noun](const json& arguments) {
+                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_NEW_NAME}))
+                            return *refused;
+                        if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
+                            return failure("Give the 'name' of the " + noun + " to rename, as a string.");
+                        if (!arguments.contains(ARGUMENT_NEW_NAME))
+                            return failure("Give the 'new_name' to give the " + noun + ".");
+                        if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NEW_NAME), ARGUMENT_NEW_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
+                            return failure(*problem);
+                        const auto renamed = gateway.renameSetList(arguments.at(ARGUMENT_NAME).get<std::string>(),
+                                                                   arguments.at(ARGUMENT_NEW_NAME).get<std::string>());
+                        if (!renamed.ok())
+                            return failure(renamed.problem);
+                        return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" (position " + std::to_string(renamed.value->index) + ") to \"" +
+                                  renamed.value->after + "\" (now at position " + std::to_string(renamed.value->afterIndex) + ").");
+                    }});
+            }
+
+            // delete_song_file, delete_scenelist: the current one; delete_set_list: by name. Each only with `confirm`, the exact name.
+            // [RQ-MCP-049, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023)]
+            const std::string lostNotice = " A " + noun + " that is not on a disk is lost; it cannot be undone from here. ";
+            const auto notConfirmed = [noun](const NamedDeletion& deletion, const std::string& confirm) {
+                return failure("The " + noun + " is named \"" + deletion.name + "\" and 'confirm' was \"" + confirm + "\": nothing was deleted. Give 'confirm' exactly as the " +
+                               noun + " is named.");
+            };
+            const auto deletedText = [noun](const NamedDeletion& deletion, bool withPosition) {
+                return "Deleted the " + noun + " \"" + deletion.name + "\"" + (withPosition ? " (position " + std::to_string(deletion.index) + ")" : std::string()) +
+                       ". " + remainingText(noun, deletion.remaining);
+            };
+            if (hasCurrent)
+            {
+                ToolDefinition removal = definition(
+                    names.remove, capitalized("Delete the current " + noun).c_str(),
+                    "Deletes the CURRENT " + noun + " from the sampler's memory (see " + names.list + " and " + names.select +
+                        "), and only if 'confirm' is exactly its name: otherwise nothing is deleted and the answer says which one is current." + lostNotice + MEMORY_NOTICE,
+                    objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "string"}, {"description", "The exact name of the current " + noun + ", to confirm the deletion."}}}},
+                                 json::array({ARGUMENT_CONFIRM})),
+                    false, false);
+                removal.annotations.destructive = true;
+                tools.push_back(Tool{std::move(removal), [&gateway, kind, noun, notConfirmed, deletedText](const json& arguments) {
+                                         if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
+                                             return *refused;
+                                         if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
+                                             return failure("Give 'confirm', the exact name of the current " + noun + ".");
+                                         const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
+                                         const auto deletion = gateway.deleteCurrentNamedItem(kind, confirm);
+                                         if (!deletion.ok())
+                                             return failure(deletion.problem);
+                                         if (!deletion.value->done)
+                                             return notConfirmed(*deletion.value, confirm);
+                                         return ok(deletedText(*deletion.value, false));
+                                     }});
+            }
+            else
+            {
+                ToolDefinition removal = definition(
+                    names.remove, capitalized("Delete a " + noun).c_str(),
+                    "Deletes the " + noun + " called 'name' (see " + names.list + ") from the sampler's memory, and only if 'confirm' is exactly its name as " +
+                        names.list + " gives it: otherwise nothing is deleted. The sampler has no current " + noun + ", so it is found by its name." + lostNotice +
+                        MEMORY_NOTICE,
+                    objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The " + noun + "'s name."}}},
+                                      {ARGUMENT_CONFIRM, {{"type", "string"}, {"description", "The exact name of the " + noun + ", to confirm the deletion."}}}},
+                                 json::array({ARGUMENT_NAME, ARGUMENT_CONFIRM})),
+                    false, false);
+                removal.annotations.destructive = true;
+                tools.push_back(Tool{std::move(removal), [&gateway, noun, notConfirmed, deletedText](const json& arguments) {
+                                         if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_CONFIRM}))
+                                             return *refused;
+                                         if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
+                                             return failure("Give the 'name' of the " + noun + " to delete, as a string.");
+                                         if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
+                                             return failure("Give 'confirm', the exact name of the " + noun + ".");
+                                         const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
+                                         const auto deletion = gateway.deleteSetList(arguments.at(ARGUMENT_NAME).get<std::string>(), confirm);
+                                         if (!deletion.ok())
+                                             return failure(deletion.problem);
+                                         if (!deletion.value->done)
+                                             return notConfirmed(*deletion.value, confirm);
+                                         return ok(deletedText(*deletion.value, true));
+                                     }});
+            }
+        }
+        return tools;
+    }
+
+    // Delete ALL programs, samples or multis, each only with the count as `confirm`. [TASK-MCP-050, RQ-MCP-051, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    namespace
+    {
+        // The most items a kind can hold (the sampler numbers programs, samples and multis with two 7-bit bytes at most).
+        constexpr std::int64_t MAX_BULK_COUNT = 16383;
+
+        struct BulkTool
+        {
+            BulkKind kind;
+            const char* name;
+            const char* noun;
+            const char* listTool;
+        };
+
+        constexpr BulkTool BULK_TOOLS[] = {
+            {BulkKind::Program, "delete_all_programs", "program", "list_programs"},
+            {BulkKind::Sample, "delete_all_samples", "sample", "list_samples"},
+            {BulkKind::Multi, "delete_all_multis", "multi", "list_multis"},
+        };
+    }
+
+    std::vector<Tool> makeBulkDeleteTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+        for (const BulkTool& bulk : BULK_TOOLS)
+        {
+            const std::string noun = bulk.noun;
+            ToolDefinition removal = definition(
+                bulk.name, ("Delete every " + noun).c_str(),
+                "Deletes EVERY " + noun + " in the sampler's memory, and only if 'confirm' is exactly how many " + noun + "s the sampler holds now (see " +
+                    bulk.listTool + "): otherwise nothing is deleted and the answer gives the number. IRREVERSIBLE: what is not saved to a disk is lost. " +
+                    MEMORY_NOTICE,
+                objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "integer"}, {"minimum", 1}, {"description", "How many " + noun + "s the sampler holds now."}}}},
+                             json::array({ARGUMENT_CONFIRM})),
+                false, false);
+            removal.annotations.destructive = true;
+            tools.push_back(Tool{std::move(removal), [&gateway, kind = bulk.kind, noun, listTool = std::string(bulk.listTool)](const json& arguments) {
+                                     if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
+                                         return *refused;
+                                     if (!arguments.contains(ARGUMENT_CONFIRM))
+                                         return failure("Give 'confirm', the number of " + noun + "s the sampler holds now (see " + listTool + ").");
+                                     const auto confirm = arguments.at(ARGUMENT_CONFIRM).is_number() ? wholeNumber(arguments.at(ARGUMENT_CONFIRM)) : std::nullopt;
+                                     if (!confirm || *confirm < 1 || *confirm > MAX_BULK_COUNT)
+                                         return failure("The argument 'confirm' must be a whole number from 1: how many " + noun + "s the sampler holds now.");
+                                     const auto deletion = gateway.deleteAllMemoryItems(kind, static_cast<int>(*confirm));
+                                     if (!deletion.ok())
+                                         return failure(deletion.problem);
+                                     if (deletion.value->count == 0)
+                                         return failure("The sampler holds no " + noun + ": nothing to delete.");
+                                     if (!deletion.value->done)
+                                         return failure("The sampler holds " + plural(deletion.value->count, noun) + ", not " + std::to_string(*confirm) +
+                                                        ": nothing was deleted. Give the number there are as 'confirm'.");
+                                     return ok("Deleted all " + plural(deletion.value->count, noun) + " from the sampler's memory. The sampler now holds no " + noun +
+                                               ". They are lost unless they were saved to a disk.");
+                                 }});
+        }
+
+        // clear_sampler_memory [TASK-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)]
+        // The programs, samples and multis always, then the song files, set lists and scenelists the sampler holds, as a list ("a, b and c").
+        const auto countsText = [](const std::vector<std::string>& parts) {
+            std::string text;
+            for (std::size_t i = 0; i < parts.size(); ++i)
+                text += (i == 0 ? "" : i + 1 == parts.size() ? " and " : ", ") + parts[i];
+            return text;
+        };
+        const auto heldText = [countsText](const MemoryClearing& held) {
+            std::vector<std::string> parts = {plural(held.programs, "program"), plural(held.samples, "sample"), plural(held.multis, "multi")};
+            if (held.listsBefore.songFiles > 0)
+                parts.push_back(plural(held.listsBefore.songFiles, "song file"));
+            if (held.listsBefore.setLists > 0)
+                parts.push_back(plural(held.listsBefore.setLists, "set list"));
+            if (held.listsBefore.sceneLists > 0)
+                parts.push_back(plural(held.listsBefore.sceneLists, "scenelist"));
+            return countsText(parts);
+        };
+        const auto listsText = [](const NamedListCounts& counts) {
+            return plural(counts.songFiles, "song file") + ", " + plural(counts.setLists, "set list") + " and " + plural(counts.sceneLists, "scenelist");
+        };
+        ToolDefinition clearing = definition(
+            "clear_sampler_memory", "Clear the sampler's memory",
+            std::string("Deletes EVERY program, sample, multi, song file, set list and scenelist in the sampler's memory in one command (a real S5000 "
+                        "clears the three lists with the rest, 2026-10-10), and only if 'confirm' is exactly how many items of the six kinds the sampler "
+                        "holds now, in all (see list_programs, list_samples, list_multis, list_song_files, list_set_lists and list_scenelists): "
+                        "otherwise nothing is sent and the answer gives the number and the counts. IRREVERSIBLE: what is not saved to a disk is lost. The "
+                        "command can take long, and a sampler that stops answering may have to be switched off and on; nothing is retried. ") +
+                MEMORY_NOTICE,
+            objectSchema(json{{ARGUMENT_CONFIRM, {{"type", "integer"}, {"minimum", 1}, {"description", "How many programs, samples, multis, song files, set lists and scenelists the sampler holds now, in all."}}}},
+                         json::array({ARGUMENT_CONFIRM})),
+            false, false);
+        clearing.annotations.destructive = true;
+        tools.push_back(Tool{std::move(clearing), [&gateway, heldText, listsText](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
+                                     return *refused;
+                                 if (!arguments.contains(ARGUMENT_CONFIRM))
+                                     return failure("Give 'confirm', the number of programs, samples, multis, song files, set lists and scenelists the sampler holds now, in all.");
+                                 const auto confirm = arguments.at(ARGUMENT_CONFIRM).is_number() ? wholeNumber(arguments.at(ARGUMENT_CONFIRM)) : std::nullopt;
+                                 if (!confirm || *confirm < 1 || *confirm > MAX_BULK_COUNT)
+                                     return failure("The argument 'confirm' must be a whole number from 1: how many programs, samples, multis, song files, set lists and scenelists the sampler holds now, in all.");
+                                 const auto cleared = gateway.clearSamplerMemory(static_cast<int>(*confirm));
+                                 if (!cleared.ok())
+                                     return failure(cleared.problem);
+                                 const MemoryClearing& held = *cleared.value;
+                                 if (held.total() == 0)
+                                     return failure("The sampler's memory holds no program, sample, multi, song file, set list or scenelist: nothing to clear.");
+                                 if (!held.done)
+                                     return failure("The sampler holds " + plural(held.total(), "item") + " in its memory (" + heldText(held) + "), not " +
+                                                    std::to_string(*confirm) + ": nothing was cleared. Give the total as 'confirm'.");
+                                 std::string text = "Cleared the sampler's memory: " + heldText(held) + " are gone (" + plural(held.total(), "item") +
+                                                    "). They are lost unless they were saved to a disk.";
+                                 // A sampler that kept its lists is told: the S5000 tried does not.
+                                 if (held.listsBefore.total() > 0 && held.listsAfter.total() > 0)
+                                     text += " The song files, set lists and scenelists were not cleared: the sampler holds " + listsText(held.listsAfter) + ".";
+                                 return ok(text);
+                             }});
+        return tools;
+    }
+
+    // The effects board: its card, channels and modules, a channel's mute, a module's type and state, and the parameters of a module, all on the
+    // simulated sampler only. [TASK-MCP-052, RQ-MCP-053, ADR-MCP-005 (DEC-MCP-033)]
+    namespace
+    {
+        constexpr const char* ARGUMENT_MODULE = "module";
+        constexpr const char* ARGUMENT_MUTED = "muted";
+        constexpr const char* ARGUMENT_TYPE = "type";
+        constexpr const char* ARGUMENT_ENABLED = "enabled";
+        constexpr const char* ARGUMENT_PARAMETER = "parameter";
+        constexpr const char* NO_FX_BOARD =
+            "The sampler reports no effects board, so the effects tools have nothing to act on. They need a sampler with an EB20 board and act on the "
+            "current multi (see select_multi).";
+        constexpr const char* FX_NOTICE =
+            "The effects belong to the CURRENT multi (see select_multi). These tools have been run on the simulated sampler only: no effects board has "
+            "been available to try them on.";
+
+        /// A channel or module number from an argument, or the reason it is not one.
+        std::optional<std::string> fxIndexArgument(const json& arguments, const char* key, int& index)
+        {
+            const auto given = arguments.find(key);
+            if (given == arguments.end())
+                return "Give the '" + std::string(key) + "' as a whole number from 0.";
+            const auto whole = given->is_number() ? wholeNumber(*given) : std::nullopt;
+            if (!whole || *whole < 0 || *whole > MAX_FX_INDEX)
+                return "The argument '" + std::string(key) + "' must be a whole number from 0 to " + std::to_string(MAX_FX_INDEX) + ".";
+            index = static_cast<int>(*whole);
+            return std::nullopt;
+        }
+
+        /// What is wrong with a channel and a module against the layout the sampler reports, or nothing. `module` is negative to check the channel only.
+        std::optional<std::string> fxLayoutProblem(const FxLayoutInfo& layout, int channel, int module)
+        {
+            if (layout.card == FxCardKind::None)
+                return std::string(NO_FX_BOARD);
+            const int channels = static_cast<int>(layout.moduleCounts.size());
+            if (channel >= channels)
+                return "The board has the channels 0 to " + std::to_string(channels - 1) + ", not " + std::to_string(channel) + ".";
+            const int modules = layout.moduleCounts[static_cast<std::size_t>(channel)];
+            if (module >= modules)
+                return "The effects channel " + std::to_string(channel) + " has the modules 0 to " + std::to_string(modules - 1) + ", not " +
+                       std::to_string(module) + ".";
+            return std::nullopt;
+        }
+
+        std::string fxKindLabel(int code)
+        {
+            const FxModuleKind* kind = fxKindByCode(code);
+            return kind != nullptr ? kind->name : "type " + std::to_string(code);
+        }
+
+        std::string fxWhere(int channel, int module)
+        {
+            return "Effects channel " + std::to_string(channel) + ", module " + std::to_string(module);
+        }
+    }
+
+    std::vector<Tool> makeFxTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+
+        // get_fx_board
+        tools.push_back(Tool{
+            definition("get_fx_board", "Read the effects board",
+                       std::string("Reads the sampler's effects board: the card, and for each channel whether it is muted and, for each module, its type and "
+                                   "whether it is enabled or bypassed. When the sampler reports no board it says so and sends nothing more. ") +
+                           FX_NOTICE,
+                       objectSchema(), true, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {}))
+                    return *refused;
+                const auto board = gateway.readFxBoard();
+                if (!board.ok())
+                    return failure(board.problem);
+                if (board.value->layout.card == FxCardKind::None)
+                    return failure(NO_FX_BOARD);
+                std::string text = "Effects board: EB20, " + std::to_string(board.value->channels.size()) + " channels.\n";
+                for (std::size_t channel = 0; channel < board.value->channels.size(); ++channel)
+                {
+                    const FxChannelState& state = board.value->channels[channel];
+                    text += "Channel " + std::to_string(channel) + (state.muted ? " (muted):" : " (on):") + "\n";
+                    for (std::size_t module = 0; module < state.modules.size(); ++module)
+                        text += "  module " + std::to_string(module) + ": " + fxKindLabel(state.modules[module].type) +
+                                (state.modules[module].enabled ? " (enabled)" : " (bypassed)") + "\n";
+                }
+                return ok(std::move(text));
+            }});
+
+        // set_fx_channel_mute
+        tools.push_back(Tool{
+            definition("set_fx_channel_mute", "Mute or unmute an effects channel",
+                       std::string("Mutes or unmutes a channel of the effects board (channels count from 0) and reads the state back. ") + FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MUTED, {{"type", "boolean"}, {"description", "true to mute the channel, false to unmute it."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MUTED})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MUTED}))
+                    return *refused;
+                int channel = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (!arguments.contains(ARGUMENT_MUTED) || !arguments.at(ARGUMENT_MUTED).is_boolean())
+                    return failure("Give 'muted' as true or false.");
+                const auto layout = gateway.readFxLayout();
+                if (!layout.ok())
+                    return failure(layout.problem);
+                if (const auto problem = fxLayoutProblem(*layout.value, channel, -1))
+                    return failure(*problem);
+                const auto muted = gateway.setFxChannelMute(channel, arguments.at(ARGUMENT_MUTED).get<bool>());
+                if (!muted.ok())
+                    return failure(muted.problem);
+                return ok("The effects channel " + std::to_string(channel) + (*muted.value ? " is muted" : " is on") + " (read back from the sampler).");
+            }});
+
+        // set_fx_module
+        tools.push_back(Tool{
+            definition("set_fx_module", "Set the type or the state of an effects module",
+                       std::string("Sets the type of a module of the effects board and/or enables or bypasses it, then reads it back. Give 'type' or "
+                                   "'enabled', or both. With the EB20 only modules 2 and 3 of channels 0 and 1 may change type: module 2 takes ") +
+                           fxKindNames(eb20KindsFor(0, 2)) + ", module 3 takes " + fxKindNames(eb20KindsFor(0, 3)) + ". " + FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MODULE, {{"type", "integer"}, {"minimum", 0}, {"description", "The module of the channel, from 0."}}},
+                                         {ARGUMENT_TYPE, {{"type", "string"}, {"description", "The module type, as get_fx_board names them."}}},
+                                         {ARGUMENT_ENABLED, {{"type", "boolean"}, {"description", "true to enable the module, false to bypass it."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MODULE})),
+                       false, true),
+            [&gateway](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_TYPE, ARGUMENT_ENABLED}))
+                    return *refused;
+                int channel = 0;
+                int module = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                    return failure(*problem);
+                if (arguments.contains(ARGUMENT_TYPE) && !arguments.at(ARGUMENT_TYPE).is_string())
+                    return failure("The argument 'type' must be a string.");
+                if (arguments.contains(ARGUMENT_ENABLED) && !arguments.at(ARGUMENT_ENABLED).is_boolean())
+                    return failure("The argument 'enabled' must be true or false.");
+                if (!arguments.contains(ARGUMENT_TYPE) && !arguments.contains(ARGUMENT_ENABLED))
+                    return failure("Give the 'type' to set, the 'enabled' state, or both.");
+                const auto layout = gateway.readFxLayout();
+                if (!layout.ok())
+                    return failure(layout.problem);
+                if (const auto problem = fxLayoutProblem(*layout.value, channel, module))
+                    return failure(*problem);
+
+                std::optional<int> type;
+                if (arguments.contains(ARGUMENT_TYPE))
+                {
+                    const std::string said = arguments.at(ARGUMENT_TYPE).get<std::string>();
+                    const FxModuleKind* kind = fxKindByName(said);
+                    if (kind == nullptr)
+                    {
+                        std::vector<int> all;
+                        for (const FxModuleKind& known : fxModuleKinds())
+                            all.push_back(known.code);
+                        return failure("The module type \"" + said + "\" is not one the sampler names. The types are: " + fxKindNames(all) + ".");
+                    }
+                    const std::vector<int> allowed = eb20KindsFor(channel, module);
+                    if (allowed.empty())
+                        return failure("With the EB20 only the modules 2 and 3 of channels 0 and 1 may change type (the specification, p. 35): the module " +
+                                       std::to_string(module) + " of the effects channel " + std::to_string(channel) + " may not.");
+                    if (std::find(allowed.begin(), allowed.end(), kind->code) == allowed.end())
+                        return failure("The module " + std::to_string(module) + " of the effects channel " + std::to_string(channel) +
+                                       " takes one of these types: " + fxKindNames(allowed) + ", not " + kind->name + ".");
+                    type = kind->code;
+                }
+                std::optional<bool> enabled;
+                if (arguments.contains(ARGUMENT_ENABLED))
+                    enabled = arguments.at(ARGUMENT_ENABLED).get<bool>();
+                const auto state = gateway.setFxModule(channel, module, type, enabled);
+                if (!state.ok())
+                    return failure(state.problem);
+                return ok(fxWhere(channel, module) + ": type " + fxKindLabel(state.value->type) + ", " + (state.value->enabled ? "enabled" : "bypassed") +
+                          " (read back from the sampler).");
+            }});
+
+        // get_fx_parameter and set_fx_parameter share the way a parameter is found.
+        struct FoundParameter
+        {
+            const FxModuleKind* kind = nullptr;
+            const FxParameter* parameter = nullptr;
+            std::string problem;
+        };
+        const auto findParameter = [&gateway](int channel, int module, const json& arguments, bool required) {
+            FoundParameter found;
+            const auto layout = gateway.readFxLayout();
+            if (!layout.ok())
+            {
+                found.problem = layout.problem;
+                return found;
+            }
+            if (const auto problem = fxLayoutProblem(*layout.value, channel, module))
+            {
+                found.problem = *problem;
+                return found;
+            }
+            const auto state = gateway.readFxModule(channel, module);
+            if (!state.ok())
+            {
+                found.problem = state.problem;
+                return found;
+            }
+            found.kind = fxKindByCode(state.value->type);
+            if (found.kind == nullptr)
+            {
+                found.problem = fxWhere(channel, module) + " is of the type code " + std::to_string(state.value->type) +
+                                ", which Table 24 does not name: its parameters are not known to this server.";
+                return found;
+            }
+            if (found.kind->parameters.empty())
+            {
+                found.problem = fxWhere(channel, module) + " is of the type " + found.kind->name + " and has no parameter.";
+                return found;
+            }
+            if (arguments.contains(ARGUMENT_PARAMETER))
+            {
+                const json& which = arguments.at(ARGUMENT_PARAMETER);
+                const std::string text = which.is_string() ? which.get<std::string>() : std::to_string(wholeNumber(which).value_or(-1));
+                found.parameter = fxParameterOf(*found.kind, text);
+                if (found.parameter == nullptr)
+                    found.problem = fxWhere(channel, module) + " is a " + found.kind->name + ": it has no parameter \"" + text + "\". Its parameters are: " +
+                                    fxParameterNames(*found.kind) + ".";
+            }
+            else if (required)
+                found.problem = "Give the 'parameter': one of " + fxParameterNames(*found.kind) + ".";
+            return found;
+        };
+        const auto parameterArgumentProblem = [](const json& arguments) -> std::optional<std::string> {
+            if (!arguments.contains(ARGUMENT_PARAMETER))
+                return std::nullopt;
+            const json& which = arguments.at(ARGUMENT_PARAMETER);
+            if (which.is_string() || (which.is_number() && wholeNumber(which)))
+                return std::nullopt;
+            return std::string("The argument 'parameter' must be a name or a whole number.");
+        };
+
+        // get_fx_parameter
+        tools.push_back(Tool{
+            definition("get_fx_parameter", "Read the parameters of an effects module",
+                       std::string("Reads one parameter of a module of the effects board, by name or index, or every parameter of the module when 'parameter' "
+                                   "is left out. The values are the raw numbers the sampler takes (a rate of 15 is 1.5 where the range reads 0 to 99 = 0.0 "
+                                   "to 9.9). ") +
+                           FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MODULE, {{"type", "integer"}, {"minimum", 0}, {"description", "The module of the channel, from 0."}}},
+                                         {ARGUMENT_PARAMETER, {{"type", json::array({"string", "integer"})}, {"description", "The parameter's name or index; all of them if left out."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MODULE})),
+                       true, true),
+            [&gateway, findParameter, parameterArgumentProblem](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER}))
+                    return *refused;
+                int channel = 0;
+                int module = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                    return failure(*problem);
+                if (const auto problem = parameterArgumentProblem(arguments))
+                    return failure(*problem);
+                const FoundParameter found = findParameter(channel, module, arguments, false);
+                if (!found.problem.empty())
+                    return failure(found.problem);
+                std::string text = fxWhere(channel, module) + " (" + found.kind->name + "):\n";
+                for (const FxParameter& parameter : found.kind->parameters)
+                {
+                    if (found.parameter != nullptr && found.parameter->index != parameter.index)
+                        continue;
+                    const auto value = gateway.readFxParameter(channel, module, parameter.index);
+                    if (!value.ok())
+                        return failure(value.problem);
+                    text += std::string(parameter.name) + " = " + std::to_string(*value.value) + " (" + fxRangeText(parameter) + ")\n";
+                }
+                return ok(std::move(text));
+            }});
+
+        // set_fx_parameter
+        tools.push_back(Tool{
+            definition("set_fx_parameter", "Set a parameter of an effects module",
+                       std::string("Sets one parameter of a module of the effects board, by name or index (see get_fx_parameter), to a whole number inside its "
+                                   "range, and reads it back. A value outside the range is refused and nothing is sent. The value is the raw number the "
+                                   "sampler takes (a rate of 15 is 1.5 where the range reads 0 to 99 = 0.0 to 9.9). ") +
+                           FX_NOTICE,
+                       objectSchema(json{{ARGUMENT_CHANNEL, {{"type", "integer"}, {"minimum", 0}, {"description", "The effects channel, from 0."}}},
+                                         {ARGUMENT_MODULE, {{"type", "integer"}, {"minimum", 0}, {"description", "The module of the channel, from 0."}}},
+                                         {ARGUMENT_PARAMETER, {{"type", json::array({"string", "integer"})}, {"description", "The parameter's name or index."}}},
+                                         {ARGUMENT_VALUE, {{"type", "integer"}, {"description", "The new value, inside the parameter's range."}}}},
+                                    json::array({ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER, ARGUMENT_VALUE})),
+                       false, true),
+            [&gateway, findParameter, parameterArgumentProblem](const json& arguments) {
+                if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER, ARGUMENT_VALUE}))
+                    return *refused;
+                int channel = 0;
+                int module = 0;
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
+                    return failure(*problem);
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                    return failure(*problem);
+                if (!arguments.contains(ARGUMENT_PARAMETER))
+                    return failure("Give the 'parameter', by name or index.");
+                if (const auto problem = parameterArgumentProblem(arguments))
+                    return failure(*problem);
+                const auto value = arguments.contains(ARGUMENT_VALUE) && arguments.at(ARGUMENT_VALUE).is_number() ? wholeNumber(arguments.at(ARGUMENT_VALUE)) : std::nullopt;
+                if (!value)
+                    return failure("Give the 'value' as a whole number.");
+                const FoundParameter found = findParameter(channel, module, arguments, true);
+                if (!found.problem.empty())
+                    return failure(found.problem);
+                if (*value < found.parameter->minimum || *value > found.parameter->maximum)
+                    return failure("The value " + std::to_string(*value) + " is outside the range of the parameter " + found.parameter->name + " of the " +
+                                   found.kind->name + ": " + fxRangeText(*found.parameter) + ". Nothing was sent.");
+                const auto read = gateway.setFxParameter(channel, module, found.parameter->index, static_cast<int>(*value));
+                if (!read.ok())
+                    return failure(read.problem);
+                if (*read.value != *value)
+                    return failure("The sampler accepted the value " + std::to_string(*value) + " but reports " + std::to_string(*read.value) + " for the parameter " +
+                                   found.parameter->name + ".");
+                return ok(fxWhere(channel, module) + " (" + found.kind->name + "): " + found.parameter->name + " set to " + std::to_string(*read.value) +
+                          " (read back from the sampler).");
+            }});
+
+        return tools;
+    }
+
+    // The front-panel keys, behind --allow-front-panel. [TASK-MCP-053, RQ-MCP-054, ADR-MCP-005 (DEC-MCP-032)]
+    namespace
+    {
+        constexpr const char* ARGUMENT_KEY = "key";
+        constexpr const char* ARGUMENT_DIRECTION = "direction";
+        constexpr const char* ARGUMENT_CLICKS = "clicks";
+        constexpr const char* ARGUMENT_ASCII = "ascii";
+        constexpr const char* DIRECTION_FORWARDS = "forwards";
+        constexpr const char* DIRECTION_BACKWARDS = "backwards";
+        constexpr std::int64_t FIRST_WHEEL_CLICK = 1;
+        constexpr std::int64_t LAST_WHEEL_CLICK = 8;
+        constexpr std::int64_t LAST_ASCII = 127;
+        constexpr const char* PANEL_WARNING =
+            "WARNING: a key acts on whatever screen the sampler shows, and ENT answers yes to a delete or save screen: no 'confirm' of this server "
+            "stands between a key and the loss. The sampler only QUEUES what it is sent: an accepted command does not say the sampler acted on it. "
+            "Use it only when the person asked for that key.";
+
+        const Word<WheelDirection> WHEEL_DIRECTIONS[] = {{DIRECTION_FORWARDS, WheelDirection::Forwards}, {DIRECTION_BACKWARDS, WheelDirection::Backwards}};
+
+        /// A single ASCII character from a number (0 to 127) or a one-character text, or the reason it is not one. [RQ-MCP-054]
+        std::optional<std::string> asciiArgument(const json& given, int& ascii)
+        {
+            const std::string accepted = "Give 'ascii' as a number from 0 to " + std::to_string(LAST_ASCII) + ", or as one ASCII character.";
+            if (given.is_string())
+            {
+                const std::string text = given.get<std::string>();
+                if (text.size() != 1 || static_cast<unsigned char>(text.front()) > LAST_ASCII)
+                    return accepted;
+                ascii = static_cast<unsigned char>(text.front());
+                return std::nullopt;
+            }
+            const auto whole = given.is_number() ? wholeNumber(given) : std::nullopt;
+            if (!whole || *whole < 0 || *whole > LAST_ASCII)
+                return accepted;
+            ascii = static_cast<int>(*whole);
+            return std::nullopt;
+        }
+    }
+
+    std::string frontPanelInstructions()
+    {
+        return std::string(" The front-panel key tools (press_key, hold_key, release_key, turn_data_wheel, send_ascii_key) are on because the person "
+                           "launched this server with --allow-front-panel. ") +
+               PANEL_WARNING + " Do not press a key unless the person asked for it, and release a key you hold.";
+    }
+
+    std::vector<Tool> makeFrontPanelTools(SamplerGateway& gateway)
+    {
+        std::vector<Tool> tools;
+        const json keySchema = objectSchema(json{{ARGUMENT_KEY, {{"type", "string"}, {"description", "The key: " + [] {
+                                                                                          std::string list;
+                                                                                          for (const std::string& name : panelKeyNames())
+                                                                                              list += (list.empty() ? "" : ", ") + name;
+                                                                                          return list;
+                                                                                      }() + "."}}}},
+                                            json::array({ARGUMENT_KEY}));
+
+        const auto keyTool = [&](const char* name, const char* title, const std::string& what, auto call) {
+            ToolDefinition definitionOfKey = definition(name, title, what + " " + PANEL_WARNING, keySchema, false, false);
+            definitionOfKey.annotations.destructive = true;
+            tools.push_back(Tool{std::move(definitionOfKey), [&gateway, call](const json& arguments) {
+                                     if (const auto refused = unknownArguments(arguments, {ARGUMENT_KEY}))
+                                         return *refused;
+                                     if (!arguments.contains(ARGUMENT_KEY) || !arguments.at(ARGUMENT_KEY).is_string())
+                                         return failure("Give the 'key' as a string.");
+                                     return call(gateway, arguments.at(ARGUMENT_KEY).get<std::string>());
+                                 }});
+        };
+        keyTool("press_key", "Press a front-panel key", "Presses a key of the sampler's front panel and releases it at once.",
+                [](SamplerGateway& panel, const std::string& key) {
+                    const auto pressed = panel.pressPanelKey(key);
+                    return pressed.ok() ? ok("Pressed the key \"" + *pressed.value + "\" (held then released). The sampler only queued it.") : failure(pressed.problem);
+                });
+        keyTool("hold_key", "Hold a front-panel key down",
+                "Holds a key of the sampler's front panel down until release_key; a key still held when the session closes is released then.",
+                [](SamplerGateway& panel, const std::string& key) {
+                    const auto held = panel.holdPanelKey(key);
+                    return held.ok() ? ok("Holding the key \"" + *held.value + "\" down. It stays down until release_key, or until the session closes. The sampler only queued it.")
+                                     : failure(held.problem);
+                });
+        keyTool("release_key", "Release a front-panel key", "Releases a key of the sampler's front panel.",
+                [](SamplerGateway& panel, const std::string& key) {
+                    const auto released = panel.releasePanelKey(key);
+                    return released.ok() ? ok("Released the key \"" + *released.value + "\". The sampler only queued it.") : failure(released.problem);
+                });
+
+        // turn_data_wheel
+        ToolDefinition wheel = definition(
+            "turn_data_wheel", "Turn the data wheel",
+            std::string("Turns the sampler's data wheel by 1 to 8 clicks, forwards or backwards. ") + PANEL_WARNING,
+            objectSchema(json{{ARGUMENT_DIRECTION, {{"type", "string"}, {"enum", wordArray(WHEEL_DIRECTIONS)}, {"description", "The direction."}}},
+                              {ARGUMENT_CLICKS, {{"type", "integer"}, {"minimum", FIRST_WHEEL_CLICK}, {"maximum", LAST_WHEEL_CLICK}, {"description", "How many clicks, 1 to 8."}}}},
+                         json::array({ARGUMENT_DIRECTION, ARGUMENT_CLICKS})),
+            false, false);
+        wheel.annotations.destructive = true;
+        tools.push_back(Tool{std::move(wheel), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_DIRECTION, ARGUMENT_CLICKS}))
+                                     return *refused;
+                                 if (!arguments.contains(ARGUMENT_DIRECTION) || !arguments.at(ARGUMENT_DIRECTION).is_string())
+                                     return failure("Give the 'direction': " + wordList(WHEEL_DIRECTIONS) + ".");
+                                 const auto direction = meaningOf(WHEEL_DIRECTIONS, lowerCase(arguments.at(ARGUMENT_DIRECTION).get<std::string>()));
+                                 if (!direction)
+                                     return failure("The direction \"" + arguments.at(ARGUMENT_DIRECTION).get<std::string>() + "\" is not one the wheel has. The directions are: " +
+                                                    wordList(WHEEL_DIRECTIONS) + ".");
+                                 const auto clicks = arguments.contains(ARGUMENT_CLICKS) && arguments.at(ARGUMENT_CLICKS).is_number() ? wholeNumber(arguments.at(ARGUMENT_CLICKS)) : std::nullopt;
+                                 if (!clicks || *clicks < FIRST_WHEEL_CLICK || *clicks > LAST_WHEEL_CLICK)
+                                     return failure("Give 'clicks' as a whole number from " + std::to_string(FIRST_WHEEL_CLICK) + " to " + std::to_string(LAST_WHEEL_CLICK) + ".");
+                                 const auto turned = gateway.turnDataWheel(*direction, static_cast<int>(*clicks));
+                                 if (!turned.ok())
+                                     return failure(turned.problem);
+                                 return ok("Turned the data wheel " + lowerCase(arguments.at(ARGUMENT_DIRECTION).get<std::string>()) + " by " + plural(*clicks, "click") +
+                                           ". The sampler only queued it.");
+                             }});
+
+        // send_ascii_key
+        ToolDefinition ascii = definition(
+            "send_ascii_key", "Send an ASCII character",
+            std::string("Sends one character of ASCII keyboard data (0 to 127) to the sampler, as when a name is typed. ") + PANEL_WARNING,
+            objectSchema(json{{ARGUMENT_ASCII, {{"type", json::array({"integer", "string"})}, {"description", "The character: its number, 0 to 127, or the character itself."}}}},
+                         json::array({ARGUMENT_ASCII})),
+            false, false);
+        ascii.annotations.destructive = true;
+        tools.push_back(Tool{std::move(ascii), [&gateway](const json& arguments) {
+                                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_ASCII}))
+                                     return *refused;
+                                 if (!arguments.contains(ARGUMENT_ASCII))
+                                     return failure("Give 'ascii' as a number from 0 to " + std::to_string(LAST_ASCII) + ", or as one ASCII character.");
+                                 int value = 0;
+                                 if (const auto problem = asciiArgument(arguments.at(ARGUMENT_ASCII), value))
+                                     return failure(*problem);
+                                 const auto sent = gateway.sendAsciiKey(value);
+                                 if (!sent.ok())
+                                     return failure(sent.problem);
+                                 return ok("Sent the ASCII character " + std::to_string(value) + ". The sampler only queued it.");
+                             }});
+        return tools;
+    }
+
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;
@@ -2534,9 +3712,22 @@ namespace mcp
             tools.push_back(std::move(tool));
         for (Tool& tool : makeSamplerSettingsTools(gateway))
             tools.push_back(std::move(tool));
+        for (Tool& tool : makeMidiSetupTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeNamedListTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeBulkDeleteTools(gateway))
+            tools.push_back(std::move(tool));
+        for (Tool& tool : makeFxTools(gateway))
+            tools.push_back(std::move(tool));
         if (options.allowDisk)
         {
             for (Tool& tool : makeDiskTools(gateway, options.allowDiskRefresh))
+                tools.push_back(std::move(tool));
+        }
+        if (options.allowFrontPanel)
+        {
+            for (Tool& tool : makeFrontPanelTools(gateway))
                 tools.push_back(std::move(tool));
         }
         return tools;

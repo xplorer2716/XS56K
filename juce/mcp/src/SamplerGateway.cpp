@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <functional>
 #include <future>
+#include <iomanip>
 #include <span>
 #include <sstream>
 #include <utility>
@@ -29,6 +30,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/DiagnosticSink.hpp"
 #include "akm/ItemRequest.hpp"
 #include "akm/KeygroupPrimitives.hpp"
+#include "akm/MidiConfig.hpp"
 #include "akm/ProgramPrimitives.hpp"
 #include "akm/MultiPrimitives.hpp"
 #include "akm/RealScheduler.hpp"
@@ -108,6 +110,52 @@ namespace mcp
             }
             return std::string("The connection to the sampler failed: ") + std::string(akm::describe(opened.status)) + ".";
         }
+
+        // What a real S5000 (OS 2.14) did once with the Get of the play mode (2026-10-10): ERROR 03 three times while its screen showed
+        // UTILITIES, MIDI SETUP or MIDI FILTER, then the play mode from the MULTI page and, later, from both MIDI pages too; the cause
+        // is not known. [TASK-MCP-055, RQ-MCP-046]
+        constexpr std::uint16_t PLAY_MODE_REFUSED_ON_A_PAGE = akm::error_number::UNKNOWN_ERROR;
+        constexpr const char* PLAY_MODE_PAGE_HINT =
+            " A real S5000 has answered this error while its screen showed UTILITIES, MIDI SETUP or MIDI FILTER, and then gave its play mode "
+            "from the MULTI page; the cause is not known: ask again, from another page such as MULTI if it is refused again.";
+    }
+
+    namespace
+    {
+        constexpr const char* FROM_THE_SAMPLER = "from the sampler: ";
+
+        // Turns the session's diagnostics into lines of text for the gateway's diagnostic log; the checksum-mode changes of the
+        // opening and the closing are left out, as they happen at every connection. [TASK-MCP-066, RQ-MCP-009, RQ-AKM-006]
+        class LoggingDiagnosticSink final : public akm::DiagnosticSink
+        {
+        public:
+            explicit LoggingDiagnosticSink(std::function<void(const std::string&)> log) : _log(std::move(log)) {}
+
+            void report(const akm::Diagnostic& diagnostic) override
+            {
+                if (!_log || diagnostic.kind == akm::DiagnosticKind::ChecksumModeChanged)
+                    return;
+                std::string line = FROM_THE_SAMPLER + std::string(akm::describe(diagnostic.kind));
+                if (diagnostic.rejection)
+                    line += ": " + std::string(akm::describe(*diagnostic.rejection));
+                if (diagnostic.confirmation)
+                    line += ": " + confirmationText(*diagnostic.confirmation);
+                _log(line);
+            }
+
+        private:
+            static std::string confirmationText(const akm::Confirmation& confirmation)
+            {
+                std::ostringstream out;
+                out << std::hex << std::uppercase << std::setfill('0') << "reply ID " << std::setw(2)
+                    << static_cast<int>(confirmation.replyId) << ", section " << std::setw(2) << static_cast<int>(confirmation.section)
+                    << ", item " << std::setw(2) << static_cast<int>(confirmation.item) << std::dec << ", " << confirmation.data.size()
+                    << " data bytes";
+                return out.str();
+            }
+
+            std::function<void(const std::string&)> _log;
+        };
     }
 
     // The ports, the executor and the scheduler outlive the session, which is destroyed first (members are destroyed
@@ -116,8 +164,9 @@ namespace mcp
     struct SamplerGateway::Connection
     {
         Connection(akm::SessionTiming timing, std::unique_ptr<common::midi::MidiInputPort> inputPort,
-                   std::unique_ptr<common::midi::MidiOutputPort> outputPort)
-            : input(std::move(inputPort)), output(std::move(outputPort)), session(timing, executor, scheduler, *input, *output, diagnostics)
+                   std::unique_ptr<common::midi::MidiOutputPort> outputPort, std::function<void(const std::string&)> diagnosticLog)
+            : input(std::move(inputPort)), output(std::move(outputPort)), diagnostics(std::move(diagnosticLog)),
+              session(timing, executor, scheduler, *input, *output, diagnostics)
         {
         }
 
@@ -125,7 +174,7 @@ namespace mcp
         std::unique_ptr<common::midi::MidiOutputPort> output;
         akm::ThreadExecutor executor;
         akm::RealScheduler scheduler;
-        akm::NullDiagnosticSink diagnostics;
+        LoggingDiagnosticSink diagnostics;
         akm::Session session;
     };
 
@@ -160,7 +209,7 @@ namespace mcp
 
         akm::SessionTiming timing;
         timing.commandTimeout = _config.commandTimeout;
-        auto connection = std::make_unique<Connection>(timing, std::move(input), std::move(output));
+        auto connection = std::make_unique<Connection>(timing, std::move(input), std::move(output), _config.diagnosticLog);
 
         akm::SessionConfig sessionConfig;
         sessionConfig.targetDeviceId = _config.deviceId;
@@ -663,13 +712,15 @@ namespace mcp
             SamplerClock{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds});
     }
 
-    Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode()
+    Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode(std::optional<std::uint16_t>* samplerError)
     {
         const auto read = await<akm::PlayModeResult>(waitFor(1), [&](std::function<void(const akm::PlayModeResult&)> done) {
             akm::getPlayMode(_connection->session, std::move(done));
         });
         if (!read)
             return Outcome<SamplerPlayMode>::failure(SESSION_TIMED_OUT);
+        if (const auto* error = std::get_if<akm::Error>(&read->outcome); error != nullptr && samplerError != nullptr)
+            *samplerError = error->number;
         if (!read->mode)
             return Outcome<SamplerPlayMode>::failure(akm::succeeded(read->outcome)
                                                           ? std::string("The sampler answered a play mode this server does not know.")
@@ -702,15 +753,18 @@ namespace mcp
         const auto clock = readSamplerClock();
         if (!clock.ok())
             return Outcome<SamplerSettings>::failure(clock.problem);
-        const auto playMode = readSamplerPlayMode();
-        if (!playMode.ok())
+        std::optional<std::uint16_t> playModeError;
+        const auto playMode = readSamplerPlayMode(&playModeError);
+        if (!playMode.ok() && !playModeError)
             return Outcome<SamplerSettings>::failure(playMode.problem);
         const auto panel = readSamplerPanel();
         if (!panel.ok())
             return Outcome<SamplerSettings>::failure(panel.problem);
         settings.name = *name.value;
         settings.clock = *clock.value;
-        settings.playMode = *playMode.value;
+        settings.playMode = playMode.value;
+        if (!playMode.ok())
+            settings.playModeProblem = playMode.problem + (*playModeError == PLAY_MODE_REFUSED_ON_A_PAGE ? PLAY_MODE_PAGE_HINT : "");
         settings.panel = *panel.value;
         return Outcome<SamplerSettings>::success(std::move(settings));
     }
@@ -771,6 +825,58 @@ namespace mcp
         if (!akm::succeeded(*set))
             return Outcome<SamplerPanel>::failure(explain(*set, "setting the front-panel lock", _config, false));
         return readSamplerPanel();
+    }
+
+    // The sampler's MIDI setup (section 04): Set only. [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+    Outcome<bool> SamplerGateway::setMidiSwitch(MidiSwitch which, int value)
+    {
+        if (const auto problem = connect())
+            return Outcome<bool>::failure(*problem);
+        const char* what = "setting the MIDI setup";
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::Session& session = _connection->session;
+            switch (which)
+            {
+                case MidiSwitch::ProgramChange:
+                    akm::setProgramChangeEnabled(session, value != 0, std::move(done));
+                    break;
+                case MidiSwitch::MultiSelect:
+                    akm::setMultiSelect(session, static_cast<akm::MultiSelectMode>(value), std::move(done));
+                    break;
+                case MidiSwitch::MultiSelectChannel:
+                    akm::setMultiSelectChannel(session, value, std::move(done));
+                    break;
+                case MidiSwitch::ExternalApmController:
+                    akm::setExternalApmController(session, value, std::move(done));
+                    break;
+                case MidiSwitch::Aftertouch:
+                    akm::setAftertouch(session, static_cast<akm::AftertouchType>(value), std::move(done));
+                    break;
+            }
+        });
+        if (!set)
+            return Outcome<bool>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<bool>::failure(explain(*set, what, _config, false));
+        return Outcome<bool>::success(true);
+    }
+
+    Outcome<bool> SamplerGateway::setMidiFilter(MidiFilterKind event, int channel, bool allow)
+    {
+        if (const auto problem = connect())
+            return Outcome<bool>::failure(*problem);
+        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            const auto type = static_cast<akm::MidiFilterEvent>(event);
+            if (allow)
+                akm::allowMidiEvents(_connection->session, type, channel, std::move(done));
+            else
+                akm::ignoreMidiEvents(_connection->session, type, channel, std::move(done));
+        });
+        if (!set)
+            return Outcome<bool>::failure(SESSION_TIMED_OUT);
+        if (!akm::succeeded(*set))
+            return Outcome<bool>::failure(explain(*set, "setting a MIDI filter", _config, false));
+        return Outcome<bool>::success(true);
     }
 
     Outcome<ZoneSamples> SamplerGateway::readZoneSamples(KeygroupSelection selection)
@@ -1385,6 +1491,121 @@ namespace mcp
         if (!after.ok())
             return Outcome<DeletedItem>::failure(after.problem);
         return Outcome<DeletedItem>::success(DeletedItem{true, current.value->name, static_cast<int>(after.value->multis.size())});
+    }
+
+    Outcome<int> SamplerGateway::readMemoryCount(BulkKind kind)
+    {
+        switch (kind)
+        {
+            case BulkKind::Program: {
+                const auto programs = listPrograms();
+                return programs.ok() ? Outcome<int>::success(static_cast<int>(programs.value->size())) : Outcome<int>::failure(programs.problem);
+            }
+            case BulkKind::Sample: {
+                const auto samples = listSamples();
+                return samples.ok() ? Outcome<int>::success(static_cast<int>(samples.value->samples.size())) : Outcome<int>::failure(samples.problem);
+            }
+            case BulkKind::Multi:
+                break;
+        }
+        const auto multis = listMultis();
+        return multis.ok() ? Outcome<int>::success(static_cast<int>(multis.value->multis.size())) : Outcome<int>::failure(multis.problem);
+    }
+
+    // Delete ALL of a kind, with the count that proves the caller means it. [TASK-MCP-050, RQ-MCP-051, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    Outcome<BulkDeletion> SamplerGateway::deleteAllMemoryItems(BulkKind kind, int confirm)
+    {
+        if (const auto problem = connect())
+            return Outcome<BulkDeletion>::failure(*problem);
+        const auto before = readMemoryCount(kind);
+        if (!before.ok())
+            return Outcome<BulkDeletion>::failure(before.problem);
+        if (*before.value == 0 || *before.value != confirm)
+            return Outcome<BulkDeletion>::success(BulkDeletion{false, *before.value});
+
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            switch (kind)
+            {
+                case BulkKind::Program:
+                    akm::deleteAllPrograms(_connection->session, akm::ConfirmDeleteAllPrograms::IUnderstandThisDeletesEveryProgramInMemory, std::move(done));
+                    break;
+                case BulkKind::Sample:
+                    akm::deleteAllSamples(_connection->session, akm::ConfirmDeleteAllSamples::IUnderstandThisDeletesEverySampleInMemory, std::move(done));
+                    break;
+                case BulkKind::Multi:
+                    akm::deleteAllMultis(_connection->session, akm::ConfirmDeleteAllMultis::IUnderstandThisDeletesEveryMultiInMemory, std::move(done));
+                    break;
+            }
+        });
+        if (!deleted)
+            return Outcome<BulkDeletion>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*deleted))
+            return Outcome<BulkDeletion>::failure(explain(*deleted, "deleting every item of the kind", _config, false));
+        const auto after = readMemoryCount(kind);
+        if (!after.ok())
+            return Outcome<BulkDeletion>::failure("The sampler accepted the deletion but the memory could not be read afterwards: " + after.problem);
+        if (*after.value != 0)
+            return Outcome<BulkDeletion>::failure("The sampler accepted the deletion but still holds " + numberText(*after.value) + " of them: check its memory.");
+        return Outcome<BulkDeletion>::success(BulkDeletion{true, *before.value});
+    }
+
+    // Clear Sampler Memory, with the total that proves the caller means it. [TASK-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    Outcome<MemoryClearing> SamplerGateway::clearSamplerMemory(int confirm)
+    {
+        if (const auto problem = connect())
+            return Outcome<MemoryClearing>::failure(*problem);
+        MemoryClearing held;
+        for (const auto& [kind, target] : {std::pair{BulkKind::Program, &held.programs}, std::pair{BulkKind::Sample, &held.samples},
+                                           std::pair{BulkKind::Multi, &held.multis}})
+        {
+            const auto count = readMemoryCount(kind);
+            if (!count.ok())
+                return Outcome<MemoryClearing>::failure(count.problem);
+            *target = *count.value;
+        }
+        // The song files, set lists and scenelists the command takes too: they are part of the total, so they are read before it. [TASK-MCP-068]
+        const auto readLists = [this](NamedListCounts& counts) -> std::optional<std::string> {
+            for (const auto& [kind, target] : {std::pair{NamedListKind::SongFile, &counts.songFiles}, std::pair{NamedListKind::SetList, &counts.setLists},
+                                               std::pair{NamedListKind::SceneList, &counts.sceneLists}})
+            {
+                const auto count = readNamedCount(kind);
+                if (!count.ok())
+                    return count.problem;
+                *target = *count.value;
+            }
+            return std::nullopt;
+        };
+        if (const auto problem = readLists(held.listsBefore))
+            return Outcome<MemoryClearing>::failure(*problem);
+        if (held.total() == 0 || held.total() != confirm)
+        {
+            held.done = false;
+            return Outcome<MemoryClearing>::success(held);
+        }
+
+        // The sampler's time to answer has never been observed (no run is allowed to send this), and the AKM primitive takes no timeout of its own:
+        // the session's command timeout applies.
+        const auto cleared = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            akm::clearSamplerMemory(_connection->session, akm::ConfirmClearSamplerMemory::IUnderstandThisDeletesEveryProgramMultiAndSampleInMemory,
+                                    std::move(done));
+        });
+        if (!cleared)
+            return Outcome<MemoryClearing>::failure("The sampler session did not complete the command in time.");
+        if (!akm::succeeded(*cleared))
+            return Outcome<MemoryClearing>::failure(explain(*cleared, "clearing the sampler's memory", _config, false));
+        for (const BulkKind kind : {BulkKind::Program, BulkKind::Sample, BulkKind::Multi})
+        {
+            const auto after = readMemoryCount(kind);
+            if (!after.ok())
+                return Outcome<MemoryClearing>::failure("The sampler accepted the command but its memory could not be read afterwards: " + after.problem);
+            if (*after.value != 0)
+                return Outcome<MemoryClearing>::failure("The sampler accepted the command but still holds " + numberText(*after.value) +
+                                                        " item(s) of a kind: check its memory.");
+        }
+        if (const auto problem = readLists(held.listsAfter))
+            return Outcome<MemoryClearing>::failure("The sampler accepted the command but its song files, set lists and scenelists could not be read afterwards: " +
+                                                    *problem);
+        return Outcome<MemoryClearing>::success(held);
     }
 
     Outcome<PartPrograms> SamplerGateway::readPartPrograms()

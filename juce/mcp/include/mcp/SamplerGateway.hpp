@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -64,6 +65,11 @@ namespace mcp
         /// longer than an ordinary command, and its silence is answered with a message about the power cycle.
         /// [ADR-MCP-003 (DEC-MCP-017)]
         std::chrono::milliseconds diskTimeout{120000};
+        /// Called with one line of text for each message from the sampler that the session rejected (with the reason), and each
+        /// confirmation that matched no pending command or came after its command's REPLY; on the session's thread, so it must
+        /// neither throw nor block. Empty: these are dropped. A rejected reply and a silence then read alike, as a timeout.
+        /// [TASK-MCP-066, RQ-MCP-009, RQ-AKM-006]
+        std::function<void(const std::string&)> diagnosticLog;
     };
 
     /// A value, or the reason there is none.
@@ -262,6 +268,9 @@ namespace mcp
         std::vector<std::string> programs;
         std::vector<std::string> samples;
         std::vector<std::string> multis;
+        std::vector<std::string> songFiles;
+        std::vector<std::string> setLists;
+        std::vector<std::string> sceneLists;
     };
 
     /// What a load did: the disk and folder it acted on and the memory before and after.
@@ -279,6 +288,9 @@ namespace mcp
         Program,
         Sample,
         Multi,
+        SongFile,
+        SetList,
+        SceneList,
     };
 
     /// What a save did: the disk and folder it acted on, the kind and name (one item) or the number of items (all), and the
@@ -364,8 +376,175 @@ namespace mcp
     {
         std::string name;
         SamplerClock clock;
-        SamplerPlayMode playMode = SamplerPlayMode::Multi;
+        /// Empty when the sampler answered an ERROR to the Get of the play mode, which a real S5000 does on some pages of its
+        /// screen; `playModeProblem` then says why. [TASK-MCP-055]
+        std::optional<SamplerPlayMode> playMode;
+        std::string playModeProblem;
         SamplerPanel panel = SamplerPanel::Normal;
+    };
+
+    /// The switches of the sampler's MIDI setup (section 04). The section has no Get: what a switch held before cannot be read. [RQ-MCP-047]
+    enum class MidiSwitch
+    {
+        ProgramChange,         ///< 0 off, 1 on
+        MultiSelect,           ///< 0 off, 1 program change, 2 bank
+        MultiSelectChannel,    ///< 0 to 31: 1A = 0 ... 16B = 31
+        ExternalApmController, ///< 0 to 127
+        Aftertouch,            ///< 0 channel, 1 polyphonic
+    };
+
+    /// The MIDI events a filter acts on, with the byte each travels as. [RQ-MCP-047]
+    enum class MidiFilterKind
+    {
+        NoteOn = 0,
+        Aftertouch = 1,
+        Wheels = 2,
+        Volume = 3,
+    };
+
+    /// The three lists of named things the sampler keeps besides its programs, samples and multis. Song files and scenelists have a
+    /// current one; the sampler has no current set list. [RQ-MCP-048]
+    enum class NamedListKind
+    {
+        SongFile,
+        SetList,
+        SceneList,
+    };
+
+    /// What a kind of list is called in the answers: "song file", "set list" or "scenelist". [RQ-MCP-048]
+    [[nodiscard]] const char* namedListNoun(NamedListKind kind);
+
+    /// One item of such a list: its position (from 0) and its name. [RQ-MCP-048]
+    struct NamedListEntry
+    {
+        int index = 0;
+        std::string name;
+    };
+
+    /// A list in the sampler's order, and the position of the current item when the kind has one and one is selected. [RQ-MCP-048]
+    struct NamedListing
+    {
+        std::vector<NamedListEntry> entries;
+        std::optional<int> current;
+    };
+
+    /// A set list renamed: its position, its name before, and the name and position the sampler then lists it with. [RQ-MCP-048, TASK-MCP-058]
+    struct SetListRenaming
+    {
+        int index = 0;
+        std::string before;
+        std::string after;
+        int afterIndex = 0;
+    };
+
+    /// A song file or a scenelist renamed: its name before, the name and position the sampler then lists it with, and the current one
+    /// after the renaming, if any. The real S5000 sorts its song files by name when one is renamed, and was seen with its first song file
+    /// current after it (TASK-MCP-058): the renamed item is found again in the list, by its new name. [RQ-MCP-048, TASK-MCP-058]
+    struct NamedRenaming
+    {
+        std::string before;
+        NamedListEntry after;
+        std::optional<NamedListEntry> current;
+    };
+
+    /// The kinds of item the sampler can delete all of at once. [RQ-MCP-051]
+    enum class BulkKind
+    {
+        Program,
+        Sample,
+        Multi,
+    };
+
+    /// A "delete all" of a kind: `done` is false when nothing was sent (the sampler held none, or `confirm` was not their number); `count` is
+    /// how many items of the kind the sampler held when it was asked. [RQ-MCP-051]
+    struct BulkDeletion
+    {
+        bool done = true;
+        int count = 0;
+    };
+
+    /// The effects board the sampler reports (section 12). [RQ-MCP-053]
+    enum class FxCardKind
+    {
+        None,
+        Eb20,
+    };
+
+    /// The layout of the board: the card, and for each channel how many modules it has (empty when there is no board). [RQ-MCP-053]
+    struct FxLayoutInfo
+    {
+        FxCardKind card = FxCardKind::None;
+        std::vector<int> moduleCounts;
+    };
+
+    /// One module: the code of its type (Table 24) and whether it is enabled (not bypassed). [RQ-MCP-053]
+    struct FxModuleState
+    {
+        int type = 0;
+        bool enabled = true;
+    };
+
+    /// One channel: whether it is muted, and its modules in order. [RQ-MCP-053]
+    struct FxChannelState
+    {
+        bool muted = false;
+        std::vector<FxModuleState> modules;
+    };
+
+    /// The whole board of the current multi; `channels` is empty when the sampler reports no board. [RQ-MCP-053]
+    struct FxBoardState
+    {
+        FxLayoutInfo layout;
+        std::vector<FxChannelState> channels;
+    };
+
+    /// How many song files, set lists and scenelists the sampler holds. [RQ-MCP-052, TASK-MCP-062]
+    struct NamedListCounts
+    {
+        int songFiles = 0;
+        int setLists = 0;
+        int sceneLists = 0;
+
+        [[nodiscard]] int total() const { return songFiles + setLists + sceneLists; }
+    };
+
+    /// A Clear Sampler Memory: `done` is false when nothing was sent (the memory held nothing, or `confirm` was not the total); the counts are what
+    /// the sampler held when it was asked. The total is the programs, samples and multis and the song files, set lists and scenelists, which a real
+    /// S5000 cleared too (TASK-MCP-062, 2026-10-10) and which the owner decided the same day to count (TASK-MCP-068): `listsBefore` is what it
+    /// held of the three lists, `listsAfter` what it held after the command (nothing was read after when `done` is false). [RQ-MCP-052,
+    /// TASK-MCP-062, TASK-MCP-068]
+    struct MemoryClearing
+    {
+        bool done = true;
+        int programs = 0;
+        int samples = 0;
+        int multis = 0;
+        NamedListCounts listsBefore;
+        NamedListCounts listsAfter;
+
+        /// Every item the command takes: the three of the memory and the three lists.
+        [[nodiscard]] int total() const { return programs + samples + multis + listsBefore.total(); }
+    };
+
+    /// The directions of the data wheel. [RQ-MCP-054]
+    enum class WheelDirection
+    {
+        Forwards,
+        Backwards,
+    };
+
+    /// The names of the front-panel keys a client may give, in the order of Table 31 of the specification: the mode keys, F1 to F16, the digits 0 to 9
+    /// and the other keys. [RQ-MCP-054]
+    [[nodiscard]] std::vector<std::string> panelKeyNames();
+
+    /// A song file, set list or scenelist deletion: `done` is false when `confirm` was not its exact name (nothing was sent); `remaining` is what
+    /// the list holds after. [RQ-MCP-049]
+    struct NamedDeletion
+    {
+        bool done = true;
+        int index = 0;
+        std::string name;
+        std::vector<NamedListEntry> remaining;
     };
 
     /// The free space of the current disk. [RQ-MCP-040]
@@ -632,7 +811,8 @@ namespace mcp
         /// The sampler's model, operating system and free memory (section 02). [RQ-MCP-040]
         [[nodiscard]] Outcome<SystemInfo> readSystemInfo();
 
-        /// The sampler's name, clock, play mode and front-panel lock (section 02). [RQ-MCP-046]
+        /// The sampler's name, clock, play mode and front-panel lock (section 02). An ERROR answered to the Get of the play mode leaves
+        /// the play mode out, with the reason, instead of failing the whole read. [RQ-MCP-046, TASK-MCP-055]
         [[nodiscard]] Outcome<SamplerSettings> readSamplerSettings();
 
         /// Each of these sends one Set of section 02 and answers what the sampler reports afterwards for that setting. The caller checks
@@ -642,6 +822,72 @@ namespace mcp
         [[nodiscard]] Outcome<SamplerClock> setSamplerClock(const SamplerClock& clock);
         [[nodiscard]] Outcome<SamplerPlayMode> setSamplerPlayMode(SamplerPlayMode mode);
         [[nodiscard]] Outcome<SamplerPanel> setSamplerPanel(SamplerPanel panel);
+
+        /// Each of these sends one Set of section 04 and answers true once the sampler has accepted it; the section has no Get, so nothing
+        /// is read back. The caller checks the value (the range is in `MidiSwitch`); the AKM layer refuses one out of range and nothing is
+        /// then sent. [RQ-MCP-047]
+        [[nodiscard]] Outcome<bool> setMidiSwitch(MidiSwitch which, int value);
+        [[nodiscard]] Outcome<bool> setMidiFilter(MidiFilterKind event, int channel, bool allow);
+
+        /// The song files, the set lists or the scenelists in the sampler's order, with the current one when the kind has one. The names are
+        /// read one by one: the AKM layer has no read of them all for these kinds. [RQ-MCP-048]
+        [[nodiscard]] Outcome<NamedListing> listNamedItems(NamedListKind kind);
+
+        /// Makes a song file or a scenelist the current one, by name or by position (from 0), and answers the current one read back; a name
+        /// or a position the sampler does not have is a problem and the selection is unchanged. A set list has no current one: refused.
+        /// [RQ-MCP-048]
+        [[nodiscard]] Outcome<NamedListEntry> selectNamedItemByName(NamedListKind kind, std::string_view name);
+        [[nodiscard]] Outcome<NamedListEntry> selectNamedItemByIndex(NamedListKind kind, int index);
+
+        /// Renames the current song file or scenelist and answers its name before, where the list read again holds the new name, and the
+        /// current one then; nothing is sent when none is current or when another item of the list already bears the name (without regard
+        /// to case, spaces or hyphens). [RQ-MCP-048, TASK-MCP-058]
+        [[nodiscard]] Outcome<NamedRenaming> renameCurrentNamedItem(NamedListKind kind, std::string_view newName);
+
+        /// Renames the set list called `name` (exactly, else the only one that differs by case, spaces or hyphens only) and answers its
+        /// position, the names and where the list read again holds the new name; nothing is sent when no set list or several have that name, or when another already bears the new name.
+        /// [RQ-MCP-048]
+        [[nodiscard]] Outcome<SetListRenaming> renameSetList(std::string_view name, std::string_view newName);
+
+        /// Deletes the current song file or scenelist, and only when `confirm` is exactly its name; otherwise nothing is sent and the answer
+        /// says which one is current. Nothing is sent either when none is current. [RQ-MCP-049, RQ-MCP-042]
+        [[nodiscard]] Outcome<NamedDeletion> deleteCurrentNamedItem(NamedListKind kind, std::string_view confirm);
+
+        /// Deletes the set list found by `name` (as `renameSetList` finds it), and only when `confirm` is exactly its name. [RQ-MCP-049]
+        [[nodiscard]] Outcome<NamedDeletion> deleteSetList(std::string_view name, std::string_view confirm);
+
+        /// Deletes every program, sample or multi in memory, and only when `confirm` is exactly how many the sampler holds now (read just before);
+        /// otherwise, and when it holds none, nothing is sent and the answer gives the count. [RQ-MCP-051, RQ-MCP-042]
+        [[nodiscard]] Outcome<BulkDeletion> deleteAllMemoryItems(BulkKind kind, int confirm);
+
+        /// The effects board of the current multi (section 12; the effects belong to the multi that is current). The card and the layout are read
+        /// first and, when the sampler reports no board, nothing else is sent. A sampler with no current multi answers ERROR 04 to the rest, which
+        /// is reported as "select a multi first". [RQ-MCP-053]
+        [[nodiscard]] Outcome<FxLayoutInfo> readFxLayout();
+        [[nodiscard]] Outcome<FxBoardState> readFxBoard();
+        [[nodiscard]] Outcome<FxModuleState> readFxModule(int channel, int module);
+        [[nodiscard]] Outcome<int> readFxParameter(int channel, int module, int parameter);
+
+        /// Each of these sends the Set of section 12 and answers what the sampler then reports. The caller checks the values against the layout and
+        /// the module's parameters first; the AKM layer refuses a number outside 0 to 127 and a value beyond 16383 in magnitude. [RQ-MCP-053]
+        [[nodiscard]] Outcome<bool> setFxChannelMute(int channel, bool muted);
+        [[nodiscard]] Outcome<FxModuleState> setFxModule(int channel, int module, std::optional<int> type, std::optional<bool> enabled);
+        [[nodiscard]] Outcome<int> setFxParameter(int channel, int module, int parameter, int value);
+
+        /// The front-panel keys (section 20), behind `--allow-front-panel`. A key is found by its name (`panelKeyNames`), in other letters or with a
+        /// space or a hyphen for the underscore; an unknown one is a problem and nothing is sent. The sampler only QUEUES what it receives: `true`/the
+        /// name answered means the command was accepted, not that the sampler acted on it. A key held is released when the session closes.
+        /// [RQ-MCP-054, ADR-MCP-005 (DEC-MCP-032)]
+        [[nodiscard]] Outcome<std::string> pressPanelKey(std::string_view key);
+        [[nodiscard]] Outcome<std::string> holdPanelKey(std::string_view key);
+        [[nodiscard]] Outcome<std::string> releasePanelKey(std::string_view key);
+        [[nodiscard]] Outcome<bool> turnDataWheel(WheelDirection direction, int clicks);
+        [[nodiscard]] Outcome<bool> sendAsciiKey(int ascii);
+
+        /// Clears the sampler's memory (every program, sample and multi, and the song files, set lists and scenelists, which a real S5000 clears too),
+        /// and only when `confirm` is exactly how many items of the six kinds the sampler holds now (read just before); otherwise, and when it holds
+        /// none, nothing is sent and the answer gives the counts. [RQ-MCP-052, RQ-MCP-042, TASK-MCP-062, TASK-MCP-068]
+        [[nodiscard]] Outcome<MemoryClearing> clearSamplerMemory(int confirm);
 
         /// The free space, in bytes, of the current disk; with no disk selected the problem says to select one. [RQ-MCP-040]
         [[nodiscard]] Outcome<DiskSpace> readDiskSpace();
@@ -685,10 +931,20 @@ namespace mcp
         [[nodiscard]] Outcome<SampleEntry> currentSampleEntry();
         [[nodiscard]] Outcome<MultiEntry> currentMultiEntry();
 
+        /// One read each of a song file, set list or scenelist list, on the open session. [RQ-MCP-048]
+        [[nodiscard]] Outcome<int> readNamedCount(NamedListKind kind);
+        /// How many programs, samples or multis the sampler holds. [RQ-MCP-051, RQ-MCP-052]
+        [[nodiscard]] Outcome<int> readMemoryCount(BulkKind kind);
+        [[nodiscard]] Outcome<std::string> readNamedName(NamedListKind kind, int index);
+        /// The position of the current song file or scenelist; empty when none is current. [RQ-MCP-048]
+        [[nodiscard]] Outcome<std::optional<int>> readCurrentNamedIndex(NamedListKind kind);
+        [[nodiscard]] Outcome<NamedListEntry> currentNamedEntry(NamedListKind kind);
+
         /// One Get of section 02 each, on the open session. [RQ-MCP-046]
         [[nodiscard]] Outcome<std::string> readSamplerName();
         [[nodiscard]] Outcome<SamplerClock> readSamplerClock();
-        [[nodiscard]] Outcome<SamplerPlayMode> readSamplerPlayMode();
+        /// `samplerError`, when given, receives the number of an ERROR the sampler answered. [TASK-MCP-055]
+        [[nodiscard]] Outcome<SamplerPlayMode> readSamplerPlayMode(std::optional<std::uint16_t>* samplerError = nullptr);
         [[nodiscard]] Outcome<SamplerPanel> readSamplerPanel();
 
         /// The open session, for the units of the gateway; only called while a connection is open.

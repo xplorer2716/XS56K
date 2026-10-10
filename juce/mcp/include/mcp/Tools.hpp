@@ -48,7 +48,7 @@ namespace mcp
 
     // The multi tools: `list_multis`, `select_multi`, `get_multi_parameters` and `set_multi_parameter`. They act on the
     // sampler's current multi in memory, part by part (parts are numbered from 1); none creates, deletes, renames or
-    // assigns a multi, and Delete ALL Multis is never sent. The gateway and the catalogue must outlive the tools.
+    // assigns a multi; Delete ALL is `makeBulkDeleteTools`. The gateway and the catalogue must outlive the tools.
     // [RQ-MCP-013, RQ-MCP-014, RQ-MCP-021, ADR-MCP-002 (DEC-MCP-010, DEC-MCP-013)]
     [[nodiscard]] std::vector<Tool> makeMultiTools(SamplerGateway& gateway, const ParameterCatalogue& multiCatalogue);
 
@@ -76,20 +76,54 @@ namespace mcp
     // [RQ-MCP-046, ADR-MCP-005 (DEC-MCP-030)]
     [[nodiscard]] std::vector<Tool> makeSamplerSettingsTools(SamplerGateway& gateway);
 
+    // The sampler's MIDI setup: `set_midi_setting` sets one of its five switches and `set_midi_filter` allows or ignores a type of event
+    // on a channel. Section 04 has no Get, so neither reads back and each answer says the previous value is unknown. Nothing is deleted.
+    // The gateway must outlive the tools. [RQ-MCP-047, ADR-MCP-005 (DEC-MCP-030)]
+    [[nodiscard]] std::vector<Tool> makeMidiSetupTools(SamplerGateway& gateway);
+
+    // The song files, the set lists and the scenelists: for each, a list tool (`list_song_files`, `list_set_lists`, `list_scenelists`), a
+    // rename tool and a delete tool (`delete_song_file`, `delete_set_list`, `delete_scenelist`, destructive, each only with a `confirm` that is the
+    // exact name); the song files and the scenelists, which have a current one, also a select tool. A set list is renamed and deleted by name.
+    // The gateway must outlive the tools. [RQ-MCP-048, RQ-MCP-049, ADR-MCP-005 (DEC-MCP-031), ADR-MCP-004 (DEC-MCP-023)]
+    [[nodiscard]] std::vector<Tool> makeNamedListTools(SamplerGateway& gateway);
+
+    // Delete ALL: `delete_all_programs`, `delete_all_samples` and `delete_all_multis`, destructive, each only with a `confirm` that is the number
+    // of items of that kind the sampler holds now; and `clear_sampler_memory`, only with the total of the programs, samples, multis, song files, set lists and scenelists. The gateway must outlive the
+    // tools. [RQ-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    [[nodiscard]] std::vector<Tool> makeBulkDeleteTools(SamplerGateway& gateway);
+
+    // The effects board: `get_fx_board`, `set_fx_channel_mute`, `set_fx_module`, `get_fx_parameter` and `set_fx_parameter`. The values are checked against
+    // the layout the sampler reports and against Table 25, and a sampler that reports no board is told so. Run on the simulated sampler only. The
+    // gateway must outlive the tools. [RQ-MCP-053, ADR-MCP-005 (DEC-MCP-033)]
+    [[nodiscard]] std::vector<Tool> makeFxTools(SamplerGateway& gateway);
+
+    // The front-panel keys: `press_key`, `hold_key`, `release_key`, `turn_data_wheel` and `send_ascii_key`, offered only when the server is launched
+    // with `--allow-front-panel`: a key can answer "ENT" to a delete or save screen, which no `confirm` of this server guards. The gateway must
+    // outlive the tools. [RQ-MCP-054, ADR-MCP-005 (DEC-MCP-032)]
+    [[nodiscard]] std::vector<Tool> makeFrontPanelTools(SamplerGateway& gateway);
+
     /// What the launch arguments decide about the tools. [ADR-MCP-003 (DEC-MCP-015)]
     struct ToolOptions
     {
         bool allowDisk = false;  ///< `--allow-disk`: the disk tools are offered
         bool allowDiskRefresh = false;  ///< `--allow-disk-refresh`: `list_disks` may send the refresh of the disk list
+        bool allowFrontPanel = false;  ///< `--allow-front-panel`: the front-panel key tools are offered [ADR-MCP-005 (DEC-MCP-032)]
     };
 
     /// Every tool the server offers: the editing tools, the structure tools, the sample and multi tools, and the disk tools
     /// when `options.allowDisk`. [ADR-MCP-002 (DEC-MCP-010), ADR-MCP-003 (DEC-MCP-015)]
     [[nodiscard]] std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options = {});
 
+    /// The guidance the server gives the model with its first answer: what the server is for and how to use the tools it offers with
+    /// `options`, and nothing about the tools it does not offer. [TASK-MCP-065, RQ-MCP-043, ADR-MCP-004 (DEC-MCP-026)]
+    [[nodiscard]] std::string serverInstructions(const ToolOptions& options);
+
     /// The guidance the server gives the model with its first answer: what the server is for and how to use the tools.
     [[nodiscard]] std::string programEditingInstructions();
 
     /// What the server adds to its guidance when the disk tools are offered (`--allow-disk`). [ADR-MCP-003 (DEC-MCP-015)]
     [[nodiscard]] std::string diskInstructions(bool refreshOffered = false);
+
+    /// What the server adds to its guidance when the front-panel key tools are offered (`--allow-front-panel`). [ADR-MCP-005 (DEC-MCP-032)]
+    [[nodiscard]] std::string frontPanelInstructions();
 }

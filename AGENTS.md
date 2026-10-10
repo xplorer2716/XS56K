@@ -32,6 +32,11 @@ memory and, behind a launch flag, to load and save them through the sampler's ow
 `xs56k_mcp_server`; `ADR-MCP-001` to `ADR-MCP-003`, `FTR-MCP-001` to `FTR-MCP-003`). Reference documentation
 lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
 
+**The AGNOS process is in `.github/instructions/agnos-sw-eng.instructions.md`: read it in full, every line, before any session that plans,
+implements or commits a task** (its START SESSION step 1 requires it; a partial read has already cost a session). Its skills are
+`agnos-git-workflow` (branch and commit format) and `agnos-index` (the index of `process/`); `process/_sessionstate/session.yaml` must say
+the session's real platform and `unit_tests` before the first task.
+
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
 `documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
 
@@ -72,9 +77,15 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   (`documents/_index/sysex_spec.items.tsv`). Never edit the generated header by hand, and no script runs during the
   build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
   ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+- **Coverage table:** `documents/SYSEX-COVERAGE.md` gives, for each message of the SysEx spec, the AKM function and the MCP tool that send it;
+  `python3 juce/tools/generate_sysex_coverage.py` (`python` on Windows) writes it and `--check` fails if it is out of date or if an item,
+  function or tool appears that the script cannot place (a new tool needs its gateway methods in `juce/tools/sysex_coverage_declared.json`).
+  Never edit the file by hand; the checks, one of which runs the simulated server on the scripted conversations to see which tool sends what,
+  are `ctest` entries when CMake finds Python 3. [RQ-MCP-058 to RQ-MCP-066, ADR-MCP-006]
 - **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
   `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
-  refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first. [FTR-MCP-*, ADR-MCP-*]
+  refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first, and never call `clear_sampler_memory` or a `delete_all_*`
+  tool on it unless he says so for that call: a general "do it all without me" is not enough, ask each time. [FTR-MCP-*, ADR-MCP-*]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

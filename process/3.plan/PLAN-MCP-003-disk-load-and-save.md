@@ -16,7 +16,7 @@ skill computes.
 
 ## References
 - **Requirements**: RQ-MCP-023 to RQ-MCP-033 (`FTR-MCP-003`); RQ-MCP-014, RQ-MCP-022 (`FTR-MCP-002`)
-- **ADRs**: ADR-MCP-003 (Proposed): DEC-MCP-015 to DEC-MCP-022; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
+- **ADRs**: ADR-MCP-003 (Accepted): DEC-MCP-015 to DEC-MCP-022; ADR-MCP-002: DEC-MCP-010 (amended), DEC-MCP-014; ADR-MCP-001:
   DEC-MCP-003, DEC-MCP-004, DEC-MCP-008.
 
 The plan has 7 tasks (TASK-MCP-018 to TASK-MCP-024). 018 authors the artifacts; 019 the options and the browsing tools (after 018);

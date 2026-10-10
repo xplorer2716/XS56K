@@ -104,6 +104,29 @@
 {"jsonrpc":"2.0","id":1007,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"front_panel","value":"normal"}}}
 {"jsonrpc":"2.0","id":1008,"method":"tools/call","params":{"name":"set_sampler_setting","arguments":{"setting":"clock","value":"2027-02-29 00:00:00"}}}
 {"jsonrpc":"2.0","id":1009,"method":"tools/call","params":{"name":"get_sampler_settings","arguments":{}}}
+{"jsonrpc":"2.0","id":1010,"method":"tools/call","params":{"name":"set_midi_setting","arguments":{"setting":"multi_select","value":"bank"}}}
+{"jsonrpc":"2.0","id":1011,"method":"tools/call","params":{"name":"set_midi_setting","arguments":{"setting":"multi_select_channel","value":"18"}}}
+{"jsonrpc":"2.0","id":1012,"method":"tools/call","params":{"name":"set_midi_setting","arguments":{"setting":"aftertouch","value":"polyphonic"}}}
+{"jsonrpc":"2.0","id":1013,"method":"tools/call","params":{"name":"set_midi_filter","arguments":{"event":"note_on","channel":5,"action":"ignore"}}}
+{"jsonrpc":"2.0","id":1014,"method":"tools/call","params":{"name":"set_midi_setting","arguments":{"setting":"multi_select_channel","value":"32"}}}
+{"jsonrpc":"2.0","id":1015,"method":"tools/call","params":{"name":"set_midi_filter","arguments":{"event":"pitch_bend","channel":1,"action":"allow"}}}
+{"jsonrpc":"2.0","id":1016,"method":"tools/call","params":{"name":"list_song_files","arguments":{}}}
+{"jsonrpc":"2.0","id":1017,"method":"tools/call","params":{"name":"select_song_file","arguments":{"name":"VERSE"}}}
+{"jsonrpc":"2.0","id":1018,"method":"tools/call","params":{"name":"rename_song_file","arguments":{"name":"VERSE TWO"}}}
+{"jsonrpc":"2.0","id":1019,"method":"tools/call","params":{"name":"list_song_files","arguments":{}}}
+{"jsonrpc":"2.0","id":1020,"method":"tools/call","params":{"name":"select_song_file","arguments":{"name":"MISSING"}}}
+{"jsonrpc":"2.0","id":1021,"method":"tools/call","params":{"name":"list_set_lists","arguments":{}}}
+{"jsonrpc":"2.0","id":1022,"method":"tools/call","params":{"name":"rename_set_list","arguments":{"name":"HOME","new_name":"STUDIO DAYS"}}}
+{"jsonrpc":"2.0","id":1023,"method":"tools/call","params":{"name":"list_scenelists","arguments":{}}}
+{"jsonrpc":"2.0","id":1024,"method":"tools/call","params":{"name":"select_scenelist","arguments":{"index":1}}}
+{"jsonrpc":"2.0","id":1025,"method":"tools/call","params":{"name":"rename_scenelist","arguments":{"name":"GIG"}}}
+{"jsonrpc":"2.0","id":1026,"method":"tools/call","params":{"name":"rename_scenelist","arguments":{"name":"live set"}}}
+{"jsonrpc":"2.0","id":1047,"method":"tools/call","params":{"name":"select_song_file","arguments":{"name":"VERSE TWO"}}}
+{"jsonrpc":"2.0","id":1027,"method":"tools/call","params":{"name":"delete_song_file","arguments":{"confirm":"verse two"}}}
+{"jsonrpc":"2.0","id":1028,"method":"tools/call","params":{"name":"delete_song_file","arguments":{"confirm":"VERSE TWO"}}}
+{"jsonrpc":"2.0","id":1029,"method":"tools/call","params":{"name":"delete_set_list","arguments":{"name":"TOUR","confirm":"TOUR"}}}
+{"jsonrpc":"2.0","id":1030,"method":"tools/call","params":{"name":"delete_scenelist","arguments":{"confirm":"GIG"}}}
+{"jsonrpc":"2.0","id":1031,"method":"tools/call","params":{"name":"list_song_files","arguments":{}}}
 {"jsonrpc":"2.0","id":97,"method":"tools/call","params":{"name":"select_program","arguments":{"name":"BASS"}}}
 {"jsonrpc":"2.0","id":98,"method":"tools/call","params":{"name":"set_zone_sample","arguments":{"sample":"KICK","zone":1,"keygroup":1}}}
 {"jsonrpc":"2.0","id":99,"method":"tools/call","params":{"name":"get_zone_samples","arguments":{"keygroup":1}}}
@@ -121,4 +144,19 @@
 {"jsonrpc":"2.0","id":111,"method":"tools/call","params":{"name":"clear_part","arguments":{"part":1,"confirm":"WRONG"}}}
 {"jsonrpc":"2.0","id":112,"method":"tools/call","params":{"name":"rename_multi","arguments":{"name":"STAGE2"}}}
 {"jsonrpc":"2.0","id":113,"method":"tools/call","params":{"name":"delete_multi","arguments":{"confirm":"STAGE"}}}
+{"jsonrpc":"2.0","id":1040,"method":"tools/call","params":{"name":"get_fx_board","arguments":{}}}
+{"jsonrpc":"2.0","id":1041,"method":"tools/call","params":{"name":"set_fx_channel_mute","arguments":{"channel":1,"muted":true}}}
+{"jsonrpc":"2.0","id":1042,"method":"tools/call","params":{"name":"set_fx_module","arguments":{"channel":0,"module":2,"type":"flange"}}}
+{"jsonrpc":"2.0","id":1043,"method":"tools/call","params":{"name":"set_fx_parameter","arguments":{"channel":0,"module":2,"parameter":"rate","value":15}}}
+{"jsonrpc":"2.0","id":1044,"method":"tools/call","params":{"name":"get_fx_parameter","arguments":{"channel":0,"module":2}}}
+{"jsonrpc":"2.0","id":1045,"method":"tools/call","params":{"name":"set_fx_parameter","arguments":{"channel":0,"module":2,"parameter":"rate","value":100}}}
+{"jsonrpc":"2.0","id":1046,"method":"tools/call","params":{"name":"set_fx_module","arguments":{"channel":0,"module":1,"type":"chorus"}}}
+{"jsonrpc":"2.0","id":1032,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":1}}}
+{"jsonrpc":"2.0","id":1033,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":3}}}
+{"jsonrpc":"2.0","id":1034,"method":"tools/call","params":{"name":"list_multis","arguments":{}}}
+{"jsonrpc":"2.0","id":1035,"method":"tools/call","params":{"name":"delete_all_multis","arguments":{"confirm":3}}}
+{"jsonrpc":"2.0","id":1036,"method":"tools/call","params":{"name":"clear_sampler_memory","arguments":{"confirm":6}}}
+{"jsonrpc":"2.0","id":1037,"method":"tools/call","params":{"name":"clear_sampler_memory","arguments":{"confirm":10}}}
+{"jsonrpc":"2.0","id":1038,"method":"tools/call","params":{"name":"list_programs","arguments":{}}}
+{"jsonrpc":"2.0","id":1039,"method":"tools/call","params":{"name":"clear_sampler_memory","arguments":{"confirm":10}}}
 {"jsonrpc":"2.0","id":114,"method":"server/discover","params":{"_meta":{"io.modelcontextprotocol/protocolVersion":"2026-07-28","io.modelcontextprotocol/clientCapabilities":{}}}}

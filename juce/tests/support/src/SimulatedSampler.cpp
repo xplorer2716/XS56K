@@ -342,6 +342,9 @@ namespace akm::harness
         constexpr std::uint8_t SAVE_TYPE_MULTI = 1;
         constexpr std::uint8_t SAVE_TYPE_PROGRAM = 2;
         constexpr std::uint8_t SAVE_TYPE_SAMPLE = 3;
+        constexpr std::uint8_t SAVE_TYPE_SMF = 4;
+        constexpr std::uint8_t SAVE_TYPE_SETLIST = 5;
+        constexpr std::uint8_t SAVE_TYPE_SCENELIST = 6;
         // Sample audition from disk items of TASK-AKM-065 (RQ-AKM-068).
         constexpr std::uint8_t ITEM_START_FILE_AUDITION = 0x30;
         constexpr std::uint8_t ITEM_STOP_FILE_AUDITION = 0x31;
@@ -1107,7 +1110,17 @@ namespace akm::harness
                     const KeygroupRecord& keygroup =
                         programs[*currentProgram].keygroups[static_cast<std::size_t>(*currentKeygroup - 1)];
                     const auto found = keygroup.zoneParameters.find({ITEM_SET_ZONE_SAMPLE, Bytes{data.front()}});
-                    return reply(found != keygroup.zoneParameters.end() ? found->second : Bytes{0});
+                    if (found == keygroup.zoneParameters.end())
+                        return reply(Bytes{0});
+                    // A zone whose sample has gone from the memory names it behind a question mark: what a real S5000 answered after every sample was
+                    // deleted (TASK-MCP-061, 2026-10-10).
+                    akm::ByteReader stored(found->second);
+                    const auto name = stored.readString();
+                    if (!name || name->empty() || std::find(sampleNames.begin(), sampleNames.end(), *name) != sampleNames.end())
+                        return reply(found->second);
+                    akm::ByteWriter missing;
+                    missing.appendString("?" + *name);
+                    return reply(missing.bytes());
                 }
                 default:
                     return executeZoneParameterGroup(item, data, programs, currentProgram, currentKeygroup);
@@ -1606,6 +1619,9 @@ namespace akm::harness
                 const auto name = reader.readString();
                 if (!name)
                     return failure(error_number::INVALID_FORMAT);
+                // The real S5000 refuses to rename a set list to the name it has, with ERROR 04 (TASK-MCP-058, 2026-10-10).
+                if (*name == setLists[*index])
+                    return failure(error_number::NOT_FOUND);
                 setLists[*index] = *name;
                 return done();
             }
@@ -1614,13 +1630,32 @@ namespace akm::harness
             return reply(writer.bytes());
         }
 
+        // How a list keeps its names after a renaming: as they were, or sorted by name as the real S5000 (OS 2.14) sorts its song
+        // files (2026-10-10, TASK-MCP-058: "AIMER" renamed "XS56K-RENAME-TEST-20" moved from position 1 to the last, and back to 1
+        // between "a_woman_in_love" and "alors_regarde", so letters compare without regard to case and "_" comes before them).
+        enum class NameOrder
+        {
+            AsKept,
+            SortedOnRename
+        };
+
+        // Whether `a` comes before `b` in the order of the real S5000's song files: plain ASCII, each letter taken in lower case.
+        bool beforeInSongOrder(const std::string& a, const std::string& b)
+        {
+            return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](char left, char right) {
+                return std::tolower(static_cast<unsigned char>(left)) < std::tolower(static_cast<unsigned char>(right));
+            });
+        }
+
         // The eight items a list of named things with a current one has: select by name/index, delete/rename the
         // current one and the four Gets. It is the song file half of §16 (RQ-AKM-082, RQ-AKM-083, TASK-AKM-084) and
         // the whole of §14, the scenelists (RQ-AKM-095, RQ-AKM-096, TASK-AKM-097), whose items have the same codes.
         // A name or an index with none, and any "current" item with none current, fail with ERROR 04, as §0E does
-        // (the spec is silent on both sections, so this is a modelling choice).
+        // (the spec is silent on both sections, so this is a modelling choice). A list `SortedOnRename` is sorted again after a
+        // renaming and the position selected stays selected, whatever item it now holds: what the real S5000 did twice after a song
+        // file was renamed, from the front panel and through SysEx (TASK-MCP-058, 2026-10-10).
         Outcome executeCurrentNamedList(std::uint8_t item, const Bytes& data, std::vector<std::string>& names,
-                                        std::optional<std::size_t>& current)
+                                        std::optional<std::size_t>& current, NameOrder order = NameOrder::AsKept)
         {
             switch (item)
             {
@@ -1651,7 +1686,10 @@ namespace akm::harness
                     if (!current.has_value())
                         return failure(error_number::NOT_FOUND);
                     names.erase(names.begin() + static_cast<std::ptrdiff_t>(*current));
-                    current.reset();
+                    // The position selected stays selected, on whatever item it now holds; past the last item nothing is selected: what the
+                    // real S5000 did after a song file (position 1 of 5) and a scenelist (the last of 3) were deleted (TASK-MCP-058, 2026-10-10).
+                    if (*current >= names.size())
+                        current.reset();
                     return done();
                 case ITEM_LIST_RENAME_CURRENT:
                 {
@@ -1662,6 +1700,8 @@ namespace akm::harness
                     if (!name)
                         return failure(error_number::INVALID_FORMAT);
                     names[*current] = *name;
+                    if (order == NameOrder::SortedOnRename)
+                        std::stable_sort(names.begin(), names.end(), beforeInSongOrder);
                     return done();
                 }
                 case ITEM_LIST_GET_COUNT:
@@ -1720,7 +1760,7 @@ namespace akm::harness
                 case ITEM_RENAME_SET_LIST:
                     return executeSetListByIndex(item, data, state.setLists);
                 default:
-                    return executeCurrentNamedList(item, data, state.songs, state.current);
+                    return executeCurrentNamedList(item, data, state.songs, state.current, NameOrder::SortedOnRename);
             }
         }
 
@@ -1823,12 +1863,18 @@ namespace akm::harness
 
         // §02/&32: every program, multi and sample is deleted, and the memory they held is free again — what
         // the Wave memory and MPKS memory Gets then report (the spec says nothing of it; a modelling choice).
+        // The song files, the set lists and the scenelists go too: a real S5000 held none after it (TASK-MCP-062, 2026-10-10).
         // [RQ-AKM-056]
         Outcome executeClearMemory(SystemSetupState& system, std::vector<ProgramRecord>& programs,
                                  std::optional<std::size_t>& currentProgram, std::optional<int>& currentKeygroup,
                                  std::vector<SampleRecord>& samples, std::optional<std::size_t>& currentSample,
-                                 MultiState& multis)
+                                 MultiState& multis, SongState& songs, SceneListState& sceneLists)
         {
+            songs.songs.clear();
+            songs.current.reset();
+            songs.setLists.clear();
+            sceneLists.scenes.clear();
+            sceneLists.current.reset();
             programs.clear();
             currentProgram.reset();
             currentKeygroup.reset();
@@ -1887,8 +1933,26 @@ namespace akm::harness
         // Appends what `file` materializes to `programs`/`samples` (RQ-AKM-066): a program, and/or a
         // sample typed RAM or VIRTUAL per `sampleLoadOption` (only meaningful for a sample).
         void materializeFile(const FileRecord& file, std::uint8_t sampleLoadOption, std::vector<ProgramRecord>& programs,
-                            std::vector<SampleRecord>& samples)
+                            std::vector<SampleRecord>& samples, SongState& songs, SceneListState& sceneLists)
         {
+            // A song file loaded whose name the sampler holds replaces it, and one it does not hold is added in its sorted place; a scenelist
+            // replaces the one of its name and goes to the end of the list; the position selected stays selected whatever it now holds (a real
+            // S5000, TASK-MCP-059, 2026-10-10).
+            if (file.loadsSongNamed)
+            {
+                songs.songs.erase(std::remove(songs.songs.begin(), songs.songs.end(), *file.loadsSongNamed), songs.songs.end());
+                songs.songs.push_back(*file.loadsSongNamed);
+                std::stable_sort(songs.songs.begin(), songs.songs.end(), beforeInSongOrder);
+            }
+            // The sampler holds one set list at a time: loading one replaces the one in memory (a real S5000, TASK-MCP-058, 2026-10-10).
+            if (file.loadsSetListNamed)
+                songs.setLists = {*file.loadsSetListNamed};
+            if (file.loadsSceneListNamed)
+            {
+                sceneLists.scenes.erase(std::remove(sceneLists.scenes.begin(), sceneLists.scenes.end(), *file.loadsSceneListNamed),
+                                        sceneLists.scenes.end());
+                sceneLists.scenes.push_back(*file.loadsSceneListNamed);
+            }
             if (file.loadsProgramNamed)
             {
                 ProgramRecord program;
@@ -1908,6 +1972,8 @@ namespace akm::harness
         // `.AKP` and a sample is `.WAV` (the owner's own statement, and what the real S5000 wrote on 2026-10-06 when a
         // sample was saved). A multi's `.AKM` is an ASSUMPTION: no multi has been saved on the real sampler yet and no
         // spec gives it. Empty for a type this model does not save content for.
+        // The extensions of a saved song file, set list and scenelist are what a real S5000 wrote (TASK-MCP-059, 2026-10-10): `.MID`, `.SET` and
+        // `.ASC`, the owner's own files being `Set 1.SET` and `Scene  1.ASC`.
         std::string extensionForSaveType(std::uint8_t type)
         {
             switch (type)
@@ -1918,6 +1984,12 @@ namespace akm::harness
                     return ".AKP";
                 case SAVE_TYPE_SAMPLE:
                     return ".WAV";
+                case SAVE_TYPE_SMF:
+                    return ".MID";
+                case SAVE_TYPE_SETLIST:
+                    return ".SET";
+                case SAVE_TYPE_SCENELIST:
+                    return ".ASC";
                 default:
                     return "";
             }
@@ -1932,6 +2004,24 @@ namespace akm::harness
         constexpr std::uint32_t SAVED_SAMPLE_HEADER_BYTES = 144;
         constexpr std::uint32_t SAVED_SAMPLE_BYTES_PER_POINT = 2;
         constexpr std::uint32_t SAVED_MULTI_BYTES = 2354;
+        // A saved set list was 2304 bytes and a scenelist 26 (the owner's files and the files saved by the run, 2026-10-10). A saved song file
+        // differs with the song: 31492, 34681, 36087 and 36839 bytes for four songs; one of them is used for every song.
+        constexpr std::uint32_t SAVED_SONG_BYTES = 34681;
+        constexpr std::uint32_t SAVED_SET_LIST_BYTES = 2304;
+        constexpr std::uint32_t SAVED_SCENELIST_BYTES = 26;
+
+        std::uint32_t savedNamedListBytes(std::uint8_t type)
+        {
+            switch (type)
+            {
+                case SAVE_TYPE_SETLIST:
+                    return SAVED_SET_LIST_BYTES;
+                case SAVE_TYPE_SCENELIST:
+                    return SAVED_SCENELIST_BYTES;
+                default:
+                    return SAVED_SONG_BYTES;
+            }
+        }
 
         std::uint32_t savedProgramBytes(const ProgramRecord& program)
         {
@@ -1959,6 +2049,12 @@ namespace akm::harness
                 file.loadsProgramNamed = itemName;
             else if (type == SAVE_TYPE_SAMPLE)
                 file.loadsSampleNamed = itemName;
+            else if (type == SAVE_TYPE_SMF)
+                file.loadsSongNamed = itemName;
+            else if (type == SAVE_TYPE_SETLIST)
+                file.loadsSetListNamed = itemName;
+            else if (type == SAVE_TYPE_SCENELIST)
+                file.loadsSceneListNamed = itemName;
             const auto found = findFileByName(*folder, file.name);
             if (found && !overwriteExisting)
                 return failure(error_number::COULD_NOT_CREATE);
@@ -1996,7 +2092,7 @@ namespace akm::harness
         Outcome executeDisk(std::uint8_t item, const Bytes& data, std::vector<DiskRecord>& disks,
                             std::optional<std::size_t>& currentDisk, std::vector<std::size_t>& currentFolderPath,
                             std::vector<ProgramRecord>& programs, std::vector<SampleRecord>& samples,
-                            const std::vector<MultiRecord>& multis)
+                            const std::vector<MultiRecord>& multis, SongState& songs, SceneListState& sceneLists)
         {
             switch (item)
             {
@@ -2324,7 +2420,7 @@ namespace akm::harness
                     const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
                     if (!found)
                         return failure(error_number::NOT_FOUND);
-                    materializeFile(folder->files[*found], *sampleLoadOption, programs, samples);
+                    materializeFile(folder->files[*found], *sampleLoadOption, programs, samples, songs, sceneLists);
                     return done();
                 }
                 case ITEM_LOAD_FILE_WITH_DEPENDENTS:
@@ -2339,12 +2435,12 @@ namespace akm::harness
                     const auto found = folder == nullptr ? std::nullopt : findFileByName(*folder, *name);
                     if (!found)
                         return failure(error_number::NOT_FOUND);
-                    materializeFile(folder->files[*found], SAMPLE_LOAD_OPTION_NORMAL, programs, samples);
+                    materializeFile(folder->files[*found], SAMPLE_LOAD_OPTION_NORMAL, programs, samples, songs, sceneLists);
                     for (const std::string& dependency : folder->files[*found].dependsOnFiles)
                     {
                         const auto dependencyIndex = findFileByName(*folder, dependency);
                         if (dependencyIndex)
-                            materializeFile(folder->files[*dependencyIndex], SAMPLE_LOAD_OPTION_NORMAL, programs, samples);
+                            materializeFile(folder->files[*dependencyIndex], SAMPLE_LOAD_OPTION_NORMAL, programs, samples, songs, sceneLists);
                     }
                     return done();
                 }
@@ -2381,6 +2477,16 @@ namespace akm::harness
                             return failure(error_number::NOT_FOUND);
                         itemName = multis[*index].name;
                         sizeBytes = SAVED_MULTI_BYTES;
+                    }
+                    else if (*type == SAVE_TYPE_SMF || *type == SAVE_TYPE_SETLIST || *type == SAVE_TYPE_SCENELIST)
+                    {
+                        const std::vector<std::string>& names = *type == SAVE_TYPE_SMF       ? songs.songs
+                                                                : *type == SAVE_TYPE_SETLIST ? songs.setLists
+                                                                                             : sceneLists.scenes;
+                        if (*index >= names.size())
+                            return failure(error_number::NOT_FOUND);
+                        itemName = names[*index];
+                        sizeBytes = savedNamedListBytes(*type);
                     }
                     else
                     {
@@ -2425,6 +2531,18 @@ namespace akm::harness
                         for (const MultiRecord& multi : multis)
                         {
                             const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, multi.name, SAVED_MULTI_BYTES);
+                            if (outcome.replyId == REPLY_ERROR)
+                                return outcome;
+                        }
+                    }
+                    else if (*type == SAVE_TYPE_SMF || *type == SAVE_TYPE_SETLIST || *type == SAVE_TYPE_SCENELIST)
+                    {
+                        const std::vector<std::string>& names = *type == SAVE_TYPE_SMF       ? songs.songs
+                                                                : *type == SAVE_TYPE_SETLIST ? songs.setLists
+                                                                                             : sceneLists.scenes;
+                        for (const std::string& name : names)
+                        {
+                            const Outcome outcome = saveToFile(folder, *overwriteExisting != 0, *type, name, savedNamedListBytes(*type));
                             if (outcome.replyId == REPLY_ERROR)
                                 return outcome;
                         }
@@ -2720,7 +2838,7 @@ namespace akm::harness
                 return executeMidiConfig(item, data, state.midiConfig);
             if (section == SECTION_SYSTEM && item == ITEM_CLEAR_SAMPLER_MEMORY)
                 return executeClearMemory(state.system, state.programs, state.currentProgram, state.currentKeygroup,
-                                          state.samples, state.currentSample, state.multis);
+                                          state.samples, state.currentSample, state.multis, state.songs, state.sceneLists);
             if (section == SECTION_ZONE)
             {
                 std::vector<std::string> sampleNames;
@@ -2746,7 +2864,8 @@ namespace akm::harness
             if (section == SECTION_MULTI_FX)
                 return executeMultiFx(item, data, state.fx, state.multis.current.has_value());
             if (section == SECTION_DISK)
-                return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples, state.multis.multis);
+                return executeDisk(item, data, state.disks, state.currentDisk, state.currentFolderPath, state.programs, state.samples, state.multis.multis,
+                                   state.songs, state.sceneLists);
             if (section != SECTION_SYSEX_CONFIG)
                 return failure(error_number::NOT_SUPPORTED);
             switch (item)

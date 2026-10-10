@@ -17,7 +17,7 @@ skill computes.
 ## References
 - **Requirements**: RQ-MCP-034 to RQ-MCP-045 (`FTR-MCP-004`); RQ-MCP-013 (`FTR-MCP-001`); RQ-MCP-020, RQ-MCP-021 (`FTR-MCP-002`);
   RQ-MCP-023, RQ-MCP-024, RQ-MCP-032 (`FTR-MCP-003`)
-- **ADRs**: ADR-MCP-004 (Proposed): DEC-MCP-023 to DEC-MCP-027; ADR-MCP-003: DEC-MCP-019 (amended); ADR-MCP-002: DEC-MCP-010
+- **ADRs**: ADR-MCP-004 (Accepted): DEC-MCP-023 to DEC-MCP-027; ADR-MCP-003: DEC-MCP-019 (amended); ADR-MCP-002: DEC-MCP-010
   (amended), DEC-MCP-011
 
 The plan has 10 tasks (TASK-MCP-028 to TASK-MCP-037). 028 authors the artifacts; 029 the zone sample tools; 030 the keygroups; 031

@@ -49,7 +49,7 @@ namespace mcp::test
 
     struct ToolRig
     {
-        explicit ToolRig(bool withDisk = false)
+        explicit ToolRig(bool withDisk = false, bool withFrontPanel = false)
         {
             sampler = &backend.addSampler();
             seedThreePrograms(backend);
@@ -57,6 +57,7 @@ namespace mcp::test
             sampler->setMultiNames({"LIVE", "STUDIO"});
             ToolOptions options;
             options.allowDisk = withDisk;
+            options.allowFrontPanel = withFrontPanel;
             server = std::make_unique<McpServer>(ServerIdentity{"xs56k-mcp", "XS56K", "0.0.1", ""},
                                                  makeAllTools(gateway, ParameterCatalogue::standard(), options));
         }

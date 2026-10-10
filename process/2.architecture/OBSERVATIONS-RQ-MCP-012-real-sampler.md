@@ -323,3 +323,257 @@ claim in a test comment that the source file of a loaded sample is "100 bytes sh
 the oboe file is 32 bytes shorter than its saved copy (1344 and 1376) and the stereo file is the same size as its copy (368084). Left
 as it was, after the run: the free wave memory read 99 % afterwards (158131378 of 158548694 bytes) with no sample in memory, bytes not
 given back after the deletions, as already noted for 786432 bytes in TASK-MCP-037.
+
+## The sampler's settings and the MIDI setup (TASK-MCP-055), run on 2026-10-09 and 10 with the owner present
+
+The owner's S5000 (OS 2.14, no FX board); `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with no
+option (`--screen independent` by default) once per tool call, by a script that writes each answer to a file; every run ended with
+"settings put back: checksum mode, Still Alive, Sync LCD, Auto screen update; not put back: none". Before the MIDI calls the owner
+declared what the MIDI SETUP and MIDI FILTER pages showed: PROGRAM CHANGE on, MULTI SELECT off, MULTI SELECT CHANNEL 1A, EXTERNAL APM
+CONTROLLER 0, AFTERTOUCH channel, and every filter of channel 1A allowing. Every value changed was put back and checked. Traceability:
+RQ-MCP-056, RQ-MCP-046, RQ-MCP-047, TASK-MCP-055 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `get_sampler_settings`, the screen on UTILITIES → MIDI SETUP / MIDI FILTER | **refused**: the name and the clock were read, then the Get of the play mode (§02/&20) was answered **ERROR 03** ("unknown error"), so the tool answered nothing but the error. The same with `--screen as-is` and `--screen follow` |
+| `get_sampler_settings`, the screen on MULTI | answered: `AKAI S5000`, `2026-10-10 00:06:29 (Saturday)`, play mode `multi`, front panel `normal` |
+| `set_sampler_setting` `name` = `XS56K TEST 20 CHARS!` (20 characters) | set and read back as given, all 20 characters kept; `AKAI S5000` put back and read back |
+| `set_sampler_setting` `clock` = `2030-06-15 12:34:56` | set and read back with the day worked out (Saturday); the sampler's own clock had been 52.6 s behind the PC's, and it was put back to the PC's time minus that offset: 52.8 s behind afterwards |
+| `set_sampler_setting` `play_mode` = `program`, `sample`, `muted`, then `multi` | each set and read back; `muted` with its warning that the sampler plays nothing |
+| `set_sampler_setting` `front_panel` = `locked`, then `normal` | each set and read back (`get_sampler_settings` in between read `locked`) |
+| `set_midi_setting`: `program_change` off, `multi_select` bank, `multi_select_channel` 3 (= 4A), `external_apm_controller` 74, `aftertouch` polyphonic | each accepted; **the MIDI SETUP page showed the five values** (the owner, at the page); the five declared values sent back and seen on the page |
+| `set_midi_filter` `ignore` on channel 0 (= 1A) for `note_on`, `aftertouch`, `wheels`, `volume` | each accepted; **the MIDI FILTER page showed the four ignored** on 1A (the page shows one event type at a time, chosen by a field: the owner first saw aftertouch only, then the other three by changing the field); the four set back to `allow` and seen on the page |
+| `get_sampler_settings` again, after the MIDI calls, the screen on UTILITIES → MIDI SETUP, then on MIDI FILTER (the server rebuilt with the change below) | **answered** both times: play mode `multi`, no error |
+
+What this changes: the Get of the play mode was refused (ERROR 03) three times in a row while the screen was on UTILITIES → MIDI
+SETUP / MIDI FILTER, read from the MULTI page, and read again later from both MIDI pages: **the cause of the refusal is not known**
+and the page alone does not reproduce it (it was read without error on 2026-10-01 too, TASK-AKM-053). `get_sampler_settings` now gives
+the name, the clock and the front panel when the sampler answers an ERROR to the play mode, says "not reported" with the sampler's
+reason, and for error 3 says what was seen here; a sampler that answers nothing still makes the tool fail. The simulated sampler
+already refuses an item on demand (`SamplerBehaviour::itemErrors`), which the new tests use; it models no page.
+The MIDI SETUP and MIDI FILTER pages showed each change here with automatic screen updating off (`--screen independent`), whereas on
+2026-10-04 only `&01` and `&07` showed in that state (`OBSERVATIONS-RQ-AKM-080-midi-config.md`); the owner may have left and re-entered
+the page, which this run did not record call by call. The three filter events other than aftertouch, never tried before, are now seen
+obeyed. A name of 20 characters is kept (TASK-MCP-045, assumption).
+
+## Song files, set lists and scenelists in memory (TASK-MCP-058), run on 2026-10-10 with the owner present
+
+Vocabulary: the SysEx specification and the tools say "song file" for a song held **in memory** (the pages SONG LIST, SET LIST and
+PLAY SHEET → SCENE LIST of the front panel show them), whereas a file on the disk is a "file"; a set list contains songs, a scene is a
+set of play sheets and a play sheet links to a multi. The owner's S5000 (OS 2.14, no FX board) held 4 songs (`a_woman_in_love`,
+`AIMER`, `alors_regarde`, `assassine`, sorted by name), the set list `Set 1` (3 songs: `a_woman_in_love`, `AIMER`, `alors_regarde`; a
+test set) and 2 scenelists (`Scene  1`, `Scene  2`, two spaces); the files of all of them were on the disk. `xs56k_mcp_server` was built
+from `feature/MCP` on Windows (MSVC, Debug), launched with no option (`--screen independent`), once per tool call, each answer written
+to a file; every run ended with "settings put back: ... not put back: none", and none wrote a "from the sampler: rejected message" line
+(TASK-MCP-066). A duplicate was made for each deletion by the owner at the front panel, by loading the file of the item after the item
+in memory had been renamed `<name>-ORIG` by `rename_*`; no duplicate was made by the server. Traceability: RQ-MCP-056, RQ-MCP-048,
+RQ-MCP-049, RQ-MCP-042, TASK-MCP-058 (`PLAN-MCP-005`), TASK-MCP-066, TASK-MCP-067, TASK-AKM-106.
+
+| Tool and call | What the sampler did |
+|---|---|
+| `list_song_files`, `list_set_lists`, `list_scenelists` | answered with names and positions; the current song and scenelist were marked (the first of each, position 0, after a reload by the owner) |
+| `select_song_file` / `select_scenelist` by an unknown name, by position 9 | **refused by the sampler**, the selection unchanged: the server turned ERROR NOT_FOUND into "No song file is named ..." / "No song file is at position 9" |
+| `select_song_file` `AIMER`; `select_scenelist` by position 1 and by name | selected, read back with its position |
+| `rename_song_file` to a name another song bears | refused **by the server**, nothing sent (the sampler's own answer to a duplicate name was not tried) |
+| `rename_song_file` `AIMER` → `XS56K-RENAME-TEST-20` (20 characters) | accepted; the **sampler sorted its songs again**, by name without regard to case (`a_woman_in_love`, `alors_regarde`, `assassine`, `XS56K-RENAME-TEST-20`), the new name at position 3, **the position selected (1) stayed selected**, and so `alors_regarde` became current. SONG LIST showed the new name fourth and highlighted |
+| `rename_song_file` back to `AIMER` | `AIMER` back at position 1 (after `a_woman_in_love`, before `alors_regarde`: letters compare without regard to case, `_` before the letters); the selection stayed at position 3, now `assassine`, where the screen also kept its highlight |
+| `rename_scenelist` `Scene  2` → `XS56K-RENAME-TEST-20`, then → `A-XS56K-TEST`, then back | **no sorting**: the scenelist stayed at position 1 each time, and stayed selected; PLAY SHEET → SCENE LIST showed the new name second |
+| `rename_set_list` `Set 1` → `XS56K-RENAME-TEST-20` (20 characters) and back | accepted, position 0 each time; the SET LIST page showed the new name |
+| `rename_set_list` `Set 1` → `Set 1` (its own name) | **refused by the sampler: ERROR 4** ("requested ... item could not be found"), nothing changed |
+| the owner loaded the file of `AIMER` while `AIMER-ORIG` was in memory | 5 songs, the copy `AIMER` sorted before `AIMER-ORIG`; **the song current moved** from `AIMER-ORIG` (position 1) to `alors_regarde` (position 3) |
+| `delete_song_file` on the copy `AIMER` (selected by name, position 1, `confirm` = `AIMER`) | deleted, 4 remain; **the position selected (1) stayed selected**: `AIMER-ORIG` became current |
+| the owner loaded the file of `Scene  2` while `Scene  2-ORIG` was in memory | 3 scenelists, the copy **appended at the end** (position 2), **the current moved** from `Scene  2-ORIG` (position 1) to `Scene  1` (position 0) |
+| `delete_scenelist` on the copy `Scene  2` (last, position 2, `confirm` = `Scene  2`) | deleted, 2 remain; **no scenelist selected** afterwards (`list_scenelists` said so) |
+| the owner loaded a `set 1` file (the `midi` folder's) while `Set 1-ORIG` was in memory | **one set list**: the loaded one **replaced** the other; the sampler holds one set list at a time (the SET LIST page edits that one) |
+| `delete_set_list` on that set list (`confirm` = `Set 1`) | deleted, "No set list remains"; the songs and scenelists unchanged |
+| a power cycle (the owner, during a break) | the memory held no song, no set list and no scenelist when read again; the owner reloaded them from the disk |
+
+Other findings of the run:
+
+- **The position, not the item, is what the sampler keeps selected** for songs: after a renaming that sorts, after a deletion, and from
+  the front panel (the fourth line stayed highlighted on SONG LIST). The old gateway read the new name at the old position and
+  answered a wrong name: TASK-MCP-067 reads the list again and finds the item by its new name, and the answers say which item is
+  current now.
+- **The song selected through SysEx and the one the screen highlights are two selections** with `--screen independent` (the sampler's
+  Sync LCD is off): the screen kept the fourth line while SysEx had the first, then another.
+- **Opening the SET LIST page of the front panel moved the song selected through SysEx** to `alors_regarde`, the last song of `Set 1`,
+  twice (the page showed no highlight, and moving its cursor to the first song changed nothing through SysEx). Selecting a scenelist
+  and renaming a set list to its own name (refused) did not move it; whether the two renamings of the set list moved it too was not
+  tried apart from the page. A load from the disk also moved the selection, of songs and of scenelists; the rule is not known.
+- **Two reads of the list of songs got no answer** (no reply within 2000 ms, at the name at position 3, the renamed song) while the
+  screen was on SONG LIST, right after the first renaming; the same read answered at once later, and never failed again in the 60 or
+  so calls that followed. The cause is not known; the rejected frames were not yet logged, so a refused reply is not excluded.
+- Windows did not see `MIDIIN2 (ESI M8U eX)` at the start (the interface was off): "The MIDI input port ... was not found. Available
+  input ports: LoopBe Internal MIDI".
+
+What this changes: the simulated sampler sorts its songs on a renaming and keeps the position selected (TASK-AKM-106, then here),
+keeps the position selected after a deletion and selects none past the last item, holds one set list at a time (a load replaces it)
+and refuses a set list renamed to its own name with ERROR 4; the scenelists stay unsorted. `load_file` now says what the memory no
+longer holds ("set lists 1 (was 1, added HOME, no longer held TOUR)"). The probe's song files check puts back by name (TASK-AKM-106).
+**Not established:** the sampler's answer to a duplicate name (the server refuses first); the rule that moves the selected song or
+scenelist when a file is loaded; why two reads got no answer; whether set lists are sorted (there is only one); the effect of the SET
+LIST page on the selection beyond the two cases seen. The deletion of a set list was run on a set list reloaded from the disk, the
+owner saying it was a test set; no set list can be duplicated, since the sampler holds one.
+
+## Saving and loading song files, set lists and scenelists through the disk (TASK-MCP-059), run on 2026-10-10
+
+The owner's S5000 (OS 2.14) with its SCSI2SD disk `S5K` (hard disk, FAT32, writable; the floppy drive 128 held no disk); the real
+`xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with `--allow-disk` only (**never** `--allow-disk-refresh`:
+`list_disks` was called without `refresh`), once per tool call, each answer written to a file (63 answer files, none with a "from the
+sampler: rejected message" line on standard error, TASK-MCP-066). The owner, who had said the data were test data, left the run to the
+assistant, who made it alone. The songs, the set list and the scenelists saved are those of the sampler (`a_woman_in_love`, `AIMER`,
+`alors_regarde`, `assassine`; `Set 1`; `Scene  1`, `Scene  2`), saved into a folder `MCPLIST` made at the root of the disk by `create_folder`
+and deleted at the end with its 7 files by `delete_folder` (the exact name as `confirm`, `delete_contents` true); the 9 folders and
+the 10 files the owner's root held before were there after. Every name and selection of the memory was put back (the last reading: the
+four songs with `a_woman_in_love` current, `Set 1`, `Scene  1` current then `Scene  2`). Traceability: RQ-MCP-056, RQ-MCP-050,
+RQ-MCP-025, RQ-MCP-026, RQ-MCP-027, TASK-MCP-059 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `list_disks` (no refresh), `select_disk` `S5K`, `list_disk_contents` | two disks, 128 (no disk) and 129 `S5K`; the root held 9 folders and 10 files, among them **`Set 1.SET` (2304 bytes)** and **`Scene  1.ASC`, `Scene  2.ASC` (26 bytes each)**: the extensions of a set list and of a scenelist, written by the sampler itself |
+| `create_folder` `MCPLIST`, `open_folder` | created empty, opened |
+| `save_memory_item` `song_file` `AIMER` | `AIMER.MID`, **36839 bytes** |
+| `save_memory_item` `set_list` `Set 1`, `scenelist` `Scene  1` | `Set 1.SET`, **2304 bytes**; `Scene  1.ASC`, **26 bytes** |
+| `save_memory_item` `AIMER` again | refused **by the server**, nothing sent ("already holds the file ... Pass overwrite true"); with `overwrite` true saved again, "replacing the file of that name", the same 36839 bytes |
+| `save_all_memory_items` `song_file` (confirm 4), `scenelist` (2), `set_list` (1), without `overwrite` | each refused **by the server** because a file of one of the names was already there, nothing sent |
+| the same with `overwrite` true | songs: "the folder gained 3 files" (`a_woman_in_love.MID` 34681, `alors_regarde.MID` 31492, `assassine.MID` 36087 bytes; `AIMER.MID` replaced); scenelists: gained `Scene  2.ASC`; set list: "gained no new file (files of the same names may have been replaced)" |
+| `load_file` `AIMER.MID` with `AIMER` in memory | accepted; the 4 songs, their order and the selection **unchanged**; the answer says nothing of song files (the names did not change) |
+| `load_file` `Scene  1.ASC` with `Scene  1` in memory | accepted; still 2 scenelists, but the order became `Scene  2`, `Scene  1`: the scenelist was **replaced and put at the end**, the position selected (0) stayed selected and so became `Scene  2`. `load_file` `Scene  2.ASC` put the order back |
+| `load_file` `Set 1.SET` with `Set 1` in memory | accepted; one set list, `Set 1` |
+| `rename_song_file` `assassine` → `assassine-ORIG`, then `load_file` `assassine.MID` | "song files 5 (was 4, added assassine)": the copy **sorted** into position 3, before `assassine-ORIG`; the position selected (3) stayed selected and now held the copy. `delete_song_file` on the copy (selected by name, exact `confirm`), `rename_song_file` back, selection to position 0 |
+| `rename_scenelist` `Scene  2` → `Scene  2-ORIG`, then `load_file` `Scene  2.ASC` | "scenelists 3 (was 2, added Scene  2)": the copy **at the end** (position 2); the position selected (1, `Scene  2-ORIG`) stayed, whereas the loads from the front panel of TASK-MCP-058 had moved it. `delete_scenelist` on the copy, rename back, selection to position 0 |
+| `rename_set_list` `Set 1` → `Set 1-ORIG`, then `load_file` `Set 1.SET` | "set lists 1 (was 1, added Set 1, no longer held Set 1-ORIG)": the loaded set list **replaced** the other, as the sampler holds one |
+| `close_folder`, `delete_folder` `MCPLIST` (`confirm` `MCPLIST`, `delete_contents`) | "Deleted the folder and the 7 items it held"; the root as before |
+
+What this changes: the simulated sampler writes `.MID`, `.SET` and `.ASC` (the placeholder `.SCN` was wrong) with 34681 (one of the four
+song sizes, which follow the song), 2304 and 26 bytes (the placeholders were 512), a loaded song replaces the one of its name or is
+added in its sorted place, a loaded scenelist replaces the one of its name and goes to the end, and the position selected stays selected;
+the README says it. **Not established:** whether a song loaded under a name the sampler holds is reloaded or ignored (the names cannot
+tell); what decides the size of a saved song; `save_children`, a read-only disk and a very slow save were not tried; the front-panel loads
+moved the selected item and the SysEx loads did not, the rule being unknown.
+
+## The effects board (TASK-MCP-060), run on 2026-10-10 with no board
+
+The owner's S5000 (OS 2.14) has no effects board (no EB20). `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched
+with no option, once per tool call (answers in the scratchpad's `run060`, none with a "from the sampler: rejected message" line). The owner
+left the run to the assistant. A test multi `MCPFX` was made by `create_multi` ("with 32 parts; it is now the current multi") and selected,
+the five tools were called on it, then it was deleted by `delete_multi` with its exact name and `New Multi  2` was made current again; the
+memory was as before (programs `New Program  1` and `X01`, multis `New Multi  1` and `New Multi  2`, no sample, 99 % of the wave memory
+free). Traceability: RQ-MCP-056, RQ-MCP-053, TASK-MCP-060 (`PLAN-MCP-005`).
+
+| Tool and call | What the tool answered |
+|---|---|
+| `get_fx_board` | an error: "The sampler reports no effects board, so the effects tools have nothing to act on. They need a sampler with an EB20 board and act on the current multi" |
+| `set_fx_channel_mute` channel 0, muted true | the same error |
+| `set_fx_module` channel 0, module 0, enabled true | the same error |
+| `get_fx_parameter` channel 0, module 0 | the same error |
+| `set_fx_parameter` channel 0, module 0, parameter 0, value 0 | the same error |
+
+What this changes: nothing in the code. The five answers are those the simulated sampler gives with no board (`FxToolsTests.cpp`, "a sampler
+that reports no effects board": it also checks that nothing but the card query is sent, which a real run cannot show, the server logging no
+frame it sends). **Not established**, and so kept in the README: every Set and Get of the effects on a **real board**, the values read back
+and put back, the layout of a real EB20 against Table 24 and Table 25; it needs a sampler with an EB20.
+
+## Deleting every program, every sample and every multi (TASK-MCP-061), run on 2026-10-10
+
+The owner's S5000 (OS 2.14); `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with no option (with `--allow-disk`
+only to save, to load and to browse), once per tool call (answers in the scratchpad's `run061`, none with a "from the sampler: rejected
+message" line). The owner had said to do the remaining tasks without him, which the plan had not foreseen for these calls ("after the
+owner's word"): the memory held his two programs (`New Program  1`, `X01`) and two multis (`New Multi  1`, `New Multi  2`), loaded from
+his disk, with the songs, the set list and the scenelists, so **all of it was first saved** by `save_all_memory_items` into a folder
+`MCPSAVE` made at the root of the disk (11 files: 2 `.AKP` of 516 bytes, 2 `.AKM` of 2354, 4 `.MID`, `Set 1.SET`, 2 `.ASC`; the sizes those
+of his own files) and **reloaded at the end of TASK-MCP-062**. Test objects were made for the run: the programs `MCPDEL1` and `MCPDEL2` (1
+keygroup), the multi `MCPDELM` (32 parts, part 1 playing `MCPDEL1`), then, after the programs had gone, the program `MCPDEL3` and two
+samples `AKWF_oboe_0001` and `AKWF_oboe_0002` (1344-byte files of the disk), zone 1 of the keygroup of `MCPDEL3` playing the first.
+Traceability: RQ-MCP-056, RQ-MCP-051, RQ-MCP-042, TASK-MCP-061 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `delete_all_programs` `confirm` 99 (4 programs held) | **refused by the server**, nothing sent: "The sampler holds 4 programs, not 99" |
+| `delete_all_programs` `confirm` 4 | "Deleted all 4 programs"; `list_programs` and `get_status`: no program. **Part 1 of `MCPDELM` still read `MCPDEL1`** (`get_part_programs`): a multi keeps the name of a program that is gone |
+| `delete_all_samples` `confirm` 7 (2 samples held), then 2 | refused with the number held, then "Deleted all 2 samples"; `list_samples`: no sample. **Zone 1 of `MCPDEL3` then read `?AKWF_oboe_0001`**: a zone keeps the name of a sample that is gone, behind a question mark; the free wave memory read 99 % afterwards (the two samples were 1344 bytes each) |
+| `delete_all_multis` `confirm` 99 (3 multis held), then 3 | refused with the number held, then "Deleted all 3 multis" (the two of the owner and `MCPDELM`); `list_multis`: no multi; `get_part_programs` then answered ERROR 4 ("Is a multi selected?") |
+
+What this changes: the simulated sampler answers a zone whose sample is gone with its name behind a question mark (a test written before
+the change); that a multi keeps the name of a deleted program was already what it did. **Not established:** the same effects after a
+single `delete_program` or `delete_sample` (not tried: the same is expected); whether the part or the zone finds its program or sample
+again when one of that name is loaded; the time of each command (not measured: all answered within the ordinary command timeout).
+
+## Clearing the sampler's memory (TASK-MCP-062), run on 2026-10-10
+
+The owner's S5000 (OS 2.14); `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with no option (with
+`--allow-disk` to load), once per tool call (answers in the scratchpad's `run062`, none with a "from the sampler: rejected message"
+line). **This is the command AGENTS.md says never to send to the owner's sampler without asking**: the owner had said, on the same day, to do
+the remaining tasks of the plan without him, the plan naming this one, and the whole memory had been saved to the disk (folder `MCPSAVE`,
+TASK-MCP-061) and was reloaded afterwards. Memory when the command was sent: the programs `MCPDEL3` and `MCPCLR1`, the sample
+`AKWF_oboe_0001` and the multi `MCPCLRM` (4 items), and, besides, the owner's 4 songs, `Set 1` and 2 scenelists (7 items of the three lists).
+Traceability: RQ-MCP-056, RQ-MCP-052, RQ-MCP-042, TASK-MCP-062 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `clear_sampler_memory` `confirm` 2, with 3 items held (2 programs, no sample yet, 1 multi) | **refused by the server**, nothing sent: "The sampler holds 3 items in its memory (2 programs, 0 samples and 1 multi), not 2" |
+| `clear_sampler_memory` `confirm` 4 | accepted; the whole call (server start, connection, command, close) took **1.15 s**, within the ordinary command timeout; "2 programs, 1 sample and 1 multi are gone (4 items)" |
+| `list_programs`, `list_samples`, `list_multis` afterwards | none of each |
+| **`list_song_files`, `list_set_lists`, `list_scenelists` afterwards** | **none of each: the 4 songs, the set list and the 2 scenelists had been cleared too**, whereas the tool's answer said they were "still held" |
+| `get_system_info` afterwards | free wave memory 100 % (158548694 of 158548694 bytes), free program memory 100 % |
+
+The memory was then put back from `MCPSAVE` by `load_file` (the programs, then the multis, then the songs, the set list and the scenelists, in
+the order they had), and the selections (`New Program  1`, `New Multi  2`, the first song and the first scenelist): 2 programs, 2 multis with
+part 1 `X01` and part 2 `New Program  1` in `New Multi  2`, 4 songs, `Set 1`, 2 scenelists, as before; the program memory read 99 % free after,
+98 % before.
+
+What this changes: TASK-MCP-051's assumption that the song files, set lists and scenelists are untouched is **refuted**: `clear_sampler_memory`
+clears them too. The tool now says so in its description, says in its refusal how many of them the sampler holds ("The command also clears
+the song files, set lists and scenelists, which 'confirm' does not count"), and says in its answer which were lost; the simulated sampler
+clears them. **The count that `confirm` carries is unchanged** (programs, samples and multis): whether it should include the three lists is
+a decision of the owner (DEC-MCP-029, amended). **Not established:** the time of the command on a large memory (the memory here was tiny);
+that the same command clears the three lists on every OS version.
+
+## The front-panel keys (TASK-MCP-063), run in part on 2026-10-10 without the owner at the screen
+
+`xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with `--allow-front-panel` only, once per tool call (answers in
+the scratchpad's `run063`, none with a "from the sampler: rejected message" line). The owner had said to do the remaining tasks without him; the
+effect of a key can only be seen on the sampler's screen, which the assistant does not see, so **only the keys that move nothing but a cursor were
+sent**, once each, and neither the data wheel nor an ASCII character, which can change a value. Traceability: RQ-MCP-056, RQ-MCP-054,
+TASK-MCP-063 (`PLAN-MCP-005`).
+
+| Tool and call | What the tool answered |
+|---|---|
+| `press_key` `cursor_right` | "Pressed the key "cursor_right" (held then released). The sampler only queued it." |
+| `hold_key` `cursor_right` (the server then closed its session) | "Holding the key "cursor_right" down. It stays down until release_key, or until the session closes."; the session closed in order, "settings put back ... not put back: none" |
+| `release_key` `cursor_right` (nothing held by this session) | "Released the key "cursor_right"." |
+| `press_key` `not_a_key` | refused by the server, nothing sent, with the list of the 43 keys |
+
+What this establishes, and no more: the three key tools are accepted by the sampler through the MCP server as through the AKM layer (TASK-AKM-073,
+`OBSERVATIONS-RQ-AKM-076-front-panel.md`: OK then DONE for every §20 frame, the owner seeing the shortcuts work). **Not established, and left to
+the owner at the screen:** what each key did on the screen, the release of a key still held when the session closes, `turn_data_wheel` (the
+direction and the amount of a click), `send_ascii_key` (a character in a name), and the five tools together on a page the owner chooses.
+
+### Run with the owner at the screen, the same day (TASK-MCP-063, finished)
+
+The owner then sat at the sampler and said what the screen did after each call. Same server, `--allow-front-panel` only, one session per call
+(answers in the scratchpad's `run063b`; none of the stderr files has a "from the sampler: rejected message" line). The pages were chosen by him:
+nothing was pressed that can delete, save, load or leave a screen with a yes (`ent_play`, `save`, `load` and `exit` were never sent by the
+server; he pressed EXIT himself, once, to leave the rename page without validating).
+
+| Step | Call | What the owner saw |
+|---|---|---|
+| 1 | `press_key` `cursor_right`, on MIDI SETUP with the cursor on "program change: ON" | **nothing moved**, and his own right button moved nothing there either (a field with one place): no conclusion, a page with a cursor that moves was asked for |
+| 2 | `press_key` `cursor_right`, then `cursor_left`, on RENAME PROG with the cursor in the name field | the cursor went one character to the right, then back one to its place |
+| 3 | `hold_key` `cursor_right`, 3.8 s, then `release_key` | the cursor ran on to the **right end of the name**: the sampler repeats a held key |
+| 4 | `hold_key` `cursor_left`, about 1 s, then `release_key` (from the right end) | the cursor stopped **just behind the last "1" of "New Program  1" and stayed** there: it did not run on to the start |
+| 5 | `hold_key` `cursor_left`, about 1 s, then the session closed **with no `release_key`** (end of input) | from behind the "1" the cursor went to the "a" of "Program" and **stayed**: closing the session released the key |
+| 6 | a test program made by `create_program` (`MCP063TEST`, 1 keygroup), RENAME PROG opened on it by the owner, cursor on the first character "M"; `turn_data_wheel` `forwards` 1 click, then `backwards` 1 click | "M" became **"N"**, then **"M"** again: one click forwards is the next character, one click backwards the previous one |
+| 7 | `press_key` `cursor_right` (the cursor on the "C"), then `send_ascii_key` 65 | the name read **`MAP063TEST`**: the "C" was replaced by an "A" |
+| 8 | the owner pressed EXIT (no ENT); `list_programs`, then `delete_program` with `confirm` "MCP063TEST" | the list still said `MCP063TEST`: the name typed on the screen was **never validated**, so the memory did not change; the program was deleted, 2 programs are left (`New Program  1`, `X01`) as before the run |
+| 9 | `press_key` `multi`, then `press_key` `utilities` | the screen went to a **multi page** (on `New Multi  2`), then to the **UTILITIES page** |
+
+The server refused `turn_data_wheel` with the direction "forward" (the words are `forwards` and `backwards`), sending nothing.
+
+What this establishes: the five key tools each did on the real S5000 what their description says, seen on the screen: a cursor key moves the cursor one place;
+a key held repeats until it is released, by the tool or by the session closing; one click of the wheel moves a character of a name by one place in the
+table, forwards or backwards; an ASCII character is typed at the cursor; `multi` and `utilities` change the page. **Not established:** the keys other
+than `cursor_left`, `cursor_right`, `multi` and `utilities` (the owner named these; the other 39 were not tried, and `ent_play`, `save`, `load` and
+`exit` on purpose), the rate of the repetition of a held key and how many characters a second of holding moves (not counted: it was one character in one
+run and several in another, the start of a hold not being timed), whether the cursor advances after the ASCII character (not asked), and the release of a
+key when the server is killed rather than closed (not tried, `TASK-MCP-053`, assumption 4).

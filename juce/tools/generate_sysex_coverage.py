@@ -1,0 +1,1096 @@
+#!/usr/bin/env python3
+"""Generate and check the table of the SysEx specification's messages, with the AKM function and the MCP tool of each.
+
+ADR-MCP-006 (DEC-MCP-035 to DEC-MCP-039): the file documents/SYSEX-COVERAGE.md has one table per section of the
+specification (Table 4's order), one row per message of the item catalogue (juce/akm/data/items.json), and the
+eight alternative sections of Table 32, which the catalogue does not hold, as rows of the declared data file
+(juce/tools/sysex_coverage_declared.json). The catalogue is compared with the spec's own item list,
+documents/_index/sysex_spec.items.tsv, so a catalogue that loses or invents an item stops the script.
+
+The AKM function of a message comes from a scan of juce/akm/src (the public function whose body, or whose helpers'
+body, builds a request for the item). The MCP tool comes from the server's README (the tools and their launch options),
+the declared file (which methods of the gateway each tool calls, checked both ways against juce/mcp/src/Tools.cpp) and
+a scan of the gateway's sources (what each method sends). The script stops when a scan names an item that no public
+function reaches or that the catalogue does not have, or when the declared list and the sources disagree. It runs by hand
+and in the test suite (ctest), never during the build.
+
+Usage:
+    python3 juce/tools/generate_sysex_coverage.py              # write the file
+    python3 juce/tools/generate_sysex_coverage.py --check      # fail if the file is out of date
+    python3 juce/tools/generate_sysex_coverage.py --check-tools --server <xs56k_mcp_server_simulated>
+                                                               # fail if a tool sends a message the table does not give it
+
+(On Windows the interpreter is usually `python`.)
+
+Exit status: 0 when everything holds, 1 when the file is out of date or the catalogue disagrees with the spec,
+2 when an input cannot be read.
+
+[TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, TASK-MCP-075, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062, RQ-MCP-063,
+RQ-MCP-066,
+ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
+"""
+import argparse
+import csv
+import dataclasses
+import json
+import pathlib
+import re
+import subprocess
+import sys
+import tempfile
+
+HERE = pathlib.Path(__file__).resolve().parent
+ROOT = HERE.parent.parent
+DEFAULT_DATA = ROOT / "juce" / "akm" / "data" / "items.json"
+DEFAULT_TSV = ROOT / "documents" / "_index" / "sysex_spec.items.tsv"
+DEFAULT_DECLARED = HERE / "sysex_coverage_declared.json"
+DEFAULT_OUTPUT = ROOT / "documents" / "SYSEX-COVERAGE.md"
+DEFAULT_AKM_SOURCES = ROOT / "juce" / "akm" / "src"
+DEFAULT_AKM_INCLUDE = ROOT / "juce" / "akm" / "include" / "akm"
+DEFAULT_MCP = ROOT / "juce" / "mcp"
+DEFAULT_ADRS = ROOT / "process" / "2.architecture"
+CONVERSATIONS_FOLDER = ROOT / "juce" / "tests" / "mcp" / "conversations"
+# The conversations the simulated server is run on, and the launch options each needs (TASK-MCP-075, ADR-MCP-006 DEC-MCP-040).
+CONVERSATIONS = [
+    ("simulated_session.jsonl", []),
+    ("simulated_disk_session.jsonl", ["--allow-disk", "--allow-disk-refresh", "--allow-front-panel"]),
+    ("tool_messages.jsonl", []),
+]
+TRACE_OPTION = "--trace-messages"
+CONVERSATION_TIMEOUT_SECONDS = 300
+
+EXIT_OK = 0
+EXIT_MISMATCH = 1
+EXIT_UNREADABLE = 2
+
+# The sections of the spec's Table 4, in its order (documents/_index/sysex_spec.kb.md, "Sections").
+TABLE_4_ORDER = ["00", "02", "04", "06", "08", "0A", "0C", "0E", "10", "12", "14", "16", "20"]
+KIND_NAMES = {"set": "Set", "get": "Get"}
+SPEC_COMMAND_KIND = "C"
+SCRIPT_COMMAND = "python3 juce/tools/generate_sysex_coverage.py"
+
+# The generic builders of the AKM library (`akm/ItemRequest.hpp`): what builds a message no named function sends, by the
+# format of the item's arguments.
+BUILDER_NUMBERS = "makeRequest"
+BUILDER_ONE_STRING = "makeStringRequest"
+BUILDER_TWO_STRINGS = "makeTwoStringRequest"
+FORMAT_STRING = "string"
+CELL_NONE = "none"
+CELL_NOT_OFFERED = "not offered"
+CELL_SESSION = "server session"
+CELL_COVERED = "covered by"
+NOTE_COVERED = "covered"
+NOTE_GAP = "gap"
+NOTE_STATUSES = (NOTE_COVERED, NOTE_GAP)
+SESSION_FUNCTION_PREFIX = "Session::"
+DECISION_HEADING = re.compile(r"^### (DEC-[A-Z]{3}-\d{3}):", re.MULTILINE)
+
+COUNTS_HEADING = "## Counts per section"
+COUNTS_HEADER = ["| Section | Messages | Named AKM function | Generic builder | MCP tool | Not offered | Server session | Covered otherwise | None |",
+                 "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+COUNT_COLUMNS = 8
+COUNTS_TOTAL = "All"
+TABLE_32_HEADING = "## Table 32"
+SECTION_HEADING = "## §"
+HEADER_NAME = "the header"
+ROW_HEADER = ["| Message | AKM function | MCP tool | Note |", "|---|---|---|---|"]
+# In Table 32 a code is a section's, not an item's (`&2A` is also an item of section 06): the column says so.
+SECTION_ROW_HEADER = ["| Section | AKM function | MCP tool |", "|---|---|---|"]
+
+INTRO = [
+    "<!-- Generated by juce/tools/generate_sysex_coverage.py: do not edit by hand, run the script again. -->",
+    "",
+    "# SysEx coverage: the specification's messages, the AKM function and the MCP tool of each",
+    "",
+    "One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the order of its Table 4), one row per message "
+    "(an item of the Control tables: a Set or a Get). The AKM column names the function of the library "
+    "(`juce/akm`) that sends the message; when no named function does, the message is still in the item catalogue and the "
+    "library builds it with its generic builder (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` for "
+    "an item that takes names): any code can send it, and the MCP column tells whether a tool does. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option "
+    "it needs, `not offered` with the decision when it was left out on purpose, `server session` when the server sends it "
+    "itself, at the opening or the closing of its session, and no tool does, `covered by` the tools that get its information "
+    "or function through other messages, or `none`, a gap on which no decision has been taken. The Note column says why, for each message with no tool: "
+    "what covers it, or what exists of it and what is missing. Generated from "
+    "`juce/akm/data/items.json`, the sources and `juce/tools/sysex_coverage_declared.json` "
+    "(`ADR-MCP-006`, `FTR-MCP-006`).",
+    "",
+]
+
+
+class InputError(Exception):
+    """An input file that cannot be read."""
+
+
+def load_json(path):
+    try:
+        return json.loads(pathlib.Path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise InputError(f"cannot read {path}: {error}") from error
+
+
+def read_spec_commands(path):
+    """The spec's command items: {section: {item code, upper case, no `&`}}, from the `C` rows of the TSV."""
+    try:
+        with open(path, encoding="utf-8", newline="") as handle:
+            reader = csv.reader(handle, delimiter="\t", quoting=csv.QUOTE_NONE)
+            header = next(reader)
+            commands = {}
+            for fields in reader:
+                if not fields or fields[0].startswith("#"):
+                    continue
+                row = dict(zip(header, fields + [""] * (len(header) - len(fields))))
+                if row["kind"] == SPEC_COMMAND_KIND:
+                    commands.setdefault(row["sec"], set()).add(row["item"].lstrip("&").upper())
+            return commands
+    except (OSError, StopIteration) as error:
+        raise InputError(f"cannot read {path}: {error}") from error
+
+
+def compare_with_spec(catalogue, spec_commands):
+    """The differences between the catalogue's items and the spec's command rows, one sentence each."""
+    problems = []
+    held = {}
+    for item in catalogue["items"]:
+        held.setdefault(item["section"], set()).add(item["item"].upper())
+    for section in sorted(set(held) | set(spec_commands)):
+        for code in sorted(spec_commands.get(section, set()) - held.get(section, set())):
+            problems.append(f"§{section} item &{code} is in the spec's list and not in the catalogue")
+        for code in sorted(held.get(section, set()) - spec_commands.get(section, set())):
+            problems.append(f"§{section} item &{code} is in the catalogue and not in the spec's list")
+    unknown = sorted(section for section in held if section not in TABLE_4_ORDER)
+    problems.extend(f"§{section} is in the catalogue and not in Table 4's list of sections" for section in unknown)
+    return problems
+
+
+# --- reading the C++ sources: the text scan shared by the AKM and the MCP columns --------------------------------
+# A textual scan, not a C++ parse (ADR-MCP-006, DEC-MCP-036): it relies on the way the repository's sources are
+# written (functions defined at namespace scope, helpers in an anonymous namespace) and fails on what it cannot read.
+
+ITEM_ID_TYPE = "ItemId"
+AKM_NAMESPACE = "akm"
+SCOPE_OPERATOR = "::"
+# A call whose argument names an item only to read it, never to send it: the item's descriptor, the decoding of a reply.
+NON_SENDING_CALL_PREFIX = "decode"
+NON_SENDING_CALLS = {"descriptor"}
+NOT_A_FUNCTION_NAME = {"if", "for", "while", "switch", "catch", "return", "sizeof", "decltype", "alignas", "noexcept",
+                       "static_assert", "alignof", "requires", "operator"}
+TOKEN = re.compile(r"[A-Za-z_]\w*|::|->|\S")
+IDENTIFIER = re.compile(r"[A-Za-z_]\w*$")
+SUBMIT_PREFIX = "submit"
+REQUEST_BUILDER = re.compile(r"^make\w*Request$")
+KIND_FUNCTION = "function"
+KIND_OTHER = "other"
+
+
+class ScanError(Exception):
+    """A source the scan cannot read."""
+
+
+def blank_comments_and_strings(text):
+    """The text with comments, string and character literals and preprocessor lines replaced by spaces, newlines kept."""
+    out = []
+    i, size = 0, len(text)
+    line_start = True
+    while i < size:
+        char, pair = text[i], text[i:i + 2]
+        if pair == "//":
+            end = text.find("\n", i)
+            end = size if end == -1 else end
+            out.append(" " * (end - i))
+            i = end
+        elif pair == "/*":
+            end = text.find("*/", i + 2)
+            end = size if end == -1 else end + 2
+            out.append("".join("\n" if c == "\n" else " " for c in text[i:end]))
+            i = end
+        elif char == '"' or (char == "'" and not (i > 0 and text[i - 1].isalnum())):
+            j = i + 1
+            while j < size and text[j] != char and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            j = min(j + 1, size)
+            out.append(" " * (j - i))
+            i = j
+        elif char == "#" and line_start:
+            j = i
+            while j < size and text[j] != "\n":
+                j += 2 if text[j] == "\\" and j + 1 < size else 1
+            j = min(j, size)
+            out.append("".join("\n" if c == "\n" else " " for c in text[i:j]))
+            i = j
+        else:
+            out.append(char)
+            line_start = char == "\n" or (line_start and char in " \t")
+            i += 1
+            continue
+        line_start = False
+    return "".join(out)
+
+
+def tokens_of(text):
+    """[(token, line)] of the blanked text."""
+    result, line, last = [], 1, 0
+    for match in TOKEN.finditer(text):
+        line += text.count("\n", last, match.start())
+        last = match.start()
+        result.append((match.group(), line))
+    return result
+
+
+@dataclasses.dataclass
+class Unit:
+    """A part of a source: a function, or a data definition (a table of items, a member, a struct)."""
+    name: str
+    line: int
+    kind: str
+    generic: bool = False      # a function that takes an item as a parameter
+    local: bool = False        # a method defined inside a class of the source itself: never a public function
+    builds: bool = False       # its body builds or submits a request
+    sends: dict = dataclasses.field(default_factory=dict)
+    mentions: set = dataclasses.field(default_factory=set)
+    akm_calls: set = dataclasses.field(default_factory=set)   # the functions of the AKM library it names as `akm::function`
+
+    @property
+    def last(self):
+        return self.name.split(SCOPE_OPERATOR)[-1]
+
+
+def is_identifier(token):
+    return bool(IDENTIFIER.match(token))
+
+
+def is_namespace_header(header):
+    names = [token for token, _ in header]
+    if "namespace" not in names:
+        return False
+    rest = names[len(names) - names[::-1].index("namespace"):]
+    return all(is_identifier(token) or token == SCOPE_OPERATOR for token in rest)
+
+
+def is_class_header(header):
+    names = [token for token, _ in header]
+    return ("class" in names or "struct" in names) and "enum" not in names and "(" not in names and "=" not in names
+
+
+def function_name_of(header):
+    """(qualified name, takes an item as a parameter) of the function a header opens, or None when it is not one."""
+    names = [token for token, _ in header]
+    angle = 0
+    for j, token in enumerate(names):
+        if token == "<":
+            angle += 1
+        elif token == ">":
+            angle = max(angle - 1, 0)
+        elif token == "=" and angle == 0:
+            return None
+        elif token == "(" and angle == 0 and j > 0 and is_identifier(names[j - 1]) and names[j - 1] not in NOT_A_FUNCTION_NAME:
+            start = j - 1
+            if start >= 1 and names[start - 1] == "~":  # a destructor: `Session::~Session`
+                start -= 1
+            while start >= 2 and names[start - 1] == SCOPE_OPERATOR and is_identifier(names[start - 2]):
+                start -= 2
+            depth, k = 1, j + 1
+            parameters = []
+            while k < len(names) and depth:
+                depth += (names[k] == "(") - (names[k] == ")")
+                parameters.append(names[k])
+                k += 1
+            generic = any(p == ITEM_ID_TYPE and n is not None and is_identifier(n) and (i == 0 or parameters[i - 1] != SCOPE_OPERATOR)
+                          for i, (p, n) in enumerate(zip(parameters, parameters[1:] + [None])))
+            return "".join(names[start:j]), generic
+    return None
+
+
+def data_name_of(header):
+    names = [token for token, _ in header]
+    for j, token in enumerate(names):
+        if token in ("=", "[") and j > 0 and is_identifier(names[j - 1]):
+            return names[j - 1]
+    identifiers = [token for token in names if is_identifier(token)]
+    return identifiers[-1] if identifiers else "?"
+
+
+def is_non_sending(callee):
+    return callee is not None and (callee in NON_SENDING_CALLS or callee.startswith(NON_SENDING_CALL_PREFIX))
+
+
+def is_request_builder(name):
+    return bool(REQUEST_BUILDER.match(name))
+
+
+def collect(unit, tokens):
+    """Adds to `unit` the items the tokens send and the identifiers they mention. An item named only inside a call that
+    reads it (`descriptor`, `decode...`) is not sent, unless the tokens also build or submit a request: the
+    descriptor is then how the request is made."""
+    parens, read_only = [], {}
+    for i, (token, line) in enumerate(tokens):
+        if token == "(":
+            before = tokens[i - 1][0] if i else None
+            parens.append(before if before and is_identifier(before) else None)
+        elif token == ")":
+            if parens:
+                parens.pop()
+        elif is_identifier(token):
+            if token == ITEM_ID_TYPE and i + 2 < len(tokens) and tokens[i + 1][0] == SCOPE_OPERATOR and is_identifier(tokens[i + 2][0]):
+                target = read_only if is_non_sending(parens[-1] if parens else None) else unit.sends
+                target.setdefault(tokens[i + 2][0], line)
+            elif not (i >= 2 and tokens[i - 1][0] == SCOPE_OPERATOR and tokens[i - 2][0] == ITEM_ID_TYPE):
+                if i >= 2 and tokens[i - 1][0] == SCOPE_OPERATOR and tokens[i - 2][0] == AKM_NAMESPACE:
+                    # `akm::name(...)`, `&akm::name`, `percentOf(akm::name, ...)`: a function called or passed on; a type of the library
+                    # is named the same way and finds no function of that name
+                    unit.akm_calls.add(token)
+                else:
+                    unit.mentions.add(token)
+                if is_request_builder(token) or token.startswith(SUBMIT_PREFIX):
+                    unit.builds = True
+    if unit.builds:
+        for item, line in read_only.items():
+            unit.sends.setdefault(item, line)
+
+
+def matching_brace(tokens, i, filename):
+    """The index of the brace that closes the one at `i`."""
+    depth = 0
+    for j in range(i, len(tokens)):
+        depth += (tokens[j][0] == "{") - (tokens[j][0] == "}")
+        if depth == 0:
+            return j
+    raise ScanError(f"{filename}:{tokens[i][1]}: the brace opened here is never closed")
+
+
+def scan_scope(tokens, first, last, filename, owner):
+    """The units between `first` and `last` (token indexes), a namespace level or the body of a class of the source
+    (`owner` is its name): each function body, each data definition, each statement that names an item."""
+    units, header_start, i = [], first, first
+    while i < last:
+        token, line = tokens[i]
+        if token == "{":
+            header = tokens[header_start:i]
+            end = matching_brace(tokens, i, filename)
+            if end >= last:
+                raise ScanError(f"{filename}:{line}: a brace opened here is closed outside its scope")
+            function = function_name_of(header)
+            if owner is None and is_namespace_header(header):
+                units.extend(scan_scope(tokens, i + 1, end, filename, None))
+            elif function is None and owner is None and is_class_header(header):
+                units.extend(scan_scope(tokens, i + 1, end, filename, data_name_of(header)))
+            else:
+                if function is not None:
+                    name = function[0] if owner is None else f"{owner}{SCOPE_OPERATOR}{function[0]}"
+                    unit = Unit(name, line, KIND_FUNCTION, function[1], local=owner is not None)
+                else:
+                    unit = Unit(data_name_of(header), line, KIND_OTHER, local=owner is not None)
+                collect(unit, tokens[i + 1:end])
+                units.append(unit)
+            i = header_start = end + 1
+            continue
+        if token == "}":
+            raise ScanError(f"{filename}:{line}: a closing brace with nothing open")
+        if token == ";":
+            statement = tokens[header_start:i]
+            unit = Unit(data_name_of(statement), statement[0][1] if statement else line, KIND_OTHER, local=owner is not None)
+            collect(unit, statement)
+            if unit.sends:
+                units.append(unit)
+            header_start = i + 1
+        i += 1
+    return units
+
+
+def scan_source(text, filename):
+    """The units of a source (ADR-MCP-006, DEC-MCP-036)."""
+    tokens = tokens_of(blank_comments_and_strings(text))
+    return scan_scope(tokens, 0, len(tokens), filename, None)
+
+
+def public_names(headers):
+    """The names the AKM headers declare as functions: every identifier a header writes just before a `(`."""
+    names = set()
+    for text in headers.values():
+        tokens = [token for token, _ in tokens_of(blank_comments_and_strings(text))]
+        names.update(token for token, following in zip(tokens, tokens[1:]) if following == "(" and is_identifier(token))
+    return names - NOT_A_FUNCTION_NAME
+
+
+@dataclasses.dataclass
+class AkmAttribution:
+    functions: dict      # item ID -> the public functions that send it
+    unattributed: dict   # item ID -> where it is named, "File.cpp:12", though no public function reaches it
+    generic: list        # the public functions that send whatever item the caller gives them
+    composed: dict       # a public function -> the public functions that send items and that it calls (`pressKey` is `holdKey` and `releaseKey`)
+
+
+def is_public(unit, public):
+    """A function defined at namespace scope whose name a public header declares."""
+    return unit.kind == KIND_FUNCTION and not unit.local and unit.last.lstrip("~") in public
+
+
+def attribute_akm(sources, headers):
+    """Which public function of the AKM library sends which item (ADR-MCP-006, DEC-MCP-036). `sources` and `headers`
+    map a file name to its text. A public function owns what it sends and what the helpers it calls send, through
+    helpers to any depth; it does not own what another public function sends."""
+    public = public_names(headers)
+    functions, generic, unattributed, calls = {}, set(), {}, {}
+    for filename, text in sorted(sources.items()):
+        units = scan_source(text, filename)
+        helpers = {}
+        for unit in units:
+            if not is_public(unit, public):
+                helpers.setdefault(unit.last, []).append(unit)
+        reached = set()
+        for unit in units:
+            if not is_public(unit, public):
+                continue
+            if unit.generic and unit.builds and not is_request_builder(unit.name):
+                generic.add(unit.name)
+            owned, queue, followed, names = dict(unit.sends), list(unit.mentions), set(), set(unit.mentions)
+            while queue:
+                for helper in helpers.get(queue.pop(), []):
+                    if id(helper) not in followed:
+                        followed.add(id(helper))
+                        owned.update(helper.sends)
+                        queue.extend(helper.mentions)
+                        names |= helper.mentions
+            calls.setdefault(unit.name, set()).update(name for name in names if name in public and name != unit.last)
+            reached |= followed
+            for item in owned:
+                functions.setdefault(item, set()).add(unit.name)
+        for group in helpers.values():
+            for helper in group:
+                if id(helper) not in reached:
+                    for item, line in helper.sends.items():
+                        unattributed.setdefault(item, []).append(f"{filename}:{line}")
+    senders = {name for names in functions.values() for name in names}
+    composed = {name: sorted(called & senders) for name, called in sorted(calls.items()) if called & senders}
+    return AkmAttribution({item: sorted(names) for item, names in functions.items()},
+                          {item: sorted(places) for item, places in unattributed.items()}, sorted(generic), composed)
+
+
+def read_akm_sources(source_folder, include_folder):
+    """({file name: text} of the .cpp files, {file name: text} of the public headers); `detail/` is not public."""
+    try:
+        sources = {path.name: path.read_text(encoding="utf-8") for path in sorted(pathlib.Path(source_folder).glob("*.cpp"))}
+        headers = {path.name: path.read_text(encoding="utf-8") for path in sorted(pathlib.Path(include_folder).glob("*.hpp"))}
+    except OSError as error:
+        raise InputError(f"cannot read the AKM sources: {error}") from error
+    return sources, headers
+
+
+def akm_problems(attribution, catalogue):
+    """What the scan found that stops the file being written: items named that nothing reaches or that are not in the catalogue."""
+    known = {item["id"] for item in catalogue["items"]}
+    problems = [f"ItemId::{item} is named at {', '.join(places)} and no public AKM function reaches it"
+                for item, places in sorted(attribution.unattributed.items())]
+    named = set(attribution.functions) | set(attribution.unattributed)
+    problems += [f"ItemId::{item} is used in the AKM sources and is not in the catalogue" for item in sorted(named - known)]
+    return problems
+
+
+# --- the MCP side: the tools, the gateway they call, the parameters ------------------------------------------------
+# ADR-MCP-006 (DEC-MCP-037, DEC-MCP-038): the tools and their options are read from the server's README, the link from a tool to the
+# gateway's methods is declared in the declared file and checked both ways against `Tools.cpp`, and what each gateway method sends is read
+# from the sources (the AKM functions it calls and the items it names, through its private helpers).
+
+README_TOOLS_HEADING = re.compile(r"^## \d+\. The tools\s*$")
+OPTION_OF_ROW = re.compile(r"\*\*only with `(--allow-[a-z-]+)`\*\*")
+OPTION_OF_HEADING = re.compile(r"\(`(--allow-[a-z-]+)`\)")
+TOOL_NAME_IN_CELL = re.compile(r"`([a-z][a-z0-9_]*)`")
+GATEWAY_CLASS = "SamplerGateway"
+GATEWAY_RECEIVER = re.compile(r"SamplerGateway\s*[&*]\s*(\w+)")
+GATEWAY_SOURCES = "SamplerGateway*.cpp"
+GATEWAY_HEADER = ("include", "mcp", "SamplerGateway.hpp")
+TOOLS_SOURCE = "Tools.cpp"
+PARAMETERS_SOURCE = "StandardParameters.cpp"
+MCP_README = "README.md"
+ENTRY_FIELDS = ("gateway", "akm", "parameters", "sends_nothing")
+
+
+def read_readme_tools(text):
+    """{tool: launch option or None} from the tool tables of the README's section 4 (an option is on the row, or on the heading of
+    the subsection)."""
+    tools, option, inside = {}, None, False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            inside, option = bool(README_TOOLS_HEADING.match(line)), None
+        elif not inside:
+            continue
+        elif line.startswith("### "):
+            match = OPTION_OF_HEADING.search(line)
+            option = match.group(1) if match else None
+        elif line.startswith("| `"):
+            match = OPTION_OF_ROW.search(line)
+            for name in TOOL_NAME_IN_CELL.findall(line.split("|")[1]):
+                tools[name] = match.group(1) if match else option
+    return tools
+
+
+def public_methods_of(header_text, class_name):
+    """The names of the public member functions a class declares (or defines) in a header."""
+    tokens = tokens_of(blank_comments_and_strings(header_text))
+    names = [token for token, _ in tokens]
+    if class_name not in names:
+        raise ScanError(f"the header has no class {class_name}")
+    start = names.index(class_name)
+    while names[start] != "{":
+        start += 1
+    end = matching_brace(tokens, start, class_name)
+    public, access, header_start, i = set(), "private", start + 1, start + 1
+    while i < end:
+        token = names[i]
+        if token in ("public", "private", "protected") and names[i + 1] == ":":
+            access, header_start, i = token, i + 2, i + 2
+            continue
+        if token in ("{", ";"):
+            function = function_name_of(tokens[header_start:i])
+            if function is not None and access == "public":
+                public.add(function[0].split(SCOPE_OPERATOR)[-1])
+            if token == "{":
+                i = matching_brace(tokens, i, class_name)
+            header_start = i + 1
+        i += 1
+    return public
+
+
+def gateway_calls_of(tools_source, public_methods):
+    """The public methods of the gateway that a source calls, through whatever name it gives the gateway (a `SamplerGateway&`)."""
+    text = blank_comments_and_strings(tools_source)
+    receivers = set(GATEWAY_RECEIVER.findall(text))
+    if not receivers:
+        return set()
+    call = re.compile(r"\b(?:" + "|".join(sorted(receivers)) + r")\s*(?:\.|->)\s*(\w+)\s*\(")
+    return set(call.findall(text)) & set(public_methods)
+
+
+class GatewayModel:
+    """What each public method of the gateway sends: the items it names and the AKM functions it calls, through its private helpers
+    (`own`), and what the other public methods it calls send (`through`)."""
+
+    def __init__(self, sources, public_methods, akm_function_items):
+        self.public = set(public_methods)
+        self.akm_function_items = akm_function_items
+        self.methods, self.helpers = {}, {}
+        for filename, text in sorted(sources.items()):
+            for unit in scan_source(text, filename):
+                is_method = unit.kind == KIND_FUNCTION and unit.name.startswith(GATEWAY_CLASS + SCOPE_OPERATOR) and unit.last in self.public
+                (self.methods if is_method else self.helpers).setdefault(unit.last, []).append(unit)
+        self._memo = {}
+
+    def reach(self, method):
+        """(own, through): the items a public method sends itself, and those the public methods it calls send."""
+        if method in self._memo:
+            return self._memo[method]
+        self._memo[method] = (set(), set())
+        own, calls, seen = set(), set(), set()
+        queue = list(self.methods.get(method, []))
+        while queue:
+            unit = queue.pop()
+            if id(unit) in seen:
+                continue
+            seen.add(id(unit))
+            own.update(unit.sends)
+            for function in unit.akm_calls:
+                own.update(self.akm_function_items.get(function, set()))
+            for name in unit.mentions:
+                if name in self.public and name != method:
+                    calls.add(name)
+                queue.extend(self.helpers.get(name, []))
+        through = set()
+        for called in sorted(calls):
+            through.update(*self.reach(called))
+        self._memo[method] = (own, through - own)
+        return self._memo[method]
+
+
+@dataclasses.dataclass
+class McpAttribution:
+    tools: dict      # tool -> launch option or None
+    shown: dict      # tool -> the items the table gives it
+    allowed: dict    # tool -> the items it may send: the table's, and those sent through the other methods it calls
+    problems: list
+    parameter_items: set = dataclasses.field(default_factory=set)   # the items the standard parameters name
+
+
+def attribute_mcp(readme_text, gateway_header, gateway_sources, tools_source, parameter_source, declared_tools, akm_function_items,
+                  akm_public_functions, item_sections):
+    """Which tool sends which message (ADR-MCP-006, DEC-MCP-037)."""
+    tools = read_readme_tools(readme_text)
+    public = public_methods_of(gateway_header, GATEWAY_CLASS)
+    model = GatewayModel(gateway_sources, public, akm_function_items)
+    parameter_items = {item for unit in scan_source(parameter_source, PARAMETERS_SOURCE) for item in unit.sends}
+    sections = {section for section, _ in item_sections.values()}
+    problems = [f"the tool {name} is in the README and has no declared entry" for name in sorted(set(tools) - set(declared_tools))]
+    problems += [f"the declared file has an entry for {name}, which the README does not list as a tool"
+                 for name in sorted(set(declared_tools) - set(tools))]
+    shown, allowed, declared_methods = {}, {}, {}
+    for name in sorted(set(tools) & set(declared_tools)):
+        entry = declared_tools[name]
+        if not any(field in entry for field in ENTRY_FIELDS):
+            problems.append(f"the entry of {name} gives none of {', '.join(ENTRY_FIELDS)}")
+        own_items, may_send = set(), set()
+        for method in entry.get("gateway", []):
+            if method not in public:
+                problems.append(f"{name}: the declared gateway method {method} is not a public method of {GATEWAY_CLASS}")
+                continue
+            declared_methods.setdefault(method, []).append(name)
+            own, through = model.reach(method)
+            own_items |= own
+            may_send |= own | through
+        akm_items = set()
+        for function in entry.get("akm", []):
+            if function not in akm_public_functions:
+                problems.append(f"{name}: the declared AKM function {function} is not a public function of the AKM library")
+            akm_items |= akm_function_items.get(function, set())
+        if "akm" in entry:
+            own_items = akm_items
+        parameter_entry = entry.get("parameters")
+        if parameter_entry:
+            wanted = set(parameter_entry["sections"])
+            problems += [f"{name}: the parameter section {section} is not a section of the catalogue" for section in sorted(wanted - sections)]
+            in_sections = {item for item in parameter_items if item_sections.get(item, (None, None))[0] in wanted}
+            own_items |= {item for item in in_sections if item_sections[item][1] == parameter_entry["kind"]}
+            may_send |= in_sections  # a Set is read back, a Get may be asked after it: both kinds of the sections are allowed
+        shown[name] = own_items
+        allowed[name] = own_items | may_send | akm_items
+    called = gateway_calls_of(tools_source, public)
+    problems += [f"{GATEWAY_CLASS}::{method} is called in {TOOLS_SOURCE} and no tool declares it" for method in sorted(called - set(declared_methods))]
+    problems += [f"{', '.join(declared_methods[method])} declares {GATEWAY_CLASS}::{method}, which {TOOLS_SOURCE} never calls"
+                 for method in sorted(set(declared_methods) - called)]
+    return McpAttribution(tools, shown, allowed, problems, parameter_items)
+
+
+def read_mcp_sources(folder):
+    """The files of `juce/mcp` the MCP column reads: ({name: text} of the gateway sources, and the other texts by role)."""
+    folder = pathlib.Path(folder)
+    try:
+        gateway_sources = {path.name: path.read_text(encoding="utf-8") for path in sorted((folder / "src").glob(GATEWAY_SOURCES))}
+        texts = {"readme": (folder / MCP_README).read_text(encoding="utf-8"),
+                 "header": folder.joinpath(*GATEWAY_HEADER).read_text(encoding="utf-8"),
+                 "tools": (folder / "src" / TOOLS_SOURCE).read_text(encoding="utf-8"),
+                 "parameters": (folder / "src" / PARAMETERS_SOURCE).read_text(encoding="utf-8")}
+    except OSError as error:
+        raise InputError(f"cannot read the MCP sources: {error}") from error
+    return gateway_sources, texts
+
+
+# --- the declared facts no scan can read (ADR-MCP-006, DEC-MCP-038) ---------------------------------------------------
+
+
+@dataclasses.dataclass
+class Note:
+    status: str          # `covered` (other messages give its information or function) or `gap`
+    text: str
+    tools: list          # [(tool, launch option)] that cover it, for `covered`
+
+
+@dataclasses.dataclass
+class DeclaredFacts:
+    not_offered: dict    # item ID -> the decision that left it out
+    session: set         # item IDs the server's session sends and no tool does
+    akm_extra: dict      # item ID -> the generic AKM functions that can read it
+    options: dict        # (item ID, tool) -> the launch option(s) the tool needs for this message
+    problems: list
+    notes: dict = dataclasses.field(default_factory=dict)   # item ID -> the note on a message that no tool sends
+
+
+def read_decisions(folder):
+    """The IDs of the decisions the ADRs of a folder define (`### DEC-XXX-NNN:`)."""
+    try:
+        return {match for path in sorted(pathlib.Path(folder).glob("ADR-*.md"))
+                for match in DECISION_HEADING.findall(path.read_text(encoding="utf-8"))}
+    except OSError as error:
+        raise InputError(f"cannot read the ADRs: {error}") from error
+
+
+def declared_facts(declared, items, akm, mcp, decisions):
+    """The declared entries that stand for what no scan reads, each checked against what the scans found: an entry the scans
+    contradict, or that they cover by themselves, is a problem (a stale declaration)."""
+    by_id = {item["id"]: item for item in items}
+    tools_of = {}
+    for tool, shown in mcp.shown.items():
+        for item in shown:
+            tools_of.setdefault(item, []).append(tool)
+    problems, not_offered, session, akm_extra, options = [], {}, set(), {}, {}
+
+    def known(kind, item):
+        if item not in by_id:
+            problems.append(f"{kind}: {item} is not in the catalogue")
+            return False
+        if tools_of.get(item):
+            problems.append(f"{kind}: the entry of {item} is stale, {', '.join(sorted(tools_of[item]))} send it")
+            return False
+        return True
+
+    for entry in declared.get("not_offered", []):
+        if entry["decision"] not in decisions:
+            problems.append(f"not_offered: {entry['item']} cites {entry['decision']}, which no ADR of process/2.architecture defines")
+        if known("not_offered", entry["item"]):
+            not_offered[entry["item"]] = entry["decision"]
+    for item in declared.get("sent_by_the_session", {}).get("items", []):
+        if known("sent_by_the_session", item):
+            if not any(function.startswith(SESSION_FUNCTION_PREFIX) for function in akm.functions.get(item, [])):
+                problems.append(f"sent_by_the_session: {item} is not sent by a session function of the AKM library")
+            session.add(item)
+    for entry in declared.get("generic_akm", []):
+        function, sections = entry["function"], set(entry["sections"])
+        if function not in akm.generic:
+            problems.append(f"generic_akm: {function} is not a function that sends the item its caller gives it")
+        matched = [item["id"] for item in items if item["section"] in sections and item["kind"] == "get" and item["id"] in mcp.parameter_items]
+        if not matched:
+            problems.append(f"generic_akm: {function} applies to no message of the sections {', '.join(sorted(sections))}")
+        for item in matched:
+            akm_extra.setdefault(item, []).append(function)
+    for entry in declared.get("tool_options", []):
+        if entry["item"] not in mcp.shown.get(entry["tool"], set()):
+            problems.append(f"tool_options: {entry['tool']} does not send {entry['item']}")
+        options[(entry["item"], entry["tool"])] = entry["option"]
+    notes = {}
+    for entry in declared.get("notes", []):
+        item, status = entry["item"], entry["status"]
+        if status not in NOTE_STATUSES:
+            problems.append(f"notes: the status of {item} is {status}, which is neither {NOTE_COVERED} nor {NOTE_GAP}")
+            continue
+        if not known("notes", item):
+            continue
+        names, via = entry.get("tools", []), entry.get("via", [])
+        if status == NOTE_COVERED:
+            if not names or not via:
+                problems.append(f"notes: {item} is covered and must name the tools and the messages they send instead")
+            for tool in names:
+                if tool not in mcp.tools:
+                    problems.append(f"notes: {item} names the tool {tool}, which the server does not have")
+            for message in via:
+                if message not in by_id:
+                    problems.append(f"notes: {item} names the message {message}, which is not in the catalogue")
+                elif not any(message in mcp.shown.get(tool, set()) for tool in names):
+                    problems.append(f"notes: for {item}, none of {', '.join(names)} sends {message}")
+        notes[item] = Note(status, entry["note"], [(tool, mcp.tools.get(tool)) for tool in names] if status == NOTE_COVERED else [])
+    return DeclaredFacts(not_offered, session, akm_extra, options, problems, notes)
+
+
+# --- the check against the simulated sampler (ADR-MCP-006, DEC-MCP-040) --------------------------------------------------
+
+
+def read_trace(text):
+    """[(tool, [(section, item)])] from the lines the simulated server writes with `--trace-messages`: one per `tools/call`."""
+    trace = []
+    for line in text.splitlines():
+        if line.strip():
+            record = json.loads(line)
+            trace.append((record["tool"], [(message["section"].upper(), message["item"].upper()) for message in record["messages"]]))
+    return trace
+
+
+def run_conversation(command, conversation, arguments, trace_path):
+    """Runs the simulated server (`command`) on a conversation and returns the trace it wrote."""
+    conversation, trace_path = pathlib.Path(conversation), pathlib.Path(trace_path)
+    trace_path.unlink(missing_ok=True)
+    try:
+        with open(conversation, "rb") as stdin:
+            completed = subprocess.run([*command, *arguments, TRACE_OPTION, str(trace_path)], stdin=stdin, capture_output=True,
+                                       timeout=CONVERSATION_TIMEOUT_SECONDS)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise InputError(f"cannot run the simulated server on {conversation.name}: {error}") from error
+    if not trace_path.is_file():
+        raise InputError(f"the simulated server wrote no trace for {conversation.name} (exit {completed.returncode}): "
+                         f"{completed.stderr.decode('utf-8', 'replace').strip()[-300:]}")
+    return read_trace(trace_path.read_text(encoding="utf-8"))
+
+
+@dataclasses.dataclass
+class TraceCheck:
+    problems: list       # a message a tool sent that neither its row nor the methods it calls give
+    not_called: list     # the tools no conversation called
+    unexercised: dict    # a tool called -> the messages of its row that no call of it sent
+
+
+def check_trace(trace, model, items):
+    """Compares what each tool sent, in a trace, with the table: it must be in the tool's row or in what its declared methods send
+    through the others they call. What no call reached is reported, not failed: a call takes one path of a tool."""
+    by_code = {(item["section"].upper(), item["item"].upper()): item for item in items}
+    problems, observed = [], {}
+    for tool, messages in trace:
+        if tool not in model.allowed:
+            problems.append(f"the trace has a call of {tool}, which the table does not know")
+            continue
+        for code in messages:
+            item = by_code.get(code)
+            if item is None:
+                problems.append(f"{tool} sent the message {code[0]}/{code[1]}, which the catalogue does not have")
+            elif item["id"] not in model.allowed[tool]:
+                problems.append(f"{tool} sent {item['name']} (&{item['item'].upper()} of section {item['section'].upper()}), which neither its "
+                                f"row of the table nor the methods it calls give")
+            else:
+                observed.setdefault(tool, set()).add(item["id"])
+        observed.setdefault(tool, set())
+    called = {tool for tool, _ in trace}
+    unexercised = {tool: sorted(model.shown.get(tool, set()) - observed[tool]) for tool in sorted(called & set(model.shown))
+                   if model.shown.get(tool, set()) - observed[tool]}
+    return TraceCheck(problems, sorted(set(model.tools) - called), unexercised)
+
+
+def check_tools(server, model, items, scratch_folder):
+    """Runs the simulated server on the conversations and checks each tool's trace against the table."""
+    trace = []
+    for name, arguments in CONVERSATIONS:
+        trace += run_conversation([str(server)], CONVERSATIONS_FOLDER / name, arguments, pathlib.Path(scratch_folder) / (name + ".trace"))
+    return check_trace(trace, model, items)
+
+
+def code_cell(code):
+    """An item code as the spec writes it: `&0A{10}`, hexadecimal then decimal."""
+    return f"`&{code.upper()}{{{int(code, 16)}}}`"
+
+
+def escape_cell(text):
+    return text.replace("|", "\\|")
+
+
+def message_cell(item):
+    return f"{code_cell(item['item'])} {escape_cell(item['name'])} ({KIND_NAMES[item['kind']]})"
+
+
+def builder_of(item):
+    """The generic builder of the AKM library for an item, by the formats of its arguments."""
+    strings = sum(1 for argument in item["args"] if argument["format"] == FORMAT_STRING)
+    return {1: BUILDER_ONE_STRING, 2: BUILDER_TWO_STRINGS}.get(strings, BUILDER_NUMBERS)
+
+
+def akm_cell(functions, item):
+    """The AKM function(s) that send a message, or the generic builder that makes it when no named function does."""
+    return ", ".join(functions) if functions else builder_of(item)
+
+
+def tool_names(tools):
+    return ", ".join(name if option is None else f"{name} ({option})" for name, option in tools)
+
+
+def mcp_cell(tools, decision, session=False, covered=None):
+    """The tool(s) that send a message, each followed by its launch option; else `not offered (<decision>)`, `server session`,
+    `covered by <tools>` (they get its information through other messages) or `none`."""
+    if tools:
+        return tool_names(tools)
+    if decision:
+        return f"{CELL_NOT_OFFERED} ({decision})"
+    if session:
+        return CELL_SESSION
+    return f"{CELL_COVERED} {tool_names(covered)}" if covered else CELL_NONE
+
+
+def section_title(section):
+    return f"{SECTION_HEADING}{section['section']} {section['name']} ({section['spec']})"
+
+
+def count_messages(items, akm_functions, mcp_tools, exclusions, session_items, covered_items):
+    """[messages, with a named AKM function, built by a generic builder, with a tool, not offered, sent by the session, covered by other
+    messages, with none]."""
+    counts = [0] * COUNT_COLUMNS
+    for item in items:
+        identifier = item["id"]
+        has_tool = bool(mcp_tools.get(identifier))
+        counts[0] += 1
+        counts[1 if akm_functions.get(identifier) else 2] += 1
+        if has_tool:
+            counts[3] += 1
+        elif identifier in exclusions:
+            counts[4] += 1
+        elif identifier in session_items:
+            counts[5] += 1
+        elif identifier in covered_items:
+            counts[6] += 1
+        else:
+            counts[7] += 1
+    return counts
+
+
+def render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items, covered_items):
+    """The table of counts that opens the file: for each section and for the whole (RQ-MCP-061)."""
+    sections = {section["section"]: section for section in catalogue["sections"]}
+    lines = [COUNTS_HEADING, ""] + COUNTS_HEADER
+    total = [0] * COUNT_COLUMNS
+    for code in TABLE_4_ORDER:
+        counts = count_messages([item for item in catalogue["items"] if item["section"] == code], akm_functions, mcp_tools, exclusions,
+                                session_items, covered_items)
+        total = [a + b for a, b in zip(total, counts)]
+        lines.append(f"| §{code} {sections[code]['name']} | " + " | ".join(str(count) for count in counts) + " |")
+    lines.append(f"| {COUNTS_TOTAL} | " + " | ".join(str(count) for count in total) + " |")
+    lines.append("")
+    return lines
+
+
+def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=None, session_items=None, notes=None):
+    """The text of the file. `akm_functions` maps an item ID to the AKM functions that send it, `mcp_tools` to
+    [(tool, option or None)], `exclusions` to the decision that left it out; with none given, no scan has run."""
+    akm_functions = akm_functions or {}
+    mcp_tools = mcp_tools or {}
+    exclusions = exclusions or {}
+    session_items = session_items or set()
+    notes = notes or {}
+    covered_items = {item for item, note in notes.items() if note.status == NOTE_COVERED}
+    sections = {section["section"]: section for section in catalogue["sections"]}
+    lines = list(INTRO) + render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items, covered_items)
+    for code in TABLE_4_ORDER:
+        lines += [section_title(sections[code]), ""] + ROW_HEADER
+        for item in catalogue["items"]:
+            if item["section"] == code:
+                note = notes.get(item["id"])
+                covered = note.tools if note and note.status == NOTE_COVERED else None
+                lines.append(f"| {message_cell(item)} | {akm_cell(akm_functions.get(item['id'], []), item)} | "
+                             f"{mcp_cell(mcp_tools.get(item['id'], []), exclusions.get(item['id']), item['id'] in session_items, covered)} | "
+                             f"{escape_cell(note.text) if note else ''} |")
+        lines.append("")
+    table32 = declared["table32"]
+    lines += [f"{TABLE_32_HEADING}: the alternative sections, which the catalogue does not hold ({table32['spec']})", "",
+              table32["note"], ""] + SECTION_ROW_HEADER
+    for entry in table32["sections"]:
+        lines.append(f"| {code_cell(entry['section'])} {escape_cell(entry['name'])} ({escape_cell(entry['uses'])}) | "
+                     f"{CELL_NONE} | {CELL_NONE} |")
+    return "\n".join(lines) + "\n"
+
+
+def heading_of(lines, index):
+    """The section a line belongs to: the last heading at or before it, as `§0A`, `Table 32` or the header."""
+    for position in range(min(index, len(lines) - 1), -1, -1):
+        if lines[position].startswith(SECTION_HEADING):
+            return lines[position][len("## "):len("## ") + 3]
+        if lines[position].startswith(TABLE_32_HEADING):
+            return "Table 32"
+        if lines[position].startswith(COUNTS_HEADING):
+            return "the counts"
+    return HEADER_NAME
+
+
+def check_file(text, output):
+    """EXIT_OK when the file is what the script writes; else says where it first differs."""
+    if not output.exists():
+        print(f"{output} is missing - run: {SCRIPT_COMMAND}", file=sys.stderr)
+        return EXIT_MISMATCH
+    actual = output.read_bytes().decode("utf-8")
+    if actual == text:
+        print(f"{output.name} is up to date")
+        return EXIT_OK
+    wanted, found = text.splitlines(), actual.splitlines()
+    index = next((i for i, (a, b) in enumerate(zip(wanted, found)) if a != b), min(len(wanted), len(found)))
+    print(f"{output} is out of date, first at {heading_of(wanted, index)}, line {index + 1} - run: {SCRIPT_COMMAND}",
+          file=sys.stderr)
+    return EXIT_MISMATCH
+
+
+def run_check_tools(server, mcp, items):
+    """The `--check-tools` mode: what the tools really sent, against the table."""
+    if server is None or not server.is_file():
+        print("--check-tools needs --server, the path of the simulated server (xs56k_mcp_server_simulated)", file=sys.stderr)
+        return EXIT_UNREADABLE
+    try:
+        with tempfile.TemporaryDirectory() as scratch:
+            result = check_tools(server, mcp, items, scratch)
+    except InputError as error:
+        print(error, file=sys.stderr)
+        return EXIT_UNREADABLE
+    print(f"{len(result.not_called)} tools were not called by any conversation: {', '.join(result.not_called) or 'none'}")
+    print(f"{len(result.unexercised)} tools were called and have a message in their row that no call sent: "
+          f"{'; '.join(f'{tool} ({len(messages)})' for tool, messages in result.unexercised.items()) or 'none'}")
+    if result.problems:
+        print("a tool sent what the table does not give it:", file=sys.stderr)
+        for problem in result.problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
+    print("every message the tools sent is in the table")
+    return EXIT_OK
+
+
+def main():
+    for stream in (sys.stdout, sys.stderr):
+        stream.reconfigure(errors="replace")
+    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser.add_argument("--data", type=pathlib.Path, default=DEFAULT_DATA, help="the item catalogue")
+    parser.add_argument("--tsv", type=pathlib.Path, default=DEFAULT_TSV, help="the spec's item list")
+    parser.add_argument("--declared", type=pathlib.Path, default=DEFAULT_DECLARED, help="the declared facts")
+    parser.add_argument("--output", type=pathlib.Path, default=DEFAULT_OUTPUT, help="the generated file")
+    parser.add_argument("--akm-src", type=pathlib.Path, default=DEFAULT_AKM_SOURCES, help="the AKM library's .cpp files")
+    parser.add_argument("--akm-include", type=pathlib.Path, default=DEFAULT_AKM_INCLUDE, help="the AKM library's public headers")
+    parser.add_argument("--mcp", type=pathlib.Path, default=DEFAULT_MCP, help="the MCP server's folder")
+    parser.add_argument("--adrs", type=pathlib.Path, default=DEFAULT_ADRS, help="the folder of the ADRs")
+    parser.add_argument("--check", action="store_true", help="fail if the file is out of date")
+    parser.add_argument("--check-tools", action="store_true",
+                        help="run the simulated server on the conversations and fail if a tool sends a message the table does not give it")
+    parser.add_argument("--server", type=pathlib.Path, help="the simulated server (xs56k_mcp_server_simulated), for --check-tools")
+    args = parser.parse_args()
+
+    try:
+        catalogue = load_json(args.data)
+        declared = load_json(args.declared)
+        spec_commands = read_spec_commands(args.tsv)
+        akm_sources, akm_headers = read_akm_sources(args.akm_src, args.akm_include)
+        mcp_gateway_sources, mcp_texts = read_mcp_sources(args.mcp)
+        decisions = read_decisions(args.adrs)
+    except InputError as error:
+        print(error, file=sys.stderr)
+        return EXIT_UNREADABLE
+
+    problems = compare_with_spec(catalogue, spec_commands)
+    if problems:
+        print(f"{args.data} and {args.tsv} disagree:", file=sys.stderr)
+        for problem in problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
+    try:
+        akm = attribute_akm(akm_sources, akm_headers)
+    except ScanError as error:
+        print(f"cannot read the AKM sources: {error}", file=sys.stderr)
+        return EXIT_MISMATCH
+    problems = akm_problems(akm, catalogue)
+    if problems:
+        print("the scan of the AKM sources found:", file=sys.stderr)
+        for problem in problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
+
+    function_items = {}
+    for item, functions in akm.functions.items():
+        for function in functions:
+            function_items.setdefault(function, set()).add(item)
+    for function, called in akm.composed.items():  # a function made of others sends what they send
+        for other in called:
+            function_items.setdefault(function, set()).update(function_items.get(other, set()))
+    try:
+        mcp = attribute_mcp(mcp_texts["readme"], mcp_texts["header"], mcp_gateway_sources, mcp_texts["tools"], mcp_texts["parameters"],
+                            declared.get("mcp_tools", {}), function_items, public_names(akm_headers),
+                            {item["id"]: (item["section"], item["kind"]) for item in catalogue["items"]})
+    except ScanError as error:
+        print(f"cannot read the MCP sources: {error}", file=sys.stderr)
+        return EXIT_MISMATCH
+    if mcp.problems:
+        print("the MCP column found:", file=sys.stderr)
+        for problem in mcp.problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
+    facts = declared_facts(declared, catalogue["items"], akm, mcp, decisions)
+    if facts.problems:
+        print("the declared facts found:", file=sys.stderr)
+        for problem in facts.problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
+    if args.check_tools:
+        return run_check_tools(args.server, mcp, catalogue["items"])
+    tools_of = {}
+    for tool, items in sorted(mcp.shown.items()):
+        for item in items:
+            tools_of.setdefault(item, []).append((tool, facts.options.get((item, tool), mcp.tools[tool])))
+    akm_functions = {item: list(functions) for item, functions in akm.functions.items()}
+    for item, functions in facts.akm_extra.items():
+        akm_functions[item] = sorted(set(akm_functions.get(item, [])) | set(functions))
+
+    text = render(catalogue, declared, akm_functions=akm_functions, mcp_tools=tools_of, exclusions=facts.not_offered,
+                  session_items=facts.session, notes=facts.notes)
+    if args.check:
+        return check_file(text, args.output)
+    args.output.write_text(text, encoding="utf-8", newline="\n")
+    print(f"Wrote {len(catalogue['items'])} messages to {args.output}")
+    print(f"{len(akm.functions)} of them are sent by a named AKM function; functions that send the item the caller gives them: "
+          f"{', '.join(akm.generic) or 'none'}")
+    print(f"{len(tools_of)} of them are sent by one of the {len(mcp.tools)} tools of the server; {len(facts.not_offered)} left out by a "
+          f"decision, {len(facts.session)} sent by the server's session")
+    return EXIT_OK
+
+
+if __name__ == "__main__":
+    sys.exit(main())

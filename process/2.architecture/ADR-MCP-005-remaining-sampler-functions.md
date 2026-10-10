@@ -1,10 +1,10 @@
 # ADR-MCP-005: MCP Server — The Remaining Sampler Functions, the Confirmation by Count, a Launch Option for the Front Panel and the Order of the Work
 
 ## Status
-Proposed — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what
+Accepted — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what
 `ADR-MCP-004` (DEC-MCP-025) had left to him. It amends ADR-MCP-004 DEC-MCP-025 (the list of what is not offered), RQ-MCP-014 and
 RQ-MCP-028 (their "never offered" lists); the other decisions of ADR-MCP-001 to ADR-MCP-004 stand. No independent review by a second
-model was run on this record.
+model was run on this record. **Accepted by the owner on 2026-10-10**, ADR-MCP-002 to ADR-MCP-005 together ("consider them accepted"), as drafted and as amended since; the reviews said above are the only ones made.
 
 ## Context
 
@@ -48,6 +48,9 @@ exists (DEC-MCP-023 extended, not replaced). **No launch option** is added for t
 mechanism, and DEC-MCP-025's suggestion of an option of their own is not taken. The annotations declare the four tools destructive.
 The primitives are called from the gateway's memory unit only; the source check allows them there and nowhere else. Assumption, to
 review: the total counts programs, samples and multis only, not song files, set lists or scenelists. [RQ-MCP-051, RQ-MCP-052, RQ-MCP-057]
+*Amended 2026-10-10 (TASK-MCP-062, a real S5000, then the owner's decision, TASK-MCP-068):* `clear_sampler_memory` clears the song files, set lists
+and scenelists too; **the owner decided that its `confirm` counts them**: it is the total number of programs, samples, multis, song files, set
+lists and scenelists the sampler holds now, and the refusal gives the count of each. The assumption "to review" above is closed.
 
 ### DEC-MCP-030: The sampler's settings in two tools, the MIDI setup in two tools with no read-back
 `get_sampler_settings` reads name, clock, play mode and front-panel lock; `set_sampler_setting` takes a setting and a value, checks it,
@@ -77,6 +80,7 @@ verified in `ctest` against the simulated sampler, which models a board; the own
 has not been run on a real sampler, as it does for every untried item. `clear_sampler_memory` is implemented and tested on the
 simulator; it is not run on the real sampler unless the owner decides it (AGENTS.md: never send `&32` to the owner's sampler without
 asking). The real run of everything else uses test data the owner puts on the sampler or that the run makes. [RQ-MCP-053, RQ-MCP-056]
+*Amended 2026-10-09 (the owner):* every tool of PLAN-MCP-005 is run on the real S5000, `clear_sampler_memory`, the `delete_all_*` tools and every key tool included, each destructive call only with the owner's word at the moment it is sent (TASK-MCP-055, TASK-MCP-058 to TASK-MCP-064). With no board, the effects tools are run for their "no board" answer; their Sets stay verified on the simulated sampler only until a board is installed. [RQ-MCP-056]
 
 ### DEC-MCP-034: The order of the work follows the risk, from reading to keys
 The order is in PLAN-MCP-005: settings first (a Set and a Get each, no data lost), the MIDI setup (Set only), song files, set lists

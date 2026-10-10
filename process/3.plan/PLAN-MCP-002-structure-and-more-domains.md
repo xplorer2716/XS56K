@@ -15,7 +15,7 @@ subject the `agnos-git-workflow` skill computes.
 
 ## References
 - **Requirements**: RQ-MCP-013 to RQ-MCP-022 (`FTR-MCP-002`); RQ-MCP-008, RQ-MCP-012 (`FTR-MCP-001`)
-- **ADRs**: ADR-MCP-002 (Proposed): DEC-MCP-010 to DEC-MCP-014; ADR-MCP-001: DEC-MCP-003, DEC-MCP-005, DEC-MCP-006,
+- **ADRs**: ADR-MCP-002 (Accepted): DEC-MCP-010 to DEC-MCP-014; ADR-MCP-001: DEC-MCP-003, DEC-MCP-005, DEC-MCP-006,
   DEC-MCP-007 (amended), DEC-MCP-009.
 
 The plan has 8 tasks (TASK-MCP-010 to TASK-MCP-017). 010 authors the artifacts; 011 the program structure tools (after 010);

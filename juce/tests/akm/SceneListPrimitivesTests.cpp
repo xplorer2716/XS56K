@@ -147,7 +147,9 @@ TEST_CASE("Given scenelists seeded in order, When selected by index and the curr
     CHECK(std::holds_alternative<Done>(harness.recorder().results().back()));
     CHECK(harness.sentFrames().back()[akm::test::SENT_ITEM_INDEX] == 0x08);
     CHECK(getCount(harness).count == 1);
-    CHECK_FALSE(getCurrentIndex(harness).index.has_value());
+    // The position selected stays selected after a deletion, on the item it now holds (a real S5000, TASK-MCP-058, 2026-10-10).
+    CHECK(getCurrentIndex(harness).index == 0);
+    CHECK(getCurrentName(harness).name == "B");
     CHECK(getNameByIndex(harness, 0).name == "B");
 }
 

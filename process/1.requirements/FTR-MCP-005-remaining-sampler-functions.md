@@ -51,7 +51,8 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 - **Statement**: WHEN a client calls `set_midi_setting` with a setting (program change enabled, multi select mode, multi select channel, external APM controller, aftertouch type) and a value, or `set_midi_filter` with an event, a channel and allow or ignore, the server SHALL check the value, send it and answer what it sent; because §04 has no Get, the answer SHALL say that the previous value could not be read and cannot be put back by the server; IF the value is not valid, THEN it SHALL send nothing and say what is accepted.
 - **Rationale**: the owner asked for the MIDI setup to be implemented; the section has Set items only, so what the server cannot do is said, not hidden.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* the multi select channel is set to 3, *Then* the simulated sampler holds 3 and the answer says the previous value is unknown. *Given* a channel of 17, *Then* nothing is sent.
+- **Acceptance Criteria** (Gherkin): *Given* the simulated sampler, *When* the multi select channel is set to 3, *Then* the simulated sampler holds 3 and the answer says the previous value is unknown. *Given* a channel of 32, *Then* nothing is sent.
+- **Amended 2026-10-08**: the owner chose the sampler's own channel numbers, 0 to 31 (1A = 0 ... 16B = 31, FTR-AKM-009), over the front-panel names 1A to 16B. Channel 3 is therefore held as 3 (the front-panel channel 4A, which the answer also says), and 17 is a valid channel; the first value refused is 32. TASK-MCP-046.
 - **Dependencies**: FTR-AKM-009 (the MIDI configuration primitives); ADR-MCP-005 (DEC-MCP-030)
 
 ### RQ-MCP-048: Listing, selecting and renaming song files, set lists and scenelists
@@ -93,10 +94,10 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 ### RQ-MCP-052: Clearing the sampler's memory
 - **Category**: Functional
 - **EARS Type**: Unwanted-behavior
-- **Statement**: IF a client calls `clear_sampler_memory` and its `confirm` argument is missing or is not the total number of programs, samples and multis the sampler holds now, THEN the server SHALL send nothing and SHALL answer the number to give; IF the sampler holds none of the three, THEN it SHALL send nothing and say so; otherwise it SHALL send Clear Sampler Memory and answer what the sampler holds afterwards; the tool SHALL declare itself destructive.
-- **Rationale**: the owner asked for it with the standard confirmation mechanism; it is the largest loss the server can cause, so the figure to give is the one a person can check with `list_programs`, `list_samples` and `list_multis`.
+- **Statement**: IF a client calls `clear_sampler_memory` and its `confirm` argument is missing or is not the total number of programs, samples, multis, song files, set lists and scenelists the sampler holds now, THEN the server SHALL send nothing and SHALL answer the number to give and the count of each kind; IF the sampler holds none of the six, THEN it SHALL send nothing and say so; otherwise it SHALL send Clear Sampler Memory and answer what it cleared; the tool SHALL declare itself destructive.
+- **Rationale**: the owner asked for it with the standard confirmation mechanism; it is the largest loss the server can cause, so the figure to give is the one a person can check with `list_programs`, `list_samples`, `list_multis`, `list_song_files`, `list_set_lists` and `list_scenelists`. *Amended 2026-10-10 (the owner):* the command clears the song files, set lists and scenelists too (seen on a real S5000, TASK-MCP-062), so the total counts them (TASK-MCP-068); it counted programs, samples and multis only.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler with 2 programs, 1 sample and 1 multi, *When* `clear_sampler_memory` is called with "3", *Then* nothing is sent and the answer says 4. *When* it is called with "4", *Then* the three lists are empty.
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler with 2 programs, 1 sample, 1 multi, 3 song files, 2 set lists and 2 scenelists, *When* `clear_sampler_memory` is called with "4", *Then* nothing is sent and the answer says 11 with the six counts. *When* it is called with "11", *Then* the six lists are empty.
 - **Dependencies**: RQ-MCP-042, RQ-MCP-051; ADR-MCP-005 (DEC-MCP-029)
 
 ### RQ-MCP-053: The effects board
@@ -124,7 +125,8 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 - **Rationale**: the owner decided each of the three; the source check keeps them true.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the sources of `juce/mcp`, *When* searched for the eject and format primitives, *Then* there is no call. *Given* the server without `--allow-disk-refresh`, *Then* `list_disks` has no `refresh` argument.
-- **Dependencies**: RQ-MCP-028, RQ-MCP-031; ADR-MCP-005 (DEC-MCP-028)
+- **Amended 2026-10-11 (the owner, `ADR-MCP-006` DEC-MCP-041)**: the server also SHALL expose no tool that sends one of nine messages of the SysEx specification: `Set Program Number`, `Get Current Program's Program Number`, `Get the Program Numbers of all Programs in memory` and `Get Current Program Index` (section 0A), `Set User Tune Template` and `Get User Tune Template` (section 0A), `Set the number of parts for new multis`, `Get the Multi Numbers of All Multis in memory` and `Get the Number of Parts in All the Multis in memory` (section 0C). *Given* the generated `documents/SYSEX-COVERAGE.md`, *Then* each of the nine reads `not offered (DEC-MCP-041)`; *given* a tool that sends one of them, *then* `generate_sysex_coverage.py --check` fails and says the entry is stale.
+- **Dependencies**: RQ-MCP-028, RQ-MCP-031; ADR-MCP-005 (DEC-MCP-028); ADR-MCP-006 (DEC-MCP-041)
 
 ---
 
@@ -134,11 +136,11 @@ wheel, an ASCII key), the Delete ALL primitives with typed confirmations (`delet
 - **Category**: Non-Functional
 - **NFR Type**: Reliability
 - **EARS Type**: Ubiquitous
-- **Statement**: Every requirement of this feature SHALL be verified in `ctest` against the simulated sampler; the tools SHALL then be run on the real S5000 with the owner present, on test data that is made for the run or that the owner puts on the sampler and lists beforehand (song files, set lists and scenelists in memory and on the disk, programs, samples and multis made for the run), with these exceptions, which the README SHALL list: the effects board (no board), `clear_sampler_memory` (not run on the real sampler unless the owner decides it), and the front-panel keys other than ones the owner watches doing nothing harmful.
-- **Metric**: each new tool run on the real sampler, or each exception listed.
+- **Statement**: Every requirement of this feature SHALL be verified in `ctest` against the simulated sampler; EVERY tool of this feature SHALL then be run on the real S5000 with the owner present, on test data that is made for the run or that the owner puts on the sampler and lists beforehand (song files, set lists and scenelists in memory and on the disk, programs, samples and multis made for the run), `clear_sampler_memory`, the `delete_all_*` tools and the front-panel keys included, each destructive call only with the owner's word at the moment it is sent; WHILE the sampler has no effects board, the effects tools SHALL be run for their "no board" answer and the README SHALL say that their Sets are unverified on a real board. *Amended 2026-10-09 (the owner): every tool of PLAN-MCP-005 is run on the real sampler; the earlier exceptions (effects board, `clear_sampler_memory`, keys other than harmless ones) are withdrawn, the effects board remaining limited by the hardware (TASK-MCP-057).*
+- **Metric**: each new tool run on the real sampler (the effects tools: their "no board" answer while the sampler has none).
 - **Measurement Method**: `ctest`; scripted runs on the real sampler, written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the observations file, *When* it is read after the real run, *Then* each new tool has its answer and what the sampler did, or is in the list of exceptions with the reason.
+- **Acceptance Criteria** (Gherkin): *Given* the observations file, *When* it is read after the real run, *Then* each new tool has its answer and what the sampler did; the effects tools, while there is no board, their "no board" answer.
 - **Dependencies**: RQ-MCP-044; ADR-MCP-005 (DEC-MCP-033)
 
 ### RQ-MCP-057: Each new destructive primitive is called from one place only
