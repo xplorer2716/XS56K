@@ -528,3 +528,23 @@ the song files, set lists and scenelists, which 'confirm' does not count"), and 
 clears them. **The count that `confirm` carries is unchanged** (programs, samples and multis): whether it should include the three lists is
 a decision of the owner (DEC-MCP-029, amended). **Not established:** the time of the command on a large memory (the memory here was tiny);
 that the same command clears the three lists on every OS version.
+
+## The front-panel keys (TASK-MCP-063), run in part on 2026-10-10 without the owner at the screen
+
+`xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with `--allow-front-panel` only, once per tool call (answers in
+the scratchpad's `run063`, none with a "from the sampler: rejected message" line). The owner had said to do the remaining tasks without him; the
+effect of a key can only be seen on the sampler's screen, which the assistant does not see, so **only the keys that move nothing but a cursor were
+sent**, once each, and neither the data wheel nor an ASCII character, which can change a value. Traceability: RQ-MCP-056, RQ-MCP-054,
+TASK-MCP-063 (`PLAN-MCP-005`).
+
+| Tool and call | What the tool answered |
+|---|---|
+| `press_key` `cursor_right` | "Pressed the key "cursor_right" (held then released). The sampler only queued it." |
+| `hold_key` `cursor_right` (the server then closed its session) | "Holding the key "cursor_right" down. It stays down until release_key, or until the session closes."; the session closed in order, "settings put back ... not put back: none" |
+| `release_key` `cursor_right` (nothing held by this session) | "Released the key "cursor_right"." |
+| `press_key` `not_a_key` | refused by the server, nothing sent, with the list of the 43 keys |
+
+What this establishes, and no more: the three key tools are accepted by the sampler through the MCP server as through the AKM layer (TASK-AKM-073,
+`OBSERVATIONS-RQ-AKM-076-front-panel.md`: OK then DONE for every §20 frame, the owner seeing the shortcuts work). **Not established, and left to
+the owner at the screen:** what each key did on the screen, the release of a key still held when the session closes, `turn_data_wheel` (the
+direction and the amount of a click), `send_ascii_key` (a character in a name), and the five tools together on a page the owner chooses.

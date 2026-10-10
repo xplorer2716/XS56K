@@ -539,7 +539,7 @@ TASK-MCP-059|253-264|Done|Real-sampler run — saving and loading song files, se
 TASK-MCP-060|265-276|Done|Real-sampler run — the effects board
 TASK-MCP-061|277-288|Done|Real-sampler run — deleting all programs, all samples, all multis
 TASK-MCP-062|289-300|Done|Real-sampler run — clearing the sampler's memory
-TASK-MCP-063|301-312|Not Started|Real-sampler run — the front-panel keys
+TASK-MCP-063|301-312|Blocked|Real-sampler run — the front-panel keys
 TASK-MCP-064|313-324|Not Started|Closure of the real runs — README, observations and simulated sampler
 TASK-MCP-065|325-336|Done|The instructions the server gives at `initialize` say what it offers today
 TASK-MCP-066|337-348|Done|The server writes the frames it rejects to standard error
