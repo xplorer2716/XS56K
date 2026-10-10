@@ -23,7 +23,7 @@ Usage:
 Exit status: 0 when everything holds, 1 when the file is out of date or the catalogue disagrees with the spec,
 2 when an input cannot be read.
 
-[TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062, RQ-MCP-063,
+[TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062, RQ-MCP-063,
 ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import argparse
@@ -43,6 +43,7 @@ DEFAULT_OUTPUT = ROOT / "documents" / "SYSEX-COVERAGE.md"
 DEFAULT_AKM_SOURCES = ROOT / "juce" / "akm" / "src"
 DEFAULT_AKM_INCLUDE = ROOT / "juce" / "akm" / "include" / "akm"
 DEFAULT_MCP = ROOT / "juce" / "mcp"
+DEFAULT_ADRS = ROOT / "process" / "2.architecture"
 
 EXIT_OK = 0
 EXIT_MISMATCH = 1
@@ -62,6 +63,9 @@ BUILDER_TWO_STRINGS = "makeTwoStringRequest"
 FORMAT_STRING = "string"
 CELL_NONE = "none"
 CELL_NOT_OFFERED = "not offered"
+CELL_SESSION = "server session"
+SESSION_FUNCTION_PREFIX = "Session::"
+DECISION_HEADING = re.compile(r"^### (DEC-[A-Z]{3}-\d{3}):", re.MULTILINE)
 
 TABLE_32_HEADING = "## Table 32"
 SECTION_HEADING = "## §"
@@ -80,7 +84,8 @@ INTRO = [
     "(`juce/akm`) that sends the message; when no named function does, the message is still in the item catalogue and the "
     "library builds it with its generic builder (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` for "
     "an item that takes names): any code can send it, and the MCP column tells whether a tool does. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option "
-    "it needs, `not offered` with the decision when it was left out on purpose, or `none`. Generated from "
+    "it needs, `not offered` with the decision when it was left out on purpose, `server session` when the server sends it "
+    "itself, at the opening or the closing of its session, and no tool does, or `none`. Generated from "
     "`juce/akm/data/items.json`, the sources and `juce/tools/sysex_coverage_declared.json` "
     "(`ADR-MCP-006`, `FTR-MCP-006`).",
     "",
@@ -575,6 +580,7 @@ class McpAttribution:
     shown: dict      # tool -> the items the table gives it
     allowed: dict    # tool -> the items it may send: the table's, and those sent through the other methods it calls
     problems: list
+    parameter_items: set = dataclasses.field(default_factory=set)   # the items the standard parameters name
 
 
 def attribute_mcp(readme_text, gateway_header, gateway_sources, tools_source, parameter_source, declared_tools, akm_function_items,
@@ -621,7 +627,7 @@ def attribute_mcp(readme_text, gateway_header, gateway_sources, tools_source, pa
     problems += [f"{GATEWAY_CLASS}::{method} is called in {TOOLS_SOURCE} and no tool declares it" for method in sorted(called - set(declared_methods))]
     problems += [f"{', '.join(declared_methods[method])} declares {GATEWAY_CLASS}::{method}, which {TOOLS_SOURCE} never calls"
                  for method in sorted(set(declared_methods) - called)]
-    return McpAttribution(tools, shown, allowed, problems)
+    return McpAttribution(tools, shown, allowed, problems, parameter_items)
 
 
 def read_mcp_sources(folder):
@@ -636,6 +642,72 @@ def read_mcp_sources(folder):
     except OSError as error:
         raise InputError(f"cannot read the MCP sources: {error}") from error
     return gateway_sources, texts
+
+
+# --- the declared facts no scan can read (ADR-MCP-006, DEC-MCP-038) ---------------------------------------------------
+
+
+@dataclasses.dataclass
+class DeclaredFacts:
+    not_offered: dict    # item ID -> the decision that left it out
+    session: set         # item IDs the server's session sends and no tool does
+    akm_extra: dict      # item ID -> the generic AKM functions that can read it
+    options: dict        # (item ID, tool) -> the launch option(s) the tool needs for this message
+    problems: list
+
+
+def read_decisions(folder):
+    """The IDs of the decisions the ADRs of a folder define (`### DEC-XXX-NNN:`)."""
+    try:
+        return {match for path in sorted(pathlib.Path(folder).glob("ADR-*.md"))
+                for match in DECISION_HEADING.findall(path.read_text(encoding="utf-8"))}
+    except OSError as error:
+        raise InputError(f"cannot read the ADRs: {error}") from error
+
+
+def declared_facts(declared, items, akm, mcp, decisions):
+    """The declared entries that stand for what no scan reads, each checked against what the scans found: an entry the scans
+    contradict, or that they cover by themselves, is a problem (a stale declaration)."""
+    by_id = {item["id"]: item for item in items}
+    tools_of = {}
+    for tool, shown in mcp.shown.items():
+        for item in shown:
+            tools_of.setdefault(item, []).append(tool)
+    problems, not_offered, session, akm_extra, options = [], {}, set(), {}, {}
+
+    def known(kind, item):
+        if item not in by_id:
+            problems.append(f"{kind}: {item} is not in the catalogue")
+            return False
+        if tools_of.get(item):
+            problems.append(f"{kind}: the entry of {item} is stale, {', '.join(sorted(tools_of[item]))} send it")
+            return False
+        return True
+
+    for entry in declared.get("not_offered", []):
+        if entry["decision"] not in decisions:
+            problems.append(f"not_offered: {entry['item']} cites {entry['decision']}, which no ADR of process/2.architecture defines")
+        if known("not_offered", entry["item"]):
+            not_offered[entry["item"]] = entry["decision"]
+    for item in declared.get("sent_by_the_session", {}).get("items", []):
+        if known("sent_by_the_session", item):
+            if not any(function.startswith(SESSION_FUNCTION_PREFIX) for function in akm.functions.get(item, [])):
+                problems.append(f"sent_by_the_session: {item} is not sent by a session function of the AKM library")
+            session.add(item)
+    for entry in declared.get("generic_akm", []):
+        function, sections = entry["function"], set(entry["sections"])
+        if function not in akm.generic:
+            problems.append(f"generic_akm: {function} is not a function that sends the item its caller gives it")
+        matched = [item["id"] for item in items if item["section"] in sections and item["kind"] == "get" and item["id"] in mcp.parameter_items]
+        if not matched:
+            problems.append(f"generic_akm: {function} applies to no message of the sections {', '.join(sorted(sections))}")
+        for item in matched:
+            akm_extra.setdefault(item, []).append(function)
+    for entry in declared.get("tool_options", []):
+        if entry["item"] not in mcp.shown.get(entry["tool"], set()):
+            problems.append(f"tool_options: {entry['tool']} does not send {entry['item']}")
+        options[(entry["item"], entry["tool"])] = entry["option"]
+    return DeclaredFacts(not_offered, session, akm_extra, options, problems)
 
 
 def code_cell(code):
@@ -662,23 +734,26 @@ def akm_cell(functions, item):
     return ", ".join(functions) if functions else builder_of(item)
 
 
-def mcp_cell(tools, decision):
-    """The tool(s) that send a message, each followed by its launch option; else `not offered (<decision>)` or `none`."""
+def mcp_cell(tools, decision, session=False):
+    """The tool(s) that send a message, each followed by its launch option; else `not offered (<decision>)`, `server session` or `none`."""
     if tools:
         return ", ".join(name if option is None else f"{name} ({option})" for name, option in tools)
-    return f"{CELL_NOT_OFFERED} ({decision})" if decision else CELL_NONE
+    if decision:
+        return f"{CELL_NOT_OFFERED} ({decision})"
+    return CELL_SESSION if session else CELL_NONE
 
 
 def section_title(section):
     return f"{SECTION_HEADING}{section['section']} {section['name']} ({section['spec']})"
 
 
-def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=None):
+def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=None, session_items=None):
     """The text of the file. `akm_functions` maps an item ID to the AKM functions that send it, `mcp_tools` to
     [(tool, option or None)], `exclusions` to the decision that left it out; with none given, no scan has run."""
     akm_functions = akm_functions or {}
     mcp_tools = mcp_tools or {}
     exclusions = exclusions or {}
+    session_items = session_items or set()
     sections = {section["section"]: section for section in catalogue["sections"]}
     lines = list(INTRO)
     for code in TABLE_4_ORDER:
@@ -686,7 +761,7 @@ def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=N
         for item in catalogue["items"]:
             if item["section"] == code:
                 lines.append(f"| {message_cell(item)} | {akm_cell(akm_functions.get(item['id'], []), item)} | "
-                             f"{mcp_cell(mcp_tools.get(item['id'], []), exclusions.get(item['id']))} |")
+                             f"{mcp_cell(mcp_tools.get(item['id'], []), exclusions.get(item['id']), item['id'] in session_items)} |")
         lines.append("")
     table32 = declared["table32"]
     lines += [f"{TABLE_32_HEADING}: the alternative sections, which the catalogue does not hold ({table32['spec']})", "",
@@ -734,6 +809,7 @@ def main():
     parser.add_argument("--akm-src", type=pathlib.Path, default=DEFAULT_AKM_SOURCES, help="the AKM library's .cpp files")
     parser.add_argument("--akm-include", type=pathlib.Path, default=DEFAULT_AKM_INCLUDE, help="the AKM library's public headers")
     parser.add_argument("--mcp", type=pathlib.Path, default=DEFAULT_MCP, help="the MCP server's folder")
+    parser.add_argument("--adrs", type=pathlib.Path, default=DEFAULT_ADRS, help="the folder of the ADRs")
     parser.add_argument("--check", action="store_true", help="fail if the file is out of date")
     args = parser.parse_args()
 
@@ -743,6 +819,7 @@ def main():
         spec_commands = read_spec_commands(args.tsv)
         akm_sources, akm_headers = read_akm_sources(args.akm_src, args.akm_include)
         mcp_gateway_sources, mcp_texts = read_mcp_sources(args.mcp)
+        decisions = read_decisions(args.adrs)
     except InputError as error:
         print(error, file=sys.stderr)
         return EXIT_UNREADABLE
@@ -784,19 +861,30 @@ def main():
         for problem in mcp.problems:
             print(f"  {problem}", file=sys.stderr)
         return EXIT_MISMATCH
+    facts = declared_facts(declared, catalogue["items"], akm, mcp, decisions)
+    if facts.problems:
+        print("the declared facts found:", file=sys.stderr)
+        for problem in facts.problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
     tools_of = {}
     for tool, items in sorted(mcp.shown.items()):
         for item in items:
-            tools_of.setdefault(item, []).append((tool, mcp.tools[tool]))
+            tools_of.setdefault(item, []).append((tool, facts.options.get((item, tool), mcp.tools[tool])))
+    akm_functions = {item: list(functions) for item, functions in akm.functions.items()}
+    for item, functions in facts.akm_extra.items():
+        akm_functions[item] = sorted(set(akm_functions.get(item, [])) | set(functions))
 
-    text = render(catalogue, declared, akm_functions=akm.functions, mcp_tools=tools_of)
+    text = render(catalogue, declared, akm_functions=akm_functions, mcp_tools=tools_of, exclusions=facts.not_offered,
+                  session_items=facts.session)
     if args.check:
         return check_file(text, args.output)
     args.output.write_text(text, encoding="utf-8", newline="\n")
     print(f"Wrote {len(catalogue['items'])} messages to {args.output}")
     print(f"{len(akm.functions)} of them are sent by a named AKM function; functions that send the item the caller gives them: "
           f"{', '.join(akm.generic) or 'none'}")
-    print(f"{len(tools_of)} of them are sent by one of the {len(mcp.tools)} tools of the server")
+    print(f"{len(tools_of)} of them are sent by one of the {len(mcp.tools)} tools of the server; {len(facts.not_offered)} left out by a "
+          f"decision, {len(facts.session)} sent by the server's session")
     return EXIT_OK
 
 

@@ -15,6 +15,21 @@
       {"section": "3E", "name": "Blocked multi by index", "uses": "the requests of section 0C, Table 16"}
     ]
   },
+  "not_offered": [
+    {"item": "DiskEjectDisk", "decision": "DEC-MCP-028", "reason": "Eject Disk is a message of the specification that the owner decided not to offer: it was never run on the real sampler, by design (DEC-MCP-025, amended by DEC-MCP-028)"}
+  ],
+  "sent_by_the_session": {
+    "reason": "The server's own session sends these at its opening and its closing, from the launch option --screen (and the checksum mode): they are the sampler's SysEx configuration for the session, not something an assistant asks for, so no tool carries them",
+    "items": ["SysExQuery", "SysExNotification", "SysExSyncLcd", "SysExChecksum", "SysExAutoScreenUpdate", "SysExStillAlive"]
+  },
+  "generic_akm": [
+    {"function": "getForAllKeygroups", "sections": ["08"], "reason": "reads one Get item for every keygroup of the current program (keygroup 0); the parameter tools give it the keygroup items"},
+    {"function": "getForAllZones", "sections": ["06"], "reason": "reads one Get item for the four zones (zone 0); the parameter tools give it the zone items"},
+    {"function": "getForAllZonesAllKeygroups", "sections": ["06"], "reason": "reads one Get item for every zone of every keygroup (zone 0 and keygroup 0); the parameter tools give it the zone items"}
+  ],
+  "tool_options": [
+    {"item": "DiskUpdateList", "tool": "list_disks", "option": "--allow-disk and --allow-disk-refresh", "reason": "list_disks sends the refresh of the disk list only with its refresh argument, which needs --allow-disk-refresh as well (it hung a real S5000)"}
+  ],
   "mcp_tools": {
     "get_status": {"gateway": ["status"]},
     "get_system_info": {"gateway": ["readSystemInfo"]},

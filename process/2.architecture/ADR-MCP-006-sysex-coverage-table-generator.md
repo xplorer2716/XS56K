@@ -73,9 +73,13 @@ scan cannot read is declared, in one place and with the checks above, and the ha
 (The tool-to-gateway list of DEC-MCP-037 is one of its parts.)
 `juce/tools/sysex_coverage_declared.json` holds what no scan can read: the eight Table 32 sections; the messages the owner or an ADR decided
 not to offer, each with the ID of the decision (`not offered (DEC-MCP-028)`: ejecting a disk, which is a message of the spec that the owner
-excluded); and the message-to-tool links the scan could not attribute, each with the file and the reason. The script refuses a declared entry that
-names an item, a function or a tool that does not exist, and refuses one that the scan now attributes by itself (a stale declaration), so the
-file only ever holds what is still needed. **Why:** a gap and a decision look the same in the code (no tool) and must not look the same in the
+excluded); the messages the server's own session sends and no tool does (`server session`: the six of section 00 that it sends at its opening and
+closing, each checked to be sent by a `Session::` function of the AKM library); the generic AKM functions and the sections whose Get items they
+read (`getForAllKeygroups` for section 08, `getForAllZones` and `getForAllZonesAllKeygroups` for section 06), which the script crosses with the items
+the standard parameters name; the launch option a tool needs for one message beyond its usual one (the refresh of the disk list needs
+`--allow-disk-refresh` as well); the tool-to-gateway list of DEC-MCP-037; and the message-to-tool links the scan could not attribute, each with
+the file and the reason. The script refuses a declared entry that names an item, a function, a tool or a decision that does not exist, and refuses
+one that the scan now attributes by itself (a stale declaration), so the file only ever holds what is still needed. **Why:** a gap and a decision look the same in the code (no tool) and must not look the same in the
 table; the declaration is where the decision is cited.
 
 ### DEC-MCP-039: The script is `juce/tools/generate_sysex_coverage.py`; the file is `documents/SYSEX-COVERAGE.md`; `--check` and the unit tests are `ctest` entries
@@ -165,5 +169,6 @@ flowchart TD
 | generic builder | `makeRequest`, `makeStringRequest` or `makeTwoStringRequest`: what builds a message that is in the item catalogue and that no public AKM function sends |
 | `none` | no AKM function, or no MCP tool, sends it and nothing excludes it: a gap |
 | `not offered` | no MCP tool sends it by a decision of the owner or of an ADR, cited by its ID |
+| `server session` | the server's own session sends it, at its opening or closing, and no tool does (section 00) |
 | declared data file | `juce/tools/sysex_coverage_declared.json`: the facts no scan can read, each with its reason |
 | Table 32 sections | the index forms `2A 2C 2E 32` and the blocked multi-requests `38 3A 3C 3E` of the specification |

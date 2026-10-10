@@ -93,7 +93,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-072: The declared data file
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `juce/tools/sysex_coverage_declared.json` (created by TASK-MCP-069 with the eight Table 32 sections, and given the tool list by
   TASK-MCP-071) also holds the messages decided not to be offered with the ID of the decision (ejecting a disk, `DEC-MCP-028`, and whatever else the
   scans show that an ADR excluded), the messages the server sends itself and not through a tool (the seven of section 00, which the session sends at its opening and closing, and which `--screen` chooses), which messages `getForAllKeygroups`, `getForAllZones` and `getForAllZonesAllKeygroups` apply to, and the links the scans
@@ -106,9 +106,8 @@ This plan implements the tasks in the format specified below.
   `not offered` cites a decision that exists in `process/2.architecture`.
 - **Dependencies**: TASK-MCP-071
 - **Assignee**: AI
-- **Verification**: Pending (the real run with the real file; the list of entries and their reasons).
-- **Assumptions**: (1) Which messages an ADR excluded is read in `ADR-MCP-004` (DEC-MCP-025) and `ADR-MCP-005` (DEC-MCP-028), not from memory;
-  any message the scans leave that no ADR excludes stays `none`, the owner judging it in TASK-MCP-074.
+- **Verification**: Test first: 17 tests of the declared facts (the four kinds of entries, each with its stale and unknown cases, and five on the real file) added to `test_generate_sysex_coverage.py`, run before the code existed: 82 tests, 4 failures and 13 errors. After the code, and after the first run showed that the fixtures of the AKM tests met the real declarations (they now carry a declared file with Table 32 only): `python -m unittest discover -s juce/tests/tools -p "test_generate_sysex_coverage.py"` 82 tests OK. Real run to a scratch file, then `--check` "is up to date": 346 of the 384 messages have a tool, 1 is `not offered (DEC-MCP-028)` (`Eject Disk`, the only message an ADR excludes: read in DEC-MCP-025 and DEC-MCP-028), 6 are `server session` (the six of section 00 that a `Session::` function sends; `Echo` is not one of them and stays `none`), the refresh of the disk list reads `list_disks (--allow-disk and --allow-disk-refresh)`, the Get items of section 08 that the parameters name read `getForAllKeygroups` and those of section 06 `getForAllZones, getForAllZonesAllKeygroups`; **31 messages remain `none`**: they are the list for TASK-MCP-074.
+- **Assumptions**: (1) Which messages an ADR excluded was read in `ADR-MCP-004` (DEC-MCP-025) and `ADR-MCP-005` (DEC-MCP-028): only `Eject Disk` is a message; formatting and file transfer are outside the specification, and the refresh of the disk list is offered. (2) The `server session` cell is a fourth state the plan did not foresee, added to RQ-MCP-060 and DEC-MCP-038 after the first run (a gap and the server's own business must not look alike). (3) A generic function applies to the Get items of its sections that the standard parameters name, so an item of those sections no parameter names keeps the generic builder.
 
 ### TASK-MCP-073: The counts, the real file, the `ctest` entries and the pointers
 - **Tier**: M

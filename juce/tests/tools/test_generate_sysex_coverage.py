@@ -1,6 +1,6 @@
 """Tests of juce/tools/generate_sysex_coverage.py, run by ctest when Python 3 is available.
 
-Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
+Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
 RQ-MCP-062, RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import importlib.util
@@ -10,6 +10,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import types
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[3]
@@ -73,8 +74,7 @@ class ScriptTest(unittest.TestCase):
         (mcp / "include" / "mcp" / "SamplerGateway.hpp").write_text("namespace mcp { class SamplerGateway { public: void close(); }; }", encoding="utf-8")
         (mcp / "src" / "Tools.cpp").write_text("namespace mcp {}", encoding="utf-8")
         (mcp / "src" / "StandardParameters.cpp").write_text("namespace mcp {}", encoding="utf-8")
-        declared = json.loads(DECLARED.read_text(encoding="utf-8"))
-        declared["mcp_tools"] = {}
+        declared = {"schema": 1, "table32": json.loads(DECLARED.read_text(encoding="utf-8"))["table32"], "mcp_tools": {}}
         declared_path = self.directory / "declared-fixture.json"
         declared_path.write_text(json.dumps(declared), encoding="utf-8")
         return ["--akm-src", str(folder / "src"), "--akm-include", str(folder / "include"), "--mcp", str(mcp), "--declared", str(declared_path)]
@@ -871,6 +871,151 @@ class TheMcpColumnOfTheFile(ScriptTest):
 
         self.assertRegex(text, r"Rename File \(Set\) \| [^|]+ \| rename_file \(--allow-disk\) \|")
         self.assertRegex(text, r"Rename Folder \(Set\) \| [^|]+ \| rename_folder \(--allow-disk\) \|")
+
+
+# The declared facts that no scan can read (TASK-MCP-072): what the owner or an ADR left out, what the session sends, the generic functions, and
+# the options a tool needs for one of its messages.
+FACT_ITEMS = [
+    {"id": "DiskEjectDisk", "section": "10", "item": "0D", "name": "Eject Disk", "kind": "set", "args": []},
+    {"id": "SysExQuery", "section": "00", "item": "00", "name": "Query", "kind": "set", "args": []},
+    {"id": "KeygroupGetLevel", "section": "08", "item": "40", "name": "Get Level", "kind": "get", "args": []},
+    {"id": "KeygroupSetLevel", "section": "08", "item": "20", "name": "Set Level", "kind": "set", "args": []},
+    {"id": "ProgramGetLevel", "section": "0A", "item": "40", "name": "Get Level", "kind": "get", "args": []},
+    {"id": "DiskUpdateList", "section": "10", "item": "01", "name": "Update", "kind": "set", "args": []},
+]
+
+
+def fact_akm(functions=None, generic=None):
+    return types.SimpleNamespace(functions=functions if functions is not None else {"SysExQuery": ["Session::open"]},
+                                 generic=generic if generic is not None else ["getForAllKeygroups"])
+
+
+def fact_mcp(shown=None, parameter_items=None):
+    return types.SimpleNamespace(shown=shown if shown is not None else {"list_disks": {"DiskUpdateList"}},
+                                 parameter_items=parameter_items if parameter_items is not None else {"KeygroupGetLevel", "KeygroupSetLevel"})
+
+
+class TheDeclaredFacts(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.script = load_script()
+
+    def facts(self, declared, akm=None, mcp=None, decisions=("DEC-MCP-028",)):
+        return self.script.declared_facts(declared, FACT_ITEMS, akm or fact_akm(), mcp or fact_mcp(), set(decisions))
+
+    def test_given_an_item_an_adr_left_out_when_read_then_it_is_not_offered_and_cites_the_decision(self):
+        declared = {"not_offered": [{"item": "DiskEjectDisk", "decision": "DEC-MCP-028", "reason": "the owner's decision"}]}
+
+        facts = self.facts(declared)
+
+        self.assertEqual(facts.not_offered, {"DiskEjectDisk": "DEC-MCP-028"})
+        self.assertEqual(facts.problems, [])
+
+    def test_given_a_not_offered_item_that_a_tool_sends_when_read_then_the_entry_is_stale_and_names_item_and_tool(self):
+        declared = {"not_offered": [{"item": "DiskUpdateList", "decision": "DEC-MCP-028", "reason": "wrongly"}]}
+
+        problems = self.facts(declared).problems
+
+        self.assertTrue(any("DiskUpdateList" in p and "list_disks" in p and "stale" in p for p in problems), problems)
+
+    def test_given_a_decision_no_adr_has_when_read_then_the_problem_names_the_decision(self):
+        declared = {"not_offered": [{"item": "DiskEjectDisk", "decision": "DEC-MCP-999", "reason": "invented"}]}
+
+        self.assertTrue(any("DEC-MCP-999" in p for p in self.facts(declared).problems))
+
+    def test_given_an_item_the_catalogue_does_not_have_when_read_then_the_problem_names_it(self):
+        declared = {"not_offered": [{"item": "NoSuchItem", "decision": "DEC-MCP-028", "reason": "typo"}]}
+
+        self.assertTrue(any("NoSuchItem" in p for p in self.facts(declared).problems))
+
+    def test_given_messages_the_session_sends_when_read_then_they_are_marked_and_checked_against_the_session_functions(self):
+        declared = {"sent_by_the_session": {"reason": "the session opens", "items": ["SysExQuery"]}}
+
+        facts = self.facts(declared)
+
+        self.assertEqual(facts.session, {"SysExQuery"})
+        self.assertEqual(facts.problems, [])
+
+    def test_given_a_session_message_no_session_function_sends_when_read_then_the_problem_names_it(self):
+        declared = {"sent_by_the_session": {"reason": "wrongly", "items": ["DiskEjectDisk"]}}
+
+        self.assertTrue(any("DiskEjectDisk" in p and "session" in p for p in self.facts(declared).problems))
+
+    def test_given_a_session_message_that_a_tool_sends_when_read_then_the_entry_is_stale(self):
+        declared = {"sent_by_the_session": {"reason": "wrongly", "items": ["SysExQuery"]}}
+        mcp = fact_mcp(shown={"some_tool": {"SysExQuery"}})
+
+        self.assertTrue(any("SysExQuery" in p and "stale" in p for p in self.facts(declared, mcp=mcp).problems))
+
+    def test_given_a_generic_function_and_its_sections_when_read_then_it_sends_the_get_items_the_parameters_name_in_them(self):
+        declared = {"generic_akm": [{"function": "getForAllKeygroups", "sections": ["08"], "reason": "keygroup 0 is all"}]}
+
+        facts = self.facts(declared)
+
+        self.assertEqual(facts.akm_extra, {"KeygroupGetLevel": ["getForAllKeygroups"]})
+
+    def test_given_a_generic_function_the_scan_did_not_find_when_read_then_the_problem_names_it(self):
+        declared = {"generic_akm": [{"function": "getForNobody", "sections": ["08"], "reason": "typo"}]}
+
+        self.assertTrue(any("getForNobody" in p for p in self.facts(declared).problems))
+
+    def test_given_generic_sections_with_no_item_the_parameters_name_when_read_then_the_problem_says_so(self):
+        declared = {"generic_akm": [{"function": "getForAllKeygroups", "sections": ["10"], "reason": "no Get item there"}]}
+
+        problems = self.facts(declared).problems
+
+        self.assertTrue(any("getForAllKeygroups" in p and "no message" in p for p in problems), problems)
+
+    def test_given_an_option_a_tool_needs_for_one_message_when_read_then_it_replaces_the_tools_usual_option(self):
+        declared = {"tool_options": [{"item": "DiskUpdateList", "tool": "list_disks", "option": "--allow-disk and --allow-disk-refresh",
+                                      "reason": "the refresh argument"}]}
+
+        facts = self.facts(declared)
+
+        self.assertEqual(facts.options, {("DiskUpdateList", "list_disks"): "--allow-disk and --allow-disk-refresh"})
+
+    def test_given_an_option_for_a_message_the_tool_does_not_send_when_read_then_the_problem_names_both(self):
+        declared = {"tool_options": [{"item": "DiskUpdateList", "tool": "load_file", "option": "--x", "reason": "wrongly"}]}
+
+        self.assertTrue(any("DiskUpdateList" in p and "load_file" in p for p in self.facts(declared).problems))
+
+
+class TheDeclaredFactsInTheFile(ScriptTest):
+    def test_given_the_real_declarations_when_generated_then_eject_disk_says_not_offered_and_the_decision(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertIn("Eject Disk (Set) | ejectDisk, ejectDiskDiscardingVirtualSamples | not offered (DEC-MCP-028) |", text)
+
+    def test_given_the_real_declarations_when_generated_then_the_messages_of_the_session_say_so(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertRegex(text, r"Notification \(Set\) \| [^|]+ \| server session \|")
+        self.assertRegex(text, r"Echo \(Get\) \| echo \| none \|")
+
+    def test_given_the_real_declarations_when_generated_then_the_refresh_of_the_disk_list_names_both_options(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertIn("Update the list of disks connected (Set) | updateDiskList | list_disks (--allow-disk and --allow-disk-refresh) |", text)
+
+    def test_given_the_real_declarations_when_generated_then_the_keygroup_reads_name_the_function_that_reads_all_keygroups(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertRegex(text, r"\(Get\) \| getForAllKeygroups \| get_parameters \|")
+
+    def test_given_a_not_offered_entry_for_a_message_a_tool_sends_when_generated_then_it_fails_and_says_stale(self):
+        declared = json.loads(DECLARED.read_text(encoding="utf-8"))
+        declared["not_offered"].append({"item": "ProgramRenameCurrent", "decision": "DEC-MCP-028", "reason": "wrongly"})
+        path = self.directory / "declared.json"
+        path.write_text(json.dumps(declared), encoding="utf-8")
+
+        result = self.generate("--declared", str(path))
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("stale", result.stderr)
 
 
 if __name__ == "__main__":

@@ -69,12 +69,16 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **EARS Type**: Ubiquitous
 - **Statement**: The MCP column of a message SHALL name every tool of the MCP server that sends it, followed by the launch option that enables the
   tool when it needs one (`--allow-disk`, `--allow-front-panel`); a message the owner or an ADR decided not to offer SHALL say `not offered`
-  followed by the ID of the decision; any other message with no tool SHALL say `none`.
-- **Rationale**: a message with no tool is either a decision (ejecting a disk) or a gap, and the table must show which.
+  followed by the ID of the decision; a message that the server's own session sends at its opening and its closing, and that no tool carries,
+  SHALL say `server session`; any other message with no tool SHALL say `none`.
+- **Rationale**: a message with no tool is a decision (ejecting a disk), the server's own business (the session's configuration of the sampler) or
+  a gap, and the table must show which. *Amended 2026-10-10 (TASK-MCP-072):* `server session` was added after the first run showed the six
+  messages of section 00 that the server sends itself reading `none`, like a gap.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* a message sent by `set_parameter`, *Then* its MCP cell is `set_parameter`; *given* one sent only by
   `load_file`, *then* it is `load_file (--allow-disk)`; *given* one that `ADR-MCP-005` excludes, *then* it says `not offered (DEC-MCP-028)`;
-  *given* one that nothing sends and nothing excludes, *then* it says `none`.
+  *given* one that nothing sends and nothing excludes, *then* it says `none`; *given* one that the session sends and no tool does, *then* it
+  says `server session`.
 - **Dependencies**: RQ-MCP-058
 
 ### RQ-MCP-061: A count per section opens the file
