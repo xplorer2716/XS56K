@@ -25,14 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   disk commands wait, and the sampler's disk-list refresh needs `--allow-disk-refresh` as well (it hung a real S5000). **5 more with
   `--allow-front-panel`**: press, hold and release a front-panel key, turn the data wheel, send ASCII keys (61 tools with this option, 77
   with both). **Every deletion asks for a `confirm` that is the exact name of what is deleted; deleting every item of a kind and clearing
-  the memory ask for the number of items that would be lost**, and nothing is sent otherwise. The MIDI ports are launch arguments
+  the memory ask for the number of items that would be lost** (clearing the memory also clears the song files, set lists and scenelists, which
+  the number does not count, and its answers say how many), and nothing is sent otherwise. The MIDI ports are launch arguments
   (`--in`, `--out`; `--list-ports` shows them), and `--screen independent|follow|as-is` chooses how the sampler's screen behaves while
   the server runs (`independent` by default; it replaces `--no-lcd`, which is now refused). It never formats or ejects a disk. It speaks
-  both eras of MCP over standard input and output; `juce/mcp/README.md` is its reference. Run on a real S5000 (2026-10-05 to 07, on test
-  objects): the tools of programs, keygroups, zones, samples, multis and disks, the program and multi parameters, browsing, loading and
-  saving on a real disk; the sampler reports 0 bytes free for its FAT32 disk, and the three `--screen` modes behaved as designed against
-  the sampler's screen. The settings, MIDI setup, song file, set list, scenelist, delete-all, clear-memory, effects board and front-panel
-  key tools have run on the simulated sampler only (`xs56k_mcp_server_simulated` lets you try the server with no sampler).
+  both eras of MCP over standard input and output; `juce/mcp/README.md` is its reference. Run on a real S5000 (2026-10-05 to 10, on test
+  objects, and with the whole memory saved to the disk before it was erased): the tools of programs, keygroups, zones, samples, multis and
+  disks, the program and multi parameters, browsing, loading and saving on a real disk, the settings and the MIDI setup, the song files, set
+  lists and scenelists in memory and through the disk (the sampler keeps its song files sorted and the position selected, and holds one set
+  list), the three delete-all tools and the clearing of the memory; the sampler reports 0 bytes free for its FAT32 disk, and the three
+  `--screen` modes behaved as designed against the sampler's screen. The five effects tools answered "no board" (the S5000 has none, so the
+  effects are untried) and the front-panel keys were accepted on a cursor key but not yet seen on the screen
+  (`xs56k_mcp_server_simulated` lets you try the server with no sampler).
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
   the spec's Table 31), move the data wheel, send ASCII keyboard data. A session now releases the keys it held when it
   closes. `xs56k_akm_probe --suite --front-panel` lets you drive the sampler's front panel from the PC keyboard

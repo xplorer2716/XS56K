@@ -54,6 +54,10 @@ scenelists in memory, and one saved file of each kind on the disk (the owner say
 programs, samples and multis made for a run are made by the assistant and deleted by it. The set lists, song files and scenelists the
 owner already has are not used for a deletion: only copies made for the run. Before TASK-MCP-061 and TASK-MCP-062 the owner saves what
 he wants to keep: the memory then holds only what the runs made.
+*Update 2026-10-10:* from TASK-MCP-059 the owner left the runs to the assistant ("do all the tasks without me", the data being test data), so
+they were made without him; for the deletions of TASK-MCP-061 and TASK-MCP-062 the whole memory was first saved to a folder of the disk and
+reloaded afterwards, which took the place of "the owner saves what he keeps"; the front-panel keys, whose effect only the screen shows,
+were left to him (TASK-MCP-063, Blocked).
 
 ## References
 - **Requirements**: RQ-MCP-046 to RQ-MCP-057 (`FTR-MCP-005`; RQ-MCP-056 amended 2026-10-09); RQ-MCP-042, RQ-MCP-043, RQ-MCP-044 (`FTR-MCP-004`); RQ-MCP-014 (`FTR-MCP-002`)
@@ -312,15 +316,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-064: Closure of the real runs — README, observations and simulated sampler
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: After TASK-MCP-055 and TASK-MCP-058 to TASK-MCP-063, update the table "what has been tried" and the Safety section of `juce/mcp/README.md`, the sentences of `README.md` and `CHANGELOG.md` saying which tools ran on the simulated sampler only, regenerate the scripted conversations if the simulated sampler changed (their differences read line by line), and run the full `ctest`.
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-043
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-033)
 - **Acceptance Criteria** (Gherkin): *Given* the observations file after the runs, *When* the READMEs and `CHANGELOG.md` are read, *Then* each tool of this plan is said to have run on the real S5000, the effects tools with the limit of the missing board, and `ctest` passes.
 - **Dependencies**: TASK-MCP-055, TASK-MCP-058 to TASK-MCP-063, TASK-MCP-065
 - **Assignee**: AI
-- **Verification**: Not started.
-- **Assumptions**: None
+- **Verification**: Done on 2026-10-10 for everything but the front-panel keys: the table "what has been tried" of `juce/mcp/README.md` (six rows instead of the "simulated only" one: settings and MIDI setup, the three lists in memory, saving and loading them, deleting everything, the effects board, the keys), its section on the screen, its extensions and its Safety section (the clearing takes the three lists too), the line of `README.md` and the entry of `CHANGELOG.md` on what ran on a real S5000 and what did not. The scripted conversations were regenerated with each task that changed the simulated sampler, their differences read line by line (TASK-MCP-058, 059, 062, 065); full `ctest` on Windows (MSVC, Debug) 1099 of 1099, no warning, `mcp_readme_names_every_tool_and_option` included. **Left: the keys.** When TASK-MCP-063 is done by the owner, the rows "Front-panel keys" of `juce/mcp/README.md`, the sentence of `README.md` ("the front-panel keys were accepted but not yet seen on the screen") and the one of `CHANGELOG.md` (same words) are rewritten from his results, and this task becomes Done.
+- **Assumptions**: (1) Tier M (several documents, no code). (2) "Each tool of this plan is said to have run on the real S5000" is met for every tool but the five effects tools (which say "no board") and the screen effect of the key tools, the data wheel and the ASCII key, each said so in the READMEs.
 
 ### TASK-MCP-065: The instructions the server gives at `initialize` say what it offers today
 - **Tier**: M

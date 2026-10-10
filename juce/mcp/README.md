@@ -96,8 +96,8 @@ redraws its screen when it processes an edit received over MIDI).
 
 When the server stops it puts the settings it changed back to the sampler's **standard values** (Sync LCD on, Auto screen update off),
 not to what you had set; with `as-is` it changed nothing, so it puts nothing back. On the S5000 the pages do not follow the edits
-with Auto screen update off (seen on 2026-10-04). What the screen shows in each of the three cases has not yet been observed on a
-real sampler; it is part of the planned real run.
+with Auto screen update off (seen on 2026-10-04). What the screen shows in each of the three cases was seen on a real
+sampler on 2026-10-06 (section 6).
 
 `--allow-disk-refresh` without `--allow-disk` is an error. With none of the two, the server never touches a disk.
 
@@ -258,7 +258,8 @@ A large sample takes time: a 40 MB sample took about a minute.
 | `save_memory_item` | saves one program, sample, multi, song file, set list or scenelist to the current folder, then checks the folder | `kind`\* (`program`, `sample`, `multi`, `song_file`, `set_list`, `scenelist`), `name`\*, `overwrite`, `save_children` | |
 | `save_all_memory_items` | saves every item of a kind | `kind`\*, `confirm`\*, `overwrite`, `save_children` | **the number** of items of that kind in memory |
 
-A program is saved as `<name>.AKP`, a sample as `<name>.WAV`; the extension of a multi file has not been seen on a real sampler.
+A program is saved as `<name>.AKP`, a sample as `<name>.WAV`, a multi as `<name>.AKM`, a song file as `<name>.MID`, a set list as `<name>.SET` and a
+scenelist as `<name>.ASC`.
 
 **Organising the disk** (needs a writable disk)
 
@@ -276,10 +277,12 @@ A program is saved as `<name>.AKP`, a sample as `<name>.WAV`; the extension of a
 
 **Every deletion asks for a confirmation.** A tool that deletes something takes a `confirm` argument that must be the **exact name**
 of what is deleted (for `delete_keygroup`, the program's name; for `save_all_memory_items`, `delete_all_programs`, `delete_all_samples`
-and `delete_all_multis`, the number of items; for `clear_sampler_memory`, the total number of programs, samples and multis). If it is
+and `delete_all_multis`, the number of items; for `clear_sampler_memory`, the total number of programs, samples and multis, **not** the song files,
+set lists and scenelists, which it clears too). If it is
 missing or wrong, **nothing is sent to the sampler** and the answer says what to give. The destructive tools say so in their
 annotations, so a client can ask you before it calls them. `clear_sampler_memory` and the `delete_all_*` tools are the largest losses
-the server can cause: ask yourself before letting an assistant call them on a sampler that holds work you have not saved.
+the server can cause: ask yourself before letting an assistant call them on a sampler that holds work you have not saved (the memory
+was saved to the disk before they were run on a real S5000, and reloaded after).
 
 **Never done, whatever the options:**
 - ejecting or formatting a disk (the owner's decision of 2026-10-07; formatting and moving files between the computer and the sampler are not in
@@ -309,8 +312,8 @@ it; three other tests (`mcp_source_check_fails_on_...`) plant a delete, a key an
 
 ## 6. What has been tried on a real sampler
 
-On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, 2026-10-05 and 2026-10-06, with the owner present, on objects made for the test; the
-full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
+On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, from 2026-10-05 to 2026-10-10, with the owner present, then, for the last runs, on test data
+left to the assistant, with the memory saved to the disk before it was erased; the full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 
 | Tried and worked | Not tried, or with a known limit |
 |---|---|
@@ -320,7 +323,12 @@ full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 | **Multis**: `create_multi` (32 parts), `rename_multi`, `delete_multi`, `set_part_program` by name and by position, `get_part_programs`, `clear_part`, `set_multi_program_number`, and **all 12 part parameters**; the part numbers are those of the front panel | |
 | **Disk**: browsing, `create_folder`, `rename_file` (a `.WAV` and a `.AKP`: the sampler adds the extension), `rename_folder`, `delete_file`, `delete_folder` with and without `delete_contents`, `audition_file` (heard, and the stop cuts the sound) | **`get_disk_space` says 0 bytes free** for this FAT32 disk: the S5000 does not seem to report it, so do not rely on it |
 | **Load and save**: `load_file` (a program, a 40 MB sample, a multi), the control of `with_dependents` (without it no sample is added, with it the program's samples are), `load_folder` (13 samples); `save_memory_item` (a program, a sample, a multi), `save_children` (the program and the samples it uses), `save_all_memory_items` (13 samples), the refusal to overwrite and the save with `overwrite` | a save of a very large sample |
-| **Information**: `get_system_info` | **Run on the simulated sampler only, not on a real one:** `get_sampler_settings`, `set_sampler_setting`, `set_midi_setting`, `set_midi_filter`; the list, select, rename and delete tools of the song files, set lists and scenelists, and their saving and loading; `delete_all_programs`, `delete_all_samples`, `delete_all_multis`; `clear_sampler_memory` (not to be run on the owner's sampler without his word); the five effects tools (the owner has no effects board); the five key tools. The real run is TASK-MCP-055 |
+| **Information and settings**: `get_system_info`; `get_sampler_settings` and `set_sampler_setting` (a name of 20 characters is kept, the clock set and put back, each play mode, the front-panel lock); `set_midi_setting` and `set_midi_filter` (the MIDI SETUP and MIDI FILTER pages showed each change) | the sampler refused its play mode once (ERROR 03, three times in a row, then answered) and the cause is not known: `get_sampler_settings` then gives the other three settings and says so; the sampler cannot read the MIDI setup back |
+| **Song files, set lists and scenelists in memory**: list, select (by name and by position, refusals included), rename, delete (on copies loaded for the run, by exact name) | the sampler keeps its song files sorted by name and keeps the **position** selected, not the item, so the answers say which one is current after a renaming or a deletion; it holds **one** set list at a time; scenelists are not sorted. Its own answer to a duplicate name was not tried (the server refuses first) |
+| **Saving and loading them through the disk**: `save_memory_item` and `save_all_memory_items` of the three kinds, with and without `overwrite`; `load_file` of each, with the name in memory (it **replaces** it) and with the item renamed aside (it is **added**) | the sizes: a song file is 31 to 37 KB, the song deciding, a set list 2304 bytes, a scenelist 26 |
+| **Deleting everything**: `delete_all_programs`, `delete_all_samples`, `delete_all_multis` and `clear_sampler_memory`, each first with a wrong count (nothing sent), then with the right one, after the whole memory was saved to the disk and reloaded; **`clear_sampler_memory` also cleared the song files, set lists and scenelists**, which its `confirm` does not count (the tool says so now). A multi keeps the name of a deleted program, a zone shows a deleted sample behind a question mark | the time on a large memory (1.15 s for 4 items); a single `delete_program` or `delete_sample` was not tried for its effect on parts and zones |
+| **Effects board**: the five effects tools each answered that the sampler has no board | **everything else about the effects**: no run with an EB20, the owner having none |
+| **Front-panel keys**: `press_key`, `hold_key` and `release_key` on a cursor key, accepted; an unknown key refused with the list | **what the keys do on the screen, `turn_data_wheel` and `send_ascii_key`**: not seen, they need the owner at the screen (TASK-MCP-063 of `PLAN-MCP-005` has the steps) |
 | **Screen**: `--screen independent` (the owner's screen did not move), `--screen follow` (it followed the assistant and showed each edit), `--screen as-is` (nothing moved) | `independent` was not tried with the screen on the very program the assistant edits; `follow` does not change the page: with the screen on the file system page it stayed there when a multi was selected |
 
 A saved program is `<name>.AKP`, a sample `<name>.WAV`, a multi `<name>.AKM`. A saved song file is `<name>.MID` (31 to 37 KB for the four songs tried, the size following the song), a set list `<name>.SET` (2304 bytes) and a scenelist `<name>.ASC` (26 bytes): seen on a real S5000 (OS 2.14) on 2026-10-10. This server finds the file by the item's name whatever its extension, and `load_file` loads any file of the folder by the name `list_disk_contents` gives. A file loaded whose name the sampler already holds **replaces** that song file, scenelist or set list instead of adding one (a scenelist then goes to the end of the list, a song file keeps its place in the sorted list); a set list loaded replaces the one in memory, since the sampler holds one.

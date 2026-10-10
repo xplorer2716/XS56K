@@ -519,29 +519,29 @@ TASK-MCP-041|198-209|Done|The simulated sampler matches what the real S5000 did
 TASK-MCP-042|210-221|Done|A deletion on the disk waits for the disk timeout
 TASK-MCP-043|222-232|Done|The simulated sampler saves a program and a sample at the real sizes
 @process/3.plan/PLAN-MCP-005-remaining-sampler-functions.md
-PLAN-MCP-005|1-375||MCP Server — The Remaining Sampler Functions
-TASK-MCP-044|73-84|Done|Author FTR-MCP-005, ADR-MCP-005 and PLAN-MCP-005, and amend the "never offered" texts
-TASK-MCP-045|85-96|Done|The sampler's settings
-TASK-MCP-046|97-108|Done|The MIDI setup
-TASK-MCP-047|109-120|Done|Song files, set lists and scenelists — list, select, rename
-TASK-MCP-048|121-132|Done|Song files, set lists and scenelists — deletion
-TASK-MCP-049|133-144|Done|Saving and loading song files, set lists and scenelists through the disk
-TASK-MCP-050|145-156|Done|Delete all programs, all samples, all multis
-TASK-MCP-051|157-168|Done|Clear the sampler's memory
-TASK-MCP-052|169-180|Done|The effects board
-TASK-MCP-053|181-192|Done|The front-panel keys behind `--allow-front-panel`
-TASK-MCP-054|193-204|Done|README, scripted conversations, counts and closure
-TASK-MCP-055|205-216|Done|Real-sampler run — the sampler's settings and the MIDI setup
-TASK-MCP-056|217-228|Done|`CHANGELOG.md` says what the server offers today
-TASK-MCP-057|229-240|Done|Plan the real-sampler run of every tool of this plan
-TASK-MCP-058|241-252|Done|Real-sampler run — song files, set lists and scenelists in memory
-TASK-MCP-059|253-264|Done|Real-sampler run — saving and loading song files, set lists and scenelists through the disk
-TASK-MCP-060|265-276|Done|Real-sampler run — the effects board
-TASK-MCP-061|277-288|Done|Real-sampler run — deleting all programs, all samples, all multis
-TASK-MCP-062|289-300|Done|Real-sampler run — clearing the sampler's memory
-TASK-MCP-063|301-312|Blocked|Real-sampler run — the front-panel keys
-TASK-MCP-064|313-324|Not Started|Closure of the real runs — README, observations and simulated sampler
-TASK-MCP-065|325-336|Done|The instructions the server gives at `initialize` say what it offers today
-TASK-MCP-066|337-348|Done|The server writes the frames it rejects to standard error
-TASK-MCP-067|349-375|Done|A renamed song file, set list or scenelist is found again by its new name
+PLAN-MCP-005|1-379||MCP Server — The Remaining Sampler Functions
+TASK-MCP-044|77-88|Done|Author FTR-MCP-005, ADR-MCP-005 and PLAN-MCP-005, and amend the "never offered" texts
+TASK-MCP-045|89-100|Done|The sampler's settings
+TASK-MCP-046|101-112|Done|The MIDI setup
+TASK-MCP-047|113-124|Done|Song files, set lists and scenelists — list, select, rename
+TASK-MCP-048|125-136|Done|Song files, set lists and scenelists — deletion
+TASK-MCP-049|137-148|Done|Saving and loading song files, set lists and scenelists through the disk
+TASK-MCP-050|149-160|Done|Delete all programs, all samples, all multis
+TASK-MCP-051|161-172|Done|Clear the sampler's memory
+TASK-MCP-052|173-184|Done|The effects board
+TASK-MCP-053|185-196|Done|The front-panel keys behind `--allow-front-panel`
+TASK-MCP-054|197-208|Done|README, scripted conversations, counts and closure
+TASK-MCP-055|209-220|Done|Real-sampler run — the sampler's settings and the MIDI setup
+TASK-MCP-056|221-232|Done|`CHANGELOG.md` says what the server offers today
+TASK-MCP-057|233-244|Done|Plan the real-sampler run of every tool of this plan
+TASK-MCP-058|245-256|Done|Real-sampler run — song files, set lists and scenelists in memory
+TASK-MCP-059|257-268|Done|Real-sampler run — saving and loading song files, set lists and scenelists through the disk
+TASK-MCP-060|269-280|Done|Real-sampler run — the effects board
+TASK-MCP-061|281-292|Done|Real-sampler run — deleting all programs, all samples, all multis
+TASK-MCP-062|293-304|Done|Real-sampler run — clearing the sampler's memory
+TASK-MCP-063|305-316|Blocked|Real-sampler run — the front-panel keys
+TASK-MCP-064|317-328|In Progress|Closure of the real runs — README, observations and simulated sampler
+TASK-MCP-065|329-340|Done|The instructions the server gives at `initialize` say what it offers today
+TASK-MCP-066|341-352|Done|The server writes the frames it rejects to standard error
+TASK-MCP-067|353-379|Done|A renamed song file, set list or scenelist is found again by its new name
 @process/3.plan/SUMMARY-akm-sections-coverage.md
