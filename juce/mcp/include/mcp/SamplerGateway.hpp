@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <chrono>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -64,6 +65,11 @@ namespace mcp
         /// longer than an ordinary command, and its silence is answered with a message about the power cycle.
         /// [ADR-MCP-003 (DEC-MCP-017)]
         std::chrono::milliseconds diskTimeout{120000};
+        /// Called with one line of text for each message from the sampler that the session rejected (with the reason), and each
+        /// confirmation that matched no pending command or came after its command's REPLY; on the session's thread, so it must
+        /// neither throw nor block. Empty: these are dropped. A rejected reply and a silence then read alike, as a timeout.
+        /// [TASK-MCP-066, RQ-MCP-009, RQ-AKM-006]
+        std::function<void(const std::string&)> diagnosticLog;
     };
 
     /// A value, or the reason there is none.

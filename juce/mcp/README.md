@@ -335,7 +335,7 @@ switched off and on. It is not needed for a disk that was plugged in before the 
 | What you see | What it means | What to do |
 |---|---|---|
 | "No sampler answered at DeviceID 0" | nothing answered on the MIDI ports | check the sampler is on, the cable, the two ports (`--list-ports`), and that no other program holds the ports (another copy of the server, a MIDI editor) |
-| "The sampler did not answer while ... (no reply within 2000 ms)" | one command got no answer | try again; if it keeps happening, switch the sampler off and on |
+| "The sampler did not answer while ... (no reply within 2000 ms)" | one command got no answer, or got one the server could not read | look at the server's standard error (the client's MCP log): a line "from the sampler: rejected message: ..." means the sampler did answer and names why the answer was refused; no such line means it was silent. Try again; if it keeps happening, switch the sampler off and on |
 | the same after a **load, save or other disk command** ("... may have to be switched off and on") | the sampler stopped answering during a slow disk command | switch the sampler **off and on**, then let the client call the tool again (the server opens a new session by itself). Nothing was retried |
 | "Is a disk selected? Use select_disk first." | no disk is current | `list_disks`, then `select_disk` |
 | "Is a program / sample / multi selected?" | the tool acts on the current one and there is none | `select_program`, `select_sample` or `select_multi` |

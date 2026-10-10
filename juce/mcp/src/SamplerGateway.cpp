@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <functional>
 #include <future>
+#include <iomanip>
 #include <span>
 #include <sstream>
 #include <utility>
@@ -119,14 +120,53 @@ namespace mcp
             "from the MULTI page; the cause is not known: ask again, from another page such as MULTI if it is refused again.";
     }
 
+    namespace
+    {
+        constexpr const char* FROM_THE_SAMPLER = "from the sampler: ";
+
+        // Turns the session's diagnostics into lines of text for the gateway's diagnostic log; the checksum-mode changes of the
+        // opening and the closing are left out, as they happen at every connection. [TASK-MCP-066, RQ-MCP-009, RQ-AKM-006]
+        class LoggingDiagnosticSink final : public akm::DiagnosticSink
+        {
+        public:
+            explicit LoggingDiagnosticSink(std::function<void(const std::string&)> log) : _log(std::move(log)) {}
+
+            void report(const akm::Diagnostic& diagnostic) override
+            {
+                if (!_log || diagnostic.kind == akm::DiagnosticKind::ChecksumModeChanged)
+                    return;
+                std::string line = FROM_THE_SAMPLER + std::string(akm::describe(diagnostic.kind));
+                if (diagnostic.rejection)
+                    line += ": " + std::string(akm::describe(*diagnostic.rejection));
+                if (diagnostic.confirmation)
+                    line += ": " + confirmationText(*diagnostic.confirmation);
+                _log(line);
+            }
+
+        private:
+            static std::string confirmationText(const akm::Confirmation& confirmation)
+            {
+                std::ostringstream out;
+                out << std::hex << std::uppercase << std::setfill('0') << "reply ID " << std::setw(2)
+                    << static_cast<int>(confirmation.replyId) << ", section " << std::setw(2) << static_cast<int>(confirmation.section)
+                    << ", item " << std::setw(2) << static_cast<int>(confirmation.item) << std::dec << ", " << confirmation.data.size()
+                    << " data bytes";
+                return out.str();
+            }
+
+            std::function<void(const std::string&)> _log;
+        };
+    }
+
     // The ports, the executor and the scheduler outlive the session, which is destroyed first (members are destroyed
     // in reverse order): the scheduler's thread posts to the executor, so the executor comes first. [ADR-AKM-001
     // (DEC-AKM-004)]
     struct SamplerGateway::Connection
     {
         Connection(akm::SessionTiming timing, std::unique_ptr<common::midi::MidiInputPort> inputPort,
-                   std::unique_ptr<common::midi::MidiOutputPort> outputPort)
-            : input(std::move(inputPort)), output(std::move(outputPort)), session(timing, executor, scheduler, *input, *output, diagnostics)
+                   std::unique_ptr<common::midi::MidiOutputPort> outputPort, std::function<void(const std::string&)> diagnosticLog)
+            : input(std::move(inputPort)), output(std::move(outputPort)), diagnostics(std::move(diagnosticLog)),
+              session(timing, executor, scheduler, *input, *output, diagnostics)
         {
         }
 
@@ -134,7 +174,7 @@ namespace mcp
         std::unique_ptr<common::midi::MidiOutputPort> output;
         akm::ThreadExecutor executor;
         akm::RealScheduler scheduler;
-        akm::NullDiagnosticSink diagnostics;
+        LoggingDiagnosticSink diagnostics;
         akm::Session session;
     };
 
@@ -169,7 +209,7 @@ namespace mcp
 
         akm::SessionTiming timing;
         timing.commandTimeout = _config.commandTimeout;
-        auto connection = std::make_unique<Connection>(timing, std::move(input), std::move(output));
+        auto connection = std::make_unique<Connection>(timing, std::move(input), std::move(output), _config.diagnosticLog);
 
         akm::SessionConfig sessionConfig;
         sessionConfig.targetDeviceId = _config.deviceId;

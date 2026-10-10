@@ -25,13 +25,15 @@ the earlier ones is in place, the keys last, then the README and the real run:
 | 11 | TASK-MCP-056 | `CHANGELOG.md` | it had been left behind |
 | 12 | TASK-MCP-057 | the plan of the real run of every tool | the owner's decision of 2026-10-09 |
 | 13 | TASK-MCP-055 | real run: settings and MIDI setup | nothing is lost, every value is put back |
-| 14 | TASK-MCP-058 | real run: song files, set lists, scenelists in memory | on copies only |
-| 15 | TASK-MCP-059 | real run: their saving and loading through the disk | in a folder made for the run |
-| 16 | TASK-MCP-060 | real run: the effects board | no board: the "no board" answers only |
-| 17 | TASK-MCP-061 | real run: delete all programs, samples, multis | on test objects only |
-| 18 | TASK-MCP-062 | real run: clear the sampler's memory | the largest loss, after 061 |
-| 19 | TASK-MCP-063 | real run: the front-panel keys | the class that bypasses every confirmation: last |
-| 20 | TASK-MCP-064 | README, observations, simulated sampler, closure | after every run |
+| 14 | TASK-MCP-066 | the server writes the frames it rejects to standard error | a silence seen during TASK-MCP-058 must be told from a rejected reply |
+| 15 | TASK-MCP-058 | real run: song files, set lists, scenelists in memory | on copies only |
+| 16 | TASK-MCP-059 | real run: their saving and loading through the disk | in a folder made for the run |
+| 17 | TASK-MCP-060 | real run: the effects board | no board: the "no board" answers only |
+| 18 | TASK-MCP-061 | real run: delete all programs, samples, multis | on test objects only |
+| 19 | TASK-MCP-062 | real run: clear the sampler's memory | the largest loss, after 061 |
+| 20 | TASK-MCP-063 | real run: the front-panel keys | the class that bypasses every confirmation: last |
+| 21 | TASK-MCP-065 | the instructions the server gives at `initialize` | seen stale during TASK-MCP-058; before the closure |
+| 22 | TASK-MCP-064 | README, observations, simulated sampler, closure | after every run |
 
 **Safety note.** The new tools delete or clear memory items, song files, set lists and scenelists, and can press the sampler's keys.
 Every `ctest` run is against the simulated sampler. The real run (TASK-MCP-055) is made with the owner present, on test data listed
@@ -58,7 +60,7 @@ he wants to keep: the memory then holds only what the runs made.
 - **ADRs**: ADR-MCP-005 (Proposed): DEC-MCP-028 to DEC-MCP-034 (DEC-MCP-033 amended 2026-10-09); ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
   DEC-MCP-019 (amended earlier)
 
-The plan has 21 tasks (TASK-MCP-044 to TASK-MCP-064; 056 to 064 were added on 2026-10-09 and 055 reworked the same day), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
+The plan has 23 tasks (TASK-MCP-044 to TASK-MCP-066; 056 to 064 were added on 2026-10-09 and 055 reworked the same day, 065 and 066 on 2026-10-10), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across
 sessions, with a checkpoint note in `process/3.plan/` at the end of each, unless the owner lifts the limit as he did on 2026-10-05.
 Tier S for 044, M for 045 to 051 and 054 to 064, L for 052 and 053 (many tools, a new unit or a new launch option). Every task is
 presented to the owner and waits for his approval before it starts (Definition of Ready).
@@ -237,7 +239,7 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-058: Real-sampler run — song files, set lists and scenelists in memory
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: With the server launched with no option, on the owner's test data and on copies made for the run, run `list_song_files`, `select_song_file`, `rename_song_file`, `list_set_lists`, `rename_set_list`, `list_scenelists`, `select_scenelist`, `rename_scenelist`, then `delete_song_file`, `delete_set_list` and `delete_scenelist` on copies only. Observe what TASK-MCP-047 and TASK-MCP-048 left unknown: a rename to a name already taken, a select by an unknown name or position, the answer when none is current, the selection after a deletion, a name of 20 characters. Write it up and correct the simulated sampler.
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-048, RQ-MCP-049, RQ-MCP-042
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-031, DEC-MCP-033); ADR-MCP-004 (DEC-MCP-023)
@@ -314,7 +316,31 @@ presented to the owner and waits for his approval before it starts (Definition o
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-043
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-033)
 - **Acceptance Criteria** (Gherkin): *Given* the observations file after the runs, *When* the READMEs and `CHANGELOG.md` are read, *Then* each tool of this plan is said to have run on the real S5000, the effects tools with the limit of the missing board, and `ctest` passes.
-- **Dependencies**: TASK-MCP-055, TASK-MCP-058 to TASK-MCP-063
+- **Dependencies**: TASK-MCP-055, TASK-MCP-058 to TASK-MCP-063, TASK-MCP-065
 - **Assignee**: AI
 - **Verification**: Not started.
 - **Assumptions**: None
+
+### TASK-MCP-065: The instructions the server gives at `initialize` say what it offers today
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: The `instructions` text of the `initialize` answer (`programEditingInstructions()` in `juce/mcp/src/Tools.cpp`, seen during TASK-MCP-058 on 2026-10-10) still says "no tool creates, deletes or loads a sample", "no tool creates, deletes or renames a multi" and "nothing is saved by this server", and names none of the tools of PLAN-MCP-004 and of this plan. Rewrite it, with the disk and front-panel parts, so that it names every family of tools the launch options offer, says nothing a tool contradicts, and regenerate the scripted conversations that carry it.
+- **Requirement refs**: RQ-MCP-043, RQ-MCP-046 to RQ-MCP-054, RQ-MCP-001
+- **ADR refs**: ADR-MCP-004 (DEC-MCP-026); ADR-MCP-005 (DEC-MCP-030 to DEC-MCP-032)
+- **Acceptance Criteria** (Gherkin): *Given* the server launched with no option, with `--allow-disk`, with `--allow-front-panel` and with both, *When* `initialize` is answered, *Then* its `instructions` name a tool of each family that `tools/list` offers in that launch, name no tool that `tools/list` does not offer, and contain none of the three stale sentences; the tests are written first and fail on the current text, and `ctest` passes.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Not started.
+- **Assumptions**: None
+
+### TASK-MCP-066: The server writes the frames it rejects to standard error
+- **Tier**: M
+- **Status**: Done
+- **Description**: During TASK-MCP-058 (2026-10-10) the real S5000 left the read of a song file's name unanswered twice, right after the song file was renamed to 20 characters; the gateway's session drops every diagnostic (`akm::NullDiagnosticSink`), so a reply the codec rejected cannot be told from a silence. `GatewayConfig` gets a diagnostic log, a function the gateway calls with one line of text for each message the session rejected (with the reason) and each confirmation that matched no command or came late; `xs56k_mcp_server` writes those lines to standard error, never to standard output.
+- **Requirement refs**: RQ-MCP-009, RQ-MCP-001, RQ-AKM-006, RQ-MCP-056
+- **ADR refs**: ADR-MCP-001 (DEC-MCP-001, DEC-MCP-008); ADR-AKM-001 (DEC-AKM-004)
+- **Acceptance Criteria** (Gherkin): *Given* a simulated sampler that sends a foreign message and a truncated confirmation before each reply, *When* the gateway runs a command with a diagnostic log, *Then* the command succeeds and the log has one line per rejected message naming its reason; *Given* the same sampler and no diagnostic log, *When* the command runs, *Then* it succeeds; *Given* the server launched on the real S5000, *When* it closes, *Then* its standard output carries nothing but the protocol.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Test first: `SamplerGatewayTests.cpp` failed to build (C2039, `diagnosticLog` not a member of `GatewayConfig`) before the code. After: `xs56k_mcp_tests "[diagnostics]"` 3 of 3 cases, 9 assertions passed (the two rejections named with their reasons, the command answered with and without a log, no line for a clean session); full `ctest` on Windows (MSVC, Debug) 1082 of 1082, no warning. On the real S5000 (2026-10-10) `list_song_files` through the new server: standard output 2 lines, both protocol, standard error with no rejected message.
+- **Assumptions**: (1) The checksum-mode changes of the opening and the closing are not logged: they happen at every connection and say nothing about a lost reply. (2) The raw bytes of a rejected message are not logged: `akm::Rejected` carries only the reason, and adding the bytes changes the AKM public API, which this task does not need to tell a silence from a rejection.

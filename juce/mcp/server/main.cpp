@@ -108,7 +108,10 @@ int main(int argc, char** argv)
         }
 
         useBinaryStreams();
-        mcp::SamplerGateway gateway(backend, mcp::gatewayConfigFrom(parsed.options));
+        mcp::GatewayConfig gatewayConfig = mcp::gatewayConfigFrom(parsed.options);
+        // What the session rejected or could not match goes to standard error, one line written at once. [TASK-MCP-066]
+        gatewayConfig.diagnosticLog = [](const std::string& line) { std::cerr << (LOG_PREFIX + line + "\n"); };
+        mcp::SamplerGateway gateway(backend, gatewayConfig);
         mcp::ServerIdentity identity;
         identity.name = SERVER_NAME;
         identity.title = SERVER_TITLE;

@@ -22,14 +22,19 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // ADR-MCP-001 (DEC-MCP-003, DEC-MCP-004, DEC-MCP-006)]
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <functional>
+#include <mutex>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
 #include "SimulatedPrograms.hpp"
 #include "TestBytes.hpp"
+#include "akm/Confirmation.hpp"
 #include "akm/ItemRequest.hpp"
 #include "akm/RealScheduler.hpp"
 #include "akm/harness/SimulatedMidiBackend.hpp"
@@ -501,4 +506,90 @@ TEST_CASE("Given a DeviceID no sampler has, When the status is asked, Then the p
     CHECK_FALSE(status.ok());
     CHECK(contains(status.problem, "DeviceID 5"));
     CHECK(contains(status.problem, "answered at DeviceID 0"));
+}
+
+namespace
+{
+    /// A foreign message and a truncated confirmation, sent by the simulated sampler before each of its replies. [TASK-MCP-066]
+    akm::harness::SamplerBehaviour junkBeforeEachReply()
+    {
+        akm::harness::SamplerBehaviour behaviour;
+        behaviour.junkBeforeReply = {
+            akm::test::bytes({0xF0, 0x43, 0x10, 0x4C, 0x00, 0xF7}),        // foreign
+            akm::test::bytes({0xF0, 0x47, 0x5E, 0x00, 0x10, 0x44, 0xF7}),  // truncated confirmation
+        };
+        return behaviour;
+    }
+
+    /// The lines a gateway writes to its diagnostic log, kept for the test; the session calls it on its own thread.
+    struct DiagnosticLines
+    {
+        std::mutex mutex;
+        std::vector<std::string> lines;
+
+        std::function<void(const std::string&)> log()
+        {
+            return [this](const std::string& line) {
+                const std::lock_guard lock(mutex);
+                lines.push_back(line);
+            };
+        }
+
+        bool anyContains(std::string_view part)
+        {
+            const std::lock_guard lock(mutex);
+            return std::any_of(lines.begin(), lines.end(), [&](const std::string& line) { return line.find(part) != std::string::npos; });
+        }
+    };
+}
+
+TEST_CASE("Given a sampler that sends a foreign message and a truncated confirmation before each reply, When the status is asked with a diagnostic log, Then it is answered and the log names each rejection and its reason [TASK-MCP-066, RQ-MCP-009, RQ-AKM-006]",
+          "[mcp][gateway][diagnostics]")
+{
+    Rig rig;
+    seedThreePrograms(rig);
+    rig.sampler->setBehaviour(junkBeforeEachReply());
+    DiagnosticLines diagnostics;
+    mcp::GatewayConfig config = configFor(rig);
+    config.diagnosticLog = diagnostics.log();
+    mcp::SamplerGateway gateway(rig.backend, config);
+
+    const auto status = gateway.status();
+
+    REQUIRE(status.ok());
+    CHECK(status.value->currentProgram == "BASS");
+    CHECK(diagnostics.anyContains("rejected message"));
+    CHECK(diagnostics.anyContains(akm::describe(akm::RejectReason::Foreign)));
+    CHECK(diagnostics.anyContains(akm::describe(akm::RejectReason::Truncated)));
+}
+
+TEST_CASE("Given a sampler that sends a foreign message and a truncated confirmation before each reply, When the status is asked with no diagnostic log, Then it is answered [TASK-MCP-066, RQ-MCP-009]",
+          "[mcp][gateway][diagnostics]")
+{
+    Rig rig;
+    seedThreePrograms(rig);
+    rig.sampler->setBehaviour(junkBeforeEachReply());
+    mcp::SamplerGateway gateway(rig.backend, configFor(rig));
+
+    const auto status = gateway.status();
+
+    REQUIRE(status.ok());
+    CHECK(status.value->currentProgram == "BASS");
+}
+
+TEST_CASE("Given a sampler that sends nothing it should not, When the status is asked with a diagnostic log, Then the log stays empty [TASK-MCP-066, RQ-MCP-009]",
+          "[mcp][gateway][diagnostics]")
+{
+    Rig rig;
+    seedThreePrograms(rig);
+    DiagnosticLines diagnostics;
+    mcp::GatewayConfig config = configFor(rig);
+    config.diagnosticLog = diagnostics.log();
+    mcp::SamplerGateway gateway(rig.backend, config);
+
+    REQUIRE(gateway.status().ok());
+    gateway.close();
+
+    const std::lock_guard lock(diagnostics.mutex);
+    CHECK(diagnostics.lines.empty());
 }
