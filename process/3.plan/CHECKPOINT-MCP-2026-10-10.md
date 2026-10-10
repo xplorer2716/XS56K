@@ -36,10 +36,11 @@ After TASK-MCP-063 the S5000 was as found (the test program `MCP063TEST` is dele
    `CHANGELOG.md`). Still untried on the keys: the 39 others, the speed of the repetition of a held key, a server killed with a key held.
 2. ~~A decision on DEC-MCP-029~~ **Made by the owner on 2026-10-10 and done (TASK-MCP-068)**: `confirm` of `clear_sampler_memory` counts the
    programs, samples, multis, song files, set lists and scenelists, which the command clears together.
-3. **The owner's word on the rule of AGENTS.md** ("never call `clear_sampler_memory` or a `delete_all_*` tool on the owner's sampler unless he says so"):
-   they were called on 2026-10-10 on his general instruction to do the tasks without him, after the whole memory was saved to the disk and reloaded.
-   He may want the rule stated in a way that says whether such an instruction is enough.
-4. **The review of ADR-MCP-002 to ADR-MCP-005** (still "Proposed"). The branch was pushed by the owner; read the CI results of its commits when they are in.
+3. ~~The owner's word on the rule of AGENTS.md~~ **Answered by the owner on 2026-10-10: ask each time.** `clear_sampler_memory` and the `delete_all_*` tools
+   were called that day on his general instruction to do the tasks without him, after the whole memory was saved to the disk and reloaded; a general
+   instruction is not enough in future, and `AGENTS.md` now says so.
+4. ~~The review of ADR-MCP-002 to ADR-MCP-005~~ **Accepted by the owner on 2026-10-10** (the four together, as amended). The branch was pushed by the owner;
+   read the CI results of its commits when they are in.
 5. The effects on a real **EB20** stay untried (the owner has none).
 
 ## Not understood (written up, no action)

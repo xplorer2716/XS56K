@@ -263,14 +263,14 @@ DEC-MCP-007|120-129||The server edits, it never creates, deletes, renames or sav
 DEC-MCP-008|130-136||Configuration is the launch arguments, nothing else
 DEC-MCP-009|137-144||Tested bottom-up on in-memory streams and the simulated sampler; the server also runs against the simulated sampler
 @process/2.architecture/ADR-MCP-002-safety-tiers-and-domain-targets.md
-ADR-MCP-002|1-156|Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-002 (RQ-MCP-013 to RQ-MCP-022) under the owner's delegation|MCP Server — Safety Tiers, the Delete Guard and Targets Beyond the Program
+ADR-MCP-002|1-156|Accepted — drafted in session MCP (2026-10-05) for FTR-MCP-002 (RQ-MCP-013 to RQ-MCP-022) under the owner's delegation|MCP Server — Safety Tiers, the Delete Guard and Targets Beyond the Program
 DEC-MCP-010|32-42||Three tiers, declared by each tool; a fourth class is never offered
 DEC-MCP-011|43-51||Create returns the new program; delete is guarded by the current program's name
 DEC-MCP-012|52-60||The scope of a parameter says what to select; zones are a scope of the program catalogue, samples and multis are catalogues of their own
 DEC-MCP-013|61-69||Separate tools per domain for samples and multis
 DEC-MCP-014|70-75||The simulated sampler is corrected before it is trusted, and a real run precedes the next layer
 @process/2.architecture/ADR-MCP-003-disk-tools-and-their-guards.md
-ADR-MCP-003|1-189|Proposed — drafted in session MCP (2026-10-05) for FTR-MCP-003 (RQ-MCP-023 to RQ-MCP-030) under the owner's delegation (HOL, Human|MCP Server — Disk Tools (Browse, Load, Save) and Their Guards
+ADR-MCP-003|1-189|Accepted — drafted in session MCP (2026-10-05) for FTR-MCP-003 (RQ-MCP-023 to RQ-MCP-030) under the owner's delegation (HOL, Human|MCP Server — Disk Tools (Browse, Load, Save) and Their Guards
 DEC-MCP-015|35-44||A fourth tier, "disk", offered only when the server is launched with `--allow-disk`
 DEC-MCP-016|45-52||The disk is a navigation, as the programs are a selection
 DEC-MCP-017|53-61||Slow commands have a timeout of their own and a message that says what a silent sampler means; the server never retries
@@ -280,14 +280,14 @@ DEC-MCP-020|78-88||The refresh of the disk list is offered only with a launch op
 DEC-MCP-021|89-98||`create_folder` is offered with the disk tools, and creates, never opens, never replaces
 DEC-MCP-022|99-106||A save's verification reopens the folder when a saved file is missing from the listing
 @process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md
-ADR-MCP-004|1-130|Proposed — drafted in session MCP (2026-10-06) for FTR-MCP-004 (RQ-MCP-034 to RQ-MCP-044), under the owner's delegation (HOL, Human on|MCP Server — Completing the Tools, the Confirmation Rule, What Stays Out and the README as a Reference
+ADR-MCP-004|1-130|Accepted — drafted in session MCP (2026-10-06) for FTR-MCP-004 (RQ-MCP-034 to RQ-MCP-044), under the owner's delegation (HOL, Human on|MCP Server — Completing the Tools, the Confirmation Rule, What Stays Out and the README as a Reference
 DEC-MCP-023|35-42||Every deletion takes a `confirm` that is the exact name of what is deleted
 DEC-MCP-024|43-56||The new tools and their tiers; no new launch option
 DEC-MCP-025|57-72||What stays not offered, and the owner decides
 DEC-MCP-026|73-83||The README is the human reference, organised by what a person needs to ask
 DEC-MCP-027|84-98||`--screen independent | follow | as-is` replaces `--no-lcd`
 @process/2.architecture/ADR-MCP-005-remaining-sampler-functions.md
-ADR-MCP-005|1-146|Proposed — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what|MCP Server — The Remaining Sampler Functions, the Confirmation by Count, a Launch Option for the Front Panel and the Order of the Work
+ADR-MCP-005|1-146|Accepted — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what|MCP Server — The Remaining Sampler Functions, the Confirmation by Count, a Launch Option for the Front Panel and the Order of the Work
 DEC-MCP-028|33-41||The owner's decisions of 2026-10-07 amend the list of what is not offered
 DEC-MCP-029|42-54||Delete all and clear memory: the `confirm` is a count, with no launch option
 DEC-MCP-030|55-61||The sampler's settings in two tools, the MIDI setup in two tools with no read-back

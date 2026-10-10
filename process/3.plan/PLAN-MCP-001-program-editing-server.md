@@ -18,7 +18,7 @@ the owner's, on a scratch program the owner prepares, and puts every value back.
 
 ## References
 - **Requirements**: RQ-MCP-001 to RQ-MCP-012 (`FTR-MCP-001`)
-- **ADRs**: ADR-MCP-001 (Proposed): DEC-MCP-001 to DEC-MCP-009; ADR-AKM-001 (Accepted): DEC-AKM-001, DEC-AKM-002,
+- **ADRs**: ADR-MCP-001 (Accepted): DEC-MCP-001 to DEC-MCP-009; ADR-AKM-001 (Accepted): DEC-AKM-001, DEC-AKM-002,
   DEC-AKM-003, DEC-AKM-004, DEC-AKM-010, DEC-AKM-012.
 
 The plan has 9 tasks (TASK-MCP-001 to TASK-MCP-009). 001 authors the artifacts; 002 builds the module, the JSON dependency

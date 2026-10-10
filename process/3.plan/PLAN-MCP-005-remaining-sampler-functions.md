@@ -63,7 +63,7 @@ were left to him, and run with him later the same day (TASK-MCP-063).
 ## References
 - **Requirements**: RQ-MCP-046 to RQ-MCP-057 (`FTR-MCP-005`; RQ-MCP-056 amended 2026-10-09); RQ-MCP-042, RQ-MCP-043, RQ-MCP-044 (`FTR-MCP-004`); RQ-MCP-014 (`FTR-MCP-002`)
   and RQ-MCP-025 to RQ-MCP-028, RQ-MCP-031 (`FTR-MCP-003`)
-- **ADRs**: ADR-MCP-005 (Proposed): DEC-MCP-028 to DEC-MCP-034 (DEC-MCP-033 amended 2026-10-09); ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
+- **ADRs**: ADR-MCP-005 (Accepted): DEC-MCP-028 to DEC-MCP-034 (DEC-MCP-033 amended 2026-10-09); ADR-MCP-004: DEC-MCP-023, DEC-MCP-025 (amended), DEC-MCP-027; ADR-MCP-003:
   DEC-MCP-019 (amended earlier)
 
 The plan has 25 tasks (TASK-MCP-044 to TASK-MCP-068; 056 to 064 were added on 2026-10-09 and 055 reworked the same day, 065 to 068 on 2026-10-10), more than the 10 of the CONTEXT MANAGEMENT rule: the work is split across

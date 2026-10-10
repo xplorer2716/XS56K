@@ -1,12 +1,12 @@
 # ADR-MCP-004: MCP Server — Completing the Tools, the Confirmation Rule, What Stays Out and the README as a Reference
 
 ## Status
-Proposed — drafted in session MCP (2026-10-06) for FTR-MCP-004 (RQ-MCP-034 to RQ-MCP-044), under the owner's delegation (HOL, Human on
+Accepted — drafted in session MCP (2026-10-06) for FTR-MCP-004 (RQ-MCP-034 to RQ-MCP-044), under the owner's delegation (HOL, Human on
 the loop), after the owner asked for an independent review of ADR-MCP-001 to ADR-MCP-003, for the missing tools to be implemented
 "with a confirmation for what is destructive", and for a README that is a clear reference for a human. It amends ADR-MCP-002
 DEC-MCP-010 and ADR-MCP-003 DEC-MCP-019 (their "never offered" lists): what is listed in DEC-MCP-024 is now offered. The other
 decisions of ADR-MCP-001 to ADR-MCP-003 stand. No independent review by a second model was run on this record; the review it
-answers was made by a subagent and was not re-read line by line.
+answers was made by a subagent and was not re-read line by line. **Accepted by the owner on 2026-10-10**, ADR-MCP-002 to ADR-MCP-005 together ("consider them accepted"), as drafted and as amended since; the reviews said above are the only ones made.
 
 ## Context
 

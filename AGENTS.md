@@ -80,7 +80,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 - **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
   `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
   refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first, and never call `clear_sampler_memory` or a `delete_all_*`
-  tool on it unless he says so. [FTR-MCP-*, ADR-MCP-*]
+  tool on it unless he says so for that call: a general "do it all without me" is not enough, ask each time. [FTR-MCP-*, ADR-MCP-*]
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

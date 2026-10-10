@@ -1,10 +1,10 @@
 # ADR-MCP-005: MCP Server — The Remaining Sampler Functions, the Confirmation by Count, a Launch Option for the Front Panel and the Order of the Work
 
 ## Status
-Proposed — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what
+Accepted — drafted in session MCP (2026-10-07) for FTR-MCP-005 (RQ-MCP-046 to RQ-MCP-057), after the owner decided, item by item, what
 `ADR-MCP-004` (DEC-MCP-025) had left to him. It amends ADR-MCP-004 DEC-MCP-025 (the list of what is not offered), RQ-MCP-014 and
 RQ-MCP-028 (their "never offered" lists); the other decisions of ADR-MCP-001 to ADR-MCP-004 stand. No independent review by a second
-model was run on this record.
+model was run on this record. **Accepted by the owner on 2026-10-10**, ADR-MCP-002 to ADR-MCP-005 together ("consider them accepted"), as drafted and as amended since; the reviews said above are the only ones made.
 
 ## Context
 
