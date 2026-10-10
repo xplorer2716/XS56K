@@ -133,3 +133,23 @@ TEST_CASE("Given a confirm that is not a whole number of at least 1, or an unkno
         CHECK(rig.accepted(kind.item) == 0);
     }
 }
+
+TEST_CASE("Given part 1 of a multi plays a program and a zone plays a sample, When every sample and then every program is deleted, Then the zone names its sample behind a question mark and the part still names its program, as the real S5000 did [RQ-MCP-051, TASK-MCP-061]",
+          "[mcp][bulkdelete]")
+{
+    ToolRig rig;
+    REQUIRE_FALSE(toolFailed(rig.call("select_multi", {{"name", "LIVE"}})));
+    REQUIRE_FALSE(toolFailed(rig.call("set_part_program", {{"part", 1}, {"program", "BASS"}})));
+    REQUIRE_FALSE(toolFailed(rig.call("select_program", {{"name", "BASS"}})));
+    REQUIRE_FALSE(toolFailed(rig.call("set_zone_sample", {{"keygroup", 1}, {"zone", 1}, {"sample", "KICK"}})));
+    REQUIRE(hasText(toolText(rig.call("get_zone_samples", {{"keygroup", 1}})), "zone 1: KICK"));
+
+    REQUIRE_FALSE(toolFailed(deleteAll(rig, SAMPLES, SAMPLES.count)));
+    const std::string zones = toolText(rig.call("get_zone_samples", {{"keygroup", 1}}));
+    CHECK(hasText(zones, "zone 1: ?KICK"));
+
+    REQUIRE_FALSE(toolFailed(deleteAll(rig, PROGRAMS, PROGRAMS.count)));
+    const json parts = rig.call("get_part_programs");
+    CHECK_FALSE(toolFailed(parts));
+    CHECK(hasText(toolText(parts), "part 1: BASS"));
+}

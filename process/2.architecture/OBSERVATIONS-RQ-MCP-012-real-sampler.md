@@ -473,3 +473,28 @@ What this changes: nothing in the code. The five answers are those the simulated
 that reports no effects board": it also checks that nothing but the card query is sent, which a real run cannot show, the server logging no
 frame it sends). **Not established**, and so kept in the README: every Set and Get of the effects on a **real board**, the values read back
 and put back, the layout of a real EB20 against Table 24 and Table 25; it needs a sampler with an EB20.
+
+## Deleting every program, every sample and every multi (TASK-MCP-061), run on 2026-10-10
+
+The owner's S5000 (OS 2.14); `xs56k_mcp_server` built from `feature/MCP` on Windows (MSVC, Debug), launched with no option (with `--allow-disk`
+only to save, to load and to browse), once per tool call (answers in the scratchpad's `run061`, none with a "from the sampler: rejected
+message" line). The owner had said to do the remaining tasks without him, which the plan had not foreseen for these calls ("after the
+owner's word"): the memory held his two programs (`New Program  1`, `X01`) and two multis (`New Multi  1`, `New Multi  2`), loaded from
+his disk, with the songs, the set list and the scenelists, so **all of it was first saved** by `save_all_memory_items` into a folder
+`MCPSAVE` made at the root of the disk (11 files: 2 `.AKP` of 516 bytes, 2 `.AKM` of 2354, 4 `.MID`, `Set 1.SET`, 2 `.ASC`; the sizes those
+of his own files) and **reloaded at the end of TASK-MCP-062**. Test objects were made for the run: the programs `MCPDEL1` and `MCPDEL2` (1
+keygroup), the multi `MCPDELM` (32 parts, part 1 playing `MCPDEL1`), then, after the programs had gone, the program `MCPDEL3` and two
+samples `AKWF_oboe_0001` and `AKWF_oboe_0002` (1344-byte files of the disk), zone 1 of the keygroup of `MCPDEL3` playing the first.
+Traceability: RQ-MCP-056, RQ-MCP-051, RQ-MCP-042, TASK-MCP-061 (`PLAN-MCP-005`).
+
+| Tool and call | What the sampler did |
+|---|---|
+| `delete_all_programs` `confirm` 99 (4 programs held) | **refused by the server**, nothing sent: "The sampler holds 4 programs, not 99" |
+| `delete_all_programs` `confirm` 4 | "Deleted all 4 programs"; `list_programs` and `get_status`: no program. **Part 1 of `MCPDELM` still read `MCPDEL1`** (`get_part_programs`): a multi keeps the name of a program that is gone |
+| `delete_all_samples` `confirm` 7 (2 samples held), then 2 | refused with the number held, then "Deleted all 2 samples"; `list_samples`: no sample. **Zone 1 of `MCPDEL3` then read `?AKWF_oboe_0001`**: a zone keeps the name of a sample that is gone, behind a question mark; the free wave memory read 99 % afterwards (the two samples were 1344 bytes each) |
+| `delete_all_multis` `confirm` 99 (3 multis held), then 3 | refused with the number held, then "Deleted all 3 multis" (the two of the owner and `MCPDELM`); `list_multis`: no multi; `get_part_programs` then answered ERROR 4 ("Is a multi selected?") |
+
+What this changes: the simulated sampler answers a zone whose sample is gone with its name behind a question mark (a test written before
+the change); that a multi keeps the name of a deleted program was already what it did. **Not established:** the same effects after a
+single `delete_program` or `delete_sample` (not tried: the same is expected); whether the part or the zone finds its program or sample
+again when one of that name is loaded; the time of each command (not measured: all answered within the ordinary command timeout).

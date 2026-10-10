@@ -1110,7 +1110,17 @@ namespace akm::harness
                     const KeygroupRecord& keygroup =
                         programs[*currentProgram].keygroups[static_cast<std::size_t>(*currentKeygroup - 1)];
                     const auto found = keygroup.zoneParameters.find({ITEM_SET_ZONE_SAMPLE, Bytes{data.front()}});
-                    return reply(found != keygroup.zoneParameters.end() ? found->second : Bytes{0});
+                    if (found == keygroup.zoneParameters.end())
+                        return reply(Bytes{0});
+                    // A zone whose sample has gone from the memory names it behind a question mark: what a real S5000 answered after every sample was
+                    // deleted (TASK-MCP-061, 2026-10-10).
+                    akm::ByteReader stored(found->second);
+                    const auto name = stored.readString();
+                    if (!name || name->empty() || std::find(sampleNames.begin(), sampleNames.end(), *name) != sampleNames.end())
+                        return reply(found->second);
+                    akm::ByteWriter missing;
+                    missing.appendString("?" + *name);
+                    return reply(missing.bytes());
                 }
                 default:
                     return executeZoneParameterGroup(item, data, programs, currentProgram, currentKeygroup);

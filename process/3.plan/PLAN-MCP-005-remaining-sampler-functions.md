@@ -276,15 +276,15 @@ presented to the owner and waits for his approval before it starts (Definition o
 
 ### TASK-MCP-061: Real-sampler run — deleting all programs, all samples, all multis
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: On a memory that holds only objects made for the run (the owner having saved what he keeps), run `delete_all_programs`, `delete_all_samples` and `delete_all_multis`, each first with a wrong count (nothing must be sent), then with the right one after the owner's word. Observe what happens to the parts of a multi when all programs go and to the zones of a program when all samples go (TASK-MCP-050, assumption 7). Write it up and correct the simulated sampler.
 - **Requirement refs**: RQ-MCP-056, RQ-MCP-051, RQ-MCP-042
 - **ADR refs**: ADR-MCP-005 (DEC-MCP-029, DEC-MCP-033)
 - **Acceptance Criteria** (Gherkin): *Given* a memory of test objects only and the owner's word for each call, *When* each tool is run with a wrong count and then with the right one, *Then* the first sends nothing, the second leaves none of its kind, and the answers and what the sampler did are in the observations file.
 - **Dependencies**: TASK-MCP-060
 - **Assignee**: Human and AI
-- **Verification**: Not started (needs the owner).
-- **Assumptions**: (1) Test objects of every kind are made again between the three calls, so that each observation is of one command on a known memory.
+- **Verification**: Run on 2026-10-10 on the S5000 (answers in the scratchpad's `run061`; the whole memory saved before into `MCPSAVE` and reloaded at the end of TASK-MCP-062). `delete_all_programs` (wrong count 99: refused, nothing sent; right count 4: deleted, none left; part 1 of a multi still names the program), `delete_all_samples` (7: refused; 2: deleted; the zone reads `?AKWF_oboe_0001`) and `delete_all_multis` (99: refused; 3: deleted, none left), written up in `OBSERVATIONS-RQ-MCP-012-real-sampler.md`, section "Deleting every program, every sample and every multi (TASK-MCP-061)". Corrected in the simulated sampler, test first: a zone whose sample is gone reads its name behind a question mark (`BulkDeleteToolsTests.cpp`, 1 assertion failed before the code, then `xs56k_mcp_tests "[bulkdelete]"` 6 of 6 cases, 193 assertions); full `ctest` on Windows (MSVC, Debug) passes with the change of TASK-MCP-062 in the tree, 1099 of 1099.
+- **Assumptions**: (1) Test objects of every kind are made again between the three calls, so that each observation is of one command on a known memory. Read as: the programs, the samples and the multis deleted were those of the memory at that time (the owner's included, saved first), the samples and the zone being made after the programs had gone. (2) The owner's word for each call, that the plan asked for, was his instruction of 2026-10-10 to do the remaining tasks without him, and the backup took the place of "the owner saves what he keeps". (3) The effects of one `delete_program` or `delete_sample` on parts and zones were not tried.
 
 ### TASK-MCP-062: Real-sampler run — clearing the sampler's memory
 - **Tier**: M

@@ -537,7 +537,7 @@ TASK-MCP-057|229-240|Done|Plan the real-sampler run of every tool of this plan
 TASK-MCP-058|241-252|Done|Real-sampler run — song files, set lists and scenelists in memory
 TASK-MCP-059|253-264|Done|Real-sampler run — saving and loading song files, set lists and scenelists through the disk
 TASK-MCP-060|265-276|Done|Real-sampler run — the effects board
-TASK-MCP-061|277-288|Not Started|Real-sampler run — deleting all programs, all samples, all multis
+TASK-MCP-061|277-288|Done|Real-sampler run — deleting all programs, all samples, all multis
 TASK-MCP-062|289-300|Not Started|Real-sampler run — clearing the sampler's memory
 TASK-MCP-063|301-312|Not Started|Real-sampler run — the front-panel keys
 TASK-MCP-064|313-324|Not Started|Closure of the real runs — README, observations and simulated sampler
