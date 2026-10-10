@@ -329,8 +329,8 @@ DEC-MCP-041|111-128||The owner's decision of 2026-10-11: the nine messages that 
 @process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md
 @process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md
 @process/2.architecture/REVIEW-ADR-AKM-001-opus.md
+@process/2.architecture/REVIEW-CODE-AKM-MCP-2026-10-11.md
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
-@process/3.plan/20261009-claude-code-cloud-for-claude-on-prem-handover.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-05.md
@@ -577,4 +577,3 @@ TASK-MCP-073|113-128|Done|The counts, the real file, the `ctest` entries and the
 TASK-MCP-075|129-148|Done|The check against the simulated sampler
 TASK-MCP-076|149-169|Done|Document the messages with no tool: covered by other messages, or a gap
 TASK-MCP-074|170-183|Done|Read the table with the owner
-@process/3.plan/SUMMARY-akm-sections-coverage.md
