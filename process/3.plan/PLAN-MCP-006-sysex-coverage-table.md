@@ -147,7 +147,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-074: Read the table with the owner
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: Present the generated table's counts and its `none` and generic-builder rows to the owner; record what he decides to implement,
   to exclude (a declared `not offered`, with his word as the decision) or to leave, as a list of follow-up tasks or amendments; nothing is
   implemented here.
@@ -157,5 +157,5 @@ This plan implements the tasks in the format specified below.
   `not offered` with his decision, or left open and listed.
 - **Dependencies**: TASK-MCP-073, TASK-MCP-075
 - **Assignee**: Human and AI
-- **Verification**: N/A (Tier S)
+- **Verification**: Presented to the owner on 2026-10-10, waiting for his decisions. The table has 384 messages: 350 with an MCP tool, 1 `not offered` (Eject Disk, DEC-MCP-028), 6 `server session`, **27 with none**, and the 8 sections of Table 32 with no code. The 27, read in the file and grouped: **(a) six that are functions the server lacks**: the program number of a program (`&0A` set, `&11` get, `&18` get all, section 0A: the server has `set_multi_program_number` and nothing for programs), the user tune template (`&33` set, `&3B` get, section 0A), the number of parts of new multis (`&01`, section 0C); **(b) fourteen that are other forms of what a tool already does**: `&02` Create Program (the server uses `&03`, with keygroups), the current keygroup (`&02`, section 08), the current program index (`&12`), the name of a sample by index (`&11`, section 0E), the eight disk-information reads of section 10 (`&03 &04 &06 &07 &0A &11 &21 &24`, which `list_disks` and `list_disk_contents` cover through other messages), the current scenelist name and song file name (`&14`, sections 14 and 16); **(c) six batch reads** that only save messages: the parameters of a part in one message (`&47`), the mute and solo of all parts (`&48`), the multi numbers (`&50`) and part counts (`&52`) of all multis, the sample parameters in one message (`&34`, `&4B` of section 0E); **(d) `Echo`** (`&06`, section 00), a test of the link. The owner's decisions are to be recorded here.
 - **Assumptions**: None

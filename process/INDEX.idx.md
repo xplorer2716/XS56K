@@ -573,5 +573,5 @@ TASK-MCP-071|72-93|Done|The MCP column — the declared tool list, the scan of t
 TASK-MCP-072|94-111|Done|The declared data file
 TASK-MCP-073|112-127|Done|The counts, the real file, the `ctest` entries and the pointers
 TASK-MCP-075|128-147|Done|The check against the simulated sampler
-TASK-MCP-074|148-161|Not Started|Read the table with the owner
+TASK-MCP-074|148-161|In Progress|Read the table with the owner
 @process/3.plan/SUMMARY-akm-sections-coverage.md

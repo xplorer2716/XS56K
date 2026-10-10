@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `documents/SYSEX-COVERAGE.md`, a generated table of every message of the SysEx specification by section, with the function of the AKM
   library and the MCP tool that send it and a count per section, written by `juce/tools/generate_sysex_coverage.py` from the item
   catalogue, the sources and a short declared file (`juce/tools/sysex_coverage_declared.json`), and kept up to date by two `ctest` entries
-  (`sysex_coverage_table_is_up_to_date`, `sysex_coverage_script_tests`). Of the 384 messages, 350 have an MCP tool, 1 is left out on
+  (`sysex_coverage_table_is_up_to_date`, `sysex_coverage_script_tests`, `sysex_coverage_tools_match_the_simulated_sampler`). Of the 384 messages, 350 have an MCP tool, 1 is left out on
   purpose (ejecting a disk), 6 are the server's own session, 27 have none; the eight alternative sections of the spec's Table 32 (by index,
   blocked) have no code at all.
 - AKM: front panel control primitives (SysEx section 20): hold, release and press a front-panel key (the 43 keys of
