@@ -77,8 +77,10 @@ excluded); the messages the server's own session sends and no tool does (`server
 closing, each checked to be sent by a `Session::` function of the AKM library); the generic AKM functions and the sections whose Get items they
 read (`getForAllKeygroups` for section 08, `getForAllZones` and `getForAllZonesAllKeygroups` for section 06), which the script crosses with the items
 the standard parameters name; the launch option a tool needs for one message beyond its usual one (the refresh of the disk list needs
-`--allow-disk-refresh` as well); the tool-to-gateway list of DEC-MCP-037; and the message-to-tool links the scan could not attribute, each with
-the file and the reason. The script refuses a declared entry that names an item, a function, a tool or a decision that does not exist, and refuses
+`--allow-disk-refresh` as well); the tool-to-gateway list of DEC-MCP-037; the notes on the messages that no tool sends (a note says either `covered`, naming the tools and the
+messages they send instead, each checked against the table, or `gap`, saying what exists and what is missing); and the message-to-tool links the
+scan could not attribute, each with the file and the reason. A note is shown in a fourth column of the section tables, and a `covered` message reads
+`covered by <tools>` in the MCP column and has its own count (*added 2026-10-10 at the owner's request, TASK-MCP-076*). The script refuses a declared entry that names an item, a function, a tool or a decision that does not exist, and refuses
 one that the scan now attributes by itself (a stale declaration), so the file only ever holds what is still needed. **Why:** a gap and a decision look the same in the code (no tool) and must not look the same in the
 table; the declaration is where the decision is cited.
 
@@ -170,5 +172,7 @@ flowchart TD
 | `none` | no AKM function, or no MCP tool, sends it and nothing excludes it: a gap |
 | `not offered` | no MCP tool sends it by a decision of the owner or of an ADR, cited by its ID |
 | `server session` | the server's own session sends it, at its opening or closing, and no tool does (section 00) |
+| `covered by` | no tool sends the message, but the tools named get its information or function through other messages, named in the note |
+| gap | a message with no tool and nothing that covers it: `none` in the MCP column, with a note saying what exists and what is missing |
 | declared data file | `juce/tools/sysex_coverage_declared.json`: the facts no scan can read, each with its reason |
 | Table 32 sections | the index forms `2A 2C 2E 32` and the blocked multi-requests `38 3A 3C 3E` of the specification |

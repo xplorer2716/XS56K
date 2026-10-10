@@ -22,12 +22,13 @@ tool-to-method list with a check against the simulated sampler, and `DEC-MCP-037
 | 4 | TASK-MCP-072 | the rest of the declared data file: the exclusions, what the generic functions apply to, what the scans leave | after both scans say what they leave |
 | 5 | TASK-MCP-073 | the counts, the real `documents/SYSEX-COVERAGE.md`, the `ctest` entries, the pointers | the result and its guard |
 | 6 | TASK-MCP-075 | the check against the simulated sampler: `--trace-messages`, a third conversation, `--check-tools` | the ground truth for the links that are declared |
-| 7 | TASK-MCP-074 | read the table with the owner | what `none` and the generic builders hold is his to judge |
+| 7 | TASK-MCP-076 | document the 27 messages with no tool: covered by other messages, or a gap, in a note column | the owner asked for it on reading the table |
+| 8 | TASK-MCP-074 | the owner decides what to do with the gaps | his to judge |
 
-The plan has 7 tasks (TASK-MCP-075 was added on 2026-10-10 with the owner's choice), under the limit of 10 per session.
+The plan has 8 tasks (TASK-MCP-075 and TASK-MCP-076 were added on 2026-10-10), under the limit of 10 per session.
 
 ## References
-- **Requirements**: RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-061, RQ-MCP-062, RQ-MCP-063, RQ-MCP-064, RQ-MCP-065, RQ-MCP-066 (`FTR-MCP-006`)
+- **Requirements**: RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-061, RQ-MCP-062, RQ-MCP-063, RQ-MCP-064, RQ-MCP-065, RQ-MCP-066, RQ-MCP-067 (`FTR-MCP-006`)
 - **ADRs**: ADR-MCP-006 (Proposed): DEC-MCP-035 to DEC-MCP-040; ADR-AKM-001: DEC-AKM-003, DEC-AKM-012 (the item catalogue the rows come from);
   ADR-MCP-005: DEC-MCP-028 (what the owner excluded)
 
@@ -145,6 +146,28 @@ This plan implements the tasks in the format specified below.
 - **Verification**: Test first: 11 tests added to `test_generate_sysex_coverage.py` (the trace read; a message a tool sent against its row, through another method, unknown to the catalogue, for an unknown tool; the tools no call reached and the messages of a row no call sent, listed without failing; the conversations run through a stand-in server, and the error naming a conversation when no trace is written; the check on the real server, skipped without the server), run before the code: 97 tests, 10 errors, 1 skipped. After the Python code and the C++ option (`--trace-messages` of `xs56k_mcp_server_simulated`, built with `/W4 /WX`, no warning) and `tool_messages.jsonl` (`delete_all_programs`, `delete_all_samples`): **0 of the 77 tools are left uncalled by the three conversations**. The first real run found 50 messages sent by tools and not in their rows, two causes: a Set is read back (the parameter tools send the Get of the same sections: now allowed) and four memory reads of `get_system_info` that the table did not give it because the gateway passes `akm::getFreeWaveMemoryPercent` as a value, not as a call (the scan now takes any `akm::name`, and a destructor keeps its tilde so that `~Session` no longer looks like a function `Session`); the second run: "every message the tools sent is in the table", and the list of rows' unexercised messages showed three tools whose row carried the messages of the three kinds of list (`rename_set_list`, `delete_set_list`, `clear_sampler_memory`), now narrowed by their AKM function in the declared file. The failing case tried on a scratch declaration (not committed): `rename_file` and `rename_folder` given each other's gateway method passed the both-ways check and failed this one with "rename_file sent Rename File (&28 of section 10), which neither its row of the table nor the methods it calls give" and the same for `rename_folder`, exit 1. Final: 99 tests OK, and full `ctest` on Windows (MSVC, Debug) 1103 of 1103 with the new entry `sysex_coverage_tools_match_the_simulated_sampler`; `documents/SYSEX-COVERAGE.md` regenerated and `--check` up to date (350 messages with a tool).
 - **Assumptions**: (1) The session is opened by an untraced `get_status` before the first traced call, so the messages of the session (section 00) are not given to a tool; the close after the last line is not traced either. (2) 25 tools are called and have messages in their row that no call sent (the parameters the conversations do not set, the select by index where the conversation selects by name, the opening and closing of a folder, and the like): this is listed by the check on each run and is not a failure, a call taking one path of a tool. (3) What the check proves is one way: a tool does not send a message its row omits; that a message of a row is sent by that tool is proved only for the calls the conversations make. (4) The shipped server is unchanged; the option is in the simulated server, test tooling that is never shipped.
 
+### TASK-MCP-076: Document the messages with no tool: covered by other messages, or a gap
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: The declared file gets a list of notes on messages that no tool sends. A note says `covered` (the tools that get the same
+  information or function, and the messages they send instead) or `gap` (what exists of it in AKM or in another tool, and what is missing). The
+  tables get a fourth column, `Note`; a `covered` message reads `covered by <tools>` in the MCP column and has its own count; the script refuses a
+  note on a message a tool sends, and a `covered` note that names a message the tool does not send. The 27 messages are documented from the spec's
+  own descriptions and the messages the tools send (read in the table), with the owner's corrections of 2026-10-10: `Get Current Program Index`,
+  `Get the Multi Numbers of All Multis` and `Get the Number of Parts in All the Multis` are gaps, not equivalents. The tests come first.
+- **Requirement refs**: RQ-MCP-067, RQ-MCP-058, RQ-MCP-060, RQ-MCP-061, RQ-MCP-063, RQ-MCP-065
+- **ADR refs**: ADR-MCP-006 (DEC-MCP-038)
+- **Acceptance Criteria** (Gherkin): *Given* `Get the number of disks connected` with a note that `list_disks` sends `Get list of all connected disks` instead,
+  *When* the file is generated, *Then* its MCP cell says `covered by list_disks (--allow-disk)` and its note gives the reason; *given* a note naming a
+  message the tool does not send, or a note on a message a tool sends, *then* the script fails and names the note; *given* the counts, *then* they
+  equal the rows, with the new column; *given* `Set Program Number`, `Get Current Program Index`, `Get the Multi Numbers of All Multis`, *then* each
+  stays `none` and its note says what exists and what is missing.
+- **Dependencies**: TASK-MCP-075
+- **Assignee**: AI
+- **Verification**: Pending
+- **Assumptions**: (1) The wording of each note is taken from the spec's own description of the message and from the messages the covering tools send
+  in the generated table, not from memory. (2) Table 32's table keeps its three columns: its rows are sections, not messages.
+
 ### TASK-MCP-074: Read the table with the owner
 - **Tier**: S
 - **Status**: In Progress
@@ -155,7 +178,7 @@ This plan implements the tasks in the format specified below.
 - **ADR refs**: ADR-MCP-006
 - **Acceptance Criteria** (Gherkin): *Given* the generated table, *When* it is read with the owner, *Then* each `none` row is either planned, declared
   `not offered` with his decision, or left open and listed.
-- **Dependencies**: TASK-MCP-073, TASK-MCP-075
+- **Dependencies**: TASK-MCP-073, TASK-MCP-075, TASK-MCP-076
 - **Assignee**: Human and AI
 - **Verification**: Presented to the owner on 2026-10-10, waiting for his decisions. The table has 384 messages: 350 with an MCP tool, 1 `not offered` (Eject Disk, DEC-MCP-028), 6 `server session`, **27 with none**, and the 8 sections of Table 32 with no code. The 27, read in the file and grouped: **(a) six that are functions the server lacks**: the program number of a program (`&0A` set, `&11` get, `&18` get all, section 0A: the server has `set_multi_program_number` and nothing for programs), the user tune template (`&33` set, `&3B` get, section 0A), the number of parts of new multis (`&01`, section 0C); **(b) fourteen that are other forms of what a tool already does**: `&02` Create Program (the server uses `&03`, with keygroups), the current keygroup (`&02`, section 08), the current program index (`&12`), the name of a sample by index (`&11`, section 0E), the eight disk-information reads of section 10 (`&03 &04 &06 &07 &0A &11 &21 &24`, which `list_disks` and `list_disk_contents` cover through other messages), the current scenelist name and song file name (`&14`, sections 14 and 16); **(c) six batch reads** that only save messages: the parameters of a part in one message (`&47`), the mute and solo of all parts (`&48`), the multi numbers (`&50`) and part counts (`&52`) of all multis, the sample parameters in one message (`&34`, `&4B` of section 0E); **(d) `Echo`** (`&06`, section 00), a test of the link. The owner's decisions are to be recorded here.
 - **Assumptions**: None

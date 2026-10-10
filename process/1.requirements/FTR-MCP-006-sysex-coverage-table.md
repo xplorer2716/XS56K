@@ -41,7 +41,8 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **EARS Type**: Ubiquitous
 - **Statement**: The generated file SHALL hold, for each of the 13 sections of the SysEx specification in the order of its Table 4 and then one
   group for the eight sections of its Table 32, a table with one row per message of the section, whose columns are: the message (its item code
-  as the spec writes it, its name, and whether it is a Set or a Get), the AKM function, and the MCP tool.
+  as the spec writes it, its name, and whether it is a Set or a Get), the AKM function, the MCP tool, and a note (empty unless the message
+  has one, RQ-MCP-067).
 - **Rationale**: the owner asked for the specification's messages by section, each with the function and the tool that implement it.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the catalogue of 384 items, *When* the file is generated, *Then* it has 13 section tables with 384
@@ -70,7 +71,8 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **Statement**: The MCP column of a message SHALL name every tool of the MCP server that sends it, followed by the launch option that enables the
   tool when it needs one (`--allow-disk`, `--allow-front-panel`); a message the owner or an ADR decided not to offer SHALL say `not offered`
   followed by the ID of the decision; a message that the server's own session sends at its opening and its closing, and that no tool carries,
-  SHALL say `server session`; any other message with no tool SHALL say `none`.
+  SHALL say `server session`; a message that no tool sends but whose information or function the tools get through other messages SHALL
+  say `covered by` followed by those tools (RQ-MCP-067); any other message with no tool SHALL say `none`.
 - **Rationale**: a message with no tool is a decision (ejecting a disk), the server's own business (the session's configuration of the sampler) or
   a gap, and the table must show which. *Amended 2026-10-10 (TASK-MCP-072):* `server session` was added after the first run showed the six
   messages of section 00 that the server sends itself reading `none`, like a gap.
@@ -85,8 +87,8 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
 - **Statement**: The generated file SHALL begin with a table giving, for each section and for the whole, the number of messages, how many have a
-  named AKM function, how many are built by a generic builder, how many have an MCP tool, how many are `not offered`, and how many are `none` in the MCP
-  column.
+  named AKM function, how many are built by a generic builder, how many have an MCP tool, how many are `not offered`, how many are `server session`, how many are covered by other messages, and how many are `none` in the
+  MCP column.
 - **Rationale**: the question behind the table is whether anything is missing; the counts answer it before the rows do.
 - **Priority**: Should
 - **Acceptance Criteria** (Gherkin): *Given* the generated file, *Then* the counts of the first table equal the counts of the rows below it,
@@ -144,6 +146,23 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **Acceptance Criteria** (Gherkin): *Given* a declared entry that gives `rename_file` the gateway method of `rename_folder`, *When* the check runs on
   a conversation that renames a file, *Then* it fails and names `rename_file` and the file-rename message; *given* the real declarations, *then* it
   passes and lists the tools no conversation calls.
+- **Dependencies**: RQ-MCP-060, RQ-MCP-063
+
+### RQ-MCP-067: A message with no tool says why, and a note that names tools and messages is checked
+- **Category**: Functional
+- **EARS Type**: Ubiquitous
+- **Statement**: The note of a message that no tool sends SHALL say, in terms of the messages and tools of the server, either how its
+  information or function is obtained otherwise (`covered by`: the tools and the messages they send instead), or what is missing and what exists
+  of it (the AKM function, the tool of the same kind for another object); WHEN a note says a tool sends a message, THEN the script SHALL check
+  that the table gives that tool that message, and SHALL refuse a note on a message that a tool does send (a stale note).
+- **Rationale**: the owner asked on 2026-10-10 that the table document, for the 27 messages with no tool, whether each is a function the
+  server lacks or something it does by other messages; a note that the code can contradict must be checked like the other declared facts.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* `Get number of disks connected` and a note that `list_disks` sends the list of disks instead, *When*
+  the file is generated, *Then* its MCP cell says `covered by list_disks (--allow-disk)` and its note column gives the reason; *given* a note
+  that names a message the tool does not send, *then* the script fails and names the note; *given* a note on a message a tool sends, *then* it
+  fails as stale; *given* `Set Program Number`, *then* its cell stays `none` and its note says that AKM has `setProgramNumber` and that the
+  server has `set_multi_program_number` for multis only.
 - **Dependencies**: RQ-MCP-060, RQ-MCP-063
 
 ## Non-Functional Requirements
