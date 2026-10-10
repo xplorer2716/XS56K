@@ -48,18 +48,20 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
   message rows in all, each row giving the section's own item code; *and* a group for the eight sections of Table 32, each as one row.
 - **Dependencies**: None
 
-### RQ-MCP-059: The AKM column names the function, or says the catalogue only
+### RQ-MCP-059: The AKM column names the function, or the generic builder
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
 - **Statement**: The AKM column of a message SHALL name every public function of the AKM library (as declared under `juce/akm/include/akm`) whose
-  implementation sends that message; where no function does but the message is in the catalogue, it SHALL say `catalogue only`; where it is not in
-  the catalogue (the sections of Table 32) it SHALL say `none`.
-- **Rationale**: the AKM library builds a message either through a named function or only through the catalogue; the reader must be able to tell
-  the two apart, and a gap from either.
+  implementation sends that message; where no function does but the message is in the catalogue, it SHALL name the generic builder that makes it
+  (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` for an item whose arguments are one or two names); where it is not in the
+  catalogue (the sections of Table 32) it SHALL say `none`.
+- **Rationale**: the AKM library builds a message either through a named function or only through the catalogue and its generic builder; the reader
+  must be able to tell the two apart, and a gap from either. *Amended 2026-10-10 (the owner):* the cell said `catalogue only`, which names nothing;
+  it names the builder now.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* a message sent only by `getAllProgramNames`, *When* the file is generated, *Then* its AKM cell is
-  `getAllProgramNames`; *given* a catalogued message that no AKM function sends, *then* its cell is `catalogue only`; *given* a section of Table
-  32, *then* its cell is `none`.
+  `getAllProgramNames`; *given* a catalogued message with numeric arguments that no AKM function sends, *then* its cell is `makeRequest`; *given* one
+  that takes one name, *then* `makeStringRequest`; *given* a section of Table 32, *then* its cell is `none`.
 - **Dependencies**: RQ-MCP-058
 
 ### RQ-MCP-060: The MCP column names the tools, the option they need, and what is left out
@@ -79,7 +81,7 @@ Facts the requirements rest on (read in the repository on 2026-10-10):
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
 - **Statement**: The generated file SHALL begin with a table giving, for each section and for the whole, the number of messages, how many have a
-  named AKM function, how many are `catalogue only`, how many have an MCP tool, how many are `not offered`, and how many are `none` in the MCP
+  named AKM function, how many are built by a generic builder, how many have an MCP tool, how many are `not offered`, and how many are `none` in the MCP
   column.
 - **Rationale**: the question behind the table is whether anything is missing; the counts answer it before the rows do.
 - **Priority**: Should

@@ -43,8 +43,9 @@ or a `decode...(...)` call) is not sent, unless the same body builds or submits 
 *Amended 2026-10-10 (TASK-MCP-070), after the first run on the real sources:* "one step" became "any depth", the methods of a local class became
 units of their own (a class that holds the library's session would otherwise give all its items to every public function of the class), and the
 descriptor rule was added (seven items were fetched by `descriptor` and then sent by `makeRequest(item, ...)`). A message sent by one or
-more public functions lists them. A catalogued message that no public function names says `catalogue only`: it can be built and sent, but no
-function of the library does it for the caller. **Why:** the text of the AKM sources is the evidence of what the library sends; no annotation has
+more public functions lists them. A catalogued message that no public function names takes the name of the generic builder that makes it
+(`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` by the formats of the item's arguments): it can be built and sent, but no
+function of the library does it for the caller. (*Amended 2026-10-10 at the owner's request: the cell first said `catalogue only`.*) **Why:** the text of the AKM sources is the evidence of what the library sends; no annotation has
 to be added to the roughly 300 functions, and an annotation could drift from the body that sends. The scan is textual, not a C++ parse: it
 relies on the way the repository's sources are written (one namespace level, the function's name on the line that opens it), which no formatter
 enforces here, and it fails (DEC-MCP-039) on what it cannot read.
@@ -83,9 +84,9 @@ is the only way a generated file in a repository stays current.
 ## Consequences
 
 - The table answers the owner's question for the 13 catalogued sections, and for Table 32 shows eight sections with nothing behind them. What
-  `none` and `catalogue only` hold is then a list of work, not a surprise.
-- `catalogue only` is not a gap by itself: the keygroup and zone parameters are sent by the MCP server from the catalogue. It says that the AKM
-  library has no named function there, which is a fact about the library's design, to be judged by the owner.
+  `none` and the generic builders hold is then a list of work, not a surprise.
+- A message built by `makeRequest` is not a gap by itself: the keygroup and zone parameters are sent by the MCP server from the catalogue. It says
+  that the AKM library has no named function there, which is a fact about the library's design, to be judged by the owner.
 - A change to the AKM or MCP sources that moves a message, adds a tool or renames a function now fails a test until the table is regenerated and
   committed; the cost is one command and one more file in such a commit.
 - The scan depends on the formatting of the sources. A refactoring that breaks it fails loudly (the unattributed list) and is repaired in the
@@ -127,7 +128,7 @@ flowchart TD
 |---|---|
 | message | a command item of the specification's Control tables, one row of `items.json` (a Set or a Get) |
 | named function | a public function of the AKM library, declared under `juce/akm/include/akm`, whose body sends the message |
-| `catalogue only` | the message is in the item catalogue and can be built with `makeRequest`, but no public AKM function sends it |
+| generic builder | `makeRequest`, `makeStringRequest` or `makeTwoStringRequest`: what builds a message that is in the item catalogue and that no public AKM function sends |
 | `none` | no AKM function, or no MCP tool, sends it and nothing excludes it: a gap |
 | `not offered` | no MCP tool sends it by a decision of the owner or of an ADR, cited by its ID |
 | declared data file | `juce/tools/sysex_coverage_declared.json`: the facts no scan can read, each with its reason |

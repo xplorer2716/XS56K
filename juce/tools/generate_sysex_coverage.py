@@ -51,7 +51,12 @@ KIND_NAMES = {"set": "Set", "get": "Get"}
 SPEC_COMMAND_KIND = "C"
 SCRIPT_COMMAND = "python3 juce/tools/generate_sysex_coverage.py"
 
-CELL_CATALOGUE_ONLY = "catalogue only"
+# The generic builders of the AKM library (`akm/ItemRequest.hpp`): what builds a message no named function sends, by the
+# format of the item's arguments.
+BUILDER_NUMBERS = "makeRequest"
+BUILDER_ONE_STRING = "makeStringRequest"
+BUILDER_TWO_STRINGS = "makeTwoStringRequest"
+FORMAT_STRING = "string"
 CELL_NONE = "none"
 CELL_NOT_OFFERED = "not offered"
 
@@ -69,8 +74,9 @@ INTRO = [
     "",
     "One table per section of the AKAI S5000/S6000 SysEx specification (v2.10, the order of its Table 4), one row per message "
     "(an item of the Control tables: a Set or a Get). The AKM column names the function of the library "
-    "(`juce/akm`) that sends the message, `catalogue only` when the message is in the item catalogue but no function "
-    "sends it, or `none`. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option "
+    "(`juce/akm`) that sends the message; when no named function does, the message is still in the item catalogue and the "
+    "library builds it with its generic builder (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` for "
+    "an item that takes names): any code can send it, and the MCP column tells whether a tool does. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option "
     "it needs, `not offered` with the decision when it was left out on purpose, or `none`. Generated from "
     "`juce/akm/data/items.json`, the sources and `juce/tools/sysex_coverage_declared.json` "
     "(`ADR-MCP-006`, `FTR-MCP-006`).",
@@ -445,9 +451,15 @@ def message_cell(item):
     return f"{code_cell(item['item'])} {escape_cell(item['name'])} ({KIND_NAMES[item['kind']]})"
 
 
-def akm_cell(functions):
-    """The AKM function(s) that send a message, or `catalogue only` when no function does."""
-    return ", ".join(functions) if functions else CELL_CATALOGUE_ONLY
+def builder_of(item):
+    """The generic builder of the AKM library for an item, by the formats of its arguments."""
+    strings = sum(1 for argument in item["args"] if argument["format"] == FORMAT_STRING)
+    return {1: BUILDER_ONE_STRING, 2: BUILDER_TWO_STRINGS}.get(strings, BUILDER_NUMBERS)
+
+
+def akm_cell(functions, item):
+    """The AKM function(s) that send a message, or the generic builder that makes it when no named function does."""
+    return ", ".join(functions) if functions else builder_of(item)
 
 
 def mcp_cell(tools, decision):
@@ -473,7 +485,7 @@ def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=N
         lines += [section_title(sections[code]), ""] + ROW_HEADER
         for item in catalogue["items"]:
             if item["section"] == code:
-                lines.append(f"| {message_cell(item)} | {akm_cell(akm_functions.get(item['id'], []))} | "
+                lines.append(f"| {message_cell(item)} | {akm_cell(akm_functions.get(item['id'], []), item)} | "
                              f"{mcp_cell(mcp_tools.get(item['id'], []), exclusions.get(item['id']))} |")
         lines.append("")
     table32 = declared["table32"]

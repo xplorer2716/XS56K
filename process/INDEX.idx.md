@@ -199,15 +199,15 @@ RQ-MCP-055|121-131||What stays not offered
 RQ-MCP-056|134-144||Verified on the simulator, then on the real sampler with test data
 RQ-MCP-057|145-154||Each new destructive primitive is called from one place only
 @process/1.requirements/FTR-MCP-006-sysex-coverage-table.md
-FTR-MCP-006|1-141||A Generated Table of the SysEx Specification's Messages, the AKM Function and the MCP Tool of Each
+FTR-MCP-006|1-143||A Generated Table of the SysEx Specification's Messages, the AKM Function and the MCP Tool of Each
 RQ-MCP-058|39-50||One table per section, one row per message
-RQ-MCP-059|51-64||The AKM column names the function, or says the catalogue only
-RQ-MCP-060|65-77||The MCP column names the tools, the option they need, and what is left out
-RQ-MCP-061|78-89||A count per section opens the file
-RQ-MCP-062|90-102||A script in `juce/tools` writes the file, and can be run again
-RQ-MCP-063|103-115||A table that is behind the code fails the tests
-RQ-MCP-064|116-126||The README and the document index point to the file; AGENTS.md has the command
-RQ-MCP-065|129-141||The script is tested
+RQ-MCP-059|51-66||The AKM column names the function, or the generic builder
+RQ-MCP-060|67-79||The MCP column names the tools, the option they need, and what is left out
+RQ-MCP-061|80-91||A count per section opens the file
+RQ-MCP-062|92-104||A script in `juce/tools` writes the file, and can be run again
+RQ-MCP-063|105-117||A table that is behind the code fails the tests
+RQ-MCP-064|118-128||The README and the document index point to the file; AGENTS.md has the command
+RQ-MCP-065|131-143||The script is tested
 @process/1.requirements/RQ-BLD-build-tooling.md
 RQ-BLD-001|24-32||CMake build fetching a pinned JUCE
 RQ-BLD-002|33-41||Headless layered libraries, GUI application deferred
@@ -306,12 +306,12 @@ DEC-MCP-032|70-76||The front-panel keys behind `--allow-front-panel`
 DEC-MCP-033|77-84||The effects board is implemented and verified on the simulated sampler only
 DEC-MCP-034|85-92||The order of the work follows the risk, from reading to keys
 @process/2.architecture/ADR-MCP-006-sysex-coverage-table-generator.md
-ADR-MCP-006|1-134|Proposed — drafted in session MCP (2026-10-10) for FTR-MCP-006 (RQ-MCP-058 to RQ-MCP-065), after the owner asked for a table of the|The Generator of the SysEx Coverage Table — Rows, the Two Columns, Declared Facts, and the Check That Keeps It Right
+ADR-MCP-006|1-135|Proposed — drafted in session MCP (2026-10-10) for FTR-MCP-006 (RQ-MCP-058 to RQ-MCP-065), after the owner asked for a table of the|The Generator of the SysEx Coverage Table — Rows, the Two Columns, Declared Facts, and the Check That Keeps It Right
 DEC-MCP-035|29-36||The rows are the catalogue's items, grouped as the specification's Table 4, plus the eight sections of Table 32
-DEC-MCP-036|37-51||The AKM column is read from the AKM sources: the public function whose body names the item
-DEC-MCP-037|52-63||The MCP column is read from the MCP sources in two steps, and the options from the README
-DEC-MCP-038|64-71||Declared facts live in one data file, with a reason for each, and are checked
-DEC-MCP-039|72-82||The script is `juce/tools/generate_sysex_coverage.py`; the file is `documents/SYSEX-COVERAGE.md`; `--check` and the unit tests are `ctest` entries
+DEC-MCP-036|37-52||The AKM column is read from the AKM sources: the public function whose body names the item
+DEC-MCP-037|53-64||The MCP column is read from the MCP sources in two steps, and the options from the README
+DEC-MCP-038|65-72||Declared facts live in one data file, with a reason for each, and are checked
+DEC-MCP-039|73-83||The script is `juce/tools/generate_sysex_coverage.py`; the file is `documents/SYSEX-COVERAGE.md`; `--check` and the unit tests are `ctest` entries
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md

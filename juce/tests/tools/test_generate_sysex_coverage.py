@@ -97,11 +97,11 @@ class RowsOfTheSections(ScriptTest):
         self.assertIn("`&00{0}` Query (Set)", text)
         self.assertIn("`&06{6}` Echo (Get)", text)
 
-    def test_given_no_function_that_sends_it_when_generated_then_a_catalogued_message_is_catalogue_only_and_has_no_tool(self):
+    def test_given_no_function_that_sends_it_when_generated_then_a_catalogued_message_is_built_by_make_request_and_has_no_tool(self):
         self.generate(*self.akm_sources())
         text = self.output.read_text(encoding="utf-8")
 
-        self.assertIn("| `&06{6}` Echo (Get) | catalogue only | none |", text)
+        self.assertIn("| `&06{6}` Echo (Get) | makeRequest | none |", text)
 
     def test_given_the_eight_sections_of_table_32_when_generated_then_they_are_rows_with_nothing_behind_them(self):
         self.generate()
@@ -130,11 +130,27 @@ class TheCellsOfTheTwoColumns(unittest.TestCase):
         cls.script = load_script()
 
     def test_given_a_message_sent_by_two_functions_when_the_cell_is_made_then_it_lists_both(self):
-        self.assertEqual(self.script.akm_cell(["getAllProgramNames", "getProgramNames"]),
+        self.assertEqual(self.script.akm_cell(["getAllProgramNames", "getProgramNames"], {"args": []}),
                          "getAllProgramNames, getProgramNames")
 
-    def test_given_a_catalogued_message_no_function_sends_when_the_cell_is_made_then_it_is_catalogue_only(self):
-        self.assertEqual(self.script.akm_cell([]), "catalogue only")
+    def test_given_a_catalogued_message_with_numeric_arguments_no_function_sends_when_the_cell_is_made_then_it_is_make_request(self):
+        item = {"args": [{"format": "byte"}, {"format": "signed_word"}]}
+
+        self.assertEqual(self.script.akm_cell([], item), "makeRequest")
+
+    def test_given_a_message_with_no_argument_no_function_sends_when_the_cell_is_made_then_it_is_make_request(self):
+        self.assertEqual(self.script.akm_cell([], {"args": []}), "makeRequest")
+
+    def test_given_a_message_with_one_string_argument_no_function_sends_when_the_cell_is_made_then_it_is_make_string_request(self):
+        self.assertEqual(self.script.akm_cell([], {"args": [{"format": "string"}]}), "makeStringRequest")
+
+    def test_given_a_message_with_two_string_arguments_no_function_sends_when_the_cell_is_made_then_it_is_make_two_string_request(self):
+        item = {"args": [{"format": "string"}, {"format": "string"}]}
+
+        self.assertEqual(self.script.akm_cell([], item), "makeTwoStringRequest")
+
+    def test_given_a_function_that_sends_the_message_when_the_cell_is_made_then_the_builder_is_not_named(self):
+        self.assertEqual(self.script.akm_cell(["getSamplerName"], {"args": [{"format": "string"}]}), "getSamplerName")
 
     def test_given_a_tool_with_an_option_when_the_cell_is_made_then_the_option_follows_the_name(self):
         cell = self.script.mcp_cell([("set_parameter", None), ("load_file", "--allow-disk")], None)
