@@ -78,17 +78,22 @@ FORMAT_STRING = "string"
 CELL_NONE = "none"
 CELL_NOT_OFFERED = "not offered"
 CELL_SESSION = "server session"
+CELL_COVERED = "covered by"
+NOTE_COVERED = "covered"
+NOTE_GAP = "gap"
+NOTE_STATUSES = (NOTE_COVERED, NOTE_GAP)
 SESSION_FUNCTION_PREFIX = "Session::"
 DECISION_HEADING = re.compile(r"^### (DEC-[A-Z]{3}-\d{3}):", re.MULTILINE)
 
 COUNTS_HEADING = "## Counts per section"
-COUNTS_HEADER = ["| Section | Messages | Named AKM function | Generic builder | MCP tool | Not offered | Server session | None |",
-                 "|---|---:|---:|---:|---:|---:|---:|---:|"]
+COUNTS_HEADER = ["| Section | Messages | Named AKM function | Generic builder | MCP tool | Not offered | Server session | Covered otherwise | None |",
+                 "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+COUNT_COLUMNS = 8
 COUNTS_TOTAL = "All"
 TABLE_32_HEADING = "## Table 32"
 SECTION_HEADING = "## §"
 HEADER_NAME = "the header"
-ROW_HEADER = ["| Message | AKM function | MCP tool |", "|---|---|---|"]
+ROW_HEADER = ["| Message | AKM function | MCP tool | Note |", "|---|---|---|---|"]
 # In Table 32 a code is a section's, not an item's (`&2A` is also an item of section 06): the column says so.
 SECTION_ROW_HEADER = ["| Section | AKM function | MCP tool |", "|---|---|---|"]
 
@@ -103,7 +108,9 @@ INTRO = [
     "library builds it with its generic builder (`makeRequest`, or `makeStringRequest` or `makeTwoStringRequest` for "
     "an item that takes names): any code can send it, and the MCP column tells whether a tool does. The MCP column names the tool of the server (`juce/mcp`) that sends it, with the launch option "
     "it needs, `not offered` with the decision when it was left out on purpose, `server session` when the server sends it "
-    "itself, at the opening or the closing of its session, and no tool does, or `none`. Generated from "
+    "itself, at the opening or the closing of its session, and no tool does, `covered by` the tools that get its information "
+    "or function through other messages, or `none`, which is a gap. The Note column says why, for each message with no tool: "
+    "what covers it, or what exists of it and what is missing. Generated from "
     "`juce/akm/data/items.json`, the sources and `juce/tools/sysex_coverage_declared.json` "
     "(`ADR-MCP-006`, `FTR-MCP-006`).",
     "",
@@ -668,12 +675,20 @@ def read_mcp_sources(folder):
 
 
 @dataclasses.dataclass
+class Note:
+    status: str          # `covered` (other messages give its information or function) or `gap`
+    text: str
+    tools: list          # [(tool, launch option)] that cover it, for `covered`
+
+
+@dataclasses.dataclass
 class DeclaredFacts:
     not_offered: dict    # item ID -> the decision that left it out
     session: set         # item IDs the server's session sends and no tool does
     akm_extra: dict      # item ID -> the generic AKM functions that can read it
     options: dict        # (item ID, tool) -> the launch option(s) the tool needs for this message
     problems: list
+    notes: dict = dataclasses.field(default_factory=dict)   # item ID -> the note on a message that no tool sends
 
 
 def read_decisions(folder):
@@ -727,7 +742,28 @@ def declared_facts(declared, items, akm, mcp, decisions):
         if entry["item"] not in mcp.shown.get(entry["tool"], set()):
             problems.append(f"tool_options: {entry['tool']} does not send {entry['item']}")
         options[(entry["item"], entry["tool"])] = entry["option"]
-    return DeclaredFacts(not_offered, session, akm_extra, options, problems)
+    notes = {}
+    for entry in declared.get("notes", []):
+        item, status = entry["item"], entry["status"]
+        if status not in NOTE_STATUSES:
+            problems.append(f"notes: the status of {item} is {status}, which is neither {NOTE_COVERED} nor {NOTE_GAP}")
+            continue
+        if not known("notes", item):
+            continue
+        names, via = entry.get("tools", []), entry.get("via", [])
+        if status == NOTE_COVERED:
+            if not names or not via:
+                problems.append(f"notes: {item} is covered and must name the tools and the messages they send instead")
+            for tool in names:
+                if tool not in mcp.tools:
+                    problems.append(f"notes: {item} names the tool {tool}, which the server does not have")
+            for message in via:
+                if message not in by_id:
+                    problems.append(f"notes: {item} names the message {message}, which is not in the catalogue")
+                elif not any(message in mcp.shown.get(tool, set()) for tool in names):
+                    problems.append(f"notes: for {item}, none of {', '.join(names)} sends {message}")
+        notes[item] = Note(status, entry["note"], [(tool, mcp.tools.get(tool)) for tool in names] if status == NOTE_COVERED else [])
+    return DeclaredFacts(not_offered, session, akm_extra, options, problems, notes)
 
 
 # --- the check against the simulated sampler (ADR-MCP-006, DEC-MCP-040) --------------------------------------------------
@@ -823,22 +859,30 @@ def akm_cell(functions, item):
     return ", ".join(functions) if functions else builder_of(item)
 
 
-def mcp_cell(tools, decision, session=False):
-    """The tool(s) that send a message, each followed by its launch option; else `not offered (<decision>)`, `server session` or `none`."""
+def tool_names(tools):
+    return ", ".join(name if option is None else f"{name} ({option})" for name, option in tools)
+
+
+def mcp_cell(tools, decision, session=False, covered=None):
+    """The tool(s) that send a message, each followed by its launch option; else `not offered (<decision>)`, `server session`,
+    `covered by <tools>` (they get its information through other messages) or `none`."""
     if tools:
-        return ", ".join(name if option is None else f"{name} ({option})" for name, option in tools)
+        return tool_names(tools)
     if decision:
         return f"{CELL_NOT_OFFERED} ({decision})"
-    return CELL_SESSION if session else CELL_NONE
+    if session:
+        return CELL_SESSION
+    return f"{CELL_COVERED} {tool_names(covered)}" if covered else CELL_NONE
 
 
 def section_title(section):
     return f"{SECTION_HEADING}{section['section']} {section['name']} ({section['spec']})"
 
 
-def count_messages(items, akm_functions, mcp_tools, exclusions, session_items):
-    """[messages, with a named AKM function, built by a generic builder, with a tool, not offered, sent by the session, with none]."""
-    counts = [0] * 7
+def count_messages(items, akm_functions, mcp_tools, exclusions, session_items, covered_items):
+    """[messages, with a named AKM function, built by a generic builder, with a tool, not offered, sent by the session, covered by other
+    messages, with none]."""
+    counts = [0] * COUNT_COLUMNS
     for item in items:
         identifier = item["id"]
         has_tool = bool(mcp_tools.get(identifier))
@@ -850,19 +894,21 @@ def count_messages(items, akm_functions, mcp_tools, exclusions, session_items):
             counts[4] += 1
         elif identifier in session_items:
             counts[5] += 1
-        else:
+        elif identifier in covered_items:
             counts[6] += 1
+        else:
+            counts[7] += 1
     return counts
 
 
-def render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items):
+def render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items, covered_items):
     """The table of counts that opens the file: for each section and for the whole (RQ-MCP-061)."""
     sections = {section["section"]: section for section in catalogue["sections"]}
     lines = [COUNTS_HEADING, ""] + COUNTS_HEADER
-    total = [0] * 7
+    total = [0] * COUNT_COLUMNS
     for code in TABLE_4_ORDER:
         counts = count_messages([item for item in catalogue["items"] if item["section"] == code], akm_functions, mcp_tools, exclusions,
-                                session_items)
+                                session_items, covered_items)
         total = [a + b for a, b in zip(total, counts)]
         lines.append(f"| §{code} {sections[code]['name']} | " + " | ".join(str(count) for count in counts) + " |")
     lines.append(f"| {COUNTS_TOTAL} | " + " | ".join(str(count) for count in total) + " |")
@@ -870,21 +916,26 @@ def render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items
     return lines
 
 
-def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=None, session_items=None):
+def render(catalogue, declared, akm_functions=None, mcp_tools=None, exclusions=None, session_items=None, notes=None):
     """The text of the file. `akm_functions` maps an item ID to the AKM functions that send it, `mcp_tools` to
     [(tool, option or None)], `exclusions` to the decision that left it out; with none given, no scan has run."""
     akm_functions = akm_functions or {}
     mcp_tools = mcp_tools or {}
     exclusions = exclusions or {}
     session_items = session_items or set()
+    notes = notes or {}
+    covered_items = {item for item, note in notes.items() if note.status == NOTE_COVERED}
     sections = {section["section"]: section for section in catalogue["sections"]}
-    lines = list(INTRO) + render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items)
+    lines = list(INTRO) + render_counts(catalogue, akm_functions, mcp_tools, exclusions, session_items, covered_items)
     for code in TABLE_4_ORDER:
         lines += [section_title(sections[code]), ""] + ROW_HEADER
         for item in catalogue["items"]:
             if item["section"] == code:
+                note = notes.get(item["id"])
+                covered = note.tools if note and note.status == NOTE_COVERED else None
                 lines.append(f"| {message_cell(item)} | {akm_cell(akm_functions.get(item['id'], []), item)} | "
-                             f"{mcp_cell(mcp_tools.get(item['id'], []), exclusions.get(item['id']), item['id'] in session_items)} |")
+                             f"{mcp_cell(mcp_tools.get(item['id'], []), exclusions.get(item['id']), item['id'] in session_items, covered)} | "
+                             f"{escape_cell(note.text) if note else ''} |")
         lines.append("")
     table32 = declared["table32"]
     lines += [f"{TABLE_32_HEADING}: the alternative sections, which the catalogue does not hold ({table32['spec']})", "",
@@ -1029,7 +1080,7 @@ def main():
         akm_functions[item] = sorted(set(akm_functions.get(item, [])) | set(functions))
 
     text = render(catalogue, declared, akm_functions=akm_functions, mcp_tools=tools_of, exclusions=facts.not_offered,
-                  session_items=facts.session)
+                  session_items=facts.session, notes=facts.notes)
     if args.check:
         return check_file(text, args.output)
     args.output.write_text(text, encoding="utf-8", newline="\n")

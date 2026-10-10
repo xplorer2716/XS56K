@@ -1,12 +1,13 @@
 """Tests of juce/tools/generate_sysex_coverage.py, run by ctest when Python 3 is available.
 
-Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, TASK-MCP-073, TASK-MCP-075, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
+Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, TASK-MCP-072, TASK-MCP-073, TASK-MCP-075, TASK-MCP-076, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
 RQ-MCP-062, RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import importlib.util
 import json
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
@@ -1013,7 +1014,7 @@ class TheDeclaredFactsInTheFile(ScriptTest):
         text = self.output.read_text(encoding="utf-8")
 
         self.assertRegex(text, r"Notification \(Set\) \| [^|]+ \| server session \|")
-        self.assertRegex(text, r"Echo \(Get\) \| echo \| none \|")
+        self.assertRegex(text, r"Echo \(Get\) \| echo \| covered by get_status \|")
 
     def test_given_the_real_declarations_when_generated_then_the_refresh_of_the_disk_list_names_both_options(self):
         self.generate()
@@ -1040,18 +1041,19 @@ class TheDeclaredFactsInTheFile(ScriptTest):
 
 
 # The counts that open the file (RQ-MCP-061): read back from the rows, they must be the rows' own.
-COUNT_COLUMNS = ["Messages", "Named AKM function", "Generic builder", "MCP tool", "Not offered", "Server session", "None"]
+COUNT_COLUMNS = ["Messages", "Named AKM function", "Generic builder", "MCP tool", "Not offered", "Server session", "Covered otherwise", "None"]
 GENERIC_BUILDERS = {"makeRequest", "makeStringRequest", "makeTwoStringRequest"}
 
 
 def count_rows(rows):
-    """The seven counts of a list of table rows [(message, akm cell, mcp cell)]."""
+    """The eight counts of a list of table rows [(message, akm cell, mcp cell)]."""
     return [len(rows),
             sum(1 for _, akm, _ in rows if akm not in GENERIC_BUILDERS and akm != "none"),
             sum(1 for _, akm, _ in rows if akm in GENERIC_BUILDERS),
-            sum(1 for _, _, mcp in rows if mcp not in ("none", "server session") and not mcp.startswith("not offered")),
+            sum(1 for _, _, mcp in rows if mcp not in ("none", "server session") and not mcp.startswith(("not offered", "covered by"))),
             sum(1 for _, _, mcp in rows if mcp.startswith("not offered")),
             sum(1 for _, _, mcp in rows if mcp == "server session"),
+            sum(1 for _, _, mcp in rows if mcp.startswith("covered by")),
             sum(1 for _, _, mcp in rows if mcp == "none")]
 
 
@@ -1066,7 +1068,7 @@ class TheCountsOfTheFile(ScriptTest):
                 continue
             if not line.startswith("|") or line.startswith("|---"):
                 continue
-            cells = [cell.strip() for cell in line.strip("|").split(" | ")]
+            cells = [cell.strip() for cell in re.split(r"(?<!\\)\|", line.strip()[1:-1])]
             if current == "Counts per section" and cells[0] not in ("Section",):
                 key = cells[0][:3] if cells[0].startswith("§") else cells[0]
                 counts[key] = [int(cell) for cell in cells[1:]]
@@ -1100,7 +1102,7 @@ class TheCountsOfTheFile(ScriptTest):
         _, counts, _ = self.read()
 
         total = counts["All"]
-        self.assertEqual(total[3] + total[4] + total[5] + total[6], total[0])
+        self.assertEqual(total[3] + total[4] + total[5] + total[6] + total[7], total[0])
         self.assertEqual(total[1] + total[2], total[0])
 
 
@@ -1221,6 +1223,127 @@ class TheCheckOfTheToolsOnTheRealServer(ScriptTest):
 
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("tools were not called", result.stdout)
+
+
+# The notes on the messages that no tool sends (TASK-MCP-076): covered by other messages, or a gap, each said in the file.
+NOTE_ITEMS = [
+    {"id": "DiskGetList", "section": "10", "item": "05", "name": "Get list of all connected disks", "kind": "get", "args": []},
+    {"id": "DiskGetCount", "section": "10", "item": "04", "name": "Get the number of disks connected", "kind": "get", "args": []},
+    {"id": "ProgramSetNumber", "section": "0A", "item": "0A", "name": "Set Program Number", "kind": "set", "args": []},
+]
+
+
+def note_mcp():
+    return types.SimpleNamespace(shown={"list_disks": {"DiskGetList"}}, parameter_items=set(), tools={"list_disks": "--allow-disk"})
+
+
+COVERED = {"item": "DiskGetCount", "status": "covered", "tools": ["list_disks"], "via": ["DiskGetList"],
+           "note": "list_disks sends the list of disks; the number is its length"}
+GAP = {"item": "ProgramSetNumber", "status": "gap", "note": "AKM has setProgramNumber; the server has set_multi_program_number for multis only"}
+
+
+class TheNotesOnMessagesWithNoTool(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.script = load_script()
+
+    def facts(self, *notes, mcp=None):
+        return self.script.declared_facts({"notes": list(notes)}, NOTE_ITEMS, types.SimpleNamespace(functions={}, generic=[]), mcp or note_mcp(), set())
+
+    def test_given_a_covered_message_when_read_then_it_has_its_tools_with_their_options_and_its_note(self):
+        facts = self.facts(COVERED)
+
+        self.assertEqual(facts.problems, [])
+        note = facts.notes["DiskGetCount"]
+        self.assertEqual((note.status, note.tools, note.text), ("covered", [("list_disks", "--allow-disk")], COVERED["note"]))
+
+    def test_given_a_gap_when_read_then_it_has_its_note_and_no_tool(self):
+        facts = self.facts(GAP)
+
+        self.assertEqual(facts.problems, [])
+        self.assertEqual((facts.notes["ProgramSetNumber"].status, facts.notes["ProgramSetNumber"].tools), ("gap", []))
+
+    def test_given_a_covered_note_naming_a_message_the_tool_does_not_send_when_read_then_the_problem_names_the_note_the_tool_and_the_message(self):
+        wrong = dict(COVERED, via=["ProgramSetNumber"])
+
+        problems = self.facts(wrong).problems
+
+        self.assertTrue(any("DiskGetCount" in p and "list_disks" in p and "ProgramSetNumber" in p for p in problems), problems)
+
+    def test_given_a_covered_note_with_no_tool_or_no_message_when_read_then_the_problem_says_so(self):
+        for bad in (dict(COVERED, tools=[]), dict(COVERED, via=[])):
+            self.assertTrue(any("DiskGetCount" in p and "covered" in p for p in self.facts(bad).problems), bad)
+
+    def test_given_a_note_on_a_message_a_tool_sends_when_read_then_it_is_stale(self):
+        stale = {"item": "DiskGetList", "status": "gap", "note": "wrongly"}
+
+        self.assertTrue(any("DiskGetList" in p and "stale" in p for p in self.facts(stale).problems))
+
+    def test_given_a_note_on_an_unknown_message_or_tool_or_status_when_read_then_the_problem_names_it(self):
+        self.assertTrue(any("NoSuchItem" in p for p in self.facts(dict(GAP, item="NoSuchItem")).problems))
+        self.assertTrue(any("no_such_tool" in p for p in self.facts(dict(COVERED, tools=["no_such_tool"])).problems))
+        self.assertTrue(any("maybe" in p for p in self.facts(dict(GAP, status="maybe")).problems))
+
+    def test_given_a_covered_message_when_the_cell_is_made_then_it_says_covered_by_the_tools_with_their_options(self):
+        script = load_script()
+
+        self.assertEqual(script.mcp_cell([], None, covered=[("list_disks", "--allow-disk"), ("get_status", None)]),
+                         "covered by list_disks (--allow-disk), get_status")
+        self.assertEqual(script.mcp_cell([], None), "none")
+
+
+class TheNotesInTheFile(ScriptTest):
+    def row(self, text, message):
+        return next(line for line in text.splitlines() if line.startswith("| `&") and message in line)
+
+    def test_given_the_real_declarations_when_generated_then_the_section_tables_have_a_note_column(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertIn("| Message | AKM function | MCP tool | Note |", text)
+        self.assertEqual(text.count("| Message | AKM function | MCP tool | Note |"), 13)
+
+    def test_given_a_message_covered_by_another_when_generated_then_the_row_names_the_tool_and_gives_the_reason(self):
+        self.generate()
+        row = self.row(self.output.read_text(encoding="utf-8"), "Get the number of disks connected")
+
+        self.assertIn("| covered by list_disks (--allow-disk) |", row)
+        self.assertIn("Get list of all connected disks", row)
+
+    def test_given_create_program_when_generated_then_it_is_covered_by_the_form_with_keygroups(self):
+        self.generate()
+        row = self.row(self.output.read_text(encoding="utf-8"), "Create Program (Set)")
+
+        self.assertIn("covered by create_program", row)
+        self.assertIn("&03", row)
+
+    def test_given_the_program_number_when_generated_then_it_stays_none_and_the_note_says_what_exists_and_what_is_missing(self):
+        self.generate()
+        row = self.row(self.output.read_text(encoding="utf-8"), "Set Program Number (Set)")
+
+        self.assertIn("| none |", row)
+        self.assertIn("setProgramNumber", row)
+        self.assertIn("set_multi_program_number", row)
+
+    def test_given_the_three_reads_the_owner_corrected_when_generated_then_each_is_a_gap_and_not_covered(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        for message in ("Get Current Program Index", "Get the Multi Numbers of All Multis", "Get the Number of Parts in All the Multis"):
+            row = self.row(text, message)
+            self.assertIn("| none |", row, message)
+            self.assertNotIn("covered by", row, message)
+
+    def test_given_a_note_on_a_message_a_tool_sends_when_generated_then_it_fails_and_says_stale(self):
+        declared = json.loads(DECLARED.read_text(encoding="utf-8"))
+        declared["notes"].append({"item": "ProgramRenameCurrent", "status": "gap", "note": "wrongly"})
+        path = self.directory / "declared.json"
+        path.write_text(json.dumps(declared), encoding="utf-8")
+
+        result = self.generate("--declared", str(path))
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("stale", result.stderr)
 
 
 if __name__ == "__main__":
