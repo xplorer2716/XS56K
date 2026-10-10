@@ -1,7 +1,7 @@
 """Tests of juce/tools/generate_sysex_coverage.py, run by ctest when Python 3 is available.
 
-Each test reads as a Gherkin scenario. [TASK-MCP-069, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062, RQ-MCP-063,
-RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-039)]
+Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062,
+RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-039)]
 """
 import importlib.util
 import json
@@ -57,6 +57,16 @@ class ScriptTest(unittest.TestCase):
         path.write_text(json.dumps(catalogue, indent=2), encoding="utf-8")
         return path
 
+    def akm_sources(self, source=None, header="namespace akm { void echoIt(Session& session); }"):
+        """The arguments that point the script at a small tree of AKM sources: empty, or with one source file."""
+        folder = self.directory / "akm"
+        (folder / "src").mkdir(parents=True, exist_ok=True)
+        (folder / "include").mkdir(exist_ok=True)
+        if source is not None:
+            (folder / "src" / "Fixture.cpp").write_text(source, encoding="utf-8")
+            (folder / "include" / "Fixture.hpp").write_text(header, encoding="utf-8")
+        return ["--akm-src", str(folder / "src"), "--akm-include", str(folder / "include")]
+
     def sections_of(self, text):
         """The section codes of the `## §XX` headings, in the order the file has them."""
         return [line[4:6] for line in text.splitlines() if line.startswith("## §")]
@@ -87,8 +97,8 @@ class RowsOfTheSections(ScriptTest):
         self.assertIn("`&00{0}` Query (Set)", text)
         self.assertIn("`&06{6}` Echo (Get)", text)
 
-    def test_given_no_scan_when_generated_then_a_catalogued_message_is_catalogue_only_and_has_no_tool(self):
-        self.generate()
+    def test_given_no_function_that_sends_it_when_generated_then_a_catalogued_message_is_catalogue_only_and_has_no_tool(self):
+        self.generate(*self.akm_sources())
         text = self.output.read_text(encoding="utf-8")
 
         self.assertIn("| `&06{6}` Echo (Get) | catalogue only | none |", text)
@@ -228,6 +238,255 @@ class TheDeclaredFile(ScriptTest):
 
         self.assertEqual(result.returncode, 2)
         self.assertIn("missing-declared.json", result.stderr)
+
+
+# A source file as the AKM library writes them: one namespace, an anonymous namespace of helpers, then the public functions.
+FIXTURE_SOURCE = """
+#include "akm/ItemRequest.hpp"
+
+namespace akm
+{
+    namespace
+    {
+        constexpr ItemId TABLE[] = {ItemId::TableOne, ItemId::TableTwo};
+
+        // ItemId::InAComment is not sent.
+        void sendThroughHelper(Session& session)
+        {
+            session.submit(makeRequest(ItemId::HelperItem, NO_VALUES), {});
+        }
+
+        void neverCalled(Session& session)
+        {
+            session.submit(makeRequest(ItemId::Orphan, NO_VALUES), {});
+        }
+
+        void sendEach(Session& session)
+        {
+            for (const ItemId id : TABLE)
+                session.submit(makeRequest(id, NO_VALUES), {});
+        }
+    }
+
+    void getSamplerName(Session& session, Completion completion)
+    {
+        const char* text = "ItemId::InAString";
+        session.submit(makeRequest(ItemId::SystemGetName, NO_VALUES),
+                       [completion](const CommandResult& outcome) {
+                           decodeStringReply(ItemId::SystemGetName, outcome);
+                       });
+    }
+
+    void setThing(Session& session)
+    {
+        sendThroughHelper(session);
+    }
+
+    void setBoth(Session& session)
+    {
+        sendEach(session);
+        setThing(session);
+    }
+
+    int clockFieldName(int field)
+    {
+        return descriptor(ItemId::SystemSetClock).args[field].name;
+    }
+
+    void getForAll(Session& session, ItemId getId, int count)
+    {
+        session.submit(makeRequest(getId, NO_VALUES), {});
+    }
+
+    ItemDescriptor describeIt(ItemId id)
+    {
+        return descriptor(id);
+    }
+
+    void setByDescriptor(Session& session)
+    {
+        const ItemDescriptor& item = descriptor(ItemId::ByDescriptor);
+        session.submit(makeRequest(item, NO_VALUES), {});
+    }
+
+    void Session::open(Completion completion)
+    {
+        impl->begin();
+        use(impl->held);
+    }
+
+    void Session::close(Completion completion)
+    {
+        impl->end();
+    }
+
+    void Session::flush(Completion completion)
+    {
+        submit(makeRequest(ItemId::FlushItem, NO_VALUES), {});
+    }
+
+    namespace
+    {
+        class Impl
+        {
+        public:
+            ItemId held = ItemId::HeldItem;
+
+            void begin()
+            {
+                send(ItemId::OpenItem);
+            }
+
+            void end()
+            {
+                send(ItemId::CloseItem);
+            }
+
+            void send(ItemId item)
+            {
+                session.submit(makeRequest(item, NO_VALUES), {});
+            }
+        };
+    }
+}
+"""
+
+FIXTURE_HEADER = """
+namespace akm
+{
+    void getSamplerName(Session& session, Completion completion);
+    void setThing(Session& session);
+    void setBoth(Session& session);
+    int clockFieldName(int field);
+    void getForAll(Session& session, ItemId getId, int count);
+    ItemDescriptor describeIt(ItemId id);
+    void setByDescriptor(Session& session);
+    class Session
+    {
+    public:
+        void open(Completion completion);
+        void close(Completion completion);
+        void flush(Completion completion);
+    };
+}
+"""
+
+ONE_FUNCTION_HEADER = "namespace akm { void echoIt(Session& session); }"
+
+
+def echo_source(item, anonymous=False):
+    """A source in which one function, public or (in the anonymous namespace) a helper, sends `item`."""
+    send = f"session.submit(makeRequest(ItemId::{item}, NO_VALUES), {{}});"
+    if anonymous:
+        return f"namespace akm\n{{\n    namespace\n    {{\n        void lost(Session& session)\n        {{\n            {send}\n        }}\n    }}\n}}\n"
+    return f"namespace akm\n{{\n    void echoIt(Session& session)\n    {{\n        {send}\n    }}\n}}\n"
+
+
+class TheAkmScan(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.script = load_script()
+
+    def attribute(self, source=FIXTURE_SOURCE, header=FIXTURE_HEADER):
+        return self.script.attribute_akm({"Fixture.cpp": source}, {"Fixture.hpp": header})
+
+    def test_given_a_public_function_that_builds_a_request_when_scanned_then_it_sends_the_item(self):
+        self.assertEqual(self.attribute().functions["SystemGetName"], ["getSamplerName"])
+
+    def test_given_an_item_named_in_a_comment_or_a_string_when_scanned_then_it_is_not_sent(self):
+        result = self.attribute()
+
+        self.assertNotIn("InAComment", result.functions)
+        self.assertNotIn("InAString", result.functions)
+
+    def test_given_an_item_named_only_to_read_its_descriptor_when_scanned_then_nothing_sends_it(self):
+        result = self.attribute()
+
+        self.assertNotIn("SystemSetClock", result.functions)
+        self.assertNotIn("SystemSetClock", result.unattributed)
+
+    def test_given_a_public_function_that_calls_a_helper_when_scanned_then_it_owns_the_helpers_item(self):
+        self.assertEqual(self.attribute().functions["HelperItem"], ["setThing"])
+
+    def test_given_a_public_function_that_calls_another_public_function_when_scanned_then_it_does_not_own_what_that_one_sends(self):
+        self.assertNotIn("setBoth", self.attribute().functions["HelperItem"])
+
+    def test_given_a_table_of_items_a_helper_loops_over_when_scanned_then_the_public_function_owns_each(self):
+        result = self.attribute()
+
+        self.assertEqual(result.functions["TableOne"], ["setBoth"])
+        self.assertEqual(result.functions["TableTwo"], ["setBoth"])
+
+    def test_given_a_helper_no_public_function_reaches_when_scanned_then_its_item_is_unattributed_with_its_file_and_line(self):
+        result = self.attribute()
+
+        self.assertEqual(list(result.unattributed), ["Orphan"])
+        self.assertRegex(result.unattributed["Orphan"][0], r"^Fixture\.cpp:\d+$")
+
+    def test_given_a_member_function_when_scanned_then_its_name_is_qualified(self):
+        self.assertEqual(self.attribute().functions["FlushItem"], ["Session::flush"])
+
+    def test_given_a_function_that_takes_the_item_as_a_parameter_and_sends_it_when_scanned_then_it_is_generic(self):
+        # `describeIt` takes an item too, but only reads its descriptor.
+        self.assertEqual(self.attribute().generic, ["getForAll"])
+
+    def test_given_a_class_of_the_source_when_scanned_then_each_of_its_methods_owns_what_it_sends(self):
+        result = self.attribute()
+
+        self.assertEqual(result.functions["OpenItem"], ["Session::open"])
+        self.assertEqual(result.functions["CloseItem"], ["Session::close"])
+
+    def test_given_an_item_in_a_member_of_a_class_when_scanned_then_the_function_that_uses_the_member_owns_it(self):
+        self.assertEqual(self.attribute().functions["HeldItem"], ["Session::open"])
+
+    def test_given_a_function_that_fetches_a_descriptor_and_builds_a_request_from_it_when_scanned_then_it_sends_the_item(self):
+        self.assertEqual(self.attribute().functions["ByDescriptor"], ["setByDescriptor"])
+
+    def test_given_braces_that_do_not_balance_when_scanned_then_the_error_names_the_file(self):
+        with self.assertRaises(self.script.ScanError) as raised:
+            self.attribute(source="namespace akm {\n    void f()\n    {\n")
+
+        self.assertIn("Fixture.cpp", str(raised.exception))
+
+    def test_given_the_real_akm_sources_when_scanned_then_no_item_is_unattributed_and_known_ones_name_their_function(self):
+        sources, headers = self.script.read_akm_sources(self.script.DEFAULT_AKM_SOURCES, self.script.DEFAULT_AKM_INCLUDE)
+
+        result = self.script.attribute_akm(sources, headers)
+
+        self.assertEqual(result.unattributed, {})
+        self.assertEqual(result.functions["SystemGetName"], ["getSamplerName"])
+        self.assertEqual(result.functions["ProgramGetAllNames"], ["getAllProgramNames"])
+
+
+class TheAkmColumnOfTheFile(ScriptTest):
+    def write_sources(self, source):
+        return self.akm_sources(source)
+
+    def test_given_a_function_that_sends_an_item_when_generated_then_its_name_is_in_the_akm_cell_of_the_row(self):
+        result = self.generate(*self.write_sources(echo_source("SysExEcho")))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("| `&06{6}` Echo (Get) | echoIt | none |", self.output.read_text(encoding="utf-8"))
+
+    def test_given_an_item_no_public_function_reaches_when_generated_then_it_fails_and_names_the_item_and_the_file(self):
+        result = self.generate(*self.write_sources(echo_source("SysExEcho", anonymous=True)))
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("SysExEcho", result.stderr)
+        self.assertIn("Fixture.cpp", result.stderr)
+        self.assertFalse(self.output.exists())
+
+    def test_given_an_item_the_catalogue_does_not_have_when_generated_then_it_fails_and_names_it(self):
+        result = self.generate(*self.write_sources(echo_source("NotInTheCatalogue")))
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("NotInTheCatalogue", result.stderr)
+
+    def test_given_the_real_sources_when_generated_then_a_message_the_library_sends_names_its_function(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertRegex(text, r"\| `&[0-9A-F]{2}\{\d+\}` [^|]+ \(Get\) \| getAllProgramNames \| none \|")
 
 
 if __name__ == "__main__":

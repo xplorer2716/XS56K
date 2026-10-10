@@ -306,12 +306,12 @@ DEC-MCP-032|70-76||The front-panel keys behind `--allow-front-panel`
 DEC-MCP-033|77-84||The effects board is implemented and verified on the simulated sampler only
 DEC-MCP-034|85-92||The order of the work follows the risk, from reading to keys
 @process/2.architecture/ADR-MCP-006-sysex-coverage-table-generator.md
-ADR-MCP-006|1-129|Proposed — drafted in session MCP (2026-10-10) for FTR-MCP-006 (RQ-MCP-058 to RQ-MCP-065), after the owner asked for a table of the|The Generator of the SysEx Coverage Table — Rows, the Two Columns, Declared Facts, and the Check That Keeps It Right
+ADR-MCP-006|1-134|Proposed — drafted in session MCP (2026-10-10) for FTR-MCP-006 (RQ-MCP-058 to RQ-MCP-065), after the owner asked for a table of the|The Generator of the SysEx Coverage Table — Rows, the Two Columns, Declared Facts, and the Check That Keeps It Right
 DEC-MCP-035|29-36||The rows are the catalogue's items, grouped as the specification's Table 4, plus the eight sections of Table 32
-DEC-MCP-036|37-46||The AKM column is read from the AKM sources: the public function whose body names the item
-DEC-MCP-037|47-58||The MCP column is read from the MCP sources in two steps, and the options from the README
-DEC-MCP-038|59-66||Declared facts live in one data file, with a reason for each, and are checked
-DEC-MCP-039|67-77||The script is `juce/tools/generate_sysex_coverage.py`; the file is `documents/SYSEX-COVERAGE.md`; `--check` and the unit tests are `ctest` entries
+DEC-MCP-036|37-51||The AKM column is read from the AKM sources: the public function whose body names the item
+DEC-MCP-037|52-63||The MCP column is read from the MCP sources in two steps, and the options from the README
+DEC-MCP-038|64-71||Declared facts live in one data file, with a reason for each, and are checked
+DEC-MCP-039|72-82||The script is `juce/tools/generate_sysex_coverage.py`; the file is `documents/SYSEX-COVERAGE.md`; `--check` and the unit tests are `ctest` entries
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
@@ -566,7 +566,7 @@ TASK-MCP-068|382-392|Done|`clear_sampler_memory` counts the song files, set list
 @process/3.plan/PLAN-MCP-006-sysex-coverage-table.md
 PLAN-MCP-006|1-135||The Generated Table of SysEx Messages, AKM Functions and MCP Tools
 TASK-MCP-069|36-51|Done|The generator's skeleton — rows, Markdown, `--check`
-TASK-MCP-070|52-68|Not Started|The AKM column
+TASK-MCP-070|52-68|Done|The AKM column
 TASK-MCP-071|69-88|Not Started|The MCP column — the go or no-go on DEC-MCP-037
 TASK-MCP-072|89-105|Not Started|The declared data file
 TASK-MCP-073|106-121|Not Started|The counts, the real file, the `ctest` entries and the pointers

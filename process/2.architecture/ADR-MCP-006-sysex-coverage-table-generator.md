@@ -37,7 +37,12 @@ where the messages are already data and already compared with the spec; reading 
 ### DEC-MCP-036: The AKM column is read from the AKM sources: the public function whose body names the item
 The script reads `juce/akm/src/*.cpp`, finds each function that is declared in a header under `juce/akm/include/akm` (the public ones), and
 lists the `ItemId::<Id>` names its body uses; the helper functions of the translation unit (the anonymous namespace and the file-local
-templates) are followed one step, so that a public function that sends through a helper owns the item the helper sends. A message sent by one or
+templates, and the methods of a class the source defines for itself) are followed to any depth, so that a public function that sends through a
+helper owns the item the helper sends, and does not own what another public function sends. An item named only to read it (inside `descriptor(...)`
+or a `decode...(...)` call) is not sent, unless the same body builds or submits a request: the descriptor is then how the request is made.
+*Amended 2026-10-10 (TASK-MCP-070), after the first run on the real sources:* "one step" became "any depth", the methods of a local class became
+units of their own (a class that holds the library's session would otherwise give all its items to every public function of the class), and the
+descriptor rule was added (seven items were fetched by `descriptor` and then sent by `makeRequest(item, ...)`). A message sent by one or
 more public functions lists them. A catalogued message that no public function names says `catalogue only`: it can be built and sent, but no
 function of the library does it for the caller. **Why:** the text of the AKM sources is the evidence of what the library sends; no annotation has
 to be added to the roughly 300 functions, and an annotation could drift from the body that sends. The scan is textual, not a C++ parse: it

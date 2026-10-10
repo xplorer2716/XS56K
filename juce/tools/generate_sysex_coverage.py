@@ -7,9 +7,10 @@ eight alternative sections of Table 32, which the catalogue does not hold, as ro
 (juce/tools/sysex_coverage_declared.json). The catalogue is compared with the spec's own item list,
 documents/_index/sysex_spec.items.tsv, so a catalogue that loses or invents an item stops the script.
 
-The AKM function and the MCP tool of a message come from scans of the sources; this version of the script has
-none yet (TASK-MCP-070 and TASK-MCP-071 add them), so every catalogued message says `catalogue only` and `none`.
-It runs by hand and in the test suite (ctest), never during the build.
+The AKM function of a message comes from a scan of juce/akm/src (the public function whose body, or whose helpers'
+body, builds a request for the item); the MCP tool will come from a scan of juce/mcp/src (TASK-MCP-071), so until
+then every message says `none` for its tool. The script stops when the scan names an item that no public function
+reaches or that the catalogue does not have. It runs by hand and in the test suite (ctest), never during the build.
 
 Usage:
     python3 juce/tools/generate_sysex_coverage.py              # write the file
@@ -20,12 +21,15 @@ Usage:
 Exit status: 0 when everything holds, 1 when the file is out of date or the catalogue disagrees with the spec,
 2 when an input cannot be read.
 
-[TASK-MCP-069, RQ-MCP-058, RQ-MCP-062, RQ-MCP-063, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-039)]
+[TASK-MCP-069, TASK-MCP-070, RQ-MCP-058, RQ-MCP-059, RQ-MCP-062, RQ-MCP-063, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036,
+DEC-MCP-039)]
 """
 import argparse
 import csv
+import dataclasses
 import json
 import pathlib
+import re
 import sys
 
 HERE = pathlib.Path(__file__).resolve().parent
@@ -34,6 +38,8 @@ DEFAULT_DATA = ROOT / "juce" / "akm" / "data" / "items.json"
 DEFAULT_TSV = ROOT / "documents" / "_index" / "sysex_spec.items.tsv"
 DEFAULT_DECLARED = HERE / "sysex_coverage_declared.json"
 DEFAULT_OUTPUT = ROOT / "documents" / "SYSEX-COVERAGE.md"
+DEFAULT_AKM_SOURCES = ROOT / "juce" / "akm" / "src"
+DEFAULT_AKM_INCLUDE = ROOT / "juce" / "akm" / "include" / "akm"
 
 EXIT_OK = 0
 EXIT_MISMATCH = 1
@@ -114,6 +120,315 @@ def compare_with_spec(catalogue, spec_commands):
             problems.append(f"§{section} item &{code} is in the catalogue and not in the spec's list")
     unknown = sorted(section for section in held if section not in TABLE_4_ORDER)
     problems.extend(f"§{section} is in the catalogue and not in Table 4's list of sections" for section in unknown)
+    return problems
+
+
+# --- reading the C++ sources: the text scan shared by the AKM and the MCP columns --------------------------------
+# A textual scan, not a C++ parse (ADR-MCP-006, DEC-MCP-036): it relies on the way the repository's sources are
+# written (functions defined at namespace scope, helpers in an anonymous namespace) and fails on what it cannot read.
+
+ITEM_ID_TYPE = "ItemId"
+SCOPE_OPERATOR = "::"
+# A call whose argument names an item only to read it, never to send it: the item's descriptor, the decoding of a reply.
+NON_SENDING_CALL_PREFIX = "decode"
+NON_SENDING_CALLS = {"descriptor"}
+NOT_A_FUNCTION_NAME = {"if", "for", "while", "switch", "catch", "return", "sizeof", "decltype", "alignas", "noexcept",
+                       "static_assert", "alignof", "requires", "operator"}
+TOKEN = re.compile(r"[A-Za-z_]\w*|::|->|\S")
+IDENTIFIER = re.compile(r"[A-Za-z_]\w*$")
+SUBMIT_PREFIX = "submit"
+REQUEST_BUILDER = re.compile(r"^make\w*Request$")
+KIND_FUNCTION = "function"
+KIND_OTHER = "other"
+
+
+class ScanError(Exception):
+    """A source the scan cannot read."""
+
+
+def blank_comments_and_strings(text):
+    """The text with comments, string and character literals and preprocessor lines replaced by spaces, newlines kept."""
+    out = []
+    i, size = 0, len(text)
+    line_start = True
+    while i < size:
+        char, pair = text[i], text[i:i + 2]
+        if pair == "//":
+            end = text.find("\n", i)
+            end = size if end == -1 else end
+            out.append(" " * (end - i))
+            i = end
+        elif pair == "/*":
+            end = text.find("*/", i + 2)
+            end = size if end == -1 else end + 2
+            out.append("".join("\n" if c == "\n" else " " for c in text[i:end]))
+            i = end
+        elif char == '"' or (char == "'" and not (i > 0 and text[i - 1].isalnum())):
+            j = i + 1
+            while j < size and text[j] != char and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            j = min(j + 1, size)
+            out.append(" " * (j - i))
+            i = j
+        elif char == "#" and line_start:
+            j = i
+            while j < size and text[j] != "\n":
+                j += 2 if text[j] == "\\" and j + 1 < size else 1
+            j = min(j, size)
+            out.append("".join("\n" if c == "\n" else " " for c in text[i:j]))
+            i = j
+        else:
+            out.append(char)
+            line_start = char == "\n" or (line_start and char in " \t")
+            i += 1
+            continue
+        line_start = False
+    return "".join(out)
+
+
+def tokens_of(text):
+    """[(token, line)] of the blanked text."""
+    result, line, last = [], 1, 0
+    for match in TOKEN.finditer(text):
+        line += text.count("\n", last, match.start())
+        last = match.start()
+        result.append((match.group(), line))
+    return result
+
+
+@dataclasses.dataclass
+class Unit:
+    """A part of a source: a function, or a data definition (a table of items, a member, a struct)."""
+    name: str
+    line: int
+    kind: str
+    generic: bool = False      # a function that takes an item as a parameter
+    local: bool = False        # a method defined inside a class of the source itself: never a public function
+    builds: bool = False       # its body builds or submits a request
+    sends: dict = dataclasses.field(default_factory=dict)
+    mentions: set = dataclasses.field(default_factory=set)
+
+    @property
+    def last(self):
+        return self.name.split(SCOPE_OPERATOR)[-1]
+
+
+def is_identifier(token):
+    return bool(IDENTIFIER.match(token))
+
+
+def is_namespace_header(header):
+    names = [token for token, _ in header]
+    if "namespace" not in names:
+        return False
+    rest = names[len(names) - names[::-1].index("namespace"):]
+    return all(is_identifier(token) or token == SCOPE_OPERATOR for token in rest)
+
+
+def is_class_header(header):
+    names = [token for token, _ in header]
+    return ("class" in names or "struct" in names) and "enum" not in names and "(" not in names and "=" not in names
+
+
+def function_name_of(header):
+    """(qualified name, takes an item as a parameter) of the function a header opens, or None when it is not one."""
+    names = [token for token, _ in header]
+    angle = 0
+    for j, token in enumerate(names):
+        if token == "<":
+            angle += 1
+        elif token == ">":
+            angle = max(angle - 1, 0)
+        elif token == "=" and angle == 0:
+            return None
+        elif token == "(" and angle == 0 and j > 0 and is_identifier(names[j - 1]) and names[j - 1] not in NOT_A_FUNCTION_NAME:
+            start = j - 1
+            while start >= 2 and names[start - 1] == SCOPE_OPERATOR and is_identifier(names[start - 2]):
+                start -= 2
+            depth, k = 1, j + 1
+            parameters = []
+            while k < len(names) and depth:
+                depth += (names[k] == "(") - (names[k] == ")")
+                parameters.append(names[k])
+                k += 1
+            generic = any(p == ITEM_ID_TYPE and n is not None and is_identifier(n) and (i == 0 or parameters[i - 1] != SCOPE_OPERATOR)
+                          for i, (p, n) in enumerate(zip(parameters, parameters[1:] + [None])))
+            return "".join(names[start:j]), generic
+    return None
+
+
+def data_name_of(header):
+    names = [token for token, _ in header]
+    for j, token in enumerate(names):
+        if token in ("=", "[") and j > 0 and is_identifier(names[j - 1]):
+            return names[j - 1]
+    identifiers = [token for token in names if is_identifier(token)]
+    return identifiers[-1] if identifiers else "?"
+
+
+def is_non_sending(callee):
+    return callee is not None and (callee in NON_SENDING_CALLS or callee.startswith(NON_SENDING_CALL_PREFIX))
+
+
+def is_request_builder(name):
+    return bool(REQUEST_BUILDER.match(name))
+
+
+def collect(unit, tokens):
+    """Adds to `unit` the items the tokens send and the identifiers they mention. An item named only inside a call that
+    reads it (`descriptor`, `decode...`) is not sent, unless the tokens also build or submit a request: the
+    descriptor is then how the request is made."""
+    parens, read_only = [], {}
+    for i, (token, line) in enumerate(tokens):
+        if token == "(":
+            before = tokens[i - 1][0] if i else None
+            parens.append(before if before and is_identifier(before) else None)
+        elif token == ")":
+            if parens:
+                parens.pop()
+        elif is_identifier(token):
+            if token == ITEM_ID_TYPE and i + 2 < len(tokens) and tokens[i + 1][0] == SCOPE_OPERATOR and is_identifier(tokens[i + 2][0]):
+                target = read_only if is_non_sending(parens[-1] if parens else None) else unit.sends
+                target.setdefault(tokens[i + 2][0], line)
+            elif not (i >= 2 and tokens[i - 1][0] == SCOPE_OPERATOR and tokens[i - 2][0] == ITEM_ID_TYPE):
+                unit.mentions.add(token)
+                if is_request_builder(token) or token.startswith(SUBMIT_PREFIX):
+                    unit.builds = True
+    if unit.builds:
+        for item, line in read_only.items():
+            unit.sends.setdefault(item, line)
+
+
+def matching_brace(tokens, i, filename):
+    """The index of the brace that closes the one at `i`."""
+    depth = 0
+    for j in range(i, len(tokens)):
+        depth += (tokens[j][0] == "{") - (tokens[j][0] == "}")
+        if depth == 0:
+            return j
+    raise ScanError(f"{filename}:{tokens[i][1]}: the brace opened here is never closed")
+
+
+def scan_scope(tokens, first, last, filename, owner):
+    """The units between `first` and `last` (token indexes), a namespace level or the body of a class of the source
+    (`owner` is its name): each function body, each data definition, each statement that names an item."""
+    units, header_start, i = [], first, first
+    while i < last:
+        token, line = tokens[i]
+        if token == "{":
+            header = tokens[header_start:i]
+            end = matching_brace(tokens, i, filename)
+            if end >= last:
+                raise ScanError(f"{filename}:{line}: a brace opened here is closed outside its scope")
+            function = function_name_of(header)
+            if owner is None and is_namespace_header(header):
+                units.extend(scan_scope(tokens, i + 1, end, filename, None))
+            elif function is None and owner is None and is_class_header(header):
+                units.extend(scan_scope(tokens, i + 1, end, filename, data_name_of(header)))
+            else:
+                if function is not None:
+                    name = function[0] if owner is None else f"{owner}{SCOPE_OPERATOR}{function[0]}"
+                    unit = Unit(name, line, KIND_FUNCTION, function[1], local=owner is not None)
+                else:
+                    unit = Unit(data_name_of(header), line, KIND_OTHER, local=owner is not None)
+                collect(unit, tokens[i + 1:end])
+                units.append(unit)
+            i = header_start = end + 1
+            continue
+        if token == "}":
+            raise ScanError(f"{filename}:{line}: a closing brace with nothing open")
+        if token == ";":
+            statement = tokens[header_start:i]
+            unit = Unit(data_name_of(statement), statement[0][1] if statement else line, KIND_OTHER, local=owner is not None)
+            collect(unit, statement)
+            if unit.sends:
+                units.append(unit)
+            header_start = i + 1
+        i += 1
+    return units
+
+
+def scan_source(text, filename):
+    """The units of a source (ADR-MCP-006, DEC-MCP-036)."""
+    tokens = tokens_of(blank_comments_and_strings(text))
+    return scan_scope(tokens, 0, len(tokens), filename, None)
+
+
+def public_names(headers):
+    """The names the AKM headers declare as functions: every identifier a header writes just before a `(`."""
+    names = set()
+    for text in headers.values():
+        tokens = [token for token, _ in tokens_of(blank_comments_and_strings(text))]
+        names.update(token for token, following in zip(tokens, tokens[1:]) if following == "(" and is_identifier(token))
+    return names - NOT_A_FUNCTION_NAME
+
+
+@dataclasses.dataclass
+class AkmAttribution:
+    functions: dict      # item ID -> the public functions that send it
+    unattributed: dict   # item ID -> where it is named, "File.cpp:12", though no public function reaches it
+    generic: list        # the public functions that send whatever item the caller gives them
+
+
+def is_public(unit, public):
+    """A function defined at namespace scope whose name a public header declares."""
+    return unit.kind == KIND_FUNCTION and not unit.local and unit.last in public
+
+
+def attribute_akm(sources, headers):
+    """Which public function of the AKM library sends which item (ADR-MCP-006, DEC-MCP-036). `sources` and `headers`
+    map a file name to its text. A public function owns what it sends and what the helpers it calls send, through
+    helpers to any depth; it does not own what another public function sends."""
+    public = public_names(headers)
+    functions, generic, unattributed = {}, set(), {}
+    for filename, text in sorted(sources.items()):
+        units = scan_source(text, filename)
+        helpers = {}
+        for unit in units:
+            if not is_public(unit, public):
+                helpers.setdefault(unit.last, []).append(unit)
+        reached = set()
+        for unit in units:
+            if not is_public(unit, public):
+                continue
+            if unit.generic and unit.builds and not is_request_builder(unit.name):
+                generic.add(unit.name)
+            owned, queue, followed = dict(unit.sends), list(unit.mentions), set()
+            while queue:
+                for helper in helpers.get(queue.pop(), []):
+                    if id(helper) not in followed:
+                        followed.add(id(helper))
+                        owned.update(helper.sends)
+                        queue.extend(helper.mentions)
+            reached |= followed
+            for item in owned:
+                functions.setdefault(item, set()).add(unit.name)
+        for group in helpers.values():
+            for helper in group:
+                if id(helper) not in reached:
+                    for item, line in helper.sends.items():
+                        unattributed.setdefault(item, []).append(f"{filename}:{line}")
+    return AkmAttribution({item: sorted(names) for item, names in functions.items()},
+                          {item: sorted(places) for item, places in unattributed.items()}, sorted(generic))
+
+
+def read_akm_sources(source_folder, include_folder):
+    """({file name: text} of the .cpp files, {file name: text} of the public headers); `detail/` is not public."""
+    try:
+        sources = {path.name: path.read_text(encoding="utf-8") for path in sorted(pathlib.Path(source_folder).glob("*.cpp"))}
+        headers = {path.name: path.read_text(encoding="utf-8") for path in sorted(pathlib.Path(include_folder).glob("*.hpp"))}
+    except OSError as error:
+        raise InputError(f"cannot read the AKM sources: {error}") from error
+    return sources, headers
+
+
+def akm_problems(attribution, catalogue):
+    """What the scan found that stops the file being written: items named that nothing reaches or that are not in the catalogue."""
+    known = {item["id"] for item in catalogue["items"]}
+    problems = [f"ItemId::{item} is named at {', '.join(places)} and no public AKM function reaches it"
+                for item, places in sorted(attribution.unattributed.items())]
+    named = set(attribution.functions) | set(attribution.unattributed)
+    problems += [f"ItemId::{item} is used in the AKM sources and is not in the catalogue" for item in sorted(named - known)]
     return problems
 
 
@@ -204,6 +519,8 @@ def main():
     parser.add_argument("--tsv", type=pathlib.Path, default=DEFAULT_TSV, help="the spec's item list")
     parser.add_argument("--declared", type=pathlib.Path, default=DEFAULT_DECLARED, help="the declared facts")
     parser.add_argument("--output", type=pathlib.Path, default=DEFAULT_OUTPUT, help="the generated file")
+    parser.add_argument("--akm-src", type=pathlib.Path, default=DEFAULT_AKM_SOURCES, help="the AKM library's .cpp files")
+    parser.add_argument("--akm-include", type=pathlib.Path, default=DEFAULT_AKM_INCLUDE, help="the AKM library's public headers")
     parser.add_argument("--check", action="store_true", help="fail if the file is out of date")
     args = parser.parse_args()
 
@@ -211,6 +528,7 @@ def main():
         catalogue = load_json(args.data)
         declared = load_json(args.declared)
         spec_commands = read_spec_commands(args.tsv)
+        akm_sources, akm_headers = read_akm_sources(args.akm_src, args.akm_include)
     except InputError as error:
         print(error, file=sys.stderr)
         return EXIT_UNREADABLE
@@ -221,12 +539,25 @@ def main():
         for problem in problems:
             print(f"  {problem}", file=sys.stderr)
         return EXIT_MISMATCH
+    try:
+        akm = attribute_akm(akm_sources, akm_headers)
+    except ScanError as error:
+        print(f"cannot read the AKM sources: {error}", file=sys.stderr)
+        return EXIT_MISMATCH
+    problems = akm_problems(akm, catalogue)
+    if problems:
+        print("the scan of the AKM sources found:", file=sys.stderr)
+        for problem in problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
 
-    text = render(catalogue, declared)
+    text = render(catalogue, declared, akm_functions=akm.functions)
     if args.check:
         return check_file(text, args.output)
     args.output.write_text(text, encoding="utf-8", newline="\n")
     print(f"Wrote {len(catalogue['items'])} messages to {args.output}")
+    print(f"{len(akm.functions)} of them are sent by a named AKM function; functions that send the item the caller gives them: "
+          f"{', '.join(akm.generic) or 'none'}")
     return EXIT_OK
 
 

@@ -51,7 +51,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-070: The AKM column
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The script reads `juce/akm/src/*.cpp` and `juce/akm/include/akm/*.hpp`, attributes each `ItemId::<Id>` to the public function that
   sends it (following the helpers of the translation unit one step), and fills the AKM column: the function names, `catalogue only`, or `none`.
   It lists what it cannot read and exits non-zero. It records how many of the 384 messages it attributes.
@@ -63,8 +63,8 @@ This plan implements the tasks in the format specified below.
   the 158 item names found by the text search of 2026-10-10 in `juce/akm/src` has a function.
 - **Dependencies**: TASK-MCP-069
 - **Assignee**: AI
-- **Verification**: Pending (the count of messages with a function, `catalogue only`, and the list of what the scan could not read, from the real run).
-- **Assumptions**: (1) "Public" is "declared in a header under `juce/akm/include/akm`" (`detail/` excluded). (2) A message sent by two functions lists both.
+- **Verification**: Test first: 15 tests of the scan added to `juce/tests/tools/test_generate_sysex_coverage.py`, run before the scanner existed: 37 tests, 4 failures and 11 errors. After the scanner, and after the first run on the real sources showed what it missed (see Assumptions), `python -m unittest discover -s juce/tests/tools -p "test_generate_sysex_coverage.py"`: 40 tests OK. Real run (`python juce/tools/generate_sysex_coverage.py --output <scratch>`, then `--check` "is up to date"): **158 of the 384 messages are sent by a named AKM function, which is the 158 the text search of 2026-10-10 found in `juce/akm/src`**; 226 are `catalogue only`; no item is unattributed and none is missing from the catalogue; the functions that send the item their caller names are `getForAllKeygroups`, `getForAllZones` and `getForAllZonesAllKeygroups`. Eight messages have more than one function (`ejectDisk` and `ejectDiskDiscardingVirtualSamples`; `Session::open`, `Session::close` and the setters for the §00 settings).
+- **Assumptions**: (1) "Public" is "defined at namespace scope with a name that a header under `juce/akm/include/akm` writes before a `(`" (`detail/` excluded): a superset of the declared functions, which only matters for a helper that shares a name with a declared function, none today. (2) The first run found two things the tests then pinned: seven items (`DiskLoadFile`, `MultiSetPartByName`, `MultiSetProgramNumber`, `ProgramCreateWithKeygroups`, `ProgramSetNumber`, `SetListRename`, `ZoneSetSample`) are fetched with `descriptor(...)` and sent with `makeRequest(item, ...)`, so a descriptor counts as sending when the body also builds a request; and the session's own class (`Impl` in `Session.cpp`) gave its seven items to every public method of `Session`, so the methods of a local class are units of their own (DEC-MCP-036 amended). (3) The three generic functions are reported on standard output and not yet in the file: which messages they apply to is what TASK-MCP-072 declares. (4) `ItemId::X` named in a source and absent from the catalogue stops the script (it cannot happen in code that compiles, and is tested with a fixture).
 
 ### TASK-MCP-071: The MCP column — the go or no-go on DEC-MCP-037
 - **Tier**: L
