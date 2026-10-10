@@ -1,7 +1,7 @@
 """Tests of juce/tools/generate_sysex_coverage.py, run by ctest when Python 3 is available.
 
-Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062,
-RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-039)]
+Each test reads as a Gherkin scenario. [TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060,
+RQ-MCP-062, RQ-MCP-063, RQ-MCP-065, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import importlib.util
 import json
@@ -58,14 +58,26 @@ class ScriptTest(unittest.TestCase):
         return path
 
     def akm_sources(self, source=None, header="namespace akm { void echoIt(Session& session); }"):
-        """The arguments that point the script at a small tree of AKM sources: empty, or with one source file."""
+        """The arguments that point the script at small trees: AKM sources (empty, or with one source file), an MCP server with no tool,
+        and a declared file with Table 32 only, so that nothing of the real MCP side meets the fixture's AKM side."""
         folder = self.directory / "akm"
         (folder / "src").mkdir(parents=True, exist_ok=True)
         (folder / "include").mkdir(exist_ok=True)
         if source is not None:
             (folder / "src" / "Fixture.cpp").write_text(source, encoding="utf-8")
             (folder / "include" / "Fixture.hpp").write_text(header, encoding="utf-8")
-        return ["--akm-src", str(folder / "src"), "--akm-include", str(folder / "include")]
+        mcp = self.directory / "mcp"
+        (mcp / "src").mkdir(parents=True, exist_ok=True)
+        (mcp / "include" / "mcp").mkdir(parents=True, exist_ok=True)
+        (mcp / "README.md").write_text("# Server\n\n## 4. The tools\n\n## 5. Safety\n", encoding="utf-8")
+        (mcp / "include" / "mcp" / "SamplerGateway.hpp").write_text("namespace mcp { class SamplerGateway { public: void close(); }; }", encoding="utf-8")
+        (mcp / "src" / "Tools.cpp").write_text("namespace mcp {}", encoding="utf-8")
+        (mcp / "src" / "StandardParameters.cpp").write_text("namespace mcp {}", encoding="utf-8")
+        declared = json.loads(DECLARED.read_text(encoding="utf-8"))
+        declared["mcp_tools"] = {}
+        declared_path = self.directory / "declared-fixture.json"
+        declared_path.write_text(json.dumps(declared), encoding="utf-8")
+        return ["--akm-src", str(folder / "src"), "--akm-include", str(folder / "include"), "--mcp", str(mcp), "--declared", str(declared_path)]
 
     def sections_of(self, text):
         """The section codes of the `## §XX` headings, in the order the file has them."""
@@ -439,6 +451,34 @@ class TheAkmScan(unittest.TestCase):
         self.assertEqual(list(result.unattributed), ["Orphan"])
         self.assertRegex(result.unattributed["Orphan"][0], r"^Fixture\.cpp:\d+$")
 
+    def test_given_a_public_function_made_of_two_others_when_scanned_then_it_names_them_and_sends_nothing_itself(self):
+        source = """
+namespace akm
+{
+    void holdIt(Session& session)
+    {
+        session.submit(makeRequest(ItemId::KeyHold, NO_VALUES), {});
+    }
+
+    void releaseIt(Session& session)
+    {
+        session.submit(makeRequest(ItemId::KeyRelease, NO_VALUES), {});
+    }
+
+    void pressIt(Session& session)
+    {
+        holdIt(session);
+        releaseIt(session);
+    }
+}
+"""
+        header = "namespace akm { void holdIt(Session& s); void releaseIt(Session& s); void pressIt(Session& s); }"
+
+        result = self.attribute(source, header)
+
+        self.assertEqual(result.composed, {"pressIt": ["holdIt", "releaseIt"]})
+        self.assertEqual(result.functions["KeyHold"], ["holdIt"])
+
     def test_given_a_member_function_when_scanned_then_its_name_is_qualified(self):
         self.assertEqual(self.attribute().functions["FlushItem"], ["Session::flush"])
 
@@ -502,7 +542,335 @@ class TheAkmColumnOfTheFile(ScriptTest):
         self.generate()
         text = self.output.read_text(encoding="utf-8")
 
-        self.assertRegex(text, r"\| `&[0-9A-F]{2}\{\d+\}` [^|]+ \(Get\) \| getAllProgramNames \| none \|")
+        self.assertRegex(text, r"\| `&[0-9A-F]{2}\{\d+\}` [^|]+ \(Get\) \| getAllProgramNames \| [^|]+ \|")
+
+
+# The pieces of the MCP side as the repository writes them: a README with its tool tables, a gateway header with its public and private
+# methods, gateway sources, a Tools.cpp that calls the gateway, and the declared list.
+FIXTURE_README = """
+# The server
+
+## 3. Which tools need which option
+
+| `not_a_tool_of_section_4` | ignored |
+
+## 4. The tools
+
+### 4.1 Memory (no option)
+
+| Tool | What it does |
+|---|---|
+| `list_things` | lists |
+| `rename_thing`, `delete_thing` | rename, delete |
+| `set_parameter` | sets |
+| `look` | reads |
+
+### 4.5 Disks (`--allow-disk`)
+
+| Tool | What it does |
+|---|---|
+| `load_it` | loads |
+
+### 4.6 Keys
+
+| Tool | What it does |
+|---|---|
+| `press_it` | **only with `--allow-front-panel`**: presses |
+
+## 5. Safety
+
+| `after_the_tools` | ignored |
+"""
+
+FIXTURE_GATEWAY_HEADER = """
+namespace mcp
+{
+    class SamplerGateway
+    {
+    public:
+        SamplerGateway(int config);
+        Outcome listThings();
+        Outcome renameThing(int index);
+        Outcome deleteThing(int index);
+        Outcome writeParameter(int parameter);
+        Outcome lookAt();
+        Outcome loadIt();
+        Outcome pressIt();
+        void close();
+
+    private:
+        Outcome runSequence(int request);
+        Outcome sendHelper();
+    };
+}
+"""
+
+FIXTURE_GATEWAY_SOURCE = """
+namespace mcp
+{
+    namespace
+    {
+        constexpr int SECOND_ITEM = 1;
+    }
+
+    Outcome SamplerGateway::sendHelper()
+    {
+        return runSequence(akm::makeRequest(akm::ItemId::HelperItem, NO_VALUES));
+    }
+
+    Outcome SamplerGateway::listThings()
+    {
+        akm::getThingNames(session(), done);
+        return sendHelper();
+    }
+
+    Outcome SamplerGateway::renameThing(int index)
+    {
+        akm::renameThing(session(), index, done);
+        return listThings();
+    }
+
+    Outcome SamplerGateway::deleteThing(int index)
+    {
+        akm::deleteThing(session(), index, done);
+        return Outcome{};
+    }
+
+    Outcome SamplerGateway::writeParameter(int parameter)
+    {
+        return runSequence(akm::makeRequest(akm::ItemId::KeygroupSelect, NO_VALUES));
+    }
+
+    Outcome SamplerGateway::lookAt()
+    {
+        return runSequence(akm::makeRequest(akm::ItemId::LookItem, NO_VALUES));
+    }
+
+    Outcome SamplerGateway::loadIt()
+    {
+        return runSequence(akm::makeRequest(akm::ItemId::LoadItem, NO_VALUES));
+    }
+
+    Outcome SamplerGateway::pressIt()
+    {
+        akm::holdKey(session(), key, done);
+        return Outcome{};
+    }
+}
+"""
+
+FIXTURE_TOOLS_SOURCE = """
+namespace mcp
+{
+    std::vector<Tool> makeThings(SamplerGateway& gateway)
+    {
+        tools.push_back(Tool{definition("list_things"), [&gateway](const json& arguments) { return gateway.listThings(); }});
+        tools.push_back(Tool{definition("rename_thing"), [&gateway](const json& arguments) { return gateway.renameThing(1); }});
+        tools.push_back(Tool{definition("delete_thing"), [&gateway](const json& arguments) { return gateway.deleteThing(1); }});
+        tools.push_back(Tool{definition("set_parameter"), [&gateway](const json& arguments) { return gateway.writeParameter(1); }});
+        tools.push_back(Tool{definition("look"), [&gateway](const json& arguments) { return gateway.lookAt(); }});
+        tools.push_back(Tool{definition("load_it"), [&gateway](const json& arguments) { return gateway.loadIt(); }});
+        auto keyTool = [&](SamplerGateway& panel) { return panel.pressIt(); };
+    }
+}
+"""
+
+FIXTURE_STANDARD_PARAMETERS = """
+namespace mcp
+{
+    void addRows(std::vector<ParameterDefinition>& rows)
+    {
+        rows.push_back(number("level", scope, akm::ItemId::ProgramSetLevel, akm::ItemId::ProgramGetLevel));
+        rows.push_back(number("pan", scope, akm::ItemId::ZoneSetPan, akm::ItemId::ZoneGetPan));
+        rows.push_back(number("loop", scope, akm::ItemId::SampleSetLoop, akm::ItemId::SampleGetLoop));
+    }
+}
+"""
+
+FIXTURE_AKM_FUNCTION_ITEMS = {
+    "getThingNames": {"ThingGetNames"},
+    "renameThing": {"ThingRename"},
+    "deleteThing": {"ThingDelete"},
+    "holdKey": {"KeyHold"},
+}
+
+FIXTURE_ITEM_SECTIONS = {"ProgramSetLevel": ("0A", "set"), "ProgramGetLevel": ("0A", "get"), "ZoneSetPan": ("06", "set"),
+                         "ZoneGetPan": ("06", "get"), "SampleSetLoop": ("0E", "set"), "SampleGetLoop": ("0E", "get")}
+
+FIXTURE_DECLARED_TOOLS = {
+    "list_things": {"gateway": ["listThings"]},
+    "rename_thing": {"gateway": ["renameThing"]},
+    "delete_thing": {"gateway": ["deleteThing"]},
+    "set_parameter": {"gateway": ["writeParameter"], "parameters": {"sections": ["0A", "06"], "kind": "set"}},
+    "look": {"gateway": ["lookAt"]},
+    "load_it": {"gateway": ["loadIt"]},
+    "press_it": {"gateway": ["pressIt"]},
+}
+
+
+class TheMcpScan(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.script = load_script()
+
+    def model(self, declared=None, tools_source=FIXTURE_TOOLS_SOURCE, readme=FIXTURE_README):
+        return self.script.attribute_mcp(
+            readme_text=readme, gateway_header=FIXTURE_GATEWAY_HEADER, gateway_sources={"Gateway.cpp": FIXTURE_GATEWAY_SOURCE},
+            tools_source=tools_source, parameter_source=FIXTURE_STANDARD_PARAMETERS,
+            declared_tools=FIXTURE_DECLARED_TOOLS if declared is None else declared,
+            akm_function_items=FIXTURE_AKM_FUNCTION_ITEMS, akm_public_functions=set(FIXTURE_AKM_FUNCTION_ITEMS),
+            item_sections=FIXTURE_ITEM_SECTIONS)
+
+    def test_given_the_readmes_tool_tables_when_read_then_the_tools_and_their_options_are_those_of_section_4_only(self):
+        tools = self.script.read_readme_tools(FIXTURE_README)
+
+        self.assertEqual(tools, {"list_things": None, "rename_thing": None, "delete_thing": None, "set_parameter": None, "look": None,
+                                 "load_it": "--allow-disk", "press_it": "--allow-front-panel"})
+
+    def test_given_a_gateway_header_when_read_then_only_the_public_methods_are_listed(self):
+        public = self.script.public_methods_of(FIXTURE_GATEWAY_HEADER, "SamplerGateway")
+
+        self.assertIn("listThings", public)
+        self.assertNotIn("runSequence", public)
+        self.assertNotIn("sendHelper", public)
+
+    def test_given_a_tools_source_when_read_then_the_gateway_methods_it_calls_are_found_whatever_the_receiver_is_named(self):
+        calls = self.script.gateway_calls_of(FIXTURE_TOOLS_SOURCE, {"listThings", "pressIt", "lookAt", "close"})
+
+        self.assertEqual(calls, {"listThings", "pressIt", "lookAt"})
+
+    def test_given_a_tool_whose_method_calls_an_akm_function_when_modelled_then_the_message_is_the_tools(self):
+        self.assertEqual(self.model().shown["delete_thing"], {"ThingDelete"})
+
+    def test_given_a_method_that_names_a_type_of_the_library_when_modelled_then_it_does_not_own_what_the_types_constructor_sends(self):
+        source = """
+namespace mcp
+{
+    Outcome SamplerGateway::lookAt()
+    {
+        akm::Session& held = session();
+        return Outcome{};
+    }
+}
+"""
+        model = self.script.attribute_mcp(
+            readme_text=FIXTURE_README, gateway_header=FIXTURE_GATEWAY_HEADER, gateway_sources={"Gateway.cpp": source},
+            tools_source=FIXTURE_TOOLS_SOURCE, parameter_source=FIXTURE_STANDARD_PARAMETERS, declared_tools={"look": {"gateway": ["lookAt"]}},
+            akm_function_items={"Session": {"SessionItem"}}, akm_public_functions={"Session"}, item_sections=FIXTURE_ITEM_SECTIONS)
+
+        self.assertEqual(model.shown["look"], set())
+
+    def test_given_a_tool_whose_method_sends_through_a_private_helper_when_modelled_then_the_helpers_message_is_the_tools(self):
+        self.assertIn("HelperItem", self.model().shown["list_things"])
+
+    def test_given_a_method_that_calls_another_public_method_when_modelled_then_that_ones_messages_are_allowed_but_not_shown(self):
+        model = self.model()
+
+        self.assertNotIn("ThingGetNames", model.shown["rename_thing"])
+        self.assertIn("ThingGetNames", model.allowed["rename_thing"])
+        self.assertIn("ThingRename", model.shown["rename_thing"])
+
+    def test_given_a_parameter_tool_when_modelled_then_it_has_the_set_items_of_its_sections_only(self):
+        shown = self.model().shown["set_parameter"]
+
+        self.assertEqual({"ProgramSetLevel", "ZoneSetPan"} & shown, {"ProgramSetLevel", "ZoneSetPan"})
+        self.assertNotIn("SampleSetLoop", shown)
+        self.assertNotIn("ProgramGetLevel", shown)
+
+    def test_given_an_entry_that_names_akm_functions_when_modelled_then_they_replace_what_the_shared_method_reaches(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["list_things"] = {"gateway": ["listThings"], "akm": ["getThingNames"]}
+
+        model = self.model(declared)
+
+        self.assertEqual(model.shown["list_things"], {"ThingGetNames"})
+        self.assertIn("HelperItem", model.allowed["list_things"])
+
+    def test_given_a_tool_that_sends_nothing_when_modelled_then_it_has_no_message(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["look"] = {"sends_nothing": "it reads the catalogue"}
+        tools_source = FIXTURE_TOOLS_SOURCE.replace("gateway.lookAt()", "describe()")
+
+        model = self.model(declared, tools_source=tools_source)
+
+        self.assertEqual(model.shown["look"], set())
+        self.assertEqual(model.problems, [])
+
+    def test_given_a_tool_of_the_readme_with_no_entry_when_modelled_then_the_problem_names_it(self):
+        declared = {name: entry for name, entry in FIXTURE_DECLARED_TOOLS.items() if name != "look"}
+
+        self.assertTrue(any("look" in problem and "no declared entry" in problem for problem in self.model(declared).problems))
+
+    def test_given_an_entry_for_a_tool_the_readme_does_not_have_when_modelled_then_the_problem_names_it(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["ghost_tool"] = {"gateway": ["lookAt"]}
+
+        self.assertTrue(any("ghost_tool" in problem and "README" in problem for problem in self.model(declared).problems))
+
+    def test_given_a_declared_method_the_gateway_does_not_have_when_modelled_then_the_problem_names_it(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["look"] = {"gateway": ["lookAtSomethingElse"]}
+
+        self.assertTrue(any("lookAtSomethingElse" in problem for problem in self.model(declared).problems))
+
+    def test_given_a_declared_akm_function_the_library_does_not_have_when_modelled_then_the_problem_names_it(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["list_things"] = {"gateway": ["listThings"], "akm": ["noSuchFunction"]}
+
+        self.assertTrue(any("noSuchFunction" in problem for problem in self.model(declared).problems))
+
+    def test_given_a_gateway_method_the_tools_call_and_no_entry_declares_when_modelled_then_the_problem_names_it(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["load_it"] = {"sends_nothing": "wrongly"}
+
+        problems = self.model(declared).problems
+
+        self.assertTrue(any("loadIt" in problem and "no tool declares" in problem for problem in problems), problems)
+
+    def test_given_a_declared_method_the_tools_never_call_when_modelled_then_the_problem_names_it(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["look"] = {"gateway": ["lookAt", "pressIt"]}
+        tools_source = FIXTURE_TOOLS_SOURCE.replace("panel.pressIt()", "nothing()")
+
+        problems = self.model(declared, tools_source=tools_source).problems
+
+        self.assertTrue(any("pressIt" in problem and "never calls" in problem for problem in problems), problems)
+
+    def test_given_a_parameter_entry_with_a_section_the_catalogue_does_not_have_when_modelled_then_the_problem_names_it(self):
+        declared = dict(FIXTURE_DECLARED_TOOLS)
+        declared["set_parameter"] = {"gateway": ["writeParameter"], "parameters": {"sections": ["7F"], "kind": "set"}}
+
+        self.assertTrue(any("7F" in problem for problem in self.model(declared).problems))
+
+
+class TheMcpColumnOfTheFile(ScriptTest):
+    def test_given_the_real_sources_when_generated_then_a_message_a_tool_sends_names_the_tool_and_its_option(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertRegex(text, r"\| getAllProgramNames \| list_programs \|")
+        self.assertRegex(text, r"\| [^|]+ \| load_file \(--allow-disk\) \|")
+        self.assertRegex(text, r"Key Hold \(Set\) \| holdKey \| hold_key \(--allow-front-panel\), press_key \(--allow-front-panel\) \|")
+        self.assertRegex(text, r"\| makeRequest \| get_parameters \|")
+
+    def test_given_a_tool_with_no_entry_when_generated_then_it_fails_and_names_the_tool(self):
+        declared = json.loads(DECLARED.read_text(encoding="utf-8"))
+        del declared["mcp_tools"]["get_status"]
+        path = self.directory / "declared.json"
+        path.write_text(json.dumps(declared), encoding="utf-8")
+
+        result = self.generate("--declared", str(path))
+
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("get_status", result.stderr)
+        self.assertFalse(self.output.exists())
+
+    def test_given_the_real_sources_when_generated_then_the_two_tools_that_share_code_each_have_their_own_messages(self):
+        self.generate()
+        text = self.output.read_text(encoding="utf-8")
+
+        self.assertRegex(text, r"Rename File \(Set\) \| [^|]+ \| rename_file \(--allow-disk\) \|")
+        self.assertRegex(text, r"Rename Folder \(Set\) \| [^|]+ \| rename_folder \(--allow-disk\) \|")
 
 
 if __name__ == "__main__":

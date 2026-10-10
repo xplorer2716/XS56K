@@ -8,9 +8,11 @@ eight alternative sections of Table 32, which the catalogue does not hold, as ro
 documents/_index/sysex_spec.items.tsv, so a catalogue that loses or invents an item stops the script.
 
 The AKM function of a message comes from a scan of juce/akm/src (the public function whose body, or whose helpers'
-body, builds a request for the item); the MCP tool will come from a scan of juce/mcp/src (TASK-MCP-071), so until
-then every message says `none` for its tool. The script stops when the scan names an item that no public function
-reaches or that the catalogue does not have. It runs by hand and in the test suite (ctest), never during the build.
+body, builds a request for the item). The MCP tool comes from the server's README (the tools and their launch options),
+the declared file (which methods of the gateway each tool calls, checked both ways against juce/mcp/src/Tools.cpp) and
+a scan of the gateway's sources (what each method sends). The script stops when a scan names an item that no public
+function reaches or that the catalogue does not have, or when the declared list and the sources disagree. It runs by hand
+and in the test suite (ctest), never during the build.
 
 Usage:
     python3 juce/tools/generate_sysex_coverage.py              # write the file
@@ -21,8 +23,8 @@ Usage:
 Exit status: 0 when everything holds, 1 when the file is out of date or the catalogue disagrees with the spec,
 2 when an input cannot be read.
 
-[TASK-MCP-069, TASK-MCP-070, RQ-MCP-058, RQ-MCP-059, RQ-MCP-062, RQ-MCP-063, ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036,
-DEC-MCP-039)]
+[TASK-MCP-069, TASK-MCP-070, TASK-MCP-071, RQ-MCP-058, RQ-MCP-059, RQ-MCP-060, RQ-MCP-062, RQ-MCP-063,
+ADR-MCP-006 (DEC-MCP-035, DEC-MCP-036, DEC-MCP-037, DEC-MCP-038, DEC-MCP-039)]
 """
 import argparse
 import csv
@@ -40,6 +42,7 @@ DEFAULT_DECLARED = HERE / "sysex_coverage_declared.json"
 DEFAULT_OUTPUT = ROOT / "documents" / "SYSEX-COVERAGE.md"
 DEFAULT_AKM_SOURCES = ROOT / "juce" / "akm" / "src"
 DEFAULT_AKM_INCLUDE = ROOT / "juce" / "akm" / "include" / "akm"
+DEFAULT_MCP = ROOT / "juce" / "mcp"
 
 EXIT_OK = 0
 EXIT_MISMATCH = 1
@@ -134,6 +137,7 @@ def compare_with_spec(catalogue, spec_commands):
 # written (functions defined at namespace scope, helpers in an anonymous namespace) and fails on what it cannot read.
 
 ITEM_ID_TYPE = "ItemId"
+AKM_NAMESPACE = "akm"
 SCOPE_OPERATOR = "::"
 # A call whose argument names an item only to read it, never to send it: the item's descriptor, the decoding of a reply.
 NON_SENDING_CALL_PREFIX = "decode"
@@ -213,6 +217,7 @@ class Unit:
     builds: bool = False       # its body builds or submits a request
     sends: dict = dataclasses.field(default_factory=dict)
     mentions: set = dataclasses.field(default_factory=set)
+    akm_calls: set = dataclasses.field(default_factory=set)   # the functions of the AKM library it names as `akm::function`
 
     @property
     def last(self):
@@ -297,7 +302,13 @@ def collect(unit, tokens):
                 target = read_only if is_non_sending(parens[-1] if parens else None) else unit.sends
                 target.setdefault(tokens[i + 2][0], line)
             elif not (i >= 2 and tokens[i - 1][0] == SCOPE_OPERATOR and tokens[i - 2][0] == ITEM_ID_TYPE):
-                unit.mentions.add(token)
+                if i >= 2 and tokens[i - 1][0] == SCOPE_OPERATOR and tokens[i - 2][0] == AKM_NAMESPACE:
+                    # `akm::name(...)`, `akm::name<...>(...)` or `&akm::name`: a call or a pointer to a function, not a type
+                    following = tokens[i + 1][0] if i + 1 < len(tokens) else None
+                    if following in ("(", "<") or (i >= 3 and tokens[i - 3][0] == "&"):
+                        unit.akm_calls.add(token)
+                else:
+                    unit.mentions.add(token)
                 if is_request_builder(token) or token.startswith(SUBMIT_PREFIX):
                     unit.builds = True
     if unit.builds:
@@ -374,6 +385,7 @@ class AkmAttribution:
     functions: dict      # item ID -> the public functions that send it
     unattributed: dict   # item ID -> where it is named, "File.cpp:12", though no public function reaches it
     generic: list        # the public functions that send whatever item the caller gives them
+    composed: dict       # a public function -> the public functions that send items and that it calls (`pressKey` is `holdKey` and `releaseKey`)
 
 
 def is_public(unit, public):
@@ -386,7 +398,7 @@ def attribute_akm(sources, headers):
     map a file name to its text. A public function owns what it sends and what the helpers it calls send, through
     helpers to any depth; it does not own what another public function sends."""
     public = public_names(headers)
-    functions, generic, unattributed = {}, set(), {}
+    functions, generic, unattributed, calls = {}, set(), {}, {}
     for filename, text in sorted(sources.items()):
         units = scan_source(text, filename)
         helpers = {}
@@ -399,13 +411,15 @@ def attribute_akm(sources, headers):
                 continue
             if unit.generic and unit.builds and not is_request_builder(unit.name):
                 generic.add(unit.name)
-            owned, queue, followed = dict(unit.sends), list(unit.mentions), set()
+            owned, queue, followed, names = dict(unit.sends), list(unit.mentions), set(), set(unit.mentions)
             while queue:
                 for helper in helpers.get(queue.pop(), []):
                     if id(helper) not in followed:
                         followed.add(id(helper))
                         owned.update(helper.sends)
                         queue.extend(helper.mentions)
+                        names |= helper.mentions
+            calls.setdefault(unit.name, set()).update(name for name in names if name in public and name != unit.last)
             reached |= followed
             for item in owned:
                 functions.setdefault(item, set()).add(unit.name)
@@ -414,8 +428,10 @@ def attribute_akm(sources, headers):
                 if id(helper) not in reached:
                     for item, line in helper.sends.items():
                         unattributed.setdefault(item, []).append(f"{filename}:{line}")
+    senders = {name for names in functions.values() for name in names}
+    composed = {name: sorted(called & senders) for name, called in sorted(calls.items()) if called & senders}
     return AkmAttribution({item: sorted(names) for item, names in functions.items()},
-                          {item: sorted(places) for item, places in unattributed.items()}, sorted(generic))
+                          {item: sorted(places) for item, places in unattributed.items()}, sorted(generic), composed)
 
 
 def read_akm_sources(source_folder, include_folder):
@@ -436,6 +452,190 @@ def akm_problems(attribution, catalogue):
     named = set(attribution.functions) | set(attribution.unattributed)
     problems += [f"ItemId::{item} is used in the AKM sources and is not in the catalogue" for item in sorted(named - known)]
     return problems
+
+
+# --- the MCP side: the tools, the gateway they call, the parameters ------------------------------------------------
+# ADR-MCP-006 (DEC-MCP-037, DEC-MCP-038): the tools and their options are read from the server's README, the link from a tool to the
+# gateway's methods is declared in the declared file and checked both ways against `Tools.cpp`, and what each gateway method sends is read
+# from the sources (the AKM functions it calls and the items it names, through its private helpers).
+
+README_TOOLS_HEADING = re.compile(r"^## \d+\. The tools\s*$")
+OPTION_OF_ROW = re.compile(r"\*\*only with `(--allow-[a-z-]+)`\*\*")
+OPTION_OF_HEADING = re.compile(r"\(`(--allow-[a-z-]+)`\)")
+TOOL_NAME_IN_CELL = re.compile(r"`([a-z][a-z0-9_]*)`")
+GATEWAY_CLASS = "SamplerGateway"
+GATEWAY_RECEIVER = re.compile(r"SamplerGateway\s*[&*]\s*(\w+)")
+GATEWAY_SOURCES = "SamplerGateway*.cpp"
+GATEWAY_HEADER = ("include", "mcp", "SamplerGateway.hpp")
+TOOLS_SOURCE = "Tools.cpp"
+PARAMETERS_SOURCE = "StandardParameters.cpp"
+MCP_README = "README.md"
+ENTRY_FIELDS = ("gateway", "akm", "parameters", "sends_nothing")
+
+
+def read_readme_tools(text):
+    """{tool: launch option or None} from the tool tables of the README's section 4 (an option is on the row, or on the heading of
+    the subsection)."""
+    tools, option, inside = {}, None, False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            inside, option = bool(README_TOOLS_HEADING.match(line)), None
+        elif not inside:
+            continue
+        elif line.startswith("### "):
+            match = OPTION_OF_HEADING.search(line)
+            option = match.group(1) if match else None
+        elif line.startswith("| `"):
+            match = OPTION_OF_ROW.search(line)
+            for name in TOOL_NAME_IN_CELL.findall(line.split("|")[1]):
+                tools[name] = match.group(1) if match else option
+    return tools
+
+
+def public_methods_of(header_text, class_name):
+    """The names of the public member functions a class declares (or defines) in a header."""
+    tokens = tokens_of(blank_comments_and_strings(header_text))
+    names = [token for token, _ in tokens]
+    if class_name not in names:
+        raise ScanError(f"the header has no class {class_name}")
+    start = names.index(class_name)
+    while names[start] != "{":
+        start += 1
+    end = matching_brace(tokens, start, class_name)
+    public, access, header_start, i = set(), "private", start + 1, start + 1
+    while i < end:
+        token = names[i]
+        if token in ("public", "private", "protected") and names[i + 1] == ":":
+            access, header_start, i = token, i + 2, i + 2
+            continue
+        if token in ("{", ";"):
+            function = function_name_of(tokens[header_start:i])
+            if function is not None and access == "public":
+                public.add(function[0].split(SCOPE_OPERATOR)[-1])
+            if token == "{":
+                i = matching_brace(tokens, i, class_name)
+            header_start = i + 1
+        i += 1
+    return public
+
+
+def gateway_calls_of(tools_source, public_methods):
+    """The public methods of the gateway that a source calls, through whatever name it gives the gateway (a `SamplerGateway&`)."""
+    text = blank_comments_and_strings(tools_source)
+    receivers = set(GATEWAY_RECEIVER.findall(text))
+    if not receivers:
+        return set()
+    call = re.compile(r"\b(?:" + "|".join(sorted(receivers)) + r")\s*(?:\.|->)\s*(\w+)\s*\(")
+    return set(call.findall(text)) & set(public_methods)
+
+
+class GatewayModel:
+    """What each public method of the gateway sends: the items it names and the AKM functions it calls, through its private helpers
+    (`own`), and what the other public methods it calls send (`through`)."""
+
+    def __init__(self, sources, public_methods, akm_function_items):
+        self.public = set(public_methods)
+        self.akm_function_items = akm_function_items
+        self.methods, self.helpers = {}, {}
+        for filename, text in sorted(sources.items()):
+            for unit in scan_source(text, filename):
+                is_method = unit.kind == KIND_FUNCTION and unit.name.startswith(GATEWAY_CLASS + SCOPE_OPERATOR) and unit.last in self.public
+                (self.methods if is_method else self.helpers).setdefault(unit.last, []).append(unit)
+        self._memo = {}
+
+    def reach(self, method):
+        """(own, through): the items a public method sends itself, and those the public methods it calls send."""
+        if method in self._memo:
+            return self._memo[method]
+        self._memo[method] = (set(), set())
+        own, calls, seen = set(), set(), set()
+        queue = list(self.methods.get(method, []))
+        while queue:
+            unit = queue.pop()
+            if id(unit) in seen:
+                continue
+            seen.add(id(unit))
+            own.update(unit.sends)
+            for function in unit.akm_calls:
+                own.update(self.akm_function_items.get(function, set()))
+            for name in unit.mentions:
+                if name in self.public and name != method:
+                    calls.add(name)
+                queue.extend(self.helpers.get(name, []))
+        through = set()
+        for called in sorted(calls):
+            through.update(*self.reach(called))
+        self._memo[method] = (own, through - own)
+        return self._memo[method]
+
+
+@dataclasses.dataclass
+class McpAttribution:
+    tools: dict      # tool -> launch option or None
+    shown: dict      # tool -> the items the table gives it
+    allowed: dict    # tool -> the items it may send: the table's, and those sent through the other methods it calls
+    problems: list
+
+
+def attribute_mcp(readme_text, gateway_header, gateway_sources, tools_source, parameter_source, declared_tools, akm_function_items,
+                  akm_public_functions, item_sections):
+    """Which tool sends which message (ADR-MCP-006, DEC-MCP-037)."""
+    tools = read_readme_tools(readme_text)
+    public = public_methods_of(gateway_header, GATEWAY_CLASS)
+    model = GatewayModel(gateway_sources, public, akm_function_items)
+    parameter_items = {item for unit in scan_source(parameter_source, PARAMETERS_SOURCE) for item in unit.sends}
+    sections = {section for section, _ in item_sections.values()}
+    problems = [f"the tool {name} is in the README and has no declared entry" for name in sorted(set(tools) - set(declared_tools))]
+    problems += [f"the declared file has an entry for {name}, which the README does not list as a tool"
+                 for name in sorted(set(declared_tools) - set(tools))]
+    shown, allowed, declared_methods = {}, {}, {}
+    for name in sorted(set(tools) & set(declared_tools)):
+        entry = declared_tools[name]
+        if not any(field in entry for field in ENTRY_FIELDS):
+            problems.append(f"the entry of {name} gives none of {', '.join(ENTRY_FIELDS)}")
+        own_items, may_send = set(), set()
+        for method in entry.get("gateway", []):
+            if method not in public:
+                problems.append(f"{name}: the declared gateway method {method} is not a public method of {GATEWAY_CLASS}")
+                continue
+            declared_methods.setdefault(method, []).append(name)
+            own, through = model.reach(method)
+            own_items |= own
+            may_send |= own | through
+        akm_items = set()
+        for function in entry.get("akm", []):
+            if function not in akm_public_functions:
+                problems.append(f"{name}: the declared AKM function {function} is not a public function of the AKM library")
+            akm_items |= akm_function_items.get(function, set())
+        if "akm" in entry:
+            own_items = akm_items
+        parameter_entry = entry.get("parameters")
+        if parameter_entry:
+            wanted = set(parameter_entry["sections"])
+            problems += [f"{name}: the parameter section {section} is not a section of the catalogue" for section in sorted(wanted - sections)]
+            own_items |= {item for item in parameter_items if item_sections.get(item, (None, None))[0] in wanted
+                          and item_sections[item][1] == parameter_entry["kind"]}
+        shown[name] = own_items
+        allowed[name] = own_items | may_send | akm_items
+    called = gateway_calls_of(tools_source, public)
+    problems += [f"{GATEWAY_CLASS}::{method} is called in {TOOLS_SOURCE} and no tool declares it" for method in sorted(called - set(declared_methods))]
+    problems += [f"{', '.join(declared_methods[method])} declares {GATEWAY_CLASS}::{method}, which {TOOLS_SOURCE} never calls"
+                 for method in sorted(set(declared_methods) - called)]
+    return McpAttribution(tools, shown, allowed, problems)
+
+
+def read_mcp_sources(folder):
+    """The files of `juce/mcp` the MCP column reads: ({name: text} of the gateway sources, and the other texts by role)."""
+    folder = pathlib.Path(folder)
+    try:
+        gateway_sources = {path.name: path.read_text(encoding="utf-8") for path in sorted((folder / "src").glob(GATEWAY_SOURCES))}
+        texts = {"readme": (folder / MCP_README).read_text(encoding="utf-8"),
+                 "header": folder.joinpath(*GATEWAY_HEADER).read_text(encoding="utf-8"),
+                 "tools": (folder / "src" / TOOLS_SOURCE).read_text(encoding="utf-8"),
+                 "parameters": (folder / "src" / PARAMETERS_SOURCE).read_text(encoding="utf-8")}
+    except OSError as error:
+        raise InputError(f"cannot read the MCP sources: {error}") from error
+    return gateway_sources, texts
 
 
 def code_cell(code):
@@ -533,6 +733,7 @@ def main():
     parser.add_argument("--output", type=pathlib.Path, default=DEFAULT_OUTPUT, help="the generated file")
     parser.add_argument("--akm-src", type=pathlib.Path, default=DEFAULT_AKM_SOURCES, help="the AKM library's .cpp files")
     parser.add_argument("--akm-include", type=pathlib.Path, default=DEFAULT_AKM_INCLUDE, help="the AKM library's public headers")
+    parser.add_argument("--mcp", type=pathlib.Path, default=DEFAULT_MCP, help="the MCP server's folder")
     parser.add_argument("--check", action="store_true", help="fail if the file is out of date")
     args = parser.parse_args()
 
@@ -541,6 +742,7 @@ def main():
         declared = load_json(args.declared)
         spec_commands = read_spec_commands(args.tsv)
         akm_sources, akm_headers = read_akm_sources(args.akm_src, args.akm_include)
+        mcp_gateway_sources, mcp_texts = read_mcp_sources(args.mcp)
     except InputError as error:
         print(error, file=sys.stderr)
         return EXIT_UNREADABLE
@@ -563,13 +765,38 @@ def main():
             print(f"  {problem}", file=sys.stderr)
         return EXIT_MISMATCH
 
-    text = render(catalogue, declared, akm_functions=akm.functions)
+    function_items = {}
+    for item, functions in akm.functions.items():
+        for function in functions:
+            function_items.setdefault(function, set()).add(item)
+    for function, called in akm.composed.items():  # a function made of others sends what they send
+        for other in called:
+            function_items.setdefault(function, set()).update(function_items.get(other, set()))
+    try:
+        mcp = attribute_mcp(mcp_texts["readme"], mcp_texts["header"], mcp_gateway_sources, mcp_texts["tools"], mcp_texts["parameters"],
+                            declared.get("mcp_tools", {}), function_items, public_names(akm_headers),
+                            {item["id"]: (item["section"], item["kind"]) for item in catalogue["items"]})
+    except ScanError as error:
+        print(f"cannot read the MCP sources: {error}", file=sys.stderr)
+        return EXIT_MISMATCH
+    if mcp.problems:
+        print("the MCP column found:", file=sys.stderr)
+        for problem in mcp.problems:
+            print(f"  {problem}", file=sys.stderr)
+        return EXIT_MISMATCH
+    tools_of = {}
+    for tool, items in sorted(mcp.shown.items()):
+        for item in items:
+            tools_of.setdefault(item, []).append((tool, mcp.tools[tool]))
+
+    text = render(catalogue, declared, akm_functions=akm.functions, mcp_tools=tools_of)
     if args.check:
         return check_file(text, args.output)
     args.output.write_text(text, encoding="utf-8", newline="\n")
     print(f"Wrote {len(catalogue['items'])} messages to {args.output}")
     print(f"{len(akm.functions)} of them are sent by a named AKM function; functions that send the item the caller gives them: "
           f"{', '.join(akm.generic) or 'none'}")
+    print(f"{len(tools_of)} of them are sent by one of the {len(mcp.tools)} tools of the server")
     return EXIT_OK
 
 

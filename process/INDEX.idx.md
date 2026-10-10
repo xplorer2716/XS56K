@@ -566,12 +566,12 @@ TASK-MCP-066|342-353|Done|The server writes the frames it rejects to standard er
 TASK-MCP-067|354-381|Done|A renamed song file, set list or scenelist is found again by its new name
 TASK-MCP-068|382-392|Done|`clear_sampler_memory` counts the song files, set lists and scenelists too
 @process/3.plan/PLAN-MCP-006-sysex-coverage-table.md
-PLAN-MCP-006|1-167||The Generated Table of SysEx Messages, AKM Functions and MCP Tools
+PLAN-MCP-006|1-164||The Generated Table of SysEx Messages, AKM Functions and MCP Tools
 TASK-MCP-069|39-54|Done|The generator's skeleton — rows, Markdown, `--check`
 TASK-MCP-070|55-71|Done|The AKM column
-TASK-MCP-071|72-96|Not Started|The MCP column — the declared tool list, the scan of the gateway and of the parameters
-TASK-MCP-072|97-115|Not Started|The declared data file
-TASK-MCP-073|116-131|Not Started|The counts, the real file, the `ctest` entries and the pointers
-TASK-MCP-075|132-153|Not Started|The check against the simulated sampler
-TASK-MCP-074|154-167|Not Started|Read the table with the owner
+TASK-MCP-071|72-93|Done|The MCP column — the declared tool list, the scan of the gateway and of the parameters
+TASK-MCP-072|94-112|Not Started|The declared data file
+TASK-MCP-073|113-128|Not Started|The counts, the real file, the `ctest` entries and the pointers
+TASK-MCP-075|129-150|Not Started|The check against the simulated sampler
+TASK-MCP-074|151-164|Not Started|Read the table with the owner
 @process/3.plan/SUMMARY-akm-sections-coverage.md

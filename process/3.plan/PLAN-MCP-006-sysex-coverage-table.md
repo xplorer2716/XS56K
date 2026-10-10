@@ -71,7 +71,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-MCP-071: The MCP column — the declared tool list, the scan of the gateway and of the parameters
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The script reads the tools and their launch options from `juce/mcp/README.md`; the declared list of `sysex_coverage_declared.json`
   (for each of the 77 tools, the gateway methods it calls, or for a family of kinds the AKM functions, or `none` with a reason); for each gateway
   method, in `SamplerGateway*.cpp`, the AKM functions and items it reaches through its helpers, and the ones it reaches through other public
@@ -88,18 +88,15 @@ This plan implements the tasks in the format specified below.
   *then* the 77 tools are each attributed or declared as sending nothing.
 - **Dependencies**: TASK-MCP-070
 - **Assignee**: AI
-- **Verification**: Pending (the count of messages with a tool, the declared entries by kind, and the failures tried).
-- **Assumptions**: (1) Tier L because it is the cross-cutting scan and writes the 77 declared entries. (2) The measure of 2026-10-10 that led to the
-  declared list (62 of 77 tools got a gateway method by a text scan of `Tools.cpp`, 15 none; 89 of 112 gateway methods reach a message) is in
-  `DEC-MCP-037`. (3) A message that a tool's gateway method sends only by calling another public method is kept apart from the tool's own (it
-  is not in the table, and it is allowed by the check of TASK-MCP-075).
+- **Verification**: Test first: 19 tests of the MCP scan (the README's tools and options, the gateway's public methods, the calls of `Tools.cpp`, the shown and allowed messages of a tool, the parameters by section, the entries that name AKM functions, the six failures of the checks both ways) and 3 tests of the real file added to `test_generate_sysex_coverage.py`, run before the code existed: 63 tests, 2 failures and 17 errors. After the code, a first real run found the one entry the draft had missed (`readFxModule`, called by a helper shared by `get_fx_parameter` and `set_fx_parameter`), and the real table showed that `press_key` sent nothing (its AKM function `pressKey` is `holdKey` and `releaseKey`), so three more tests were written first (composed AKM functions, a type of the library is not a call, `Key Hold` lists `press_key`): 65 tests, `python -m unittest discover -s juce/tests/tools -p "test_generate_sysex_coverage.py"` OK. Real run to a scratch file: "Wrote 384 messages", **346 of the 384 messages are sent by one of the 77 tools**, `--check` "is up to date". The 77 declared entries are in `sysex_coverage_declared.json` (`mcp_tools`): 6 parameter tools by section, 14 tools whose shared gateway method is narrowed by the AKM functions named (the song files, set lists and scenelists, the three delete-all tools), `list_parameters` sends nothing, the others one to four gateway methods. The rows of the two tools that share code have their own message each (`rename_file` has `Rename File`, `rename_folder` `Rename Folder`). **Not proved by this task:** that tool A and not tool B calls a method, for the shared code; TASK-MCP-075 checks it against the simulated sampler.
+- **Assumptions**: (1) The entries were drafted from a reading of `definition(...)` and its lambda in `Tools.cpp` (58 tools), the 17 that no such reading reached were written by hand from `Tools.cpp`, `SamplerGateway.hpp` and `SamplerGatewayLists.cpp`, and the script then found the one missing method by its both-way check. (2) The messages of the parameter tools are all the items `StandardParameters.cpp` names, by section (`0A 08 06` for the program, keygroup and zone, `0E` for the sample, `0C` for the multi parts) and by kind (set or get). (3) An AKM function that is made of two others (`pressKey`) gives its tool the messages of both (the AKM column still names `holdKey` and `releaseKey` alone, as the implementers); a gateway method that calls another public gateway method does not (those messages are only allowed, for TASK-MCP-075). (4) The 38 messages with no tool are listed by the real run (sections `00` sent by the session, memory sizes, the program number, sample and disk reads, `Eject Disk`, the user tune template, and others): TASK-MCP-072 gives each its status where one exists (the session's messages as sent by the server itself, `Eject Disk` as not offered, `DEC-MCP-028`), and TASK-MCP-074 shows the rest to the owner.
 
 ### TASK-MCP-072: The declared data file
 - **Tier**: M
 - **Status**: Not Started
 - **Description**: `juce/tools/sysex_coverage_declared.json` (created by TASK-MCP-069 with the eight Table 32 sections, and given the tool list by
   TASK-MCP-071) also holds the messages decided not to be offered with the ID of the decision (ejecting a disk, `DEC-MCP-028`, and whatever else the
-  scans show that an ADR excluded), which messages `getForAllKeygroups`, `getForAllZones` and `getForAllZonesAllKeygroups` apply to, and the links the scans
+  scans show that an ADR excluded), the messages the server sends itself and not through a tool (the seven of section 00, which the session sends at its opening and closing, and which `--screen` chooses), which messages `getForAllKeygroups`, `getForAllZones` and `getForAllZonesAllKeygroups` apply to, and the links the scans
   could not attribute, each with its reason. The script refuses a declared entry naming an unknown item, function or tool, and one that a scan now
   covers.
 - **Requirement refs**: RQ-MCP-058, RQ-MCP-060, RQ-MCP-063, RQ-MCP-065
