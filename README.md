@@ -18,6 +18,25 @@ XS56K is three things that build on each other:
 | MCP server (`juce/mcp`) | 56 tools, 72 with `--allow-disk`, 61 with `--allow-front-panel`, 77 with both. Every tool has run on a real S5000, on test objects or with the memory saved first, except what needs a board: the five effects tools only answered "no board" (the S5000 has none, so the effects themselves are untried). The front-panel keys were seen on the sampler's screen: a cursor key, `multi` and `utilities`, a held key, the data wheel and an ASCII character. | Every function of the samplers; left out on purpose (ADR-MCP-005): ejecting and formatting a disk and the refresh of the disk list. Whether every other function of the specification is offered has not been checked item by item |
 | Editor (`juce/app`) | A bare placeholder window, there only to exercise the build | A real editor |
 
+## Architecture
+
+[![XS56K global architecture: the MCP client, the MCP server, the SysEx library, the MIDI layer and the sampler, and what the build fetches](process/2.architecture/xs56k-global.jpeg)](process/2.architecture/xs56k-global.jpeg)
+
+Inside the orange box is what runs on your computer; below it, what the build fetches. Reading the diagram from the top:
+
+- **The MCP client** (Claude Code or another) starts `xs56k_mcp_server` and talks to it over standard input and output (MCP stdio).
+- **`xs56k_mcp_server`** is the executable. It wires the JUCE MIDI devices and hosts **`xs56k_mcp`**, the library that holds the
+  protocol, the tools and the gateway to the sampler.
+- **`xs56k_mcp`** calls **`xs56k_akm`**, the SysEx library: the session with the sampler and the primitives that build each message.
+  Its table of items is generated from [`juce/akm/data/items.json`](juce/akm/data/items.json) by `generate_akm_items.py`.
+- **`xs56k_akm`** reaches the sampler through the ports of **`xs56k_midi`** (ports, messages, the SysEx stream). **`xs56k_midi_juce`**
+  implements them with JUCE and the computer's MIDI devices: it sends the SysEx messages to the AKAI S5000 or S6000, and the sampler's
+  replies come back the same way.
+- **`xs56k_framework`**, the controller core ported from XplorerEditor, depends on `xs56k_midi`. With `xs56k_midi_juce` it is linked by
+  the placeholder application `XS56K`, which is built only with `BUILD_APP=ON`.
+- **The build:** GitHub Actions (the canary workflow) builds and runs `ctest` from `juce/CMakeLists.txt`, which fetches JUCE 8.0.15,
+  nlohmann/json 3.12.0 (the MCP server's JSON, pinned by its SHA-256) and, with `BUILD_TESTS`, Catch2 3.9.1.
+
 ## The SysEx library (`juce/akm`)
 
 The library (`xs56k_akm`, namespace `akm`) builds and parses the SysEx messages of the
@@ -85,7 +104,7 @@ build, versioning and release plumbing, and is not an editor.
 
 You need a C++20 compiler and CMake 3.22 or later. On Linux, also `libasound2-dev`; the application additionally needs
 `libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libxext-dev libfreetype6-dev libfontconfig1-dev
-libgl1-mesa-dev`. [JUCE](https://juce.com/) 8.0.15 and Catch2 are fetched by CMake. No packaged build is published yet.
+libgl1-mesa-dev`. [JUCE](https://juce.com/) 8.0.15, nlohmann/json 3.12.0 (the MCP server's JSON) and, for the tests, Catch2 3.9.1 are fetched by CMake. No packaged build is published yet.
 
 ```bash
 git clone https://github.com/xplorer2716/XS56K.git
@@ -110,6 +129,7 @@ On Windows, use a generator of your choice (Visual Studio, for example) and add 
 - [`documents/`](documents/INDEX.md): the SysEx specification (v2.10) and the operator's manual (v1.21).
 - [`documents/SYSEX-COVERAGE.md`](documents/SYSEX-COVERAGE.md): every message of the specification, with the function of the library and
   the MCP tool that send it (generated).
+- [`process/2.architecture/xs56k-global.jpeg`](process/2.architecture/xs56k-global.jpeg): the global architecture diagram, full size.
 - [`process/`](process/): requirements (`FTR-AKM-*`, `FTR-MCP-*`), decisions (`ADR-*`), plans, and the observations of each run on
   a real sampler.
 - [`juce/mcp/README.md`](juce/mcp/README.md): the MCP server's reference.
