@@ -76,6 +76,8 @@ Testing/
 # Python bytecode of the tools' unit tests (juce/tests/tools)
 __pycache__/
 .mcp.json
-.claude/settings.json
+# Claude Code's local files; the AGNOS skills under .claude/skills are project files and stay tracked
+.claude/*
+!.claude/skills/
 # Diagram output of the Archify skill (local evidence, not project files)
 .archify/
