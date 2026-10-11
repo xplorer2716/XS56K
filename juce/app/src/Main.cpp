@@ -19,7 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // for why this exists and what it deliberately is not.
 // [RQ-BLD-002, RQ-BLD-007, TASK-BLD-005]
 #include <juce_gui_extra/juce_gui_extra.h>
-
+  
 namespace
 {
 class MainWindow : public juce::DocumentWindow
