@@ -14,6 +14,7 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 */
 // Minimal placeholder application entry point — see juce/app/CMakeLists.txt
 // for why this exists and what it deliberately is not.
@@ -43,6 +44,7 @@ public:
     }
 };
 
+//
 class XS56KApplication : public juce::JUCEApplication
 {
 public:
