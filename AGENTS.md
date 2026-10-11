@@ -52,17 +52,23 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   --output-on-failure`, `rtk gh run view <id>`. Write the prefix yourself, the automatic rewriting hook is not relied
   upon. If a condensed result is unusable (empty when output was clearly expected, contradicting its exit code, or
   garbled), re-run it as `rtk proxy <cmd>` to get the raw output; `rtk gain` shows the savings.
+- **Platforms:** the commands below run on Windows, Linux and macOS, so each is one plain call with no shell operator:
+  run the steps of a sequence one after the other, never chained with `&&` (Windows PowerShell 5.1 has no `&&`), and
+  take the number of build jobs from `--parallel` (not from `$(nproc)`, which only bash has). Write the shell syntax
+  of the session's `platform` (`process/_sessionstate/session.yaml`): PowerShell on `windows`, bash or zsh on `linux`
+  and `macos`. The `rtk` prefix and the paths with `/` are the same everywhere.
 - **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
   (ALSA headers, needed by `juce_audio_devices`); the GUI target (`BUILD_APP=ON`) additionally
   needs `libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxcomposite-dev libxext-dev
   libfreetype6-dev libfontconfig1-dev libgl1-mesa-dev` on Linux. JUCE itself is fetched by CMake
   (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately. [RQ-BLD-001]
-- **Build (libraries only):** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug && cmake --build juce/build -j"$(nproc)"`
+- **Build (libraries only):** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug`, then `cmake --build juce/build --parallel`
   (builds the `xs56k_midi`/`xs56k_midi_juce`, `xs56k_framework` and `xs56k_akm` static libraries only). [RQ-BLD-002, RQ-AKM-019]
 - **Build (with the placeholder app):** add `-DBUILD_APP=ON` (and, to embed a real version,
   `-DVERSION_NUMERIC=... -DVERSION_FULL=...` — see `.github/actions/resolve-version`); produces
   an `XS56K` executable that opens one placeholder window. [RQ-BLD-007]
-- **Test:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON && cmake --build juce/build -j"$(nproc)" && ctest --test-dir juce/build --output-on-failure`
+- **Test:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON`, then `cmake --build juce/build --parallel`,
+  then `ctest --test-dir juce/build --output-on-failure`
   (`BUILD_TESTS` defaults to `OFF`; Catch2 is fetched by CMake, pinned in `juce/CMakeLists.txt`). With
   a multi-configuration generator (Visual Studio, Xcode) add `--config <cfg>` to the build and
   `-C <cfg>` to `ctest`. Test sources live under `juce/tests/`, mirroring the library they exercise.
@@ -72,7 +78,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `juce/tests/probe/README.md` (modes, options, rules, observations). Never run a slow section 10 command on the sampler without the
   owner present, and never send `&32` (Clear Sampler Memory). [RQ-AKM-016 to RQ-AKM-018, RQ-AKM-044]
 - **Item catalogue:** the SysEx items are data (`juce/akm/data/items.json`); `python3 juce/tools/generate_akm_items.py`
-  (`python` on Windows) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
+  (`python` on Windows, as for every script below) regenerates `juce/akm/include/akm/ItemTable.generated.hpp` from it, `--check` fails if that
   table is out of date, `--coverage` compares the data file with the spec's item list
   (`documents/_index/sysex_spec.items.tsv`). Never edit the generated header by hand, and no script runs during the
   build; the three checks are also `ctest` entries when CMake finds Python 3. [RQ-AKM-001, TASK-AKM-008,
