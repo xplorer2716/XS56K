@@ -2,18 +2,24 @@
 
 ## Overview
 
-Gets the project to no open BLOCKER or CRITICAL issue outside the test code (FTR-QLT-001, ADR-QLT-001): a tool classifies the 44 issues and accepts the 30 on test code in
-SonarCloud; the 14 on production code are fixed, each family in its own task, with no change of behaviour. Ten tasks, the most one session plans.
+Gets the project to no open BLOCKER or CRITICAL issue outside the test code (FTR-QLT-001, ADR-QLT-001). SonarCloud lists 427 on 2026-10-12: 110 on test code and 317 on production code.
+A tool classifies them and accepts the 110 on test code in SonarCloud; the production ones are fixed, each family in its own task, with no change of behaviour.
 
-**Read before starting.** SonarCloud's analysis is of 2026-09-28 (`dev`, revision `79e9743`) and `dev` is 258 commits ahead: an issue is located by its rule and its function, not by the line SonarCloud
-gives (`ItemCatalogue.cpp` and `generate_akm_items.py` changed since). Before changing a file, run `sonar analyze --file <file>` to see whether the rule is still reported there; if it is
-not, the task says so and changes nothing. Every `sonar` call goes through `rtk`. Raw issue data is never read whole: the tool prints counts.
+**Two plans, because of the limit of ten tasks per session.** This plan holds the first ten tasks: the tool and the acceptance (TASK-QLT-001, 002), the small fixes (003 to 005), the first test target of
+`juce/framework` and the two fixes that need it (006 to 008), and the two Python generators (009, 010). It fixes 15 production issues (S5404, S3491 x2, S1186, S3624 x2, S5421 x4, S134 in `AbstractController`,
+S3776 x4 in two Python files). `PLAN-QLT-002` holds the next ten (the `module` names, the 241 lambda issues, the large functions of `juce/mcp`, `generate_sysex_coverage.py`, the path traversal),
+and starts only when this one is Done or the owner reorders them.
+
+**Read before starting.** SonarCloud's analysis (2026-10-12) is of `dev` at `937b503`, and `feature/QLT` differs from it only by documents and `.gitignore`, so the lines SonarCloud gives are those of the files;
+they move as soon as a fix is made, so an issue is found again by its rule and its function. Before changing a file, run `sonar analyze --file <file>`: if the rule is no longer reported, the task says so and
+changes nothing. Every `sonar` call goes through `rtk`. Raw issue data is never read whole: the tool prints counts. Every task on `juce/akm` or `juce/mcp` also runs the three source checks
+(`CheckNoDestructiveCalls`, `CheckReadmeCoversTools`, `generate_sysex_coverage.py --check`), which `ctest` runs.
 
 **Order.** TASK-QLT-001 then TASK-QLT-002 (the tool, then the acceptance). TASK-QLT-003, 004, 005, 009 and 010 are independent of each other. TASK-QLT-006 then 007 and 008 (the test target, then the
-two fixes that need it). The last step of the plan, outside the tasks, is the owner's refresh of the SonarCloud analysis and a re-read with the tool (RQ-QLT-007).
+two fixes that need it). The last step of the plans, outside the tasks, is the owner's refresh of the SonarCloud analysis and a re-read with the tool (RQ-QLT-007).
 
 ## References
-- **Requirements**: RQ-QLT-001 to RQ-QLT-008 (`process/1.requirements/FTR-QLT-001-sonar-blocker-critical.md`); RQ-BLD-003 (the build stays warning-clean); RQ-AKM-016 (the suite)
+- **Requirements**: RQ-QLT-001 to RQ-QLT-008 (PLAN-QLT-002 continues them) (`process/1.requirements/FTR-QLT-001-sonar-blocker-critical.md`); RQ-BLD-003 (the build stays warning-clean); RQ-AKM-016 (the suite)
 - **ADRs**: ADR-QLT-001 (DEC-QLT-001 to DEC-QLT-005)
 
 This plan implements the tasks in the format specified below.
@@ -23,23 +29,23 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-001: The triage tool `juce/tools/sonar_triage.py`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Write the script of DEC-QLT-003 and its `unittest` tests (`juce/tests/tools/test_sonar_triage.py`, a `ctest` entry beside the other tools'): list the open issues of given severities through `sonar api`, classify by path, print counts and the production issues, accept the test-code ones with `--apply`.
 - **Requirement refs**: RQ-QLT-002, RQ-QLT-006, RQ-QLT-008
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-001, DEC-QLT-003)
-- **Acceptance Criteria** (Gherkin): *Given* a recorded reply of 44 issues (30 on `juce/tests/` and `.github/skills/*/tests/`, 14 elsewhere), *When* the script classifies it, *Then* it reports 30 test and 14 production, with `juce/midi/src/MockMidiBackend.cpp` counted as production. *Given* no `--apply`, *When* the script runs, *Then* no `do_transition` request is made and it prints the number it would accept. *Given* `--apply` and a reply in which every test issue is `ACCEPTED`, *When* the script runs, *Then* it sends nothing and exits 0. *Given* more than one page of issues, *When* the script runs, *Then* it reads every page. *Given* a failing `sonar` call, *When* the script runs, *Then* it exits non-zero with the CLI's message and writes no cache file.
+- **Acceptance Criteria** (Gherkin): *Given* a recorded reply with issues on `juce/tests/`, on `.github/skills/*/tests/` and elsewhere, *When* the script classifies it, *Then* each is counted on the right side, with `juce/midi/src/MockMidiBackend.cpp` counted as production. *Given* no `--apply`, *When* the script runs, *Then* no `do_transition` request is made and it prints the number it would accept. *Given* `--apply` and a reply in which every test issue is `ACCEPTED`, *When* the script runs, *Then* it sends nothing and exits 0. *Given* more than one page of issues, *When* the script runs, *Then* it reads every page. *Given* a failing `sonar` call, *When* the script runs, *Then* it exits non-zero with the CLI's message and writes no cache file.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure (the unittest run, and one dry run against SonarCloud that prints 30 test and 14 production).
-- **Assumptions**: None
+- **Verification**: Tests written first: `unittest discover -p test_sonar_triage.py` ran 1 test and errored (the script did not exist); after the script, 28 tests OK (classification of the two test trees, the mock backend and `juce/tests_old/` as production; paging over 3 pages; the API's 10 000 limit refused; dry run posts nothing; `--apply` posts one `accept` with a comment naming RQ-QLT-002 per pending test issue and none for production; ACCEPTED skipped, second run posts nothing; failing call exits 2 with the CLI's message and no cache file; banner before the JSON ignored). `cmake -S juce -B juce/build` registered `qlt_sonar_triage_script_tests` (#997); `ctest -C Debug -R "qlt_sonar_triage|akm_item_catalogue_script|sysex_coverage_script"`: 3/3 passed, the new one in 0.22 s. Real dry run against SonarCloud (`sonar_triage.py --limit 8`, exit 0): 427 issues, 110 test code, 317 production code, "would accept 110 test-code issues (0 already handled); nothing sent"; the raw reply went to a file in the scratchpad, 8 production issues listed. Not verified: an `--apply` against SonarCloud (TASK-QLT-002), so the transition's body (the `comment` inside `do_transition`, taken from the CLI's own help example) has not been exercised; the whole suite was not run (the change adds a Python script, a test file and one CMake entry).
+- **Assumptions**: An issue is accepted from the statuses OPEN, CONFIRMED and REOPENED; the search asks for `resolved=false`, so an accepted issue is not even returned. The list of production issues is capped (30 by default, `--limit`), so as not to print 317 lines. TASK-QLT-002 tries the transition on one issue before running it on the others.
 
-### TASK-QLT-002: Accept the 30 test-code issues in SonarCloud
+### TASK-QLT-002: Accept the 110 test-code issues in SonarCloud
 - **Tier**: S
 - **Status**: Not Started
-- **Description**: Run `sonar_triage.py --apply` on the BLOCKER and CRITICAL issues, after the owner has seen the dry run's count, so the 30 test-code issues are `ACCEPTED` with the comment of DEC-QLT-001. This changes SonarCloud's state, so it runs only on the owner's go for this call.
+- **Description**: Run `sonar_triage.py --apply` on the BLOCKER and CRITICAL issues, after the owner has seen the dry run's count, so the 110 test-code issues are `ACCEPTED` with the comment of DEC-QLT-001. This changes SonarCloud's state, so it runs only on the owner's go for this call.
 - **Requirement refs**: RQ-QLT-002, RQ-QLT-008
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-001)
-- **Acceptance Criteria** (Gherkin): *Given* the dry run of TASK-QLT-001 showing 30, *When* the owner agrees and the script runs with `--apply`, *Then* the listing of `ACCEPTED` issues of severity BLOCKER and CRITICAL holds the 30, each with the comment naming RQ-QLT-002. *Given* the script run a second time, *Then* it sends nothing.
+- **Acceptance Criteria** (Gherkin): *Given* the dry run of TASK-QLT-001 showing 110, *When* the owner agrees and the script runs with `--apply`, *Then* the listing of `ACCEPTED` issues of severity BLOCKER and CRITICAL holds the 110, each with the comment naming RQ-QLT-002. *Given* the script run a second time, *Then* it sends nothing.
 - **Dependencies**: TASK-QLT-001
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
@@ -57,10 +63,10 @@ This plan implements the tasks in the format specified below.
 - **Verification**: N/A (Tier S)
 - **Assumptions**: `MockMidiBackend.cpp` is production code (it is a source of the `xs56k_midi` library): it is fixed, not accepted.
 
-### TASK-QLT-004: A useless `&*` (`cpp:S3491`, BLOCKER)
+### TASK-QLT-004: Two useless `&*` (`cpp:S3491`, BLOCKER)
 - **Tier**: S
 - **Status**: Not Started
-- **Description**: In `ItemCatalogue.cpp`, `findItem` returns `std::to_address(found)` in place of `&*found`; `findReplyItem` has the same expression and gets the same change if the analyser reports it. At most two lines.
+- **Description**: In `ItemCatalogue.cpp`, `findItem` and `findReplyItem` return `std::to_address(found)` in place of `&*found` (SonarCloud flags both, lines 31 and 39). Two lines.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
 - **Acceptance Criteria** (Gherkin): *Given* the change, *When* the project builds on MSVC with the tests on, *Then* it builds warning-clean and the item lookups of `xs56k_akm_tests` pass. *Given* `sonar analyze --file juce/akm/src/ItemCatalogue.cpp`, *Then* `cpp:S3491` is not reported.
