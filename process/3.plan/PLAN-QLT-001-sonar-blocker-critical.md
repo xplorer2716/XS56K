@@ -124,15 +124,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-009: Cognitive complexity of `generate_akm_items.py` (`python:S3776` x2)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `validate` (complexity 46 at the analysis) and `coverage` (22) are cut into named steps, each under the 15 the rule allows. The data file, the generated header and the output of `--check` and `--coverage` do not change. Located by function: the file changed after the analysis.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
 - **Acceptance Criteria** (Gherkin): *Given* the script changed, *When* `python juce/tools/generate_akm_items.py --check` and `--coverage` run, *Then* they report what they reported before, and `ItemTable.generated.hpp` is unchanged (`git diff` empty). *Given* `test_generate_akm_items.py`, *When* it runs, *Then* it passes unmodified. *Given* `sonar analyze --file juce/tools/generate_akm_items.py`, *Then* `python:S3776` is not reported.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: Only `juce/tools/generate_akm_items.py` changed (139 insertions, 89 deletions); `git status juce/akm`: the generated header and the data file are untouched. Output of `--coverage` (645 lines, stderr empty) and of `--check`, before and after: byte-identical (`cmp`), both exit 0. `unittest discover -p test_generate_akm_items.py`: 23 tests OK, unmodified. Differential check of the old module (from `git show HEAD:`) against the new on 2000 corrupted catalogues (deleted keys, wrong types, duplicated items, dropped sections, wrong schema; 1812 with problems, 153 compared on `coverage` as well): 0 differences in the lists of problems and in the reports. Cognitive complexity measured with the `cognitive_complexity` package (it gave 55 and 26 for the two functions Sonar rates 54 and 26): `validate` 55 -> 11 (`validate_sections`) and below, `coverage` 26 -> under 15; no function above 15 (25 functions, the highest are `main` and `validate_values` at 15, which were already there and not flagged). Not verified: that SonarCloud no longer reports `python:S3776` there (the analyser cannot report rules on this connection); the `ctest` entries `akm_item_table_is_up_to_date` and `akm_item_catalogue_matches_the_spec` were not run through ctest, their commands were run directly.
+- **Assumptions**: `validate` and `coverage` keep their signatures and their output; the helpers are module-level functions of the script, not public API. `by_position` became a set in `section_coverage`, as only membership is used. Checked by the tests and a differential run, not by Sonar.
 
 ### TASK-QLT-010: Cognitive complexity of `build_sysex_index.py` (`python:S3776` x2)
 - **Tier**: M
