@@ -232,7 +232,7 @@ namespace mcp
         const auto deadline = akm::DEFAULT_DISCOVERY_WINDOW + _config.commandTimeout * OPENING_COMMAND_BUDGET + WAIT_MARGIN;
         const auto opened = await<akm::OpenResult>(
             std::chrono::duration_cast<std::chrono::milliseconds>(deadline),
-            [&](std::function<void(const akm::OpenResult&)> done) { connection->session.open(sessionConfig, std::move(done)); });
+            [&connection, &sessionConfig](std::function<void(const akm::OpenResult&)> done) { connection->session.open(sessionConfig, std::move(done)); });
 
         std::optional<std::string> problem;
         if (!opened)
@@ -256,7 +256,7 @@ namespace mcp
         if (!_connection)
             return std::nullopt;
         const auto deadline = _config.commandTimeout * CLOSING_COMMAND_BUDGET + WAIT_MARGIN;
-        const auto closed = await<akm::CloseResult>(deadline, [&](std::function<void(const akm::CloseResult&)> done) {
+        const auto closed = await<akm::CloseResult>(deadline, [this](std::function<void(const akm::CloseResult&)> done) {
             const auto refusedCompletion = done;
             // A close that is refused (already closing) calls nothing: the wait must not run to its deadline.
             if (!_connection->session.close(std::move(done)))
@@ -285,7 +285,7 @@ namespace mcp
             return Outcome<Replies>::failure(*problem);
 
         const int count = static_cast<int>(requests.size());
-        const auto result = await<akm::SequenceResult>(waitFor(count), [&](std::function<void(const akm::SequenceResult&)> done) {
+        const auto result = await<akm::SequenceResult>(waitFor(count), [this, &requests](std::function<void(const akm::SequenceResult&)> done) {
             _connection->session.submitSequence(std::move(requests), std::move(done));
         });
         if (!result)
@@ -323,7 +323,7 @@ namespace mcp
 
     Outcome<std::string> SamplerGateway::currentProgramName()
     {
-        const auto name = await<akm::ProgramNameResult>(waitFor(1), [&](std::function<void(const akm::ProgramNameResult&)> done) {
+        const auto name = await<akm::ProgramNameResult>(waitFor(1), [this](std::function<void(const akm::ProgramNameResult&)> done) {
             akm::getCurrentProgramName(_connection->session, std::move(done));
         });
         if (!name)
@@ -335,7 +335,7 @@ namespace mcp
 
     Outcome<ProgramInfo> SamplerGateway::currentProgramInfo()
     {
-        const auto name = await<akm::ProgramNameResult>(waitFor(1), [&](std::function<void(const akm::ProgramNameResult&)> done) {
+        const auto name = await<akm::ProgramNameResult>(waitFor(1), [this](std::function<void(const akm::ProgramNameResult&)> done) {
             akm::getCurrentProgramName(_connection->session, std::move(done));
         });
         if (!name)
@@ -353,7 +353,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<SamplerStatus>::failure(*problem);
 
-        const auto count = await<akm::ProgramCountResult>(waitFor(1), [&](std::function<void(const akm::ProgramCountResult&)> done) {
+        const auto count = await<akm::ProgramCountResult>(waitFor(1), [this](std::function<void(const akm::ProgramCountResult&)> done) {
             akm::getProgramCount(_connection->session, std::move(done));
         });
         if (!count)
@@ -367,7 +367,7 @@ namespace mcp
         if (status.programCount == 0)
             return Outcome<SamplerStatus>::success(std::move(status));
 
-        const auto name = await<akm::ProgramNameResult>(waitFor(1), [&](std::function<void(const akm::ProgramNameResult&)> done) {
+        const auto name = await<akm::ProgramNameResult>(waitFor(1), [this](std::function<void(const akm::ProgramNameResult&)> done) {
             akm::getCurrentProgramName(_connection->session, std::move(done));
         });
         if (!name)
@@ -393,7 +393,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<Entries>::failure(*problem);
 
-        const auto names = await<akm::AllProgramNamesResult>(waitFor(1), [&](std::function<void(const akm::AllProgramNamesResult&)> done) {
+        const auto names = await<akm::AllProgramNamesResult>(waitFor(1), [this](std::function<void(const akm::AllProgramNamesResult&)> done) {
             akm::getAllProgramNames(_connection->session, std::move(done));
         });
         if (!names)
@@ -412,7 +412,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<ProgramInfo>::failure(*problem);
 
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::selectProgramByName(_connection->session, name, std::move(done));
         });
         if (!selected)
@@ -431,7 +431,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<ProgramInfo>::failure(*problem);
 
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &index](std::function<void(const akm::CommandResult&)> done) {
             akm::selectProgramByIndex(_connection->session, index, std::move(done));
         });
         if (!selected)
@@ -450,7 +450,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<ProgramInfo>::failure(*problem);
 
-        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto created = await<akm::CommandResult>(waitFor(1), [this, &keygroups, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::createProgramWithKeygroups(_connection->session, keygroups, name, std::move(done));
         });
         if (!created)
@@ -469,7 +469,7 @@ namespace mcp
         if (!before.ok())
             return Outcome<ProgramRename>::failure(before.problem);
 
-        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::renameCurrentProgram(_connection->session, name, std::move(done));
         });
         if (!renamed)
@@ -494,7 +494,7 @@ namespace mcp
         if (*current.value != confirm)
             return Outcome<ProgramDeletion>::success(ProgramDeletion{false, *current.value, std::nullopt});
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteCurrentProgram(_connection->session, std::move(done));
         });
         if (!deleted)
@@ -503,7 +503,7 @@ namespace mcp
             return Outcome<ProgramDeletion>::failure(explain(*deleted, "deleting the program \"" + *current.value + "\"", _config, true));
 
         ProgramDeletion deletion{true, *current.value, std::nullopt};
-        const auto count = await<akm::ProgramCountResult>(waitFor(1), [&](std::function<void(const akm::ProgramCountResult&)> done) {
+        const auto count = await<akm::ProgramCountResult>(waitFor(1), [this](std::function<void(const akm::ProgramCountResult&)> done) {
             akm::getProgramCount(_connection->session, std::move(done));
         });
         if (count && count->count)
@@ -560,7 +560,7 @@ namespace mcp
         if (!listing.value->current)
             return Outcome<std::string>::failure("No sample is current: use select_sample first.");
         const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
-        const auto started = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto started = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::startSampleAudition(_connection->session, std::move(done));
         });
         if (!started)
@@ -574,7 +574,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<bool>::failure(*problem);
-        const auto stopped = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto stopped = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::stopSampleAudition(_connection->session, std::move(done));
         });
         if (!stopped)
@@ -590,7 +590,7 @@ namespace mcp
             return Outcome<SystemInfo>::failure(*problem);
         SystemInfo info;
 
-        const auto model = await<akm::SamplerModelResult>(waitFor(1), [&](std::function<void(const akm::SamplerModelResult&)> done) {
+        const auto model = await<akm::SamplerModelResult>(waitFor(1), [this](std::function<void(const akm::SamplerModelResult&)> done) {
             akm::getSamplerModel(_connection->session, std::move(done));
         });
         if (!model)
@@ -600,7 +600,7 @@ namespace mcp
         else if (!akm::succeeded(model->outcome))
             return Outcome<SystemInfo>::failure(explain(model->outcome, "reading the sampler's model", _config, false));
 
-        const auto version = await<akm::OsVersionResult>(waitFor(2), [&](std::function<void(const akm::OsVersionResult&)> done) {
+        const auto version = await<akm::OsVersionResult>(waitFor(2), [this](std::function<void(const akm::OsVersionResult&)> done) {
             akm::queryOsVersion(_connection->session, std::move(done));
         });
         if (!version)
@@ -608,8 +608,8 @@ namespace mcp
         if (version->version)
             info.osVersion = numberText(version->version->major) + "." + numberText(version->version->minor);
 
-        const auto percentOf = [&](void (*get)(akm::Session&, akm::MemoryPercentCompletion), const char* what) -> Outcome<int> {
-            const auto read = await<akm::MemoryPercentResult>(waitFor(1), [&](std::function<void(const akm::MemoryPercentResult&)> done) {
+        const auto percentOf = [this](void (*get)(akm::Session&, akm::MemoryPercentCompletion), const char* what) -> Outcome<int> {
+            const auto read = await<akm::MemoryPercentResult>(waitFor(1), [this, &get](std::function<void(const akm::MemoryPercentResult&)> done) {
                 get(_connection->session, std::move(done));
             });
             if (!read)
@@ -618,8 +618,8 @@ namespace mcp
                 return Outcome<int>::failure(explain(read->outcome, what, _config, false));
             return Outcome<int>::success(*read->percent);
         };
-        const auto bytesOf = [&](void (*get)(akm::Session&, akm::MemoryBytesCompletion), const char* what) -> Outcome<std::uint32_t> {
-            const auto read = await<akm::MemoryBytesResult>(waitFor(1), [&](std::function<void(const akm::MemoryBytesResult&)> done) {
+        const auto bytesOf = [this](void (*get)(akm::Session&, akm::MemoryBytesCompletion), const char* what) -> Outcome<std::uint32_t> {
+            const auto read = await<akm::MemoryBytesResult>(waitFor(1), [this, &get](std::function<void(const akm::MemoryBytesResult&)> done) {
                 get(_connection->session, std::move(done));
             });
             if (!read)
@@ -688,7 +688,7 @@ namespace mcp
 
     Outcome<std::string> SamplerGateway::readSamplerName()
     {
-        const auto read = await<akm::SamplerNameResult>(waitFor(1), [&](std::function<void(const akm::SamplerNameResult&)> done) {
+        const auto read = await<akm::SamplerNameResult>(waitFor(1), [this](std::function<void(const akm::SamplerNameResult&)> done) {
             akm::getSamplerName(_connection->session, std::move(done));
         });
         if (!read)
@@ -700,7 +700,7 @@ namespace mcp
 
     Outcome<SamplerClock> SamplerGateway::readSamplerClock()
     {
-        const auto read = await<akm::ClockDateResult>(waitFor(1), [&](std::function<void(const akm::ClockDateResult&)> done) {
+        const auto read = await<akm::ClockDateResult>(waitFor(1), [this](std::function<void(const akm::ClockDateResult&)> done) {
             akm::getClockDate(_connection->session, std::move(done));
         });
         if (!read)
@@ -714,7 +714,7 @@ namespace mcp
 
     Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode(std::optional<std::uint16_t>* samplerError)
     {
-        const auto read = await<akm::PlayModeResult>(waitFor(1), [&](std::function<void(const akm::PlayModeResult&)> done) {
+        const auto read = await<akm::PlayModeResult>(waitFor(1), [this](std::function<void(const akm::PlayModeResult&)> done) {
             akm::getPlayMode(_connection->session, std::move(done));
         });
         if (!read)
@@ -730,7 +730,7 @@ namespace mcp
 
     Outcome<SamplerPanel> SamplerGateway::readSamplerPanel()
     {
-        const auto read = await<akm::FrontPanelLockResult>(waitFor(1), [&](std::function<void(const akm::FrontPanelLockResult&)> done) {
+        const auto read = await<akm::FrontPanelLockResult>(waitFor(1), [this](std::function<void(const akm::FrontPanelLockResult&)> done) {
             akm::getFrontPanelLock(_connection->session, std::move(done));
         });
         if (!read)
@@ -773,7 +773,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<std::string>::failure(*problem);
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::setSamplerName(_connection->session, name, std::move(done));
         });
         if (!set)
@@ -788,7 +788,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<SamplerClock>::failure(*problem);
         const akm::ClockDate wanted{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds};
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &wanted](std::function<void(const akm::CommandResult&)> done) {
             akm::setClockDate(_connection->session, wanted, std::move(done));
         });
         if (!set)
@@ -802,7 +802,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<SamplerPlayMode>::failure(*problem);
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &mode](std::function<void(const akm::CommandResult&)> done) {
             akm::setPlayMode(_connection->session, playModeOf(mode), std::move(done));
         });
         if (!set)
@@ -816,7 +816,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<SamplerPanel>::failure(*problem);
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &panel](std::function<void(const akm::CommandResult&)> done) {
             akm::setFrontPanelLock(_connection->session, panel == SamplerPanel::Locked ? akm::FrontPanelLock::Locked : akm::FrontPanelLock::Normal,
                                    std::move(done));
         });
@@ -833,7 +833,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<bool>::failure(*problem);
         const char* what = "setting the MIDI setup";
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &which, &value](std::function<void(const akm::CommandResult&)> done) {
             akm::Session& session = _connection->session;
             switch (which)
             {
@@ -865,7 +865,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<bool>::failure(*problem);
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &event, &allow, &channel](std::function<void(const akm::CommandResult&)> done) {
             const auto type = static_cast<akm::MidiFilterEvent>(event);
             if (allow)
                 akm::allowMidiEvents(_connection->session, type, channel, std::move(done));
@@ -903,7 +903,7 @@ namespace mcp
                 return Outcome<ZoneSamples>::failure(selected.problem);
             for (int zone = 1; zone <= ZONES_PER_KEYGROUP; ++zone)
             {
-                const auto read = await<akm::ZoneSampleResult>(waitFor(1), [&](std::function<void(const akm::ZoneSampleResult&)> done) {
+                const auto read = await<akm::ZoneSampleResult>(waitFor(1), [this, &zone](std::function<void(const akm::ZoneSampleResult&)> done) {
                     akm::getZoneSample(_connection->session, zone, std::move(done));
                 });
                 if (!read)
@@ -955,7 +955,7 @@ namespace mcp
         const auto selected = runSequence({selectKeygroupRequest(keygroup)}, {"selecting keygroup " + numberText(keygroup)}, true);
         if (!selected.ok())
             return Outcome<ZoneSamples>::failure(selected.problem);
-        const auto assigned = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto assigned = await<akm::CommandResult>(waitFor(1), [this, &zone, &listed](std::function<void(const akm::CommandResult&)> done) {
             akm::setZoneSample(_connection->session, zone, listed, std::move(done));
         });
         if (!assigned)
@@ -964,7 +964,7 @@ namespace mcp
             return Outcome<ZoneSamples>::failure(explain(*assigned, "assigning the sample \"" + listed + "\" to zone " + numberText(zone) +
                                                                         " of keygroup " + numberText(keygroup),
                                                          _config, true));
-        const auto read = await<akm::ZoneSampleResult>(waitFor(1), [&](std::function<void(const akm::ZoneSampleResult&)> done) {
+        const auto read = await<akm::ZoneSampleResult>(waitFor(1), [this, &zone](std::function<void(const akm::ZoneSampleResult&)> done) {
             akm::getZoneSample(_connection->session, zone, std::move(done));
         });
         if (!read)
@@ -995,7 +995,7 @@ namespace mcp
         if (!program.ok())
             return Outcome<KeygroupChange>::failure(program.problem);
 
-        const auto added = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto added = await<akm::CommandResult>(waitFor(1), [this, &count](std::function<void(const akm::CommandResult&)> done) {
             akm::addKeygroupsToProgram(_connection->session, count, std::move(done));
         });
         if (!added)
@@ -1026,7 +1026,7 @@ namespace mcp
         if (*program.value != confirm)
             return Outcome<KeygroupChange>::success(KeygroupChange{false, *program.value, *count.value});
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [this, &keygroup](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteKeygroupFromProgram(_connection->session, keygroup - 1, std::move(done));
         });
         if (!deleted)
@@ -1157,14 +1157,14 @@ namespace mcp
 
     Outcome<SampleEntry> SamplerGateway::currentSampleEntry()
     {
-        const auto index = await<akm::SampleIndexResult>(waitFor(1), [&](std::function<void(const akm::SampleIndexResult&)> done) {
+        const auto index = await<akm::SampleIndexResult>(waitFor(1), [this](std::function<void(const akm::SampleIndexResult&)> done) {
             akm::getCurrentSampleIndex(_connection->session, std::move(done));
         });
         if (!index)
             return Outcome<SampleEntry>::failure("The sampler session did not complete the command in time.");
         if (!index->index)
             return Outcome<SampleEntry>::failure(explain(index->outcome, "reading the position of the current sample", _config, true, "sample"));
-        const auto name = await<akm::SampleNameResult>(waitFor(1), [&](std::function<void(const akm::SampleNameResult&)> done) {
+        const auto name = await<akm::SampleNameResult>(waitFor(1), [this](std::function<void(const akm::SampleNameResult&)> done) {
             akm::getCurrentSampleName(_connection->session, std::move(done));
         });
         if (!name)
@@ -1181,7 +1181,7 @@ namespace mcp
 
         // The count first: with no sample in memory the Get of all the names answers ERROR 3 (seen on a real S5000, not an empty
         // list), so it is only asked when there is one to name. [OBSERVATIONS-RQ-MCP-012-real-sampler.md]
-        const auto count = await<akm::SampleCountResult>(waitFor(1), [&](std::function<void(const akm::SampleCountResult&)> done) {
+        const auto count = await<akm::SampleCountResult>(waitFor(1), [this](std::function<void(const akm::SampleCountResult&)> done) {
             akm::getSampleCount(_connection->session, std::move(done));
         });
         if (!count)
@@ -1192,7 +1192,7 @@ namespace mcp
         if (*count->count == 0)
             return Outcome<SampleListing>::success(std::move(listing));
 
-        const auto names = await<akm::AllSampleNamesResult>(waitFor(1), [&](std::function<void(const akm::AllSampleNamesResult&)> done) {
+        const auto names = await<akm::AllSampleNamesResult>(waitFor(1), [this](std::function<void(const akm::AllSampleNamesResult&)> done) {
             akm::getAllSampleNames(_connection->session, std::move(done));
         });
         if (!names)
@@ -1204,7 +1204,7 @@ namespace mcp
         if (listing.samples.empty())
             return Outcome<SampleListing>::success(std::move(listing));
 
-        const auto index = await<akm::SampleIndexResult>(waitFor(1), [&](std::function<void(const akm::SampleIndexResult&)> done) {
+        const auto index = await<akm::SampleIndexResult>(waitFor(1), [this](std::function<void(const akm::SampleIndexResult&)> done) {
             akm::getCurrentSampleIndex(_connection->session, std::move(done));
         });
         if (!index)
@@ -1237,7 +1237,7 @@ namespace mcp
                                                       "\": nothing was renamed. Choose another name.");
         }
 
-        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::renameCurrentSample(_connection->session, name, std::move(done));
         });
         if (!renamed)
@@ -1264,7 +1264,7 @@ namespace mcp
         if (name != confirm)
             return Outcome<DeletedItem>::success(DeletedItem{false, name, static_cast<int>(listing.value->samples.size())});
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteCurrentSample(_connection->session, std::move(done));
         });
         if (!deleted)
@@ -1283,7 +1283,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<SampleEntry>::failure(*problem);
 
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::selectSampleByName(_connection->session, name, std::move(done));
         });
         if (!selected)
@@ -1301,7 +1301,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<SampleEntry>::failure(*problem);
 
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &index](std::function<void(const akm::CommandResult&)> done) {
             akm::selectSampleByIndex(_connection->session, index, std::move(done));
         });
         if (!selected)
@@ -1351,21 +1351,21 @@ namespace mcp
         // The tools that act on the current multi may be the first call of a session. [RQ-MCP-037, RQ-MCP-038]
         if (const auto problem = connect())
             return Outcome<MultiEntry>::failure(*problem);
-        const auto index = await<akm::MultiIndexResult>(waitFor(1), [&](std::function<void(const akm::MultiIndexResult&)> done) {
+        const auto index = await<akm::MultiIndexResult>(waitFor(1), [this](std::function<void(const akm::MultiIndexResult&)> done) {
             akm::getCurrentMultiIndex(_connection->session, std::move(done));
         });
         if (!index)
             return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
         if (!index->index)
             return Outcome<MultiEntry>::failure(explain(index->outcome, "reading the position of the current multi", _config, true, "multi"));
-        const auto name = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+        const auto name = await<akm::MultiNameResult>(waitFor(1), [this](std::function<void(const akm::MultiNameResult&)> done) {
             akm::getCurrentMultiName(_connection->session, std::move(done));
         });
         if (!name)
             return Outcome<MultiEntry>::failure("The sampler session did not complete the command in time.");
         if (!name->name)
             return Outcome<MultiEntry>::failure(explain(name->outcome, "reading the name of the current multi", _config, true, "multi"));
-        const auto parts = await<akm::MultiPartCountResult>(waitFor(1), [&](std::function<void(const akm::MultiPartCountResult&)> done) {
+        const auto parts = await<akm::MultiPartCountResult>(waitFor(1), [this](std::function<void(const akm::MultiPartCountResult&)> done) {
             akm::getCurrentMultiPartCount(_connection->session, std::move(done));
         });
         if (!parts)
@@ -1381,7 +1381,7 @@ namespace mcp
             return Outcome<MultiListing>::failure(*problem);
 
         // The count first, as for the samples: an empty memory is then "no multi", whatever the Get of the names answers.
-        const auto count = await<akm::MultiCountResult>(waitFor(1), [&](std::function<void(const akm::MultiCountResult&)> done) {
+        const auto count = await<akm::MultiCountResult>(waitFor(1), [this](std::function<void(const akm::MultiCountResult&)> done) {
             akm::getMultiCount(_connection->session, std::move(done));
         });
         if (!count)
@@ -1392,7 +1392,7 @@ namespace mcp
         if (*count->count == 0)
             return Outcome<MultiListing>::success(std::move(listing));
 
-        const auto names = await<akm::MultiNameListResult>(waitFor(1), [&](std::function<void(const akm::MultiNameListResult&)> done) {
+        const auto names = await<akm::MultiNameListResult>(waitFor(1), [this](std::function<void(const akm::MultiNameListResult&)> done) {
             akm::getAllMultiNames(_connection->session, std::move(done));
         });
         if (!names)
@@ -1425,7 +1425,7 @@ namespace mcp
                 return Outcome<MultiCreation>::failure("The sampler already holds a multi named \"" + multi.name + "\": nothing was created. Choose another name.");
         }
 
-        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto created = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::createMulti(_connection->session, name, std::move(done));
         });
         if (!created)
@@ -1457,7 +1457,7 @@ namespace mcp
                 return Outcome<RenamedItem>::failure("The sampler already holds a multi named \"" + multi.name + "\": nothing was renamed. Choose another name.");
         }
 
-        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::renameCurrentMulti(_connection->session, name, std::move(done));
         });
         if (!renamed)
@@ -1479,7 +1479,7 @@ namespace mcp
         if (current.value->name != confirm)
             return Outcome<DeletedItem>::success(DeletedItem{false, current.value->name, 0});
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteCurrentMulti(_connection->session, std::move(done));
         });
         if (!deleted)
@@ -1523,7 +1523,7 @@ namespace mcp
         if (*before.value == 0 || *before.value != confirm)
             return Outcome<BulkDeletion>::success(BulkDeletion{false, *before.value});
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [this, &kind](std::function<void(const akm::CommandResult&)> done) {
             switch (kind)
             {
                 case BulkKind::Program:
@@ -1585,7 +1585,7 @@ namespace mcp
 
         // The sampler's time to answer has never been observed (no run is allowed to send this), and the AKM primitive takes no timeout of its own:
         // the session's command timeout applies.
-        const auto cleared = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto cleared = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::clearSamplerMemory(_connection->session, akm::ConfirmClearSamplerMemory::IUnderstandThisDeletesEveryProgramMultiAndSampleInMemory,
                                     std::move(done));
         });
@@ -1613,7 +1613,7 @@ namespace mcp
         const auto current = currentMultiEntry();
         if (!current.ok())
             return Outcome<PartPrograms>::failure(current.problem);
-        const auto names = await<akm::MultiNameListResult>(waitFor(1), [&](std::function<void(const akm::MultiNameListResult&)> done) {
+        const auto names = await<akm::MultiNameListResult>(waitFor(1), [this](std::function<void(const akm::MultiNameListResult&)> done) {
             akm::getAllMultiPartNames(_connection->session, std::move(done));
         });
         if (!names)
@@ -1682,7 +1682,7 @@ namespace mcp
         }
 
         const int wirePart = part - 1;
-        const auto assigned = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto assigned = await<akm::CommandResult>(waitFor(1), [this, &program, &wirePart, &listed, &position](std::function<void(const akm::CommandResult&)> done) {
             if (program.name)
                 akm::setMultiPartByName(_connection->session, wirePart, listed, std::move(done));
             else
@@ -1693,7 +1693,7 @@ namespace mcp
         if (!akm::succeeded(*assigned))
             return Outcome<PartAssignment>::failure(explain(*assigned, "assigning the program \"" + listed + "\" to part " + numberText(part), _config, true, "multi"));
 
-        const auto read = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+        const auto read = await<akm::MultiNameResult>(waitFor(1), [this, &wirePart](std::function<void(const akm::MultiNameResult&)> done) {
             akm::getMultiPartName(_connection->session, wirePart, std::move(done));
         });
         if (!read)
@@ -1717,7 +1717,7 @@ namespace mcp
             return Outcome<PartClearing>::success(PartClearing{false, current.value->name, part, ""});
 
         const int wirePart = part - 1;
-        const auto before = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+        const auto before = await<akm::MultiNameResult>(waitFor(1), [this, &wirePart](std::function<void(const akm::MultiNameResult&)> done) {
             akm::getMultiPartName(_connection->session, wirePart, std::move(done));
         });
         if (!before)
@@ -1728,7 +1728,7 @@ namespace mcp
             return Outcome<PartClearing>::failure("Part " + numberText(part) + " of the multi \"" + current.value->name +
                                                   "\" plays no program: nothing to clear.");
 
-        const auto cleared = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto cleared = await<akm::CommandResult>(waitFor(1), [this, &wirePart](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteMultiPart(_connection->session, wirePart, std::move(done));
         });
         if (!cleared)
@@ -1736,7 +1736,7 @@ namespace mcp
         if (!akm::succeeded(*cleared))
             return Outcome<PartClearing>::failure(explain(*cleared, "clearing part " + numberText(part), _config, true, "multi"));
 
-        const auto after = await<akm::MultiNameResult>(waitFor(1), [&](std::function<void(const akm::MultiNameResult&)> done) {
+        const auto after = await<akm::MultiNameResult>(waitFor(1), [this, &wirePart](std::function<void(const akm::MultiNameResult&)> done) {
             akm::getMultiPartName(_connection->session, wirePart, std::move(done));
         });
         if (!after)
@@ -1755,7 +1755,7 @@ namespace mcp
         if (!current.ok())
             return Outcome<MultiProgramNumber>::failure(current.problem);
 
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &number](std::function<void(const akm::CommandResult&)> done) {
             akm::setMultiProgramNumber(_connection->session, number, std::move(done));
         });
         if (!set)
@@ -1763,7 +1763,7 @@ namespace mcp
         if (!akm::succeeded(*set))
             return Outcome<MultiProgramNumber>::failure(explain(*set, "setting the program number of the multi \"" + current.value->name + "\"", _config, true, "multi"));
 
-        const auto read = await<akm::MultiProgramNumberResult>(waitFor(1), [&](std::function<void(const akm::MultiProgramNumberResult&)> done) {
+        const auto read = await<akm::MultiProgramNumberResult>(waitFor(1), [this](std::function<void(const akm::MultiProgramNumberResult&)> done) {
             akm::getMultiProgramNumber(_connection->session, std::move(done));
         });
         if (!read)
@@ -1782,7 +1782,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<MultiEntry>::failure(*problem);
 
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::selectMultiByName(_connection->session, name, std::move(done));
         });
         if (!selected)
@@ -1800,7 +1800,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<MultiEntry>::failure(*problem);
 
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &index](std::function<void(const akm::CommandResult&)> done) {
             akm::selectMultiByIndex(_connection->session, index, std::move(done));
         });
         if (!selected)
@@ -1820,7 +1820,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<Values>::failure(*problem);
 
-        const auto count = await<akm::MultiPartCountResult>(waitFor(1), [&](std::function<void(const akm::MultiPartCountResult&)> done) {
+        const auto count = await<akm::MultiPartCountResult>(waitFor(1), [this](std::function<void(const akm::MultiPartCountResult&)> done) {
             akm::getCurrentMultiPartCount(_connection->session, std::move(done));
         });
         if (!count)

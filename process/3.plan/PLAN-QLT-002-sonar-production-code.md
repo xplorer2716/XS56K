@@ -44,15 +44,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-012: Lambda captures in `SamplerGateway.cpp` (`cpp:S3608` x65, `cpp:S5019` x64)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Every lambda of `juce/mcp/src/SamplerGateway.cpp` that captures with a default (`[&]`, `[=]`) gets the explicit list of what its body uses, by reference unless it outlives the scope, with `this` named when a member is used (DEC-QLT-006). The compiler finds the list: a missing name is a build error. No lambda changes what it does.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-006)
 - **Acceptance Criteria** (Gherkin): *Given* the file changed, *When* the project builds with the tests on, *Then* it builds warning-clean on MSVC (locally) and on GCC and Apple Clang (CI) and `ctest` passes, including the scripted conversations of the simulated server and `xs56k_mcp_tests`. *Given* `git diff`, *Then* it shows only capture lists. *Given* `sonar analyze --file juce/mcp/src/SamplerGateway.cpp`, *Then* neither `cpp:S3608` nor `cpp:S5019` is reported.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: Only `juce/mcp/src/SamplerGateway.cpp` changed (67 insertions, 67 deletions); with every bracketed list normalised, the removed and the added lines are identical (`only_captures.py`), so nothing but capture lists changed. Method: every default capture (67 lambdas, all `[&]`, SonarCloud flagging 65 lines) was set to `[]` and `clang-tidy`'s Clang front end (VS 18 LLVM, `-std=c++20 -Wall -Wextra -Wpedantic`) said, error by error, what each lambda needs; round 1 added 108 captures, round 2 gave 0 diagnostics. Each list is what the compiler asked for, so it is what `[&]` captured (by reference; `this` for 66 lambdas that use a member), and minimal: Clang's `-Wunused-lambda-capture` was shown to report an unneeded capture on a probe and reports nothing on the file (0 warnings, 0 errors with `clang-diagnostic-*` on). No default capture is left in the file. `cmake --build juce/build --config Debug --parallel`: warning-clean under `/WX` (MSVC); `ctest -C Debug -j 8`: 1135/1135 passed, with the scripted conversations of the simulated server and `CheckNoDestructiveCalls`, `CheckReadmeCoversTools`, `sysex_coverage_*`. Not verified: that SonarCloud no longer reports `cpp:S3608` and `cpp:S5019` (the analyser cannot report rules on this connection); GCC and Apple Clang (CI), though Clang accepts the file.
+- **Assumptions**: By-reference captures keep the semantics of `[&]` exactly: the same variables are captured the same way, and none was added. `this` is written out as the pointer `[&]` captured implicitly. The rewrite tool (`explicit_captures.py`) and the Clang runs are outside the repository (scratchpad); the Clang front end was used only as a compiler. Two lambdas more than the flagged lines (67 against 65) had a default capture; they were rewritten as well, as DEC-QLT-006 asks. Checked by two compilers' front ends and the tests, not by Sonar.
 
 ### TASK-QLT-013: Lambda captures in `SamplerGatewayDisk.cpp` (`cpp:S3608` x30, `cpp:S5019` x30)
 - **Tier**: M
