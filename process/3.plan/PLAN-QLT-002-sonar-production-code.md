@@ -17,7 +17,7 @@ the 317 production issues of severity BLOCKER and CRITICAL that SonarCloud lists
 **Handoff from PLAN-QLT-001.** This plan starts when PLAN-QLT-001 is Done, or when the owner reorders it; none of its tasks depends on one of PLAN-QLT-001's, except that TASK-QLT-020 needs the owner's answer to DEC-QLT-009.
 Start the session with the START SESSION steps, read this plan and ADR-QLT-001, and re-read the open issues with the triage tool of TASK-QLT-001 (the lines and the counts will have moved).
 
-**Read before starting each task.** Run `sonar analyze --file <file>` first: if the rule is no longer reported, the task says so and changes nothing. Every task on `juce/akm` or `juce/mcp` runs `ctest` on the whole suite, which includes the
+**Read before starting each task.** `sonar analyze --file` cannot report the rules on this connection (it only looks for secrets), so a fix is checked by the build and the tests (DEC-QLT-005) and a task says "not checked by Sonar"; re-read the open issues with the triage tool first, and change nothing for a rule that is no longer reported. Every task on `juce/akm` or `juce/mcp` runs `ctest` on the whole suite, which includes the
 source checks that read the sources (`CheckNoDestructiveCalls`, `CheckReadmeCoversTools`, `generate_sysex_coverage.py --check`, `SYSEX-COVERAGE.md` unchanged). A task whose change would alter an output, a tool's
 reply or a public name stops and asks the owner (RQ-QLT-003).
 

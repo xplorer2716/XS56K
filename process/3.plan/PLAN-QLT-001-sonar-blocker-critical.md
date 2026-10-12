@@ -11,8 +11,7 @@ S3776 x4 in two Python files). `PLAN-QLT-002` holds the next ten (the `module` n
 and starts only when this one is Done or the owner reorders them.
 
 **Read before starting.** SonarCloud's analysis (2026-10-12) is of `dev` at `937b503`, and `feature/QLT` differs from it only by documents and `.gitignore`, so the lines SonarCloud gives are those of the files;
-they move as soon as a fix is made, so an issue is found again by its rule and its function. Before changing a file, run `sonar analyze --file <file>`: if the rule is no longer reported, the task says so and
-changes nothing. Every `sonar` call goes through `rtk`. Raw issue data is never read whole: the tool prints counts. Every task on `juce/akm` or `juce/mcp` also runs the three source checks
+they move as soon as a fix is made, so an issue is found again by its rule and its function. `sonar analyze --file` cannot report the rules on this connection (it only looks for secrets), so a fix is checked by the build and the tests (DEC-QLT-005) and a task says "not checked by Sonar". Every `sonar` call goes through `rtk`. Raw issue data is never read whole: the tool prints counts. Every task on `juce/akm` or `juce/mcp` also runs the three source checks
 (`CheckNoDestructiveCalls`, `CheckReadmeCoversTools`, `generate_sysex_coverage.py --check`), which `ctest` runs.
 
 **Order.** TASK-QLT-001 then TASK-QLT-002 (the tool, then the acceptance). TASK-QLT-003, 004, 005, 009 and 010 are independent of each other. TASK-QLT-006 then 007 and 008 (the test target, then the
@@ -53,7 +52,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-003: Empty body and copy operations (`cpp:S1186`, `cpp:S3624`)
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: A comment in the empty `NullDiagnosticSink::report` of `DiagnosticSink.hpp`; `MockInputPort` and `MockOutputPort` of `MockMidiBackend.cpp` delete their copy constructor and copy assignment. Three issues, at most five lines.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
@@ -61,11 +60,11 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: None
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
-- **Assumptions**: `MockMidiBackend.cpp` is production code (it is a source of the `xs56k_midi` library): it is fixed, not accepted.
+- **Assumptions**: Checked by the build and the tests, not by Sonar: `sonar analyze --file` cannot report the rules on this connection. `MockMidiBackend.cpp` is production code (it is a source of the `xs56k_midi` library): it is fixed, not accepted.
 
 ### TASK-QLT-004: Two useless `&*` (`cpp:S3491`, BLOCKER)
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `ItemCatalogue.cpp`, `findItem` and `findReplyItem` return `std::to_address(found)` in place of `&*found` (SonarCloud flags both, lines 31 and 39). Two lines.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
@@ -73,19 +72,19 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: None
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
-- **Assumptions**: None
+- **Assumptions**: Checked by the build and the tests, not by Sonar (the analyser cannot report the rules here). `<memory>` is included for `std::to_address`.
 
 ### TASK-QLT-005: The scheduler's wait has a predicate (`cpp:S5404`, BLOCKER bug)
 - **Tier**: M
-- **Status**: Not Started
-- **Description**: In `RealScheduler::run`, the two calls `_wake.wait_until(lock, *next)` and `_wake.wait(lock)` take a predicate that rechecks what the loop reads (`_stopping`, and a deadline earlier than the one waited for), so that a spurious or useless wake-up goes back to waiting and a task scheduled for an earlier time still wakes the worker. The analyser flags the `wait(lock)`; the timed wait is changed with it only if the analyser reports it or the two cannot be told apart.
+- **Status**: Done
+- **Description**: In `RealScheduler::run`, the call `_wake.wait(lock)` (the wait on an empty queue, the one SonarCloud flags) takes a predicate that rechecks what the loop reads: `_stopping`, or a task now queued (`_queue.nextDeadline().has_value()`), so that a wake-up that finds neither goes back to sleep. The timed `wait_until` is not changed: SonarCloud does not flag it and it already returns to the loop, which recomputes the deadline.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
 - **Acceptance Criteria** (Gherkin): *Given* a scheduler with an empty queue and a worker waiting, *When* a task is scheduled, *Then* it runs. *Given* a worker waiting for a deadline a minute away, *When* a task due sooner is scheduled, *Then* it runs at its time and not at the first deadline. *Given* a worker waiting, *When* the scheduler is stopped, *Then* `run` returns and the thread joins. *Given* `SchedulerTests` and `ExecutorTests` run 50 times in a row, *Then* none fails. *Given* `sonar analyze --file juce/akm/src/RealScheduler.cpp`, *Then* `cpp:S5404` is not reported.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure (the tests written first and shown to pass on the unfixed code, then after the change; the 50 runs; the analyser's output).
-- **Assumptions**: None
+- **Verification**: Tests first, in `SchedulerTests.cpp`: idle scheduler then a task scheduled runs; a task due in 50 ms scheduled while the thread waits for one an hour ahead runs at its time and the late one does not; an idle scheduler destroyed returns. `xs56k_akm_tests "[scheduler]"` on the unfixed code: all passed (37 assertions, 22 test cases). After the change: `cmake --build juce/build --config Debug --parallel` clean under `/WX`; `ctest -C Debug -j 8 -E bld_mutate_tool_script_tests`: 1106/1106 passed, including the source checks (`sysex_coverage_table_is_up_to_date`, `sysex_coverage_tools_match_the_simulated_sampler`); `ctest -R "the real scheduler" --repeat until-fail:50`: 13 tests, 50 runs each, all passed. Not verified: that SonarCloud no longer reports `cpp:S5404` (`sonar analyze --file` only looks for secrets on this connection); the mutation tool was not run on the change.
+- **Assumptions**: Only the `wait(lock)` call is changed, the one SonarCloud flags; `wait_until` is left as it is. The three new tests pin behaviour that the unfixed code already had, as the plan expects of a behaviour-preserving change.
 
 ### TASK-QLT-006: The test target `xs56k_framework_tests`, with `Logger` and `AbstractController` pinned
 - **Tier**: M

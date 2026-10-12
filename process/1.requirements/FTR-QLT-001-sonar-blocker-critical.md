@@ -95,10 +95,10 @@ is a file of the `xs56k_midi` library, so it counts as production code (assumpti
 ### RQ-QLT-007: A fix is checked by the analyser
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN a fix is delivered, the project SHALL run `sonar analyze --file` on each file it changed and SHALL report whether the rule of the issue is still reported there; and WHEN SonarCloud has analysed the branch, the project SHALL re-read the open issues with the tool of RQ-QLT-006 before RQ-QLT-001 is closed.
+- **Statement**: WHEN a fix is delivered, the project SHALL check it by the build and the whole test suite and SHALL say that the rule of the issue has not been checked by Sonar, until `sonar analyze --file` can report the rules on the connection (on 2026-10-12 it only looks for secrets); and WHEN SonarCloud has analysed the branch, the project SHALL re-read the open issues with the tool of RQ-QLT-006 before RQ-QLT-001 is closed.
 - **Rationale**: the SonarCloud analysis is of the day the project was recreated and is not known to follow pushes; the local analysis is the only immediate signal.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* a fixed file, *When* `sonar analyze --file <it>` runs, *Then* the rule of the fixed issue is not in its output, or the task says that the analyser could not run. *Given* a SonarCloud analysis dated after the fixes, *When* the tool lists the BLOCKER and CRITICAL issues, *Then* the production count is 0.
+- **Acceptance Criteria** (Gherkin): *Given* a fixed file, *When* the build and `ctest` run, *Then* they pass, and the task says whether `sonar analyze --file <it>` could report the rule (not on 2026-10-12). *Given* a SonarCloud analysis dated after the fixes, *When* the tool lists the BLOCKER and CRITICAL issues, *Then* the production count is 0.
 - **Dependencies**: RQ-QLT-001; ADR-QLT-001 (DEC-QLT-005)
 
 ---

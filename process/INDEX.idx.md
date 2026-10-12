@@ -327,16 +327,16 @@ DEC-MCP-039|87-97||The script is `juce/tools/generate_sysex_coverage.py`; the fi
 DEC-MCP-040|98-110||The declared links between tools and messages are checked against what the simulated sampler receives
 DEC-MCP-041|111-128||The owner's decision of 2026-10-11: the nine messages that no tool sends and nothing covers are not offered
 @process/2.architecture/ADR-QLT-001-sonar-issue-handling.md
-ADR-QLT-001|1-149|Accepted — drafted in session QLT (2026-10-11, counts updated 2026-10-12 after the owner recreated the SonarCloud project) for FTR-QLT-001 (RQ-QLT-001 to RQ-QLT-008), after the owner's|How the SonarCloud BLOCKER and CRITICAL Issues Are Handled
+ADR-QLT-001|1-150|Accepted — drafted in session QLT (2026-10-11, counts updated 2026-10-12 after the owner recreated the SonarCloud project) for FTR-QLT-001 (RQ-QLT-001 to RQ-QLT-008), after the owner's|How the SonarCloud BLOCKER and CRITICAL Issues Are Handled
 DEC-QLT-001|43-50||Test code is accepted by a path rule, not fixed
 DEC-QLT-002|51-70||Production issues are fixed, one rule family per task; an acceptance is the owner's decision
 DEC-QLT-003|71-79||A triage tool, `juce/tools/sonar_triage.py`, over `sonar api`
 DEC-QLT-004|80-84||Untested code gets a characterization test, in a new target `xs56k_framework_tests`
-DEC-QLT-005|85-89||A fix is checked locally by the analyser; SonarCloud's own analysis is the last word and is the owner's to refresh
-DEC-QLT-006|90-95||A lambda gets the capture list of what its body uses, never a catch-all
-DEC-QLT-007|96-99||`module` is renamed where it is a parameter or a variable
-DEC-QLT-008|100-104||A function above the limit is cut into named steps, with its behaviour pinned by the tests that already exist
-DEC-QLT-009|105-109||The path traversal alerts of the generators are the owner's to decide
+DEC-QLT-005|85-90||A fix is checked by the build and the tests; SonarCloud's own analysis is the last word and is the owner's to refresh
+DEC-QLT-006|91-96||A lambda gets the capture list of what its body uses, never a catch-all
+DEC-QLT-007|97-100||`module` is renamed where it is a parameter or a variable
+DEC-QLT-008|101-105||A function above the limit is cut into named steps, with its behaviour pinned by the tests that already exist
+DEC-QLT-009|106-110||The path traversal alerts of the generators are the owner's to decide
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md
 @process/2.architecture/OBSERVATIONS-RQ-AKM-017-session-smoke-test.md
@@ -599,17 +599,17 @@ TASK-MCP-075|129-148|Done|The check against the simulated sampler
 TASK-MCP-076|149-169|Done|Document the messages with no tool: covered by other messages, or a gap
 TASK-MCP-074|170-183|Done|Read the table with the owner
 @process/3.plan/PLAN-QLT-001-sonar-blocker-critical.md
-PLAN-QLT-001|1-148||SonarCloud BLOCKER and CRITICAL Issues
-TASK-QLT-001|30-41|Done|The triage tool `juce/tools/sonar_triage.py`
-TASK-QLT-002|42-53|Done|Accept the 110 test-code issues in SonarCloud
-TASK-QLT-003|54-65|Not Started|Empty body and copy operations (`cpp:S1186`, `cpp:S3624`)
-TASK-QLT-004|66-77|Not Started|Two useless `&*` (`cpp:S3491`, BLOCKER)
-TASK-QLT-005|78-89|Not Started|The scheduler's wait has a predicate (`cpp:S5404`, BLOCKER bug)
-TASK-QLT-006|90-101|Not Started|The test target `xs56k_framework_tests`, with `Logger` and `AbstractController` pinned
-TASK-QLT-007|102-113|Not Started|`Logger`'s state in one object (`cpp:S5421` x4)
-TASK-QLT-008|114-125|Not Started|Nesting in `AbstractController` (`cpp:S134`)
-TASK-QLT-009|126-137|Not Started|Cognitive complexity of `generate_akm_items.py` (`python:S3776` x2)
-TASK-QLT-010|138-148|Not Started|Cognitive complexity of `build_sysex_index.py` (`python:S3776` x2)
+PLAN-QLT-001|1-147||SonarCloud BLOCKER and CRITICAL Issues
+TASK-QLT-001|29-40|Done|The triage tool `juce/tools/sonar_triage.py`
+TASK-QLT-002|41-52|Done|Accept the 110 test-code issues in SonarCloud
+TASK-QLT-003|53-64|Done|Empty body and copy operations (`cpp:S1186`, `cpp:S3624`)
+TASK-QLT-004|65-76|Done|Two useless `&*` (`cpp:S3491`, BLOCKER)
+TASK-QLT-005|77-88|Done|The scheduler's wait has a predicate (`cpp:S5404`, BLOCKER bug)
+TASK-QLT-006|89-100|Not Started|The test target `xs56k_framework_tests`, with `Logger` and `AbstractController` pinned
+TASK-QLT-007|101-112|Not Started|`Logger`'s state in one object (`cpp:S5421` x4)
+TASK-QLT-008|113-124|Not Started|Nesting in `AbstractController` (`cpp:S134`)
+TASK-QLT-009|125-136|Not Started|Cognitive complexity of `generate_akm_items.py` (`python:S3776` x2)
+TASK-QLT-010|137-147|Not Started|Cognitive complexity of `build_sysex_index.py` (`python:S3776` x2)
 @process/3.plan/PLAN-QLT-002-sonar-production-code.md
 PLAN-QLT-002|1-151||SonarCloud BLOCKER and CRITICAL Issues — the Production Code of `juce/mcp` and the Generators
 TASK-QLT-011|33-44|Not Started|The name `module` (`cpp:S1669`, 30 BLOCKER)

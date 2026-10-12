@@ -36,7 +36,7 @@ Five facts shape the decisions:
    (`xs56k_akm_tests`, `xs56k_mcp_tests`, the scripted conversations of the simulated server). AGNOS asks for a test before a Tier M change (RQ-QLT-005).
 4. **Several checks read the sources**: `CheckNoDestructiveCalls.cmake`, `CheckReadmeCoversTools.cmake` and `generate_sysex_coverage.py --check` (which scans the AKM functions and the MCP gateway). A refactoring that moves code
    can break them without changing behaviour, so they are part of every acceptance criterion on `juce/akm` and `juce/mcp`.
-5. **`sonar analyze --file`** exists in the CLI (v1.9.0) and gives an immediate answer for one file, with no push.
+5. **`sonar analyze --file` does not check the rules on this connection.** The CLI (v1.9.0) has it, but against SonarCloud it only looks for secrets and says "Vortex analysis is not available on this connection" (tried on 2026-10-12 on `RealScheduler.cpp`). The only analysis of the rules is SonarCloud's own.
 
 ## Decision
 
@@ -82,9 +82,10 @@ keeps the raw reply in a file outside the repository (a path given by `--cache`,
 Gherkin-named tests that pin what `Logger` and `AbstractController` do today, written before DEC-QLT-002's fixes of them and passing before and after.
 `documents/_index` is not given a unit test: it needs `pymupdf` and a 42-page PDF; the byte-identical regeneration of `sysex_spec.items.tsv` and `sysex_spec.clean.txt` is its test (RQ-QLT-005).
 
-### DEC-QLT-005: A fix is checked locally by the analyser; SonarCloud's own analysis is the last word and is the owner's to refresh
-Each fix task runs `sonar analyze --file <file>` on the files it changed and reports the rule's presence. This does not replace SonarCloud: the project's analysis is of `dev` at `937b503`
-and the fixes live on `feature/QLT`. RQ-QLT-001 is closed only after an analysis of a revision that holds the fixes (a pull request's, or `dev` after the merge), read with the tool of DEC-QLT-003.
+### DEC-QLT-005: A fix is checked by the build and the tests; SonarCloud's own analysis is the last word and is the owner's to refresh
+The local analyser cannot say whether a rule is still reported (fact 5), so a fix is checked by what the repository can run: the build (warning-clean, `/WX`), the whole `ctest` suite (with the source checks of fact 4),
+and the test written for it. Each task says "checked by the build and the tests, not by Sonar" until SonarCloud has analysed a revision that holds the fix. RQ-QLT-001 is closed only after such an analysis
+(a pull request's, or `dev` after the merge), read with the tool of DEC-QLT-003; the project's analysis is of `dev` at `937b503` and the fixes live on `feature/QLT`.
 Whether a push refreshes the analysis, and which setting or workflow feeds SonarCloud, is an open question for the owner; until it is answered, the plans end with RQ-QLT-001 "checked locally, not by SonarCloud".
 
 ### DEC-QLT-006: A lambda gets the capture list of what its body uses, never a catch-all
@@ -142,7 +143,7 @@ flowchart TD
     HT -->|"no: Logger, AbstractController"| CT["characterization test first<br/>xs56k_framework_tests (DEC-QLT-004)"]
     HT -->|"yes"| FX["fix, behaviour unchanged<br/>(DEC-QLT-002, RQ-QLT-004)"]
     CT --> FX
-    FX --> LC["sonar analyze --file<br/>(DEC-QLT-005)"]
+    FX --> LC["build + ctest<br/>(DEC-QLT-005)"]
     LC --> RA["owner refreshes the SonarCloud analysis"]
     AC --> RA
     RA --> RD["triage tool re-reads: production count = 0<br/>(RQ-QLT-001)"]
