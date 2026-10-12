@@ -41,7 +41,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-002: Accept the 110 test-code issues in SonarCloud
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run `sonar_triage.py --apply` on the BLOCKER and CRITICAL issues, after the owner has seen the dry run's count, so the 110 test-code issues are `ACCEPTED` with the comment of DEC-QLT-001. This changes SonarCloud's state, so it runs only on the owner's go for this call.
 - **Requirement refs**: RQ-QLT-002, RQ-QLT-008
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-001)
@@ -49,7 +49,7 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-QLT-001
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
-- **Assumptions**: None
+- **Assumptions**: None (the transition was tried on one issue, `AaExyeQbfxqBnb3I71lo`, then run on the 109 others, as planned; 110 accepted on 2026-10-12 on the owner's go for this call)
 
 ### TASK-QLT-003: Empty body and copy operations (`cpp:S1186`, `cpp:S3624`)
 - **Tier**: S

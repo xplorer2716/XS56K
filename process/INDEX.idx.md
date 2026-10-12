@@ -601,7 +601,7 @@ TASK-MCP-074|170-183|Done|Read the table with the owner
 @process/3.plan/PLAN-QLT-001-sonar-blocker-critical.md
 PLAN-QLT-001|1-148||SonarCloud BLOCKER and CRITICAL Issues
 TASK-QLT-001|30-41|Done|The triage tool `juce/tools/sonar_triage.py`
-TASK-QLT-002|42-53|Not Started|Accept the 110 test-code issues in SonarCloud
+TASK-QLT-002|42-53|Done|Accept the 110 test-code issues in SonarCloud
 TASK-QLT-003|54-65|Not Started|Empty body and copy operations (`cpp:S1186`, `cpp:S3624`)
 TASK-QLT-004|66-77|Not Started|Two useless `&*` (`cpp:S3491`, BLOCKER)
 TASK-QLT-005|78-89|Not Started|The scheduler's wait has a predicate (`cpp:S5404`, BLOCKER bug)
