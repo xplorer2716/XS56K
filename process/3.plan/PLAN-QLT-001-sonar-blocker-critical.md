@@ -112,15 +112,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-008: Nesting in `AbstractController` (`cpp:S134`)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `AbstractControllerDevices.cpp`, the loop body of `automationInputDeviceChannelMessageReceived` that scales a CC value and sets and notifies one parameter moves into a private member; the nesting falls to three. The member is declared in `AbstractController.hpp`; the formula and the order of the calls are unchanged. [RQ-FMW-050]
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-005, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002, DEC-QLT-004)
 - **Acceptance Criteria** (Gherkin): *Given* the tests of TASK-QLT-006, *When* the function is changed, *Then* they pass unmodified. *Given* `sonar analyze --file juce/framework/src/AbstractControllerDevices.cpp`, *Then* `cpp:S134` is not reported there.
 - **Dependencies**: TASK-QLT-006
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: `git diff --stat`: `AbstractControllerDevices.cpp` (20 insertions, 15 deletions) and `AbstractController.hpp` (4 insertions: the private member's declaration and its comment); the formula, the order of `setParameter` then `notifyAutomationParameterChangeEvent` and the comment moved unchanged. The tests of TASK-QLT-006 run unmodified on the changed code: `xs56k_framework_tests.exe` all passed (494 assertions in 28 test cases, as before). Build of `xs56k_framework` and the tests warning-clean under `/WX` (MSVC, Debug). The nesting of the handler is now `if` (control change), `if` (mapped), `for`, with the body one call: three levels. Not verified: that SonarCloud no longer reports `cpp:S134` there (the analyser cannot report rules on this connection); GCC and Apple Clang (CI).
+- **Assumptions**: The new member is private and not virtual: nothing outside `AbstractController` calls it, and a subclass overrides the handler, not the scaling. Checked by the build and the tests, not by Sonar.
 
 ### TASK-QLT-009: Cognitive complexity of `generate_akm_items.py` (`python:S3776` x2)
 - **Tier**: M

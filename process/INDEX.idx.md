@@ -607,7 +607,7 @@ TASK-QLT-004|65-76|Done|Two useless `&*` (`cpp:S3491`, BLOCKER)
 TASK-QLT-005|77-88|Done|The scheduler's wait has a predicate (`cpp:S5404`, BLOCKER bug)
 TASK-QLT-006|89-100|Done|The test target `xs56k_framework_tests`, with `Logger` and `AbstractController` pinned
 TASK-QLT-007|101-112|Done|`Logger`'s state in one object (`cpp:S5421` x4)
-TASK-QLT-008|113-124|Not Started|Nesting in `AbstractController` (`cpp:S134`)
+TASK-QLT-008|113-124|Done|Nesting in `AbstractController` (`cpp:S134`)
 TASK-QLT-009|125-136|Not Started|Cognitive complexity of `generate_akm_items.py` (`python:S3776` x2)
 TASK-QLT-010|137-147|Not Started|Cognitive complexity of `build_sysex_index.py` (`python:S3776` x2)
 @process/3.plan/PLAN-QLT-002-sonar-production-code.md
