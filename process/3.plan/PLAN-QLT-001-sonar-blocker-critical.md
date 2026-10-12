@@ -136,12 +136,12 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-010: Cognitive complexity of `build_sysex_index.py` (`python:S3776` x2)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The two functions (complexity 17 and 137 at the analysis) are cut into named steps. The script has no unit test and needs `pymupdf` and the PDF: its test is the byte-identical regeneration of `sysex_spec.clean.txt` and `sysex_spec.items.tsv` (RQ-QLT-005). The riskiest task of the plan: if `pymupdf` cannot be installed, or the output differs and the difference is not understood after one fix, the task stops and the owner decides (RQ-QLT-003: refactor, or accept with his reason).
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-003, RQ-QLT-004, RQ-QLT-005, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002, DEC-QLT-004)
 - **Acceptance Criteria** (Gherkin): *Given* the committed `sysex_spec.clean.txt` and `sysex_spec.items.tsv`, *When* the changed script regenerates them, *Then* `git diff` on both is empty. *Given* `sonar analyze --file documents/_index/build_sysex_index.py`, *Then* `python:S3776` is not reported.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: `pymupdf` 1.28.2 was installed in a throwaway virtualenv (in the scratchpad, not in the Python of the machine), the PDF being in the repository. Baseline: the unchanged script regenerates `sysex_spec.clean.txt` and `sysex_spec.items.tsv` identical to the committed files except for the line endings (it writes CRLF on Windows, the committed files are LF; `git diff --ignore-cr-at-eol` empty). After the change: the script regenerates both files byte-identical to that baseline (`cmp` on both: identical; 560 items, 22 footnotes, as before); the committed files were then restored with `git checkout` (LF). Cognitive complexity measured with the `cognitive_complexity` package (55/26 for the two `generate_akm_items.py` functions Sonar rates 54/26; here `main` 137 and `page_rows` 17): now 19 functions, none above 15, the highest `md_anchor` 9. Not verified: that SonarCloud no longer reports `python:S3776` there (the analyser cannot report rules on this connection); the script's CRLF output on Windows, which is older than this task and was not changed.
+- **Assumptions**: The state of the row loop moved into a class `IndexBuilder` with one method per case, in the original order of the tests; `page_rows` was cut into `add_word_to_rows` and `build_row`. The script has no unit test and none was added: the byte-identical regeneration is its test (RQ-QLT-005). `pymupdf` was needed to run it and was installed outside the repository, with no change to the repository's own requirements.

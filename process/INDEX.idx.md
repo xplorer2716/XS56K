@@ -609,7 +609,7 @@ TASK-QLT-006|89-100|Done|The test target `xs56k_framework_tests`, with `Logger` 
 TASK-QLT-007|101-112|Done|`Logger`'s state in one object (`cpp:S5421` x4)
 TASK-QLT-008|113-124|Done|Nesting in `AbstractController` (`cpp:S134`)
 TASK-QLT-009|125-136|Done|Cognitive complexity of `generate_akm_items.py` (`python:S3776` x2)
-TASK-QLT-010|137-147|Not Started|Cognitive complexity of `build_sysex_index.py` (`python:S3776` x2)
+TASK-QLT-010|137-147|Done|Cognitive complexity of `build_sysex_index.py` (`python:S3776` x2)
 @process/3.plan/PLAN-QLT-002-sonar-production-code.md
 PLAN-QLT-002|1-151||SonarCloud BLOCKER and CRITICAL Issues — the Production Code of `juce/mcp` and the Generators
 TASK-QLT-011|33-44|Not Started|The name `module` (`cpp:S1669`, 30 BLOCKER)
