@@ -100,15 +100,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-007: `Logger`'s state in one object (`cpp:S5421` x4)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `Logger.cpp`, the file-local mutable `g_mutex`, `g_sink`, `g_level` and `g_domainEnabled` become the members of one struct reached through one function that returns a reference to a function-local object; the public functions use it. Same locking rule, same atomics, no change of the public header.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-005, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002, DEC-QLT-004)
 - **Acceptance Criteria** (Gherkin): *Given* the tests of TASK-QLT-006, *When* `Logger.cpp` is changed, *Then* they pass unmodified. *Given* the library, *When* it builds, *Then* it builds warning-clean on MSVC and GCC (CI) and the public header is unchanged. *Given* `sonar analyze --file juce/framework/src/Logger.cpp`, *Then* `cpp:S5421` is not reported.
 - **Dependencies**: TASK-QLT-006
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: `git diff --stat`: only `juce/framework/src/Logger.cpp` (33 insertions, 21 deletions); the public header `Logger.hpp` is unchanged and no `g_` variable is left (`grep g_ Logger.cpp`: none). The tests of TASK-QLT-006 run on the changed file, unmodified: `xs56k_framework_tests.exe`: all passed (494 assertions in 28 test cases), the same count as before the change. Build of `xs56k_framework` and `xs56k_framework_tests` warning-clean under `/WX` (MSVC, Debug). Not verified: that SonarCloud no longer reports `cpp:S5421` (the analyser cannot report rules on this connection); GCC and Apple Clang (CI); the static destruction order at process exit, which is that of one function-local static in place of four namespace-scope objects.
+- **Assumptions**: The state is one struct with a function-local static, built on first use and destroyed at exit like the four variables it replaces; the comment above it explains why it stays file-local. Checked by the build and the tests, not by Sonar.
 
 ### TASK-QLT-008: Nesting in `AbstractController` (`cpp:S134`)
 - **Tier**: M
