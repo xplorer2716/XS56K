@@ -81,6 +81,18 @@ target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k::warnings)
 catch_discover_tests(xs56k_akm_tests)
 
+# The framework library (ported from XplorerEditor): the tests pin what `Logger` and `AbstractController` do before their code is
+# reorganised for SonarCloud. Headless, on the in-memory MIDI backend, no thread started. [TASK-QLT-006, RQ-QLT-005,
+# ADR-QLT-001 (DEC-QLT-004)]
+add_executable(xs56k_framework_tests
+    framework/AbstractControllerAutomationTests.cpp
+    framework/LoggerTests.cpp)
+target_link_libraries(xs56k_framework_tests PRIVATE
+    xs56k_framework
+    Catch2::Catch2WithMain
+    xs56k::warnings)
+catch_discover_tests(xs56k_framework_tests)
+
 # The MCP server's library: its units are tested without a sampler and without a process, and its public headers
 # hold no JUCE include. [RQ-MCP-011, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
 add_executable(xs56k_mcp_tests

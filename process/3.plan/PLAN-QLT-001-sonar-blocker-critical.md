@@ -88,15 +88,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-006: The test target `xs56k_framework_tests`, with `Logger` and `AbstractController` pinned
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Add `juce/tests/framework/` (Catch2, linked to `xs56k_framework`, `xs56k_midi` and its mock backend) and register it in `juce/tests/CMakeLists.txt` with `catch_discover_tests`. Gherkin-named tests that pin, on the unfixed code: `Logger` (a call below the level or under a disabled domain writes nothing; a call above writes once with the level and domain names; the sink is replaced and removed) and `AbstractController::automationInputDeviceChannelMessageReceived` (an automated CC sets and notifies the parameter by the ratio formula, including the two-state mid-range case; the disabled CC is dropped; any other message is forwarded on the tone's channel).
 - **Requirement refs**: RQ-QLT-005, RQ-QLT-004
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-004)
 - **Acceptance Criteria** (Gherkin): *Given* the unfixed `Logger` and `AbstractController`, *When* the new tests run, *Then* they pass. *Given* the tests of the CMake build, *When* `ctest` runs, *Then* the new executable's tests are discovered and the earlier ones are unchanged. *Given* a mutation of the ratio formula or of the level check (`juce/tools/mutate.py`), *Then* at least one new test fails.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure (`ctest` counts before and after; the mutation run).
-- **Assumptions**: The tests pin today's behaviour; one that cannot be written without a device or a thread the target cannot own is recorded here, with what was pinned instead.
+- **Verification**: Tests first: 28 Gherkin-named tests in the new target `xs56k_framework_tests` (`juce/tests/framework/LoggerTests.cpp`, `AbstractControllerAutomationTests.cpp`), run on the unchanged `Logger` and `AbstractController` code: all passed (494 assertions in 28 test cases). `cmake -S juce -B juce/build` then a build warning-clean under `/WX`; `ctest -C Debug -R "RQ-FMW|ADR-FMW|RQ-NFR-008"`: the 28 are discovered and pass. Mutation check (`juce/tools/mutate.py` on a copy of `juce/`, `-DBUILD_TESTS=ON`, `--reuse-deps-from juce/build`), 6 alterations, all caught by failing tests: the CC value halved before scaling, the two-state threshold 63 moved to 100, the disabled-CC check removed, the forwarded message left on the incoming channel, the level comparison `>` made `>=`, the domain gate removed. Not verified: the real-time paths of `AbstractController` (worker thread, transmit delay) and `Logger::configure(path)` on a read-only folder; the new tests start no thread.
+- **Assumptions**: The tests pin today's behaviour of the paths that TASK-QLT-007 and TASK-QLT-008 touch, not the whole of the two classes. A control change mapped to a name that is not a parameter would dereference a null pointer in `AbstractController`; it is not tested and not changed (out of scope). The ported sources cite RQ-QLT-011, RQ-QLT-012 and RQ-QLT-013, which are XplorerEditor's own requirements: they are not defined in this repository, and this repository's RQ-QLT numbering will meet them at RQ-QLT-011 (not changed). The first mutation runs were invalid ("build failed": the copy was configured without `BUILD_TESTS`, so the target did not exist) and were repeated with `--cmake-arg=-DBUILD_TESTS=ON`; two alterations whose configure step failed under three workers were repeated with one.
 
 ### TASK-QLT-007: `Logger`'s state in one object (`cpp:S5421` x4)
 - **Tier**: M

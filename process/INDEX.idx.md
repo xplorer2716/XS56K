@@ -605,7 +605,7 @@ TASK-QLT-002|41-52|Done|Accept the 110 test-code issues in SonarCloud
 TASK-QLT-003|53-64|Done|Empty body and copy operations (`cpp:S1186`, `cpp:S3624`)
 TASK-QLT-004|65-76|Done|Two useless `&*` (`cpp:S3491`, BLOCKER)
 TASK-QLT-005|77-88|Done|The scheduler's wait has a predicate (`cpp:S5404`, BLOCKER bug)
-TASK-QLT-006|89-100|Not Started|The test target `xs56k_framework_tests`, with `Logger` and `AbstractController` pinned
+TASK-QLT-006|89-100|Done|The test target `xs56k_framework_tests`, with `Logger` and `AbstractController` pinned
 TASK-QLT-007|101-112|Not Started|`Logger`'s state in one object (`cpp:S5421` x4)
 TASK-QLT-008|113-124|Not Started|Nesting in `AbstractController` (`cpp:S134`)
 TASK-QLT-009|125-136|Not Started|Cognitive complexity of `generate_akm_items.py` (`python:S3776` x2)
