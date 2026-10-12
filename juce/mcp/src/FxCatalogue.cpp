@@ -237,13 +237,13 @@ namespace mcp
         return nullptr;
     }
 
-    std::vector<int> eb20KindsFor(int channel, int module)
+    std::vector<int> eb20KindsFor(int channel, int moduleIndex)
     {
         if (channel < 0 || channel > LAST_CHANGEABLE_CHANNEL)
             return {};
-        if (module == MODULATION_MODULE)
+        if (moduleIndex == MODULATION_MODULE)
             return {CODE_CHORUS, CODE_FLANGE, CODE_PHASE, CODE_ROTARY_SPEAKER, CODE_FMOD_AUTOPAN, CODE_PITCH_SHIFT, CODE_PITCH_SHIFT_FEEDBACK};
-        if (module == DELAY_MODULE)
+        if (moduleIndex == DELAY_MODULE)
             return {CODE_MONO_DELAY, CODE_MONO_LEFT_RIGHT, CODE_MONO_CROSSOVER, CODE_STEREO_DELAY};
         return {};
     }

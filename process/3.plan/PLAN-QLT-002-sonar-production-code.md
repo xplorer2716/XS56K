@@ -32,15 +32,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-011: The name `module` (`cpp:S1669`, 30 BLOCKER)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Rename the parameters and locals called `module` to `moduleIndex` in `juce/akm/include/akm/MultiFxPrimitives.hpp` and `juce/akm/src/MultiFxPrimitives.cpp` (6 + 6), `juce/mcp/include/mcp/SamplerGateway.hpp` (4), `FxCatalogue.hpp` and `FxCatalogue.cpp` (1 + 1), `juce/mcp/src/SamplerGatewayFx.cpp` (5) and `juce/mcp/src/Tools.cpp` (7), with the comments that name them. The names of functions, tools and JSON fields are not touched: a JSON field called `module` that a tool exposes stays as it is, and the task says which ones it found.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-007)
 - **Acceptance Criteria** (Gherkin): *Given* the seven files changed, *When* `git diff` is read, *Then* the only differences in the two public headers are parameter names and the comments that name them. *Given* the project, *When* it builds with the tests on, *Then* it builds warning-clean and `ctest` passes with the same number of tests, `SYSEX-COVERAGE.md` unchanged. *Given* `sonar analyze --file` on each of the seven, *Then* `cpp:S1669` is not reported.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: `git diff --stat`: 7 files, 84 insertions and 84 deletions, nothing else changed. Renamed with a small lexer (`rename_module.py`) that touches only the C++ identifier and the backticked `module` of comments: 81 identifier uses and 8 comment mentions; `left_module.py` finds 0 identifier `module` left in the seven files. The string literals of the changed lines are identical before and after (35 and 35, `literals_same.py`): the message texts and the JSON argument name `module` (the constant `ARGUMENT_MODULE = "module"` of `Tools.cpp`) are unchanged. The two public headers (`MultiFxPrimitives.hpp`, `SamplerGateway.hpp`) and `FxCatalogue.hpp` differ only in parameter names and the comments that name them. `cmake --build juce/build --config Debug --parallel`: every target builds warning-clean under `/WX`; `ctest -C Debug -j 8`: 1135/1135 passed (the mutation tool's tests included), with `sysex_coverage_table_is_up_to_date` and `sysex_coverage_tools_match_the_simulated_sampler`; `documents/SYSEX-COVERAGE.md` untouched. Not verified: that SonarCloud no longer reports `cpp:S1669` on the 30 production lines (the analyser cannot report rules on this connection, and the PR analysis covers new code only); GCC and Apple Clang (CI).
+- **Assumptions**: The 81 uses of the identifier are the 30 flagged declarations and their uses in the same functions: renaming every use of a flagged name in a file keeps each function consistent. The 11 test-code occurrences of `module` (accepted in SonarCloud, RQ-QLT-002) were left as they are. The JSON argument `module` that the tools expose is a string literal and keeps its name. Checked by the build and the tests, not by Sonar.
 
 ### TASK-QLT-012: Lambda captures in `SamplerGateway.cpp` (`cpp:S3608` x65, `cpp:S5019` x64)
 - **Tier**: M

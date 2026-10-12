@@ -3262,8 +3262,8 @@ namespace mcp
             return std::nullopt;
         }
 
-        /// What is wrong with a channel and a module against the layout the sampler reports, or nothing. `module` is negative to check the channel only.
-        std::optional<std::string> fxLayoutProblem(const FxLayoutInfo& layout, int channel, int module)
+        /// What is wrong with a channel and a module against the layout the sampler reports, or nothing. `moduleIndex` is negative to check the channel only.
+        std::optional<std::string> fxLayoutProblem(const FxLayoutInfo& layout, int channel, int moduleIndex)
         {
             if (layout.card == FxCardKind::None)
                 return std::string(NO_FX_BOARD);
@@ -3271,9 +3271,9 @@ namespace mcp
             if (channel >= channels)
                 return "The board has the channels 0 to " + std::to_string(channels - 1) + ", not " + std::to_string(channel) + ".";
             const int modules = layout.moduleCounts[static_cast<std::size_t>(channel)];
-            if (module >= modules)
+            if (moduleIndex >= modules)
                 return "The effects channel " + std::to_string(channel) + " has the modules 0 to " + std::to_string(modules - 1) + ", not " +
-                       std::to_string(module) + ".";
+                       std::to_string(moduleIndex) + ".";
             return std::nullopt;
         }
 
@@ -3283,9 +3283,9 @@ namespace mcp
             return kind != nullptr ? kind->name : "type " + std::to_string(code);
         }
 
-        std::string fxWhere(int channel, int module)
+        std::string fxWhere(int channel, int moduleIndex)
         {
-            return "Effects channel " + std::to_string(channel) + ", module " + std::to_string(module);
+            return "Effects channel " + std::to_string(channel) + ", module " + std::to_string(moduleIndex);
         }
     }
 
@@ -3313,9 +3313,9 @@ namespace mcp
                 {
                     const FxChannelState& state = board.value->channels[channel];
                     text += "Channel " + std::to_string(channel) + (state.muted ? " (muted):" : " (on):") + "\n";
-                    for (std::size_t module = 0; module < state.modules.size(); ++module)
-                        text += "  module " + std::to_string(module) + ": " + fxKindLabel(state.modules[module].type) +
-                                (state.modules[module].enabled ? " (enabled)" : " (bypassed)") + "\n";
+                    for (std::size_t moduleIndex = 0; moduleIndex < state.modules.size(); ++moduleIndex)
+                        text += "  module " + std::to_string(moduleIndex) + ": " + fxKindLabel(state.modules[moduleIndex].type) +
+                                (state.modules[moduleIndex].enabled ? " (enabled)" : " (bypassed)") + "\n";
                 }
                 return ok(std::move(text));
             }});
@@ -3363,10 +3363,10 @@ namespace mcp
                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_TYPE, ARGUMENT_ENABLED}))
                     return *refused;
                 int channel = 0;
-                int module = 0;
+                int moduleIndex = 0;
                 if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
                     return failure(*problem);
-                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, moduleIndex))
                     return failure(*problem);
                 if (arguments.contains(ARGUMENT_TYPE) && !arguments.at(ARGUMENT_TYPE).is_string())
                     return failure("The argument 'type' must be a string.");
@@ -3377,7 +3377,7 @@ namespace mcp
                 const auto layout = gateway.readFxLayout();
                 if (!layout.ok())
                     return failure(layout.problem);
-                if (const auto problem = fxLayoutProblem(*layout.value, channel, module))
+                if (const auto problem = fxLayoutProblem(*layout.value, channel, moduleIndex))
                     return failure(*problem);
 
                 std::optional<int> type;
@@ -3392,22 +3392,22 @@ namespace mcp
                             all.push_back(known.code);
                         return failure("The module type \"" + said + "\" is not one the sampler names. The types are: " + fxKindNames(all) + ".");
                     }
-                    const std::vector<int> allowed = eb20KindsFor(channel, module);
+                    const std::vector<int> allowed = eb20KindsFor(channel, moduleIndex);
                     if (allowed.empty())
                         return failure("With the EB20 only the modules 2 and 3 of channels 0 and 1 may change type (the specification, p. 35): the module " +
-                                       std::to_string(module) + " of the effects channel " + std::to_string(channel) + " may not.");
+                                       std::to_string(moduleIndex) + " of the effects channel " + std::to_string(channel) + " may not.");
                     if (std::find(allowed.begin(), allowed.end(), kind->code) == allowed.end())
-                        return failure("The module " + std::to_string(module) + " of the effects channel " + std::to_string(channel) +
+                        return failure("The module " + std::to_string(moduleIndex) + " of the effects channel " + std::to_string(channel) +
                                        " takes one of these types: " + fxKindNames(allowed) + ", not " + kind->name + ".");
                     type = kind->code;
                 }
                 std::optional<bool> enabled;
                 if (arguments.contains(ARGUMENT_ENABLED))
                     enabled = arguments.at(ARGUMENT_ENABLED).get<bool>();
-                const auto state = gateway.setFxModule(channel, module, type, enabled);
+                const auto state = gateway.setFxModule(channel, moduleIndex, type, enabled);
                 if (!state.ok())
                     return failure(state.problem);
-                return ok(fxWhere(channel, module) + ": type " + fxKindLabel(state.value->type) + ", " + (state.value->enabled ? "enabled" : "bypassed") +
+                return ok(fxWhere(channel, moduleIndex) + ": type " + fxKindLabel(state.value->type) + ", " + (state.value->enabled ? "enabled" : "bypassed") +
                           " (read back from the sampler).");
             }});
 
@@ -3418,7 +3418,7 @@ namespace mcp
             const FxParameter* parameter = nullptr;
             std::string problem;
         };
-        const auto findParameter = [&gateway](int channel, int module, const json& arguments, bool required) {
+        const auto findParameter = [&gateway](int channel, int moduleIndex, const json& arguments, bool required) {
             FoundParameter found;
             const auto layout = gateway.readFxLayout();
             if (!layout.ok())
@@ -3426,12 +3426,12 @@ namespace mcp
                 found.problem = layout.problem;
                 return found;
             }
-            if (const auto problem = fxLayoutProblem(*layout.value, channel, module))
+            if (const auto problem = fxLayoutProblem(*layout.value, channel, moduleIndex))
             {
                 found.problem = *problem;
                 return found;
             }
-            const auto state = gateway.readFxModule(channel, module);
+            const auto state = gateway.readFxModule(channel, moduleIndex);
             if (!state.ok())
             {
                 found.problem = state.problem;
@@ -3440,13 +3440,13 @@ namespace mcp
             found.kind = fxKindByCode(state.value->type);
             if (found.kind == nullptr)
             {
-                found.problem = fxWhere(channel, module) + " is of the type code " + std::to_string(state.value->type) +
+                found.problem = fxWhere(channel, moduleIndex) + " is of the type code " + std::to_string(state.value->type) +
                                 ", which Table 24 does not name: its parameters are not known to this server.";
                 return found;
             }
             if (found.kind->parameters.empty())
             {
-                found.problem = fxWhere(channel, module) + " is of the type " + found.kind->name + " and has no parameter.";
+                found.problem = fxWhere(channel, moduleIndex) + " is of the type " + found.kind->name + " and has no parameter.";
                 return found;
             }
             if (arguments.contains(ARGUMENT_PARAMETER))
@@ -3455,7 +3455,7 @@ namespace mcp
                 const std::string text = which.is_string() ? which.get<std::string>() : std::to_string(wholeNumber(which).value_or(-1));
                 found.parameter = fxParameterOf(*found.kind, text);
                 if (found.parameter == nullptr)
-                    found.problem = fxWhere(channel, module) + " is a " + found.kind->name + ": it has no parameter \"" + text + "\". Its parameters are: " +
+                    found.problem = fxWhere(channel, moduleIndex) + " is a " + found.kind->name + ": it has no parameter \"" + text + "\". Its parameters are: " +
                                     fxParameterNames(*found.kind) + ".";
             }
             else if (required)
@@ -3487,22 +3487,22 @@ namespace mcp
                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER}))
                     return *refused;
                 int channel = 0;
-                int module = 0;
+                int moduleIndex = 0;
                 if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
                     return failure(*problem);
-                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, moduleIndex))
                     return failure(*problem);
                 if (const auto problem = parameterArgumentProblem(arguments))
                     return failure(*problem);
-                const FoundParameter found = findParameter(channel, module, arguments, false);
+                const FoundParameter found = findParameter(channel, moduleIndex, arguments, false);
                 if (!found.problem.empty())
                     return failure(found.problem);
-                std::string text = fxWhere(channel, module) + " (" + found.kind->name + "):\n";
+                std::string text = fxWhere(channel, moduleIndex) + " (" + found.kind->name + "):\n";
                 for (const FxParameter& parameter : found.kind->parameters)
                 {
                     if (found.parameter != nullptr && found.parameter->index != parameter.index)
                         continue;
-                    const auto value = gateway.readFxParameter(channel, module, parameter.index);
+                    const auto value = gateway.readFxParameter(channel, moduleIndex, parameter.index);
                     if (!value.ok())
                         return failure(value.problem);
                     text += std::string(parameter.name) + " = " + std::to_string(*value.value) + " (" + fxRangeText(parameter) + ")\n";
@@ -3527,10 +3527,10 @@ namespace mcp
                 if (const auto refused = unknownArguments(arguments, {ARGUMENT_CHANNEL, ARGUMENT_MODULE, ARGUMENT_PARAMETER, ARGUMENT_VALUE}))
                     return *refused;
                 int channel = 0;
-                int module = 0;
+                int moduleIndex = 0;
                 if (const auto problem = fxIndexArgument(arguments, ARGUMENT_CHANNEL, channel))
                     return failure(*problem);
-                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, module))
+                if (const auto problem = fxIndexArgument(arguments, ARGUMENT_MODULE, moduleIndex))
                     return failure(*problem);
                 if (!arguments.contains(ARGUMENT_PARAMETER))
                     return failure("Give the 'parameter', by name or index.");
@@ -3539,19 +3539,19 @@ namespace mcp
                 const auto value = arguments.contains(ARGUMENT_VALUE) && arguments.at(ARGUMENT_VALUE).is_number() ? wholeNumber(arguments.at(ARGUMENT_VALUE)) : std::nullopt;
                 if (!value)
                     return failure("Give the 'value' as a whole number.");
-                const FoundParameter found = findParameter(channel, module, arguments, true);
+                const FoundParameter found = findParameter(channel, moduleIndex, arguments, true);
                 if (!found.problem.empty())
                     return failure(found.problem);
                 if (*value < found.parameter->minimum || *value > found.parameter->maximum)
                     return failure("The value " + std::to_string(*value) + " is outside the range of the parameter " + found.parameter->name + " of the " +
                                    found.kind->name + ": " + fxRangeText(*found.parameter) + ". Nothing was sent.");
-                const auto read = gateway.setFxParameter(channel, module, found.parameter->index, static_cast<int>(*value));
+                const auto read = gateway.setFxParameter(channel, moduleIndex, found.parameter->index, static_cast<int>(*value));
                 if (!read.ok())
                     return failure(read.problem);
                 if (*read.value != *value)
                     return failure("The sampler accepted the value " + std::to_string(*value) + " but reports " + std::to_string(*read.value) + " for the parameter " +
                                    found.parameter->name + ".");
-                return ok(fxWhere(channel, module) + " (" + found.kind->name + "): " + found.parameter->name + " set to " + std::to_string(*read.value) +
+                return ok(fxWhere(channel, moduleIndex) + " (" + found.kind->name + "): " + found.parameter->name + " set to " + std::to_string(*read.value) +
                           " (read back from the sampler).");
             }});
 
