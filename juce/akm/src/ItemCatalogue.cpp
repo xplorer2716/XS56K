@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/ItemCatalogue.hpp"
 
 #include <algorithm>
+#include <memory>
 
 namespace akm
 {
@@ -28,7 +29,7 @@ namespace akm
         const auto found = std::find_if(ITEM_TABLE.begin(), ITEM_TABLE.end(), [section, item](const ItemDescriptor& record) {
             return record.section == section && record.item == item;
         });
-        return found == ITEM_TABLE.end() ? nullptr : &*found;
+        return found == ITEM_TABLE.end() ? nullptr : std::to_address(found);
     }
 
     const ItemDescriptor* findReplyItem(std::uint8_t section, std::uint8_t item)
@@ -36,6 +37,6 @@ namespace akm
         const auto found = std::find_if(ITEM_TABLE.begin(), ITEM_TABLE.end(), [section, item](const ItemDescriptor& record) {
             return record.item == item && (record.section == section || record.replySection == section);
         });
-        return found == ITEM_TABLE.end() ? nullptr : &*found;
+        return found == ITEM_TABLE.end() ? nullptr : std::to_address(found);
     }
 }
