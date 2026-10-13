@@ -6,7 +6,8 @@ Session APP (2026-10-13). The owner starts the user interface of the editor appl
 at the top left, a memory view by type under it, an edit panel on the right with tabs at its bottom (the owner's sketch and description of
 2026-10-13). This plan covers the work up to the first implementation task: the requirements (FTR-APP-001 to FTR-APP-009, done by
 TASK-APP-001), the open decisions the owner has to take, the architecture of the application and its design system. The implementation tasks
-are planned once the two ADRs are accepted, each feature of priority 1 in its turn, under the limit of 10 tasks per session.
+are planned once the two ADRs are accepted and, as the owner asked on 2026-10-13, once the owner's branch that fixes the code's
+quality issues is merged, so that the tasks are based on the code as it will then be, each feature of priority 1 in its turn, under the limit of 10 tasks per session.
 
 **Priorities** (owner, 2026-10-13): priority 1, mandatory, written `Must`: FTR-APP-001 to FTR-APP-008 (and the `Must` requirements in them);
 priority 2, nice to have, written `Could`: FTR-APP-009 and the `Could` requirements of the other features. Recording a sample is out of scope.
@@ -21,7 +22,7 @@ priority 2, nice to have, written `Could`: FTR-APP-009 and the `Could` requireme
 
 ## References
 - **Requirements**: RQ-APP-001 to RQ-APP-072 (`FTR-APP-001` to `FTR-APP-009`); RQ-BLD-007 (the placeholder application)
-- **ADRs**: None yet (ADR-APP-001 and the design-system ADR are written by TASK-APP-003 and TASK-APP-004)
+- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); the design-system ADR is written by TASK-APP-004
 
 This plan implements the tasks in the format specified below.
 ---
@@ -72,7 +73,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-003: ADR-APP-001 — the application's architecture
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: Decide, in ADR-APP-001, how the application is built: its layers (the behaviour kept out of the JUCE components,
   RQ-APP-014), how a session's completions reach the UI thread without blocking it (RQ-APP-012), the model of the sampler's state the views
   share (memory lists, current items, current folder), the reading and writing of parameters (read-back, coalescing, RQ-APP-052 to
@@ -84,8 +85,11 @@ This plan implements the tasks in the format specified below.
   and a Mermaid diagram, references the RQ-APP it answers, and the owner has accepted it.
 - **Dependencies**: TASK-APP-001
 - **Assignee**: AI
-- **Verification**: ADR-APP-001 drafted (Proposed, DEC-APP-001 to DEC-APP-010); awaiting the owner's acceptance.
-- **Assumptions**: None
+- **Verification**: ADR-APP-001 re-read in session: the AGNOS sections (Status, Context, Decision, Consequences, Alternatives
+  Considered, Diagram) are present, ten `### DEC-APP-` headings (DEC-APP-001 to DEC-APP-010, indexed by `agnos-index`), two Mermaid
+  diagrams, the RQ-APP answered cited in each decision; accepted by the owner on 2026-10-13 (Status: Accepted).
+- **Assumptions**: (1) The gateway and the catalogues are split from `xs56k_mcp` without moving their files or renaming their namespace
+  (DEC-APP-002). (2) `xs56k_app_core` is built with the libraries whatever `BUILD_APP` says, so the headless workflows test it (DEC-APP-010).
 
 ### TASK-APP-004: The design system and its ADR
 - **Tier**: M

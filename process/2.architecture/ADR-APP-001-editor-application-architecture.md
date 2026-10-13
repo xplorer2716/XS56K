@@ -1,8 +1,9 @@
 # ADR-APP-001: Editor Application Architecture — Light MVC, the Sampler Gateway Shared with the MCP Server, One Worker Thread
 
 ## Status
-Proposed — drafted in session APP (2026-10-13) for TASK-APP-003, after the owner asked for "une architecture de type MVC légère" and left
-the decisions to the assistant. Awaiting the owner's acceptance.
+Accepted — drafted in session APP (2026-10-13) for TASK-APP-003, after the owner asked for "une architecture de type MVC légère" and left
+the decisions to the assistant; accepted by the owner the same day, after asking whether the application duplicates the MCP library (it does
+not: the gateway's files are compiled once, into `xs56k_sampler`, which the MCP server and the application both link, DEC-APP-002).
 
 ## Context
 

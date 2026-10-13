@@ -340,17 +340,17 @@ DEC-AKM-017|472-494||A `Qword` value format, fitting the generic `int64_t` path 
 DEC-AKM-018|495-513||A second `String` argument, for Rename Folder and Rename File
 DEC-AKM-019|514-571||A session releases the front-panel keys it held when it closes
 @process/2.architecture/ADR-APP-001-editor-application-architecture.md
-ADR-APP-001|1-227|Proposed — drafted in session APP (2026-10-13) for TASK-APP-003, after the owner asked for "une architecture de type MVC légère" and left|Editor Application Architecture — Light MVC, the Sampler Gateway Shared with the MCP Server, One Worker Thread
-DEC-APP-001|42-49||A light MVC — model and controller in a library without JUCE, views in the JUCE application
-DEC-APP-002|50-59||The sampler is reached only through the gateway and the catalogues, split from `xs56k_mcp` into a library of their own
-DEC-APP-003|60-67||One sampler worker thread runs the gateway's calls in order; results come back on the UI thread
-DEC-APP-004|68-76||The model is a plain C++ snapshot of what was read, observed by the views
-DEC-APP-005|77-86||A parameter is named and bounded by the catalogue, read before it is shown, set then read back, one write pending at a time
-DEC-APP-006|87-92||The tabs are data — an editor layout that lists, for each tab, the catalogue parameters it holds
-DEC-APP-007|93-99||Every question to the person goes through an injected prompts interface, and nothing is sent before the answer
-DEC-APP-008|100-109||One gateway per connection; connecting opens and reads, disconnecting destroys it, quitting waits for the job in progress
-DEC-APP-009|110-115||The settings are behind an interface of the core
-DEC-APP-010|116-125||Where the code and the tests live
+ADR-APP-001|1-228|Accepted — drafted in session APP (2026-10-13) for TASK-APP-003, after the owner asked for "une architecture de type MVC légère" and left|Editor Application Architecture — Light MVC, the Sampler Gateway Shared with the MCP Server, One Worker Thread
+DEC-APP-001|43-50||A light MVC — model and controller in a library without JUCE, views in the JUCE application
+DEC-APP-002|51-60||The sampler is reached only through the gateway and the catalogues, split from `xs56k_mcp` into a library of their own
+DEC-APP-003|61-68||One sampler worker thread runs the gateway's calls in order; results come back on the UI thread
+DEC-APP-004|69-77||The model is a plain C++ snapshot of what was read, observed by the views
+DEC-APP-005|78-87||A parameter is named and bounded by the catalogue, read before it is shown, set then read back, one write pending at a time
+DEC-APP-006|88-93||The tabs are data — an editor layout that lists, for each tab, the catalogue parameters it holds
+DEC-APP-007|94-100||Every question to the person goes through an injected prompts interface, and nothing is sent before the answer
+DEC-APP-008|101-110||One gateway per connection; connecting opens and reads, disconnecting destroys it, quitting waits for the job in progress
+DEC-APP-009|111-116||The settings are behind an interface of the core
+DEC-APP-010|117-126||Where the code and the tests live
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -572,12 +572,12 @@ TASK-AKM-103|111-141|Done|FX parameter values
 TASK-AKM-104|142-182|Done|Real-sampler check of the Multi FX
 TASK-AKM-105|183-204|Done|Coverage of section §12
 @process/3.plan/PLAN-APP-001-editor-application-first-ui.md
-PLAN-APP-001|1-125||Editor Application — Requirements, Architecture and Design System of the First UI
-TASK-APP-001|31-57|Done|Author FTR-APP-001 to FTR-APP-009 and PLAN-APP-001
-TASK-APP-002|58-72|Not Started|The owner decides the tabs of the program editor
-TASK-APP-003|73-89|In Progress|ADR-APP-001 — the application's architecture
-TASK-APP-004|90-104|Not Started|The design system and its ADR
-TASK-APP-005|105-125|Done|Remove the assumption that a tab is a function of the sampler
+PLAN-APP-001|1-129||Editor Application — Requirements, Architecture and Design System of the First UI
+TASK-APP-001|32-58|Done|Author FTR-APP-001 to FTR-APP-009 and PLAN-APP-001
+TASK-APP-002|59-73|Not Started|The owner decides the tabs of the program editor
+TASK-APP-003|74-93|Done|ADR-APP-001 — the application's architecture
+TASK-APP-004|94-108|Not Started|The design system and its ADR
+TASK-APP-005|109-129|Done|Remove the assumption that a tab is a function of the sampler
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
