@@ -56,15 +56,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-013: Lambda captures in `SamplerGatewayDisk.cpp` (`cpp:S3608` x30, `cpp:S5019` x30)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The same change as TASK-QLT-012, in `juce/mcp/src/SamplerGatewayDisk.cpp`. The disk tools are the slow, opt-in ones: a lambda that outlives its scope (a callback of a slow command) is checked by hand against the code that stores it.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-006)
 - **Acceptance Criteria** (Gherkin): *Given* the file changed, *When* the project builds with the tests on, *Then* it builds warning-clean and `ctest` passes, including the disk tools' tests and conversations. *Given* `git diff`, *Then* it shows only capture lists. *Given* `sonar analyze --file juce/mcp/src/SamplerGatewayDisk.cpp`, *Then* neither rule is reported.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: Only `juce/mcp/src/SamplerGatewayDisk.cpp` changed (30 insertions, 30 deletions); with every bracketed list normalised, the removed and the added lines are identical (`only_captures.py`), so nothing but capture lists changed. The 30 lambdas that had a default capture (all `[&]`, SonarCloud flagging 30 lines) are all the `start` argument of `detail::await` (`GatewayDetail.hpp`), a `const std::function&` that `await` only calls, synchronously, before it waits: none is stored, posted or run after its scope ends, and the callback that the sampler's session keeps is `await`'s own `[promise]` lambda, not one of these. The lists were found as for TASK-QLT-012: every default capture set to `[]`, `clang-tidy`'s Clang front end (`-std=c++20 -Wall -Wextra -Wpedantic`) said what each lambda needs; round 1 added 53 captures, round 2 one more (a nested use), round 3 gave 0 diagnostics, so no unused-capture warning either. Captures per lambda: min 1, max 5; 30 capture `this`, the others by reference (`&handle`, `&found`, `&kind`, `&overwrite`, ...). No default capture is left in the file. `cmake --build juce/build --config Debug --parallel`: warning-clean under `/WX` (MSVC); `ctest -C Debug -j 8`: 1135/1135 passed, with the disk tools' tests, the scripted conversations of the simulated server, `CheckNoDestructiveCalls`, `CheckReadmeCoversTools`, `sysex_coverage_*`. Not verified: that SonarCloud no longer reports `cpp:S3608` and `cpp:S5019` on the file (the analyser cannot report rules on this connection); GCC and Apple Clang (CI), though Clang accepts the file.
+- **Assumptions**: The check by hand that the description asks for found nothing to change: every lambda is a synchronous `await` start function, and a by-reference capture of a local is valid for the whole call. By-reference captures and `this` are exactly what `[&]` captured; no variable was added. The rewrite tool and the Clang runs are outside the repository (scratchpad). Checked by two compilers' front ends and the tests, not by Sonar.
 
 ### TASK-QLT-014: Lambda captures in `SamplerGatewayFx.cpp`, `SamplerGatewayLists.cpp` and `SamplerGatewayKeys.cpp` (26 + 26)
 - **Tier**: M

@@ -81,7 +81,7 @@ namespace mcp
 
         if (refresh)
         {
-            const auto refreshed = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+            const auto refreshed = await<akm::CommandResult>(waitForDisk(), [this](std::function<void(const akm::CommandResult&)> done) {
                 akm::updateDiskList(session(), std::move(done), diskOptions());
             });
             if (!refreshed)
@@ -90,7 +90,7 @@ namespace mcp
                 return Outcome<Disks>::failure(explainDisk(*refreshed, "refreshing the list of disks"));
         }
 
-        const auto disks = await<akm::DiskListResult>(waitFor(1), [&](std::function<void(const akm::DiskListResult&)> done) {
+        const auto disks = await<akm::DiskListResult>(waitFor(1), [this](std::function<void(const akm::DiskListResult&)> done) {
             akm::getConnectedDisks(session(), std::move(done));
         });
         if (!disks)
@@ -103,7 +103,7 @@ namespace mcp
             entries.push_back(DiskEntry{info.handle, info.name, info.type, info.format, info.writable, false});
 
         // Which one is current: a disk not selected yet is not an error, only "none".
-        const auto current = await<akm::DiskHandleResult>(waitFor(1), [&](std::function<void(const akm::DiskHandleResult&)> done) {
+        const auto current = await<akm::DiskHandleResult>(waitFor(1), [this](std::function<void(const akm::DiskHandleResult&)> done) {
             akm::getCurrentDiskHandle(session(), std::move(done));
         });
         if (current && current->handle)
@@ -125,7 +125,7 @@ namespace mcp
         if (found == disks.value->end())
             return Outcome<DiskEntry>::failure("No disk has the handle " + numberText(handle) + ". The disks are: " + diskList(*disks.value) + ".");
 
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &handle](std::function<void(const akm::CommandResult&)> done) {
             akm::selectDisk(session(), handle, std::move(done));
         });
         if (!selected)
@@ -155,7 +155,7 @@ namespace mcp
     Outcome<std::vector<std::string>> SamplerGateway::folderNames()
     {
         using Names = std::vector<std::string>;
-        const auto count = await<akm::DiskFolderCountResult>(waitFor(1), [&](std::function<void(const akm::DiskFolderCountResult&)> done) {
+        const auto count = await<akm::DiskFolderCountResult>(waitFor(1), [this](std::function<void(const akm::DiskFolderCountResult&)> done) {
             akm::getFolderCount(session(), std::move(done));
         });
         if (!count)
@@ -164,7 +164,7 @@ namespace mcp
             return Outcome<Names>::failure(explain(count->outcome, "counting the folders", _config, true, DISK));
         if (*count->count == 0)
             return Outcome<Names>::success({});
-        const auto names = await<akm::DiskFolderNamesResult>(waitFor(1), [&](std::function<void(const akm::DiskFolderNamesResult&)> done) {
+        const auto names = await<akm::DiskFolderNamesResult>(waitFor(1), [this](std::function<void(const akm::DiskFolderNamesResult&)> done) {
             akm::getAllFolderNames(session(), std::move(done));
         });
         if (!names)
@@ -179,7 +179,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<DiskContents>::failure(*problem);
 
-        const auto handle = await<akm::DiskHandleResult>(waitFor(1), [&](std::function<void(const akm::DiskHandleResult&)> done) {
+        const auto handle = await<akm::DiskHandleResult>(waitFor(1), [this](std::function<void(const akm::DiskHandleResult&)> done) {
             akm::getCurrentDiskHandle(session(), std::move(done));
         });
         if (!handle)
@@ -188,7 +188,7 @@ namespace mcp
             return Outcome<DiskContents>::failure(explain(handle->outcome, "reading the current disk", _config, true, DISK));
 
         DiskContents contents;
-        const auto name = await<akm::DiskNameResult>(waitFor(1), [&](std::function<void(const akm::DiskNameResult&)> done) {
+        const auto name = await<akm::DiskNameResult>(waitFor(1), [this, &handle](std::function<void(const akm::DiskNameResult&)> done) {
             akm::getDiskName(session(), *handle->handle, std::move(done));
         });
         if (!name)
@@ -197,7 +197,7 @@ namespace mcp
             return Outcome<DiskContents>::failure(explain(name->outcome, "reading the name of the current disk", _config, true, DISK));
         contents.diskName = *name->name;
 
-        const auto path = await<akm::DiskPathResult>(waitFor(1), [&](std::function<void(const akm::DiskPathResult&)> done) {
+        const auto path = await<akm::DiskPathResult>(waitFor(1), [this](std::function<void(const akm::DiskPathResult&)> done) {
             akm::getCurrentDiskPath(session(), std::move(done));
         });
         if (!path)
@@ -211,7 +211,7 @@ namespace mcp
             return Outcome<DiskContents>::failure(folders.problem);
         contents.folders = *folders.value;
 
-        const auto fileCount = await<akm::DiskFileCountResult>(waitFor(1), [&](std::function<void(const akm::DiskFileCountResult&)> done) {
+        const auto fileCount = await<akm::DiskFileCountResult>(waitFor(1), [this](std::function<void(const akm::DiskFileCountResult&)> done) {
             akm::getFileCount(session(), std::move(done));
         });
         if (!fileCount)
@@ -220,7 +220,7 @@ namespace mcp
             return Outcome<DiskContents>::failure(explain(fileCount->outcome, "counting the files", _config, true, DISK));
         if (*fileCount->count > 0)
         {
-            const auto names = await<akm::DiskFileNamesResult>(waitFor(1), [&](std::function<void(const akm::DiskFileNamesResult&)> done) {
+            const auto names = await<akm::DiskFileNamesResult>(waitFor(1), [this](std::function<void(const akm::DiskFileNamesResult&)> done) {
                 akm::getAllFileNames(session(), std::move(done));
             });
             if (!names)
@@ -229,7 +229,7 @@ namespace mcp
                 return Outcome<DiskContents>::failure(explain(names->outcome, "reading the file names", _config, true, DISK));
             for (std::size_t i = 0; i < names->names->size(); ++i)
             {
-                const auto size = await<akm::DiskFileSizeResult>(waitFor(1), [&](std::function<void(const akm::DiskFileSizeResult&)> done) {
+                const auto size = await<akm::DiskFileSizeResult>(waitFor(1), [this, &i](std::function<void(const akm::DiskFileSizeResult&)> done) {
                     akm::getFileSize(session(), static_cast<int>(i), std::move(done));
                 });
                 if (!size)
@@ -247,7 +247,7 @@ namespace mcp
         const auto here = listDiskContents();
         if (!here.ok())
             return Outcome<DiskSpace>::failure(here.problem);
-        const auto space = await<akm::DiskFreeSpaceResult>(waitFor(1), [&](std::function<void(const akm::DiskFreeSpaceResult&)> done) {
+        const auto space = await<akm::DiskFreeSpaceResult>(waitFor(1), [this](std::function<void(const akm::DiskFreeSpaceResult&)> done) {
             akm::getCurrentDiskFreeSpace(session(), std::move(done));
         });
         if (!space)
@@ -279,7 +279,7 @@ namespace mcp
             return Outcome<DiskContents>::failure(text + ".");
         }
 
-        const auto opened = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto opened = await<akm::CommandResult>(waitFor(1), [this, &found](std::function<void(const akm::CommandResult&)> done) {
             akm::openFolder(session(), *found, std::move(done));
         });
         if (!opened)
@@ -294,7 +294,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<DiskContents>::failure(*problem);
 
-        const auto path = await<akm::DiskPathResult>(waitFor(1), [&](std::function<void(const akm::DiskPathResult&)> done) {
+        const auto path = await<akm::DiskPathResult>(waitFor(1), [this](std::function<void(const akm::DiskPathResult&)> done) {
             akm::getCurrentDiskPath(session(), std::move(done));
         });
         if (!path)
@@ -304,7 +304,7 @@ namespace mcp
         if (path->path->empty())
             return Outcome<DiskContents>::failure("The current folder is already the root of the disk: there is no folder above it.");
 
-        const auto closed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto closed = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::closeFolder(session(), std::move(done));
         });
         if (!closed)
@@ -372,7 +372,7 @@ namespace mcp
         const akm::SampleLoadOption option = mode == SampleLoadMode::Ram       ? akm::SampleLoadOption::Ram
                                              : mode == SampleLoadMode::Virtual ? akm::SampleLoadOption::Virtual
                                                                                : akm::SampleLoadOption::Normal;
-        const auto loaded = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto loaded = await<akm::CommandResult>(waitForDisk(), [this, &withDependents, &found, &option](std::function<void(const akm::CommandResult&)> done) {
             if (withDependents)
                 akm::loadFileWithDependents(session(), found->name, std::move(done), diskOptions());
             else
@@ -412,7 +412,7 @@ namespace mcp
         const auto before = memoryNames();
         if (!before.ok())
             return Outcome<LoadOutcome>::failure(before.problem);
-        const auto loaded = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto loaded = await<akm::CommandResult>(waitForDisk(), [this, &found](std::function<void(const akm::CommandResult&)> done) {
             akm::loadFolder(session(), *found, std::move(done), diskOptions());
         });
         if (!loaded)
@@ -517,7 +517,7 @@ namespace mcp
 
     Outcome<DiskContents> SamplerGateway::reopenCurrentFolder()
     {
-        const auto path = await<akm::DiskPathResult>(waitFor(1), [&](std::function<void(const akm::DiskPathResult&)> done) {
+        const auto path = await<akm::DiskPathResult>(waitFor(1), [this](std::function<void(const akm::DiskPathResult&)> done) {
             akm::getCurrentDiskPath(session(), std::move(done));
         });
         if (!path)
@@ -532,7 +532,7 @@ namespace mcp
         {
             const std::size_t cut = path->path->find_last_of("/\\");
             last = cut == std::string::npos ? *path->path : path->path->substr(cut + 1);
-            const auto closed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            const auto closed = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
                 akm::closeFolder(session(), std::move(done));
             });
             if (!closed)
@@ -540,7 +540,7 @@ namespace mcp
             if (!akm::succeeded(*closed))
                 return Outcome<DiskContents>::failure(explain(*closed, "closing the current folder", _config, true, DISK));
         }
-        const auto opened = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto opened = await<akm::CommandResult>(waitFor(1), [this, &last](std::function<void(const akm::CommandResult&)> done) {
             akm::openFolder(session(), last, std::move(done));
         });
         if (!opened)
@@ -650,7 +650,7 @@ namespace mcp
         if (const std::string* folder = folderNamed(here.value->folders, expected))
             return Outcome<DiskChange>::failure("The current folder already holds a folder named \"" + *folder + "\": nothing was renamed. Choose another name.");
 
-        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [this, &file, &newName](std::function<void(const akm::CommandResult&)> done) {
             akm::renameFile(session(), file->name, newName, std::move(done));
         });
         if (!renamed)
@@ -689,7 +689,7 @@ namespace mcp
         if (const DiskFileEntry* file = fileNamed(here.value->files, newName))
             return Outcome<DiskChange>::failure("The current folder already holds a file named \"" + file->name + "\": nothing was renamed. Choose another name.");
 
-        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [this, &folder, &newName](std::function<void(const akm::CommandResult&)> done) {
             akm::renameFolder(session(), *folder, newName, std::move(done));
         });
         if (!renamed)
@@ -731,7 +731,7 @@ namespace mcp
 
         // A deletion can take longer than an ordinary command (a folder of 7 files took more than 2 s on the real S5000,
         // TASK-MCP-042): it waits for the disk timeout, as a load or a save does.
-        const auto deleted = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitForDisk(), [this, &change](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteFile(session(), change.name, akm::ConfirmDeleteFile::IUnderstandThisDeletesTheFile, std::move(done), diskOptions());
         });
         if (!deleted)
@@ -782,7 +782,7 @@ namespace mcp
         }
 
         // The same wait for the disk timeout: this is the command that was given up after 2 s while the sampler was still deleting.
-        const auto deleted = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitForDisk(), [this, &change](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteSubFolder(session(), change.name, akm::ConfirmDeleteSubFolder::IUnderstandThisDeletesTheFolderAndEverythingInIt, std::move(done),
                                  diskOptions());
         });
@@ -808,7 +808,7 @@ namespace mcp
         if (found == nullptr)
             return Outcome<std::string>::failure(noSuchFile(*here.value, name));
         const int index = static_cast<int>(found - here.value->files.data());
-        const auto started = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto started = await<akm::CommandResult>(waitFor(1), [this, &index](std::function<void(const akm::CommandResult&)> done) {
             akm::startFileAudition(session(), index, std::move(done));
         });
         if (!started)
@@ -822,7 +822,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<bool>::failure(*problem);
-        const auto stopped = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto stopped = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::stopFileAudition(session(), std::move(done));
         });
         if (!stopped)
@@ -852,7 +852,7 @@ namespace mcp
                                                       file.name + "\": nothing was created. Choose another name.");
         }
 
-        const auto created = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto created = await<akm::CommandResult>(waitFor(1), [this, &name](std::function<void(const akm::CommandResult&)> done) {
             akm::createFolder(session(), name, std::move(done));
         });
         if (!created)
@@ -897,7 +897,7 @@ namespace mcp
             return Outcome<SaveOutcome>::failure("The current folder of the disk \"" + target.value->diskName + "\" already holds the file \"" +
                                                  existing->name + "\": nothing was saved. Pass overwrite true to replace it.");
 
-        const auto saved = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto saved = await<akm::CommandResult>(waitForDisk(), [this, &index, &kind, &overwrite, &saveChildren](std::function<void(const akm::CommandResult&)> done) {
             akm::saveMemoryItem(session(), index, saveType(kind), overwrite, saveChildren, std::move(done), diskOptions());
         });
         if (!saved)
@@ -958,7 +958,7 @@ namespace mcp
                                                      "the items one by one.");
         }
 
-        const auto saved = await<akm::CommandResult>(waitForDisk(), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto saved = await<akm::CommandResult>(waitForDisk(), [this, &kind, &overwrite, &saveChildren](std::function<void(const akm::CommandResult&)> done) {
             akm::saveAllMemoryItems(session(), saveType(kind), overwrite, saveChildren, std::move(done), diskOptions());
         });
         if (!saved)

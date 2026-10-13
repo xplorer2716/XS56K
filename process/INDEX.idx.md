@@ -614,7 +614,7 @@ TASK-QLT-010|137-147|Done|Cognitive complexity of `build_sysex_index.py` (`pytho
 PLAN-QLT-002|1-151||SonarCloud BLOCKER and CRITICAL Issues — the Production Code of `juce/mcp` and the Generators
 TASK-QLT-011|33-44|Done|The name `module` (`cpp:S1669`, 30 BLOCKER)
 TASK-QLT-012|45-56|Done|Lambda captures in `SamplerGateway.cpp` (`cpp:S3608` x65, `cpp:S5019` x64)
-TASK-QLT-013|57-68|Not Started|Lambda captures in `SamplerGatewayDisk.cpp` (`cpp:S3608` x30, `cpp:S5019` x30)
+TASK-QLT-013|57-68|Done|Lambda captures in `SamplerGatewayDisk.cpp` (`cpp:S3608` x30, `cpp:S5019` x30)
 TASK-QLT-014|69-80|Not Started|Lambda captures in `SamplerGatewayFx.cpp`, `SamplerGatewayLists.cpp` and `SamplerGatewayKeys.cpp` (26 + 26)
 TASK-QLT-015|81-92|Not Started|The destructor of `SamplerGateway` does not throw (`cpp:S1048`, bug)
 TASK-QLT-016|93-104|Not Started|The function of `Tools.cpp` that holds the nesting (`cpp:S3776` at 149, `cpp:S134` x2)
