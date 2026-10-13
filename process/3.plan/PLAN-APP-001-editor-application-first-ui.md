@@ -14,9 +14,10 @@ priority 2, nice to have, written `Could`: FTR-APP-009 and the `Could` requireme
 | Step | Task | What | Why here |
 |---|---|---|---|
 | 1 | TASK-APP-001 | the requirements FTR-APP-001 to FTR-APP-009 and this plan | the owner asked for a plan of functional requirements |
-| 2 | TASK-APP-002 | the owner decides the open points: the tabs of the program editor | the owner was not sure on 2026-10-13 |
-| 3 | TASK-APP-003 | ADR-APP-001: the application's architecture | before any code of `juce/app` |
-| 4 | TASK-APP-004 | the design-system document and its ADR | the AGNOS process requires it before the first UI task is Ready |
+| 2 | TASK-APP-005 | remove the assumption that a tab is a function of the sampler (RQ-APP-049, RQ-APP-056, RQ-APP-057) | the owner's remark of 2026-10-13 |
+| 3 | TASK-APP-002 | the owner defines the groups (tabs) of the program editor | the owner was not sure on 2026-10-13 |
+| 4 | TASK-APP-003 | ADR-APP-001: the application's architecture | before any code of `juce/app` |
+| 5 | TASK-APP-004 | the design-system document and its ADR | the AGNOS process requires it before the first UI task is Ready |
 
 ## References
 - **Requirements**: RQ-APP-001 to RQ-APP-072 (`FTR-APP-001` to `FTR-APP-009`); RQ-BLD-007 (the placeholder application)
@@ -52,18 +53,19 @@ This plan implements the tasks in the format specified below.
   own when promoted. (5) Listing the six kinds in the memory view is priority 1, their editors and the changes to song files, set lists and
   scenelists priority 2. (6) A "pending" state, for a value sent and not yet read back, is added to the design system's states (RQ-APP-003).
   (7) The refresh of the list of disks stays priority 1, behind a confirmation (RQ-APP-034). (8) Saving is allowed to the formats MSDOS and
-  FAT32 (RQ-APP-047), the owner's FAT32 disk having been saved to. (9) The program editor's tab list is provisional (RQ-APP-056).
+  FAT32 (RQ-APP-047), the owner's FAT32 disk having been saved to. (9) The program editor's tab list is provisional (RQ-APP-056); superseded by TASK-APP-005, which removed that list.
 
 ### TASK-APP-002: The owner decides the tabs of the program editor
 - **Tier**: S
 - **Status**: Not Started
-- **Description**: Review with the owner the provisional tab list of FTR-APP-008 against the pages of the user manual (EDIT PROGRAM,
-  pp. 80-127), find the page that shows the Keygroup Modulation Sources, and write the decided list into FTR-APP-008.
+- **Description**: The owner defines the groups (tabs) of the program editor and which parameters of the inventory of FTR-APP-008 each
+  holds, with no one-to-one match assumed with the sampler's pages, the manual's functions or the SysEx sections; the decided groups are
+  written into FTR-APP-008.
 - **Requirement refs**: RQ-APP-049, RQ-APP-056, RQ-APP-057
 - **ADR refs**: None
-- **Acceptance Criteria** (Gherkin): *Given* the provisional list, *When* the owner has decided, *Then* FTR-APP-008 holds the decided list and
-  no longer says it is provisional.
-- **Dependencies**: TASK-APP-001
+- **Acceptance Criteria** (Gherkin): *Given* the inventory of FTR-APP-008, *When* the owner has decided, *Then* FTR-APP-008 holds the groups
+  and every parameter of the inventory is in at least one of them (RQ-APP-057).
+- **Dependencies**: TASK-APP-005
 - **Assignee**: Human
 - **Verification**: N/A (Tier S)
 - **Assumptions**: None
@@ -99,3 +101,25 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI
 - **Verification**: Not done yet.
 - **Assumptions**: None
+
+### TASK-APP-005: Remove the assumption that a tab is a function of the sampler
+- **Tier**: M
+- **Status**: Done
+- **Description**: After the owner's remark of 2026-10-13 ("il ne faut pas assumer que par exemple il y aura un onglet par section de
+  sysex"; LFO is not known to be a big function), rewrite RQ-APP-049 so that the tabs are groups the owner decides, replace the provisional
+  tab list of FTR-APP-008 by an inventory of the parameters to place, let a tab mix program, keygroup and zone parameters (RQ-APP-056), and
+  require every parameter in at least one tab rather than exactly one (RQ-APP-057).
+- **Requirement refs**: RQ-APP-049, RQ-APP-056, RQ-APP-057
+- **ADR refs**: None
+- **Acceptance Criteria** (Gherkin): *Given* FTR-APP-007 and FTR-APP-008, *When* they are searched for a tab defined by a function, a page or
+  a section of the sampler, *Then* none is found; *given* RQ-APP-049, RQ-APP-056 and RQ-APP-057, *then* each carries an amendment note of
+  2026-10-13; *given* the index regenerated, *then* it reports no duplicate ID.
+- **Dependencies**: TASK-APP-001
+- **Assignee**: AI
+- **Verification**: Re-run in session: a search of FTR-APP-007 and FTR-APP-008 for "big function", "provisional tab", "one tab per big",
+  "function's parameters", "LFO tab" and "exactly one tab" finds only the amendment note of RQ-APP-057, which quotes the old wording;
+  the note "Amended 2026-10-13 (owner, TASK-APP-005)" is found once in FTR-APP-007 (RQ-APP-049) and twice in FTR-APP-008 (RQ-APP-056,
+  RQ-APP-057); `validate-ids.sh -Type TASK -Value TASK-APP-005` exit 0; `build-index.sh` exit 0 (no duplicate ID), 584 entries, 89 documents.
+- **Assumptions**: (1) "Exactly one tab" became "at least one tab" (RQ-APP-057), so as not to decide whether a parameter may appear in two
+  groups. (2) The inventory of FTR-APP-008 is listed by scope (program, keygroup, zones) because that is where the parameters live on the
+  sampler, not as a proposal of tabs.

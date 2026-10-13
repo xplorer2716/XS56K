@@ -1,4 +1,4 @@
-# FTR-APP-007: The Edit Panel — Content by Item, Tabs by Function, Values Read from the Sampler
+# FTR-APP-007: The Edit Panel — Content by Item, Tabs by Group, Values Read from the Sampler
 
 ## Overview
 
@@ -6,10 +6,9 @@ Session APP (2026-10-13). The right area of the main window (RQ-APP-006) is the 
 memory view and on the tab selected in a row of tabs at the bottom of the panel (drawn F1 to F4 in the owner's sketch). This feature is what
 every editor shares; the program editor, the only one of priority 1, is FTR-APP-008.
 
-**Tabs.** The owner (2026-10-13): following the pages of the user manual is coherent, but one big function of the sampler can have several
-pages and sub-pages, which could be grouped in one panel. The rule is therefore one tab per big function of the sampler's mode for that kind
-of item (EDIT PROGRAM for a program), its pages, sub-pages and windows grouped in that tab. The list of tabs of each editor is in its own
-feature and stays open to the owner's review.
+**Tabs.** Each editor shows its parameters in groups, one tab per group. The groups are the owner's to decide, editor by editor, in the
+editor's own feature. The owner (2026-10-13) has not decided them yet and asked that no one-to-one match be assumed: a tab is not
+necessarily a page or a function of the sampler, a section of the SysEx specification or a group of the AKM layer (TASK-APP-005).
 
 **Values.** The editor shows what the sampler holds: a value is read from the sampler before it is shown, every change is sent and read back
 (the rule of the MCP server, DEC-MCP-006), and the sampler's front panel can change a value without the application knowing, so the person can
@@ -42,14 +41,15 @@ pp. 141-177, MULTI pp. 37-79); `juce/akm/include/akm/ItemDescriptor.hpp`; `proce
 - **Acceptance Criteria** (Gherkin): *Given* the program PAD, *When* it is selected, *Then* the program editor shows PAD with its tabs; *Given* the sample KICK, *When* it is selected, *Then* the panel shows "KICK, sample" and says its editor does not exist yet.
 - **Dependencies**: RQ-APP-001, RQ-APP-037
 
-### RQ-APP-049: One tab per big function, at the bottom of the panel
+### RQ-APP-049: Tabs at the bottom of the panel, grouping as the owner decides
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: Each editor SHALL have one tab per big function of the sampler's mode for its kind, shown in a row at the bottom of the panel, each tab grouping the pages, sub-pages and windows of that function; WHEN the person selects a tab, the panel SHALL show that function's parameters.
-- **Rationale**: the owner's sketch (tabs F1 to F4 at the bottom) and decision of 2026-10-13.
+- **Statement**: Each editor SHALL show its parameters in groups, one tab per group, the tabs in a row at the bottom of the panel, the groups being those the owner decides in the editor's own feature, which need not follow the sampler's pages, the manual's functions or the SysEx sections; WHEN the person selects a tab, the panel SHALL show the parameters of that group.
+- **Rationale**: the owner's sketch (tabs F1 to F4 at the bottom); the owner's remark of 2026-10-13 that the groups are not decided and are not a one-to-one copy of what the sampler exposes.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the program editor, *When* the person selects the LFO tab, *Then* the parameters of LFO 1 and of LFO 2 (a sub-page of LFO 1 on the sampler, p. 91) are shown in that one tab.
+- **Acceptance Criteria** (Gherkin): *Given* an editor whose groups are defined, *When* the person selects a tab, *Then* the panel shows the parameters of that group and no other; *Given* the editor shown, *Then* its tab row is along the bottom edge of the panel.
 - **Dependencies**: RQ-APP-001, RQ-APP-048
+  - *Amended 2026-10-13 (owner, TASK-APP-005):* the tabs are groups the owner decides; they are not assumed to follow the sampler's pages, the manual's functions or the SysEx sections one to one.
 
 ### RQ-APP-050: The context stays in sight
 - **Category**: Functional

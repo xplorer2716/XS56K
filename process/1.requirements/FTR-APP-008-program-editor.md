@@ -8,21 +8,19 @@ sends and reads: the program's groups (§0A: Output, MIDI/Tune, Pitch Bend, LFO 
 current keygroup's (§08: general options — key span, mute group, FX override and send, zone crossfade — then Pitch/Amp, Filter, Filter
 Envelope, Amp Envelope, Aux Envelope, RQ-AKM-029, RQ-AKM-030) and its four zones' (§06, RQ-AKM-034, RQ-AKM-035).
 
-**The tabs** follow the big functions of the sampler's EDIT PROGRAM mode (user manual pp. 80-127), their pages, sub-pages and windows
-grouped (RQ-APP-049). The list below is **provisional**: the owner has not decided it (2026-10-13, "je ne sais pas vraiment pour
-l'instant"), and it is to be reviewed with the owner before the editor's first task is Ready.
+**The tabs** are the groups the owner decides (RQ-APP-049, TASK-APP-002). They are not decided yet, and the owner asked on 2026-10-13
+that they not be assumed to follow the sampler's pages, the manual's functions or the SysEx sections one to one (TASK-APP-005).
 
-| Tab | Pages of the manual grouped | Scope |
+**Inventory of what the editor must reach** — what the AKM layer sets and gets, listed by where it lives on the sampler. This is a list of
+parameters to place, **not a list of tabs**:
+
+| Scope | AKM groups | Requirements |
 |---|---|---|
-| Output | OUTPUT (p. 82) | program |
-| MIDI/Tune | MIDI/TUNE, EDIT USER (pp. 86-87) | program |
-| Pitchbend | PITCHBEND (p. 88) | program |
-| LFOs | LFOS, LFO 2 (pp. 89-94) | program |
-| Keygroup | KEYGROUP ZONES and its windows (level, pan/balance, fine tune, playback), KEYSPAN, KEYGROUP CROSSFADE (pp. 95-106) | keygroup and zones; the crossfade switch is the program's (§0A `&0D`) |
-| Pitch/Amp | KG PITCH/AMP (p. 107) | keygroup |
-| Filter | FILTER (pp. 108-121) | keygroup |
-| Envelopes | AMP ENVELOPE, FILTER ENVELOPE, AUX ENVELOPE and their windows (pp. 122-126) | keygroup |
-| Modulation | the Keygroup Modulation Sources of §0A; the manual page that shows them is not identified yet | program |
+| program (§0A) | Output, MIDI/Tune, Pitch Bend, LFO 1 and 2, Keygroup Modulation Sources; program number; keygroup crossfade switch | RQ-AKM-022, RQ-AKM-024 |
+| current keygroup (§08) | general options (low and high note, mute group, FX override, FX send level, zone crossfade), Pitch/Amp, Filter, Filter Envelope, Amp Envelope, Aux Envelope | RQ-AKM-029, RQ-AKM-030 |
+| zones 1 to 4 of the current keygroup (§06) | sample, level, pan/balance, output, filter, fine and semitone tune, keyboard track, playback mode, velocity to start, low and high velocity, mute, solo | RQ-AKM-034, RQ-AKM-035 |
+
+The pages of the sampler's EDIT PROGRAM mode (user manual pp. 80-127) are a source for naming the parameters, not a model the tabs must copy.
 
 **Priorities.** Priority 1 (mandatory) is written `Must`, priority 2 (nice to have) `Could` (owner, 2026-10-13).
 
@@ -44,20 +42,22 @@ l'instant"), and it is to be reviewed with the owner before the editor's first t
 ### RQ-APP-056: The tabs of the program editor
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
-- **Statement**: The program editor SHALL have the tabs of the list the owner validates (provisional list in this feature's overview), each tab saying whether its parameters belong to the program or to the current keygroup.
-- **Rationale**: the owner's rule of 2026-10-13 (RQ-APP-049); a person must know whether a change applies to the whole program or to one keygroup.
+- **Statement**: The program editor SHALL have the tabs the owner defines (TASK-APP-002), and each parameter SHALL say whether it belongs to the program, to the current keygroup or to a zone of it, a tab being free to mix the three.
+- **Rationale**: RQ-APP-049; a person must know whether a change applies to the whole program, to one keygroup or to one zone.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the program PAD open, *When* the person looks at the tab row, *Then* it shows the validated tabs; *When* the Filter tab is shown, *Then* it says its parameters belong to the current keygroup.
+- **Acceptance Criteria** (Gherkin): *Given* the program PAD open, *When* the person looks at the tab row, *Then* it shows the tabs the owner defined; *Given* a tab holding a program parameter and a keygroup parameter, *When* it is shown, *Then* each says which it belongs to.
 - **Dependencies**: RQ-APP-001, RQ-APP-049, RQ-APP-050
+  - *Amended 2026-10-13 (owner, TASK-APP-005):* the tabs are groups the owner decides; they are not assumed to follow the sampler's pages, the manual's functions or the SysEx sections one to one.
 
 ### RQ-APP-057: Every program parameter has its place
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
-- **Statement**: Every parameter item that the AKM layer sets and gets in the program groups (RQ-AKM-024), the program number and the keygroup crossfade (RQ-AKM-022), the keygroup groups (RQ-AKM-029, RQ-AKM-030) and the zone parameters (RQ-AKM-034) SHALL appear in exactly one tab of the program editor.
-- **Rationale**: no parameter of the sampler is left unreachable or shown twice.
+- **Statement**: Every parameter item that the AKM layer sets and gets in the program groups (RQ-AKM-024), the program number and the keygroup crossfade (RQ-AKM-022), the keygroup groups (RQ-AKM-029, RQ-AKM-030) and the zone parameters (RQ-AKM-034) SHALL appear in at least one tab of the program editor.
+- **Rationale**: no parameter of the sampler is left unreachable; whether one may be shown in several tabs is left to the owner's grouping.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* the item catalogue and the editor's tab definitions, *When* a test compares them, *Then* each such item is in exactly one tab, and the test names any item missing or duplicated.
+- **Acceptance Criteria** (Gherkin): *Given* the item catalogue and the editor's tab definitions, *When* a test compares them, *Then* each such item is in at least one tab, and the test names any item missing.
 - **Dependencies**: RQ-APP-001, RQ-APP-056, RQ-AKM-022, RQ-AKM-024, RQ-AKM-029, RQ-AKM-030, RQ-AKM-034
+  - *Amended 2026-10-13 (owner, TASK-APP-005):* "exactly one tab" became "at least one tab", so as not to decide for the owner whether a parameter may appear in two groups.
 
 ### RQ-APP-058: Choosing the keygroup
 - **Category**: Functional
