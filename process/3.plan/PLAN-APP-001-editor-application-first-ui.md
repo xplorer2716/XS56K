@@ -72,7 +72,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-003: ADR-APP-001 — the application's architecture
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: Decide, in ADR-APP-001, how the application is built: its layers (the behaviour kept out of the JUCE components,
   RQ-APP-014), how a session's completions reach the UI thread without blocking it (RQ-APP-012), the model of the sampler's state the views
   share (memory lists, current items, current folder), the reading and writing of parameters (read-back, coalescing, RQ-APP-052 to
@@ -84,7 +84,7 @@ This plan implements the tasks in the format specified below.
   and a Mermaid diagram, references the RQ-APP it answers, and the owner has accepted it.
 - **Dependencies**: TASK-APP-001
 - **Assignee**: AI
-- **Verification**: Not done yet.
+- **Verification**: ADR-APP-001 drafted (Proposed, DEC-APP-001 to DEC-APP-010); awaiting the owner's acceptance.
 - **Assumptions**: None
 
 ### TASK-APP-004: The design system and its ADR
