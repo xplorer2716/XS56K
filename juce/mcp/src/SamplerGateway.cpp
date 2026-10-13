@@ -190,7 +190,15 @@ namespace mcp
 
     SamplerGateway::~SamplerGateway()
     {
-        close();
+        // A destructor must not throw, and the close waits on the session (it can throw std::system_error or
+        // std::bad_alloc): whatever it throws, there is no one left to report it to.
+        try
+        {
+            close();
+        }
+        catch (...)
+        {
+        }
     }
 
     std::optional<std::string> SamplerGateway::connect()

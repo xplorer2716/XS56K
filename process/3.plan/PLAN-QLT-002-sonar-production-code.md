@@ -80,7 +80,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-015: The destructor of `SamplerGateway` does not throw (`cpp:S1048`, bug)
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `~SamplerGateway` calls `close()`, which waits on the session and can throw (`std::system_error`, `std::bad_alloc`). The call is wrapped in `try { ... } catch (...) {}` with a comment that says a destructor must not throw and that the close has no one to report to. Five lines.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
