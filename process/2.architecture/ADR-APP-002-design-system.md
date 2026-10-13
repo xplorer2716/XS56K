@@ -34,11 +34,11 @@ The value tables of the document's §2 are written from this file by the generat
 `documents/SYSEX-COVERAGE.md` is from its sources. [RQ-APP-001, RQ-APP-002]
 
 ### DEC-APP-012: A generator writes the token module into `xs56k_app_core`, without JUCE
-`juce/tools/generate_design_tokens.py` reads the token file, checks it (every alias resolves, down the tiers, to a global value; no cycle; no
+`juce/tools/generate_design.py` reads the token file, checks it (every alias resolves, down the tiers, to a global value; no cycle; no
 component token holding a value; the contrast of every text pair the document lists is at least 4.5 : 1) and writes
 `juce/app/core/include/app/DesignTokens.generated.hpp`: `constexpr` constants in namespace `app::tokens`, named by the transliteration of the
 document's §2 (`colour.surface.panel` → `kColourSurfacePanel`), colours as `std::uint32_t` ARGB, sizes as `float`, durations as
-`std::chrono::milliseconds`. `--check` fails when the header or the document's tables are behind the token file; it is a `ctest` entry when
+`std::chrono::milliseconds`. It also writes the editor layouts into `EditorLayouts.generated.hpp` (ADR-APP-003 DEC-APP-018). `--check` fails when a header or the document's tables are behind their sources; it is a `ctest` entry when
 CMake finds Python 3, and no script runs during the build. The header includes no JUCE file, so the token module is tested headlessly.
 [RQ-APP-002, RQ-APP-005]
 
@@ -72,8 +72,10 @@ status colour with a word or an icon (the document's §3). [RQ-APP-005, RQ-APP-0
   files (some hundreds of kilobytes) to the repository and the application. The literal check is a pattern search: it cannot see a literal hidden
   behind an arithmetic expression, so review still matters. The editor layouts carry a role per parameter, which the owner's groups (TASK-APP-002)
   will need to state.
-- **Follow-up tasks** (planned with the implementation, after the owner's quality branch is merged): the token file and its generator with
-  tests; the literal check; the look-and-feel; the font.
+- **Follow-up tasks**: the token file and its generator with tests, then the SVG mockups (ADR-APP-003), neither of which depends on the owner's
+  quality branch; the literal check, the look-and-feel and the font with the application's implementation, after that branch is merged.
+- *Amended 2026-10-13 (TASK-APP-006):* the generator is named `generate_design.py` and also writes the editor layouts (ADR-APP-003 DEC-APP-018);
+  mockups are drawn from the same token file (ADR-APP-003).
 
 ## Alternatives Considered
 
@@ -92,7 +94,7 @@ status colour with a word or an icon (the document's §3). [RQ-APP-005, RQ-APP-0
 ```mermaid
 flowchart LR
     TF["juce/app/design/tokens.json<br/>global → semantic → component"]
-    GEN["juce/tools/generate_design_tokens.py<br/>checks aliases, contrast; --check in ctest"]
+    GEN["juce/tools/generate_design.py<br/>checks aliases, contrast; --check in ctest"]
     HDR["DesignTokens.generated.hpp<br/>app::tokens, no JUCE (xs56k_app_core)"]
     DOC["DESIGN-SYSTEM-APP.md §2 tables"]
     LF["LookAndFeel_V4 subclass (XS56KApp)"]

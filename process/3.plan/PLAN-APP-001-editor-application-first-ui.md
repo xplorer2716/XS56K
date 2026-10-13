@@ -19,10 +19,14 @@ priority 2, nice to have, written `Could`: FTR-APP-009 and the `Could` requireme
 | 3 | TASK-APP-002 | the owner defines the groups (tabs) of the program editor | the owner was not sure on 2026-10-13 |
 | 4 | TASK-APP-003 | ADR-APP-001: the application's architecture | before any code of `juce/app` |
 | 5 | TASK-APP-004 | the design-system document and its ADR | the AGNOS process requires it before the first UI task is Ready |
+| 6 | TASK-APP-006 | requirements and ADR-APP-003 of the SVG mockup generator | the owner's proposal of 2026-10-13 |
+| 7 | TASK-APP-007 | the token file and `generate_design.py` (tokens, editor layouts, the document's tables) | the mockups read them |
+| 8 | TASK-APP-008 | `generate_mockups.py` and its `--check` | prototype before code |
+| 9 | TASK-APP-009 | first mockups: main window connected and disconnected, a confirmation dialog | first exchange with the owner |
 
 ## References
-- **Requirements**: RQ-APP-001 to RQ-APP-073 (`FTR-APP-001` to `FTR-APP-009`); RQ-BLD-007 (the placeholder application)
-- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); ADR-APP-002 (design system, DEC-APP-011 to DEC-APP-016)
+- **Requirements**: RQ-APP-001 to RQ-APP-078 (`FTR-APP-001` to `FTR-APP-009`); RQ-BLD-007 (the placeholder application)
+- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); ADR-APP-002 (design system, DEC-APP-011 to DEC-APP-016); ADR-APP-003 (SVG mockups, DEC-APP-017 to DEC-APP-021)
 
 This plan implements the tasks in the format specified below.
 ---
@@ -134,3 +138,63 @@ This plan implements the tasks in the format specified below.
 - **Assumptions**: (1) "Exactly one tab" became "at least one tab" (RQ-APP-057), so as not to decide whether a parameter may appear in two
   groups. (2) The inventory of FTR-APP-008 is listed by scope (program, keygroup, zones) because that is where the parameters live on the
   sampler, not as a proposal of tabs.
+
+### TASK-APP-006: Requirements and ADR of the SVG mockup generator
+- **Tier**: M
+- **Status**: In Progress
+- **Description**: After the owner's proposal of 2026-10-13, add the requirements of a generator of static SVG mockups to FTR-APP-001
+  (RQ-APP-074 to RQ-APP-078), write ADR-APP-003, and amend ADR-APP-002 and the design-system document (§7.1, §7.4, §8) to name it.
+- **Requirement refs**: RQ-APP-074, RQ-APP-075, RQ-APP-076, RQ-APP-077, RQ-APP-078
+- **ADR refs**: ADR-APP-003 (to accept), ADR-APP-002
+- **Acceptance Criteria** (Gherkin): *Given* FTR-APP-001, *When* the index is regenerated, *Then* RQ-APP-074 to RQ-APP-078 are indexed with no
+  duplicate; *given* ADR-APP-003, *then* it has the AGNOS sections and a Mermaid diagram and the owner has accepted it; *given* the design-system
+  document, *then* its §7.4 names the generator.
+- **Dependencies**: TASK-APP-004
+- **Assignee**: AI
+- **Verification**: Drafted; awaiting the owner's acceptance of ADR-APP-002 and ADR-APP-003.
+- **Assumptions**: (1) The editor layouts (shared with the application) and the screens (mockups only) are separate files (DEC-APP-018).
+  (2) The design generator of ADR-APP-002 is renamed `generate_design.py` because it also writes the layouts. (3) The mockups are committed
+  under `documents/mockups/`.
+
+### TASK-APP-007: The token file and `generate_design.py`
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Write `juce/app/design/tokens.json` with the values of the design-system document and `juce/tools/generate_design.py`
+  (checks of the aliases and the contrasts, `DesignTokens.generated.hpp`, the document's §2 tables between markers, `--check` as a `ctest`
+  entry), tests first; the editor layouts part is added when the first layout exists (TASK-APP-002).
+- **Requirement refs**: RQ-APP-002, RQ-APP-005, RQ-APP-075
+- **ADR refs**: ADR-APP-002 (DEC-APP-011, DEC-APP-012), ADR-APP-003 (DEC-APP-018)
+- **Acceptance Criteria** (Gherkin): *Given* the token file, *When* the generator runs, *Then* the header and the tables are written and every
+  component token resolves to a global value; *given* a cycle or a missing alias, *then* it fails and names it; *given* the header edited,
+  *then* `--check` fails.
+- **Dependencies**: TASK-APP-004
+- **Assignee**: AI
+- **Verification**: Not done yet.
+- **Assumptions**: None
+
+### TASK-APP-008: `generate_mockups.py` and its `--check`
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Write the mockup generator of ADR-APP-003 (screens, layouts, tokens to static SVG with Inter embedded, deterministic output,
+  `--check` as a `ctest` entry), tests first.
+- **Requirement refs**: RQ-APP-074, RQ-APP-076, RQ-APP-077, RQ-APP-078
+- **ADR refs**: ADR-APP-003 (DEC-APP-017 to DEC-APP-021)
+- **Acceptance Criteria** (Gherkin): the criteria of RQ-APP-074, RQ-APP-076, RQ-APP-077 and RQ-APP-078.
+- **Dependencies**: TASK-APP-007
+- **Assignee**: AI
+- **Verification**: Not done yet.
+- **Assumptions**: None
+
+### TASK-APP-009: First mockups — the main window and a confirmation
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: Write the screen descriptions and generate the mockups of the main window connected and disconnected (browser, memory view,
+  an edit panel with a placeholder editor) and of a confirmation dialog; render them to PNG to check them; send them to the owner.
+- **Requirement refs**: RQ-APP-006, RQ-APP-011, RQ-APP-019, RQ-APP-074
+- **ADR refs**: ADR-APP-003
+- **Acceptance Criteria** (Gherkin): *Given* the generated mockups, *When* the owner reads them, *Then* they show the three areas, the connection
+  state and the confirmation naming the object; *given* `ctest`, *then* the mockup check passes.
+- **Dependencies**: TASK-APP-008
+- **Assignee**: AI
+- **Verification**: Not done yet.
+- **Assumptions**: None
