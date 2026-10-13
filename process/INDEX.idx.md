@@ -359,20 +359,20 @@ DEC-APP-008|101-110||One gateway per connection; connecting opens and reads, dis
 DEC-APP-009|111-116||The settings are behind an interface of the core
 DEC-APP-010|117-126||Where the code and the tests live
 @process/2.architecture/ADR-APP-002-design-system.md
-ADR-APP-002|1-111|Proposed — drafted in session APP (2026-10-13) for TASK-APP-004, with the owner's choices of that day (style inspired by the plugin Vital,|Design System — One Token File, a Generated Token Module, One Look-and-Feel, a Literal Check, an Embedded Font
-DEC-APP-011|29-35||The token file `juce/app/design/tokens.json` is the single source of truth, in three tiers
-DEC-APP-012|36-44||A generator writes the token module into `xs56k_app_core`, without JUCE
-DEC-APP-013|45-49||One look-and-feel draws every standard component from the tokens
-DEC-APP-014|50-55||A source check forbids raw visual literals outside the token module
-DEC-APP-015|56-60||Inter is embedded with its licence; the system's sans-serif is the fallback
-DEC-APP-016|61-65||A colour belongs to a parameter's family, not to the tab it is in
+ADR-APP-002|1-112|Accepted — drafted in session APP (2026-10-13) for TASK-APP-004, with the owner's choices of that day (style inspired by the plugin Vital,|Design System — One Token File, a Generated Token Module, One Look-and-Feel, a Literal Check, an Embedded Font
+DEC-APP-011|30-36||The token file `juce/app/design/tokens.json` is the single source of truth, in three tiers
+DEC-APP-012|37-45||A generator writes the token module into `xs56k_app_core`, without JUCE
+DEC-APP-013|46-50||One look-and-feel draws every standard component from the tokens
+DEC-APP-014|51-56||A source check forbids raw visual literals outside the token module
+DEC-APP-015|57-61||Inter is embedded with its licence; the system's sans-serif is the fallback
+DEC-APP-016|62-66||A colour belongs to a parameter's family, not to the tab it is in
 @process/2.architecture/ADR-APP-003-svg-mockup-generator.md
-ADR-APP-003|1-111|Proposed — drafted in session APP (2026-10-13) for TASK-APP-006, after the owner proposed a tool that draws SVG mockups from the design system|SVG Mockup Generator — Screen Descriptions as Shared Data, Static Self-Contained SVG, a `--check` That Keeps Them in Step
-DEC-APP-017|23-26||`juce/tools/generate_mockups.py`, Python 3 standard library only, outside the build
-DEC-APP-018|27-42||Two kinds of description — editor layouts shared with the application, screens for the mockups only
-DEC-APP-019|43-47||One static, self-contained SVG per screen and state, in `documents/mockups/`
-DEC-APP-020|48-52||`--check` keeps the committed mockups in step; the generator is tested first
-DEC-APP-021|53-59||The mockup is faithful in tokens and layout, not to the pixel
+ADR-APP-003|1-112|Accepted — drafted in session APP (2026-10-13) for TASK-APP-006, after the owner proposed a tool that draws SVG mockups from the design system|SVG Mockup Generator — Screen Descriptions as Shared Data, Static Self-Contained SVG, a `--check` That Keeps Them in Step
+DEC-APP-017|24-27||`juce/tools/generate_mockups.py`, Python 3 standard library only, outside the build
+DEC-APP-018|28-43||Two kinds of description — editor layouts shared with the application, screens for the mockups only
+DEC-APP-019|44-48||One static, self-contained SVG per screen and state, in `documents/mockups/`
+DEC-APP-020|49-53||`--check` keeps the committed mockups in step; the generator is tested first
+DEC-APP-021|54-60||The mockup is faithful in tokens and layout, not to the pixel
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -594,16 +594,16 @@ TASK-AKM-103|111-141|Done|FX parameter values
 TASK-AKM-104|142-182|Done|Real-sampler check of the Multi FX
 TASK-AKM-105|183-204|Done|Coverage of section §12
 @process/3.plan/PLAN-APP-001-editor-application-first-ui.md
-PLAN-APP-001|1-214||Editor Application — Requirements, Architecture and Design System of the First UI
+PLAN-APP-001|1-216||Editor Application — Requirements, Architecture and Design System of the First UI
 TASK-APP-001|36-62|Done|Author FTR-APP-001 to FTR-APP-009 and PLAN-APP-001
 TASK-APP-002|63-77|Not Started|The owner decides the tabs of the program editor
 TASK-APP-003|78-97|Done|ADR-APP-001 — the application's architecture
-TASK-APP-004|98-119|In Progress|The design system and its ADR
-TASK-APP-005|120-141|Done|Remove the assumption that a tab is a function of the sampler
-TASK-APP-006|142-158|In Progress|Requirements and ADR of the SVG mockup generator
-TASK-APP-007|159-181|Done|The token file and `generate_design.py`
-TASK-APP-008|182-197|Done|`generate_mockups.py` and its `--check`
-TASK-APP-009|198-214|Done|First mockups — the main window and a confirmation
+TASK-APP-004|98-120|Done|The design system and its ADR
+TASK-APP-005|121-142|Done|Remove the assumption that a tab is a function of the sampler
+TASK-APP-006|143-160|Done|Requirements and ADR of the SVG mockup generator
+TASK-APP-007|161-183|Done|The token file and `generate_design.py`
+TASK-APP-008|184-199|Done|`generate_mockups.py` and its `--check`
+TASK-APP-009|200-216|Done|First mockups — the main window and a confirmation
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

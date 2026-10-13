@@ -1,9 +1,10 @@
 # ADR-APP-003: SVG Mockup Generator — Screen Descriptions as Shared Data, Static Self-Contained SVG, a `--check` That Keeps Them in Step
 
 ## Status
-Proposed — drafted in session APP (2026-10-13) for TASK-APP-006, after the owner proposed a tool that draws SVG mockups from the design system
+Accepted — drafted in session APP (2026-10-13) for TASK-APP-006, after the owner proposed a tool that draws SVG mockups from the design system
 "to prototype the interface and exchange between us before generating code", and answered: static mockups; the description of the screens
-serves again for the code; the requirements are added to FTR-APP-001 (RQ-APP-074 to RQ-APP-078). Awaiting the owner's acceptance.
+serves again for the code; the requirements are added to FTR-APP-001 (RQ-APP-074 to RQ-APP-078). Accepted by the owner on 2026-10-13, after the first
+mockups (TASK-APP-009).
 
 ## Context
 

@@ -26,7 +26,7 @@ priority 2, nice to have, written `Could`: FTR-APP-009 and the `Could` requireme
 
 ## References
 - **Requirements**: RQ-APP-001 to RQ-APP-078 (`FTR-APP-001` to `FTR-APP-009`); RQ-BLD-007 (the placeholder application)
-- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); ADR-APP-002 (design system, DEC-APP-011 to DEC-APP-016); ADR-APP-003 (SVG mockups, DEC-APP-017 to DEC-APP-021)
+- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); ADR-APP-002 (Accepted, design system, DEC-APP-011 to DEC-APP-016); ADR-APP-003 (Accepted, SVG mockups, DEC-APP-017 to DEC-APP-021)
 
 This plan implements the tasks in the format specified below.
 ---
@@ -97,7 +97,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-004: The design system and its ADR
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: Instantiate the design-system document from `process/1.requirements/design-system-template.md` with the values the
   owner chooses (palette, theme, fonts, spacing unit), and write the ADR that records the token structure, the token module and the check of
   RQ-APP-004.
@@ -108,9 +108,10 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-APP-003
 - **Assignee**: AI
 - **Verification**: `process/1.requirements/DESIGN-SYSTEM-APP.md` written from the template with every section filled (a search for
-  the template's `[...]`, `[Principle` and `[rule]` placeholders finds none); contrast of every text pair computed in session with the WCAG
-  formula (all text pairs >= 4.5 : 1, `status.error` on `surface.raised` 4.52 after `red.300` was lightened to `#F47A74`); Inter's licence read
-  in `LICENSE.txt` of github.com/rsms/inter (SIL OFL 1.1); ADR-APP-002 drafted (DEC-APP-011 to DEC-APP-016), awaiting the owner's acceptance.
+  the template's `[...]`, `[Principle` and `[rule]` placeholders finds none); its value and contrast tables are now generated from
+  `juce/app/design/tokens.json` by `generate_design.py`, whose check fails under 4.5 : 1 (TASK-APP-007: all pairs pass, `status.error` on
+  `surface.raised` 4.52); Inter's licence read in `LICENSE.txt` of github.com/rsms/inter (SIL OFL 1.1); ADR-APP-002 (DEC-APP-011 to
+  DEC-APP-016) accepted by the owner on 2026-10-13.
 - **Assumptions**: (1) The theme is dark, from the reference image (the owner answered the theme question by giving the image).
   (2) The colours of §2.1 are approximations of the reference's style, not measured from it, and are this project's own. (3) The roles are
   sample (violet), modulation (teal), filter (amber), general (grey); output, MIDI/tune and pitch bend are "general". (4) Inter is the free font
@@ -141,7 +142,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-006: Requirements and ADR of the SVG mockup generator
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: After the owner's proposal of 2026-10-13, add the requirements of a generator of static SVG mockups to FTR-APP-001
   (RQ-APP-074 to RQ-APP-078), write ADR-APP-003, and amend ADR-APP-002 and the design-system document (§7.1, §7.4, §8) to name it.
 - **Requirement refs**: RQ-APP-074, RQ-APP-075, RQ-APP-076, RQ-APP-077, RQ-APP-078
@@ -151,7 +152,8 @@ This plan implements the tasks in the format specified below.
   document, *then* its §7.4 names the generator.
 - **Dependencies**: TASK-APP-004
 - **Assignee**: AI
-- **Verification**: Drafted; awaiting the owner's acceptance of ADR-APP-002 and ADR-APP-003.
+- **Verification**: RQ-APP-074 to RQ-APP-078 indexed by `agnos-index` with no duplicate; ADR-APP-003 has the AGNOS sections and a
+  Mermaid diagram, and was accepted by the owner on 2026-10-13; the design-system document's §7.4 names `generate_mockups.py`.
 - **Assumptions**: (1) The editor layouts (shared with the application) and the screens (mockups only) are separate files (DEC-APP-018).
   (2) The design generator of ADR-APP-002 is renamed `generate_design.py` because it also writes the layouts. (3) The mockups are committed
   under `documents/mockups/`.

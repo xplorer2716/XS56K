@@ -1,8 +1,9 @@
 # ADR-APP-002: Design System — One Token File, a Generated Token Module, One Look-and-Feel, a Literal Check, an Embedded Font
 
 ## Status
-Proposed — drafted in session APP (2026-10-13) for TASK-APP-004, with the owner's choices of that day (style inspired by the plugin Vital,
-colours by role, knobs with their value, an embedded free font, a compact display). Awaiting the owner's acceptance.
+Accepted — drafted in session APP (2026-10-13) for TASK-APP-004, with the owner's choices of that day (style inspired by the plugin Vital,
+colours by role, knobs with their value, an embedded free font, a compact display). Accepted by the owner on 2026-10-13, after the first
+mockups drawn from it (TASK-APP-009).
 
 ## Context
 
