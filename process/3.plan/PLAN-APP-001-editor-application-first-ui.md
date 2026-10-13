@@ -21,8 +21,8 @@ priority 2, nice to have, written `Could`: FTR-APP-009 and the `Could` requireme
 | 5 | TASK-APP-004 | the design-system document and its ADR | the AGNOS process requires it before the first UI task is Ready |
 
 ## References
-- **Requirements**: RQ-APP-001 to RQ-APP-072 (`FTR-APP-001` to `FTR-APP-009`); RQ-BLD-007 (the placeholder application)
-- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); the design-system ADR is written by TASK-APP-004
+- **Requirements**: RQ-APP-001 to RQ-APP-073 (`FTR-APP-001` to `FTR-APP-009`); RQ-BLD-007 (the placeholder application)
+- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); ADR-APP-002 (design system, DEC-APP-011 to DEC-APP-016)
 
 This plan implements the tasks in the format specified below.
 ---
@@ -93,7 +93,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-004: The design system and its ADR
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: Instantiate the design-system document from `process/1.requirements/design-system-template.md` with the values the
   owner chooses (palette, theme, fonts, spacing unit), and write the ADR that records the token structure, the token module and the check of
   RQ-APP-004.
@@ -103,8 +103,15 @@ This plan implements the tasks in the format specified below.
   every state and status names its second cue; *given* the ADR, *then* the owner has accepted it.
 - **Dependencies**: TASK-APP-003
 - **Assignee**: AI
-- **Verification**: Not done yet.
-- **Assumptions**: None
+- **Verification**: `process/1.requirements/DESIGN-SYSTEM-APP.md` written from the template with every section filled (a search for
+  the template's `[...]`, `[Principle` and `[rule]` placeholders finds none); contrast of every text pair computed in session with the WCAG
+  formula (all text pairs >= 4.5 : 1, `status.error` on `surface.raised` 4.52 after `red.300` was lightened to `#F47A74`); Inter's licence read
+  in `LICENSE.txt` of github.com/rsms/inter (SIL OFL 1.1); ADR-APP-002 drafted (DEC-APP-011 to DEC-APP-016), awaiting the owner's acceptance.
+- **Assumptions**: (1) The theme is dark, from the reference image (the owner answered the theme question by giving the image).
+  (2) The colours of §2.1 are approximations of the reference's style, not measured from it, and are this project's own. (3) The roles are
+  sample (violet), modulation (teal), filter (amber), general (grey); output, MIDI/tune and pitch bend are "general". (4) Inter is the free font
+  chosen (the reference's own font is not known with certainty). (5) The curves editable with the mouse are a new priority-2 requirement,
+  RQ-APP-073. (6) The minimum window and area sizes of §2.3 are proposals.
 
 ### TASK-APP-005: Remove the assumption that a tab is a function of the sampler
 - **Tier**: M

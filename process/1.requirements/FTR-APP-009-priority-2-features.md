@@ -121,3 +121,12 @@ sampler's RECORD pages could only be driven blind through the front-panel keys (
 - **Priority**: Could
 - **Acceptance Criteria** (Gherkin): *Given* "follow" chosen, *When* the session opens, *Then* the screen-synchronisation setting is switched on.
 - **Dependencies**: RQ-APP-001, RQ-APP-016, RQ-AKM-040
+
+### RQ-APP-073: Curves drawn and edited with the mouse
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the person edits a program, the application SHALL draw the curves of the envelopes, of the LFOs and of the filter from the values read from the sampler, and WHEN the person drags a point of a curve, it SHALL send the matching parameters' values under the rules of FTR-APP-007 (sent, read back, one write pending per parameter).
+- **Rationale**: the owner's choice of 2026-10-13, on the reference of the plugin Vital: curves editable with the mouse, priority 2.
+- **Priority**: Could
+- **Acceptance Criteria** (Gherkin): *Given* an amplitude envelope with attack 10, *When* the person drags the attack point to the right, *Then* the attack is set to a greater value and read back, and the curve is redrawn from the value read.
+- **Dependencies**: RQ-APP-001, RQ-APP-052, RQ-APP-053, RQ-APP-054, RQ-AKM-030
