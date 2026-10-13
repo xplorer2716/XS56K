@@ -2912,6 +2912,145 @@ namespace mcp
                 kept.push_back(entry.name);
             return capitalized(noun) + "s that remain (" + std::to_string(remaining.size()) + "): " + joined(kept, ", ") + ".";
         }
+
+        /// The refusal of a deletion whose `confirm` is not the name of the item. [RQ-MCP-049]
+        ToolResult notConfirmed(const std::string& noun, const NamedDeletion& deletion, const std::string& confirm)
+        {
+            return failure("The " + noun + " is named \"" + deletion.name + "\" and 'confirm' was \"" + confirm + "\": nothing was deleted. Give 'confirm' exactly as the " +
+                           noun + " is named.");
+        }
+
+        /// What a deletion says it did, as the answer: the position of the item too when `withPosition` (a set list, found by its name). [RQ-MCP-049]
+        std::string deletedText(const std::string& noun, const NamedDeletion& deletion, bool withPosition)
+        {
+            return "Deleted the " + noun + " \"" + deletion.name + "\"" + (withPosition ? " (position " + std::to_string(deletion.index) + ")" : std::string()) +
+                   ". " + remainingText(noun, deletion.remaining);
+        }
+    }
+
+    namespace
+    {
+        ToolResult listNamedItemsHandler(SamplerGateway& gateway, NamedListKind kind, const std::string& noun, bool hasCurrent, const char* selectTool, const json& arguments)
+        {
+            if (const auto refused = unknownArguments(arguments, {}))
+                return *refused;
+            const auto listing = gateway.listNamedItems(kind);
+            if (!listing.ok())
+                return failure(listing.problem);
+            if (listing.value->entries.empty())
+                return ok("The sampler holds no " + noun + ".");
+            std::string text = capitalized(noun) + "s in memory (" + std::to_string(listing.value->entries.size()) + "):\n";
+            for (const NamedListEntry& entry : listing.value->entries)
+            {
+                text += std::to_string(entry.index) + ": " + entry.name;
+                if (listing.value->current && *listing.value->current == entry.index)
+                    text += " (current)";
+                text += "\n";
+            }
+            if (hasCurrent && !listing.value->current)
+                text += "No " + noun + " is selected: use " + selectTool + ".\n";
+            return ok(std::move(text));
+        }
+
+        ToolResult selectNamedItemHandler(SamplerGateway& gateway, NamedListKind kind, const std::string& noun, const json& arguments)
+        {
+            if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_INDEX}))
+                return *refused;
+            const bool hasName = arguments.contains(ARGUMENT_NAME);
+            const bool hasIndex = arguments.contains(ARGUMENT_INDEX);
+            if (hasName == hasIndex)
+                return failure(hasName ? "Give either 'name' or 'index', not both." : "Give either 'name' or 'index'.");
+            Outcome<NamedListEntry> selected;
+            if (hasName)
+            {
+                if (!arguments.at(ARGUMENT_NAME).is_string())
+                    return failure("The argument 'name' must be a string.");
+                selected = gateway.selectNamedItemByName(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
+            }
+            else
+            {
+                const auto index = wholeNumber(arguments.at(ARGUMENT_INDEX));
+                if (!index || *index < 0 || *index > MAX_LIST_INDEX)
+                    return failure("The argument 'index' must be a whole number from 0 to " + std::to_string(MAX_LIST_INDEX) + ".");
+                selected = gateway.selectNamedItemByIndex(kind, static_cast<int>(*index));
+            }
+            if (!selected.ok())
+                return failure(selected.problem);
+            return ok("Selected the " + noun + " \"" + selected.value->name + "\" (position " + std::to_string(selected.value->index) + ").");
+        }
+
+        ToolResult renameCurrentNamedItemHandler(SamplerGateway& gateway, NamedListKind kind, const std::string& noun, const std::string& select, const json& arguments)
+        {
+            if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME}))
+                return *refused;
+            if (!arguments.contains(ARGUMENT_NAME))
+                return failure("Give the 'name' to give the current " + noun + ".");
+            if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NAME), ARGUMENT_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
+                return failure(*problem);
+            const auto renamed = gateway.renameCurrentNamedItem(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
+            if (!renamed.ok())
+                return failure(renamed.problem);
+            std::string text = "Renamed the " + noun + " \"" + renamed.value->before + "\" to \"" + renamed.value->after.name +
+                               "\" (now at position " + std::to_string(renamed.value->after.index) + ").";
+            // The real S5000 moved the current song file when it sorted its list after a renaming. [TASK-MCP-058]
+            if (!renamed.value->current)
+                text += " No " + noun + " is current now: use " + select + " before renaming or deleting one.";
+            else if (renamed.value->current->index != renamed.value->after.index)
+                text += " The current " + noun + " is now \"" + renamed.value->current->name + "\" (position " +
+                        std::to_string(renamed.value->current->index) + "): use " + select + " to make \"" +
+                        renamed.value->after.name + "\" current again before renaming or deleting it.";
+            return ok(text);
+        }
+
+        ToolResult renameSetListHandler(SamplerGateway& gateway, const std::string& noun, const json& arguments)
+        {
+            if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_NEW_NAME}))
+                return *refused;
+            if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
+                return failure("Give the 'name' of the " + noun + " to rename, as a string.");
+            if (!arguments.contains(ARGUMENT_NEW_NAME))
+                return failure("Give the 'new_name' to give the " + noun + ".");
+            if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NEW_NAME), ARGUMENT_NEW_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
+                return failure(*problem);
+            const auto renamed = gateway.renameSetList(arguments.at(ARGUMENT_NAME).get<std::string>(),
+                                                       arguments.at(ARGUMENT_NEW_NAME).get<std::string>());
+            if (!renamed.ok())
+                return failure(renamed.problem);
+            return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" (position " + std::to_string(renamed.value->index) + ") to \"" +
+                      renamed.value->after + "\" (now at position " + std::to_string(renamed.value->afterIndex) + ").");
+        }
+
+        ToolResult deleteCurrentNamedItemHandler(SamplerGateway& gateway, NamedListKind kind, const std::string& noun, const json& arguments)
+        {
+            if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
+                return *refused;
+            if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
+                return failure("Give 'confirm', the exact name of the current " + noun + ".");
+            const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
+            const auto deletion = gateway.deleteCurrentNamedItem(kind, confirm);
+            if (!deletion.ok())
+                return failure(deletion.problem);
+            if (!deletion.value->done)
+                return notConfirmed(noun, *deletion.value, confirm);
+            return ok(deletedText(noun, *deletion.value, false));
+        }
+
+        ToolResult deleteSetListHandler(SamplerGateway& gateway, const std::string& noun, const json& arguments)
+        {
+            if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_CONFIRM}))
+                return *refused;
+            if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
+                return failure("Give the 'name' of the " + noun + " to delete, as a string.");
+            if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
+                return failure("Give 'confirm', the exact name of the " + noun + ".");
+            const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
+            const auto deletion = gateway.deleteSetList(arguments.at(ARGUMENT_NAME).get<std::string>(), confirm);
+            if (!deletion.ok())
+                return failure(deletion.problem);
+            if (!deletion.value->done)
+                return notConfirmed(noun, *deletion.value, confirm);
+            return ok(deletedText(noun, *deletion.value, true));
+        }
     }
 
     std::vector<Tool> makeNamedListTools(SamplerGateway& gateway)
@@ -2929,26 +3068,7 @@ namespace mcp
                            "Lists the " + noun + "s in the sampler's memory, in the sampler's order, with their positions (from 0)" +
                                (hasCurrent ? " and the current one marked." : "; the sampler has no current " + noun + ".") + " It changes nothing.",
                            objectSchema(), true, true),
-                [&gateway, kind, noun, hasCurrent, selectTool = names.select](const json& arguments) {
-                    if (const auto refused = unknownArguments(arguments, {}))
-                        return *refused;
-                    const auto listing = gateway.listNamedItems(kind);
-                    if (!listing.ok())
-                        return failure(listing.problem);
-                    if (listing.value->entries.empty())
-                        return ok("The sampler holds no " + noun + ".");
-                    std::string text = capitalized(noun) + "s in memory (" + std::to_string(listing.value->entries.size()) + "):\n";
-                    for (const NamedListEntry& entry : listing.value->entries)
-                    {
-                        text += std::to_string(entry.index) + ": " + entry.name;
-                        if (listing.value->current && *listing.value->current == entry.index)
-                            text += " (current)";
-                        text += "\n";
-                    }
-                    if (hasCurrent && !listing.value->current)
-                        text += "No " + noun + " is selected: use " + selectTool + ".\n";
-                    return ok(std::move(text));
-                }});
+                [&gateway, kind, noun, hasCurrent, selectTool = names.select](const json& arguments) { return listNamedItemsHandler(gateway, kind, noun, hasCurrent, selectTool, arguments); }});
 
             // select_song_file, select_scenelist
             if (hasCurrent)
@@ -2961,31 +3081,7 @@ namespace mcp
                                                  {ARGUMENT_INDEX,
                                                   {{"type", "integer"}, {"minimum", 0}, {"maximum", MAX_LIST_INDEX}, {"description", "The " + noun + "'s position, from 0."}}}}),
                                false, true),
-                    [&gateway, kind, noun](const json& arguments) {
-                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_INDEX}))
-                            return *refused;
-                        const bool hasName = arguments.contains(ARGUMENT_NAME);
-                        const bool hasIndex = arguments.contains(ARGUMENT_INDEX);
-                        if (hasName == hasIndex)
-                            return failure(hasName ? "Give either 'name' or 'index', not both." : "Give either 'name' or 'index'.");
-                        Outcome<NamedListEntry> selected;
-                        if (hasName)
-                        {
-                            if (!arguments.at(ARGUMENT_NAME).is_string())
-                                return failure("The argument 'name' must be a string.");
-                            selected = gateway.selectNamedItemByName(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
-                        }
-                        else
-                        {
-                            const auto index = wholeNumber(arguments.at(ARGUMENT_INDEX));
-                            if (!index || *index < 0 || *index > MAX_LIST_INDEX)
-                                return failure("The argument 'index' must be a whole number from 0 to " + std::to_string(MAX_LIST_INDEX) + ".");
-                            selected = gateway.selectNamedItemByIndex(kind, static_cast<int>(*index));
-                        }
-                        if (!selected.ok())
-                            return failure(selected.problem);
-                        return ok("Selected the " + noun + " \"" + selected.value->name + "\" (position " + std::to_string(selected.value->index) + ").");
-                    }});
+                    [&gateway, kind, noun](const json& arguments) { return selectNamedItemHandler(gateway, kind, noun, arguments); }});
             }
 
             // rename_song_file, rename_scenelist: the current one; rename_set_list: by name
@@ -2998,27 +3094,7 @@ namespace mcp
                                objectSchema(json{{ARGUMENT_NAME, {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_LIST_NAME_LENGTH) + " characters."}}}},
                                             json::array({ARGUMENT_NAME})),
                                false, true),
-                    [&gateway, kind, noun, select = std::string(names.select)](const json& arguments) {
-                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME}))
-                            return *refused;
-                        if (!arguments.contains(ARGUMENT_NAME))
-                            return failure("Give the 'name' to give the current " + noun + ".");
-                        if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NAME), ARGUMENT_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
-                            return failure(*problem);
-                        const auto renamed = gateway.renameCurrentNamedItem(kind, arguments.at(ARGUMENT_NAME).get<std::string>());
-                        if (!renamed.ok())
-                            return failure(renamed.problem);
-                        std::string text = "Renamed the " + noun + " \"" + renamed.value->before + "\" to \"" + renamed.value->after.name +
-                                           "\" (now at position " + std::to_string(renamed.value->after.index) + ").";
-                        // The real S5000 moved the current song file when it sorted its list after a renaming. [TASK-MCP-058]
-                        if (!renamed.value->current)
-                            text += " No " + noun + " is current now: use " + select + " before renaming or deleting one.";
-                        else if (renamed.value->current->index != renamed.value->after.index)
-                            text += " The current " + noun + " is now \"" + renamed.value->current->name + "\" (position " +
-                                    std::to_string(renamed.value->current->index) + "): use " + select + " to make \"" +
-                                    renamed.value->after.name + "\" current again before renaming or deleting it.";
-                        return ok(text);
-                    }});
+                    [&gateway, kind, noun, select = std::string(names.select)](const json& arguments) { return renameCurrentNamedItemHandler(gateway, kind, noun, select, arguments); }});
             }
             else
             {
@@ -3031,35 +3107,12 @@ namespace mcp
                                                  {ARGUMENT_NEW_NAME, {{"type", "string"}, {"description", "The new name, 1 to " + std::to_string(MAX_LIST_NAME_LENGTH) + " characters."}}}},
                                             json::array({ARGUMENT_NAME, ARGUMENT_NEW_NAME})),
                                false, true),
-                    [&gateway, noun](const json& arguments) {
-                        if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_NEW_NAME}))
-                            return *refused;
-                        if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
-                            return failure("Give the 'name' of the " + noun + " to rename, as a string.");
-                        if (!arguments.contains(ARGUMENT_NEW_NAME))
-                            return failure("Give the 'new_name' to give the " + noun + ".");
-                        if (const auto problem = itemNameProblem(arguments.at(ARGUMENT_NEW_NAME), ARGUMENT_NEW_NAME, noun.c_str(), MAX_LIST_NAME_LENGTH))
-                            return failure(*problem);
-                        const auto renamed = gateway.renameSetList(arguments.at(ARGUMENT_NAME).get<std::string>(),
-                                                                   arguments.at(ARGUMENT_NEW_NAME).get<std::string>());
-                        if (!renamed.ok())
-                            return failure(renamed.problem);
-                        return ok("Renamed the " + noun + " \"" + renamed.value->before + "\" (position " + std::to_string(renamed.value->index) + ") to \"" +
-                                  renamed.value->after + "\" (now at position " + std::to_string(renamed.value->afterIndex) + ").");
-                    }});
+                    [&gateway, noun](const json& arguments) { return renameSetListHandler(gateway, noun, arguments); }});
             }
 
             // delete_song_file, delete_scenelist: the current one; delete_set_list: by name. Each only with `confirm`, the exact name.
             // [RQ-MCP-049, RQ-MCP-042, ADR-MCP-004 (DEC-MCP-023)]
             const std::string lostNotice = " A " + noun + " that is not on a disk is lost; it cannot be undone from here. ";
-            const auto notConfirmed = [noun](const NamedDeletion& deletion, const std::string& confirm) {
-                return failure("The " + noun + " is named \"" + deletion.name + "\" and 'confirm' was \"" + confirm + "\": nothing was deleted. Give 'confirm' exactly as the " +
-                               noun + " is named.");
-            };
-            const auto deletedText = [noun](const NamedDeletion& deletion, bool withPosition) {
-                return "Deleted the " + noun + " \"" + deletion.name + "\"" + (withPosition ? " (position " + std::to_string(deletion.index) + ")" : std::string()) +
-                       ". " + remainingText(noun, deletion.remaining);
-            };
             if (hasCurrent)
             {
                 ToolDefinition removal = definition(
@@ -3070,19 +3123,7 @@ namespace mcp
                                  json::array({ARGUMENT_CONFIRM})),
                     false, false);
                 removal.annotations.destructive = true;
-                tools.push_back(Tool{std::move(removal), [&gateway, kind, noun, notConfirmed, deletedText](const json& arguments) {
-                                         if (const auto refused = unknownArguments(arguments, {ARGUMENT_CONFIRM}))
-                                             return *refused;
-                                         if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
-                                             return failure("Give 'confirm', the exact name of the current " + noun + ".");
-                                         const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
-                                         const auto deletion = gateway.deleteCurrentNamedItem(kind, confirm);
-                                         if (!deletion.ok())
-                                             return failure(deletion.problem);
-                                         if (!deletion.value->done)
-                                             return notConfirmed(*deletion.value, confirm);
-                                         return ok(deletedText(*deletion.value, false));
-                                     }});
+                tools.push_back(Tool{std::move(removal), [&gateway, kind, noun](const json& arguments) { return deleteCurrentNamedItemHandler(gateway, kind, noun, arguments); }});
             }
             else
             {
@@ -3096,21 +3137,7 @@ namespace mcp
                                  json::array({ARGUMENT_NAME, ARGUMENT_CONFIRM})),
                     false, false);
                 removal.annotations.destructive = true;
-                tools.push_back(Tool{std::move(removal), [&gateway, noun, notConfirmed, deletedText](const json& arguments) {
-                                         if (const auto refused = unknownArguments(arguments, {ARGUMENT_NAME, ARGUMENT_CONFIRM}))
-                                             return *refused;
-                                         if (!arguments.contains(ARGUMENT_NAME) || !arguments.at(ARGUMENT_NAME).is_string())
-                                             return failure("Give the 'name' of the " + noun + " to delete, as a string.");
-                                         if (!arguments.contains(ARGUMENT_CONFIRM) || !arguments.at(ARGUMENT_CONFIRM).is_string())
-                                             return failure("Give 'confirm', the exact name of the " + noun + ".");
-                                         const std::string confirm = arguments.at(ARGUMENT_CONFIRM).get<std::string>();
-                                         const auto deletion = gateway.deleteSetList(arguments.at(ARGUMENT_NAME).get<std::string>(), confirm);
-                                         if (!deletion.ok())
-                                             return failure(deletion.problem);
-                                         if (!deletion.value->done)
-                                             return notConfirmed(*deletion.value, confirm);
-                                         return ok(deletedText(*deletion.value, true));
-                                     }});
+                tools.push_back(Tool{std::move(removal), [&gateway, noun](const json& arguments) { return deleteSetListHandler(gateway, noun, arguments); }});
             }
         }
         return tools;
