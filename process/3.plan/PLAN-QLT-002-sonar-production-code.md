@@ -68,15 +68,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-014: Lambda captures in `SamplerGatewayFx.cpp`, `SamplerGatewayLists.cpp` and `SamplerGatewayKeys.cpp` (26 + 26)
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The same change as TASK-QLT-012, in the three smaller files: `cpp:S3608` x12, x9, x5 and `cpp:S5019` x12, x9, x5.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-006)
 - **Acceptance Criteria** (Gherkin): *Given* the three files changed, *When* the project builds with the tests on, *Then* it builds warning-clean and `ctest` passes. *Given* `git diff`, *Then* it shows only capture lists. *Given* `sonar analyze --file` on each, *Then* neither rule is reported.
 - **Dependencies**: TASK-QLT-011 (it edits `SamplerGatewayFx.cpp` too: do it first, so the two diffs do not collide)
 - **Assignee**: AI
-- **Verification**: To be filled at closure.
-- **Assumptions**: None
+- **Verification**: Only `juce/mcp/src/SamplerGatewayFx.cpp` (12 insertions, 12 deletions), `SamplerGatewayLists.cpp` (9 and 9) and `SamplerGatewayKeys.cpp` (5 and 5) changed; for each file, with every bracketed list normalised, the removed and the added lines are identical (`only_captures.py`), so nothing but capture lists changed. The 26 lambdas that had a default capture (all `[&]`, SonarCloud flagging 26 lines) are all the `start` argument of `detail::await`, which only calls it, synchronously, before it waits: none outlives its scope. Same method as TASK-QLT-012 and 013: every default capture set to `[]`, `clang-tidy`'s Clang front end (`-std=c++20 -Wall -Wextra -Wpedantic`) said what each lambda needs; Fx: round 1 added 34 captures, round 2 gave 0 diagnostics; Lists: 23, then 0; Keys: 11, then 0 (so no unused-capture warning either). Captures per lambda: min 1 and max 5 (Fx), 2 and 3 (Lists, Keys); all 26 capture `this`. No default capture is left in the three files. `cmake --build juce/build --config Debug --parallel`: warning-clean under `/WX` (MSVC); `ctest -C Debug -j 8`: 1135/1135 passed, with `CheckNoDestructiveCalls`, `CheckReadmeCoversTools` and `sysex_coverage_*`. `SamplerGatewayFx.cpp` already carried the renames of TASK-QLT-011 (`moduleIndex`), which is why `&moduleIndex` appears in its lists. Not verified: that SonarCloud no longer reports `cpp:S3608` and `cpp:S5019` on the three files (the analyser cannot report rules on this connection); GCC and Apple Clang (CI), though Clang accepts the files.
+- **Assumptions**: As for TASK-QLT-013: every lambda is a synchronous `await` start function, so a by-reference capture of a local is valid for the whole call, and the lists are exactly what `[&]` captured. TASK-QLT-011 was done first, as the dependency asks, so the two diffs do not collide. The rewrite tool and the Clang runs are outside the repository (scratchpad). Checked by two compilers' front ends and the tests, not by Sonar.
 
 ### TASK-QLT-015: The destructor of `SamplerGateway` does not throw (`cpp:S1048`, bug)
 - **Tier**: S
