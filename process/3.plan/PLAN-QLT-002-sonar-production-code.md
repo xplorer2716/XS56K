@@ -140,7 +140,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-020: Path traversal of the two generators (`pythonsecurity:S2083`, 2 BLOCKER)
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Ask the owner the question of DEC-QLT-009 and do what he answers: accept the two issues in SonarCloud with his reason (recommended: developer tools run at a shell, which write where they are told, and whose tests write to a temporary directory), or add a check that `--output` is inside the repository or the system temporary directory, in `generate_sysex_coverage.py` and `generate_akm_items.py`. Accepting is one call of the triage tool or `sonar api`, and changes SonarCloud's state: only on his go.
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-003
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-009)
@@ -148,4 +148,4 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: None
 - **Assignee**: Human (the decision), AI (the change)
 - **Verification**: N/A (Tier S)
-- **Assumptions**: None
+- **Assumptions**: The owner answered the question of DEC-QLT-009 on 2026-10-13: accept the two issues. They were accepted in SonarCloud with `juce/tools/sonar_triage.py`'s transition (`do_transition`, `accept`) and this comment: "Not fixed on purpose: a developer tool run at a shell, which writes the file named by --output where it is told, and whose tests write to a temporary directory; restricting the path would change what it does (owner decision 2026-10-13, DEC-QLT-009, RQ-QLT-003)." Read back: `pythonsecurity:S2083` on `generate_sysex_coverage.py` (line 1086 of the analysed revision) and on `generate_akm_items.py` (line 534) are `ACCEPTED` (status `RESOLVED`, resolution `WONTFIX`), the comment is on each. No code changed.

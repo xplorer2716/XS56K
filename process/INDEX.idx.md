@@ -621,4 +621,4 @@ TASK-QLT-016|93-104|Done|The function of `Tools.cpp` that holds the nesting (`cp
 TASK-QLT-017|105-116|Done|The other functions of `Tools.cpp` (`cpp:S3776` x11)
 TASK-QLT-018|117-128|Done|`SamplerGateway.cpp` and `ServerOptions.cpp` (`cpp:S3776` x3 and x1)
 TASK-QLT-019|129-140|Done|Cognitive complexity of `generate_sysex_coverage.py` (`python:S3776` x10)
-TASK-QLT-020|141-151|Not Started|Path traversal of the two generators (`pythonsecurity:S2083`, 2 BLOCKER)
+TASK-QLT-020|141-151|Done|Path traversal of the two generators (`pythonsecurity:S2083`, 2 BLOCKER)
