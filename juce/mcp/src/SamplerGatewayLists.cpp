@@ -168,7 +168,7 @@ namespace mcp
     Outcome<int> SamplerGateway::readNamedCount(NamedListKind kind)
     {
         const ListCalls& calls = callsOf(kind);
-        const auto count = await<akm::SongCountResult>(waitFor(1), [&](std::function<void(const akm::SongCountResult&)> done) {
+        const auto count = await<akm::SongCountResult>(waitFor(1), [this, &calls](std::function<void(const akm::SongCountResult&)> done) {
             calls.count(session(), std::move(done));
         });
         if (!count)
@@ -181,7 +181,7 @@ namespace mcp
     Outcome<std::string> SamplerGateway::readNamedName(NamedListKind kind, int index)
     {
         const ListCalls& calls = callsOf(kind);
-        const auto name = await<akm::SongNameResult>(waitFor(1), [&](std::function<void(const akm::SongNameResult&)> done) {
+        const auto name = await<akm::SongNameResult>(waitFor(1), [this, &calls, &index](std::function<void(const akm::SongNameResult&)> done) {
             calls.nameAt(session(), index, std::move(done));
         });
         if (!name)
@@ -195,7 +195,7 @@ namespace mcp
     Outcome<std::optional<int>> SamplerGateway::readCurrentNamedIndex(NamedListKind kind)
     {
         const ListCalls& calls = callsOf(kind);
-        const auto current = await<akm::SongIndexResult>(waitFor(1), [&](std::function<void(const akm::SongIndexResult&)> done) {
+        const auto current = await<akm::SongIndexResult>(waitFor(1), [this, &calls](std::function<void(const akm::SongIndexResult&)> done) {
             calls.currentIndex(session(), std::move(done));
         });
         if (!current)
@@ -255,7 +255,7 @@ namespace mcp
             return Outcome<NamedListEntry>::failure(std::string("The sampler has no current ") + calls.noun + ": a " + calls.noun + " is not selected.");
         if (const auto problem = connect())
             return Outcome<NamedListEntry>::failure(*problem);
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &calls, &name](std::function<void(const akm::CommandResult&)> done) {
             calls.selectByName(session(), name, std::move(done));
         });
         if (!selected)
@@ -277,7 +277,7 @@ namespace mcp
             return Outcome<NamedListEntry>::failure(std::string("The sampler has no current ") + calls.noun + ": a " + calls.noun + " is not selected.");
         if (const auto problem = connect())
             return Outcome<NamedListEntry>::failure(*problem);
-        const auto selected = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto selected = await<akm::CommandResult>(waitFor(1), [this, &calls, &index](std::function<void(const akm::CommandResult&)> done) {
             calls.selectByIndex(session(), index, std::move(done));
         });
         if (!selected)
@@ -308,7 +308,7 @@ namespace mcp
         if (const NamedListEntry* bearer = otherBearing(*listing.value, current.value->index, newName))
             return Outcome<NamedRenaming>::failure(alreadyHolds(calls.noun, *bearer));
 
-        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [this, &calls, &newName](std::function<void(const akm::CommandResult&)> done) {
             calls.renameCurrent(session(), newName, std::move(done));
         });
         if (!renamed)
@@ -346,7 +346,7 @@ namespace mcp
         if (const NamedListEntry* bearer = otherBearing(*listing.value, target.index, newName))
             return Outcome<SetListRenaming>::failure(alreadyHolds(noun, *bearer));
 
-        const auto renamed = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto renamed = await<akm::CommandResult>(waitFor(1), [this, &target, &newName](std::function<void(const akm::CommandResult&)> done) {
             akm::renameSetList(session(), target.index, newName, std::move(done));
         });
         if (!renamed)
@@ -376,7 +376,7 @@ namespace mcp
         if (current.value->name != confirm)
             return Outcome<NamedDeletion>::success(NamedDeletion{false, current.value->index, current.value->name, {}});
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [this, &calls](std::function<void(const akm::CommandResult&)> done) {
             calls.deleteCurrent(session(), std::move(done));
         });
         if (!deleted)
@@ -407,7 +407,7 @@ namespace mcp
         if (target.name != confirm)
             return Outcome<NamedDeletion>::success(NamedDeletion{false, target.index, target.name, {}});
 
-        const auto deleted = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto deleted = await<akm::CommandResult>(waitFor(1), [this, &target](std::function<void(const akm::CommandResult&)> done) {
             akm::deleteSetList(session(), target.index, std::move(done));
         });
         if (!deleted)

@@ -43,7 +43,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<FxLayoutInfo>::failure(*problem);
-        const auto card = await<akm::FxCardResult>(waitFor(1), [&](std::function<void(const akm::FxCardResult&)> done) {
+        const auto card = await<akm::FxCardResult>(waitFor(1), [this](std::function<void(const akm::FxCardResult&)> done) {
             akm::getFxCard(session(), std::move(done));
         });
         if (!card)
@@ -56,7 +56,7 @@ namespace mcp
             return Outcome<FxLayoutInfo>::success(std::move(layout));
         layout.card = FxCardKind::Eb20;
 
-        const auto channels = await<akm::FxCountResult>(waitFor(1), [&](std::function<void(const akm::FxCountResult&)> done) {
+        const auto channels = await<akm::FxCountResult>(waitFor(1), [this](std::function<void(const akm::FxCountResult&)> done) {
             akm::getFxChannelCount(session(), std::move(done));
         });
         if (!channels)
@@ -65,7 +65,7 @@ namespace mcp
             return Outcome<FxLayoutInfo>::failure(explain(channels->outcome, "counting the effects channels", _config, false));
         for (int channel = 0; channel < *channels->count; ++channel)
         {
-            const auto modules = await<akm::FxCountResult>(waitFor(1), [&](std::function<void(const akm::FxCountResult&)> done) {
+            const auto modules = await<akm::FxCountResult>(waitFor(1), [this, &channel](std::function<void(const akm::FxCountResult&)> done) {
                 akm::getFxModuleCount(session(), channel, std::move(done));
             });
             if (!modules)
@@ -81,14 +81,14 @@ namespace mcp
     Outcome<FxModuleState> SamplerGateway::readFxModule(int channel, int moduleIndex)
     {
         const std::string where = "the module " + numberText(moduleIndex) + " of the effects channel " + numberText(channel);
-        const auto type = await<akm::FxModuleTypeResult>(waitFor(1), [&](std::function<void(const akm::FxModuleTypeResult&)> done) {
+        const auto type = await<akm::FxModuleTypeResult>(waitFor(1), [this, &channel, &moduleIndex](std::function<void(const akm::FxModuleTypeResult&)> done) {
             akm::getFxModuleType(session(), channel, moduleIndex, std::move(done));
         });
         if (!type)
             return Outcome<FxModuleState>::failure(SESSION_TIMED_OUT);
         if (!type->type)
             return Outcome<FxModuleState>::failure(explain(type->outcome, "reading the type of " + where, _config, true, CURRENT_MULTI));
-        const auto enabled = await<akm::FxEnabledResult>(waitFor(1), [&](std::function<void(const akm::FxEnabledResult&)> done) {
+        const auto enabled = await<akm::FxEnabledResult>(waitFor(1), [this, &channel, &moduleIndex](std::function<void(const akm::FxEnabledResult&)> done) {
             akm::getFxModuleEnabled(session(), channel, moduleIndex, std::move(done));
         });
         if (!enabled)
@@ -109,7 +109,7 @@ namespace mcp
         {
             FxChannelState state;
             const int index = static_cast<int>(channel);
-            const auto muted = await<akm::FxMuteResult>(waitFor(1), [&](std::function<void(const akm::FxMuteResult&)> done) {
+            const auto muted = await<akm::FxMuteResult>(waitFor(1), [this, &index](std::function<void(const akm::FxMuteResult&)> done) {
                 akm::getFxChannelMute(session(), index, std::move(done));
             });
             if (!muted)
@@ -132,7 +132,7 @@ namespace mcp
 
     Outcome<int> SamplerGateway::readFxParameter(int channel, int moduleIndex, int parameter)
     {
-        const auto read = await<akm::FxParameterResult>(waitFor(1), [&](std::function<void(const akm::FxParameterResult&)> done) {
+        const auto read = await<akm::FxParameterResult>(waitFor(1), [this, &channel, &moduleIndex, &parameter](std::function<void(const akm::FxParameterResult&)> done) {
             akm::getFxParameter(session(), channel, moduleIndex, parameter, std::move(done));
         });
         if (!read)
@@ -148,14 +148,14 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<bool>::failure(*problem);
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &channel, &muted](std::function<void(const akm::CommandResult&)> done) {
             akm::setFxChannelMute(session(), channel, muted, std::move(done));
         });
         if (!set)
             return Outcome<bool>::failure(SESSION_TIMED_OUT);
         if (!akm::succeeded(*set))
             return Outcome<bool>::failure(explain(*set, "muting the effects channel " + numberText(channel), _config, true, CURRENT_MULTI));
-        const auto read = await<akm::FxMuteResult>(waitFor(1), [&](std::function<void(const akm::FxMuteResult&)> done) {
+        const auto read = await<akm::FxMuteResult>(waitFor(1), [this, &channel](std::function<void(const akm::FxMuteResult&)> done) {
             akm::getFxChannelMute(session(), channel, std::move(done));
         });
         if (!read)
@@ -173,7 +173,7 @@ namespace mcp
         const std::string where = "the module " + numberText(moduleIndex) + " of the effects channel " + numberText(channel);
         if (type)
         {
-            const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            const auto set = await<akm::CommandResult>(waitFor(1), [this, &channel, &moduleIndex, &type](std::function<void(const akm::CommandResult&)> done) {
                 akm::setFxModuleType(session(), channel, moduleIndex, static_cast<akm::FxModuleType>(*type), std::move(done));
             });
             if (!set)
@@ -183,7 +183,7 @@ namespace mcp
         }
         if (enabled)
         {
-            const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+            const auto set = await<akm::CommandResult>(waitFor(1), [this, &channel, &moduleIndex, &enabled](std::function<void(const akm::CommandResult&)> done) {
                 akm::setFxModuleEnabled(session(), channel, moduleIndex, *enabled, std::move(done));
             });
             if (!set)
@@ -198,7 +198,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<int>::failure(*problem);
-        const auto set = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto set = await<akm::CommandResult>(waitFor(1), [this, &channel, &moduleIndex, &parameter, &value](std::function<void(const akm::CommandResult&)> done) {
             akm::setFxParameter(session(), channel, moduleIndex, parameter, value, std::move(done));
         });
         if (!set)

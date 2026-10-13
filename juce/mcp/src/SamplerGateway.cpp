@@ -190,7 +190,15 @@ namespace mcp
 
     SamplerGateway::~SamplerGateway()
     {
-        close();
+        // A destructor must not throw, and the close waits on the session (it can throw std::system_error or
+        // std::bad_alloc): whatever it throws, there is no one left to report it to.
+        try
+        {
+            close();
+        }
+        catch (...)
+        {
+        }
     }
 
     std::optional<std::string> SamplerGateway::connect()
@@ -1040,63 +1048,60 @@ namespace mcp
         return Outcome<KeygroupChange>::success(KeygroupChange{true, *program.value, *after.value});
     }
 
-    Outcome<std::vector<ParameterValue>> SamplerGateway::editParameter(const ParameterDefinition& parameter,
-                                                                       std::optional<std::int64_t> valueToSet,
-                                                                       KeygroupSelection selection, ZoneSelection zones)
+    namespace
     {
-        using Values = std::vector<ParameterValue>;
-        const bool onZones = parameter.scope == ParameterScope::Zone;
-        const bool onKeygroups = parameter.scope == ParameterScope::Keygroup || onZones;
-        int keygroups = 0;
-
-        if (onZones && zones.zone && (*zones.zone < 1 || *zones.zone > ZONES_PER_KEYGROUP))
-            return Outcome<Values>::failure("Zone " + numberText(*zones.zone) + " does not exist: a keygroup has zones 1 to " +
-                                            numberText(ZONES_PER_KEYGROUP) + " (or all of them).");
-
-        if (onKeygroups)
+        // The refusal of a zone that a keygroup does not have, or nothing.
+        std::optional<std::string> zoneProblem(const ParameterDefinition& parameter, ZoneSelection zones)
         {
-            const auto count = keygroupCount();
-            if (!count.ok())
-                return Outcome<Values>::failure(count.problem);
-            keygroups = *count.value;
+            if (parameter.scope == ParameterScope::Zone && zones.zone && (*zones.zone < 1 || *zones.zone > ZONES_PER_KEYGROUP))
+                return "Zone " + numberText(*zones.zone) + " does not exist: a keygroup has zones 1 to " +
+                       numberText(ZONES_PER_KEYGROUP) + " (or all of them).";
+            return std::nullopt;
+        }
+
+        // The refusal of a keygroup that the current program does not have, or nothing.
+        std::optional<std::string> keygroupProblem(int keygroups, KeygroupSelection selection)
+        {
             if (selection.keygroup && (*selection.keygroup < 1 || *selection.keygroup > keygroups))
-                return Outcome<Values>::failure("The current program has " + numberText(keygroups) + " keygroup" +
-                                                (keygroups == 1 ? "" : "s") + "; keygroup " + numberText(*selection.keygroup) +
-                                                " does not exist.");
+                return "The current program has " + numberText(keygroups) + " keygroup" +
+                       (keygroups == 1 ? "" : "s") + "; keygroup " + numberText(*selection.keygroup) +
+                       " does not exist.";
+            return std::nullopt;
         }
 
-        std::vector<akm::CommandRequest> requests;
-        std::vector<std::string> steps;
-        if (onKeygroups)
+        // The requests of one edit and what each is doing: the selection of the keygroups when the parameter has some, the Set when there is a
+        // value to set, then the Get, which answers `records` records.
+        void addParameterRequests(const ParameterDefinition& parameter, std::optional<std::int64_t> valueToSet, KeygroupSelection selection,
+                                  ZoneSelection zones, bool onKeygroups, int records, std::vector<akm::CommandRequest>& requests,
+                                  std::vector<std::string>& steps)
         {
-            const std::string which = selection.keygroup ? "keygroup " + numberText(*selection.keygroup) : "all keygroups";
-            requests.push_back(selectKeygroupRequest(selection.keygroup.value_or(ALL_KEYGROUPS)));
-            steps.push_back("selecting " + which);
+            if (onKeygroups)
+            {
+                const std::string which = selection.keygroup ? "keygroup " + numberText(*selection.keygroup) : "all keygroups";
+                requests.push_back(selectKeygroupRequest(selection.keygroup.value_or(ALL_KEYGROUPS)));
+                steps.push_back("selecting " + which);
+            }
+            if (valueToSet)
+            {
+                requests.push_back(setRequest(parameter, *valueToSet, zones));
+                steps.push_back("setting " + parameter.name);
+            }
+            requests.push_back(getRequest(parameter, zones, records > 1));
+            steps.push_back("reading " + parameter.name);
         }
-        if (valueToSet)
-        {
-            requests.push_back(setRequest(parameter, *valueToSet, zones));
-            steps.push_back("setting " + parameter.name);
-        }
-        // How many records the Get answers: one per keygroup while "all keygroups" is selected, times one per zone for
-        // zone 0 (keygroup-major, zone-minor, RQ-MCP-019).
-        const int keygroupRecords = onKeygroups && !selection.keygroup ? keygroups : 1;
-        const int zoneRecords = onZones && !zones.zone ? ZONES_PER_KEYGROUP : 1;
-        const int records = keygroupRecords * zoneRecords;
-        requests.push_back(getRequest(parameter, zones, records > 1));
-        steps.push_back("reading " + parameter.name);
 
-        const auto replies = runSequence(std::move(requests), steps, true);
-        if (!replies.ok())
-            return Outcome<Values>::failure(replies.problem);
-
-        Values values;
-        const std::vector<std::uint8_t>& answer = replies.value->back();
-        if (records > 1)
+        // The values of the Get of a parameter that answers several records, one per record (keygroup-major, zone-minor, RQ-MCP-019), or the
+        // failure to read them.
+        Outcome<std::vector<ParameterValue>> severalParameterValues(const ParameterDefinition& parameter, const std::vector<std::uint8_t>& answer,
+                                                                     KeygroupSelection selection, ZoneSelection zones, int records, int zoneRecords)
         {
+            using Values = std::vector<ParameterValue>;
+            const bool onZones = parameter.scope == ParameterScope::Zone;
+            const bool onKeygroups = parameter.scope == ParameterScope::Keygroup || onZones;
             const auto sets = akm::decodeRepeatedReply(parameter.getItem, answer);
             if (!sets || static_cast<int>(sets->size()) != records)
                 return Outcome<Values>::failure(unreadable(parameter));
+            Values values;
             for (std::size_t i = 0; i < sets->size(); ++i)
             {
                 const auto value = fromItemValues(parameter, (*sets)[i]);
@@ -1110,13 +1115,21 @@ namespace mcp
                     read.zone = zones.zone ? zones.zone : std::optional<int>(static_cast<int>(i) % zoneRecords + 1);
                 values.push_back(read);
             }
+            return Outcome<Values>::success(std::move(values));
         }
-        else
+
+        // The value of the Get of a parameter that answers one record, or the failure to read it.
+        Outcome<std::vector<ParameterValue>> oneParameterValue(const ParameterDefinition& parameter, const std::vector<std::uint8_t>& answer,
+                                                                KeygroupSelection selection, ZoneSelection zones)
         {
+            using Values = std::vector<ParameterValue>;
+            const bool onZones = parameter.scope == ParameterScope::Zone;
+            const bool onKeygroups = parameter.scope == ParameterScope::Keygroup || onZones;
             const auto set = akm::decodeReply(parameter.getItem, answer);
             const auto value = set ? fromItemValues(parameter, *set) : std::nullopt;
             if (!value)
                 return Outcome<Values>::failure(unreadable(parameter));
+            Values values;
             ParameterValue read;
             read.value = *value;
             if (onKeygroups)
@@ -1124,21 +1137,77 @@ namespace mcp
             if (onZones)
                 read.zone = zones.zone;
             values.push_back(read);
+            return Outcome<Values>::success(std::move(values));
         }
 
-        if (valueToSet)
+        // What the Get answered, as one value per record, or the failure to read it.
+        Outcome<std::vector<ParameterValue>> parameterValues(const ParameterDefinition& parameter, const std::vector<std::uint8_t>& answer,
+                                                              KeygroupSelection selection, ZoneSelection zones, int records, int zoneRecords)
+        {
+            return records > 1 ? severalParameterValues(parameter, answer, selection, zones, records, zoneRecords)
+                               : oneParameterValue(parameter, answer, selection, zones);
+        }
+
+        // The refusal of a value that the sampler did not keep: what it was set to and what it reads back, or nothing.
+        std::optional<std::string> keptProblem(const ParameterDefinition& parameter, std::int64_t valueToSet, const std::vector<ParameterValue>& values)
         {
             for (const ParameterValue& read : values)
             {
-                if (read.value != *valueToSet)
-                    return Outcome<Values>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
-                                                    describeValue(parameter, *valueToSet) + " but reads " +
-                                                    describeValue(parameter, read.value) +
-                                                    (read.keygroup ? " for keygroup " + numberText(*read.keygroup) : "") +
-                                                    (read.zone ? " zone " + numberText(*read.zone) : "") + ".");
+                if (read.value != valueToSet)
+                    return "The sampler did not keep the value: " + parameter.name + " was set to " +
+                           describeValue(parameter, valueToSet) + " but reads " +
+                           describeValue(parameter, read.value) +
+                           (read.keygroup ? " for keygroup " + numberText(*read.keygroup) : "") +
+                           (read.zone ? " zone " + numberText(*read.zone) : "") + ".";
             }
+            return std::nullopt;
         }
-        return Outcome<Values>::success(std::move(values));
+    }
+
+    Outcome<std::vector<ParameterValue>> SamplerGateway::editParameter(const ParameterDefinition& parameter,
+                                                                       std::optional<std::int64_t> valueToSet,
+                                                                       KeygroupSelection selection, ZoneSelection zones)
+    {
+        using Values = std::vector<ParameterValue>;
+        const bool onZones = parameter.scope == ParameterScope::Zone;
+        const bool onKeygroups = parameter.scope == ParameterScope::Keygroup || onZones;
+        int keygroups = 0;
+
+        if (const auto problem = zoneProblem(parameter, zones))
+            return Outcome<Values>::failure(*problem);
+
+        if (onKeygroups)
+        {
+            const auto count = keygroupCount();
+            if (!count.ok())
+                return Outcome<Values>::failure(count.problem);
+            keygroups = *count.value;
+            if (const auto problem = keygroupProblem(keygroups, selection))
+                return Outcome<Values>::failure(*problem);
+        }
+
+        // How many records the Get answers: one per keygroup while "all keygroups" is selected, times one per zone for
+        // zone 0 (keygroup-major, zone-minor, RQ-MCP-019).
+        const int keygroupRecords = onKeygroups && !selection.keygroup ? keygroups : 1;
+        const int zoneRecords = onZones && !zones.zone ? ZONES_PER_KEYGROUP : 1;
+        const int records = keygroupRecords * zoneRecords;
+        std::vector<akm::CommandRequest> requests;
+        std::vector<std::string> steps;
+        addParameterRequests(parameter, valueToSet, selection, zones, onKeygroups, records, requests, steps);
+
+        const auto replies = runSequence(std::move(requests), steps, true);
+        if (!replies.ok())
+            return Outcome<Values>::failure(replies.problem);
+
+        auto values = parameterValues(parameter, replies.value->back(), selection, zones, records, zoneRecords);
+        if (!values.ok())
+            return values;
+        if (valueToSet)
+        {
+            if (const auto problem = keptProblem(parameter, *valueToSet, *values.value))
+                return Outcome<Values>::failure(*problem);
+        }
+        return values;
     }
 
     Outcome<std::vector<ParameterValue>> SamplerGateway::readParameter(const ParameterDefinition& parameter,
@@ -1639,6 +1708,59 @@ namespace mcp
             return "The multi \"" + multi.name + "\" has " + numberText(multi.partCount) + " parts, numbered 1 to " + numberText(multi.partCount) +
                    "; part " + numberText(part) + " does not exist.";
         }
+
+        // The program a part is to play, as the sampler's list gives it: its name and, when it was chosen by its position, that position;
+        // or what is wrong with the choice. [RQ-MCP-038]
+        struct ProgramChoice
+        {
+            std::string listed;
+            int position = 0;
+            std::string problem;
+        };
+
+        ProgramChoice chooseProgramByName(const std::vector<ProgramEntry>& programs, const std::string& name)
+        {
+            ProgramChoice choice;
+            const std::string wanted = normalizeText(name);
+            const auto found = std::find_if(programs.begin(), programs.end(),
+                                            [&wanted](const ProgramEntry& entry) { return normalizeText(entry.name) == wanted; });
+            if (found == programs.end())
+            {
+                std::string text = "No program is named \"" + name + "\" in the sampler's memory.";
+                if (programs.empty())
+                {
+                    choice.problem = text + " The memory holds none.";
+                    return choice;
+                }
+                text += " It holds: ";
+                for (std::size_t i = 0; i < programs.size(); ++i)
+                    text += (i == 0 ? "" : ", ") + std::string("\"") + programs[i].name + "\"";
+                choice.problem = text + ".";
+                return choice;
+            }
+            choice.listed = found->name;
+            return choice;
+        }
+
+        ProgramChoice chooseProgramByPosition(const std::vector<ProgramEntry>& programs, int position)
+        {
+            ProgramChoice choice;
+            if (position < 0 || position >= static_cast<int>(programs.size()))
+            {
+                choice.problem = "There is no program at position " + numberText(position) + ": the sampler holds " +
+                                 numberText(programs.size()) + " (positions 0 to " +
+                                 numberText(static_cast<int>(programs.size()) - 1) + "; see list_programs).";
+                return choice;
+            }
+            choice.position = position;
+            choice.listed = programs[static_cast<std::size_t>(position)].name;
+            return choice;
+        }
+
+        ProgramChoice chooseProgram(const std::vector<ProgramEntry>& programs, const ProgramReference& program)
+        {
+            return program.name ? chooseProgramByName(programs, *program.name) : chooseProgramByPosition(programs, program.position.value_or(-1));
+        }
     }
 
     Outcome<PartAssignment> SamplerGateway::assignPartProgram(int part, const ProgramReference& program)
@@ -1652,34 +1774,11 @@ namespace mcp
         const auto programs = listPrograms();
         if (!programs.ok())
             return Outcome<PartAssignment>::failure(programs.problem);
-        std::string listed;
-        int position = 0;
-        if (program.name)
-        {
-            const std::string wanted = normalizeText(*program.name);
-            const auto found = std::find_if(programs.value->begin(), programs.value->end(),
-                                            [&wanted](const ProgramEntry& entry) { return normalizeText(entry.name) == wanted; });
-            if (found == programs.value->end())
-            {
-                std::string text = "No program is named \"" + *program.name + "\" in the sampler's memory.";
-                if (programs.value->empty())
-                    return Outcome<PartAssignment>::failure(text + " The memory holds none.");
-                text += " It holds: ";
-                for (std::size_t i = 0; i < programs.value->size(); ++i)
-                    text += (i == 0 ? "" : ", ") + std::string("\"") + (*programs.value)[i].name + "\"";
-                return Outcome<PartAssignment>::failure(text + ".");
-            }
-            listed = found->name;
-        }
-        else
-        {
-            position = program.position.value_or(-1);
-            if (position < 0 || position >= static_cast<int>(programs.value->size()))
-                return Outcome<PartAssignment>::failure("There is no program at position " + numberText(position) + ": the sampler holds " +
-                                                     numberText(programs.value->size()) + " (positions 0 to " +
-                                                     numberText(static_cast<int>(programs.value->size()) - 1) + "; see list_programs).");
-            listed = (*programs.value)[static_cast<std::size_t>(position)].name;
-        }
+        const ProgramChoice chosen = chooseProgram(*programs.value, program);
+        if (!chosen.problem.empty())
+            return Outcome<PartAssignment>::failure(chosen.problem);
+        const std::string& listed = chosen.listed;
+        const int position = chosen.position;
 
         const int wirePart = part - 1;
         const auto assigned = await<akm::CommandResult>(waitFor(1), [this, &program, &wirePart, &listed, &position](std::function<void(const akm::CommandResult&)> done) {
@@ -1813,6 +1912,57 @@ namespace mcp
         return currentMultiEntry();
     }
 
+    namespace
+    {
+        // The parts an edit acts on: the one given, or all of them.
+        std::vector<int> partsWanted(PartSelection parts, int partCount)
+        {
+            std::vector<int> wanted;
+            if (parts.part)
+                wanted.push_back(*parts.part);
+            else
+            {
+                for (int part = 1; part <= partCount; ++part)
+                    wanted.push_back(part);
+            }
+            return wanted;
+        }
+
+        // The requests of one edit of parts and what each is doing: for each part the Set, when there is a value to set, then the Get.
+        // The wire's part number starts at 0 where the front panel's starts at 1 (an assumption, see the tests).
+        void addPartRequests(const ParameterDefinition& parameter, std::optional<std::int64_t> valueToSet, const std::vector<int>& wanted,
+                             std::vector<akm::CommandRequest>& requests, std::vector<std::string>& steps)
+        {
+            for (const int part : wanted)
+            {
+                const std::int64_t wirePart = part - 1;
+                if (valueToSet)
+                {
+                    std::vector<std::int64_t> values{wirePart};
+                    const std::vector<std::int64_t> wire = toItemValues(parameter, *valueToSet);
+                    values.insert(values.end(), wire.begin(), wire.end());
+                    requests.push_back(akm::makeRequest(parameter.setItem, values));
+                    steps.push_back("setting " + parameter.name + " of part " + numberText(part));
+                }
+                requests.push_back(akm::makeRequest(parameter.getItem, {wirePart}));
+                steps.push_back("reading " + parameter.name + " of part " + numberText(part));
+            }
+        }
+
+        // The refusal of a value that the sampler did not keep: what it was set to and what a part reads back, or nothing.
+        std::optional<std::string> keptPartProblem(const ParameterDefinition& parameter, std::int64_t valueToSet, const std::vector<PartValue>& values)
+        {
+            for (const PartValue& read : values)
+            {
+                if (read.value != valueToSet)
+                    return "The sampler did not keep the value: " + parameter.name + " was set to " +
+                           describeValue(parameter, valueToSet) + " but reads " + describeValue(parameter, read.value) +
+                           " for part " + numberText(read.part) + ".";
+            }
+            return std::nullopt;
+        }
+    }
+
     Outcome<std::vector<PartValue>> SamplerGateway::editMultiParameter(const ParameterDefinition& parameter,
                                                                        std::optional<std::int64_t> valueToSet, PartSelection parts)
     {
@@ -1832,32 +1982,10 @@ namespace mcp
             return Outcome<Values>::failure("The current multi has " + numberText(partCount) + " parts: parts 1 to " + numberText(partCount) +
                                             " exist, part " + numberText(*parts.part) + " does not.");
 
-        std::vector<int> wanted;
-        if (parts.part)
-            wanted.push_back(*parts.part);
-        else
-        {
-            for (int part = 1; part <= partCount; ++part)
-                wanted.push_back(part);
-        }
-
-        // The wire's part number starts at 0 where the front panel's starts at 1 (an assumption, see the tests).
+        const std::vector<int> wanted = partsWanted(parts, partCount);
         std::vector<akm::CommandRequest> requests;
         std::vector<std::string> steps;
-        for (const int part : wanted)
-        {
-            const std::int64_t wirePart = part - 1;
-            if (valueToSet)
-            {
-                std::vector<std::int64_t> values{wirePart};
-                const std::vector<std::int64_t> wire = toItemValues(parameter, *valueToSet);
-                values.insert(values.end(), wire.begin(), wire.end());
-                requests.push_back(akm::makeRequest(parameter.setItem, values));
-                steps.push_back("setting " + parameter.name + " of part " + numberText(part));
-            }
-            requests.push_back(akm::makeRequest(parameter.getItem, {wirePart}));
-            steps.push_back("reading " + parameter.name + " of part " + numberText(part));
-        }
+        addPartRequests(parameter, valueToSet, wanted, requests, steps);
 
         const auto replies = runSequence(std::move(requests), steps, true, "multi");
         if (!replies.ok())
@@ -1876,13 +2004,8 @@ namespace mcp
         }
         if (valueToSet)
         {
-            for (const PartValue& read : values)
-            {
-                if (read.value != *valueToSet)
-                    return Outcome<Values>::failure("The sampler did not keep the value: " + parameter.name + " was set to " +
-                                                    describeValue(parameter, *valueToSet) + " but reads " + describeValue(parameter, read.value) +
-                                                    " for part " + numberText(read.part) + ".");
-            }
+            if (const auto problem = keptPartProblem(parameter, *valueToSet, values))
+                return Outcome<Values>::failure(*problem);
         }
         return Outcome<Values>::success(std::move(values));
     }
