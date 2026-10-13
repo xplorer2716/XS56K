@@ -139,49 +139,49 @@ namespace akm
                        });
     }
 
-    void setFxModuleType(Session& session, int channel, int module, FxModuleType type, CommandCompletion completion)
+    void setFxModuleType(Session& session, int channel, int moduleIndex, FxModuleType type, CommandCompletion completion)
     {
-        session.submit(makeRequest(ItemId::FxSetModuleType, {channel, module, static_cast<std::int64_t>(type)}),
+        session.submit(makeRequest(ItemId::FxSetModuleType, {channel, moduleIndex, static_cast<std::int64_t>(type)}),
                        std::move(completion));
     }
 
-    void getFxModuleType(Session& session, int channel, int module, FxModuleTypeCompletion completion)
+    void getFxModuleType(Session& session, int channel, int moduleIndex, FxModuleTypeCompletion completion)
     {
-        session.submit(makeRequest(ItemId::FxGetModuleType, {channel, module}),
+        session.submit(makeRequest(ItemId::FxGetModuleType, {channel, moduleIndex}),
                        [completion = std::move(completion)](const CommandResult& outcome) {
                            if (completion)
                                completion({moduleTypeFromReply(decodeByteReply(ItemId::FxGetModuleType, outcome)), outcome});
                        });
     }
 
-    void setFxModuleEnabled(Session& session, int channel, int module, bool enabled, CommandCompletion completion)
+    void setFxModuleEnabled(Session& session, int channel, int moduleIndex, bool enabled, CommandCompletion completion)
     {
-        session.submit(makeRequest(ItemId::FxSetModuleEnabled, {channel, module, enabled ? ENABLED : DISABLED}),
+        session.submit(makeRequest(ItemId::FxSetModuleEnabled, {channel, moduleIndex, enabled ? ENABLED : DISABLED}),
                        std::move(completion));
     }
 
-    void getFxModuleEnabled(Session& session, int channel, int module, FxEnabledCompletion completion)
+    void getFxModuleEnabled(Session& session, int channel, int moduleIndex, FxEnabledCompletion completion)
     {
-        session.submit(makeRequest(ItemId::FxGetModuleEnabled, {channel, module}),
+        session.submit(makeRequest(ItemId::FxGetModuleEnabled, {channel, moduleIndex}),
                        [completion = std::move(completion)](const CommandResult& outcome) {
                            if (completion)
                                completion({flagFromReply(decodeByteReply(ItemId::FxGetModuleEnabled, outcome)), outcome});
                        });
     }
 
-    void setFxParameter(Session& session, int channel, int module, int parameter, int value, CommandCompletion completion)
+    void setFxParameter(Session& session, int channel, int moduleIndex, int parameter, int value, CommandCompletion completion)
     {
         const std::int64_t magnitude = value < 0 ? -static_cast<std::int64_t>(value) : static_cast<std::int64_t>(value);
         // A magnitude above 16383 gives a most significant byte above 127, which the catalogue's range refuses.
         session.submit(makeRequest(ItemId::FxSetParameter,
-                                   {channel, module, parameter, value < 0 ? NEGATIVE : POSITIVE, magnitude / DATA_BYTE_BASE,
+                                   {channel, moduleIndex, parameter, value < 0 ? NEGATIVE : POSITIVE, magnitude / DATA_BYTE_BASE,
                                     magnitude % DATA_BYTE_BASE}),
                        std::move(completion));
     }
 
-    void getFxParameter(Session& session, int channel, int module, int parameter, FxParameterCompletion completion)
+    void getFxParameter(Session& session, int channel, int moduleIndex, int parameter, FxParameterCompletion completion)
     {
-        session.submit(makeRequest(ItemId::FxGetParameter, {channel, module, parameter}),
+        session.submit(makeRequest(ItemId::FxGetParameter, {channel, moduleIndex, parameter}),
                        [completion = std::move(completion)](const CommandResult& outcome) {
                            if (completion)
                                completion({decodeParameterReply(outcome), outcome});

@@ -110,21 +110,7 @@ namespace midiapp::controller
             {
                 for (const auto& parameterName : parameterNames)
                 {
-                    // Autoscale the 0-127 CC value to the parameter range,
-                    // reference formula included the mid-range special case
-                    // for two-state parameters. [RQ-FMW-050]
-                    const auto* parameter = getParameter(parameterName);
-                    const double interleave = parameter->maxValue() + std::abs(parameter->minValue());
-                    double controllerValue = message.data2();
-                    if (interleave == 1 && controllerValue > 63)
-                    {
-                        controllerValue = 127;
-                    }
-                    const double controllerRatio = controllerValue / 127.0;
-                    const int value = static_cast<int>(controllerRatio * interleave)
-                                      - std::abs(parameter->minValue());
-                    setParameter(parameterName, value);
-                    notifyAutomationParameterChangeEvent(parameterName, value);
+                    applyAutomatedControlChange(parameterName, message.data2());
                 }
                 return;
             }
@@ -133,6 +119,25 @@ namespace midiapp::controller
         // re-stamped on the tone's channel. [RQ-FMW-051]
         sendToSynthOutput(MidiMessage::channelMessage(message.command(), _tone->midiChannel(),
                                                       message.data1(), message.data2()));
+    }
+
+    void AbstractController::applyAutomatedControlChange(const std::string& parameterName, int controlChangeValue)
+    {
+        // Autoscale the 0-127 CC value to the parameter range,
+        // reference formula included the mid-range special case
+        // for two-state parameters. [RQ-FMW-050, RQ-QLT-004, ADR-QLT-001 (DEC-QLT-002)]
+        const auto* parameter = getParameter(parameterName);
+        const double interleave = parameter->maxValue() + std::abs(parameter->minValue());
+        double controllerValue = controlChangeValue;
+        if (interleave == 1 && controllerValue > 63)
+        {
+            controllerValue = 127;
+        }
+        const double controllerRatio = controllerValue / 127.0;
+        const int value = static_cast<int>(controllerRatio * interleave)
+                          - std::abs(parameter->minValue());
+        setParameter(parameterName, value);
+        notifyAutomationParameterChangeEvent(parameterName, value);
     }
 
     void AbstractController::automationInputDeviceSysExMessageReceived(const MidiMessage& message)

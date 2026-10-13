@@ -865,14 +865,14 @@ namespace mcp
         /// is reported as "select a multi first". [RQ-MCP-053]
         [[nodiscard]] Outcome<FxLayoutInfo> readFxLayout();
         [[nodiscard]] Outcome<FxBoardState> readFxBoard();
-        [[nodiscard]] Outcome<FxModuleState> readFxModule(int channel, int module);
-        [[nodiscard]] Outcome<int> readFxParameter(int channel, int module, int parameter);
+        [[nodiscard]] Outcome<FxModuleState> readFxModule(int channel, int moduleIndex);
+        [[nodiscard]] Outcome<int> readFxParameter(int channel, int moduleIndex, int parameter);
 
         /// Each of these sends the Set of section 12 and answers what the sampler then reports. The caller checks the values against the layout and
         /// the module's parameters first; the AKM layer refuses a number outside 0 to 127 and a value beyond 16383 in magnitude. [RQ-MCP-053]
         [[nodiscard]] Outcome<bool> setFxChannelMute(int channel, bool muted);
-        [[nodiscard]] Outcome<FxModuleState> setFxModule(int channel, int module, std::optional<int> type, std::optional<bool> enabled);
-        [[nodiscard]] Outcome<int> setFxParameter(int channel, int module, int parameter, int value);
+        [[nodiscard]] Outcome<FxModuleState> setFxModule(int channel, int moduleIndex, std::optional<int> type, std::optional<bool> enabled);
+        [[nodiscard]] Outcome<int> setFxParameter(int channel, int moduleIndex, int parameter, int value);
 
         /// The front-panel keys (section 20), behind `--allow-front-panel`. A key is found by its name (`panelKeyNames`), in other letters or with a
         /// space or a hyphen for the underscore; an unknown one is a problem and nothing is sent. The sampler only QUEUES what it receives: `true`/the

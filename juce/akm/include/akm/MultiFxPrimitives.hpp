@@ -112,9 +112,9 @@ namespace akm
         ReverbInput = 0x10,
     };
 
-    /// Sets the type of module `module` of channel `channel` (§12/&30). With the EB20 only modules 2 and 3 of channels 0
+    /// Sets the type of module `moduleIndex` of channel `channel` (§12/&30). With the EB20 only modules 2 and 3 of channels 0
     /// and 1 may be changed (spec p. 35). [RQ-AKM-100]
-    void setFxModuleType(Session& session, int channel, int module, FxModuleType type, CommandCompletion completion);
+    void setFxModuleType(Session& session, int channel, int moduleIndex, FxModuleType type, CommandCompletion completion);
 
     /// `type` is empty when the command did not complete on a REPLY of the length the catalogue gives it; a code Table 24
     /// does not name is given unchanged. [RQ-AKM-100]
@@ -125,11 +125,11 @@ namespace akm
     };
     using FxModuleTypeCompletion = std::function<void(const FxModuleTypeResult&)>;
 
-    /// Gets the type of module `module` of channel `channel` (§12/&31). [RQ-AKM-100]
-    void getFxModuleType(Session& session, int channel, int module, FxModuleTypeCompletion completion);
+    /// Gets the type of module `moduleIndex` of channel `channel` (§12/&31). [RQ-AKM-100]
+    void getFxModuleType(Session& session, int channel, int moduleIndex, FxModuleTypeCompletion completion);
 
-    /// Enables or disables (bypasses) module `module` of channel `channel` (§12/&40). [RQ-AKM-100]
-    void setFxModuleEnabled(Session& session, int channel, int module, bool enabled, CommandCompletion completion);
+    /// Enables or disables (bypasses) module `moduleIndex` of channel `channel` (§12/&40). [RQ-AKM-100]
+    void setFxModuleEnabled(Session& session, int channel, int moduleIndex, bool enabled, CommandCompletion completion);
 
     /// `enabled` is empty when the command did not complete on a REPLY of the length the catalogue gives it.
     /// [RQ-AKM-100]
@@ -140,8 +140,8 @@ namespace akm
     };
     using FxEnabledCompletion = std::function<void(const FxEnabledResult&)>;
 
-    /// Gets whether module `module` of channel `channel` is enabled (§12/&41). [RQ-AKM-100]
-    void getFxModuleEnabled(Session& session, int channel, int module, FxEnabledCompletion completion);
+    /// Gets whether module `moduleIndex` of channel `channel` is enabled (§12/&41). [RQ-AKM-100]
+    void getFxModuleEnabled(Session& session, int channel, int moduleIndex, FxEnabledCompletion completion);
 
     // The parameter values (§12/&50, &51, Table 25). Whatever the parameter, a value travels as a signed compound word:
     // a sign byte (0 positive, 1 negative) then the magnitude as a most- and a least-significant 7-bit byte, magnitude =
@@ -150,10 +150,10 @@ namespace akm
     /// The largest magnitude the wire carries: two 7-bit bytes. [RQ-AKM-101]
     inline constexpr int FX_PARAMETER_MAX_MAGNITUDE = 128 * 128 - 1;
 
-    /// Sets parameter `parameter` (zero-based, 0-127) of module `module` of channel `channel` to `value` (§12/&50); the
+    /// Sets parameter `parameter` (zero-based, 0-127) of module `moduleIndex` of channel `channel` to `value` (§12/&50); the
     /// parameter's own range is for the sampler to judge (Table 25). A channel, module or parameter outside 0-127 and
     /// a value of a magnitude above 16383 are refused as `ArgumentOutOfRange` without sending. [RQ-AKM-101]
-    void setFxParameter(Session& session, int channel, int module, int parameter, int value, CommandCompletion completion);
+    void setFxParameter(Session& session, int channel, int moduleIndex, int parameter, int value, CommandCompletion completion);
 
     /// `value` is empty when the command did not complete on a REPLY of the length the catalogue gives it.
     /// [RQ-AKM-101]
@@ -164,6 +164,6 @@ namespace akm
     };
     using FxParameterCompletion = std::function<void(const FxParameterResult&)>;
 
-    /// Gets the value of parameter `parameter` of module `module` of channel `channel` (§12/&51). [RQ-AKM-101]
-    void getFxParameter(Session& session, int channel, int module, int parameter, FxParameterCompletion completion);
+    /// Gets the value of parameter `parameter` of module `moduleIndex` of channel `channel` (§12/&51). [RQ-AKM-101]
+    void getFxParameter(Session& session, int channel, int moduleIndex, int parameter, FxParameterCompletion completion);
 }

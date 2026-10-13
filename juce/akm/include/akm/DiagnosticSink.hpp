@@ -65,7 +65,7 @@ namespace akm
     class NullDiagnosticSink final : public DiagnosticSink
     {
     public:
-        void report(const Diagnostic&) override {}
+        void report(const Diagnostic&) override { /* drops every diagnostic, by design */ }
     };
 
     /// A short text naming the kind of event. [RQ-AKM-006]
