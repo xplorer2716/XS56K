@@ -367,12 +367,12 @@ DEC-APP-014|50-55||A source check forbids raw visual literals outside the token 
 DEC-APP-015|56-60||Inter is embedded with its licence; the system's sans-serif is the fallback
 DEC-APP-016|61-65||A colour belongs to a parameter's family, not to the tab it is in
 @process/2.architecture/ADR-APP-003-svg-mockup-generator.md
-ADR-APP-003|1-107|Proposed — drafted in session APP (2026-10-13) for TASK-APP-006, after the owner proposed a tool that draws SVG mockups from the design system|SVG Mockup Generator — Screen Descriptions as Shared Data, Static Self-Contained SVG, a `--check` That Keeps Them in Step
+ADR-APP-003|1-111|Proposed — drafted in session APP (2026-10-13) for TASK-APP-006, after the owner proposed a tool that draws SVG mockups from the design system|SVG Mockup Generator — Screen Descriptions as Shared Data, Static Self-Contained SVG, a `--check` That Keeps Them in Step
 DEC-APP-017|23-26||`juce/tools/generate_mockups.py`, Python 3 standard library only, outside the build
-DEC-APP-018|27-38||Two kinds of description — editor layouts shared with the application, screens for the mockups only
-DEC-APP-019|39-43||One static, self-contained SVG per screen and state, in `documents/mockups/`
-DEC-APP-020|44-48||`--check` keeps the committed mockups in step; the generator is tested first
-DEC-APP-021|49-55||The mockup is faithful in tokens and layout, not to the pixel
+DEC-APP-018|27-42||Two kinds of description — editor layouts shared with the application, screens for the mockups only
+DEC-APP-019|43-47||One static, self-contained SVG per screen and state, in `documents/mockups/`
+DEC-APP-020|48-52||`--check` keeps the committed mockups in step; the generator is tested first
+DEC-APP-021|53-59||The mockup is faithful in tokens and layout, not to the pixel
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -594,16 +594,16 @@ TASK-AKM-103|111-141|Done|FX parameter values
 TASK-AKM-104|142-182|Done|Real-sampler check of the Multi FX
 TASK-AKM-105|183-204|Done|Coverage of section §12
 @process/3.plan/PLAN-APP-001-editor-application-first-ui.md
-PLAN-APP-001|1-200||Editor Application — Requirements, Architecture and Design System of the First UI
+PLAN-APP-001|1-214||Editor Application — Requirements, Architecture and Design System of the First UI
 TASK-APP-001|36-62|Done|Author FTR-APP-001 to FTR-APP-009 and PLAN-APP-001
 TASK-APP-002|63-77|Not Started|The owner decides the tabs of the program editor
 TASK-APP-003|78-97|Done|ADR-APP-001 — the application's architecture
 TASK-APP-004|98-119|In Progress|The design system and its ADR
 TASK-APP-005|120-141|Done|Remove the assumption that a tab is a function of the sampler
 TASK-APP-006|142-158|In Progress|Requirements and ADR of the SVG mockup generator
-TASK-APP-007|159-174|Not Started|The token file and `generate_design.py`
-TASK-APP-008|175-187|Not Started|`generate_mockups.py` and its `--check`
-TASK-APP-009|188-200|Not Started|First mockups — the main window and a confirmation
+TASK-APP-007|159-181|Done|The token file and `generate_design.py`
+TASK-APP-008|182-197|Done|`generate_mockups.py` and its `--check`
+TASK-APP-009|198-214|Done|First mockups — the main window and a confirmation
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

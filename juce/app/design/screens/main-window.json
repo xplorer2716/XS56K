@@ -1,0 +1,52 @@
+{
+  "_comment": "The main window (RQ-APP-006): example content only, no visual value (those are the tokens'). [RQ-APP-074, ADR-APP-003 (DEC-APP-018), TASK-APP-009]",
+  "name": "main-window",
+  "size": [1280, 800],
+  "leftWidth": 300,
+  "browserShare": 0.5,
+  "menu": ["XS56K", "Sampler", "MIDI setup", "Help"],
+  "content": {
+    "browser": {"path": "HD1 / DRUMS", "rows": [
+      {"kind": "disk", "name": "HD1", "depth": 0, "detail": "FAT32"},
+      {"kind": "folder", "name": "DRUMS", "depth": 1, "current": true},
+      {"kind": "program", "name": "KIT 808.AKP", "depth": 2, "detail": "6 KB"},
+      {"kind": "program", "name": "PAD.AKP", "depth": 2, "detail": "4 KB", "selected": true},
+      {"kind": "sample", "name": "KICK.WAV", "depth": 2, "detail": "88 KB"},
+      {"kind": "sample", "name": "SNARE.WAV", "depth": 2, "detail": "64 KB"},
+      {"kind": "folder", "name": "LOOPS", "depth": 1},
+      {"kind": "folder", "name": "STRINGS", "depth": 1},
+      {"kind": "disk", "name": "CD-ROM", "depth": 0, "detail": "ISO9660"}]},
+    "memory": {"free": "2.0 MB free of 8.0 MB", "kinds": [
+      {"title": "Programs", "items": [{"name": "PAD", "current": true, "selected": true}, {"name": "BASS"}]},
+      {"title": "Samples", "items": [{"name": "PAD C3", "current": true}, {"name": "PAD G3"}, {"name": "BASS E1"}]},
+      {"title": "Multis", "items": []},
+      {"title": "Song files", "items": []},
+      {"title": "Set lists", "items": []},
+      {"title": "Scenelists", "items": []}]},
+    "editor": {"item": "PAD", "kind": "Program", "keygroup": "Keygroup 1 of 3", "layout": "program-example", "tab": "Voice",
+      "values": {
+        "filter type": {"text": "2-POLE LP"},
+        "filter cutoff": {"text": "70", "fraction": 0.7},
+        "filter resonance": {"text": "4", "fraction": 0.27},
+        "filter keyboard tracking": {"text": "+12", "fraction": 0.56},
+        "filter attenuation": {"text": "0 dB", "fraction": 0.0},
+        "filter envelope attack": {"text": "12", "fraction": 0.12},
+        "filter envelope decay": {"text": "45", "fraction": 0.45},
+        "filter envelope sustain": {"text": "60", "fraction": 0.6},
+        "filter envelope release": {"text": "30", "fraction": 0.3},
+        "filter envelope depth": {"text": "+40", "fraction": 0.7},
+        "amplitude envelope attack": {"text": "2", "fraction": 0.02},
+        "amplitude envelope decay": {"text": "50", "fraction": 0.5},
+        "amplitude envelope sustain": {"text": "100", "fraction": 1.0},
+        "amplitude envelope release": {"text": "35", "fraction": 0.35}},
+      "pending": ["filter resonance"]}
+  },
+  "states": {
+    "connected": {"connection": {"state": "connected", "text": "Connected: S5000, OS 2.14, DeviceID 0"}},
+    "busy": {"connection": {"state": "connected", "text": "Connected: S5000, OS 2.14, DeviceID 0", "busy": "Loading PAD.AKP"}},
+    "disconnected": {"connection": {"state": "disconnected", "text": "Disconnected"}, "browser": null, "memory": null, "editor": null},
+    "confirm-delete": {"connection": {"state": "connected", "text": "Connected: S5000, OS 2.14, DeviceID 0"},
+      "dialog": {"title": "Delete the program PAD?", "text": ["PAD is deleted from the sampler's memory.", "If it was not saved to a disk, it is lost."],
+        "buttons": [{"text": "Cancel"}, {"text": "Delete PAD", "destructive": true}]}}
+  }
+}

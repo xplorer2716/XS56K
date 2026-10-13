@@ -158,7 +158,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-007: The token file and `generate_design.py`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Write `juce/app/design/tokens.json` with the values of the design-system document and `juce/tools/generate_design.py`
   (checks of the aliases and the contrasts, `DesignTokens.generated.hpp`, the document's §2 tables between markers, `--check` as a `ctest`
   entry), tests first; the editor layouts part is added when the first layout exists (TASK-APP-002).
@@ -169,12 +169,19 @@ This plan implements the tasks in the format specified below.
   *then* `--check` fails.
 - **Dependencies**: TASK-APP-004
 - **Assignee**: AI
-- **Verification**: Not done yet.
-- **Assumptions**: None
+- **Verification**: Test first: `test_generate_design.py` (14 tests) run with no script: 1 failure and 13 errors. After
+  the script: 13 passed, 1 failed — the test refused the word "juce" anywhere in the header, the path `juce/tools/...` of its comment included;
+  it was narrowed to what RQ-APP-002 asks (no `#include` of JUCE), then 14 OK. `generate_design.py` wrote 113 constants (now with the scrim
+  and filter role amendments) and the three tables between markers in DESIGN-SYSTEM-APP.md; `--check` up to date; the header compiles with
+  `g++ -std=c++20 -Wall -Wextra -Wpedantic -Werror` and two `static_assert`s on its values; `ctest -R ^app_` after `cmake -DBUILD_TESTS=ON`: 4/4
+  passed (`app_design_tokens_are_up_to_date`, `app_design_tokens_script_tests`, and the two of TASK-APP-008).
+- **Assumptions**: (1) The editor layouts part of `generate_design.py` is left until the first real layout (TASK-APP-002); the example
+  layout of TASK-APP-009 is not read by it. (2) Two tokens were added: `opacity.scrim.default` / `opacity.scrim` / `dialog.scrim` for the veil
+  behind a dialog; and the filter envelope is a modulation role (`colour.role.filter`'s use text corrected).
 
 ### TASK-APP-008: `generate_mockups.py` and its `--check`
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Write the mockup generator of ADR-APP-003 (screens, layouts, tokens to static SVG with Inter embedded, deterministic output,
   `--check` as a `ctest` entry), tests first.
 - **Requirement refs**: RQ-APP-074, RQ-APP-076, RQ-APP-077, RQ-APP-078
@@ -182,12 +189,15 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): the criteria of RQ-APP-074, RQ-APP-076, RQ-APP-077 and RQ-APP-078.
 - **Dependencies**: TASK-APP-007
 - **Assignee**: AI
-- **Verification**: Not done yet.
-- **Assumptions**: None
+- **Verification**: Test first: `test_generate_mockups.py` (13 tests) run with no script: 13 errors; after the script: 13 OK.
+  `generate_mockups.py --check` up to date; `ctest -R ^app_`: `app_mockups_are_up_to_date` and `app_mockups_script_tests` passed.
+- **Assumptions**: (1) The SVG embeds the WOFF2 files of Inter 4.1 (tag `v4.1`, downloaded from raw.githubusercontent.com/rsms/inter) with its
+  `LICENSE.txt`; JUCE's own font files come with the application (DEC-APP-015). (2) Text widths are estimated (no font metrics in the standard
+  library); labels longer than a cell are shortened in the layout.
 
 ### TASK-APP-009: First mockups — the main window and a confirmation
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Write the screen descriptions and generate the mockups of the main window connected and disconnected (browser, memory view,
   an edit panel with a placeholder editor) and of a confirmation dialog; render them to PNG to check them; send them to the owner.
 - **Requirement refs**: RQ-APP-006, RQ-APP-011, RQ-APP-019, RQ-APP-074
@@ -196,5 +206,9 @@ This plan implements the tasks in the format specified below.
   state and the confirmation naming the object; *given* `ctest`, *then* the mockup check passes.
 - **Dependencies**: TASK-APP-008
 - **Assignee**: AI
-- **Verification**: Not done yet.
-- **Assumptions**: None
+- **Verification**: Four mockups written into `documents/mockups/` (main-window connected, busy, disconnected,
+  confirm-delete, 0.30 MB each, Inter embedded), rendered to PNG with Chromium (Playwright) and looked at: three areas, the connection state,
+  the confirmation naming PAD; one defect seen ("RESONANCE" touching "KEY TRACK") fixed by the label "Reso" and the cell width written in
+  the document's §5 (knob + `size.space.8`); `--check` up to date.
+- **Assumptions**: (1) The edit panel shows an example program layout (`juce/app/design/examples/program-example.json`), captioned "example
+  grouping, not decided (TASK-APP-002)". (2) A "busy" state was added to the three planned, to show the busy indicator (RQ-APP-012).

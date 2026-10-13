@@ -82,6 +82,12 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   function or tool appears that the script cannot place (a new tool needs its gateway methods in `juce/tools/sysex_coverage_declared.json`).
   Never edit the file by hand; the checks, one of which runs the simulated server on the scripted conversations to see which tool sends what,
   are `ctest` entries when CMake finds Python 3. [RQ-MCP-058 to RQ-MCP-066, ADR-MCP-006]
+- **Design tokens and mockups of the editor:** the design system's values are data (`juce/app/design/tokens.json`); `python3
+  juce/tools/generate_design.py` (`python` on Windows) writes `juce/app/core/include/app/DesignTokens.generated.hpp` and the value tables of
+  `process/1.requirements/DESIGN-SYSTEM-APP.md`, and `python3 juce/tools/generate_mockups.py` writes the static SVG mockups of
+  `documents/mockups/` from the tokens, the layouts and the screens of `juce/app/design/`. Never edit the generated files by hand; `--check`
+  fails when they are out of date, and both checks and the scripts' tests are `ctest` entries when CMake finds Python 3. [RQ-APP-002,
+  RQ-APP-074 to RQ-APP-078, ADR-APP-002, ADR-APP-003]
 - **MCP server** (`juce/mcp`, `xs56k_mcp_server`, run by an MCP client with the MIDI ports as its arguments): see
   `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
   refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first, and never call `clear_sampler_memory` or a `delete_all_*`

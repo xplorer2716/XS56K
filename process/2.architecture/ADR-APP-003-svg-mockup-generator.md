@@ -35,6 +35,10 @@ like the other generators (`python3 juce/tools/generate_mockups.py`, `python` on
   and tab is shown, the state (connected, disconnected, busy, a dialog open), and **example values** (a file tree, memory lists, parameter
   values). A screen names tokens by their spec names (`colour.surface.panel`), never a literal; a name that is not in the token file fails the
   generator. [RQ-APP-075, RQ-APP-049, RQ-APP-056]
+- *Amended 2026-10-13 (TASK-APP-009):* until the owner's groups exist (TASK-APP-002), a layout drawn only in mockups lives in
+  `juce/app/design/examples/`, says `"example": true`, is never read by the application, and makes the mockup's caption say "example grouping,
+  not decided". The fonts the SVG embeds are the WOFF2 files of Inter 4.1 (tag `v4.1` of github.com/rsms/inter) in
+  `juce/app/resources/fonts/`, with its `LICENSE.txt`; the files JUCE will load are added with the application (DEC-APP-015).
 
 ### DEC-APP-019: One static, self-contained SVG per screen and state, in `documents/mockups/`
 Each screen and state gives one SVG file, `documents/mockups/<screen>-<state>.svg`, at the window's logical size, embedding Inter as a base64

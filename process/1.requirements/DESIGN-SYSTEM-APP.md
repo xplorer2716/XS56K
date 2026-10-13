@@ -69,41 +69,51 @@ Transliteration to C++ (§7.1): the dots and hyphens are dropped, each word capi
 **Theme.** One dark theme. No light theme is planned; adding one later means one value per theme for each semantic token, the component
 tokens unchanged.
 
-**Global palette** (proposed 2026-10-13; the only place colour values appear):
+**Global palette** (the values of the token file, written by `generate_design.py`; the token file is the only place they are edited):
 
-| Token | Value | Token | Value |
-|---|---|---|---|
-| `colour.grey.950` | `#1B1C1F` | `colour.violet.300` | `#A897F2` |
-| `colour.grey.900` | `#202125` | `colour.teal.300` | `#4FD1C1` |
-| `colour.grey.850` | `#2A2B30` | `colour.amber.300` | `#E9A85A` |
-| `colour.grey.800` | `#35363C` | `colour.yellow.300` | `#F2C94C` |
-| `colour.grey.700` | `#45464D` | `colour.red.300` | `#F47A74` |
-| `colour.grey.500` | `#6C6D75` | `colour.green.300` | `#6CCB7A` |
-| `colour.grey.300` | `#A9AAB2` | | |
-| `colour.grey.100` | `#ECECEF` | | |
+<!-- BEGIN GENERATED: global-colours -->
+| Token | Value |
+|---|---|
+| `colour.grey.950` | `#1B1C1F` |
+| `colour.grey.900` | `#202125` |
+| `colour.grey.850` | `#2A2B30` |
+| `colour.grey.800` | `#35363C` |
+| `colour.grey.700` | `#45464D` |
+| `colour.grey.500` | `#6C6D75` |
+| `colour.grey.300` | `#A9AAB2` |
+| `colour.grey.100` | `#ECECEF` |
+| `colour.violet.300` | `#A897F2` |
+| `colour.teal.300` | `#4FD1C1` |
+| `colour.amber.300` | `#E9A85A` |
+| `colour.yellow.300` | `#F2C94C` |
+| `colour.red.300` | `#F47A74` |
+| `colour.green.300` | `#6CCB7A` |
+<!-- END GENERATED: global-colours -->
 
 **Semantic roles:**
 
+<!-- BEGIN GENERATED: semantic-colours -->
 | Token | Aliases | Use |
 |---|---|---|
-| `colour.surface.base` | `grey.950` | window background, between panels |
-| `colour.surface.panel` | `grey.850` | panels (browser, memory view, edit panel groups) |
-| `colour.surface.recessed` | `grey.900` | inputs, lists, value boxes, graph backgrounds |
-| `colour.surface.raised` | `grey.800` | hovered rows, buttons, dialogs |
-| `colour.border.default` | `grey.700` | panel and control outlines, separators |
-| `colour.text.primary` | `grey.100` | values, names |
-| `colour.text.secondary` | `grey.300` | labels (upper case), captions |
-| `colour.text.disabled` | `grey.500` | disabled controls and their labels |
-| `colour.accent.default` | `violet.300` | selection, focus, current tab |
-| `colour.role.sample` | `violet.300` | samples, zones, sample assignment |
-| `colour.role.modulation` | `teal.300` | envelopes, LFOs, modulation sources |
-| `colour.role.filter` | `amber.300` | filter and its envelope controls |
-| `colour.role.general` | `grey.300` | parameters of no colour-coded family (output, MIDI/tune, pitch bend) |
-| `colour.status.active` | `yellow.300` | "on", current item of a list, a switch that is on |
-| `colour.status.success` | `green.300` | connected |
-| `colour.status.error` | `red.300` | failed, refused, lost connection |
-| `colour.status.destructive` | `red.300` | the confirm button of a destructive action |
-| `colour.status.pending` | `grey.300` | value sent and not yet read back |
+| `colour.surface.base` | `colour.grey.950` | window background, between panels |
+| `colour.surface.panel` | `colour.grey.850` | panels (browser, memory view, edit panel groups) |
+| `colour.surface.recessed` | `colour.grey.900` | inputs, lists, value boxes, graph backgrounds |
+| `colour.surface.raised` | `colour.grey.800` | hovered rows, buttons, dialogs |
+| `colour.border.default` | `colour.grey.700` | panel and control outlines, separators |
+| `colour.text.primary` | `colour.grey.100` | values, names |
+| `colour.text.secondary` | `colour.grey.300` | labels (upper case), captions |
+| `colour.text.disabled` | `colour.grey.500` | disabled controls and their labels |
+| `colour.accent.default` | `colour.violet.300` | selection, focus, current tab |
+| `colour.role.sample` | `colour.violet.300` | samples, zones, sample assignment |
+| `colour.role.modulation` | `colour.teal.300` | envelopes, LFOs, modulation sources |
+| `colour.role.filter` | `colour.amber.300` | filter (its envelope is an envelope: modulation) |
+| `colour.role.general` | `colour.grey.300` | parameters of no colour-coded family (output, MIDI/tune, pitch bend) |
+| `colour.status.active` | `colour.yellow.300` | on, current item of a list, a switch that is on |
+| `colour.status.success` | `colour.green.300` | connected |
+| `colour.status.error` | `colour.red.300` | failed, refused, lost connection |
+| `colour.status.destructive` | `colour.red.300` | the confirm button of a destructive action |
+| `colour.status.pending` | `colour.grey.300` | value sent and not yet read back |
+<!-- END GENERATED: semantic-colours -->
 
 Which role a parameter takes is a property of the parameter (its family), not of the tab it is shown in: a tab may mix roles (RQ-APP-056).
 
@@ -266,24 +276,51 @@ Which role a parameter takes is a property of the parameter (its family), not of
 - **Group panel:** a `colour.surface.panel` rectangle, `radius.round`, holding a label row (`font.label`) and its controls on the 4 px grid;
   the groups of a tab flow left to right, then wrap.
 - **Control cell:** a knob with its label under it and its value box, as one unit of fixed width; cells align on a column grid of
-  `size.knob.large` + `space.4`.
+  `size.knob.large` + `size.space.8` (72 px: an 11 px upper-case label of nine letters fits; longer labels are shortened).
 - **Context header over tabs over tab bar:** the header at the top of the edit panel (RQ-APP-050), the tab's groups in the middle, the tab bar
   at the bottom (RQ-APP-049).
 
 ## 6. Accessibility & Ergonomics
 
-- **Contrast** (WCAG 2.x formula, computed in session on 2026-10-13 for the values of §2.1):
+- **Contrast** (WCAG 2.x formula, computed by `generate_design.py` from the token file, which fails under 4.5 : 1):
 
-| Text | on `surface.base` | on `surface.panel` | on `surface.recessed` | on `surface.raised` |
-|---|---|---|---|---|
-| `text.primary` | 14.5 | 12.0 | 13.6 | 10.2 |
-| `text.secondary` | 7.4 | 6.1 | 7.0 | 5.2 |
-| `role.sample` / `accent` | 6.8 | 5.6 | 6.4 | 4.8 |
-| `role.modulation` | 9.1 | 7.5 | 8.6 | 6.4 |
-| `role.filter` | 8.3 | 6.9 | 7.8 | 5.9 |
-| `status.active` | 10.7 | 8.9 | 10.1 | 7.6 |
-| `status.error` | 6.4 | 5.3 | 6.0 | 4.5 |
-| `status.success` | 8.5 | 7.0 | 8.0 | 6.0 |
+<!-- BEGIN GENERATED: contrast -->
+| Text | On | Ratio |
+|---|---|---|
+| `colour.text.primary` | `colour.surface.base` | 14.45 |
+| `colour.text.primary` | `colour.surface.panel` | 11.98 |
+| `colour.text.primary` | `colour.surface.recessed` | 13.64 |
+| `colour.text.primary` | `colour.surface.raised` | 10.21 |
+| `colour.text.secondary` | `colour.surface.base` | 7.37 |
+| `colour.text.secondary` | `colour.surface.panel` | 6.11 |
+| `colour.text.secondary` | `colour.surface.recessed` | 6.95 |
+| `colour.text.secondary` | `colour.surface.raised` | 5.21 |
+| `colour.role.sample` | `colour.surface.base` | 6.79 |
+| `colour.role.sample` | `colour.surface.panel` | 5.63 |
+| `colour.role.sample` | `colour.surface.recessed` | 6.41 |
+| `colour.role.sample` | `colour.surface.raised` | 4.80 |
+| `colour.role.modulation` | `colour.surface.base` | 9.11 |
+| `colour.role.modulation` | `colour.surface.panel` | 7.55 |
+| `colour.role.modulation` | `colour.surface.recessed` | 8.60 |
+| `colour.role.modulation` | `colour.surface.raised` | 6.43 |
+| `colour.role.filter` | `colour.surface.base` | 8.29 |
+| `colour.role.filter` | `colour.surface.panel` | 6.87 |
+| `colour.role.filter` | `colour.surface.recessed` | 7.82 |
+| `colour.role.filter` | `colour.surface.raised` | 5.86 |
+| `colour.status.active` | `colour.surface.base` | 10.74 |
+| `colour.status.active` | `colour.surface.panel` | 8.90 |
+| `colour.status.active` | `colour.surface.recessed` | 10.14 |
+| `colour.status.active` | `colour.surface.raised` | 7.59 |
+| `colour.status.error` | `colour.surface.base` | 6.40 |
+| `colour.status.error` | `colour.surface.panel` | 5.30 |
+| `colour.status.error` | `colour.surface.recessed` | 6.04 |
+| `colour.status.error` | `colour.surface.raised` | 4.52 |
+| `colour.status.success` | `colour.surface.base` | 8.49 |
+| `colour.status.success` | `colour.surface.panel` | 7.04 |
+| `colour.status.success` | `colour.surface.recessed` | 8.01 |
+| `colour.status.success` | `colour.surface.raised` | 6.00 |
+| `button.destructive.text` | `button.destructive.surface` | 6.40 |
+<!-- END GENERATED: contrast -->
 
   Every pair used for text is at least 4.5 : 1. `text.disabled` (2.3 to 3.3) is used only for inactive controls, which WCAG exempts.
   `button.destructive.text` (`grey.950` on `red.300`): 6.4.
