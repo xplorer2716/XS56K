@@ -274,6 +274,18 @@ if(Python3_FOUND)
     add_test(NAME sysex_coverage_tools_match_the_simulated_sampler
         COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_sysex_coverage.py --check-tools
             --server $<TARGET_FILE:xs56k_mcp_server_simulated>)
+    # The design system's token module and the value tables of its document match the token file, and the generator is tested.
+    # [TASK-APP-007, RQ-APP-002, RQ-APP-005, ADR-APP-002 (DEC-APP-011, DEC-APP-012)]
+    add_test(NAME app_design_tokens_are_up_to_date
+        COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_design.py --check)
+    add_test(NAME app_design_tokens_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_generate_design.py")
+    # The committed SVG mockups match the tokens, the layouts and the screens, and the generator is tested.
+    # [TASK-APP-008, RQ-APP-077, RQ-APP-078, ADR-APP-003 (DEC-APP-020)]
+    add_test(NAME app_mockups_are_up_to_date
+        COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/tools/generate_mockups.py --check)
+    add_test(NAME app_mockups_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_generate_mockups.py")
     # The mutation check tool (RQ-BLD-015): configures and builds the small fixture project of
     # tools/mutate_fixture/ several times over, so it is markedly slower than the catalogue's own
     # tests above. [TASK-BLD-012]
@@ -284,5 +296,5 @@ if(Python3_FOUND)
     add_test(NAME qlt_sonar_triage_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_sonar_triage.py")
 else()
-    message(STATUS "Python 3 not found: the item catalogue, coverage table and mutation-tool checks of juce/tests/tools are not registered")
+    message(STATUS "Python 3 not found: the item catalogue, coverage table, design tokens, mockups and mutation-tool checks of juce/tests/tools are not registered")
 endif()

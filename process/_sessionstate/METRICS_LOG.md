@@ -17,3 +17,4 @@ One row per AGNOS session. Counters are cumulative per session, never reset mid-
 | 2026-10-08 | MCP | 0 | 6 | 0 | 6 |
 | 2026-10-10 | MCP | 4 | 4 | 0 | 1 |
 | 2026-10-10 | MCP | 7 | 6 | 0 | 9 |
+| 2026-10-13 | APP | 5 | 2 | 0 | 4 |

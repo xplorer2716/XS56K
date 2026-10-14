@@ -24,6 +24,12 @@ Written for AI agents, generated from the SysEx spec PDF. Don't edit the generat
 
 The operator's manual is not indexed in `_index/` yet.
 
+## Generated mockups of the editor application
+
+| File | Purpose |
+|---|---|
+| [mockups/](mockups/) | Static SVG mockups of the editor's screens (`<screen>-<state>.svg`), drawn from the design system's tokens (`juce/app/design/tokens.json`), the editor layouts and the screen descriptions (`juce/app/design/`) by `juce/tools/generate_mockups.py`; Inter is embedded, the values shown are examples. Don't edit by hand: run the script (`--check` fails when a mockup is out of date). [RQ-APP-074 to RQ-APP-077, ADR-APP-003] |
+
 ## Generated coverage table
 
 | File | Purpose |

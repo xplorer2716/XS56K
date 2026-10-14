@@ -1,0 +1,28 @@
+{
+  "_comment": "AN EXAMPLE, NOT THE OWNER'S GROUPING (TASK-APP-002 decides it): a program editor layout used only to draw the first mockups. Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-075, ADR-APP-003 (DEC-APP-018)]",
+  "editor": "program",
+  "example": true,
+  "tabs": [
+    {"title": "Voice", "groups": [
+      {"title": "Filter", "parameters": [
+        {"name": "filter type", "label": "Type", "role": "filter", "control": "choice"},
+        {"name": "filter cutoff", "label": "Cutoff", "role": "filter", "control": "knob"},
+        {"name": "filter resonance", "label": "Reso", "role": "filter", "control": "knob"},
+        {"name": "filter keyboard tracking", "label": "Key track", "role": "filter", "control": "knob"},
+        {"name": "filter attenuation", "label": "Atten", "role": "filter", "control": "knob"}]},
+      {"title": "Filter envelope", "parameters": [
+        {"name": "filter envelope attack", "label": "Attack", "role": "modulation", "control": "knob"},
+        {"name": "filter envelope decay", "label": "Decay", "role": "modulation", "control": "knob"},
+        {"name": "filter envelope sustain", "label": "Sustain", "role": "modulation", "control": "knob"},
+        {"name": "filter envelope release", "label": "Release", "role": "modulation", "control": "knob"},
+        {"name": "filter envelope depth", "label": "Depth", "role": "filter", "control": "knob"}]},
+      {"title": "Amplitude envelope", "parameters": [
+        {"name": "amplitude envelope attack", "label": "Attack", "role": "modulation", "control": "knob"},
+        {"name": "amplitude envelope decay", "label": "Decay", "role": "modulation", "control": "knob"},
+        {"name": "amplitude envelope sustain", "label": "Sustain", "role": "modulation", "control": "knob"},
+        {"name": "amplitude envelope release", "label": "Release", "role": "modulation", "control": "knob"}]}]},
+    {"title": "Keygroup", "groups": []},
+    {"title": "LFOs", "groups": []},
+    {"title": "Output", "groups": []}
+  ]
+}
