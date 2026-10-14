@@ -1,0 +1,235 @@
+# PLAN-APP-002: Editor Application — Main Window and Menu, File Browser, Memory View
+
+## Overview
+
+Session APP (2026-10-14). The owner decided on 2026-10-14 that TASK-APP-002 (the tabs of the program editor) can wait: nothing in the main window,
+the menu, the file browser or the memory view depends on it (the requirements that do, RQ-APP-049, RQ-APP-056 and RQ-APP-057, are in FTR-APP-007
+and FTR-APP-008). This plan is the first implementation plan of the editor application (`juce/app`): the foundation that ADR-APP-001 decided
+(`xs56k_sampler` split from `xs56k_mcp`, then `xs56k_app_core`), the connection that the menu and the two lists need, then the three features
+the owner chose: FTR-APP-002 (main window, menu), FTR-APP-004 (file browser) and FTR-APP-005 (memory view). The condition set by PLAN-APP-001 (the
+owner's code-quality branch merged first) is met: `feature/QLT` is merged (PR #16, PR #17).
+
+Each feature is built core first, with its tests against the simulated sampler (RQ-APP-014, DEC-APP-010), then its views (the views are thin and
+are checked by building and running the application, and against the mockups of `documents/mockups/`). 10 tasks, the session's limit.
+
+**Not in this plan**: the edit panel and the program editor (FTR-APP-007, FTR-APP-008, behind TASK-APP-002), the save (FTR-APP-006), priority 2
+(FTR-APP-009), and the requirements marked `Could` of the three features and of the connection (RQ-APP-008, RQ-APP-009, RQ-APP-023).
+
+| Step | Task | What | Why here |
+|---|---|---|---|
+| 1 | TASK-APP-010 | split `xs56k_sampler` from `xs56k_mcp` | DEC-APP-002: the application links the gateway, not the MCP server |
+| 2 | TASK-APP-011 | `xs56k_app_core`: worker, dispatcher, prompts, settings, model | DEC-APP-001, DEC-APP-003, DEC-APP-004, DEC-APP-007 |
+| 3 | TASK-APP-012 | the connection and the MIDI setup, in the core | nothing can be browsed before the session is open |
+| 4 | TASK-APP-013 | the file browser, read side: disks, folders, files, commands offered | first thing the person sees once connected |
+| 5 | TASK-APP-014 | the file browser, commands: load, create, rename, delete, audition, refresh | the first step of the owner's working principle |
+| 6 | TASK-APP-015 | the memory view, read side: six lists, follow the changes, select, free memory | where a load shows up |
+| 7 | TASK-APP-016 | the memory view, commands: create a program, rename, delete, audition | completes FTR-APP-005 of priority 1 |
+| 8 | TASK-APP-017 | main window, menu bar, status, MIDI setup dialog, JUCE adapters | the shell that the two views sit in |
+| 9 | TASK-APP-018 | the file browser view | draws the browser's model |
+| 10 | TASK-APP-019 | the memory view | draws the memory view's model |
+
+## References
+- **Requirements**: RQ-APP-006, RQ-APP-007, RQ-APP-010 to RQ-APP-014 (FTR-APP-002); RQ-APP-015 to RQ-APP-022 (FTR-APP-003, the connection and the MIDI
+  setup); RQ-APP-024 to RQ-APP-034 (FTR-APP-004); RQ-APP-035 to RQ-APP-042 (FTR-APP-005); RQ-APP-001 to RQ-APP-005 (FTR-APP-001, design system)
+- **ADRs**: ADR-APP-001 (Accepted, DEC-APP-001 to DEC-APP-010); ADR-APP-002 (Accepted, design system, DEC-APP-011 to DEC-APP-016); ADR-APP-003
+  (Accepted, mockups, DEC-APP-017 to DEC-APP-021); ADR-MCP-001 and ADR-MCP-002 (the gateway the application reuses)
+
+This plan implements the tasks in the format specified below.
+---
+
+## Tasks
+
+### TASK-APP-010: Split `xs56k_sampler` from `xs56k_mcp`
+- **Tier**: M
+- **Status**: Done
+- **Description**: Move the gateway (`SamplerGateway*.cpp`, `GatewayDetail.hpp`) and the catalogues (`ParameterCatalogue.cpp`, `StandardParameters.cpp`,
+  `FxCatalogue.cpp`) into a static library `xs56k_sampler` that depends on `xs56k_akm` only; `xs56k_mcp` keeps the protocol, the tools and the options and links it.
+  The files do not move and the namespace stays `mcp` (DEC-APP-002): the change is in `juce/mcp/CMakeLists.txt` only.
+- **Requirement refs**: RQ-APP-014, RQ-MCP-057, RQ-BLD-014
+- **ADR refs**: ADR-APP-001 (DEC-APP-002)
+- **Acceptance Criteria** (Gherkin): *Given* the change, *When* the project is built and `ctest` runs, *Then* every MCP test passes without any modification,
+  `xs56k_mcp` links `xs56k_sampler`, `xs56k_sampler` links neither nlohmann/json nor `xs56k_mcp`, and the source check of destructive calls
+  (`CheckNoDestructiveCalls.cmake`) and `generate_sysex_coverage.py --check` still pass.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Windows/MSVC (Visual Studio 18 2026), Debug, `BUILD_TESTS=ON`, 2026-10-14: configure passed with the new configure-time checks
+  (`xs56k_sampler` links neither `nlohmann*` nor `xs56k_mcp`, nor the test support); build warning-clean, `xs56k_sampler.lib` then `xs56k_mcp.lib`,
+  `xs56k_mcp_server`, `xs56k_mcp_tests` linked; `ctest -C Debug`: 100% passed, 0 failed out of 1139, among them
+  `mcp_sources_call_no_destructive_primitive`, `sysex_coverage_table_is_up_to_date`, `mcp_public_headers_have_no_juce_include`; no test source changed.
+- **Assumptions**: (1) Tier M, not L: a new CMake target but no new public API and no new dependency, the files being the same. (2) `README.md`'s
+  architecture text names `xs56k_sampler`; the diagram image (`xs56k-global.jpeg`) is not redrawn.
+
+### TASK-APP-011: `xs56k_app_core`: sampler worker, UI dispatcher, prompts, settings and the model's skeleton
+- **Tier**: L
+- **Status**: Not Started
+- **Description**: Create `juce/app/core/` as the static library `xs56k_app_core` (no JUCE, added with the libraries whatever `BUILD_APP` says): the
+  sampler worker (one thread, one job at a time, each job labelled in words), the interfaces `UiDispatcher`, `UserPrompts` (asynchronous answers) and
+  `AppSettings`, the model with its listener interface and the job in progress, the reporting of a failed job (what failed and why, last values kept),
+  a test helper (wait for the worker to be idle, drain the continuations, scripted prompts, in-memory settings) and the source check that keeps JUCE out
+  of the core.
+- **Requirement refs**: RQ-APP-010, RQ-APP-011, RQ-APP-012, RQ-APP-013, RQ-APP-014
+- **ADR refs**: ADR-APP-001 (DEC-APP-001, DEC-APP-003, DEC-APP-004, DEC-APP-007, DEC-APP-009, DEC-APP-010)
+- **Acceptance Criteria** (Gherkin): *Given* a job that the simulated sampler holds, *When* the controller queues it, *Then* the call returns at once, the model
+  names the job ("Loading <file>") and the UI thread's work completes before the answer is released (RQ-APP-012); *Given* a job whose command is answered
+  ERROR, *Then* the model carries what failed and why and keeps the last value read (RQ-APP-010); *Given* a destructive action and a prompt answered "cancel",
+  *Then* no job is queued (RQ-APP-011); *Given* a load answered after the ordinary timeout and before the slow one, *Then* it succeeds, and *given* a sampler
+  that never answers, *Then* the message says it may need to be switched off and on (RQ-APP-013); *Given* a JUCE include in `juce/app/core/`, *Then* the check fails.
+- **Dependencies**: TASK-APP-010
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) The core is added to `juce/CMakeLists.txt` with the libraries, as DEC-APP-010 says, so the headless workflows build and test it.
+  (2) The slow-operation timeout is the gateway's (`waitForDisk()`), the core only chooses it for the load and refresh jobs.
+
+### TASK-APP-012: The connection and the MIDI setup, in the core
+- **Tier**: L
+- **Status**: Not Started
+- **Description**: In `xs56k_app_core`: the MIDI setup (the computer's ports through `MidiBackend`, one input, one output, DeviceID 0 to 31 and nothing else,
+  stored through `AppSettings`), "Connect" (one gateway per connection, a job that opens the session and reads the sampler's model, name and OS version),
+  the four connection states with the reason of a failure (missing port named, DeviceIDs that answered), "Disconnect", the change of ports while connected,
+  the lost port, and quitting, which waits for the job in progress. While disconnected no job is queued.
+- **Requirement refs**: RQ-APP-015, RQ-APP-016, RQ-APP-017, RQ-APP-018, RQ-APP-019, RQ-APP-020, RQ-APP-021, RQ-APP-022
+- **ADR refs**: ADR-APP-001 (DEC-APP-008, DEC-APP-009)
+- **Acceptance Criteria** (Gherkin): *Given* the simulated sampler at DeviceID 0 and the setup at 0, *When* "Connect" is chosen, *Then* the state is connected with
+  the model, name and OS version; *Given* the setup at DeviceID 2 and the sampler at 0 only, *Then* it stays disconnected and says no sampler answered at 2 and
+  one answered at 0; *Given* a stored port absent, *Then* it names it; *Given* the DeviceID 40, *Then* the setup refuses it and shows 0 to 31; *Given* "IN B",
+  "OUT B", 3 validated, *Then* a new run's setup shows them; *Given* a session open and new ports validated, *Then* the session closes and the old ports are
+  released before the new ones open; *Given* a session open with checksums on and a quit, *Then* the session closing is sent before the ports are released;
+  *Given* a port that reports an error, *Then* the state is failed with the port's name and "Connect" is offered again.
+- **Dependencies**: TASK-APP-011
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) FTR-APP-003 was not among the features the owner named, but the menu (RQ-APP-007) offers "MIDI setup", "Connect" and "Disconnect", and the
+  browser and the memory view are empty without a session: its priority-1 requirements are in this plan. "Connect at start" (RQ-APP-023, `Could`) is not.
+  (2) The model, name and OS version come from the gateway's `status()`; if it lacks one of the three, it is added to the gateway with its test.
+
+### TASK-APP-013: The file browser, read side
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `xs56k_app_core`: the browser's model and controller for what is read, not changed: the disks as roots with name, type, format and free space
+  ("not reported" for 0 bytes), selecting a disk, opening a folder (which makes it the sampler's current folder), the current folder and the path always known,
+  the kind of a file from its extension with its size, and the commands that apply to the selected disk, folder or file. Once the session opens the browser lists
+  the disks (the second half of RQ-APP-017).
+- **Requirement refs**: RQ-APP-024, RQ-APP-025, RQ-APP-026, RQ-APP-027, RQ-APP-017
+- **ADR refs**: ADR-APP-001 (DEC-APP-004)
+- **Acceptance Criteria** (Gherkin): *Given* the simulated sampler with two disks, *When* the session opens, *Then* the model has two roots with names and types,
+  and *when* the second is selected it is current with its format and free space, and a free space of 0 gives "not reported"; *Given* DRUMS holding KICK.WAV and
+  LOOPS, *When* DRUMS is opened, *Then* both are under it, DRUMS is current and the path says so; *Given* PAD.AKP of 4 096 bytes, *Then* "PAD.AKP", 4 096, "program",
+  and README.TXT is "unknown"; *Given* PAD.AKP selected, *Then* "audition" is not offered, and *given* KICK.WAV, it is.
+- **Dependencies**: TASK-APP-012
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) What the gateway lacks for the application (for example the kind of a file, the disk's format) is added to the gateway with tests in this task,
+  as DEC-APP-002 says.
+
+### TASK-APP-014: The file browser, commands
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `xs56k_app_core`: load a file (normal, as RAM, as virtual, or with its dependents), load a folder after a confirmation, create, rename (without
+  the extension, which the sampler keeps) and delete a file or folder after a confirmation, audition a sample file without loading it and stop it on another selection,
+  and refresh the list of disks after the warning that the sampler may stop answering. A refusal sends nothing; a load asks the memory view to read the lists again.
+- **Requirement refs**: RQ-APP-028, RQ-APP-029, RQ-APP-030, RQ-APP-031, RQ-APP-032, RQ-APP-033, RQ-APP-034, RQ-APP-011, RQ-APP-013
+- **ADR refs**: ADR-APP-001 (DEC-APP-005, DEC-APP-007)
+- **Acceptance Criteria** (Gherkin): *Given* PAD.AKP using KICK.WAV, *When* it is loaded with its dependents, *Then* the program PAD and the sample KICK are in
+  memory and PAD is selected, and *when* it is loaded alone, only PAD is added; *Given* the folder KIT with a sub-folder EXTRA, *When* KIT is loaded and confirmed,
+  *Then* both folders' items load, and *when* cancelled, nothing is sent; *Given* LOOPS existing, *When* a folder LOOPS is created, *Then* nothing is sent and the
+  reason is shown; *Given* KICK.WAV, *When* it is renamed "KICK 2", *Then* the tree shows KICK 2.WAV; *Given* OLD, *When* it is deleted and confirmed, *Then* it is gone,
+  and cancelled, nothing is sent; *Given* KICK.WAV auditioned, *When* another file is selected, *Then* the stop is sent; *Given* the refresh asked and cancelled,
+  *Then* nothing is sent, and confirmed, the refresh is sent with the slow timeout and the disks are listed again.
+- **Dependencies**: TASK-APP-013
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) The memory view's re-read after a load (RQ-APP-036) is done in TASK-APP-015; this task only raises the "memory changed" event, and the
+  acceptance criterion about the memory's items is checked there. (2) One task for seven requirements: if it grows, it is split in two, load and audition on one side, create, rename, delete and refresh on the other.
+
+### TASK-APP-015: The memory view, read side
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `xs56k_app_core`: the memory view's model and controller: the six lists (multis, programs, samples, song files, set lists, scenelists) with
+  their counts, names in the sampler's order and the current item of each kind, read again after any action that changes the memory and on request, selecting an
+  item (select by name, back to the current item and the error reported if it fails), and the free wave memory in bytes with the free percentages. Showing the selected
+  item in the edit panel (RQ-APP-048) is FTR-APP-007's: the model records the selection and the edit panel will observe it.
+- **Requirement refs**: RQ-APP-035, RQ-APP-036, RQ-APP-037, RQ-APP-042, RQ-APP-010
+- **ADR refs**: ADR-APP-001 (DEC-APP-004)
+- **Acceptance Criteria** (Gherkin): *Given* the programs PAD and BASS with BASS current and the sample KICK, *When* the session opens, *Then* "Programs (2)" lists
+  PAD and BASS with BASS current, "Samples (1)" lists KICK and the four other headings show 0; *Given* a program loaded with its samples, *When* the load is done,
+  *Then* the programs and the samples are read again; *Given* a sample deleted on the sampler's front panel, *When* the person refreshes, *Then* it is no longer listed;
+  *Given* PAD and BASS with BASS current, *When* PAD is selected, *Then* PAD is selected by name on the sampler and current in the model, and *when* the select is answered
+  ERROR, *Then* the current item is BASS again and the error is reported; *Given* 8 MB of wave memory with 2 MB free, *Then* "2 MB free of 8 MB" and the free percentages, read
+  again after a load.
+- **Dependencies**: TASK-APP-012
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) Set lists have no current item (FTR-APP-005), so none is marked. (2) Independent of TASK-APP-013 and TASK-APP-014 apart from the "memory changed"
+  event, which the browser raises: the two tasks can be done in either order.
+
+### TASK-APP-016: The memory view, commands
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `xs56k_app_core`: create a program (name and number of keygroups; refused with nothing sent if the name exists), rename a program, a sample or a
+  multi (refused if the name exists in the kind), delete one after a confirmation naming it, and audition a sample of the memory (stopped on another selection).
+- **Requirement refs**: RQ-APP-038, RQ-APP-039, RQ-APP-040, RQ-APP-041, RQ-APP-011
+- **ADR refs**: ADR-APP-001 (DEC-APP-005, DEC-APP-007)
+- **Acceptance Criteria** (Gherkin): *Given* no program LEAD, *When* LEAD is created with 2 keygroups, *Then* it is listed, current and has 2 keygroups, and *when* PAD (which
+  exists) is created, *Then* nothing is sent; *Given* the samples KICK and SNARE, *When* KICK is renamed "KICK 2", *Then* the list shows KICK 2 and SNARE, and *when* KICK is renamed
+  SNARE, *Then* nothing is sent; *Given* the program PAD, *When* it is deleted and confirmed, *Then* it is no longer listed, and cancelled, nothing is sent; *Given* KICK selected,
+  *When* it is auditioned, *Then* the audition starts, and *when* SNARE is selected, *Then* the audition of KICK stops.
+- **Dependencies**: TASK-APP-015
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) The gateway's `createProgram`, `renameCurrent*`, `deleteCurrent*` and the audition calls are used as they are; the delete passes the name the
+  person confirmed as the gateway's typed confirmation (DEC-APP-007).
+
+### TASK-APP-017: Main window, menu bar, status, MIDI setup dialog and the JUCE adapters
+- **Tier**: L
+- **Status**: Not Started
+- **Description**: In `XS56KApp`, replacing the placeholder window: the main window with its three areas (browser at the top left, memory view under it, the edit panel's area on
+  the right with its row of tabs along its bottom edge, empty until FTR-APP-007), the menu bar ("MIDI setup", "Connect" only when disconnected, "Disconnect" only when
+  connected, "Quit"), the connection state and the busy indicator (the job's label, the message after a slow-operation timeout), the MIDI setup dialog, and the JUCE adapters of the
+  core's interfaces (`UiDispatcher` with `MessageManager::callAsync`, `UserPrompts` with dialogs that do not block the message thread, `AppSettings` with `PropertiesFile`,
+  the JUCE MIDI backend). Every visual value comes from the design tokens; the application links `xs56k_app_core` and `xs56k_sampler`, not `xs56k_mcp`.
+- **Requirement refs**: RQ-APP-006, RQ-APP-007, RQ-APP-012, RQ-APP-013, RQ-APP-015, RQ-APP-016, RQ-APP-019, RQ-APP-001, RQ-APP-004, RQ-APP-005
+- **ADR refs**: ADR-APP-001 (DEC-APP-001, DEC-APP-003, DEC-APP-007, DEC-APP-009, DEC-APP-010); ADR-APP-002 (DEC-APP-011 to DEC-APP-016)
+- **Acceptance Criteria** (Gherkin): *Given* the application started, *When* the main window is shown, *Then* the browser is at the top left, the memory view under it and the edit
+  panel's area on the right with its tab row along its bottom edge, laid out as `documents/mockups/main-window-disconnected.svg`; *When* the menu bar is opened, *Then* "MIDI setup",
+  "Connect", "Disconnect" and "Quit" are offered, "Connect" only when disconnected; *Given* the application disconnected, *Then* the window says disconnected and the load and edit actions
+  are disabled, and connected, it says the model and DeviceID; *Given* a job in progress, *Then* the busy indicator names it and the window keeps answering; *Given* the source check of
+  raw visual literals, *Then* it passes; `BUILD_APP=ON` builds warning-clean and the application starts and quits.
+- **Dependencies**: TASK-APP-012
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) The views are not unit-tested (DEC-APP-010): what they do is in the core. This task's verification is the build, a run of the application on Windows,
+  and a screenshot compared with the mockups. (2) The resizing of the areas and the restoring of the window (RQ-APP-008, RQ-APP-009, `Could`) are not done: the layout is the design
+  system's default. (3) The session's dialogs of the MIDI setup follow DEC-APP-009's order: ports listed on the UI thread, nothing sent to the sampler.
+
+### TASK-APP-018: The file browser view
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `XS56KApp`: the browser's component: the tree of disks, folders and files with each kind's icon, the current folder marked and the path always shown, the
+  selected file's name, size and kind, the context menu offering the commands the core says apply, and the dialogs of the loads, the refresh and the deletions through `UserPrompts`.
+  It draws the model, observes its changes and calls the controller; it holds no state of the sampler.
+- **Requirement refs**: RQ-APP-024, RQ-APP-025, RQ-APP-026, RQ-APP-027, RQ-APP-028, RQ-APP-029, RQ-APP-030, RQ-APP-031, RQ-APP-032, RQ-APP-033, RQ-APP-034, RQ-APP-001, RQ-APP-004, RQ-APP-005
+- **ADR refs**: ADR-APP-001 (DEC-APP-001); ADR-APP-002 (DEC-APP-013, DEC-APP-014, DEC-APP-016)
+- **Acceptance Criteria** (Gherkin): *Given* the application connected to a sampler, *When* the person opens a folder, *Then* its contents are listed and the current folder is marked and in the
+  path; *Given* a sample file selected, *When* the context menu opens, *Then* "Audition" is offered, and for a program file it is not; *Given* a file deleted from the menu, *When* the person
+  cancels the confirmation, *Then* nothing changes; the component has no raw visual literal and shows no state by colour alone (RQ-APP-005).
+- **Dependencies**: TASK-APP-014, TASK-APP-017
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) Verified by a run of the application against the simulated sampler where the build allows it, and by the owner on the real sampler; the real-sampler check is the owner's
+  (the refresh of the disks is never sent to the owner's sampler without asking).
+
+### TASK-APP-019: The memory view
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `XS56KApp`: the memory view's component: six headings with their counts, the items in the sampler's order with the current item of each kind marked, the selection,
+  the context commands (create a program, rename, delete, audition), the free memory line and a refresh button, drawn from the core's model.
+- **Requirement refs**: RQ-APP-035, RQ-APP-036, RQ-APP-037, RQ-APP-038, RQ-APP-039, RQ-APP-040, RQ-APP-041, RQ-APP-042, RQ-APP-001, RQ-APP-004, RQ-APP-005
+- **ADR refs**: ADR-APP-001 (DEC-APP-001); ADR-APP-002 (DEC-APP-013, DEC-APP-014, DEC-APP-016)
+- **Acceptance Criteria** (Gherkin): *Given* the application connected, *When* the main window is shown, *Then* "Programs (n)", "Samples (n)" and the four other headings are listed with their
+  items and the current item of each marked, and the free memory is shown; *Given* a program loaded from the browser, *Then* it appears in the list and is selected; *Given* an item
+  deleted from the context menu, *When* the person cancels, *Then* nothing changes.
+- **Dependencies**: TASK-APP-016, TASK-APP-017
+- **Assignee**: AI
+- **Verification**: (at closure)
+- **Assumptions**: (1) Selecting an item records the selection in the model; the edit panel that shows it (RQ-APP-048) comes with FTR-APP-007, so the right-hand area stays empty. (2) The
+  working principle of the owner (load a file, see it in the memory view) is checked end to end here, on the simulated sampler.

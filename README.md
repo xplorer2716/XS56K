@@ -26,8 +26,9 @@ Inside the orange box is what runs on your computer; below it, what the build fe
 
 - **The MCP client** (Claude Code or another) starts `xs56k_mcp_server` and talks to it over standard input and output (MCP stdio).
 - **`xs56k_mcp_server`** is the executable. It wires the JUCE MIDI devices and hosts **`xs56k_mcp`**, the library that holds the
-  protocol, the tools and the gateway to the sampler.
-- **`xs56k_mcp`** calls **`xs56k_akm`**, the SysEx library: the session with the sampler and the primitives that build each message.
+  protocol and the tools, over **`xs56k_sampler`**, the gateway to the sampler and the parameter catalogues (a library of its own,
+  so that the editor application can share it without the MCP protocol).
+- **`xs56k_sampler`** calls **`xs56k_akm`**, the SysEx library: the session with the sampler and the primitives that build each message.
   Its table of items is generated from [`juce/akm/data/items.json`](juce/akm/data/items.json) by `generate_akm_items.py`.
 - **`xs56k_akm`** reaches the sampler through the ports of **`xs56k_midi`** (ports, messages, the SysEx stream). **`xs56k_midi_juce`**
   implements them with JUCE and the computer's MIDI devices: it sends the SysEx messages to the AKAI S5000 or S6000, and the sampler's

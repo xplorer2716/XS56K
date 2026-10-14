@@ -199,9 +199,17 @@ add_test(NAME mcp_simulated_server_disk_conversation
 # configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
 get_target_property(shipped_server_libraries xs56k_mcp_server LINK_LIBRARIES)
 get_target_property(shipped_library_libraries xs56k_mcp LINK_LIBRARIES)
-foreach(library IN LISTS shipped_server_libraries shipped_library_libraries)
+get_target_property(shipped_sampler_libraries xs56k_sampler LINK_LIBRARIES)
+foreach(library IN LISTS shipped_server_libraries shipped_library_libraries shipped_sampler_libraries)
     if(library MATCHES "test_support")
         message(FATAL_ERROR "The shipped MCP server links the test support (${library}): it must not")
+    endif()
+endforeach()
+# The gateway's library is shared with the editor application: it must not bring the MCP protocol or JSON with it.
+# [RQ-APP-014, ADR-APP-001 (DEC-APP-002), TASK-APP-010]
+foreach(library IN LISTS shipped_sampler_libraries)
+    if(library MATCHES "nlohmann|xs56k_mcp")
+        message(FATAL_ERROR "xs56k_sampler links ${library}: the gateway must depend on the AKM layer only")
     endif()
 endforeach()
 # The server never saves, loads, touches the disk or deletes everything, and only the gateway creates, renames or deletes
