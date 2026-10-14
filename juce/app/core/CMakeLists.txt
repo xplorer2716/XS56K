@@ -3,7 +3,9 @@
 # The views and the JUCE adapters of its interfaces are in XS56KApp (juce/app). [RQ-APP-014, ADR-APP-001 (DEC-APP-001, DEC-APP-002,
 # DEC-APP-010), TASK-APP-011]
 add_library(xs56k_app_core STATIC
+    src/Browser.cpp
     src/Controller.cpp
+    src/FileBrowser.cpp
     src/MidiSetup.cpp
     src/Model.cpp
     src/SamplerWorker.cpp)

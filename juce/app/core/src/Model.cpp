@@ -52,6 +52,13 @@ namespace app
         notify(ModelPart::Connection);
     }
 
+    // [RQ-APP-024 to RQ-APP-026, TASK-APP-013]
+    void Model::setBrowser(BrowserState browser)
+    {
+        _browser = std::move(browser);
+        notify(ModelPart::Browser);
+    }
+
     void Model::addListener(ModelListener& listener)
     {
         _listeners.push_back(&listener);

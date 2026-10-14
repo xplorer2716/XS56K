@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <vector>
 
+#include "app/Browser.hpp"
+
 namespace app
 {
     /// Which part of the model changed, for the views to redraw only that. [ADR-APP-001 (DEC-APP-004)]
@@ -29,6 +31,7 @@ namespace app
         Busy,
         Problem,
         Connection,
+        Browser,
     };
 
     /// Where the connection with the sampler stands. [RQ-APP-019]
@@ -86,11 +89,14 @@ namespace app
         [[nodiscard]] const std::optional<Problem>& problem() const { return _problem; }
         /// Always known: disconnected until the person connects. [RQ-APP-019]
         [[nodiscard]] const ConnectionStatus& connection() const { return _connection; }
+        /// The file browser: the disks, the current folder, the tree listed so far and the selection. [RQ-APP-024 to RQ-APP-026]
+        [[nodiscard]] const BrowserState& browser() const { return _browser; }
 
         void setBusy(std::optional<std::string> label);
         void setProblem(Problem problem);
         void clearProblem();
         void setConnection(ConnectionStatus status);
+        void setBrowser(BrowserState browser);
 
         void addListener(ModelListener& listener);
         void removeListener(ModelListener& listener);
@@ -101,6 +107,7 @@ namespace app
         std::optional<std::string> _busy;
         std::optional<Problem> _problem;
         ConnectionStatus _connection;
+        BrowserState _browser;
         std::vector<ModelListener*> _listeners;
     };
 }

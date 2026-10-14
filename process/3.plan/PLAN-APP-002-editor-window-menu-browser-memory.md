@@ -129,7 +129,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-013: The file browser, read side
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `xs56k_app_core`: the browser's model and controller for what is read, not changed: the disks as roots with name, type, format and free space
   ("not reported" for 0 bytes), selecting a disk, opening a folder (which makes it the sampler's current folder), the current folder and the path always known,
   the kind of a file from its extension with its size, and the commands that apply to the selected disk, folder or file. Once the session opens the browser lists
@@ -142,9 +142,20 @@ This plan implements the tasks in the format specified below.
   and README.TXT is "unknown"; *Given* PAD.AKP selected, *Then* "audition" is not offered, and *given* KICK.WAV, it is.
 - **Dependencies**: TASK-APP-012
 - **Assignee**: AI
-- **Verification**: (at closure)
-- **Assumptions**: (1) What the gateway lacks for the application (for example the kind of a file, the disk's format) is added to the gateway with tests in this task,
-  as DEC-APP-002 says.
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON`, 2026-10-14, build warning-clean; `ctest -C Debug`: 100% passed, 0 failed out of 1167, the 8 cases of
+  `BrowserTests.cpp` among them, all passing at their first run. RQ-APP-024/017: two roots HD1 "hard disk" and CD1 "CD-ROM" once connected; HD1 selected: current,
+  "MSDOS", "1 000 000 bytes", root folders DRUMS and SYNTH; CD1 selected: "ISO9660", "not reported". RQ-APP-025: DRUMS opened: LOOPS and KICK.WAV under it, current
+  folder DRUMS, path "DRUMS", the root kept in the tree; from DRUMS\LOOPS to SYNTH: current SYNTH; a folder that is not there: problem reported, current folder
+  unchanged. RQ-APP-026: "PAD.AKP", "4 096 bytes", "program"; README.TXT and a name without extension "unknown"; the six kinds by extension, case ignored.
+  RQ-APP-027: a program file offers load, load with dependents, rename, delete and no audition; a sample file offers audition; a folder and a disk their lists in
+  the menu's order. Disconnecting empties the browser.
+- **Assumptions**: (1) The gateway needed nothing new: the kind of a file comes from its extension in the core (`fileKindOf`), the disk's format and type from
+  `DiskEntry`, the free space from `readDiskSpace`. (2) The browser's tree is the folders listed so far on the current disk, keyed by their path; selecting
+  another disk starts it again. (3) Opening a folder reads the sampler's own current path first and goes up then down from it, so a folder changed on the front
+  panel does not mislead it. If a step fails half way, the problem is reported and the model keeps the folder it showed, though the sampler may have moved; the next
+  opening starts again from the sampler's real path. (4) The sampler's list of disks is read without its refresh (`listDisks(false)`); the refresh is TASK-APP-014's,
+  behind its confirmation. (5) The browser is a `ModelListener` of the connection: it fills itself when the state becomes connected and empties itself when it
+  stops being connected.
 
 ### TASK-APP-014: The file browser, commands
 - **Tier**: M
