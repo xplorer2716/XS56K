@@ -191,7 +191,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-015: The memory view, read side
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `xs56k_app_core`: the memory view's model and controller: the six lists (multis, programs, samples, song files, set lists, scenelists) with
   their counts, names in the sampler's order and the current item of each kind, read again after any action that changes the memory and on request, selecting an
   item (select by name, back to the current item and the error reported if it fails), and the free wave memory in bytes with the free percentages. Showing the selected
@@ -206,9 +206,18 @@ This plan implements the tasks in the format specified below.
   again after a load.
 - **Dependencies**: TASK-APP-012
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON` and `BUILD_APP=ON`, 2026-10-15, build warning-clean; `ctest -C Debug`: 100% passed, 0 failed out of 1182,
+  the 7 cases of `MemoryTests.cpp` among them, all passing at their first run. RQ-APP-035: 2 programs PAD and BASS, BASS current, the samples KICK, the four other
+  kinds empty; headings "Programs", "Scenelists". RQ-APP-036/028: LEAD.AKP loaded with its dependents from the browser: LEAD and SAW listed, LEAD selected and current;
+  a sample removed behind the view's back gone after a refresh. RQ-APP-037/010: PAD selected: one more select by name (`0A &05`) accepted, PAD selected and current;
+  a refused select of BASS: the selection back on PAD, the problem naming BASS; a set list selected in the view with no command sent. RQ-APP-042: 2 MB free of
+  8 MB, 25 %, MPKS 40 %; after a load the free bytes read again (1 MB). Disconnecting empties the view. CI of the commits of TASK-APP-011, 012 and 013: the 7
+  canary workflows (Linux GCC, macOS Clang, Windows MSVC, Debug and Release) green.
 - **Assumptions**: (1) Set lists have no current item (FTR-APP-005), so none is marked. (2) Independent of TASK-APP-013 and TASK-APP-014 apart from the "memory changed"
-  event, which the browser raises: the two tasks can be done in either order.
+  event, which the browser raises: the two tasks can be done in either order. (3) The program list comes from `listPrograms()` and its current item from `status()`,
+  the gateway's program listing not marking it; the other five kinds from `listSamples()`, `listMultis()` and `listNamedItems()`, the free memory from
+  `readSystemInfo()`: no gateway method added. (4) After a re-read the selection stays on its item when it is still listed; a load's item is then selected on the
+  sampler (RQ-APP-028). (5) The memory tests seed programs with the raw-frame helpers of the AKM and MCP tests (`SimulatedPrograms.hpp`), which bring no MCP server.
 
 ### TASK-APP-016: The memory view, commands
 - **Tier**: M
