@@ -251,6 +251,32 @@ add_test(NAME mcp_readme_names_every_tool_and_option
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/list_tools.jsonl
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckReadmeCoversTools.cmake)
 
+# The editor application's core: the controller and the model against the gateway over the simulated sampler, with a real worker
+# thread and a UI dispatcher the test drains; no display, no JUCE. [RQ-APP-014, ADR-APP-001 (DEC-APP-010), TASK-APP-011]
+add_executable(xs56k_app_tests
+    app/CoreTests.cpp)
+target_include_directories(xs56k_app_tests PRIVATE app)
+target_link_libraries(xs56k_app_tests PRIVATE
+    xs56k_app_core
+    xs56k_akm_test_support
+    Catch2::Catch2WithMain
+    xs56k::warnings)
+catch_discover_tests(xs56k_app_tests)
+# No JUCE include anywhere in the core, its sources included; the check fails on a fixture that has one. [RQ-APP-014,
+# ADR-APP-001 (DEC-APP-001, DEC-APP-010), TASK-APP-011]
+add_test(NAME app_core_has_no_juce_include
+    COMMAND ${CMAKE_COMMAND}
+        -DHEADER_DIR=${PROJECT_SOURCE_DIR}/app/core
+        -DWITH_SOURCES=ON
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoJuceIncludes.cmake)
+add_test(NAME app_core_check_fails_on_a_juce_include
+    COMMAND ${CMAKE_COMMAND}
+        -DHEADER_DIR=${CMAKE_CURRENT_SOURCE_DIR}/app/juce_include_fixture
+        -DWITH_SOURCES=ON
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoJuceIncludes.cmake)
+set_tests_properties(app_core_check_fails_on_a_juce_include PROPERTIES
+    PASS_REGULAR_EXPRESSION "juce_include_fixture/Fixture\\.cpp:")
+
 # No JUCE include in the public headers of the AKM layer. [RQ-AKM-019]
 add_test(NAME akm_public_headers_have_no_juce_include
     COMMAND ${CMAKE_COMMAND}

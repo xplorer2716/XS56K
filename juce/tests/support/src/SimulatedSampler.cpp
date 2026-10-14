@@ -3250,6 +3250,7 @@ namespace akm::harness
             stillAlive = _settings.stillAlive;
             confirmations = process(message);
             behaviour = _behaviour;
+            behaviour.replyDelay = std::max(behaviour.replyDelay, _itemDelay);
         }
         if (confirmations.empty() || behaviour.silent)
             return;
@@ -3305,6 +3306,9 @@ namespace akm::harness
         const Bytes userRefs(message.begin() + FIRST_USER_REF_INDEX, message.begin() + static_cast<std::ptrdiff_t>(sectionIndex));
         const std::uint8_t section = message[sectionIndex];
         const std::uint8_t item = message[sectionIndex + 1];
+        const auto slow = std::find_if(_behaviour.slowItems.begin(), _behaviour.slowItems.end(),
+                                       [section, item](const SlowItem& candidate) { return candidate.section == section && candidate.item == item; });
+        _itemDelay = slow != _behaviour.slowItems.end() ? slow->delay : Scheduler::Clock::duration::zero();
         const std::size_t endIndex = message.size() - END_BYTE_SIZE;
         Bytes data(message.begin() + static_cast<std::ptrdiff_t>(sectionIndex + SECTION_AND_ITEM_SIZE),
                    message.begin() + static_cast<std::ptrdiff_t>(endIndex));

@@ -61,7 +61,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-011: `xs56k_app_core`: sampler worker, UI dispatcher, prompts, settings and the model's skeleton
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Create `juce/app/core/` as the static library `xs56k_app_core` (no JUCE, added with the libraries whatever `BUILD_APP` says): the
   sampler worker (one thread, one job at a time, each job labelled in words), the interfaces `UiDispatcher`, `UserPrompts` (asynchronous answers) and
   `AppSettings`, the model with its listener interface and the job in progress, the reporting of a failed job (what failed and why, last values kept),
@@ -76,9 +76,21 @@ This plan implements the tasks in the format specified below.
   that never answers, *Then* the message says it may need to be switched off and on (RQ-APP-013); *Given* a JUCE include in `juce/app/core/`, *Then* the check fails.
 - **Dependencies**: TASK-APP-010
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON`, 2026-10-14, build warning-clean; `ctest -C Debug`: 100% passed, 0 failed out of 1147.
+  RQ-APP-012: "Given the simulated sampler holding its answer..." passed (the call returned under 100 ms, the model named the job, the drain ran
+  nothing before the answer) and "Given two jobs queued..." passed (the second job named until it ended). RQ-APP-010: "...ERROR \"parameter out of
+  range\"..." passed (problem names "Creating the program LEAD" and the sampler's words; the success continuation not run). RQ-APP-011: "Given a
+  destructive action..." passed (cancel: no command accepted by the sampler; confirm: deleted). RQ-APP-013: "...a load after the ordinary timeout and
+  before the disk timeout..." passed (load answered after 700 ms, command timeout 300 ms, disk timeout 1500 ms) and "...never answers a load..." passed
+  ("switched off and on"). `app_core_has_no_juce_include` passed; `app_core_check_fails_on_a_juce_include` passed (the check fails on the fixture,
+  naming `juce_include_fixture/Fixture.cpp`). Error Recovery Protocol once: that test's first pass regex did not match because CMake wraps the
+  message; fixed by matching the path alone, the check itself unchanged.
 - **Assumptions**: (1) The core is added to `juce/CMakeLists.txt` with the libraries, as DEC-APP-010 says, so the headless workflows build and test it.
-  (2) The slow-operation timeout is the gateway's (`waitForDisk()`), the core only chooses it for the load and refresh jobs.
+  (2) The slow-operation timeout is the gateway's (`waitForDisk()`), the core only chooses it for the load and refresh jobs. (3) To give one item a
+  delay of its own, the simulated sampler gets a `SlowItem` knob (`SamplerBehaviour::slowItems`, test support only). (4) A problem stays in the model
+  until the person dismisses it (`clearProblem`); a later success does not clear it. (5) `AppSettings` is a key-value interface; its keys are set by
+  TASK-APP-012. (6) `CheckNoJuceIncludes.cmake` takes `WITH_SOURCES=ON` to scan the `.cpp` files too, and its message no longer names the AKM layer
+  only. (7) Linux and macOS (GCC, Clang) are checked by the CI after the push, not locally.
 
 ### TASK-APP-012: The connection and the MIDI setup, in the core
 - **Tier**: L
