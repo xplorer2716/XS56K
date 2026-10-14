@@ -141,14 +141,10 @@ def validate_values(owner, label, values, problems):
                             f"{format_min}..{format_max}")
 
 
-def validate(catalogue):
-    """Returns the list of problems of a loaded data file; empty when it is valid."""
-    problems = []
-    if not isinstance(catalogue, dict) or catalogue.get("schema") != SCHEMA_VERSION:
-        return [f"the data file must be an object with \"schema\": {SCHEMA_VERSION}"]
-
+def validate_sections(entries, problems):
+    """The declared sections by code; what is wrong with them is appended to `problems`."""
     sections = {}
-    for entry in catalogue.get("sections", []):
+    for entry in entries:
         code = entry.get("section")
         if not isinstance(code, str) or not SECTION_PATTERN.match(code):
             problems.append(f"section {code!r}: must be two hexadecimal digits, at most 7F")
@@ -160,56 +156,92 @@ def validate(catalogue):
             problems.append(f"section {code}: \"complete\" must be true or false")
         if not entry.get("name") or not entry.get("spec"):
             problems.append(f"section {code}: \"name\" and \"spec\" are required")
+    return sections
 
-    identifiers = {}
-    positions = {}
+
+def validate_identifier(owner, entry, identifiers, problems):
+    """The id of an item: PascalCase and used once."""
+    if not IDENTIFIER_PATTERN.match(owner):
+        problems.append(f"{owner}: id must be PascalCase")
+    elif owner in identifiers:
+        problems.append(f"{owner}: id is used twice")
+    identifiers[owner] = entry
+
+
+def validate_position(owner, entry, sections, positions, problems):
+    """The section and the item number of an item, and that no other item takes the same place."""
+    section, item = entry.get("section"), entry.get("item")
+    if section not in sections:
+        problems.append(f"{owner}: section {section} is not declared in \"sections\"")
+    if not isinstance(item, str) or not SECTION_PATTERN.match(item):
+        problems.append(f"{owner}: item {item!r} must be two hexadecimal digits, at most 7F")
+    elif (section, item) in positions:
+        problems.append(f"{owner}: duplicates section {section} item {item} of {positions[(section, item)]}")
+    else:
+        positions[(section, item)] = owner
+
+
+def validate_reply_section(owner, entry, problems):
+    """`replySection`, which only a get may name, and which is not the item's own section."""
+    reply_section = entry.get("replySection")
+    if reply_section is None:
+        return
+    if entry.get("kind") != "get":
+        problems.append(f"{owner}: only a get has a REPLY, so only a get can name the section its REPLY carries")
+    elif not isinstance(reply_section, str) or not SECTION_PATTERN.match(reply_section):
+        problems.append(f"{owner}: replySection {reply_section!r} must be two hexadecimal digits, at most 7F")
+    elif reply_section == entry.get("section"):
+        problems.append(f"{owner}: replySection is the item's own section {entry.get('section')}: leave it out")
+
+
+def validate_reply(owner, entry, problems):
+    """A get has a reply format, a set has none."""
+    if entry.get("kind") == "get":
+        if not entry.get("reply"):
+            problems.append(f"{owner}: a get needs a reply format")
+        else:
+            validate_values(owner, "reply", entry.get("reply"), problems)
+    elif "reply" in entry:
+        problems.append(f"{owner}: a set is answered by DONE and has no reply format")
+
+
+def validate_requirements(owner, entry, problems):
+    """At least one requirement ID, each of the right shape."""
+    requirements = entry.get("requirements")
+    if not isinstance(requirements, list) or not requirements:
+        problems.append(f"{owner}: at least one requirement is needed for traceability")
+        return
+    for requirement in requirements:
+        if not REQUIREMENT_PATTERN.match(str(requirement)):
+            problems.append(f"{owner}: '{requirement}' is not a requirement ID")
+
+
+def validate_item(entry, sections, identifiers, positions, problems):
+    """Every check of one item, in the order of the data file's fields."""
+    owner = str(entry.get("id"))
+    validate_identifier(owner, entry, identifiers, problems)
+    validate_position(owner, entry, sections, positions, problems)
+    if not entry.get("name"):
+        problems.append(f"{owner}: name is required")
+    kind = entry.get("kind")
+    if kind not in KINDS:
+        problems.append(f"{owner}: kind must be one of {', '.join(KINDS)}")
+    validate_values(owner, "args", entry.get("args"), problems)
+    validate_reply_section(owner, entry, problems)
+    validate_reply(owner, entry, problems)
+    validate_requirements(owner, entry, problems)
+
+
+def validate(catalogue):
+    """Returns the list of problems of a loaded data file; empty when it is valid."""
+    if not isinstance(catalogue, dict) or catalogue.get("schema") != SCHEMA_VERSION:
+        return [f"the data file must be an object with \"schema\": {SCHEMA_VERSION}"]
+
+    problems = []
+    sections = validate_sections(catalogue.get("sections", []), problems)
+    identifiers, positions = {}, {}
     for entry in catalogue.get("items", []):
-        owner = str(entry.get("id"))
-        if not IDENTIFIER_PATTERN.match(owner):
-            problems.append(f"{owner}: id must be PascalCase")
-        elif owner in identifiers:
-            problems.append(f"{owner}: id is used twice")
-        identifiers[owner] = entry
-
-        section, item = entry.get("section"), entry.get("item")
-        if section not in sections:
-            problems.append(f"{owner}: section {section} is not declared in \"sections\"")
-        if not isinstance(item, str) or not SECTION_PATTERN.match(item):
-            problems.append(f"{owner}: item {item!r} must be two hexadecimal digits, at most 7F")
-        elif (section, item) in positions:
-            problems.append(f"{owner}: duplicates section {section} item {item} of {positions[(section, item)]}")
-        else:
-            positions[(section, item)] = owner
-        if not entry.get("name"):
-            problems.append(f"{owner}: name is required")
-
-        kind = entry.get("kind")
-        if kind not in KINDS:
-            problems.append(f"{owner}: kind must be one of {', '.join(KINDS)}")
-        validate_values(owner, "args", entry.get("args"), problems)
-        reply_section = entry.get("replySection")
-        if reply_section is not None:
-            if kind != "get":
-                problems.append(f"{owner}: only a get has a REPLY, so only a get can name the section its REPLY carries")
-            elif not isinstance(reply_section, str) or not SECTION_PATTERN.match(reply_section):
-                problems.append(f"{owner}: replySection {reply_section!r} must be two hexadecimal digits, at most 7F")
-            elif reply_section == section:
-                problems.append(f"{owner}: replySection is the item's own section {section}: leave it out")
-        if kind == "get":
-            if not entry.get("reply"):
-                problems.append(f"{owner}: a get needs a reply format")
-            else:
-                validate_values(owner, "reply", entry.get("reply"), problems)
-        elif "reply" in entry:
-            problems.append(f"{owner}: a set is answered by DONE and has no reply format")
-
-        requirements = entry.get("requirements")
-        if not isinstance(requirements, list) or not requirements:
-            problems.append(f"{owner}: at least one requirement is needed for traceability")
-        else:
-            for requirement in requirements:
-                if not REQUIREMENT_PATTERN.match(str(requirement)):
-                    problems.append(f"{owner}: '{requirement}' is not a requirement ID")
+        validate_item(entry, sections, identifiers, positions, problems)
     return problems
 
 
@@ -388,12 +420,10 @@ KNOWN_DEC_ERRATA = {
 }
 
 
-def coverage(catalogue, spec):
-    """Compares the data file with the spec rows; returns (report lines, problems)."""
-    report, problems = [], []
-    by_position = {(entry["section"], entry["item"]): entry for entry in catalogue["items"]}
-    unaccounted = []
-
+def section_coverage(catalogue, spec):
+    """The report line of each declared section, and the spec rows of a complete section that no item covers."""
+    report, unaccounted = [], []
+    by_position = {(entry["section"], entry["item"]) for entry in catalogue["items"]}
     for section in catalogue["sections"]:
         code = section["section"]
         commands = sorted(key for key in spec if key[0] == "C" and key[1] == code)
@@ -406,36 +436,56 @@ def coverage(catalogue, spec):
         if section["complete"]:
             unaccounted += [f"{code} &{key[2]} ({spec[key]['desc'][:60].strip()})" for key in commands
                             if key not in covered]
+    return report, unaccounted
 
-    for entry in catalogue["items"]:
-        owner, section, item = entry["id"], entry["section"], entry["item"]
-        command = spec.get(("C", section, item))
-        if command is None:
-            problems.append(f"{owner}: no row for {section} &{item} in the spec table")
-            continue
-        record_problems, notes = [], []
-        if int(command["dec"]) != int(item, 16):
-            message = f"{owner}: the spec gives item {command['dec']} decimal, not {int(item, 16)}"
-            if (section, item) in KNOWN_DEC_ERRATA:
-                notes.append(f"{message} (known spec erratum, not a catalogue problem)")
-            else:
-                record_problems.append(message)
-        known_range = KNOWN_RANGE_ERRATA.get((section, item))
-        found, more_notes = compare_values(owner, "args", entry["args"], command, known_range)
+
+def compare_decimal(owner, section, item, command):
+    """The item's number against the spec's decimal column: (problems, notes)."""
+    if int(command["dec"]) == int(item, 16):
+        return [], []
+    message = f"{owner}: the spec gives item {command['dec']} decimal, not {int(item, 16)}"
+    if (section, item) in KNOWN_DEC_ERRATA:
+        return [], [f"{message} (known spec erratum, not a catalogue problem)"]
+    return [message], []
+
+
+def compare_reply(entry, section, item, spec, known_range):
+    """A get's reply format against the spec's separate reply row, when it has one: (problems, notes)."""
+    owner = entry["id"]
+    reply = spec.get(("R", section, item))
+    if reply is None:
+        return [], [f"{owner}: reply format not compared (the spec lists no separate reply row)"]
+    return compare_values(owner, "reply", entry["reply"], reply, known_range)
+
+
+def item_coverage(entry, spec):
+    """The report lines and the problems of one item against the spec row of its command."""
+    owner, section, item = entry["id"], entry["section"], entry["item"]
+    command = spec.get(("C", section, item))
+    if command is None:
+        return [], [f"{owner}: no row for {section} &{item} in the spec table"]
+    known_range = KNOWN_RANGE_ERRATA.get((section, item))
+    problems, notes = compare_decimal(owner, section, item, command)
+    found, more_notes = compare_values(owner, "args", entry["args"], command, known_range)
+    problems += found
+    notes += more_notes
+    if entry["kind"] == "get":
+        found, more_notes = compare_reply(entry, section, item, spec, known_range)
+        problems += found
         notes += more_notes
-        record_problems += found
-        if entry["kind"] == "get":
-            reply = spec.get(("R", section, item))
-            if reply is None:
-                notes.append(f"{owner}: reply format not compared (the spec lists no separate reply row)")
-            else:
-                found, more = compare_values(owner, "reply", entry["reply"], reply, known_range)
-                record_problems += found
-                notes += more
-        problems += record_problems
-        report.append(f"  {owner} ({section} &{item}): {'differs from the spec' if record_problems else 'covered'}")
-        report += [f"    note: {note}" for note in notes]
+    lines = [f"  {owner} ({section} &{item}): {'differs from the spec' if problems else 'covered'}"]
+    lines += [f"    note: {note}" for note in notes]
+    return lines, problems
 
+
+def coverage(catalogue, spec):
+    """Compares the data file with the spec rows; returns (report lines, problems)."""
+    report, unaccounted = section_coverage(catalogue, spec)
+    problems = []
+    for entry in catalogue["items"]:
+        lines, found = item_coverage(entry, spec)
+        report += lines
+        problems += found
     report.append("unaccounted: " + ("none" if not unaccounted else "; ".join(unaccounted)))
     problems += [f"unaccounted spec row: {row}" for row in unaccounted]
     return report, problems

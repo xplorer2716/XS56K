@@ -81,6 +81,18 @@ target_link_libraries(xs56k_akm_tests PRIVATE
     xs56k::warnings)
 catch_discover_tests(xs56k_akm_tests)
 
+# The framework library (ported from XplorerEditor): the tests pin what `Logger` and `AbstractController` do before their code is
+# reorganised for SonarCloud. Headless, on the in-memory MIDI backend, no thread started. [TASK-QLT-006, RQ-QLT-005,
+# ADR-QLT-001 (DEC-QLT-004)]
+add_executable(xs56k_framework_tests
+    framework/AbstractControllerAutomationTests.cpp
+    framework/LoggerTests.cpp)
+target_link_libraries(xs56k_framework_tests PRIVATE
+    xs56k_framework
+    Catch2::Catch2WithMain
+    xs56k::warnings)
+catch_discover_tests(xs56k_framework_tests)
+
 # The MCP server's library: its units are tested without a sampler and without a process, and its public headers
 # hold no JUCE include. [RQ-MCP-011, RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
 add_executable(xs56k_mcp_tests
@@ -279,6 +291,10 @@ if(Python3_FOUND)
     # tests above. [TASK-BLD-012]
     add_test(NAME bld_mutate_tool_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_mutate.py")
+    # The SonarCloud triage tool (it sorts the issues into test code and production code and accepts the first): tested against a
+    # replaced `sonar` CLI, never against SonarCloud. [TASK-QLT-001, RQ-QLT-006, RQ-QLT-008, ADR-QLT-001 (DEC-QLT-003)]
+    add_test(NAME qlt_sonar_triage_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_sonar_triage.py")
 else()
     message(STATUS "Python 3 not found: the item catalogue, coverage table, design tokens, mockups and mutation-tool checks of juce/tests/tools are not registered")
 endif()

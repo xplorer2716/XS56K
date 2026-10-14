@@ -149,6 +149,10 @@ namespace midiapp::controller
         bool dequeueParameter(std::unique_ptr<model::AbstractParameter>& parameter);
 
     private:
+        /// Sets one parameter from a control change value (0-127) scaled onto its range, then tells the UI.
+        /// [RQ-FMW-050, RQ-QLT-004, ADR-QLT-001 (DEC-QLT-002)]
+        void applyAutomatedControlChange(const std::string& parameterName, int controlChangeValue);
+
         void startWorkerThread();
         void stopWorkerThread();
         [[nodiscard]] common::midi::MidiInputCallbacks makeAutomationCallbacks();

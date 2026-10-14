@@ -350,3 +350,46 @@ TEST_CASE("Given the real scheduler destroyed with a task pending, When it is de
     // It did not wait for the hour.
     CHECK(elapsed < 30s);
 }
+
+// The timer thread's waits: with nothing scheduled it waits with no deadline, with a task it waits for the
+// earliest one; a wake-up that finds nothing to do must send it back to waiting. [TASK-QLT-005, RQ-QLT-004, ADR-QLT-001 (DEC-QLT-002)]
+TEST_CASE("Given the real scheduler idle with nothing scheduled, When a task is scheduled, Then it runs [RQ-AKM-010, RQ-QLT-004]",
+          "[akm][scheduler][real]")
+{
+    RealScheduler scheduler;
+    // Long enough for the timer thread to be waiting on the empty queue.
+    std::this_thread::sleep_for(100ms);
+    Signal ran;
+    scheduler.scheduleAfter(0ms, [&ran] { ran.set(); });
+
+    CHECK(ran.waitFor(eventTimeout));
+}
+
+TEST_CASE("Given the real scheduler waiting for a task an hour ahead, When a task due in 50 ms is scheduled, Then it runs at its own time [RQ-AKM-010, RQ-QLT-004]",
+          "[akm][scheduler][real]")
+{
+    RealScheduler scheduler;
+    Signal late;
+    scheduler.scheduleAfter(1h, [&late] { late.set(); });
+    // Long enough for the timer thread to be waiting for the hour.
+    std::this_thread::sleep_for(100ms);
+    Signal early;
+    scheduler.scheduleAfter(50ms, [&early] { early.set(); });
+
+    CHECK(early.waitFor(eventTimeout));
+    CHECK_FALSE(late.waitFor(0ms));
+}
+
+TEST_CASE("Given the real scheduler with nothing scheduled, When it is destroyed, Then it returns at once [RQ-AKM-020, RQ-QLT-004]",
+          "[akm][scheduler][real]")
+{
+    const auto start = std::chrono::steady_clock::now();
+    {
+        RealScheduler scheduler;
+        // Long enough for the timer thread to be waiting on the empty queue.
+        std::this_thread::sleep_for(100ms);
+    }
+    const auto elapsed = std::chrono::steady_clock::now() - start;
+
+    CHECK(elapsed < 30s);
+}

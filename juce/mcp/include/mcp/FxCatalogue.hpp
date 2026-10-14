@@ -59,9 +59,9 @@ namespace mcp
     /// when there is none.
     [[nodiscard]] const FxParameter* fxParameterOf(const FxModuleKind& kind, std::string_view nameOrIndex);
 
-    /// The kinds the module `module` of channel `channel` of an EB20 may be set to, by code; empty when that module cannot change its type: only
+    /// The kinds the module `moduleIndex` of channel `channel` of an EB20 may be set to, by code; empty when that module cannot change its type: only
     /// modules 2 (modulation) and 3 (delay) of channels 0 and 1 can (the specification, p. 35 and Figure 2).
-    [[nodiscard]] std::vector<int> eb20KindsFor(int channel, int module);
+    [[nodiscard]] std::vector<int> eb20KindsFor(int channel, int moduleIndex);
 
     /// The names of some kinds or parameters, as "a, b, c".
     [[nodiscard]] std::string fxKindNames(const std::vector<int>& codes);

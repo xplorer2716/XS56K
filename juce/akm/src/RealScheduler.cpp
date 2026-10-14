@@ -80,7 +80,9 @@ namespace akm
             if (next)
                 _wake.wait_until(lock, *next);
             else
-                _wake.wait(lock);
+                // Nothing is scheduled: sleep until something is, or until the scheduler stops. A wake-up that
+                // finds neither goes back to sleep. [RQ-QLT-004, ADR-QLT-001 (DEC-QLT-002)]
+                _wake.wait(lock, [this] { return _stopping || _queue.nextDeadline().has_value(); });
         }
     }
 }

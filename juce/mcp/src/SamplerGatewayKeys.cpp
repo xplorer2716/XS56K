@@ -137,7 +137,7 @@ namespace mcp
             return Outcome<std::string>::failure(unknownKey(name));
         if (const auto problem = connect())
             return Outcome<std::string>::failure(*problem);
-        const auto pressed = await<akm::KeyPressResult>(waitFor(COMMANDS_IN_A_PRESS), [&](std::function<void(const akm::KeyPressResult&)> done) {
+        const auto pressed = await<akm::KeyPressResult>(waitFor(COMMANDS_IN_A_PRESS), [this, &key](std::function<void(const akm::KeyPressResult&)> done) {
             akm::pressKey(session(), key->key, std::move(done));
         });
         if (!pressed)
@@ -157,7 +157,7 @@ namespace mcp
             return Outcome<std::string>::failure(unknownKey(name));
         if (const auto problem = connect())
             return Outcome<std::string>::failure(*problem);
-        const auto held = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto held = await<akm::CommandResult>(waitFor(1), [this, &key](std::function<void(const akm::CommandResult&)> done) {
             akm::holdKey(session(), key->key, std::move(done));
         });
         if (!held)
@@ -174,7 +174,7 @@ namespace mcp
             return Outcome<std::string>::failure(unknownKey(name));
         if (const auto problem = connect())
             return Outcome<std::string>::failure(*problem);
-        const auto released = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto released = await<akm::CommandResult>(waitFor(1), [this, &key](std::function<void(const akm::CommandResult&)> done) {
             akm::releaseKey(session(), key->key, std::move(done));
         });
         if (!released)
@@ -189,7 +189,7 @@ namespace mcp
         if (const auto problem = connect())
             return Outcome<bool>::failure(*problem);
         const akm::DataWheelDirection wire = direction == WheelDirection::Forwards ? akm::DataWheelDirection::Forwards : akm::DataWheelDirection::Backwards;
-        const auto turned = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto turned = await<akm::CommandResult>(waitFor(1), [this, &wire, &clicks](std::function<void(const akm::CommandResult&)> done) {
             akm::moveDataWheel(session(), wire, clicks, std::move(done));
         });
         if (!turned)
@@ -203,7 +203,7 @@ namespace mcp
     {
         if (const auto problem = connect())
             return Outcome<bool>::failure(*problem);
-        const auto sent = await<akm::CommandResult>(waitFor(1), [&](std::function<void(const akm::CommandResult&)> done) {
+        const auto sent = await<akm::CommandResult>(waitFor(1), [this, &ascii](std::function<void(const akm::CommandResult&)> done) {
             akm::sendAsciiKey(session(), ascii, std::move(done));
         });
         if (!sent)

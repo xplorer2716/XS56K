@@ -139,6 +139,9 @@ namespace common::midi
             _state->openInputs[_name].push_back(_body);
         }
 
+        MockInputPort(const MockInputPort&) = delete;
+        MockInputPort& operator=(const MockInputPort&) = delete;
+
         ~MockInputPort() override
         {
             const std::lock_guard lock(_state->mutex);
@@ -172,6 +175,9 @@ namespace common::midi
             const std::lock_guard lock(_state->mutex);
             _state->openOutputs[_name].push_back(this);
         }
+
+        MockOutputPort(const MockOutputPort&) = delete;
+        MockOutputPort& operator=(const MockOutputPort&) = delete;
 
         ~MockOutputPort() override
         {
