@@ -44,6 +44,14 @@ namespace app
         _wake.notify_one();
     }
 
+    std::deque<SamplerWorker::Job> SamplerWorker::dropQueued()
+    {
+        std::deque<Job> dropped;
+        const std::lock_guard lock(_mutex);
+        dropped.swap(_jobs);
+        return dropped;
+    }
+
     bool SamplerWorker::idle() const
     {
         const std::lock_guard lock(_mutex);

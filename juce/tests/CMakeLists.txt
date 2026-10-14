@@ -254,6 +254,7 @@ add_test(NAME mcp_readme_names_every_tool_and_option
 # The editor application's core: the controller and the model against the gateway over the simulated sampler, with a real worker
 # thread and a UI dispatcher the test drains; no display, no JUCE. [RQ-APP-014, ADR-APP-001 (DEC-APP-010), TASK-APP-011]
 add_executable(xs56k_app_tests
+    app/ConnectionTests.cpp
     app/CoreTests.cpp)
 target_include_directories(xs56k_app_tests PRIVATE app)
 target_link_libraries(xs56k_app_tests PRIVATE

@@ -28,6 +28,33 @@ namespace app
     {
         Busy,
         Problem,
+        Connection,
+    };
+
+    /// Where the connection with the sampler stands. [RQ-APP-019]
+    enum class ConnectionState
+    {
+        Disconnected,
+        Connecting,
+        Connected,
+        Failed,
+    };
+
+    /// Which sampler answered: its model, its name, its operating system and the DeviceID it was reached at. [RQ-APP-017, RQ-APP-019]
+    struct SamplerIdentity
+    {
+        std::string model;
+        std::string name;
+        std::string osVersion;
+        int deviceId = 0;
+    };
+
+    /// The connection state, the reason of a failure (empty otherwise) and, once connected, the sampler. [RQ-APP-018, RQ-APP-019]
+    struct ConnectionStatus
+    {
+        ConnectionState state = ConnectionState::Disconnected;
+        std::string reason;
+        std::optional<SamplerIdentity> sampler;
     };
 
     /// A command to the sampler that failed: the action, in the words of the job's label, and the reason, in the sampler's own words when it
@@ -57,10 +84,13 @@ namespace app
         [[nodiscard]] const std::optional<std::string>& busy() const { return _busy; }
         /// The last failure, until the person dismisses it. [RQ-APP-010]
         [[nodiscard]] const std::optional<Problem>& problem() const { return _problem; }
+        /// Always known: disconnected until the person connects. [RQ-APP-019]
+        [[nodiscard]] const ConnectionStatus& connection() const { return _connection; }
 
         void setBusy(std::optional<std::string> label);
         void setProblem(Problem problem);
         void clearProblem();
+        void setConnection(ConnectionStatus status);
 
         void addListener(ModelListener& listener);
         void removeListener(ModelListener& listener);
@@ -70,6 +100,7 @@ namespace app
 
         std::optional<std::string> _busy;
         std::optional<Problem> _problem;
+        ConnectionStatus _connection;
         std::vector<ModelListener*> _listeners;
     };
 }

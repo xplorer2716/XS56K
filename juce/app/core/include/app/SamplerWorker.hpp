@@ -46,6 +46,10 @@ namespace app
         /// Queues a job and returns at once.
         void submit(Job job);
 
+        /// Takes back the jobs not started yet, in order; the job in progress, if any, runs on. The caller destroys what it gets back.
+        /// [RQ-APP-020, RQ-APP-021, RQ-APP-022, ADR-APP-001 (DEC-APP-008)]
+        [[nodiscard]] std::deque<Job> dropQueued();
+
         /// True when no job waits, none runs, and the continuation of the last one has been posted.
         [[nodiscard]] bool idle() const;
 

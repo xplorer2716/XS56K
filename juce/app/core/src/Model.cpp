@@ -45,6 +45,13 @@ namespace app
         notify(ModelPart::Problem);
     }
 
+    // [RQ-APP-019, TASK-APP-012]
+    void Model::setConnection(ConnectionStatus status)
+    {
+        _connection = std::move(status);
+        notify(ModelPart::Connection);
+    }
+
     void Model::addListener(ModelListener& listener)
     {
         _listeners.push_back(&listener);

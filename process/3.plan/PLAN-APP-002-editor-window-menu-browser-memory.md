@@ -94,7 +94,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-012: The connection and the MIDI setup, in the core
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `xs56k_app_core`: the MIDI setup (the computer's ports through `MidiBackend`, one input, one output, DeviceID 0 to 31 and nothing else,
   stored through `AppSettings`), "Connect" (one gateway per connection, a job that opens the session and reads the sampler's model, name and OS version),
   the four connection states with the reason of a failure (missing port named, DeviceIDs that answered), "Disconnect", the change of ports while connected,
@@ -109,10 +109,23 @@ This plan implements the tasks in the format specified below.
   *Given* a port that reports an error, *Then* the state is failed with the port's name and "Connect" is offered again.
 - **Dependencies**: TASK-APP-011
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON`, 2026-10-14, build warning-clean; `ctest -C Debug`: 100% passed, 0 failed out of 1159, the 18
+  `[RQ-APP` cases among them, all 12 of `ConnectionTests.cpp` passing at their first run. RQ-APP-015: ports "IN A", "IN B" / "OUT A", "OUT B" listed with no
+  port opened; DeviceID 40 and -1 refused with "0 to 31". RQ-APP-016: "IN B", "OUT B", 3 read back from the settings. RQ-APP-017/019: connecting then connected,
+  "AKAI S5000", OS "2.10", DeviceID 0. RQ-APP-018: "No sampler answered at DeviceID 2" naming DeviceID 1; "IN GONE" named with "IN A" available; DeviceID 40:
+  failed, no port opened. RQ-APP-019: an action refused and nothing queued while disconnected, queued once connected. RQ-APP-020: "release IN A"/"release
+  OUT A" before "open IN B"/"open OUT B", connected again. RQ-APP-021: disconnect and quit: closing frames sent on OUT A, none after its release; quit told only
+  after both ports were released; disconnected quit: told, no port touched. RQ-APP-022: failed, naming "IN A" and "device removed", IN A released, actions
+  refused, connected again. The MCP suite unchanged and passing with the gateway's new wording.
 - **Assumptions**: (1) FTR-APP-003 was not among the features the owner named, but the menu (RQ-APP-007) offers "MIDI setup", "Connect" and "Disconnect", and the
   browser and the memory view are empty without a session: its priority-1 requirements are in this plan. "Connect at start" (RQ-APP-023, `Could`) is not.
-  (2) The model, name and OS version come from the gateway's `status()`; if it lacks one of the three, it is added to the gateway with its test.
+  (2) The model and the OS version come from the gateway's `readSystemInfo()`, the name from `readSamplerSettings()`: no gateway method was added for them.
+  (3) A lost port (RQ-APP-022): no layer passed the input port's `onError` on (the AKM session sets its own callbacks); the gateway now wraps the input port it
+  gives the session and calls a new `GatewayConfig::portError`, so the AKM layer is unchanged. (4) The gateway's opening messages said "set the DeviceID of
+  the server"; they now say "set the DeviceID", shown by the editor as well as by the MCP server; no test pinned the old words. (5) On "Disconnect", a lost port
+  or a change of setup the state changes at once and the gateway is destroyed on the worker after the job in progress, the busy indicator saying
+  "Disconnecting from the sampler". (6) The tests' MIDI backend (`RecordingBackend`, test support) gives two pairs of named ports over the one simulated bus
+  and records the opening, sending and release of each port.
 
 ### TASK-APP-013: The file browser, read side
 - **Tier**: M

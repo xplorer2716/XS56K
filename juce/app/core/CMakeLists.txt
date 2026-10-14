@@ -4,6 +4,7 @@
 # DEC-APP-010), TASK-APP-011]
 add_library(xs56k_app_core STATIC
     src/Controller.cpp
+    src/MidiSetup.cpp
     src/Model.cpp
     src/SamplerWorker.cpp)
 target_include_directories(xs56k_app_core PUBLIC include)

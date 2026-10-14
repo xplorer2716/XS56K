@@ -38,7 +38,9 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "akm/harness/SimulatedMidiBackend.hpp"
 #include "app/AppSettings.hpp"
 #include "app/Controller.hpp"
+#include "app/MidiSetup.hpp"
 #include "app/Model.hpp"
+#include "common/midi/MidiPorts.hpp"
 #include "app/UiDispatcher.hpp"
 #include "app/UserPrompts.hpp"
 #include "mcp/SamplerGateway.hpp"
@@ -129,11 +131,164 @@ namespace app::test
         std::map<std::string, std::string> values;
     };
 
-    /// The core over a gateway on the simulated sampler: the scheduler, the bus, the sampler, the gateway and the test's UI.
+    /// The computer's MIDI ports as the tests see them: two inputs "IN A" and "IN B" and two outputs "OUT A" and "OUT B", every one of
+    /// them reaching the simulated bus. It records, in order, each port opened, each message sent and each port released, and can make
+    /// an open input report an error as an unplugged device does. [RQ-APP-015, RQ-APP-020, RQ-APP-021, RQ-APP-022, TASK-APP-012]
+    class RecordingBackend final : public common::midi::MidiBackend
+    {
+    public:
+        explicit RecordingBackend(akm::harness::SimulatedMidiBackend& bus) : _bus(bus) {}
+
+        [[nodiscard]] std::vector<std::string> inputDeviceNames() const override { return {"IN A", "IN B"}; }
+        [[nodiscard]] std::vector<std::string> outputDeviceNames() const override { return {"OUT A", "OUT B"}; }
+
+        [[nodiscard]] std::unique_ptr<common::midi::MidiInputPort> openInput(const std::string& deviceName) override
+        {
+            if (deviceName != "IN A" && deviceName != "IN B")
+                return nullptr;
+            auto port = _bus.openInput(_bus.inputName());
+            if (!port)
+                return nullptr;
+            record("open " + deviceName);
+            return std::make_unique<Input>(*this, deviceName, std::move(port));
+        }
+
+        [[nodiscard]] std::unique_ptr<common::midi::MidiOutputPort> openOutput(const std::string& deviceName) override
+        {
+            if (deviceName != "OUT A" && deviceName != "OUT B")
+                return nullptr;
+            auto port = _bus.openOutput(_bus.outputName());
+            if (!port)
+                return nullptr;
+            record("open " + deviceName);
+            return std::make_unique<Output>(*this, deviceName, std::move(port));
+        }
+
+        /// What happened to the ports, in order: "open <port>", "send <port>", "release <port>".
+        [[nodiscard]] std::vector<std::string> events() const
+        {
+            const std::lock_guard lock(_mutex);
+            return _events;
+        }
+
+        /// The position of the first event equal to `event` from `from` on, or nothing.
+        [[nodiscard]] std::optional<std::size_t> find(const std::string& event, std::size_t from = 0) const
+        {
+            const auto all = events();
+            for (std::size_t i = from; i < all.size(); ++i)
+            {
+                if (all[i] == event)
+                    return i;
+            }
+            return std::nullopt;
+        }
+
+        /// Makes the open input report an error, as the device does when it is unplugged; false when no input is open.
+        bool raiseInputError(const std::string& description)
+        {
+            std::function<void(const std::string&)> onError;
+            {
+                const std::lock_guard lock(_mutex);
+                onError = _inputError;
+            }
+            if (!onError)
+                return false;
+            onError(description);
+            return true;
+        }
+
+    private:
+        class Input final : public common::midi::MidiInputPort
+        {
+        public:
+            Input(RecordingBackend& owner, std::string name, std::unique_ptr<common::midi::MidiInputPort> port)
+                : _owner(owner), _name(std::move(name)), _port(std::move(port))
+            {
+            }
+            ~Input() override
+            {
+                _owner.setInputError({});
+                _port.reset();
+                _owner.record("release " + _name);
+            }
+            Input(const Input&) = delete;
+            Input& operator=(const Input&) = delete;
+
+            [[nodiscard]] std::string deviceName() const override { return _name; }
+            void setCallbacks(common::midi::MidiInputCallbacks callbacks) override
+            {
+                _owner.setInputError(callbacks.onError);
+                _port->setCallbacks(std::move(callbacks));
+            }
+            void start() override { _port->start(); }
+            void stop() override { _port->stop(); }
+            [[nodiscard]] bool isStarted() const override { return _port->isStarted(); }
+
+        private:
+            RecordingBackend& _owner;
+            std::string _name;
+            std::unique_ptr<common::midi::MidiInputPort> _port;
+        };
+
+        class Output final : public common::midi::MidiOutputPort
+        {
+        public:
+            Output(RecordingBackend& owner, std::string name, std::unique_ptr<common::midi::MidiOutputPort> port)
+                : _owner(owner), _name(std::move(name)), _port(std::move(port))
+            {
+            }
+            ~Output() override
+            {
+                _port.reset();
+                _owner.record("release " + _name);
+            }
+            Output(const Output&) = delete;
+            Output& operator=(const Output&) = delete;
+
+            [[nodiscard]] std::string deviceName() const override { return _name; }
+            void send(const common::midi::MidiMessage& message) override
+            {
+                _owner.record("send " + _name);
+                _port->send(message);
+            }
+
+        private:
+            RecordingBackend& _owner;
+            std::string _name;
+            std::unique_ptr<common::midi::MidiOutputPort> _port;
+        };
+
+        void record(std::string event)
+        {
+            const std::lock_guard lock(_mutex);
+            _events.push_back(std::move(event));
+        }
+
+        void setInputError(std::function<void(const std::string&)> onError)
+        {
+            const std::lock_guard lock(_mutex);
+            _inputError = std::move(onError);
+        }
+
+        akm::harness::SimulatedMidiBackend& _bus;
+        mutable std::mutex _mutex;
+        std::vector<std::string> _events;
+        std::function<void(const std::string&)> _inputError;
+    };
+
+    /// The MIDI setup on the first pair of ports.
+    inline MidiSetup setupA(int deviceId = 0)
+    {
+        return MidiSetup{"IN A", "OUT A", deviceId};
+    }
+
+    /// The core over a gateway on the simulated sampler: the scheduler, the bus, the sampler, the gateway and the test's UI. The
+    /// controller reaches the bus through the recording backend; `gateway` is a gateway of the test's own on the same bus.
     struct CoreRig
     {
-        explicit CoreRig(std::chrono::milliseconds commandTimeout = TEST_COMMAND_TIMEOUT)
-            : sampler(&backend.addSampler()), gateway(backend, configFor(backend, commandTimeout))
+        explicit CoreRig(std::chrono::milliseconds commandTimeout = TEST_COMMAND_TIMEOUT, akm::harness::SamplerConfig samplerConfig = {})
+            : sampler(&backend.addSampler(samplerConfig)), gateway(backend, configFor(backend, commandTimeout)),
+              controller(model, dispatcher, prompts, settings, recording, configFor(backend, commandTimeout))
         {
         }
 
@@ -163,11 +318,13 @@ namespace app::test
 
         akm::RealScheduler scheduler;
         akm::harness::SimulatedMidiBackend backend{scheduler};
+        RecordingBackend recording{backend};
         akm::harness::SimulatedSampler* sampler;
         mcp::SamplerGateway gateway;
         QueueDispatcher dispatcher;
         ScriptedPrompts prompts;
+        MemorySettings settings;
         Model model;
-        Controller controller{model, dispatcher, prompts};
+        Controller controller;
     };
 }

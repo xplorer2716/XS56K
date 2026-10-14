@@ -70,6 +70,10 @@ namespace mcp
         /// neither throw nor block. Empty: these are dropped. A rejected reply and a silence then read alike, as a timeout.
         /// [TASK-MCP-066, RQ-MCP-009, RQ-AKM-006]
         std::function<void(const std::string&)> diagnosticLog;
+        /// Called with the input port's name and the device's description when the input port reports an error while the session is
+        /// open (RQ-MID-023): the device was unplugged, for instance. On the MIDI backend's thread, so it must neither throw nor block.
+        /// Empty: the error is dropped. [RQ-APP-022, ADR-APP-001 (DEC-APP-008), TASK-APP-012]
+        std::function<void(const std::string& port, const std::string& description)> portError;
     };
 
     /// A value, or the reason there is none.
