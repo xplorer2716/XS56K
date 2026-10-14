@@ -159,7 +159,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-014: The file browser, commands
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `xs56k_app_core`: load a file (normal, as RAM, as virtual, or with its dependents), load a folder after a confirmation, create, rename (without
   the extension, which the sampler keeps) and delete a file or folder after a confirmation, audition a sample file without loading it and stop it on another selection,
   and refresh the list of disks after the warning that the sampler may stop answering. A refusal sends nothing; a load asks the memory view to read the lists again.
@@ -173,9 +173,21 @@ This plan implements the tasks in the format specified below.
   *Then* nothing is sent, and confirmed, the refresh is sent with the slow timeout and the disks are listed again.
 - **Dependencies**: TASK-APP-013
 - **Assignee**: AI
-- **Verification**: (at closure)
-- **Assumptions**: (1) The memory view's re-read after a load (RQ-APP-036) is done in TASK-APP-015; this task only raises the "memory changed" event, and the
-  acceptance criterion about the memory's items is checked there. (2) One task for seven requirements: if it grows, it is split in two, load and audition on one side, create, rename, delete and refresh on the other.
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON` and `BUILD_APP=ON`, 2026-10-15, build warning-clean (the app included); `ctest -C Debug`: 100% passed, 0
+  failed out of 1175, the 8 cases of `BrowserCommandTests.cpp` among them, all passing at their first run. RQ-APP-028: with dependents `&2B` sent once and no `&2A`,
+  the memory change selecting the program PAD; alone `&2A` once; a file of the root loaded from DRUMS\LOOPS: the sampler back at the root, the sample KICK selected.
+  RQ-APP-029: cancel: asked about KIT with "sub-folders", no command accepted, no memory change; confirm: `&15` once, one memory change. RQ-APP-030: NEW KIT under
+  DRUMS, `&16` once; LOOPS refused, `&16` still once, the reason names LOOPS. RQ-APP-031: KICK.WAV renamed "KICK 2" shows KICK 2.WAV; renamed SNARE: refused, no
+  command accepted. RQ-APP-032: cancel: nothing accepted, OLD still there; confirm: `&17` once, OLD gone. RQ-APP-033: `&30` once, no load; another file selected:
+  `&31` once; a third selection sends no other stop. RQ-APP-034: cancel: asked with "switched off and on", no `&01`; confirm: `&01` once, the disk listed again.
+- **Assumptions**: (1) The memory view's re-read after a load (RQ-APP-036) is done in TASK-APP-015; this task raises the "memory changed" event (`Model::memoryChanged`)
+  with the item to select, and the acceptance criterion about the memory's items is checked there. The types the two tasks share (`app/Memory.hpp`) are added
+  here. (2) One task for seven requirements: it stayed one. (3) Every command first takes the sampler to the folder of the item (`moveTo`), since the sampler acts
+  on its current folder only. (4) A name already in the folder (case ignored) is refused by the core from the listing it shows, before any job: the gateway's own
+  check sends listing commands first. (5) The item a load selects is the first one of the file's kind that the memory did not hold before; a load that replaced an
+  item of the same name selects nothing. (6) A folder is deleted with what it holds once the person confirmed, the confirmation saying so (`deleteFolder(...,
+  true)`). (7) `juce/build`'s cache held `JUCE_MODULES_ONLY=ON` from a configuration without the app, which breaks `BUILD_APP=ON`; it was reconfigured with
+  `-DJUCE_MODULES_ONLY=OFF`. The root `CMakeLists.txt` forces it ON only without the app and never puts it back: not changed by this task.
 
 ### TASK-APP-015: The memory view, read side
 - **Tier**: M

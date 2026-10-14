@@ -59,6 +59,19 @@ namespace app
         notify(ModelPart::Browser);
     }
 
+    // [RQ-APP-028, RQ-APP-035, RQ-APP-036, TASK-APP-014, TASK-APP-015]
+    void Model::memoryChanged(std::optional<MemoryItem> select)
+    {
+        _memoryChange = MemoryChange{_memoryChange.number + 1, std::move(select)};
+        notify(ModelPart::MemoryChanged);
+    }
+
+    void Model::setMemory(MemoryState memory)
+    {
+        _memory = std::move(memory);
+        notify(ModelPart::Memory);
+    }
+
     void Model::addListener(ModelListener& listener)
     {
         _listeners.push_back(&listener);

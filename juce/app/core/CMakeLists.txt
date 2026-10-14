@@ -6,6 +6,7 @@ add_library(xs56k_app_core STATIC
     src/Browser.cpp
     src/Controller.cpp
     src/FileBrowser.cpp
+    src/Memory.cpp
     src/MidiSetup.cpp
     src/Model.cpp
     src/SamplerWorker.cpp)

@@ -83,6 +83,21 @@ namespace app
             return true;
         }
 
+        /// Asks `question` first, then queues the call to the gateway only when the person confirms and the application is still connected:
+        /// a cancel sends nothing. [RQ-APP-011, RQ-APP-019, DEC-APP-007]
+        template <typename T>
+        void runOnSamplerConfirmed(Confirmation question, std::string label, std::function<mcp::Outcome<T>(mcp::SamplerGateway&)> call,
+                                   std::function<void(const T&)> onSuccess)
+        {
+            if (!connected())
+                return;
+            _prompts.confirm(question, [this, alive = std::weak_ptr<int>(_alive), label = std::move(label), call = std::move(call),
+                                        onSuccess = std::move(onSuccess)](bool confirmed) mutable {
+                if (confirmed && !alive.expired())
+                    runOnSampler<T>(std::move(label), std::move(call), std::move(onSuccess));
+            });
+        }
+
         /// True while the application is disconnected or its connection failed: "Connect" is offered then. [RQ-APP-007, RQ-APP-019]
         [[nodiscard]] bool canConnect() const;
 

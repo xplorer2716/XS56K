@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -46,13 +47,40 @@ namespace app
         /// Makes `folder` (from the root of the current disk) the sampler's current folder and lists it: the sampler goes up to the folder
         /// both paths share, then down. [RQ-APP-025]
         void openFolder(std::vector<std::string> folder);
-        /// Selects a disk, a folder or a file in the browser; nothing is sent to the sampler. [RQ-APP-026, RQ-APP-027]
+        /// Selects a disk, a folder or a file in the browser; nothing is sent to the sampler, except the stop of an audition of another
+        /// file. [RQ-APP-026, RQ-APP-027, RQ-APP-033]
         void select(BrowserItem item);
+
+        /// Loads a file by its name with its extension, in the mode chosen for a sample or with the files it depends on, and tells the
+        /// memory view to read the memory again and select the loaded item. [RQ-APP-028, RQ-APP-013]
+        void load(const BrowserItem& file, bool withDependents, mcp::SampleLoadMode mode);
+        /// Loads a folder and its sub-folders, after a confirmation that says so. [RQ-APP-029]
+        void loadFolder(const BrowserItem& folder);
+        /// Creates a folder in `parent`; a name that a folder or a file of `parent` bears is refused with nothing sent. [RQ-APP-030]
+        void createFolder(const std::vector<std::string>& parent, const std::string& name);
+        /// Renames a file (its new name typed without the extension, which the sampler keeps) or a folder; a name already in the folder
+        /// is refused with nothing sent. [RQ-APP-031]
+        void rename(const BrowserItem& item, const std::string& newName);
+        /// Deletes a file, or a folder with what it holds, after the confirmation of RQ-APP-011. [RQ-APP-032]
+        void remove(const BrowserItem& item);
+        /// Starts the audition of a sample file from the disk, without loading it. [RQ-APP-033]
+        void audition(const BrowserItem& file);
+        /// Stops the audition in progress, if any. [RQ-APP-033]
+        void stopAudition();
+        /// Refreshes the sampler's list of disks, after the warning that the sampler may stop answering, and lists them again.
+        /// [RQ-APP-034]
+        void refreshDisks();
 
         void modelChanged(ModelPart part) override;
 
     private:
+        /// True, with the problem in the model, when `name` is already a folder or a file of `folder` (case ignored). [RQ-APP-030, RQ-APP-031]
+        bool refuseTakenName(const std::vector<std::string>& folder, const std::string& name, const std::string& action);
+        /// Replaces the listing of the sampler's current folder by `contents`.
+        void showFolder(const mcp::DiskContents& contents);
+
         Model& _model;
+        std::optional<BrowserItem> _auditioning;
         Controller& _controller;
         ConnectionState _lastState = ConnectionState::Disconnected;
         /// Expires with the browser: a result that comes back after it is ignored.

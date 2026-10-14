@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 
 #include "app/Browser.hpp"
+#include "app/Memory.hpp"
 
 namespace app
 {
@@ -32,6 +33,10 @@ namespace app
         Problem,
         Connection,
         Browser,
+        /// An action changed the sampler's memory: the memory view reads it again. [RQ-APP-036]
+        MemoryChanged,
+        /// The memory view's lists, free memory or selection. [RQ-APP-035]
+        Memory,
     };
 
     /// Where the connection with the sampler stands. [RQ-APP-019]
@@ -91,12 +96,19 @@ namespace app
         [[nodiscard]] const ConnectionStatus& connection() const { return _connection; }
         /// The file browser: the disks, the current folder, the tree listed so far and the selection. [RQ-APP-024 to RQ-APP-026]
         [[nodiscard]] const BrowserState& browser() const { return _browser; }
+        /// The last change of the memory an action made. [RQ-APP-028, RQ-APP-036]
+        [[nodiscard]] const MemoryChange& lastMemoryChange() const { return _memoryChange; }
+        /// The memory view: the six lists, the free memory and the selection. [RQ-APP-035, RQ-APP-042]
+        [[nodiscard]] const MemoryState& memory() const { return _memory; }
 
         void setBusy(std::optional<std::string> label);
         void setProblem(Problem problem);
         void clearProblem();
         void setConnection(ConnectionStatus status);
         void setBrowser(BrowserState browser);
+        /// Says that an action changed the memory, with the item to select afterwards, if any. [RQ-APP-028, RQ-APP-036]
+        void memoryChanged(std::optional<MemoryItem> select);
+        void setMemory(MemoryState memory);
 
         void addListener(ModelListener& listener);
         void removeListener(ModelListener& listener);
@@ -108,6 +120,8 @@ namespace app
         std::optional<Problem> _problem;
         ConnectionStatus _connection;
         BrowserState _browser;
+        MemoryChange _memoryChange;
+        MemoryState _memory;
         std::vector<ModelListener*> _listeners;
     };
 }
