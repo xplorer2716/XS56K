@@ -18,7 +18,8 @@ What the SysEx specification allows (section 10, Tables 20 and 21) shapes this f
 - a file is loaded by its name with its extension (`&2A`), with an option for samples (normal, as RAM, as virtual), or with all the files it
   depends on (`&2B`); a folder is loaded with everything in it, its sub-folders included (`&15`, user manual p. 30);
 - the refresh of the list of disks (`&01`) left the owner's S5000 answering nothing until it was power-cycled (RQ-AKM-017), and the S5000
-  reported 0 bytes free for a FAT32 disk that was not full (`juce/mcp/README.md`, real run of TASK-MCP-037).
+  reported 0 bytes free for a FAT32 disk that was not full (`juce/mcp/README.md`, real run of TASK-MCP-037). The browser no longer offers
+  that refresh (RQ-APP-034 withdrawn on 2026-10-15): reading the disks and their folders never needs it.
 
 **Priorities.** Priority 1 (mandatory) is written `Must`, priority 2 (nice to have) `Could` (owner, 2026-10-13). Copy, paste, move and
 eject are priority 2, in FTR-APP-009.
@@ -69,11 +70,12 @@ eject are priority 2, in FTR-APP-009.
 ### RQ-APP-027: The commands offered fit the selection
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN the person opens the context menu of the selected disk, folder or file, the browser SHALL offer only the commands that apply to it: for a file, load, load with its dependent files, rename, delete, and audition for a sample; for a folder, open, load the folder, create a folder in it, rename, delete; for a disk, create a folder at its root and refresh the list of disks.
-- **Rationale**: a command that cannot apply is not offered, as on the sampler's own pages.
+- **Statement**: WHEN the person opens the context menu of the selected disk, folder or file, the browser SHALL offer only the commands that apply to it: for a file, load, load with its dependent files, rename, delete, and audition for a sample; for a folder, load the folder, create a folder in it, rename, delete; for a disk, create a folder at its root. A folder is opened by a double click (RQ-APP-025, RQ-APP-079), not from the menu, and the menu SHALL NOT offer the refresh of the list of disks.
+- **Rationale**: a command that cannot apply is not offered, as on the sampler's own pages; "Open" repeated the double click, and the refresh hung the owner's S5000 (RQ-APP-034, withdrawn).
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* PAD.AKP selected, *When* the context menu opens, *Then* "Audition" is not offered; *Given* KICK.WAV, *Then* it is.
+- **Acceptance Criteria** (Gherkin): *Given* PAD.AKP selected, *When* the context menu opens, *Then* "Audition" is not offered; *Given* KICK.WAV, *Then* it is; *Given* the folder DRUMS, *Then* "Open" is not offered; *Given* a disk, *Then* only "Create a folder" is offered.
 - **Dependencies**: RQ-APP-001, RQ-APP-026
+- **Amended**: 2026-10-15, the owner asked to remove "Open" (the double click does it) and the refresh of the list of disks from the menu (TASK-APP-027).
 
 ### RQ-APP-028: Loading a file
 - **Category**: Functional
@@ -105,11 +107,12 @@ eject are priority 2, in FTR-APP-009.
 ### RQ-APP-031: Renaming a file or a folder
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN the person renames a file or a folder, the application SHALL rename it on the disk (RQ-AKM-063, RQ-AKM-065), the person typing a file's new name without its extension, which the sampler keeps, and SHALL show the new name in the tree; IF another file or folder of the folder has that name, THEN it SHALL refuse with nothing sent.
-- **Rationale**: the sampler keeps the extension of a renamed file (real S5000, `juce/mcp/README.md`).
+- **Statement**: WHEN the person renames a file or a folder, the application SHALL rename it on the disk (RQ-AKM-063, RQ-AKM-065), the person typing a file's new name without its extension, which the sampler keeps, and SHALL show the new name in the tree; IF another file or folder of the folder has that name, THEN it SHALL refuse with nothing sent. A folder whose name is longer than 26 characters SHALL be renamed to a name of 26 characters or fewer (RQ-MCP-068), so that it can be opened afterwards.
+- **Rationale**: the sampler keeps the extension of a renamed file (real S5000, `juce/mcp/README.md`); a folder too long to be opened must be renamable from the application, not only from the front panel.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* KICK.WAV, *When* the person renames it KICK 2, *Then* the tree shows KICK 2.WAV.
-- **Dependencies**: RQ-APP-001, RQ-APP-025, RQ-AKM-063, RQ-AKM-065
+- **Acceptance Criteria** (Gherkin): *Given* KICK.WAV, *When* the person renames it KICK 2, *Then* the tree shows KICK 2.WAV; *Given* the folder ABCDEFGHIJKLMNOPQRSTUVWXYZ123 (29 characters), *When* the person renames it SHORT, *Then* the rename is sent and the tree shows SHORT.
+- **Dependencies**: RQ-APP-001, RQ-APP-025, RQ-AKM-063, RQ-AKM-065, RQ-MCP-068
+- **Amended**: 2026-10-15, the owner found that a folder of more than 26 characters could not be renamed to a shorter name (TASK-APP-029).
 
 ### RQ-APP-032: Deleting a file or a folder
 - **Category**: Functional
@@ -130,6 +133,7 @@ eject are priority 2, in FTR-APP-009.
 - **Dependencies**: RQ-APP-001, RQ-APP-027, RQ-AKM-068
 
 ### RQ-APP-034: Refreshing the list of disks
+- **Withdrawn**: 2026-10-15, at the owner's request (TASK-APP-027): the browser reads the disks and their folders without it, and it hung the owner's S5000 (RQ-AKM-017). The refresh stays in the MCP server, behind `--allow-disk-refresh` (DEC-MCP-020). The text below is kept for the history.
 - **Category**: Functional
 - **EARS Type**: Event-driven
 - **Statement**: WHEN the person asks to refresh the list of disks, the application SHALL ask for a confirmation that says the sampler may stop answering until it is switched off and on (RQ-AKM-017), then send the refresh with the slow-operation timeout (RQ-APP-013) and list the disks again.
@@ -146,3 +150,12 @@ eject are priority 2, in FTR-APP-009.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* DRUMS opened with KICK.WAV under it, *When* the person double-clicks DRUMS, *Then* KICK.WAV is no longer shown and nothing is sent; *When* the person double-clicks DRUMS again, *Then* DRUMS is opened on the sampler and KICK.WAV is shown again.
 - **Dependencies**: RQ-APP-025
+
+### RQ-APP-083: The space bar starts and stops the audition
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the person presses the space bar while the browser has the keyboard focus and a sample file is selected, the application SHALL start its audition as RQ-APP-033 does if that file is not being auditioned, and SHALL stop the audition if it is; WHEN the selection is not a sample file, the space bar SHALL send nothing.
+- **Rationale**: the owner's request of 2026-10-15: listening to samples one after the other from the keyboard, without the context menu.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* KICK.WAV selected and nothing auditioned, *When* the space bar is pressed, *Then* the start of the audition is sent; *When* it is pressed again, *Then* the stop is sent; *Given* PAD.AKP or a folder selected, *When* the space bar is pressed, *Then* nothing is sent.
+- **Dependencies**: RQ-APP-033

@@ -49,11 +49,12 @@ reported, how destructive actions are confirmed and how the application is teste
 ### RQ-APP-008: The areas can be resized
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN the person drags the boundary between the left areas and the edit panel, or between the browser and the memory view, the application SHALL resize the areas on both sides, down to a minimum size given by the design system.
+- **Statement**: WHEN the person drags with the mouse the boundary between the left areas and the edit panel, or between the browser and the memory view (the dark gap of `space.edge` between them), the application SHALL resize the areas on both sides, down to a minimum size given by the design system (`layout.left.min`, `layout.area.min`, `layout.edit.min`); WHILE the pointer is over a boundary, it SHALL take the shape of a resize cursor.
 - **Rationale**: a long file tree or a long list of samples needs room.
-- **Priority**: Could
-- **Acceptance Criteria** (Gherkin): *Given* the main window, *When* the boundary between browser and memory view is dragged down, *Then* the browser grows and the memory view shrinks, never below its minimum size.
-- **Dependencies**: RQ-APP-001, RQ-APP-006
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the main window, *When* the boundary between browser and memory view is dragged down, *Then* the browser grows and the memory view shrinks, never below its minimum size; *When* the boundary between the left column and the edit panel is dragged right, *Then* the left column widens and the edit panel narrows, never below its minimum width.
+- **Dependencies**: RQ-APP-001, RQ-APP-006, ADR-APP-002 (DEC-APP-022)
+- **Amended**: 2026-10-15, the owner asked for it (priority Could to Must) and named the dark gaps between the areas as the boundaries (TASK-APP-031). Keeping the sizes between runs stays RQ-APP-009 (Could).
 
 ### RQ-APP-009: The window comes back as it was left
 - **Category**: Functional

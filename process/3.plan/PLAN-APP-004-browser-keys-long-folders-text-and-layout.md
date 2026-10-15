@@ -1,0 +1,129 @@
+# PLAN-APP-004: Editor Application — A Shorter Browser Menu, the Space Bar, Long Folder Names, Larger Text and Draggable Areas
+
+## Overview
+
+Session APP (2026-10-15, second session of the day). After using the editor on the real S5000, the owner asked for six changes:
+
+1. remove "Refresh the list of disks" from the browser's menu (reading the disks never needs it, and it hung the S5000): RQ-APP-034 withdrawn,
+   RQ-APP-027 amended;
+2. remove "Open" from the menu, which repeats the double click: RQ-APP-027 amended;
+3. start and stop the audition of the selected sample with the space bar: RQ-APP-083 (new);
+4. allow a folder of more than 26 characters, which cannot be opened, to be renamed to a shorter name: RQ-MCP-068 and RQ-APP-031 amended;
+5. make every text two points larger: RQ-APP-084 (new), ADR-APP-002 amended;
+6. resize the three areas with the mouse by dragging the dark gaps between them: RQ-APP-008 amended (Could to Must), ADR-APP-002 DEC-APP-022.
+
+Behaviour goes into the core or the gateway first, with tests against the simulated sampler (RQ-APP-014, DEC-APP-010); the views, which are not
+unit-tested, are checked by running the application through `juce/tools/uia.ps1`. 6 tasks.
+
+| Step | Task | What |
+|---|---|---|
+| 1 | TASK-APP-026 | the requirements, the ADR and this plan (done with the plan) |
+| 2 | TASK-APP-027 | no "Open" and no refresh of the disks in the browser's menu |
+| 3 | TASK-APP-028 | the space bar starts and stops the audition of the selected sample |
+| 4 | TASK-APP-029 | a folder too long to be opened can be renamed to a name of 26 characters or fewer |
+| 5 | TASK-APP-030 | the type scale two pixels larger |
+| 6 | TASK-APP-031 | the gaps between the areas dragged with the mouse |
+
+## References
+- **Requirements**: RQ-APP-083, RQ-APP-084 (new); RQ-APP-008, RQ-APP-027, RQ-APP-031, RQ-MCP-068 (amended); RQ-APP-034 (withdrawn); RQ-APP-033,
+  RQ-APP-025, RQ-APP-079, RQ-APP-006, RQ-APP-009 (concerned); RQ-APP-001 to RQ-APP-005 (FTR-APP-001, design system); RQ-APP-014
+- **ADRs**: ADR-APP-001 (DEC-APP-001, DEC-APP-002, DEC-APP-004, DEC-APP-010); ADR-APP-002 (DEC-APP-011 to DEC-APP-014, DEC-APP-022); ADR-MCP-003
+  (DEC-MCP-020)
+
+This plan implements the tasks in the format specified below.
+---
+
+## Tasks
+
+### TASK-APP-026: The requirements, the ADR and the plan of the six changes
+- **Tier**: M
+- **Status**: Done
+- **Description**: RQ-APP-083 and RQ-APP-084 written; RQ-APP-008, RQ-APP-027, RQ-APP-031 and RQ-MCP-068 amended; RQ-APP-034 withdrawn; DEC-APP-022 and the
+  type-scale amendment added to ADR-APP-002; this plan.
+- **Requirement refs**: RQ-APP-008, RQ-APP-027, RQ-APP-031, RQ-APP-034, RQ-APP-083, RQ-APP-084, RQ-MCP-068
+- **ADR refs**: ADR-APP-002 (DEC-APP-022)
+- **Acceptance Criteria** (Gherkin): *Given* the process index rebuilt, *Then* it lists RQ-APP-083, RQ-APP-084, DEC-APP-022, PLAN-APP-004 and TASK-APP-026 to
+  TASK-APP-031 with no duplicate ID.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: the `agnos-index` skill, 2026-10-15: exit 0, no duplicate; the IDs listed in the index.
+- **Assumptions**: (1) "2 pt" read as two logical pixels on each text size, the unit of the tokens. (2) The heights of the rows, tabs and status bar stay as they
+  are unless a text is cut (checked in TASK-APP-030). (3) The space bar acts in the browser only, the owner having named the file browser; the memory view's
+  audition (RQ-APP-041) is unchanged. (4) Only the rename of a long folder is opened up; its open, load and deletion stay refused. (5) The sizes of the areas are
+  not kept between runs (RQ-APP-009 stays Could).
+
+### TASK-APP-027: No "Open" and no refresh of the disks in the browser's menu
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `xs56k_app_core`, `commandsFor` no longer gives `Open` for a folder nor `RefreshDisks` for a disk, and both commands leave
+  `BrowserCommand`; `FileBrowser::refreshDisks` and its confirmation are removed, with their tests; the browser view loses the two menu items. The README's
+  sentence on the refresh is updated. The MCP server's refresh (DEC-MCP-020) is untouched.
+- **Requirement refs**: RQ-APP-027, RQ-APP-034 (withdrawn), RQ-APP-025, RQ-APP-079
+- **ADR refs**: ADR-APP-001 (DEC-APP-001, DEC-APP-010); ADR-MCP-003 (DEC-MCP-020)
+- **Acceptance Criteria** (Gherkin): *Given* the folder DRUMS, *When* its commands are asked, *Then* they are load the folder, create a folder, rename and delete;
+  *Given* a disk, *Then* only create a folder; *Given* the application connected, *When* the context menu of a folder and of a disk is listed through the
+  accessibility tree, *Then* neither "Open" nor "Refresh the list of disks…" is in it, and the double click still opens a folder.
+- **Dependencies**: TASK-APP-026
+- **Assignee**: AI
+- **Verification**: —
+- **Assumptions**: —
+
+### TASK-APP-028: The space bar starts and stops the audition
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `xs56k_app_core`, `FileBrowser` gains `toggleAudition(item)`: it starts the audition of a sample file not being auditioned, stops the one
+  being auditioned, and sends nothing for any other selection; the browser view calls it when the space bar is pressed while its list has the keyboard focus.
+- **Requirement refs**: RQ-APP-083, RQ-APP-033
+- **ADR refs**: ADR-APP-001 (DEC-APP-001, DEC-APP-004, DEC-APP-010)
+- **Acceptance Criteria** (Gherkin): see RQ-APP-083, in the core against the simulated sampler; *Given* the application connected to the real S5000 and a
+  sample selected, *When* the space bar is sent twice through `uia.ps1`, *Then* the owner hears the sample start, then stop.
+- **Dependencies**: TASK-APP-026
+- **Assignee**: AI
+- **Verification**: —
+- **Assumptions**: —
+
+### TASK-APP-029: A folder too long to be opened can be renamed shorter
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `xs56k_sampler`, the gateway's `renameFolder` checks the 26-character limit on the new name only; open, load, create and delete keep checking
+  the name they send. The MCP README's sentence and the guard's message ("rename the folder to 26 characters or fewer") follow. The rename of the 29-character
+  test folder of `S5K:\A B C` is tried on the real S5000 with the owner present.
+- **Requirement refs**: RQ-MCP-068, RQ-APP-031
+- **ADR refs**: ADR-APP-001 (DEC-APP-002)
+- **Acceptance Criteria** (Gherkin): see RQ-MCP-068 (the amended case in `DiskFileOpsTests.cpp`: the 27-character folder renamed `SHORT` sends the rename; renamed
+  to 27 characters, refused); *Given* the application on the real S5000, *When* `ABCDEFGHIJKLMNOPQRSTUVWXYZ123` is renamed to a short name, *Then* the
+  sampler answers and the tree shows the new name, which opens.
+- **Dependencies**: TASK-APP-026
+- **Assignee**: AI
+- **Verification**: —
+- **Assumptions**: —
+
+### TASK-APP-030: The type scale two pixels larger
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `juce/app/design/tokens.json`, the global text sizes become 13, 15, 17 and 20 (renamed after their values) and the semantic font tokens alias
+  them as RQ-APP-084 says; the token module, the design-system document's tables and the mockups are regenerated; the main window is captured connected and
+  compared with the capture before.
+- **Requirement refs**: RQ-APP-084, RQ-APP-001, RQ-APP-002, RQ-APP-004, RQ-APP-074, RQ-APP-077
+- **ADR refs**: ADR-APP-002 (DEC-APP-011, DEC-APP-012, DEC-APP-014); ADR-APP-003 (DEC-APP-020)
+- **Acceptance Criteria** (Gherkin): see RQ-APP-084; *Given* `generate_design.py --check` and `generate_mockups.py --check`, *Then* they pass; the scripts'
+  tests that name the old sizes are updated to the new expected values only.
+- **Dependencies**: TASK-APP-026
+- **Assignee**: AI
+- **Verification**: —
+- **Assumptions**: —
+
+### TASK-APP-031: The gaps between the areas dragged with the mouse
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: In `XS56KApp`, `MainComponent` lays the left column and the edit panel, and the browser and the memory view, out with a
+  `juce::StretchableLayoutManager` each and a `juce::StretchableLayoutResizerBar` in each gap, the minimums from the layout tokens; the look-and-feel draws the
+  bars as DEC-APP-022 says, with the new component token `resizer.bar.active`.
+- **Requirement refs**: RQ-APP-008, RQ-APP-006, RQ-APP-005, RQ-APP-001, RQ-APP-004
+- **ADR refs**: ADR-APP-002 (DEC-APP-013, DEC-APP-014, DEC-APP-022); ADR-APP-001 (DEC-APP-001)
+- **Acceptance Criteria** (Gherkin): see RQ-APP-008; *Given* the application started, *Then* the window looks as before (the first layout of RQ-APP-006); *Given*
+  the token and literal checks, *Then* they pass. The drag itself is done by the owner's mouse (the assistant never simulates mouse clicks).
+- **Dependencies**: TASK-APP-030
+- **Assignee**: AI and Human (the drag)
+- **Verification**: —
+- **Assumptions**: —

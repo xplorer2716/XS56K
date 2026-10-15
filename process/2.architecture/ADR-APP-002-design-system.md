@@ -64,6 +64,15 @@ Each parameter of an editor layout (DEC-APP-006) carries a role — sample, modu
 (`colour.role.*`); a tab that mixes families shows each parameter in its own colour; each role colour comes with its group's label, and each
 status colour with a word or an icon (the document's §3). [RQ-APP-005, RQ-APP-056]
 
+### DEC-APP-022: The gaps between the areas are the boundaries the person drags, drawn by the look-and-feel from the tokens
+Decided on 2026-10-15 for RQ-APP-008, at the owner's request. The two gaps of `space.edge` that separate the left column from the edit panel and
+the browser from the memory view become resizer bars (`juce::StretchableLayoutResizerBar`, laid out by a `juce::StretchableLayoutManager` per
+direction in `MainComponent`): a bar is exactly the gap, so the window looks as before. The minimum of each area is its layout token
+(`layout.left.min`, `layout.area.min`, `layout.edit.min`); the window's own minimum (`layout.window.min`) keeps every minimum reachable. The
+look-and-feel draws a bar in the gap's colour (`colour.surface.base`), and in `resizer.bar.active` (an alias of `colour.accent.default`) while
+the pointer is over it or drags it, with JUCE's resize cursor as the second cue (RQ-APP-005). The positions are not kept between runs
+(RQ-APP-009, Could, still open). [RQ-APP-008, RQ-APP-006, RQ-APP-005]
+
 ## Consequences
 
 - **Easier.** A colour or a size is changed in one file; the C++ constants and the document follow, and `--check` catches a forgotten
@@ -77,6 +86,9 @@ status colour with a word or an icon (the document's §3). [RQ-APP-005, RQ-APP-0
   quality branch; the literal check, the look-and-feel and the font with the application's implementation, after that branch is merged.
 - *Amended 2026-10-13 (TASK-APP-006):* the generator is named `generate_design.py` and also writes the editor layouts (ADR-APP-003 DEC-APP-018);
   mockups are drawn from the same token file (ADR-APP-003).
+- *Amended 2026-10-15 (TASK-APP-030, TASK-APP-031):* the type scale is two pixels larger in every role (RQ-APP-084: caption and label 13,
+  value 15, title 17, heading 20), at the owner's request; the global text tokens are renamed after their new values, the semantic names stay, so
+  no code changes. The gaps between the areas are draggable (DEC-APP-022).
 
 ## Alternatives Considered
 
@@ -87,6 +99,8 @@ status colour with a word or an icon (the document's §3). [RQ-APP-005, RQ-APP-0
 - **Tokens as `juce::Colour` and `juce::Font` objects.** Rejected for the module: it would put JUCE in `xs56k_app_core` (ADR-APP-001 DEC-APP-001);
   the look-and-feel converts the plain values.
 - **The system font only.** Rejected by the owner (2026-10-13): the rendering would differ between operating systems.
+- **Visible splitter handles (grips) between the areas** (DEC-APP-022). Rejected: the owner named the existing dark gaps as the boundaries; a
+  grip would change the look the mockups fix, and the cursor and the accent already say where to drag.
 - **A light theme, or a theme per user.** Not wanted now (the document's §10); the token file's structure leaves room for a second value per
   semantic token.
 
@@ -109,4 +123,6 @@ flowchart LR
     FONT --> LF
     LF --> V
     CHK -. "fails on a raw literal in juce/app" .-> V
+    RB["Resizer bars in the gaps (DEC-APP-022)<br/>minimums from layout.* tokens"]
+    LF --> RB
 ```
