@@ -43,7 +43,10 @@ read with the read-only rows. [RQ-APP-088, RQ-APP-089]
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels) and a knob with its value box, each
 drawn by the look-and-feel from the component tokens (`valuebox.*`, `choice.*`, `knob.*`), the pending state in `colour.status.pending` with a
 second cue (RQ-APP-005). The layout's `control` picks the control; a position is a value box, the playback mode a choice, the tunings knobs, the
-original pitch a value box that reads a note name. [RQ-APP-051, RQ-APP-086, RQ-APP-003, RQ-APP-005, ADR-APP-002]
+original pitch a value box that reads a note name. The mockup generator draws the same three controls (`valuebox`, `choice`, `knob`, its
+`draw_*` functions) with the same tokens and the same cell geometry (a knob cell, a choice or a value box two cells wide): the layout's `control`
+names are the contract between the mockups and the C++ controls, which reproduce that geometry. [RQ-APP-051, RQ-APP-086, RQ-APP-003, RQ-APP-005,
+ADR-APP-002, ADR-APP-003]
 
 ## Consequences
 

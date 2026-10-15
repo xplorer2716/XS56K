@@ -126,6 +126,27 @@ class RenderingAScreen(unittest.TestCase):
         self.assertIn("Delete the program PAD?", svg)
         self.assertIn(">Delete<", svg)
 
+    def test_given_value_box_parameters_when_rendered_then_no_knob_is_drawn_and_their_values_are(self):
+        # A position in sample points is typed, not turned: a value box alone. [RQ-APP-086, ADR-APP-004 (DEC-APP-027), TASK-APP-040]
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][0]["parameters"] = [
+            {"name": "sample start position", "label": "START", "role": "sample", "control": "valuebox"}]
+        screen = copy.deepcopy(SCREEN)
+        screen["content"]["editor"]["values"] = {"sample start position": {"text": "1024"}}
+        svg = self.render(screen=screen, layout=layout)
+        self.assertEqual(svg.count("<path"), 0)
+        self.assertIn(">1024<", svg)
+        self.assertIn(">START<", svg)
+
+    def test_given_an_editor_with_no_keygroup_and_an_information_line_when_rendered_then_the_line_is_shown(self):
+        # The sample editor's header: its information instead of a keygroup selector. [RQ-APP-087, TASK-APP-040]
+        screen = copy.deepcopy(SCREEN)
+        del screen["content"]["editor"]["keygroup"]
+        screen["content"]["editor"]["info"] = "RAM, mono, 22050 points, 44100 Hz"
+        svg = self.render(screen=screen)
+        self.assertIn("RAM, mono, 22050 points, 44100 Hz", svg)
+        self.assertNotIn("KEYGROUP", svg)
+
     def test_given_text_with_markup_characters_when_rendered_then_it_is_escaped(self):
         screen = copy.deepcopy(SCREEN)
         screen["content"]["editor"]["item"] = "A&B <1>"

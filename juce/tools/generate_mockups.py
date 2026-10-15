@@ -214,7 +214,8 @@ def cell_width(t):
 
 
 def control_cells(parameter):
-    return CHOICE_CELLS if parameter.get("control") == "choice" else 1
+    # A choice and a value box alone (a position in sample points) are two knob cells wide. [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
+    return CHOICE_CELLS if parameter.get("control") in ("choice", "valuebox") else 1
 
 
 def group_size(t, group):
@@ -282,11 +283,14 @@ def draw_group(c, x, y, group, values, pending):
         if parameter.get("control") == "choice":
             box_y = knob_top + (t("knob.size.default") - t("size.control.medium")) / 2
             draw_choice(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
+        elif parameter.get("control") == "valuebox":
+            box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
+            draw_value_box(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
         else:
             draw_knob(c, centre, knob_top + t("knob.size.default") / 2, float(value.get("fraction", 0.0)), colour, is_pending)
         label_y = knob_top + t("knob.size.default") + t("space.between") + t("font.label.size")
         draw_label(c, centre, label_y, parameter["label"], anchor="middle")
-        if parameter.get("control") != "choice":
+        if parameter.get("control") not in ("choice", "valuebox"):
             draw_value_box(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), value.get("text", ""), is_pending)
         cell_x += w
     return width, height
@@ -309,8 +313,12 @@ def draw_editor(c, x, y, w, h, editor, layouts):
     c.text(x + inside, title_y, editor["item"], t("font.title.size"), t("header.title"), WEIGHT_MEDIUM)
     item_width = len(editor["item"]) * t("font.title.size")
     draw_label(c, x + inside + item_width, title_y, editor["kind"], t("header.kind"))
-    selector_w = KEYGROUP_SELECTOR_IN_KNOBS * t("knob.size.default")
-    draw_choice(c, x + w - inside - selector_w, y + (header_h - t("size.control.medium")) / 2, selector_w, editor.get("keygroup", ""), False)
+    if "keygroup" in editor:
+        selector_w = KEYGROUP_SELECTOR_IN_KNOBS * t("knob.size.default")
+        draw_choice(c, x + w - inside - selector_w, y + (header_h - t("size.control.medium")) / 2, selector_w, editor["keygroup"], False)
+    elif "info" in editor:
+        # An editor with no part to choose shows what the item is instead (the sample's information). [RQ-APP-087]
+        c.text(x + w - inside, title_y, editor["info"], t("font.caption.size"), t("colour.text.secondary"), anchor="end")
 
     tabs = layout["tabs"]
     tab = next((candidate for candidate in tabs if candidate["title"] == editor.get("tab")), tabs[0])

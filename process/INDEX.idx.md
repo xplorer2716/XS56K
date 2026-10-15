@@ -400,11 +400,11 @@ DEC-APP-019|44-48||One static, self-contained SVG per screen and state, in `docu
 DEC-APP-020|49-53||`--check` keeps the committed mockups in step; the generator is tested first
 DEC-APP-021|54-60||The mockup is faithful in tokens and layout, not to the pixel
 @process/2.architecture/ADR-APP-004-edit-panel-and-sample-editor.md
-ADR-APP-004|1-77|Proposed — drafted in session APP (2026-10-15) for TASK-APP-034, after the owner asked for the sample editor (FTR-APP-010).|The Edit Panel and its First Editor — Generated Layouts, One Edit Controller, Controls from the Tokens
+ADR-APP-004|1-80|Proposed — drafted in session APP (2026-10-15) for TASK-APP-034, after the owner asked for the sample editor (FTR-APP-010).|The Edit Panel and its First Editor — Generated Layouts, One Edit Controller, Controls from the Tokens
 DEC-APP-024|24-28||The editor layouts are generated into the core, and checked against the catalogue
 DEC-APP-025|29-36||One edit controller in the core, generic over the catalogue, its state in the model
 DEC-APP-026|37-41||After a write, the whole tab is read again
-DEC-APP-027|42-47||Three controls drawn by the look-and-feel from the tokens
+DEC-APP-027|42-50||Three controls drawn by the look-and-feel from the tokens
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -678,14 +678,14 @@ TASK-APP-031|130-147|Done|The gaps between the areas dragged with the mouse
 TASK-APP-032|148-164|Done|The shown disk selected again before a command on its folders
 TASK-APP-033|165-179|Done|A log file of the errors
 @process/3.plan/PLAN-APP-005-sample-editor.md
-PLAN-APP-005|1-121||Editor Application — the Sample Editor, First Editor of the Edit Panel
+PLAN-APP-005|1-123||Editor Application — the Sample Editor, First Editor of the Edit Panel
 TASK-APP-034|29-41|Done|Requirements, ADR and plan of the sample editor
 TASK-APP-035|42-55|Not Started|The sample layout and its generation
 TASK-APP-036|56-68|Not Started|The edit controller, read side
 TASK-APP-037|69-81|Not Started|The edit controller, write side
 TASK-APP-038|82-94|Not Started|The three controls
 TASK-APP-039|95-109|Not Started|The edit panel view
-TASK-APP-040|110-121|Not Started|Mockup, documentation and the real run
+TASK-APP-040|110-123|In Progress|Mockup, documentation and the real run
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

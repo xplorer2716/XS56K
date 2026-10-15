@@ -109,7 +109,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-040: Mockup, documentation and the real run
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: A screen of the sample editor and its mockup; the READMEs updated; on the real S5000, a test sample's fine tune and loop end changed
   and put back.
 - **Requirement refs**: RQ-APP-074, RQ-APP-086, RQ-APP-089
@@ -117,5 +117,7 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): `generate_mockups.py --check` passes; on the real S5000 the values read back are those set, and are put back.
 - **Dependencies**: TASK-APP-039
 - **Assignee**: AI
-- **Verification**: —
+- **Verification**: (mockup part, done first at the owner's request, 2026-10-15) two new tests of `test_generate_mockups.py` (a value box alone, no knob;
+  an information line instead of the keygroup) failed first, then passed (15 tests OK); `layouts/sample.json` and `screens/sample-editor.json` written;
+  `sample-editor-connected.svg` and `sample-editor-writing.svg` generated and looked at as images.
 - **Assumptions**: —
