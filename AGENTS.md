@@ -98,6 +98,10 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
   refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first, and never call `clear_sampler_memory` or a `delete_all_*`
   tool on it unless he says so for that call: a general "do it all without me" is not enough, ask each time. [FTR-MCP-*, ADR-MCP-*]
+- **Driving the editor without the mouse** (Windows): `juce/tools/uia.ps1` through the `ui-automation` skill
+  (`.github/skills/ui-automation/SKILL.md`): list, invoke, type, capture. Never simulate mouse clicks.
+- **Reusable tools:** a script written for a session and used more than once becomes a generic tool in `juce/tools/`, with a skill or
+  an instructions file linked here. AGNOS files are not edited for that.
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]

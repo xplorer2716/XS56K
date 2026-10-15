@@ -17,6 +17,7 @@ Each change is made core first where it has behaviour (the size text, the folded
 | 3 | TASK-APP-022 | a tooltip with the whole text on every text that is cut short |
 | 4 | TASK-APP-023 | the advice of a refusal in the application's words, not the MCP server's tool names (added the same day) |
 | 5 | TASK-APP-024 | no folder name over 26 characters sent to the sampler, which crashes on them (added the same day) |
+| 6 | TASK-APP-025 | the UI Automation scripts of the session made a generic tool with its skill (added the same day) |
 
 ## References
 - **Requirements**: RQ-APP-079, RQ-APP-080, RQ-APP-081, RQ-APP-082, RQ-MCP-068 (new); RQ-APP-024, RQ-APP-025, RQ-APP-026, RQ-APP-042 (amended or concerned); RQ-APP-001 to
@@ -140,3 +141,24 @@ This plan implements the tasks in the format specified below.
 - **Assumptions**: (1) The owner chose 26 (2026-10-15, "on garde 26"), the longest name seen opening, 27 and 28 untried. (2) The name is counted in characters
   as the person gives it, the sampler's names being plain ASCII. (3) The deletion, the load and the rename of a folder already named longer are refused too: whether
   those commands crash on such a name is not known, and the front panel renames it.
+
+### TASK-APP-025: Driving the editor without the mouse, as a tool and a skill
+- **Tier**: M
+- **Status**: Done
+- **Description**: The scripts written in the session's scratchpad to check the editor on the real S5000 (list the window's elements, invoke one, type keys
+  only when the editor is in front, capture the window) become one generic tool, `juce/tools/uia.ps1`, with the skill `ui-automation`
+  (`.github/skills/ui-automation/SKILL.md`, pointed to by `.claude/skills/ui-automation/SKILL.md`) and two lines of AGENTS.md: the tool, and the rule
+  that a script used more than once becomes such a tool. AGNOS is not changed.
+- **Requirement refs**: RQ-APP-014 (the behaviour checked without the owner's hands where it can be), RQ-APP-080 (the tooltips read through it)
+- **ADR refs**: ADR-APP-001 (DEC-APP-010, the views checked by running the application)
+- **Acceptance Criteria** (Gherkin): *Given* the editor running, *When* the tool lists, captures, invokes a menu and types Escape into its popup, *Then* each is
+  done; *Given* an element or a process that does not exist, *Then* the tool says so and ends with 1; *Given* another program in front, *Then* no key is sent (2).
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Windows 11, PowerShell 5.1, 2026-10-15, the editor connected to the real S5000: `list -Filter` gave the menu bar, the texts and the tooltips
+  (the free memory's exact bytes); `screenshot` saved the window; `invoke -Name Sampler` opened the menu ("Disconnect" listed in its popup); `type -Name Disconnect
+  -Keys {ESC}` closed it; `invoke -Name "Nothing here"` and `-Process NoSuchApp` said "not found" and ended with 1. The foreground check is the one that refused no
+  key in the session's earlier scripts (keys.ps1). Found while testing: while a JUCE popup is open, the menu bar leaves the accessibility tree (in the skill).
+- **Assumptions**: (1) Asked by the owner on 2026-10-15 ("capitalise ces outils ... ne modifie pas agnos, ajoute cela à côté"). (2) One script with four actions
+  rather than three scripts; PowerShell because UI Automation is a Windows interface. (3) The canonical skill sits in `.github/skills` with a pointer in
+  `.claude/skills`, as the AGNOS skills do, so that Copilot and Claude Code both find it.
