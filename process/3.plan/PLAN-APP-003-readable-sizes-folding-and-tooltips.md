@@ -16,9 +16,10 @@ Each change is made core first where it has behaviour (the size text, the folded
 | 2 | TASK-APP-021 | a double click folds an open folder, and opens a folded one |
 | 3 | TASK-APP-022 | a tooltip with the whole text on every text that is cut short |
 | 4 | TASK-APP-023 | the advice of a refusal in the application's words, not the MCP server's tool names (added the same day) |
+| 5 | TASK-APP-024 | no folder name over 26 characters sent to the sampler, which crashes on them (added the same day) |
 
 ## References
-- **Requirements**: RQ-APP-079, RQ-APP-080, RQ-APP-081, RQ-APP-082 (new); RQ-APP-024, RQ-APP-025, RQ-APP-026, RQ-APP-042 (amended or concerned); RQ-APP-001 to
+- **Requirements**: RQ-APP-079, RQ-APP-080, RQ-APP-081, RQ-APP-082, RQ-MCP-068 (new); RQ-APP-024, RQ-APP-025, RQ-APP-026, RQ-APP-042 (amended or concerned); RQ-APP-001 to
   RQ-APP-005 (FTR-APP-001, design system); RQ-APP-014
 - **ADRs**: ADR-APP-001 (DEC-APP-001, DEC-APP-004, DEC-APP-010); ADR-APP-002 (DEC-APP-011 to DEC-APP-016)
 
@@ -75,7 +76,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-022: Tooltips of the texts cut short
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: In `XS56KApp`, a text component that gives its whole text as its tooltip when, and only when, it does not fit its bounds, used for the texts drawn
   by the views (the browser's path and details, the memory view's free memory, the status bar's connection, job and problem, the areas' titles and hints, the
   dialogs' labels); the rows keep theirs. The delay before a tooltip appears becomes a design-system token (`motion.tooltip`).
@@ -92,7 +93,9 @@ This plan implements the tasks in the format specified below.
   lines ("Creating the program XS56K TOOLTIP TEST 1 failed: A program named ... is already in memory.") have none, the file's details and the free memory keep theirs
   (the exact bytes). No text of that session was long enough to be cut, so the tooltip of a cut text is still to be seen, by the owner: a long folder path or a long
   file name in the browser, the pointer resting on it. A first measure of the cut (the text's width against the label's lines) would have missed texts broken
-  between words; it measures the broken text now.
+  between words; it measures the broken text now. Seen later the same day on the real S5000: the status bar's problem "Opening the folder A B C\ABCDEF...\
+  ABCDEFGHIJKLMNOPQRSTUVWXYZ123 failed: The sampler did not answer ..." cut short in its two lines had its whole text as its tooltip (read through the
+  accessibility tree), while the shorter problems before it had none.
 - **Assumptions**: (1) The views are not unit-tested (DEC-APP-010): checked by a run of the application, with the tooltip shown through the accessibility tree or a capture.
   (2) `motion.tooltip` is a new global motion token of 700 ms, JUCE's default, the mockups having no tooltip. (3) Texts already given whole (the rows' names) keep their
   tooltip as it is. (4) A label whose tooltip says more than its text (the exact count of bytes) keeps that tooltip whether or not it is cut. (5) The areas' titles and
@@ -116,3 +119,24 @@ This plan implements the tasks in the format specified below.
   warning-clean; the application's executable was not relinked (the owner's instance was running).
 - **Assumptions**: (1) Asked by the owner on 2026-10-15 ("ok pour le reste") after the message "Use select_disk first." in the editor. (2) The cause of that refusal
   right after the sampler's restart (the root opened while the sampler had no disk selected) is looked at separately, at the next restart.
+
+### TASK-APP-024: No folder name the sampler cannot take
+- **Tier**: M
+- **Status**: Done
+- **Description**: In `xs56k_sampler`, the gateway's `openFolder`, `loadFolder`, `createFolder`, `renameFolder` and `deleteFolder` refuse a folder name, or a new
+  name, longer than 26 characters before anything is sent, with a message that says why and how to rename the folder from the sampler; the editor and the MCP server
+  both get it. The observation goes into `OBSERVATIONS-RQ-MCP-012-real-sampler.md` and `documents/_index/sysex_spec.kb.md`.
+- **Requirement refs**: RQ-MCP-068, RQ-MCP-024, RQ-MCP-025, RQ-MCP-032, RQ-APP-025
+- **ADR refs**: ADR-MCP-003 (DEC-MCP-019); ADR-APP-001 (DEC-APP-002)
+- **Acceptance Criteria** (Gherkin): see RQ-MCP-068.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `DiskFileOpsTests.cpp` (RQ-MCP-068) failed first, then passed: open, load, rename (old and new
+  name), delete and create of a 27-character folder each refused with "26 characters" in the answer and none of `&13`, `&15`, `&16`, `&17`, rename sent; the
+  26-character folder opened (`&13` once). `ctest -C Debug`: 100% passed, 0 failed out of 1193, the README checks among them; build warning-clean. On the real
+  S5000, the application rebuilt: in `S5K:\A B C\ABCDEFGHIJKLMNOPQRSTUVWXYZ`, the double click on `ABCDEFGHIJKLMNOPQRSTUVWXYZ123` gave "The folder name ... has 29
+  characters: the S5000 stops answering on a folder name of more than 26 characters, so nothing was sent. ..." and the sampler then answered a disconnection and a
+  new connection. The observations (steps 1 to 6 with the two crashes) are in `OBSERVATIONS-RQ-MCP-012-real-sampler.md` and `sysex_spec.kb.md`.
+- **Assumptions**: (1) The owner chose 26 (2026-10-15, "on garde 26"), the longest name seen opening, 27 and 28 untried. (2) The name is counted in characters
+  as the person gives it, the sampler's names being plain ASCII. (3) The deletion, the load and the rename of a folder already named longer are refused too: whether
+  those commands crash on such a name is not known, and the front panel renames it.

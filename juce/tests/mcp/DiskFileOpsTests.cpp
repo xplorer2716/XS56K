@@ -298,3 +298,38 @@ TEST_CASE("Given a sampler that keeps a stale file list, When a file is deleted 
     CHECK(contains(textOf(renamed), "\"RENAMED.AKP\""));
     CHECK(contains(listing(rig), "RENAMED.AKP"));
 }
+
+TEST_CASE("Given a folder of 26 characters and one of 27, When the second is opened, loaded, renamed or deleted, or a name of 27 characters is created or "
+          "given in a rename, Then each is refused with the limit named and nothing of it is sent; When the first is opened, Then it is [RQ-MCP-068, "
+          "TASK-APP-024]",
+          "[mcp][disk][fileops]")
+{
+    const std::string fits = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";  // 26, opened on the owner's S5000
+    const std::string tooLong = fits + "1";                // 27
+    akm::harness::FolderRecord fitting;
+    fitting.name = fits;
+    akm::harness::FolderRecord longOne;
+    longOne.name = tooLong;
+    DiskRig rig(standardDisks({programFile("TEST.AKP", "TEST")}, {fitting, longOne}), true);
+    REQUIRE_FALSE(isError(rig.call("select_disk", {{"name", "HD1"}})));
+
+    const json calls[] = {
+        rig.call("open_folder", {{"name", tooLong}}),
+        rig.call("load_folder", {{"name", tooLong}}),
+        rig.call("rename_folder", {{"name", tooLong}, {"new_name", "SHORT"}}),
+        rig.call("delete_folder", {{"name", tooLong}, {"confirm", tooLong}}),
+        rig.call("create_folder", {{"name", tooLong}}),
+        rig.call("rename_folder", {{"name", fits}, {"new_name", tooLong}}),
+    };
+    for (const json& answer : calls)
+    {
+        CHECK(isError(answer));
+        CHECK(contains(textOf(answer), "26 characters"));
+    }
+    for (const akm::ItemId item : {akm::ItemId::DiskOpenFolder, akm::ItemId::DiskLoadFolder, akm::ItemId::DiskRenameFolder,
+                                   akm::ItemId::DiskDeleteSubFolder, akm::ItemId::DiskCreateFolder})
+        CHECK(rig.accepted(item) == 0);
+
+    CHECK_FALSE(isError(rig.call("open_folder", {{"name", fits}})));
+    CHECK(rig.accepted(akm::ItemId::DiskOpenFolder) == 1);
+}

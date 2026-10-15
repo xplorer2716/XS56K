@@ -125,7 +125,10 @@ Blocked (multi-request): 38 KG zone · 3A keygroup · 3C program · 3E multi.
 ## Common value codes
 - Name fields (string, p8-9): the spec states no maximum length. Program name (§0A): observed capped
   at 20 characters on a real S5000 [owner, 2026-09-27] — not yet confirmed for other name fields
-  (Sample, Multi, Disk file/folder).
+  (Sample, Multi, Disk file/folder). **Folder names (§10 `&13` Open Folder)**: a real S5000 (OS 2.14) crashed (register dump, power
+  cycle) on the Open Folder of a 29-character name, with or without spaces, and opened 26 [owner, 2026-10-15]; Create Folder (`&16`) of
+  29 characters did not crash. 27 and 28 untried; the gateway refuses more than 26 (RQ-MCP-068). After a rename on the front panel, the
+  SysEx folder list kept the old name until the sampler was restarted.
 - §0A "all Programs in memory" replies (`&18`, `&19`): the spec is silent on what an empty memory (0
   programs) answers. Observed on a real S5000 [owner, 2026-09-27]: `&19` (names) answers ERROR 4 (not
   found), not an empty REPLY, when there are 0 programs; `&10` (Get Number of Programs) answers a normal

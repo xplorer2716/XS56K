@@ -577,3 +577,24 @@ than `cursor_left`, `cursor_right`, `multi` and `utilities` (the owner named the
 `exit` on purpose), the rate of the repetition of a held key and how many characters a second of holding moves (not counted: it was one character in one
 run and several in another, the start of a hold not being timed), whether the cursor advances after the ASCII character (not asked), and the release of a
 key when the server is killed rather than closed (not tried, `TASK-MCP-053`, assumption 4).
+
+## The length of a folder name, and a rename on the front panel (2026-10-15, the editor application, the owner present)
+
+The owner's S5000 (OS 2.14, disk S5K on its SCSI2SD, FAT32) was driven from the editor (`XS56K`, PLAN-APP-003), whose browser goes through the same
+gateway as the MCP server. [RQ-MCP-068, TASK-APP-024]
+
+| Step | What was sent | What the sampler did |
+|---|---|---|
+| 1 | Open Folder (`10 &13`) of `Rhodes Attacks By Ueberschall` (29 characters, spaces), from the root | **no reply within 2000 ms; the sampler crashed, a register dump on its screen**; power cycle needed. The 2026-10-06 crash during a browse of seven root folders probably had the same cause |
+| 2 | the owner renamed the folder `Rhodes` on the sampler's front panel, then the root was listed again by SysEx, after a close and an open of the folder and a change of page on the front panel | **the SysEx folder list still gave `Rhodes Attacks By Ueberschall`**; it gave `Rhodes` only after the sampler was switched off and on |
+| 3 | Open Folder of `Rhodes` (6 characters) | opened at once; 6 files, `Track001.wav` to `Track006.wav`: the contents were not the cause |
+| 4 | Create Folder (`&16`) of `A B C` at the root, then Open Folder of it | created and listed at once (no restart needed after a SysEx creation), then opened: **spaces are not the cause** |
+| 5 | Create Folder of `ABCDEFGHIJKLMNOPQRSTUVWXYZ` (26) in `A B C`, then Open Folder of it | created, opened (path `A B C\ABCDEFGHIJKLMNOPQRSTUVWXYZ`, 32 characters: the path's length is not the cause either) |
+| 6 | Create Folder of `ABCDEFGHIJKLMNOPQRSTUVWXYZ123` (29) in that folder, then Open Folder of it | **created without trouble; the open got no reply and the sampler crashed**; power cycle needed |
+
+What this establishes: the S5000 crashes on the **Open Folder of a name of 29 characters**, with or without spaces, and opens names of 5, 6 and 26
+characters; the creation of a 29-character folder does not crash it. **Not established:** 27 and 28 (not tried, each failure costing a power cycle),
+whether the load, the rename and the deletion of a folder crash on such a name (not tried), and the limit of the file names. The owner chose to keep
+26 as the limit: the gateway refuses a folder name of more than 26 characters in an open, a load, a creation, a rename (old or new name) and a deletion,
+with nothing sent (RQ-MCP-068). Left on the disk by the run, to delete from the front panel: the folder `A B C` at the root of S5K, which holds
+`ABCDEFGHIJKLMNOPQRSTUVWXYZ`, which holds `ABCDEFGHIJKLMNOPQRSTUVWXYZ123` (the gateway refuses to delete that one).
