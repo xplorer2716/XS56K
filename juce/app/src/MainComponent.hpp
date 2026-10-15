@@ -20,10 +20,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include "BrowserView.hpp"
+#include "MemoryView.hpp"
 #include "StatusBar.hpp"
 #include "app/AppSettings.hpp"
 #include "app/Controller.hpp"
 #include "app/FileBrowser.hpp"
+#include "app/MemoryController.hpp"
 #include "app/Model.hpp"
 
 namespace app::ui
@@ -57,8 +59,8 @@ namespace app::ui
     class MainComponent final : public juce::Component, public juce::MenuBarModel, private ModelListener
     {
     public:
-        MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser, AppSettings& settings,
-                      common::midi::MidiBackend& backend);
+        MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser, MemoryController& memory,
+                      AppSettings& settings, common::midi::MidiBackend& backend);
         ~MainComponent() override;
 
         void resized() override;
@@ -81,6 +83,7 @@ namespace app::ui
         AreaPanel _browser;
         BrowserView _browserView;
         AreaPanel _memory;
+        MemoryView _memoryView;
         AreaPanel _editor;
         StatusBar _status;
     };

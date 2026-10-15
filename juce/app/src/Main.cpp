@@ -61,7 +61,7 @@ namespace
         {
             juce::LookAndFeel::setDefaultLookAndFeel(&lookAndFeel);
             window = std::make_unique<MainWindow>(
-                JUCE_APPLICATION_NAME_STRING, std::make_unique<app::ui::MainComponent>(lookAndFeel, model, controller, browser, settings, backend));
+                JUCE_APPLICATION_NAME_STRING, std::make_unique<app::ui::MainComponent>(lookAndFeel, model, controller, browser, memory, settings, backend));
         }
 
         ~Application()

@@ -312,7 +312,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-019: The memory view
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `XS56KApp`: the memory view's component: six headings with their counts, the items in the sampler's order with the current item of each kind marked, the selection,
   the context commands (create a program, rename, delete, audition), the free memory line and a refresh button, drawn from the core's model.
 - **Requirement refs**: RQ-APP-035, RQ-APP-036, RQ-APP-037, RQ-APP-038, RQ-APP-039, RQ-APP-040, RQ-APP-041, RQ-APP-042, RQ-APP-001, RQ-APP-004, RQ-APP-005
@@ -322,6 +322,18 @@ This plan implements the tasks in the format specified below.
   deleted from the context menu, *When* the person cancels, *Then* nothing changes.
 - **Dependencies**: TASK-APP-016, TASK-APP-017
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON`, `BUILD_APP=ON`, 2026-10-15, build warning-clean; `ctest -C Debug`: 100% passed, 0 failed out of 1188, among them
+  `app_sources_have_no_visual_literal` over `MemoryView.cpp`. On the real S5000 (OS 2.14, MIDIN2 / MIDIOUT15), driven through the accessibility tree and the keyboard
+  (keys sent only when XS56K's window was in the foreground), the owner away by his leave: connected, "MULTIS (0)", "PROGRAMS (0)", "SAMPLES (1)" with the sample loaded
+  earlier from the browser marked current, "SONG FILES (0)", "SET LISTS (0)", "SCENELISTS (0)", and "158 281 898 bytes free of 158 548 694 (99 %), MPKS 100 % free"
+  with the Refresh button. A program created with an empty name: refused, "A program needs a name." in the status bar; "XS56K TEST" with 2 keygroups created:
+  "Programs (1)", "XS56K TEST (current)"; renamed "XS56K TEST2 (current)"; its delete asked "Delete the program?" naming it and what is lost, Cancel: still listed,
+  Confirm: "Programs (0)". The sample auditioned from the context menu, then the program selected (the audition stopped), no problem reported. A sample loaded from
+  the browser: "Samples (2)", the loaded one selected and current, the free bytes read again (158 249 608). Quit from the menu while connected: the process ended
+  within 5 s, and a new session opened normally afterwards.
 - **Assumptions**: (1) Selecting an item records the selection in the model; the edit panel that shows it (RQ-APP-048) comes with FTR-APP-007, so the right-hand area stays empty. (2) The
-  working principle of the owner (load a file, see it in the memory view) is checked end to end here, on the simulated sampler.
+  working principle of the owner (load a file, see it in the memory view) is checked end to end here, on the simulated sampler, and, with the owner's leave of
+  2026-10-15, on the real one with test items only (a program XS56K TEST created, renamed and deleted; two samples of `S5K:\MoogBass` loaded and left in memory).
+  (3) "Create a program…" is in the context menu of every item; the number of keygroups (1 to 99) is checked in the view, a wrong one is reported with nothing sent.
+  (4) The free memory is given in bytes with the two percentages, and the headings are the design system's upper-case labels. (5) A problem stays in the status bar
+  until dismissed, even after a later command succeeds (the core's behaviour since TASK-APP-012).

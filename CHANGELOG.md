@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - This section may be incomplete. for full history, please check git history.
 - Initial project structure.
+- Editor application (`juce/app`, `XS56K`): the main window replaces the placeholder: menus (Connect or Disconnect, MIDI setup, Quit), the
+  connection and the job in progress in a status bar, the MIDI setup dialog, the file browser of the sampler's disks (folders, files with
+  their kind, size and icon; load, load with dependents, load a folder, create, rename and delete, audition, refresh of the disks after a
+  warning) and the memory view (the six kinds with their counts and current items, the free memory; create a program, rename, delete,
+  audition a sample). Every deletion asks for a confirmation that names what is lost. The edit panel is still empty.
 - MCP server (`juce/mcp`, `xs56k_mcp_server`): an MCP client such as Claude Code can work on the sampler by talking to it, in the
   musician's vocabulary and the sampler's own units, each Set read back from the sampler when the sampler can read it back. **56 tools
   without any option**: programs (list, select, create, rename, delete, delete all), 119 program parameters, keygroups (add, delete), the

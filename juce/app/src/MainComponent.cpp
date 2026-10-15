@@ -114,15 +114,16 @@ namespace app::ui
         }
     }
 
-    MainComponent::MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser, AppSettings& settings,
-                                 common::midi::MidiBackend& backend)
+    MainComponent::MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser,
+                                 MemoryController& memory, AppSettings& settings, common::midi::MidiBackend& backend)
         : _lookAndFeel(lookAndFeel), _model(model), _controller(controller), _settings(settings), _backend(backend), _menuBar(this),
-          _browser(lookAndFeel, BROWSER_TITLE, false), _browserView(lookAndFeel, model, browser), _memory(lookAndFeel, MEMORY_TITLE, false), _editor(lookAndFeel, EDITOR_TITLE, true),
+          _browser(lookAndFeel, BROWSER_TITLE, false), _browserView(lookAndFeel, model, browser), _memory(lookAndFeel, MEMORY_TITLE, false), _memoryView(lookAndFeel, model, memory), _editor(lookAndFeel, EDITOR_TITLE, true),
           _status(lookAndFeel)
     {
         for (juce::Component* component : std::initializer_list<juce::Component*>{&_menuBar, &_browser, &_memory, &_editor, &_status})
             addAndMakeVisible(*component);
         _browser.setContent(&_browserView);
+        _memory.setContent(&_memoryView);
         _status.onDismiss = [this] { _model.clearProblem(); };
         _model.addListener(*this);
         modelChanged(ModelPart::Connection);

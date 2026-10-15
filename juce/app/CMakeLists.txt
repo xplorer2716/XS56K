@@ -20,6 +20,7 @@ target_sources(XS56KApp PRIVATE
     src/LookAndFeel.cpp
     src/Main.cpp
     src/MainComponent.cpp
+    src/MemoryView.cpp
     src/MidiSetupDialog.cpp
     src/StatusBar.cpp
     src/TextPrompt.cpp)
