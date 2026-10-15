@@ -17,8 +17,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
+#include <set>
 
 #include "app/Controller.hpp"
 #include "app/Edit.hpp"
@@ -41,15 +45,24 @@ namespace app
 
         /// Reads every parameter of the tab shown and the information again. [RQ-APP-053]
         void readAgain();
+        /// The person gives `value` to the tab's parameter at `index`: refused with nothing sent out of its range (a position beyond the
+        /// sample's length, RQ-APP-088); otherwise pending until written and read back, with every value of the tab read again (RQ-APP-089).
+        /// While a write of that parameter is in flight the value waits, a later one replacing it (RQ-APP-054). [RQ-APP-051, RQ-APP-052,
+        /// ADR-APP-004 (DEC-APP-025, DEC-APP-026), TASK-APP-037]
+        void set(std::size_t index, std::int64_t value);
 
         void modelChanged(ModelPart part) override;
 
     private:
         void open(std::optional<MemoryItem> item);
         void read();
+        void write(std::size_t index, std::int64_t value);
 
         Model& _model;
         Controller& _controller;
+        /// The tab's parameters with a write in flight, and the value waiting behind each. [RQ-APP-054]
+        std::set<std::size_t> _writing;
+        std::map<std::size_t, std::int64_t> _waiting;
         /// Expires with the controller: a result that comes back after it is ignored.
         std::shared_ptr<int> _alive = std::make_shared<int>(0);
     };

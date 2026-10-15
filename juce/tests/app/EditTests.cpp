@@ -40,6 +40,8 @@ using app::test::setupA;
 namespace
 {
     constexpr std::uint8_t SECTION_SAMPLE = 0x0E;
+    constexpr std::uint8_t ITEM_SET_END = 0x21;
+    constexpr std::uint8_t ITEM_SET_FINE_TUNE = 0x24;
     constexpr std::uint8_t RAM = 0;
     constexpr std::uint8_t MONO = 1;
     constexpr std::uint32_t KICK_LENGTH = 22050;
@@ -86,6 +88,26 @@ namespace
                     return value.value;
             }
             return std::nullopt;
+        }
+
+        [[nodiscard]] std::size_t index(const std::string& name) const
+        {
+            const auto& values = rig.model.edit().values;
+            for (std::size_t i = 0; i < values.size(); ++i)
+            {
+                if (values[i].definition->name == name)
+                    return i;
+            }
+            FAIL_CHECK("no parameter " << name);
+            return 0;
+        }
+
+        [[nodiscard]] std::size_t sent(std::uint8_t item) const
+        {
+            const auto commands = rig.sampler->acceptedCommands();
+            return static_cast<std::size_t>(std::count_if(commands.begin(), commands.end(), [item](const akm::harness::AcceptedCommand& command) {
+                return command.section == SECTION_SAMPLE && command.item == item;
+            }));
         }
 
         [[nodiscard]] std::size_t sentToSamples() const
@@ -161,4 +183,77 @@ TEST_CASE("Given KICK shown, When its fine tune is changed on the front panel an
     fixture.rig.controller.disconnect();
     REQUIRE(fixture.rig.settle());
     CHECK_FALSE(fixture.rig.model.edit().item.has_value());
+}
+
+TEST_CASE("Given KICK shown, When the person sets its fine tune to 15, Then it is pending until the sampler answers, then the value read back "
+          "is shown [RQ-APP-052, RQ-APP-086, TASK-APP-037]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+
+    constexpr std::int64_t NEW_FINE = 15;
+    const std::size_t fine = fixture.index("sample fine tune");
+    const std::size_t before = fixture.sent(ITEM_SET_FINE_TUNE);  // the fixture's own seeding wrote it once
+    fixture.editor.set(fine, NEW_FINE);
+    CHECK(fixture.rig.model.edit().values[fine].pending);
+    REQUIRE(fixture.rig.settle());
+    CHECK_FALSE(fixture.rig.model.edit().values[fine].pending);
+    CHECK(fixture.shown("sample fine tune") == std::optional<std::int64_t>(NEW_FINE));
+    CHECK(fixture.sent(ITEM_SET_FINE_TUNE) == before + 1);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given KICK of 22050 points, When the person sets its end to 30000, Then nothing is sent and the range 0 to 22050 is shown "
+          "[RQ-APP-088, RQ-APP-051, TASK-APP-037]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+
+    constexpr std::int64_t BEYOND = 30000;
+    fixture.editor.set(fixture.index("sample end position"), BEYOND);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_SET_END) == 0);
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(fixture.rig.model.problem()->reason.find("0 to 22050") != std::string::npos);
+}
+
+TEST_CASE("Given KICK shown, When the fine tune is moved through 40 values before the sampler answers, Then at most one write waits, only the "
+          "first and the last are sent, and the last is the value read back [RQ-APP-054, TASK-APP-037]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+
+    constexpr std::int64_t FIRST = -20;
+    constexpr std::int64_t LAST = 19;
+    const std::size_t fine = fixture.index("sample fine tune");
+    const std::size_t before = fixture.sent(ITEM_SET_FINE_TUNE);
+    for (std::int64_t value = FIRST; value <= LAST; ++value)
+        fixture.editor.set(fine, value);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_SET_FINE_TUNE) == before + 2);
+    CHECK(fixture.shown("sample fine tune") == std::optional<std::int64_t>(LAST));
+    CHECK_FALSE(fixture.rig.model.edit().values[fine].pending);
+}
+
+TEST_CASE("Given KICK shown and its semitone tune changed on the front panel, When the person sets its fine tune, Then every value of the tab is "
+          "read back, the semitone tune included [RQ-APP-089, TASK-APP-037]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+
+    constexpr std::int64_t SEMITONES = 7;
+    constexpr std::int64_t NEW_FINE = 5;
+    fixture.set("sample semitone tune", SEMITONES);
+    fixture.editor.set(fixture.index("sample fine tune"), NEW_FINE);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("sample semitone tune") == std::optional<std::int64_t>(SEMITONES));
+    CHECK(fixture.shown("sample fine tune") == std::optional<std::int64_t>(NEW_FINE));
 }

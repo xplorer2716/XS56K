@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "app/EditController.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,6 +32,8 @@ namespace app
     {
         constexpr const char* SAMPLE_EDITOR = "sample";
         constexpr const char* READING_LABEL = "Reading ";
+        constexpr const char* SETTING_LABEL = "Setting the ";
+        constexpr const char* OF = " of ";
         /// The unit of a position in a sample: bounded by the sample's length rather than the catalogue's whole word. [RQ-APP-088]
         constexpr const char* POSITION_UNIT = "sample points";
         constexpr const char* LENGTH_NAME = "sample length";
@@ -86,6 +89,19 @@ namespace app
 
         using Definitions = std::vector<const mcp::ParameterDefinition*>;
 
+        /// Each parameter of `rows` read from the current sample, into `into`; the problem of the first that fails.
+        std::optional<std::string> readInto(mcp::SamplerGateway& gateway, const Definitions& rows, std::vector<std::int64_t>& into)
+        {
+            for (const mcp::ParameterDefinition* definition : rows)
+            {
+                const auto read = gateway.readSampleParameter(*definition);
+                if (!read.ok())
+                    return read.problem;
+                into.push_back(*read.value);
+            }
+            return std::nullopt;
+        }
+
         mcp::Outcome<Reading> readOn(mcp::SamplerGateway& gateway, const std::string& sample, const Definitions& values, const Definitions& info)
         {
             // The edited sample is made the sampler's current one first: the front panel may have moved it. [DEC-APP-025]
@@ -95,15 +111,45 @@ namespace app
             Reading reading;
             for (const auto& [rows, into] : {std::pair{&values, &reading.values}, std::pair{&info, &reading.info}})
             {
-                for (const mcp::ParameterDefinition* definition : *rows)
-                {
-                    const auto read = gateway.readSampleParameter(*definition);
-                    if (!read.ok())
-                        return mcp::Outcome<Reading>::failure(read.problem);
-                    into->push_back(*read.value);
-                }
+                if (const auto problem = readInto(gateway, *rows, *into))
+                    return mcp::Outcome<Reading>::failure(*problem);
             }
             return mcp::Outcome<Reading>::success(std::move(reading));
+        }
+
+        /// What a write brings back: its problem, if any, and the tab read again, whatever happened, so that the panel shows what the sampler
+        /// holds and the pending state always ends. [RQ-APP-052, RQ-APP-089, DEC-APP-026]
+        struct Written
+        {
+            std::optional<std::string> problem;
+            std::vector<std::int64_t> values;
+        };
+
+        Written writeOn(mcp::SamplerGateway& gateway, const std::string& sample, const mcp::ParameterDefinition& parameter, std::int64_t value,
+                        const Definitions& tab)
+        {
+            Written written;
+            const auto selected = gateway.selectSampleByName(sample);
+            if (!selected.ok())
+            {
+                written.problem = selected.problem;
+                return written;
+            }
+            if (const auto set = gateway.writeSampleParameter(parameter, value); !set.ok())
+                written.problem = set.problem;
+            if (const auto problem = readInto(gateway, tab, written.values))
+            {
+                written.problem = written.problem ? *written.problem + " " + *problem : *problem;
+                written.values.clear();
+            }
+            return written;
+        }
+
+        std::string lowerCase(std::string_view text)
+        {
+            std::string lower(text);
+            std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return lower;
         }
 
         Definitions definitionsOf(const std::vector<EditValue>& values)
@@ -142,6 +188,8 @@ namespace app
 
     void EditController::open(std::optional<MemoryItem> item)
     {
+        _writing.clear();
+        _waiting.clear();
         if (!item)
         {
             _model.setEdit(EditState{});
@@ -187,5 +235,69 @@ namespace app
                 }
                 _model.setEdit(std::move(next));
             });
+    }
+
+    void EditController::set(std::size_t index, std::int64_t value)
+    {
+        const EditState& state = _model.edit();
+        if (state.layout == nullptr || index >= state.values.size())
+            return;
+        const EditValue& shown = state.values[index];
+        const std::string label = SETTING_LABEL + lowerCase(shown.layout->label) + OF + state.item->name;
+        if (value < shown.min || value > shown.max)
+        {
+            _model.setProblem(Problem{label, "The value must be from " + std::to_string(shown.min) + " to " + std::to_string(shown.max) +
+                                                 ": nothing was sent."});
+            return;
+        }
+        EditState next = state;
+        next.values[index].pending = true;
+        _model.setEdit(std::move(next));
+        if (_writing.count(index) != 0)
+        {
+            _waiting[index] = value;  // sent when the write in flight ends, a later value replacing it [RQ-APP-054]
+            return;
+        }
+        write(index, value);
+    }
+
+    void EditController::write(std::size_t index, std::int64_t value)
+    {
+        const EditState& state = _model.edit();
+        const MemoryItem item = *state.item;
+        const EditValue& shown = state.values[index];
+        const std::string label = SETTING_LABEL + lowerCase(shown.layout->label) + OF + item.name;
+        _writing.insert(index);
+        const bool queued = _controller.runOnSampler<Written>(
+            label,
+            [sample = item.name, parameter = shown.definition, value, tab = definitionsOf(state.values)](mcp::SamplerGateway& gateway) {
+                return mcp::Outcome<Written>::success(writeOn(gateway, sample, *parameter, value, tab));
+            },
+            [this, alive = std::weak_ptr<int>(_alive), item, index, label](const Written& written) {
+                if (alive.expired() || _model.edit().item != std::optional<MemoryItem>(item))
+                    return;  // another item is edited: open() forgot the writes of this one
+                _writing.erase(index);
+                EditState next = _model.edit();
+                for (std::size_t i = 0; i < next.values.size() && i < written.values.size(); ++i)
+                    next.values[i].value = written.values[i];
+                const auto waiting = _waiting.find(index);
+                next.values[index].pending = waiting != _waiting.end();
+                _model.setEdit(std::move(next));
+                if (written.problem)
+                    _model.setProblem(Problem{label, *written.problem});
+                if (waiting != _waiting.end())
+                {
+                    const std::int64_t latest = waiting->second;
+                    _waiting.erase(waiting);
+                    write(index, latest);
+                }
+            });
+        if (!queued)
+        {
+            _writing.erase(index);
+            EditState next = _model.edit();
+            next.values[index].pending = false;
+            _model.setEdit(std::move(next));
+        }
     }
 }

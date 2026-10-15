@@ -74,7 +74,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-037: The edit controller, write side
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: A value given: refused out of range (positions bounded by the length), else set and read back, pending meanwhile, one write per
   parameter in flight with the latest waiting, then the whole tab read again; the sample made current first if it is not.
 - **Requirement refs**: RQ-APP-051, RQ-APP-052, RQ-APP-054, RQ-APP-088, RQ-APP-089
@@ -82,8 +82,13 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): see RQ-APP-052, RQ-APP-054, RQ-APP-088, RQ-APP-089 on the simulated sampler.
 - **Dependencies**: TASK-APP-036
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: four new cases of `EditTests.cpp` failed first to compile (no `set`); once written, two failed on
+  my count of the Sets (the fixture's seeding writes the fine tune once), corrected to count from before the action; then passed (93 assertions in
+  the 7 edit cases): pending then 15 read back; the end 30000 refused with "0 to 22050" and nothing sent; 40 values given before an answer, two Sets
+  sent and 19 read back; the semitone tune changed on the front panel read back with the fine tune's write. `ctest -C Debug`: 100% passed, 0 failed
+  out of 1206; warning-clean.
+- **Assumptions**: (1) A write job always succeeds as a job, carrying the sampler's problem and the tab read again, so the pending state always ends.
+  (2) The job's label is "Setting the <label> of <sample>" (the mockup's status line).
 
 ### TASK-APP-038: The four controls
 - **Tier**: M
