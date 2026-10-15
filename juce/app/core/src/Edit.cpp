@@ -35,7 +35,6 @@ namespace app
         constexpr std::int64_t OCTAVE_OF_NOTE_ZERO = -2;  // note 0 is C-2, so 60 is C3
         constexpr char SHARP = '#';
         constexpr char PLUS = '+';
-        constexpr char MINUS = '-';
 
         constexpr std::string_view TYPE_NAME = "sample type";
         constexpr std::string_view CHANNELS_NAME = "sample channels";
