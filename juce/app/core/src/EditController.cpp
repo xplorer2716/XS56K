@@ -27,7 +27,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app
 {
-    // [RQ-APP-048, RQ-APP-053, RQ-APP-086 to RQ-APP-088, ADR-APP-004 (DEC-APP-025), TASK-APP-036]
+    // [RQ-APP-048, RQ-APP-053, RQ-APP-086 to RQ-APP-088, RQ-APP-090, ADR-APP-004 (DEC-APP-025, DEC-APP-028), TASK-APP-036, TASK-APP-041]
     namespace
     {
         constexpr const char* SAMPLE_EDITOR = "sample";
@@ -37,6 +37,8 @@ namespace app
         /// The unit of a position in a sample: bounded by the sample's length rather than the catalogue's whole word. [RQ-APP-088]
         constexpr const char* POSITION_UNIT = "sample points";
         constexpr const char* LENGTH_NAME = "sample length";
+        constexpr const char* LOOP_START_NAME = "sample loop start";
+        constexpr const char* LOOP_END_NAME = "sample loop end";
 
         /// The editor layout of a kind, or null while the kind has no editor. [RQ-APP-048]
         const layouts::EditorLayout* layoutOf(MemoryKind kind)
@@ -135,8 +137,22 @@ namespace app
                 written.problem = selected.problem;
                 return written;
             }
+            // The S5000's Set Loop End moves the loop start to keep the loop length: the loop start held before is sent again after it, Set
+            // Loop Start moving nothing else. A start beyond the new end (2^28 - 1 after a start pushed below 0) is not. [RQ-APP-090, DEC-APP-028]
+            std::optional<std::int64_t> loopStart;
+            const mcp::ParameterDefinition* loopStartParameter = definitionOf(LOOP_START_NAME);
+            if (parameter.name == LOOP_END_NAME && loopStartParameter != nullptr)
+            {
+                if (const auto read = gateway.readSampleParameter(*loopStartParameter); read.ok() && *read.value <= value)
+                    loopStart = *read.value;
+            }
             if (const auto set = gateway.writeSampleParameter(parameter, value); !set.ok())
                 written.problem = set.problem;
+            else if (loopStart)
+            {
+                if (const auto again = gateway.writeSampleParameter(*loopStartParameter, *loopStart); !again.ok())
+                    written.problem = again.problem;
+            }
             if (const auto problem = readInto(gateway, tab, written.values))
             {
                 written.problem = written.problem ? *written.problem + " " + *problem : *problem;
@@ -150,6 +166,35 @@ namespace app
             std::string lower(text);
             std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return lower;
+        }
+
+        /// The value shown for `name`, if the tab has it.
+        std::optional<std::int64_t> shownValue(const EditState& state, std::string_view name)
+        {
+            for (const EditValue& value : state.values)
+            {
+                if (value.definition->name == name)
+                    return value.value;
+            }
+            return std::nullopt;
+        }
+
+        /// The range a value may take now: its own, and for the loop, the other end of the loop. [RQ-APP-088, RQ-APP-090]
+        std::pair<std::int64_t, std::int64_t> rangeOf(const EditState& state, const EditValue& shown)
+        {
+            std::int64_t min = shown.min;
+            std::int64_t max = shown.max;
+            if (shown.definition->name == LOOP_END_NAME)
+            {
+                if (const auto start = shownValue(state, LOOP_START_NAME); start && *start <= max)
+                    min = std::max(min, *start);
+            }
+            else if (shown.definition->name == LOOP_START_NAME)
+            {
+                if (const auto end = shownValue(state, LOOP_END_NAME); end && *end >= min)
+                    max = std::min(max, *end);
+            }
+            return {min, max};
         }
 
         Definitions definitionsOf(const std::vector<EditValue>& values)
@@ -244,10 +289,10 @@ namespace app
             return;
         const EditValue& shown = state.values[index];
         const std::string label = SETTING_LABEL + lowerCase(shown.layout->label) + OF + state.item->name;
-        if (value < shown.min || value > shown.max)
+        const auto [min, max] = rangeOf(state, shown);
+        if (value < min || value > max)
         {
-            _model.setProblem(Problem{label, "The value must be from " + std::to_string(shown.min) + " to " + std::to_string(shown.max) +
-                                                 ": nothing was sent."});
+            _model.setProblem(Problem{label, "The value must be from " + std::to_string(min) + " to " + std::to_string(max) + ": nothing was sent."});
             return;
         }
         EditState next = state;

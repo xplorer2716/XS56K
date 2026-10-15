@@ -63,3 +63,12 @@ RQ-MCP-020 (the gateway's sample parameters).
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the simulated sampler that moves the loop start when the loop end is set, *When* the person sets the loop end, *Then* the loop start shown is the one the sampler then holds.
 - **Dependencies**: RQ-APP-052, RQ-APP-086
+
+### RQ-APP-090: The loop end moves alone
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the person sets the loop end, the application SHALL send it, then send again the loop start the sample held before, so that only the loop end moves; IF the person gives a loop end below the loop start, or a loop start beyond the loop end, THEN the application SHALL refuse it with nothing sent and show the bound.
+- **Rationale**: on the S5000, Set Loop End keeps the loop length and moves the loop start, Set Loop Start moves nothing (OBSERVATIONS-RQ-AKM-051, F6); SysEx has no loop lock; on the front panel, with the lock open, the two are set independently (user manual p. 151).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* KICK with the loop 5000 to 15000 on a sampler that keeps the loop length, *When* the person sets the loop end to 20000, *Then* the loop reads 5000 to 20000; *When* the person sets the loop end to 4000, *Then* nothing is sent and "from 5000" is shown.
+- **Dependencies**: RQ-APP-051, RQ-APP-088, RQ-APP-089

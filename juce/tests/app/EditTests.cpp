@@ -42,6 +42,8 @@ namespace
     constexpr std::uint8_t SECTION_SAMPLE = 0x0E;
     constexpr std::uint8_t ITEM_SET_END = 0x21;
     constexpr std::uint8_t ITEM_SET_FINE_TUNE = 0x24;
+    constexpr std::uint8_t ITEM_SET_LOOP_START = 0x29;
+    constexpr std::uint8_t ITEM_SET_LOOP_END = 0x2A;
     constexpr std::uint8_t RAM = 0;
     constexpr std::uint8_t MONO = 1;
     constexpr std::uint32_t KICK_LENGTH = 22050;
@@ -219,6 +221,63 @@ TEST_CASE("Given KICK of 22050 points, When the person sets its end to 30000, Th
     CHECK(fixture.sent(ITEM_SET_END) == 0);
     REQUIRE(fixture.rig.model.problem().has_value());
     CHECK(fixture.rig.model.problem()->reason.find("0 to 22050") != std::string::npos);
+}
+
+namespace
+{
+    constexpr std::int64_t LOOP_START = 5000;
+    constexpr std::int64_t LOOP_END = 15000;
+
+    /// KICK shown with the loop 5000 to 15000, on a sampler whose Set Loop End keeps the loop length, as the real S5000's does.
+    void showLoopingKick(EditRig& fixture)
+    {
+        fixture.rig.sampler->setSampleLoopEndKeepsLength(0, true);
+        fixture.set("sample loop end", LOOP_END);
+        fixture.set("sample loop start", LOOP_START);
+        fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+        REQUIRE(fixture.rig.settle());
+        REQUIRE(fixture.shown("sample loop start") == std::optional<std::int64_t>(LOOP_START));
+        REQUIRE(fixture.shown("sample loop end") == std::optional<std::int64_t>(LOOP_END));
+    }
+}
+
+TEST_CASE("Given KICK looping from 5000 to 15000 on a sampler that keeps the loop length, When the person sets the loop end to 20000, Then the "
+          "loop reads 5000 to 20000 [RQ-APP-090, TASK-APP-041]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showLoopingKick(fixture);
+
+    constexpr std::int64_t NEW_END = 20000;
+    fixture.editor.set(fixture.index("sample loop end"), NEW_END);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("sample loop start") == std::optional<std::int64_t>(LOOP_START));
+    CHECK(fixture.shown("sample loop end") == std::optional<std::int64_t>(NEW_END));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given KICK looping from 5000 to 15000, When the person sets the loop end below the loop start or the loop start beyond the loop end, "
+          "Then nothing is sent and the bound is shown [RQ-APP-090, TASK-APP-041]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showLoopingKick(fixture);
+    const std::size_t ends = fixture.sent(ITEM_SET_LOOP_END);
+    const std::size_t starts = fixture.sent(ITEM_SET_LOOP_START);
+
+    constexpr std::int64_t BELOW_START = 4000;
+    fixture.editor.set(fixture.index("sample loop end"), BELOW_START);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_SET_LOOP_END) == ends);
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(fixture.rig.model.problem()->reason.find("from 5000 to 22050") != std::string::npos);
+
+    constexpr std::int64_t BEYOND_END = 16000;
+    fixture.editor.set(fixture.index("sample loop start"), BEYOND_END);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_SET_LOOP_START) == starts);
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(fixture.rig.model.problem()->reason.find("from 0 to 15000") != std::string::npos);
 }
 
 TEST_CASE("Given KICK shown, When the fine tune is moved through 40 values before the sampler answers, Then at most one write waits, only the "

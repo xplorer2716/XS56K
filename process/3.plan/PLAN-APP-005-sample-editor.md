@@ -4,7 +4,7 @@
 
 Session APP (2026-10-15). The owner asked for the first tab of the edit panel: "Sample", editing the settable parameters of the sample selected in
 the memory view (FTR-APP-010). The edit panel's shared parts are built with it (ADR-APP-004): the generated layouts, the edit controller, the
-controls. Core first with tests on the simulated sampler, then the views, checked on the real S5000 through `uia.ps1`. 7 tasks.
+controls. Core first with tests on the simulated sampler, then the views, checked on the real S5000 through `uia.ps1`. 8 tasks.
 
 | Step | Task | What |
 |---|---|---|
@@ -15,11 +15,12 @@ controls. Core first with tests on the simulated sampler, then the views, checke
 | 5 | TASK-APP-038 | the four controls (value box, choice, knob, slider) drawn from the tokens |
 | 6 | TASK-APP-039 | the edit panel view: header, tab row, groups, "Read again" |
 | 7 | TASK-APP-040 | mockup of the sample editor, READMEs, run on the real S5000 |
+| 8 | TASK-APP-041 | the loop end moves alone (found in TASK-APP-040's run) |
 
 ## References
-- **Requirements**: RQ-APP-086 to RQ-APP-089 (new); RQ-APP-048 (amended); RQ-APP-062 (superseded); RQ-APP-049 to RQ-APP-055; RQ-APP-001 to
+- **Requirements**: RQ-APP-086 to RQ-APP-090 (new); RQ-APP-048 (amended); RQ-APP-062 (superseded); RQ-APP-049 to RQ-APP-055; RQ-APP-001 to
   RQ-APP-005; RQ-APP-014; RQ-AKM-048, RQ-AKM-049; RQ-MCP-020
-- **ADRs**: ADR-APP-004 (DEC-APP-024 to DEC-APP-027); ADR-APP-001 (DEC-APP-004 to DEC-APP-006, DEC-APP-010); ADR-APP-002; ADR-APP-003 (DEC-APP-018)
+- **ADRs**: ADR-APP-004 (DEC-APP-024 to DEC-APP-028); ADR-APP-001 (DEC-APP-004 to DEC-APP-006, DEC-APP-010); ADR-APP-002; ADR-APP-003 (DEC-APP-018)
 
 This plan implements the tasks in the format specified below.
 ---
@@ -146,3 +147,18 @@ This plan implements the tasks in the format specified below.
   sampler); `EditorLayoutTests` and `EditTests` changed first, 52 app, layout and mockup tests passed. Open: moving loop start or loop end moves the
   other, keeping the loop length, with the sampler's loop lock open; SysEx has no loop lock (§0E, manual p. 152); a reading in 4 steps is asked.
 - **Assumptions**: —
+
+### TASK-APP-041: The loop end moves alone
+- **Tier**: S
+- **Status**: In Progress
+- **Description**: Setting the loop end sends it, then the loop start held before; a loop end below the loop start, or a loop start beyond the loop
+  end, is refused. The simulated sampler learns the S5000's rule (Set Loop End keeps the loop length), behind a switch.
+- **Requirement refs**: RQ-APP-090
+- **ADR refs**: ADR-APP-004 (DEC-APP-028)
+- **Acceptance Criteria** (Gherkin): RQ-APP-090's; on the real S5000, loop end then loop start set from the editor read back as set.
+- **Dependencies**: TASK-APP-040
+- **Assignee**: AI
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: two new cases of `EditTests.cpp` failed first (the loop start read 10000; the loop end 4000
+  sent), then passed (157 assertions in the 12 edit cases); `ctest -C Debug`: 1211 passed. Real run: the owner's.
+- **Assumptions**: (1) A loop start read beyond the sample's length (2^28 - 1, F6) is not sent again and bounds nothing. (2) The switch is off by
+  default, so the AKM and MCP tests keep the simple store.

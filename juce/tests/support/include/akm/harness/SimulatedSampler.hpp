@@ -411,6 +411,9 @@ namespace akm::harness
         std::uint8_t channels = 1;  ///< 1 = mono, 2 = stereo
         std::uint32_t length = 0;
         std::uint32_t rate = 0;
+        /// The real S5000's rule, off by default: Set Loop End (&2A) keeps the loop length and moves the loop start, a start below 0
+        /// reading back as 2^28 - 1 (OBSERVATIONS-RQ-AKM-051, F6). [RQ-APP-090, TASK-APP-041]
+        bool loopEndKeepsLength = false;
     };
 
     /// One multi in the sampler's memory (§0C, spec Tables 16-17): what the lot's primitives set or read. A multi
@@ -607,6 +610,10 @@ namespace akm::harness
         /// when `index` names no sample.
         void setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
                                  std::uint32_t length, std::uint32_t rate);
+
+        /// Makes Set Loop End keep the loop length of the sample at `index`, as the real S5000 does (`SampleRecord::loopEndKeepsLength`).
+        /// A no-op when `index` names no sample. [RQ-APP-090, TASK-APP-041]
+        void setSampleLoopEndKeepsLength(std::size_t index, bool keeps);
 
         /// Sets what &04 reports (RQ-AKM-053): 0 = S5000, 1 = S6000, any other byte a REPLY no model has.
         void setModel(std::uint8_t model);

@@ -39,6 +39,12 @@ Once a write is read back, the controller reads every parameter of the tab again
 on its own is shown (Loop Start after Set Loop End). A position beyond the sample's length is refused before anything is sent, the length being
 read with the read-only rows. [RQ-APP-088, RQ-APP-089]
 
+### DEC-APP-028: The loop end is written with the loop start after it
+The S5000's Set Loop End keeps the loop length (OBSERVATIONS-RQ-AKM-051, F6). The controller reads the loop start, sends the loop end, then sends
+that loop start again, in the same job; Set Loop Start moves nothing, so the pair ends as the person asked. The workaround stays in the editor's core:
+the gateway and the MCP tool keep one SysEx write per parameter. A loop end below the loop start, or a loop start beyond the loop end, is refused
+like a position beyond the sample. [RQ-APP-090]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each
