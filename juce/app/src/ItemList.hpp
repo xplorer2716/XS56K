@@ -81,6 +81,7 @@ namespace app::ui
         void listBoxItemDoubleClicked(int row, const juce::MouseEvent& event) override;
         void selectedRowsChanged(int lastRowSelected) override;
         void returnKeyPressed(int lastRowSelected) override;
+        using juce::Component::keyPressed;  // the component's own, which the key listener's would hide
         bool keyPressed(const juce::KeyPress& key, juce::Component* origin) override;
         [[nodiscard]] bool isItem(int row) const;
         juce::String getTooltipForRow(int row) override;
