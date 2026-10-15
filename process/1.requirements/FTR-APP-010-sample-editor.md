@@ -8,7 +8,8 @@ forward to priority 1 and replaces it.
 
 What section 0E of the SysEx specification allows (Tables 18 and 19): eight settable parameters (start, end, loop start, loop end, playback mode,
 original pitch, semitone tune, fine tune; Set `&20`-`&2A`, Get `&40`-`&4B`) and four read-only ones (RAM or virtual, channels, length, rate;
-`&30`-`&34`). No command trims, records or transfers the audio, so no waveform is drawn. On the real S5000, Set Loop End moves Loop Start
+`&30`-`&34`). No command trims, records or transfers the audio, so no waveform is drawn; the loop crossfade (XFADE LENGTH, XFADE CURVE) is a process of the
+front panel with no SysEx item: a later "remote control" tab will drive the front panel for it (owner, 2026-10-15). On the real S5000, Set Loop End moves Loop Start
 (`OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`).
 
 **Depends on** FTR-APP-001 (design system), FTR-APP-005 (memory view), FTR-APP-007 (RQ-APP-048 to RQ-APP-055), RQ-AKM-045, RQ-AKM-048, RQ-AKM-049,
@@ -29,7 +30,7 @@ RQ-MCP-020 (the gateway's sample parameters).
 ### RQ-APP-086: The "Sample" tab
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN a sample is selected in the memory view, the edit panel SHALL show the sample editor with one tab, "Sample", holding three groups: Playback (start, end, playback mode), Loop (loop start, loop end), Pitch (original pitch, semitone tune, fine tune), each parameter under the sample catalogue's name and edited under the rules of RQ-APP-051 to RQ-APP-054; the four positions SHALL each be a slider over the sample's length with a value box to type the exact point, and the original pitch SHALL read as a note name (60 = C3).
+- **Statement**: WHEN a sample is selected in the memory view, the edit panel SHALL show the sample editor with one tab, "Sample", holding three groups: Playback (start, end, playback mode), Loop (loop start, loop end), Pitch (original pitch, semitone tune, fine tune), each parameter under the sample catalogue's name and edited under the rules of RQ-APP-051 to RQ-APP-054; the four positions SHALL each be a value box to type the exact point with a slider over the sample's length under it, and the original pitch SHALL read as a note name (60 = C3).
 - **Rationale**: the owner's request of 2026-10-15; the grouping is the assistant's proposal, data the owner can change (DEC-APP-006); sliders because the editor is for musicians first (owner, 2026-10-15).
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the sample KICK selected, *When* the panel shows its editor, *Then* the tab "Sample" shows the eight parameters in their three groups with the values read from the sampler; *Given* an original pitch of 60, *Then* it reads "C3"; *When* the person sets the fine tune to 10, *Then* it is sent, read back and shown.

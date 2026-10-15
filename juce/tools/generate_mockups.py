@@ -300,9 +300,9 @@ def draw_group(c, x, y, group, values, pending):
             box_y = knob_top + (t("knob.size.default") - t("size.control.medium")) / 2
             draw_choice(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
         elif parameter.get("control") == "slider":
-            margin = t("slider.thumb.size")
-            draw_slider(c, cell_x + margin, knob_top + t("knob.size.default") / 2, w - 2 * margin, float(value.get("fraction", 0.0)),
-                        colour, is_pending)
+            # The value box on top, the slider under the label (owner, 2026-10-15). [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
+            box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
+            draw_value_box(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
         elif parameter.get("control") == "valuebox":
             box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
             draw_value_box(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
@@ -310,7 +310,11 @@ def draw_group(c, x, y, group, values, pending):
             draw_knob(c, centre, knob_top + t("knob.size.default") / 2, float(value.get("fraction", 0.0)), colour, is_pending)
         label_y = knob_top + t("knob.size.default") + t("space.between") + t("font.label.size")
         draw_label(c, centre, label_y, parameter["label"], anchor="middle")
-        if parameter.get("control") not in ("choice", "valuebox"):
+        if parameter.get("control") == "slider":
+            margin = t("slider.thumb.size")
+            draw_slider(c, cell_x + margin, label_y + t("size.space.1") + t("valuebox.height") / 2, w - 2 * margin,
+                        float(value.get("fraction", 0.0)), colour, is_pending)
+        elif parameter.get("control") not in ("choice", "valuebox"):
             draw_value_box(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), value.get("text", ""), is_pending)
         cell_x += w
     return width, height

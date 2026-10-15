@@ -236,11 +236,11 @@ RQ-APP-071|108-116||Front-panel keys
 RQ-APP-072|117-125||How the sampler's screen follows the application
 RQ-APP-073|126-133||Curves drawn and edited with the mouse
 @process/1.requirements/FTR-APP-010-sample-editor.md
-FTR-APP-010|1-63||Sample Editor — the "Sample" Tab of the Edit Panel
-RQ-APP-086|29-37||The "Sample" tab
-RQ-APP-087|38-46||What the sample is, above the tab
-RQ-APP-088|47-55||The positions stay within the sample
-RQ-APP-089|56-63||Every value of the tab read back after a change
+FTR-APP-010|1-64||Sample Editor — the "Sample" Tab of the Edit Panel
+RQ-APP-086|30-38||The "Sample" tab
+RQ-APP-087|39-47||What the sample is, above the tab
+RQ-APP-088|48-56||The positions stay within the sample
+RQ-APP-089|57-64||Every value of the tab read back after a change
 @process/1.requirements/FTR-MCP-001-program-editing-server.md
 FTR-MCP-001|1-180||MCP Server for Program Editing (proof of concept)
 RQ-MCP-001|56-64||MCP server over standard input and output
