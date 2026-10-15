@@ -1,0 +1,25 @@
+{
+  "_comment": "The program editor (FTR-APP-008): its first tab, the program's own parameters (PLAN-APP-006 step 1); the assistant's proposal of 2026-10-15, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030)]",
+  "editor": "program",
+  "tabs": [
+    {"title": "Program", "groups": [
+      {"title": "Output", "parameters": [
+        {"name": "program loudness", "label": "Loudness", "role": "general", "control": "knob"},
+        {"name": "program velocity sensitivity", "label": "Vel sens", "role": "general", "control": "knob"}]},
+      {"title": "Tuning", "parameters": [
+        {"name": "program semitone tune", "label": "Semi", "role": "general", "control": "knob"},
+        {"name": "program fine tune", "label": "Fine", "role": "general", "control": "knob"},
+        {"name": "tune template", "label": "Template", "role": "general", "control": "choice"},
+        {"name": "tune key", "label": "Key", "role": "general", "control": "choice"}]},
+      {"title": "Pitch bend", "parameters": [
+        {"name": "pitch bend up", "label": "Up", "role": "modulation", "control": "knob"},
+        {"name": "pitch bend down", "label": "Down", "role": "modulation", "control": "knob"},
+        {"name": "pitch bend mode", "label": "Mode", "role": "modulation", "control": "choice"},
+        {"name": "aftertouch pitch", "label": "Aftertouch", "role": "modulation", "control": "knob"}]},
+      {"title": "Portamento", "parameters": [
+        {"name": "legato", "label": "Legato", "role": "general", "control": "choice"},
+        {"name": "portamento", "label": "Portamento", "role": "general", "control": "choice"},
+        {"name": "portamento mode", "label": "Mode", "role": "general", "control": "choice"},
+        {"name": "portamento time", "label": "Time", "role": "general", "control": "knob"}]}]}
+  ]
+}

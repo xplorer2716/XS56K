@@ -94,3 +94,12 @@ The pages of the sampler's EDIT PROGRAM mode (user manual pp. 80-127) are a sour
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* PAD with 2 keygroups, *When* the person adds 2, *Then* the selector goes from 1 to 4; *When* the person deletes keygroup 3 and confirms, *Then* it goes from 1 to 3; *Given* a program with 1 keygroup, *When* the person deletes it, *Then* nothing is sent.
 - **Dependencies**: RQ-APP-001, RQ-APP-011, RQ-APP-058, RQ-AKM-022
+
+### RQ-APP-093: The Program tab
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN a program is selected in the memory view, the edit panel SHALL show the program editor, its header giving the program's keygroup count, with a tab "Program" holding the program's own parameters in four groups: Output (loudness, velocity sensitivity), Tuning (semitone and fine tune, tune template, key), Pitch bend (up, down, mode, aftertouch pitch), Portamento (legato, portamento, its mode and time), each edited under the rules of RQ-APP-051 to RQ-APP-054 and RQ-APP-091.
+- **Rationale**: the first step of PLAN-APP-006: the program's own parameters need no keygroup; the amplitude and pan modulation inputs go to the Modulation tab, the keygroup crossfade to the Keygroup tab. The grouping is the assistant's proposal, data the owner can change (TASK-APP-002).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the program PAD of 2 keygroups, *When* it is selected, *Then* the header reads "2 keygroups" and the tab Program shows its fourteen parameters read from the sampler; *When* the person sets its loudness to 70, *Then* it is sent, read back and shown; *Given* legato on, *Then* it reads "ON".
+- **Dependencies**: RQ-APP-048, RQ-APP-051 to RQ-APP-054, RQ-APP-056, RQ-APP-091, RQ-AKM-024

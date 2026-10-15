@@ -54,14 +54,15 @@ namespace app
         std::size_t tab = 0;
         std::vector<EditValue> values;
         std::vector<EditValue> info;
+        std::optional<int> keygroups;  ///< a program's keygroup count, read when it is made current [RQ-APP-093]
     };
 
     /// A value as the sampler's screen writes it: a root as a note name ("C3"), a signed tune with its sign ("+10"), a choice by its label
-    /// ("ONE SHOT"), any other number as it is. [RQ-APP-051, RQ-APP-086, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
+    /// ("ONE SHOT"), a switch as "ON" or "OFF", any other number as it is. [RQ-APP-051, RQ-APP-086, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
     [[nodiscard]] std::string valueText(const EditValue& value);
     /// What the person typed for a parameter: a number (a leading + allowed), a note name for a root, a label for a choice, without regard
     /// to case or surrounding spaces; nothing when it is none of them. The range is checked by the edit controller. [RQ-APP-051, TASK-APP-038]
     [[nodiscard]] std::optional<std::int64_t> valueFrom(const EditValue& value, std::string_view text);
-    /// The sample's information line: "RAM, mono, 22050 points, 44100 Hz". [RQ-APP-087, TASK-APP-038]
+    /// The information line: a sample's "RAM, mono, 22050 points, 44100 Hz", a program's "2 keygroups". [RQ-APP-087, RQ-APP-093, TASK-APP-038]
     [[nodiscard]] std::string infoText(const EditState& state);
 }

@@ -150,7 +150,7 @@ namespace app::ui
         {
             int id = FIRST_ITEM_ID;
             for (const std::string& label : value.definition->labels)
-                _choice.addItem(juce::String(label), id++);
+                _choice.addItem(juce::String(label).toUpperCase(), id++);  // as the sampler's screen and valueText write it
         }
         _choice.setSelectedId(static_cast<int>(value.value) + FIRST_ITEM_ID, juce::dontSendNotification);
         _choice.setColour(juce::ComboBox::textColourId, colourOf(value.pending ? kColourStatusPending : kChoiceText));

@@ -9,6 +9,39 @@
 
 namespace app::layouts
 {
+    inline constexpr std::array<LayoutParameter, 2> kProgramTab0Group0{{
+        {"program loudness", "Loudness", Role::General, Control::Knob},
+        {"program velocity sensitivity", "Vel sens", Role::General, Control::Knob},
+    }};
+    inline constexpr std::array<LayoutParameter, 4> kProgramTab0Group1{{
+        {"program semitone tune", "Semi", Role::General, Control::Knob},
+        {"program fine tune", "Fine", Role::General, Control::Knob},
+        {"tune template", "Template", Role::General, Control::Choice},
+        {"tune key", "Key", Role::General, Control::Choice},
+    }};
+    inline constexpr std::array<LayoutParameter, 4> kProgramTab0Group2{{
+        {"pitch bend up", "Up", Role::Modulation, Control::Knob},
+        {"pitch bend down", "Down", Role::Modulation, Control::Knob},
+        {"pitch bend mode", "Mode", Role::Modulation, Control::Choice},
+        {"aftertouch pitch", "Aftertouch", Role::Modulation, Control::Knob},
+    }};
+    inline constexpr std::array<LayoutParameter, 4> kProgramTab0Group3{{
+        {"legato", "Legato", Role::General, Control::Choice},
+        {"portamento", "Portamento", Role::General, Control::Choice},
+        {"portamento mode", "Mode", Role::General, Control::Choice},
+        {"portamento time", "Time", Role::General, Control::Knob},
+    }};
+    inline constexpr std::array<LayoutGroup, 4> kProgramTab0Groups{{
+        LayoutGroup{"Output", kProgramTab0Group0},
+        LayoutGroup{"Tuning", kProgramTab0Group1},
+        LayoutGroup{"Pitch bend", kProgramTab0Group2},
+        LayoutGroup{"Portamento", kProgramTab0Group3},
+    }};
+    inline constexpr std::array<LayoutTab, 1> kProgramTabs{{
+        LayoutTab{"Program", kProgramTab0Groups},
+    }};
+    inline constexpr std::array<std::span<const std::string_view>, 0> kProgramOrders{{
+    }};
     inline constexpr std::array<LayoutParameter, 2> kSampleTab0Group0{{
         {"sample start position", "Start", Role::Sample, Control::Slider},
         {"sample end position", "End", Role::Sample, Control::Slider},
@@ -40,7 +73,8 @@ namespace app::layouts
     inline constexpr std::array<std::span<const std::string_view>, 1> kSampleOrders{{
         std::span<const std::string_view>{kSampleOrder0},
     }};
-    inline constexpr std::array<EditorLayout, 1> kEditorLayouts{{
+    inline constexpr std::array<EditorLayout, 2> kEditorLayouts{{
+        EditorLayout{"program", kProgramTabs, kProgramOrders},
         EditorLayout{"sample", kSampleTabs, kSampleOrders},
     }};
 }

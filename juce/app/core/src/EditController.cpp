@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "app/EditController.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <string>
 #include <utility>
@@ -27,10 +28,10 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app
 {
-    // [RQ-APP-048, RQ-APP-053, RQ-APP-086 to RQ-APP-088, RQ-APP-090, ADR-APP-004 (DEC-APP-025, DEC-APP-028), TASK-APP-036, TASK-APP-041]
+    // [RQ-APP-048, RQ-APP-053, RQ-APP-086 to RQ-APP-088, RQ-APP-090, RQ-APP-093, ADR-APP-004 (DEC-APP-025, DEC-APP-028, DEC-APP-030),
+    // TASK-APP-036, TASK-APP-041, TASK-APP-043]
     namespace
     {
-        constexpr const char* SAMPLE_EDITOR = "sample";
         constexpr const char* READING_LABEL = "Reading ";
         constexpr const char* SETTING_LABEL = "Setting the ";
         constexpr const char* OF = " of ";
@@ -39,21 +40,97 @@ namespace app
         constexpr const char* LENGTH_NAME = "sample length";
         constexpr const char* LOOP_START_NAME = "sample loop start";
         constexpr const char* LOOP_END_NAME = "sample loop end";
+        constexpr const char* NO_VALUE = "The sampler answered no value.";
+
+        using Value = mcp::Outcome<std::int64_t>;
+        /// What making an item current brings back: a program's keygroup count, nothing for a sample.
+        using Selected = mcp::Outcome<std::optional<int>>;
+
+        /// What an editor edits and how: the kind, the layout's editor name, the catalogue, how the item is made current and how one of its
+        /// parameters is read and written. [RQ-APP-048, RQ-APP-093, DEC-APP-030]
+        struct Binding
+        {
+            MemoryKind kind;
+            std::string_view editor;
+            const mcp::ParameterCatalogue& (*catalogue)();
+            Selected (*select)(mcp::SamplerGateway&, const std::string&);
+            Value (*read)(mcp::SamplerGateway&, const mcp::ParameterDefinition&);
+            Value (*write)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, std::int64_t);
+        };
+
+        /// A program parameter's one value: a program parameter has no keygroup (TASK-APP-044 brings the keygroup's).
+        Value programValue(const mcp::Outcome<std::vector<mcp::ParameterValue>>& values)
+        {
+            if (!values.ok())
+                return Value::failure(values.problem);
+            if (values.value->empty())
+                return Value::failure(NO_VALUE);
+            return Value::success(values.value->front().value);
+        }
+
+        Selected selectSample(mcp::SamplerGateway& gateway, const std::string& name)
+        {
+            const auto selected = gateway.selectSampleByName(name);
+            return selected.ok() ? Selected::success(std::nullopt) : Selected::failure(selected.problem);
+        }
+
+        Value readSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter)
+        {
+            return gateway.readSampleParameter(parameter);
+        }
+
+        Value writeSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value)
+        {
+            return gateway.writeSampleParameter(parameter, value);
+        }
+
+        Selected selectProgram(mcp::SamplerGateway& gateway, const std::string& name)
+        {
+            const auto selected = gateway.selectProgramByName(name);
+            return selected.ok() ? Selected::success(selected.value->keygroupCount) : Selected::failure(selected.problem);
+        }
+
+        Value readProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter)
+        {
+            return programValue(gateway.readParameter(parameter, mcp::KeygroupSelection::all()));
+        }
+
+        Value writeProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value)
+        {
+            return programValue(gateway.writeParameter(parameter, value, mcp::KeygroupSelection::all()));
+        }
+
+        const std::array<Binding, 2> BINDINGS{{
+            {MemoryKind::Sample, "sample", &mcp::ParameterCatalogue::samples, &selectSample, &readSample, &writeSample},
+            {MemoryKind::Program, "program", &mcp::ParameterCatalogue::standard, &selectProgram, &readProgram, &writeProgram},
+        }};
+
+        const Binding* bindingOf(MemoryKind kind)
+        {
+            const auto found = std::find_if(BINDINGS.begin(), BINDINGS.end(), [kind](const Binding& binding) { return binding.kind == kind; });
+            return found == BINDINGS.end() ? nullptr : &*found;
+        }
+
+        const Binding* bindingOf(const EditState& state)
+        {
+            return state.item ? bindingOf(state.item->kind) : nullptr;
+        }
 
         /// The editor layout of a kind, or null while the kind has no editor. [RQ-APP-048]
         const layouts::EditorLayout* layoutOf(MemoryKind kind)
         {
-            if (kind != MemoryKind::Sample)
+            const Binding* binding = bindingOf(kind);
+            if (binding == nullptr)
                 return nullptr;
             const auto& all = layouts::kEditorLayouts;
-            const auto found =
-                std::find_if(all.begin(), all.end(), [](const layouts::EditorLayout& layout) { return layout.editor == SAMPLE_EDITOR; });
+            const auto found = std::find_if(all.begin(), all.end(),
+                                            [binding](const layouts::EditorLayout& layout) { return layout.editor == binding->editor; });
             return found == all.end() ? nullptr : &*found;
         }
 
-        const mcp::ParameterDefinition* definitionOf(std::string_view name)
+        const mcp::ParameterDefinition* definitionOf(const Binding& binding, std::string_view name)
         {
-            const auto& rows = mcp::ParameterCatalogue::samples().parameters();
+            const auto& rows = binding.catalogue().parameters();
             const auto found = std::find_if(rows.begin(), rows.end(), [name](const mcp::ParameterDefinition& row) { return row.name == name; });
             return found == rows.end() ? nullptr : &*found;
         }
@@ -64,17 +141,18 @@ namespace app
             EditState state;
             state.item = item;
             state.layout = layout;
-            if (layout == nullptr || layout->tabs.empty())
+            const Binding* binding = bindingOf(item.kind);
+            if (layout == nullptr || layout->tabs.empty() || binding == nullptr)
                 return state;
             for (const layouts::LayoutGroup& group : layout->tabs[state.tab].groups)
             {
                 for (const layouts::LayoutParameter& parameter : group.parameters)
                 {
-                    if (const mcp::ParameterDefinition* definition = definitionOf(parameter.name))
+                    if (const mcp::ParameterDefinition* definition = definitionOf(*binding, parameter.name))
                         state.values.push_back(EditValue{definition, &parameter, 0, definition->min, definition->max, false});
                 }
             }
-            for (const mcp::ParameterDefinition& definition : mcp::ParameterCatalogue::samples().parameters())
+            for (const mcp::ParameterDefinition& definition : binding->catalogue().parameters())
             {
                 if (definition.readOnly)
                     state.info.push_back(EditValue{&definition, nullptr, 0, definition.min, definition.max, false});
@@ -82,21 +160,23 @@ namespace app
             return state;
         }
 
-        /// What one reading brings back: the tab's values and the information, in the state's order.
+        /// What one reading brings back: the tab's values and the information, in the state's order, and a program's keygroup count.
         struct Reading
         {
             std::vector<std::int64_t> values;
             std::vector<std::int64_t> info;
+            std::optional<int> keygroups;
         };
 
         using Definitions = std::vector<const mcp::ParameterDefinition*>;
 
-        /// Each parameter of `rows` read from the current sample, into `into`; the problem of the first that fails.
-        std::optional<std::string> readInto(mcp::SamplerGateway& gateway, const Definitions& rows, std::vector<std::int64_t>& into)
+        /// Each parameter of `rows` read from the current item, into `into`; the problem of the first that fails.
+        std::optional<std::string> readInto(const Binding& binding, mcp::SamplerGateway& gateway, const Definitions& rows,
+                                            std::vector<std::int64_t>& into)
         {
             for (const mcp::ParameterDefinition* definition : rows)
             {
-                const auto read = gateway.readSampleParameter(*definition);
+                const auto read = binding.read(gateway, *definition);
                 if (!read.ok())
                     return read.problem;
                 into.push_back(*read.value);
@@ -104,16 +184,18 @@ namespace app
             return std::nullopt;
         }
 
-        mcp::Outcome<Reading> readOn(mcp::SamplerGateway& gateway, const std::string& sample, const Definitions& values, const Definitions& info)
+        mcp::Outcome<Reading> readOn(const Binding& binding, mcp::SamplerGateway& gateway, const std::string& item, const Definitions& values,
+                                     const Definitions& info)
         {
-            // The edited sample is made the sampler's current one first: the front panel may have moved it. [DEC-APP-025]
-            const auto selected = gateway.selectSampleByName(sample);
+            // The edited item is made the sampler's current one first: the front panel may have moved it. [DEC-APP-025]
+            const auto selected = binding.select(gateway, item);
             if (!selected.ok())
                 return mcp::Outcome<Reading>::failure(selected.problem);
             Reading reading;
+            reading.keygroups = *selected.value;
             for (const auto& [rows, into] : {std::pair{&values, &reading.values}, std::pair{&info, &reading.info}})
             {
-                if (const auto problem = readInto(gateway, *rows, *into))
+                if (const auto problem = readInto(binding, gateway, *rows, *into))
                     return mcp::Outcome<Reading>::failure(*problem);
             }
             return mcp::Outcome<Reading>::success(std::move(reading));
@@ -127,11 +209,11 @@ namespace app
             std::vector<std::int64_t> values;
         };
 
-        Written writeOn(mcp::SamplerGateway& gateway, const std::string& sample, const mcp::ParameterDefinition& parameter, std::int64_t value,
-                        const Definitions& tab)
+        Written writeOn(const Binding& binding, mcp::SamplerGateway& gateway, const std::string& item, const mcp::ParameterDefinition& parameter,
+                        std::int64_t value, const Definitions& tab)
         {
             Written written;
-            const auto selected = gateway.selectSampleByName(sample);
+            const auto selected = binding.select(gateway, item);
             if (!selected.ok())
             {
                 written.problem = selected.problem;
@@ -140,20 +222,20 @@ namespace app
             // The S5000's Set Loop End moves the loop start to keep the loop length: the loop start held before is sent again after it, Set
             // Loop Start moving nothing else. A start beyond the new end (2^28 - 1 after a start pushed below 0) is not. [RQ-APP-090, DEC-APP-028]
             std::optional<std::int64_t> loopStart;
-            const mcp::ParameterDefinition* loopStartParameter = definitionOf(LOOP_START_NAME);
+            const mcp::ParameterDefinition* loopStartParameter = definitionOf(binding, LOOP_START_NAME);
             if (parameter.name == LOOP_END_NAME && loopStartParameter != nullptr)
             {
-                if (const auto read = gateway.readSampleParameter(*loopStartParameter); read.ok() && *read.value <= value)
+                if (const auto read = binding.read(gateway, *loopStartParameter); read.ok() && *read.value <= value)
                     loopStart = *read.value;
             }
-            if (const auto set = gateway.writeSampleParameter(parameter, value); !set.ok())
+            if (const auto set = binding.write(gateway, parameter, value); !set.ok())
                 written.problem = set.problem;
             else if (loopStart)
             {
-                if (const auto again = gateway.writeSampleParameter(*loopStartParameter, *loopStart); !again.ok())
+                if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart); !again.ok())
                     written.problem = again.problem;
             }
-            if (const auto problem = readInto(gateway, tab, written.values))
+            if (const auto problem = readInto(binding, gateway, tab, written.values))
             {
                 written.problem = written.problem ? *written.problem + " " + *problem : *problem;
                 written.values.clear();
@@ -271,13 +353,13 @@ namespace app
         const MemoryItem item = *state.item;
         _controller.runOnSampler<Reading>(
             READING_LABEL + item.name,
-            [sample = item.name, values = definitionsOf(state.values), info = definitionsOf(state.info)](mcp::SamplerGateway& gateway) {
-                return readOn(gateway, sample, values, info);
-            },
+            [binding = bindingOf(state), name = item.name, values = definitionsOf(state.values),
+             info = definitionsOf(state.info)](mcp::SamplerGateway& gateway) { return readOn(*binding, gateway, name, values, info); },
             [this, alive = std::weak_ptr<int>(_alive), item](const Reading& reading) {
                 if (alive.expired() || _model.edit().item != std::optional<MemoryItem>(item))
                     return;  // another item was selected meanwhile: its own reading follows
                 EditState next = _model.edit();
+                next.keygroups = reading.keygroups;
                 std::int64_t length = 0;
                 for (std::size_t i = 0; i < next.info.size() && i < reading.info.size(); ++i)
                 {
@@ -329,8 +411,9 @@ namespace app
         _writing.insert(index);
         const bool queued = _controller.runOnSampler<Written>(
             label,
-            [sample = item.name, parameter = shown.definition, value, tab = definitionsOf(state.values)](mcp::SamplerGateway& gateway) {
-                return mcp::Outcome<Written>::success(writeOn(gateway, sample, *parameter, value, tab));
+            [binding = bindingOf(state), name = item.name, parameter = shown.definition, value,
+             tab = definitionsOf(state.values)](mcp::SamplerGateway& gateway) {
+                return mcp::Outcome<Written>::success(writeOn(*binding, gateway, name, *parameter, value, tab));
             },
             [this, alive = std::weak_ptr<int>(_alive), item, index, label](const Written& written) {
                 if (alive.expired() || _model.edit().item != std::optional<MemoryItem>(item))

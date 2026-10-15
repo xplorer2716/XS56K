@@ -51,6 +51,12 @@ generates them with the tabs). The controller bounds a value by its nearest neig
 editor's chain is start, loop start, loop end, end. A control shows the model's value again after every input, accepted or refused; the slider
 when the drag ends. [RQ-APP-091, RQ-APP-092]
 
+### DEC-APP-030: One binding per editor
+The edit controller stays generic: a binding, chosen by the layout's editor name, gives the kind it edits, its catalogue, how the item is made
+current, and how a parameter is read and written. The sample's: `samples()`, `selectSampleByName`, `readSampleParameter`/`writeSampleParameter`,
+the read-only rows as information. The program's: `standard()`, `selectProgramByName` (whose answer gives the keygroup count of the header),
+`readParameter`/`writeParameter`, the keygroup selection not used by a program parameter (it will be, TASK-APP-044). [RQ-APP-048, RQ-APP-093]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

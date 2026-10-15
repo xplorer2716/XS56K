@@ -25,7 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app
 {
-    // [RQ-APP-051, RQ-APP-086, RQ-APP-087, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
+    // [RQ-APP-051, RQ-APP-086, RQ-APP-087, RQ-APP-093, ADR-APP-004 (DEC-APP-027), TASK-APP-038, TASK-APP-043]
     namespace
     {
         /// The parameter read as a note name (the sampler's screen shows "C3"): 60 is C3, 21 is A-1.
@@ -47,6 +47,8 @@ namespace app
         constexpr std::string_view POINTS = " points";
         constexpr std::string_view HERTZ = " Hz";
         constexpr std::string_view INFO_SEPARATOR = ", ";
+        constexpr std::string_view KEYGROUP = " keygroup";
+        constexpr std::string_view KEYGROUPS = " keygroups";
 
         bool isNote(const EditValue& value)
         {
@@ -117,8 +119,9 @@ namespace app
         const mcp::ParameterDefinition& definition = *value.definition;
         if (isNote(value))
             return noteName(value.value);
-        if (definition.kind == mcp::ParameterKind::Choice && value.value >= 0 && static_cast<std::size_t>(value.value) < definition.labels.size())
-            return definition.labels[static_cast<std::size_t>(value.value)];
+        const bool labelled = definition.kind == mcp::ParameterKind::Choice || definition.kind == mcp::ParameterKind::Switch;
+        if (labelled && value.value >= 0 && static_cast<std::size_t>(value.value) < definition.labels.size())
+            return upper(definition.labels[static_cast<std::size_t>(value.value)]);  // the catalogue says "on", the sampler's screen "ON"
         if (definition.kind == mcp::ParameterKind::Signed && value.value > 0)
             return PLUS + std::to_string(value.value);
         return std::to_string(value.value);
@@ -132,7 +135,7 @@ namespace app
         if (isNote(value))
             return noteFrom(typed);
         const auto& labels = value.definition->labels;
-        const auto found = std::find_if(labels.begin(), labels.end(), [key = upper(typed)](const std::string& label) { return label == key; });
+        const auto found = std::find_if(labels.begin(), labels.end(), [key = upper(typed)](const std::string& label) { return upper(label) == key; });
         if (found != labels.end())
             return static_cast<std::int64_t>(found - labels.begin());
         return std::nullopt;
@@ -152,6 +155,8 @@ namespace app
             add(std::to_string(length->value) + std::string(POINTS));
         if (const EditValue* rate = infoNamed(state, RATE_NAME))
             add(std::to_string(rate->value) + std::string(HERTZ));
+        if (state.keygroups)
+            add(std::to_string(*state.keygroups) + std::string(*state.keygroups == 1 ? KEYGROUP : KEYGROUPS));
         return text;
     }
 }

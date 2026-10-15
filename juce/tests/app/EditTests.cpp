@@ -54,6 +54,8 @@ namespace
     constexpr std::size_t TRIM_GROUP_PARAMETERS = 2;
     constexpr std::size_t TAB_PARAMETERS = 8;
     constexpr std::size_t INFO_ROWS = 4;
+    constexpr int PAD_KEYGROUPS = 2;
+    constexpr std::size_t PROGRAM_TAB_PARAMETERS = 14;
 
     const mcp::ParameterDefinition& sampleParameter(const std::string& name)
     {
@@ -61,13 +63,14 @@ namespace
         return *std::find_if(rows.begin(), rows.end(), [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
     }
 
-    /// The programs PAD, the samples KICK (RAM, mono, 22050 points at 44100 Hz, played to its end, fine tune +10, root C3) and SNARE; connected.
+    /// The program PAD (2 keygroups), the multi M1, the samples KICK (RAM, mono, 22050 points at 44100 Hz, played to its end, fine tune +10, root C3) and SNARE; connected.
     struct EditRig
     {
         EditRig()
         {
-            mcp::test::seedSimulatedPrograms(rig.backend, {{"PAD"}}, 0);
+            mcp::test::seedSimulatedPrograms(rig.backend, {{"PAD", PAD_KEYGROUPS}}, 0);
             rig.sampler->setSampleNames({"KICK", "SNARE"});
+            rig.sampler->setMultiNames({"M1"});
             rig.sampler->setSampleAttributes(0, RAM, MONO, KICK_LENGTH, KICK_RATE);
             set("sample end position", KICK_LENGTH);  // a real sample plays to its end
             set("sample fine tune", FINE);
@@ -154,20 +157,83 @@ TEST_CASE("Given KICK, When it is selected in the memory view, Then the sample e
     CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
 
-TEST_CASE("Given the program PAD, When it is selected, Then the panel names it and has no editor for it, and nothing of the sample section is "
+TEST_CASE("Given the multi M1, When it is selected, Then the panel names it and has no editor for it, and nothing of the sample section is "
           "sent [RQ-APP-048, TASK-APP-036]",
           "[app][edit]")
 {
     EditRig fixture;
     const std::size_t before = fixture.sentToSamples();
-    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    fixture.memory.select(MemoryItem{MemoryKind::Multi, "M1"});
     REQUIRE(fixture.rig.settle());
 
     const app::EditState& edit = fixture.rig.model.edit();
-    CHECK(edit.item == std::optional<MemoryItem>(MemoryItem{MemoryKind::Program, "PAD"}));
+    CHECK(edit.item == std::optional<MemoryItem>(MemoryItem{MemoryKind::Multi, "M1"}));
     CHECK(edit.layout == nullptr);
     CHECK(edit.values.empty());
     CHECK(fixture.sentToSamples() == before);
+}
+
+namespace
+{
+    const mcp::ParameterDefinition& programParameter(const std::string& name)
+    {
+        const auto& rows = mcp::ParameterCatalogue::standard().parameters();
+        return *std::find_if(rows.begin(), rows.end(), [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
+    }
+
+    constexpr std::int64_t PAD_LOUDNESS = 80;
+    constexpr std::int64_t LEGATO_ON = 1;
+
+    /// PAD with its loudness 80 and legato on, put on the sampler from outside the application, then selected in the memory view.
+    void showPad(EditRig& fixture)
+    {
+        REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+        REQUIRE(fixture.rig.gateway.writeParameter(programParameter("program loudness"), PAD_LOUDNESS, mcp::KeygroupSelection::all()).ok());
+        REQUIRE(fixture.rig.gateway.writeParameter(programParameter("legato"), LEGATO_ON, mcp::KeygroupSelection::all()).ok());
+        fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+        REQUIRE(fixture.rig.settle());
+    }
+}
+
+TEST_CASE("Given the program PAD of 2 keygroups, When it is selected, Then the program editor shows its keygroup count and the tab Program its "
+          "fourteen parameters read from the sampler [RQ-APP-093, RQ-APP-048, TASK-APP-043]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showPad(fixture);
+
+    const app::EditState& edit = fixture.rig.model.edit();
+    REQUIRE(edit.layout != nullptr);
+    CHECK(edit.layout->editor == "program");
+    REQUIRE(edit.values.size() == PROGRAM_TAB_PARAMETERS);
+    CHECK(edit.values[0].definition->name == "program loudness");
+    CHECK(fixture.shown("program loudness") == std::optional<std::int64_t>(PAD_LOUDNESS));
+    CHECK(edit.keygroups == std::optional<int>(PAD_KEYGROUPS));
+    CHECK(app::infoText(edit) == "2 keygroups");
+    CHECK(app::valueText(edit.values[fixture.index("legato")]) == "ON");
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD shown, When the person sets its loudness to 70 and types legato off, Then each is sent, read back and shown "
+          "[RQ-APP-093, RQ-APP-052, TASK-APP-043]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showPad(fixture);
+
+    constexpr std::int64_t NEW_LOUDNESS = 70;
+    fixture.editor.set(fixture.index("program loudness"), NEW_LOUDNESS);
+    const auto off = app::valueFrom(fixture.rig.model.edit().values[fixture.index("legato")], "off");
+    REQUIRE(off == std::optional<std::int64_t>(0));
+    fixture.editor.set(fixture.index("legato"), *off);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("program loudness") == std::optional<std::int64_t>(NEW_LOUDNESS));
+    CHECK(fixture.shown("legato") == std::optional<std::int64_t>(0));
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    const auto read = fixture.rig.gateway.readParameter(programParameter("program loudness"), mcp::KeygroupSelection::all());
+    REQUIRE(read.ok());
+    CHECK(read.value->front().value == NEW_LOUDNESS);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
 
 TEST_CASE("Given KICK shown, When its fine tune is changed on the front panel and the person asks to read again, Then the new value is shown; "

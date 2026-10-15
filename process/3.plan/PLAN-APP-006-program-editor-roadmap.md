@@ -12,7 +12,7 @@ the real S5000 when it is done. Two orders, independent of each other:
 
 | Implementation | Tab | Scope | New piece |
 |---|---|---|---|
-| 1 | Program | program | the program editor itself: the program chosen by name, the program-scope parameters of `ParameterCatalogue::standard()` |
+| 1 | Program | program | the program editor itself: the program chosen by name, the program-scope parameters of `ParameterCatalogue::standard()` (DEC-APP-030) |
 | 2 | Amp | keygroup | the keygroup selector (RQ-APP-058); each parameter says its scope (RQ-APP-056) |
 | 3 | Filter | keygroup | none: a layout |
 | 4 | Keygroup | keygroup and zones | the parameters of the four zones; a sample chosen among those in memory (RQ-APP-060); orders note and velocity (RQ-APP-092) |
@@ -30,7 +30,7 @@ the real S5000 when it is done. Two orders, independent of each other:
 | 3 | Filter | mode, cutoff, resonance, keyboard track, the Filter envelope |
 | 4 | Mod sources | LFO 1, LFO 2, the Aux envelope |
 | 5 | Modulation | the routings of the sources |
-| 6 | Program | output, MIDI and tune, pitch bend: set once |
+| 6 | Program | output, tuning, pitch bend, portamento: set once |
 
 The three envelopes (Amp, Filter, Aux) are knobs first; an envelope graph could come later as a fifth control of the library (DEC-APP-027),
 changing nothing else. A zone's sample could open the sample editor.
@@ -50,16 +50,21 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 
 ### TASK-APP-043: The Program tab
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: The program editor opens on a program selected in the memory view, chosen on the sampler by name; its first tab holds the
-  program-scope parameters (output, MIDI and tune, pitch bend).
-- **Requirement refs**: RQ-APP-048, RQ-APP-056, RQ-APP-057
-- **ADR refs**: ADR-APP-004
+  program-scope parameters: Output, Tuning, Pitch bend, Portamento; the header gives the keygroup count. The S5000's SysEx has no MIDI
+  setting of a program (§0A), so none is shown.
+- **Requirement refs**: RQ-APP-093 (new), RQ-APP-048 (amended), RQ-APP-056, RQ-APP-057
+- **ADR refs**: ADR-APP-004 (DEC-APP-030)
 - **Acceptance Criteria** (Gherkin): *Given* the program PAD selected, *Then* the Program tab shows its values read from the sampler; *When* the
   person changes one, *Then* it is sent and read back.
 - **Dependencies**: TASK-APP-042
 - **Assignee**: AI
-- **Verification**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: `layouts/program.json`, `screens/program-editor.json`, the mockups
+  `program-editor-connected.svg` and `-writing.svg` generated and looked at (a long template name overflows its choice in the mockup). Two new
+  cases of `EditTests.cpp` (PAD's fourteen values, "2 keygroups", legato "ON"; loudness 70 and legato typed "off" sent and read back) failed
+  first to compile, then passed; the "no editor" case moved to a multi; 71 app cases passed; `ctest -C Debug`: 1215 passed; the editor built
+  warning-clean. Real run: the S5000 had no program in memory (2026-10-15); pending.
 - **Assumptions**: (1) The edit controller generalises from the sample catalogue to a catalogue chosen by the layout.
 
 ### TASK-APP-044: The Amp tab and the keygroup selector
