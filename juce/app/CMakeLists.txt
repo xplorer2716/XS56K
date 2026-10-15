@@ -14,12 +14,15 @@ juce_add_gui_app(XS56KApp
     VERSION "${VERSION_NUMERIC}")
 
 target_sources(XS56KApp PRIVATE
+    src/BrowserView.cpp
+    src/ItemList.cpp
     src/JuceAdapters.cpp
     src/LookAndFeel.cpp
     src/Main.cpp
     src/MainComponent.cpp
     src/MidiSetupDialog.cpp
-    src/StatusBar.cpp)
+    src/StatusBar.cpp
+    src/TextPrompt.cpp)
 
 # Inter, regular and medium, embedded; its licence (SIL OFL 1.1) is copied next to the executable. [RQ-APP-001, ADR-APP-002 (DEC-APP-015)]
 set(INTER_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/resources/fonts/LICENSE.txt)

@@ -282,7 +282,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-018: The file browser view
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `XS56KApp`: the browser's component: the tree of disks, folders and files with each kind's icon, the current folder marked and the path always shown, the
   selected file's name, size and kind, the context menu offering the commands the core says apply, and the dialogs of the loads, the refresh and the deletions through `UserPrompts`.
   It draws the model, observes its changes and calls the controller; it holds no state of the sampler.
@@ -293,9 +293,22 @@ This plan implements the tasks in the format specified below.
   cancels the confirmation, *Then* nothing changes; the component has no raw visual literal and shows no state by colour alone (RQ-APP-005).
 - **Dependencies**: TASK-APP-014, TASK-APP-017
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON`, `BUILD_APP=ON`, 2026-10-15, build warning-clean; `ctest -C Debug`: 100% passed, 0 failed out of 1188, among them
+  `app_sources_have_no_visual_literal` over the new sources. On the real S5000 (OS 2.14, MIDIN2 / MIDIOUT15), driven through the window's accessibility tree
+  (UI Automation) and captured with `PrintWindow`, the owner away by his leave: connected, the tree listed "No disk - unknown" and "S5K - FAT32"; S5K selected:
+  "S5K - FAT32 (current)" with the dot and the accent bar, its root's folders under it, the path "S5K:\" and "S5K - hard disk - FAT32 - free not reported";
+  MoogBass opened: the path "S5K:\MoogBass", MoogBass "(current)" with its 7 `.wav` files, waveform icon; a session opened again in MoogBass showed
+  S5K > MoogBass > its files (a bug found here and fixed: the tree was empty when the root had not been listed); a file selected: "Half-Cutoff-sqr-bass-C.wav
+  - sample - 117 398 bytes"; its context menu (Shift+F10) offered Load, Load as RAM, Load as virtual, Load with dependents, Rename…, Delete…, Audition and Stop the
+  audition (no Open nor folder command); Audition, Stop the audition and Load sent with no problem reported. The cancel of a deletion is the core's (TASK-APP-014,
+  `BrowserCommandTests.cpp`, a cancel sends nothing); no deletion, rename or refresh of the disks was sent to the owner's sampler.
 - **Assumptions**: (1) Verified by a run of the application against the simulated sampler where the build allows it, and by the owner on the real sampler; the real-sampler check is the owner's
-  (the refresh of the disks is never sent to the owner's sampler without asking).
+  (the refresh of the disks is never sent to the owner's sampler without asking). Done instead on the real sampler with the owner's leave of 2026-10-15 (backup of the
+  disk made), with no destructive command. (2) A folder opens on a double click, on Return or from the menu; a row is selected by the mouse, the keyboard or the
+  accessibility tree, and Shift+F10 opens the context menu of the selected row. (3) Each file kind has its own icon shape (page with lines, waveform, two pages, note,
+  list, frame with two dots, plain page for unknown); the sample's icon also takes the sample role colour. (4) The current disk and the current folder have the dot
+  and "(current)" in their tooltip and accessible name (RQ-APP-005). (5) The names of new and renamed items are asked in a JUCE `AlertWindow` that does not block
+  (`TextPrompt`); a sample's load mode is chosen by three menu items. (6) A list of rows shared with the memory view (`ItemList`).
 
 ### TASK-APP-019: The memory view
 - **Tier**: M

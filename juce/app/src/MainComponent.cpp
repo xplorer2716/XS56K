@@ -58,10 +58,32 @@ namespace app::ui
 
     void AreaPanel::setHint(const juce::String& hint)
     {
+        if (_content != nullptr)
+            _content->setVisible(hint.isEmpty());
         if (_hint == hint)
             return;
         _hint = hint;
         repaint();
+    }
+
+    void AreaPanel::setContent(juce::Component* content)
+    {
+        _content = content;
+        addChildComponent(content);
+        content->setVisible(_hint.isEmpty());
+        resized();
+    }
+
+    void AreaPanel::resized()
+    {
+        using namespace tokens;
+        if (_content == nullptr)
+            return;
+        auto content = getLocalBounds().reduced(pixels(kSpaceInside));
+        content.removeFromTop(pixels(kRowHeight));
+        if (_withTabRow)
+            content.removeFromBottom(pixels(kTabHeight));
+        _content->setBounds(content);
     }
 
     void AreaPanel::paint(juce::Graphics& g)
@@ -92,14 +114,15 @@ namespace app::ui
         }
     }
 
-    MainComponent::MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, AppSettings& settings,
+    MainComponent::MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser, AppSettings& settings,
                                  common::midi::MidiBackend& backend)
         : _lookAndFeel(lookAndFeel), _model(model), _controller(controller), _settings(settings), _backend(backend), _menuBar(this),
-          _browser(lookAndFeel, BROWSER_TITLE, false), _memory(lookAndFeel, MEMORY_TITLE, false), _editor(lookAndFeel, EDITOR_TITLE, true),
+          _browser(lookAndFeel, BROWSER_TITLE, false), _browserView(lookAndFeel, model, browser), _memory(lookAndFeel, MEMORY_TITLE, false), _editor(lookAndFeel, EDITOR_TITLE, true),
           _status(lookAndFeel)
     {
         for (juce::Component* component : std::initializer_list<juce::Component*>{&_menuBar, &_browser, &_memory, &_editor, &_status})
             addAndMakeVisible(*component);
+        _browser.setContent(&_browserView);
         _status.onDismiss = [this] { _model.clearProblem(); };
         _model.addListener(*this);
         modelChanged(ModelPart::Connection);

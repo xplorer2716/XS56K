@@ -19,9 +19,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <juce_gui_extra/juce_gui_extra.h>
 
+#include "BrowserView.hpp"
 #include "StatusBar.hpp"
 #include "app/AppSettings.hpp"
 #include "app/Controller.hpp"
+#include "app/FileBrowser.hpp"
 #include "app/Model.hpp"
 
 namespace app::ui
@@ -36,13 +38,17 @@ namespace app::ui
         AreaPanel(LookAndFeel& lookAndFeel, juce::String title, bool withTabRow);
 
         void setHint(const juce::String& hint);
+        /// The component drawn under the title, shown only while it has something to show (no hint). [TASK-APP-018]
+        void setContent(juce::Component* content);
         void paint(juce::Graphics& g) override;
+        void resized() override;
 
     private:
         LookAndFeel& _lookAndFeel;
         juce::String _title;
         juce::String _hint;
         bool _withTabRow;
+        juce::Component* _content = nullptr;
     };
 
     /// The content of the main window: the menu bar, the file browser at the top left, the memory view under it, the edit panel on the right
@@ -51,7 +57,8 @@ namespace app::ui
     class MainComponent final : public juce::Component, public juce::MenuBarModel, private ModelListener
     {
     public:
-        MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, AppSettings& settings, common::midi::MidiBackend& backend);
+        MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser, AppSettings& settings,
+                      common::midi::MidiBackend& backend);
         ~MainComponent() override;
 
         void resized() override;
@@ -72,6 +79,7 @@ namespace app::ui
         common::midi::MidiBackend& _backend;
         juce::MenuBarComponent _menuBar;
         AreaPanel _browser;
+        BrowserView _browserView;
         AreaPanel _memory;
         AreaPanel _editor;
         StatusBar _status;
