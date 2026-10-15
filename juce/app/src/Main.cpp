@@ -14,7 +14,6 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 */
 // The editor application: the JUCE adapters of the core's interfaces, the core (model, controller, browser and memory view controllers) and
 // the main window. Quitting closes the session with the sampler first, without blocking the message thread.
