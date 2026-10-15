@@ -299,9 +299,9 @@ TEST_CASE("Given a sampler that keeps a stale file list, When a file is deleted 
     CHECK(contains(listing(rig), "RENAMED.AKP"));
 }
 
-TEST_CASE("Given a folder of 26 characters and one of 27, When the second is opened, loaded, renamed or deleted, or a name of 27 characters is created or "
-          "given in a rename, Then each is refused with the limit named and nothing of it is sent; When the first is opened, Then it is [RQ-MCP-068, "
-          "TASK-APP-024]",
+TEST_CASE("Given a folder of 26 characters and one of 27, When the second is opened, loaded or deleted, or a name of 27 characters is created or "
+          "given in a rename, Then each is refused with the limit named and nothing of it is sent; When the first is opened, Then it is; When the "
+          "second is renamed SHORT, Then the rename is sent [RQ-MCP-068, RQ-APP-031, TASK-APP-024, TASK-APP-029]",
           "[mcp][disk][fileops]")
 {
     const std::string fits = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";  // 26, opened on the owner's S5000
@@ -316,7 +316,6 @@ TEST_CASE("Given a folder of 26 characters and one of 27, When the second is ope
     const json calls[] = {
         rig.call("open_folder", {{"name", tooLong}}),
         rig.call("load_folder", {{"name", tooLong}}),
-        rig.call("rename_folder", {{"name", tooLong}, {"new_name", "SHORT"}}),
         rig.call("delete_folder", {{"name", tooLong}, {"confirm", tooLong}}),
         rig.call("create_folder", {{"name", tooLong}}),
         rig.call("rename_folder", {{"name", fits}, {"new_name", tooLong}}),
@@ -332,4 +331,10 @@ TEST_CASE("Given a folder of 26 characters and one of 27, When the second is ope
 
     CHECK_FALSE(isError(rig.call("open_folder", {{"name", fits}})));
     CHECK(rig.accepted(akm::ItemId::DiskOpenFolder) == 1);
+
+    // A folder too long to be opened is renamed to a name the sampler can open. [RQ-MCP-068, RQ-APP-031, TASK-APP-029]
+    REQUIRE_FALSE(isError(rig.call("close_folder", json::object())));
+    const json renamed = rig.call("rename_folder", {{"name", tooLong}, {"new_name", "SHORT"}});
+    CHECK_FALSE(isError(renamed));
+    CHECK(rig.accepted(akm::ItemId::DiskRenameFolder) == 1);
 }

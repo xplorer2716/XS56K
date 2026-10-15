@@ -232,8 +232,8 @@ A multi has 32, 64 or 128 parts; each part plays one program. The multi tools ac
 These tools act on the **sampler's own disks** (hard disk, floppy, CD-ROM, removable), not on the files of your computer. They work
 on a *current disk* and a *current folder* that the sampler itself keeps: `select_disk` chooses the disk (at its root), `open_folder`
 and `close_folder` move down and up. **A folder name of more than 26 characters is refused** by every folder tool (open, load, create,
-rename, delete), with nothing sent: a real S5000 crashed on the opening of a 29-character name; rename such a folder from the sampler's
-front panel (RQ-MCP-068).
+delete, and as the new name of a rename), with nothing sent: a real S5000 crashed on the opening of a 29-character name; rename such a
+folder to 26 characters or fewer (`rename_folder` takes it) (RQ-MCP-068).
 
 **Browsing and information**
 

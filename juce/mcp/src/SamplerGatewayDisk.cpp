@@ -52,7 +52,7 @@ namespace mcp
             if (name.size() <= MAX_FOLDER_NAME)
                 return std::nullopt;
             return "The folder name \"" + std::string(name) + "\" has " + std::to_string(name.size()) + " characters: the S5000 stops answering on a folder name of more than " +
-                   std::to_string(MAX_FOLDER_NAME) + " characters, so nothing was sent. Rename the folder from the sampler's front panel to " +
+                   std::to_string(MAX_FOLDER_NAME) + " characters, so nothing was sent. Rename the folder to " +
                    std::to_string(MAX_FOLDER_NAME) + " characters or fewer.";
         }
 
@@ -692,11 +692,10 @@ namespace mcp
 
     Outcome<DiskChange> SamplerGateway::renameFolder(std::string_view name, std::string_view newName)
     {
-        for (const std::string_view given : {name, newName})
-        {
-            if (const auto problem = folderNameTooLong(given))
-                return Outcome<DiskChange>::failure(*problem);
-        }
+        // Only the new name is checked: the rename does not open the folder, and is the way out of a name too long to be opened.
+        // [RQ-MCP-068, RQ-APP-031, TASK-APP-029]
+        if (const auto problem = folderNameTooLong(newName))
+            return Outcome<DiskChange>::failure(*problem);
         const auto here = writableFolder();
         if (!here.ok())
             return Outcome<DiskChange>::failure(here.problem);

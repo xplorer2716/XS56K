@@ -88,7 +88,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-029: A folder too long to be opened can be renamed shorter
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: In `xs56k_sampler`, the gateway's `renameFolder` checks the 26-character limit on the new name only; open, load, create and delete keep checking
   the name they send. The MCP README's sentence and the guard's message ("rename the folder to 26 characters or fewer") follow. The rename of the 29-character
   test folder of `S5K:\A B C` is tried on the real S5000 with the owner present.
@@ -99,8 +99,10 @@ This plan implements the tasks in the format specified below.
   sampler answers and the tree shows the new name, which opens.
 - **Dependencies**: TASK-APP-026
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the amended case of `DiskFileOpsTests.cpp` failed first (rename of the 27-character folder to SHORT
+  refused, `DiskRenameFolder` 0), then passed; `ctest -C Debug`: 100% passed, 0 failed out of 1194; warning-clean. Real S5000: waiting for the owner.
+- **Assumptions**: (1) Found while testing: `uia.ps1 invoke -Name XS56K` took the window, not its menu; the window is no longer a target (checked:
+  `invoke XS56K`, `invoke Quit` quit the editor).
 
 ### TASK-APP-030: The type scale two pixels larger
 - **Tier**: M

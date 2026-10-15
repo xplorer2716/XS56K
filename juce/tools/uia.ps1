@@ -63,7 +63,8 @@ function Find-Target {
         if ($edits.Count -gt $Edit) { return $edits[$Edit] }
         return $null
     }
-    return All-Elements | Where-Object { $_.Current.Name -eq $Name } | Select-Object -First 1
+    # A window bears the application's name, as its first menu may: the window is never the target.
+    return All-Elements | Where-Object { $_.Current.Name -eq $Name -and $_.Current.ControlType -ne [System.Windows.Automation.ControlType]::Window } | Select-Object -First 1
 }
 
 switch ($Action) {
