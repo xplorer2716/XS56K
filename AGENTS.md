@@ -9,15 +9,15 @@ Guidance for AI coding agents working in this repository.
 - **Purpose:** Drive an AKAI S5000 or S6000 sampler from a computer: a SysEx library, an MCP server
   for AI assistants, and an editor.
 - **Stack:** C++ / [JUCE](https://juce.com/) 8.0.15
-- **Status:** experimental. The editor is partly built: no edit panel yet.
+- **Status:** experimental. The editor is partly built: the sample editor exists, the program editor does not.
 
 XS56K is three things that build on each other (see `README.md`):
 
 1. **A SysEx library** (`juce/akm`) that aims to cover every MIDI SysEx message of the S5000 and S6000.
 2. **An MCP server** (`juce/mcp`) that lets an AI assistant work on the sampler. The goal is every function of the
    samplers that the SysEx specification offers.
-3. **A program editor** (`juce/app`): main window, menus, MIDI setup, disk browser and memory view; the edit panel
-   (FTR-APP-006 to FTR-APP-008) is not built. Light MVC (`ADR-APP-001`): `juce/app/core` (`xs56k_app_core`, model and
+3. **A program editor** (`juce/app`): main window, menus, MIDI setup, disk browser, memory view and the sample editor
+   (FTR-APP-010); the save and the program editor (FTR-APP-006, FTR-APP-008) are not built. Light MVC (`ADR-APP-001`): `juce/app/core` (`xs56k_app_core`, model and
    controllers, no JUCE, tested on the simulated sampler) over `xs56k_sampler` (the gateway shared with the MCP server);
    `juce/app/src` holds the thin JUCE views, every visual value from the design tokens (`ADR-APP-002`).
 
