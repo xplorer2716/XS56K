@@ -60,6 +60,9 @@ namespace app
         void audition(const MemoryItem& sample);
         /// Stops the audition in progress, if any. [RQ-APP-041, TASK-APP-016]
         void stopAudition();
+        /// The space bar: starts the audition of a sample not being auditioned, stops the one being auditioned; sends nothing for any other
+        /// item (a song file has no play command in the SysEx). [RQ-APP-083, TASK-APP-028]
+        void toggleAudition(const MemoryItem& item);
 
         void modelChanged(ModelPart part) override;
 

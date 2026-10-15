@@ -418,4 +418,14 @@ namespace app
         _controller.runOnSampler<bool>(STOPPING_LABEL, [](mcp::SamplerGateway& gateway) { return gateway.stopSampleAudition(); },
                                        [](const bool&) {});
     }
+
+    void MemoryController::toggleAudition(const MemoryItem& item)
+    {
+        if (item.kind != MemoryKind::Sample)
+            return;
+        if (_auditioning && *_auditioning == item)
+            stopAudition();
+        else
+            audition(item);
+    }
 }

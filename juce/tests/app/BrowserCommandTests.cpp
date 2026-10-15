@@ -282,3 +282,25 @@ TEST_CASE("Given KICK.WAV selected, When the person auditions it, Then the audit
     REQUIRE(fixture.rig.settle());
     CHECK(fixture.sent(ITEM_STOP_FILE_AUDITION) == 1);  // nothing was playing any more
 }
+
+TEST_CASE("Given KICK.WAV selected and nothing auditioned, When the space bar toggles the audition, Then it starts; When it toggles again, Then "
+          "it stops; Given PAD.AKP or a folder, Then nothing is sent [RQ-APP-083, RQ-APP-033]",
+          "[app][browser]")
+{
+    CommandRig fixture;
+    fixture.browser.select(rootFile("KICK.WAV"));
+
+    fixture.browser.toggleAudition(rootFile("KICK.WAV"));
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_START_FILE_AUDITION) == 1);
+
+    fixture.browser.toggleAudition(rootFile("KICK.WAV"));
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_STOP_FILE_AUDITION) == 1);
+
+    fixture.browser.toggleAudition(rootFile("PAD.AKP"));
+    fixture.browser.toggleAudition(BrowserItem{BrowserItemKind::Folder, {}, "DRUMS"});
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_START_FILE_AUDITION) == 1);
+    CHECK(fixture.sent(ITEM_STOP_FILE_AUDITION) == 1);
+}

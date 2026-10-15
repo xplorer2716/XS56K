@@ -234,9 +234,16 @@ namespace app::ui
 
     bool ItemList::keyPressed(const juce::KeyPress& key, juce::Component*)
     {
+        const int row = _list.getSelectedRow();
+        // The space bar starts or stops the audition of the selected row. [RQ-APP-083, TASK-APP-028]
+        if (key == juce::KeyPress(juce::KeyPress::spaceKey))
+        {
+            if (isItem(row) && onSpace)
+                onSpace(row);
+            return true;
+        }
         if (key != juce::KeyPress(juce::KeyPress::F10Key, juce::ModifierKeys::shiftModifier, 0))
             return false;
-        const int row = _list.getSelectedRow();
         if (isItem(row) && onMenu)
             onMenu(row);
         return true;

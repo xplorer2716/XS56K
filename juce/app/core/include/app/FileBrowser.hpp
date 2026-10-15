@@ -70,6 +70,9 @@ namespace app
         void audition(const BrowserItem& file);
         /// Stops the audition in progress, if any. [RQ-APP-033]
         void stopAudition();
+        /// The space bar: starts the audition of a sample file not being auditioned, stops the one being auditioned; sends nothing for any
+        /// other item. [RQ-APP-083, TASK-APP-028]
+        void toggleAudition(const BrowserItem& item);
 
         void modelChanged(ModelPart part) override;
 

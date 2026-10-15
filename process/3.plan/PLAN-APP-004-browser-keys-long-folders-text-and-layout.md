@@ -72,7 +72,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-028: The space bar starts and stops the audition
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `toggleAudition(item)` in `FileBrowser` and `MemoryController` (start, stop, or nothing if not a sample); both views call it on the space bar.
 - **Requirement refs**: RQ-APP-083, RQ-APP-033, RQ-APP-041
 - **ADR refs**: ADR-APP-001 (DEC-APP-001, DEC-APP-004, DEC-APP-010)
@@ -80,8 +80,11 @@ This plan implements the tasks in the format specified below.
   sample selected, *When* the space bar is sent twice through `uia.ps1`, *Then* the owner hears the sample start, then stop.
 - **Dependencies**: TASK-APP-026
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the two new cases (`BrowserCommandTests.cpp`, `MemoryCommandTests.cpp`) failed first to compile (no
+  `toggleAudition`), then passed; `ctest -C Debug`: 100% passed, 0 failed out of 1194; warning-clean. On the real S5000 through `uia.ps1`: the space bar twice
+  on `100_1 001 100.000 BPM.wav` in the browser, then on the same sample loaded in the memory view: no problem reported. The sound itself is the owner's to hear.
+  TASK-APP-027's view checked in the same run: a folder's menu is load the folder, create a folder, rename, delete; a disk's is create a folder.
+- **Assumptions**: (1) The space bar acts only while the list has the keyboard focus. (2) The test sample was loaded into the owner's empty memory.
 
 ### TASK-APP-029: A folder too long to be opened can be renamed shorter
 - **Tier**: M

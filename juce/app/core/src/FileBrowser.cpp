@@ -421,4 +421,14 @@ namespace app
         _controller.runOnSampler<bool>(STOPPING_LABEL, [](mcp::SamplerGateway& gateway) { return gateway.stopFileAudition(); },
                                        [](const bool&) {});
     }
+
+    void FileBrowser::toggleAudition(const BrowserItem& item)
+    {
+        if (item.kind != BrowserItemKind::File || fileKindOf(item.name) != FileKind::Sample)
+            return;
+        if (_auditioning && _auditioning->folder == item.folder && _auditioning->name == item.name)
+            stopAudition();
+        else
+            audition(item);
+    }
 }

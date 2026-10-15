@@ -101,6 +101,7 @@ namespace app::ui
         _list.onClick = [this](int row) { clicked(row); };
         _list.onDoubleClick = [this](int row) { doubleClicked(row); };
         _list.onMenu = [this](int row) { showMenu(row); };
+        _list.onSpace = [this](int row) { _browser.toggleAudition(_entries[static_cast<std::size_t>(row)].item); };  // [RQ-APP-083]
         addAndMakeVisible(_list);
         for (CutLabel* label : {&_path, &_details})
         {

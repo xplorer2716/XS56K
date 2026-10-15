@@ -176,3 +176,25 @@ TEST_CASE("Given KICK selected, When the person auditions it, Then the audition 
     CHECK(fixture.sent(SECTION_SAMPLE, ITEM_STOP_AUDITION) == 1);  // nothing was playing any more
     CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
+
+TEST_CASE("Given the sample KICK selected, When the space bar toggles the audition, Then it starts; When it toggles again, Then it stops; "
+          "Given the program PAD, Then nothing is sent [RQ-APP-083, RQ-APP-041]",
+          "[app][memory]")
+{
+    CommandRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+
+    fixture.memory.toggleAudition(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(SECTION_SAMPLE, ITEM_START_AUDITION) == 1);
+
+    fixture.memory.toggleAudition(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(SECTION_SAMPLE, ITEM_STOP_AUDITION) == 1);
+
+    fixture.memory.toggleAudition(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(SECTION_SAMPLE, ITEM_START_AUDITION) == 1);
+    CHECK(fixture.sent(SECTION_SAMPLE, ITEM_STOP_AUDITION) == 1);
+}

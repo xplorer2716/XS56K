@@ -58,7 +58,7 @@ namespace app::ui
     /// The list of rows of the browser and of the memory view, drawn as the design system's rows: the selected row on the raised surface with
     /// the accent bar at its left, the current one with a dot at its right and "current" in its tooltip, so that no state is told by colour
     /// alone. It reports a row selected (by the mouse, the keyboard or the accessibility tree), a row opened (double click or Return) and
-    /// the context menu's requests (right click, or Shift+F10 on the selected row), by row. [RQ-APP-001, RQ-APP-004, RQ-APP-005,
+    /// the context menu's requests (right click, or Shift+F10 on the selected row) and the space bar, by row. [RQ-APP-001, RQ-APP-004, RQ-APP-005,
     /// ADR-APP-002 (DEC-APP-013, DEC-APP-014), TASK-APP-018]
     class ItemList final : public juce::Component, private juce::ListBoxModel, private juce::KeyListener
     {
@@ -71,6 +71,8 @@ namespace app::ui
         std::function<void(int row)> onClick;
         std::function<void(int row)> onDoubleClick;
         std::function<void(int row)> onMenu;
+        /// The space bar on the selected row. [RQ-APP-083, TASK-APP-028]
+        std::function<void(int row)> onSpace;
 
         void resized() override;
 

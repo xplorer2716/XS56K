@@ -91,6 +91,11 @@ namespace app::ui
                 _memory.select(*item);
         };
         _list.onMenu = [this](int row) { showMenu(row); };
+        _list.onSpace = [this](int row) {
+            // [RQ-APP-083, TASK-APP-028]
+            if (const auto& item = _items[static_cast<std::size_t>(row)])
+                _memory.toggleAudition(*item);
+        };
         _refresh.setButtonText(REFRESH_TEXT);
         _refresh.onClick = [this] { _memory.refresh(); };
         addAndMakeVisible(_list);
