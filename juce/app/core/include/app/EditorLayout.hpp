@@ -16,7 +16,7 @@ You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // The types of the editor layouts: each editor's tabs, each tab's groups, each group's parameters by their catalogue name, with the label drawn,
-// the role that colours them and the control that edits them. The tables are generated into EditorLayouts.generated.hpp from
+// the role that colours them and the control that edits them, and the orders their values keep. The tables are generated into EditorLayouts.generated.hpp from
 // juce/app/design/layouts/*.json. No JUCE. [RQ-APP-049, RQ-APP-086, ADR-APP-001 (DEC-APP-006), ADR-APP-004 (DEC-APP-024, DEC-APP-027)]
 #pragma once
 
@@ -68,5 +68,7 @@ namespace app::layouts
     {
         std::string_view editor;  ///< "sample", later "program"
         std::span<const LayoutTab> tabs;
+        /// Chains of parameter names whose values must not decrease: each value is bounded by its neighbours. [RQ-APP-092, DEC-APP-029]
+        std::span<const std::span<const std::string_view>> orders;
     };
 }

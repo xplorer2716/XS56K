@@ -71,3 +71,16 @@ TEST_CASE("Given the sample editor's layout, Then its tab Sample holds Trim, Loo
         CHECK(named.count(definition.name) == (definition.readOnly ? 0U : 1U));
     }
 }
+
+TEST_CASE("Given the sample editor's layout, Then its one order is start, loop start, loop end, end [RQ-APP-092, TASK-APP-042]", "[app][layout]")
+{
+    const app::layouts::EditorLayout* sample = layoutOf("sample");
+    REQUIRE(sample != nullptr);
+    REQUIRE(sample->orders.size() == 1);
+    const auto& order = sample->orders[0];
+    REQUIRE(order.size() == 4);
+    CHECK(order[0] == "sample start position");
+    CHECK(order[1] == "sample loop start");
+    CHECK(order[2] == "sample loop end");
+    CHECK(order[3] == "sample end position");
+}

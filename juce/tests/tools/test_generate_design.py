@@ -174,7 +174,7 @@ LAYOUT = {
 
 
 class WritingTheEditorLayouts(unittest.TestCase):
-    """The editor layouts as C++ tables of the core. [RQ-APP-086, RQ-APP-049, ADR-APP-004 (DEC-APP-024), TASK-APP-035]"""
+    """The editor layouts as C++ tables of the core. [RQ-APP-086, RQ-APP-049, RQ-APP-092, ADR-APP-004 (DEC-APP-024, DEC-APP-029), TASK-APP-035, TASK-APP-042]"""
 
     def setUp(self):
         self.gen = load_script()
@@ -197,6 +197,18 @@ class WritingTheEditorLayouts(unittest.TestCase):
             with self.assertRaises(self.gen.TokenError) as raised:
                 self.gen.render_layouts({"sample": layout})
             self.assertIn(value, str(raised.exception))
+
+    def test_given_an_order_when_written_then_it_is_a_chain_of_names_and_an_order_naming_an_absent_parameter_fails(self):
+        layout = copy.deepcopy(LAYOUT)
+        layout["orders"] = [["sample start position", "sample fine tune"]]
+        header = self.gen.render_layouts({"sample": layout})
+        chain = header[header.index("kSampleOrder0{{"):]
+        self.assertLess(chain.index('"sample start position"'), chain.index('"sample fine tune"'))
+        self.assertIn("kSampleOrders", header)
+        layout["orders"] = [["sample start position", "sample loop end"]]
+        with self.assertRaises(self.gen.TokenError) as raised:
+            self.gen.render_layouts({"sample": layout})
+        self.assertIn("sample loop end", str(raised.exception))
 
     def test_given_no_layout_when_written_then_the_table_is_empty_and_still_compiles(self):
         header = self.gen.render_layouts({})

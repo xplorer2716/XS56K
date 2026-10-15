@@ -40,6 +40,7 @@ using app::test::setupA;
 namespace
 {
     constexpr std::uint8_t SECTION_SAMPLE = 0x0E;
+    constexpr std::uint8_t ITEM_SET_START = 0x20;
     constexpr std::uint8_t ITEM_SET_END = 0x21;
     constexpr std::uint8_t ITEM_SET_FINE_TUNE = 0x24;
     constexpr std::uint8_t ITEM_SET_LOOP_START = 0x29;
@@ -60,7 +61,7 @@ namespace
         return *std::find_if(rows.begin(), rows.end(), [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
     }
 
-    /// The programs PAD, the samples KICK (RAM, mono, 22050 points at 44100 Hz, fine tune +10, root C3) and SNARE; connected.
+    /// The programs PAD, the samples KICK (RAM, mono, 22050 points at 44100 Hz, played to its end, fine tune +10, root C3) and SNARE; connected.
     struct EditRig
     {
         EditRig()
@@ -68,6 +69,7 @@ namespace
             mcp::test::seedSimulatedPrograms(rig.backend, {{"PAD"}}, 0);
             rig.sampler->setSampleNames({"KICK", "SNARE"});
             rig.sampler->setSampleAttributes(0, RAM, MONO, KICK_LENGTH, KICK_RATE);
+            set("sample end position", KICK_LENGTH);  // a real sample plays to its end
             set("sample fine tune", FINE);
             set("sample original pitch", C3);
             rig.controller.connect(setupA());
@@ -216,9 +218,10 @@ TEST_CASE("Given KICK of 22050 points, When the person sets its end to 30000, Th
     REQUIRE(fixture.rig.settle());
 
     constexpr std::int64_t BEYOND = 30000;
+    const std::size_t ends = fixture.sent(ITEM_SET_END);
     fixture.editor.set(fixture.index("sample end position"), BEYOND);
     REQUIRE(fixture.rig.settle());
-    CHECK(fixture.sent(ITEM_SET_END) == 0);
+    CHECK(fixture.sent(ITEM_SET_END) == ends);
     REQUIRE(fixture.rig.model.problem().has_value());
     CHECK(fixture.rig.model.problem()->reason.find("0 to 22050") != std::string::npos);
 }
@@ -278,6 +281,39 @@ TEST_CASE("Given KICK looping from 5000 to 15000, When the person sets the loop 
     CHECK(fixture.sent(ITEM_SET_LOOP_START) == starts);
     REQUIRE(fixture.rig.model.problem().has_value());
     CHECK(fixture.rig.model.problem()->reason.find("from 0 to 15000") != std::string::npos);
+}
+
+TEST_CASE("Given KICK trimmed 1000 to 20000 and looping 5000 to 15000, When the person sets the end below the loop end or the start beyond the "
+          "loop start, Then nothing is sent and the range its neighbours leave is shown [RQ-APP-092, TASK-APP-042]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    constexpr std::int64_t TRIM_START = 1000;
+    constexpr std::int64_t TRIM_END = 20000;
+    fixture.set("sample end position", TRIM_END);
+    fixture.set("sample start position", TRIM_START);
+    showLoopingKick(fixture);
+    const std::size_t ends = fixture.sent(ITEM_SET_END);
+    const std::size_t starts = fixture.sent(ITEM_SET_START);
+
+    constexpr std::int64_t BELOW_LOOP_END = 14000;
+    fixture.editor.set(fixture.index("sample end position"), BELOW_LOOP_END);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_SET_END) == ends);
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(fixture.rig.model.problem()->reason.find("from 15000 to 22050") != std::string::npos);
+
+    constexpr std::int64_t BEYOND_LOOP_START = 6000;
+    fixture.editor.set(fixture.index("sample start position"), BEYOND_LOOP_START);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.sent(ITEM_SET_START) == starts);
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(fixture.rig.model.problem()->reason.find("from 0 to 5000") != std::string::npos);
+
+    constexpr std::int64_t NEW_END = 18000;
+    fixture.editor.set(fixture.index("sample end position"), NEW_END);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("sample end position") == std::optional<std::int64_t>(NEW_END));
 }
 
 TEST_CASE("Given KICK shown, When the fine tune is moved through 40 values before the sampler answers, Then at most one write waits, only the "

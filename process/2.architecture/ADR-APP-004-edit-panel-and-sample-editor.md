@@ -45,6 +45,12 @@ that loop start again, in the same job; Set Loop Start moves nothing, so the pai
 the gateway and the MCP tool keep one SysEx write per parameter. A loop end below the loop start, or a loop start beyond the loop end, is refused
 like a position beyond the sample. [RQ-APP-090]
 
+### DEC-APP-029: Orders are layout data; a control always comes back to the model
+A layout may list `orders`: chains of parameter names whose values must not decrease (`generate_design.py` checks each name is in the layout and
+generates them with the tabs). The controller bounds a value by its nearest neighbours in each chain, refusing before anything is sent. The sample
+editor's chain is start, loop start, loop end, end. A control shows the model's value again after every input, accepted or refused; the slider
+when the drag ends. [RQ-APP-091, RQ-APP-092]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

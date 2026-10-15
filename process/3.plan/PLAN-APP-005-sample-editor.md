@@ -4,7 +4,7 @@
 
 Session APP (2026-10-15). The owner asked for the first tab of the edit panel: "Sample", editing the settable parameters of the sample selected in
 the memory view (FTR-APP-010). The edit panel's shared parts are built with it (ADR-APP-004): the generated layouts, the edit controller, the
-controls. Core first with tests on the simulated sampler, then the views, checked on the real S5000 through `uia.ps1`. 8 tasks.
+controls. Core first with tests on the simulated sampler, then the views, checked on the real S5000 through `uia.ps1`. 9 tasks.
 
 | Step | Task | What |
 |---|---|---|
@@ -16,11 +16,12 @@ controls. Core first with tests on the simulated sampler, then the views, checke
 | 6 | TASK-APP-039 | the edit panel view: header, tab row, groups, "Read again" |
 | 7 | TASK-APP-040 | mockup of the sample editor, READMEs, run on the real S5000 |
 | 8 | TASK-APP-041 | the loop end moves alone (found in TASK-APP-040's run) |
+| 9 | TASK-APP-042 | orders as layout data (trim and loop), the controls back to the model |
 
 ## References
-- **Requirements**: RQ-APP-086 to RQ-APP-090 (new); RQ-APP-048 (amended); RQ-APP-062 (superseded); RQ-APP-049 to RQ-APP-055; RQ-APP-001 to
+- **Requirements**: RQ-APP-086 to RQ-APP-092 (new); RQ-APP-048 (amended); RQ-APP-062 (superseded); RQ-APP-049 to RQ-APP-055; RQ-APP-001 to
   RQ-APP-005; RQ-APP-014; RQ-AKM-048, RQ-AKM-049; RQ-MCP-020
-- **ADRs**: ADR-APP-004 (DEC-APP-024 to DEC-APP-028); ADR-APP-001 (DEC-APP-004 to DEC-APP-006, DEC-APP-010); ADR-APP-002; ADR-APP-003 (DEC-APP-018)
+- **ADRs**: ADR-APP-004 (DEC-APP-024 to DEC-APP-029); ADR-APP-001 (DEC-APP-004 to DEC-APP-006, DEC-APP-010); ADR-APP-002; ADR-APP-003 (DEC-APP-018)
 
 This plan implements the tasks in the format specified below.
 ---
@@ -164,3 +165,21 @@ This plan implements the tasks in the format specified below.
   every change; a view, not unit-tested, DEC-APP-010).
 - **Assumptions**: (1) A loop start read beyond the sample's length (2^28 - 1, F6) is not sent again and bounds nothing. (2) The switch is off by
   default, so the AKM and MCP tests keep the simple store.
+
+### TASK-APP-042: Orders as layout data, the controls back to the model
+- **Tier**: S
+- **Status**: In Progress
+- **Description**: `orders` in the layouts, generated and checked; the controller bounds a value by its neighbours in each chain (replacing the loop's
+  own bounds of TASK-APP-041); the sample's chain start, loop start, loop end, end.
+- **Requirement refs**: RQ-APP-091, RQ-APP-092
+- **ADR refs**: ADR-APP-004 (DEC-APP-029)
+- **Acceptance Criteria** (Gherkin): RQ-APP-092's (core test); a generator test refuses an order naming a parameter the layout lacks; RQ-APP-091 on the
+  real S5000 (a view, DEC-APP-010).
+- **Dependencies**: TASK-APP-041
+- **Assignee**: AI
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: a generator test (an order generated in its order; an order naming a parameter the layout lacks
+  refused) and two core tests (the sample's order; the end below the loop end and the start beyond the loop start refused with the range left)
+  failed first, then passed (18 generator tests; 248 assertions in the 15 edit and layout cases; the fixture's KICK now plays to its end, as a real
+  sample). `ctest -C Debug`: 1213 passed; the editor built warning-clean. Real run: the owner's.
+- **Assumptions**: (1) A neighbour whose value lies outside its own range (2^28 - 1 after F6) bounds nothing. (2) The view part of RQ-APP-091 was
+  done in TASK-APP-041 (`459bf29`).

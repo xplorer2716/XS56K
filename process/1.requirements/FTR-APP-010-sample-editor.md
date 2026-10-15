@@ -72,3 +72,4 @@ RQ-MCP-020 (the gateway's sample parameters).
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* KICK with the loop 5000 to 15000 on a sampler that keeps the loop length, *When* the person sets the loop end to 20000, *Then* the loop reads 5000 to 20000; *When* the person sets the loop end to 4000, *Then* nothing is sent and "from 5000" is shown.
 - **Dependencies**: RQ-APP-051, RQ-APP-088, RQ-APP-089
+  - *Amended 2026-10-15 (owner, TASK-APP-042):* the bounds between loop start and loop end are now those of RQ-APP-092, which also holds the trim.

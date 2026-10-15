@@ -1,6 +1,7 @@
 {
   "_comment": "The sample editor (FTR-APP-010): one tab, three groups, the assistant's proposal of 2026-10-15, data the owner can change; groups named after the sampler's EDIT SAMPLE pages TRIM and LOOP (owner, 2026-10-15). Parameter names are those of mcp::ParameterCatalogue::samples(). [RQ-APP-086, ADR-APP-004 (DEC-APP-024, DEC-APP-027), ADR-APP-003 (DEC-APP-018)]",
   "editor": "sample",
+  "orders": [["sample start position", "sample loop start", "sample loop end", "sample end position"]],
   "tabs": [
     {"title": "Sample", "groups": [
       {"title": "Trim", "parameters": [

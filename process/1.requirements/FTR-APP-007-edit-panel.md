@@ -99,6 +99,24 @@ pp. 141-177, MULTI pp. 37-79); `juce/akm/include/akm/ItemDescriptor.hpp`; `proce
 
 ---
 
+### RQ-APP-091: The controls always show the model's value
+- **Category**: Functional
+- **EARS Type**: Ubiquitous
+- **Statement**: After every input of the person on a control (a value typed, a slider or knob dragged, a choice made), whether the value is accepted, refused or not a value, the control SHALL show the value the model holds, marked pending while it is being written.
+- **Rationale**: the owner, 2026-10-15: "il est impératif que l'IHM reflète l'état du modèle"; a refused 4000 stayed in the loop end's box.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the loop end 15000, *When* the person types 4000 and it is refused, *Then* the box reads 15000; *When* the person drags its slider below the loop start and lets go, *Then* the thumb is back at 15000.
+- **Dependencies**: RQ-APP-051, RQ-APP-052
+
+### RQ-APP-092: Values that keep an order bound each other
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: Where an editor's layout declares parameters that must keep an order (the sample's start, loop start, loop end and end; later a low and a high note or velocity), IF the person gives one of them a value that would break the order with the values shown, THEN the application SHALL refuse it with nothing sent and show the range its neighbours leave.
+- **Rationale**: the owner, 2026-10-15 (the trim like the loop, "à l'avenir pour toutes ces formes de saisie"); on the S5000 the loop stays within the trim (user manual p. 151).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* KICK trimmed 1000 to 20000 and looping 5000 to 15000, *When* the person sets the end to 14000, *Then* nothing is sent and "from 15000 to 22050" is shown; *When* the person sets the start to 6000, *Then* nothing is sent and "from 0 to 5000" is shown.
+- **Dependencies**: RQ-APP-051, RQ-APP-088, RQ-APP-090
+
 ## Non-Functional Requirements
 
 ### RQ-APP-054: A control moved continuously does not flood the sampler

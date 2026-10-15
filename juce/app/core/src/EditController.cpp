@@ -179,20 +179,34 @@ namespace app
             return std::nullopt;
         }
 
-        /// The range a value may take now: its own, and for the loop, the other end of the loop. [RQ-APP-088, RQ-APP-090]
+        /// The range a value may take now: its own, narrowed by its nearest neighbours in each order of the layout; a neighbour outside the
+        /// value's own range (2^28 - 1, a loop start the S5000 pushed below 0) bounds nothing. [RQ-APP-088, RQ-APP-092, DEC-APP-029]
         std::pair<std::int64_t, std::int64_t> rangeOf(const EditState& state, const EditValue& shown)
         {
             std::int64_t min = shown.min;
             std::int64_t max = shown.max;
-            if (shown.definition->name == LOOP_END_NAME)
+            const auto within = [&shown](std::int64_t value) { return value >= shown.min && value <= shown.max; };
+            for (const std::span<const std::string_view> order : state.layout->orders)
             {
-                if (const auto start = shownValue(state, LOOP_START_NAME); start && *start <= max)
-                    min = std::max(min, *start);
-            }
-            else if (shown.definition->name == LOOP_START_NAME)
-            {
-                if (const auto end = shownValue(state, LOOP_END_NAME); end && *end >= min)
-                    max = std::min(max, *end);
+                const auto at = std::find(order.begin(), order.end(), shown.definition->name);
+                if (at == order.end())
+                    continue;
+                for (auto before = at; before != order.begin();)
+                {
+                    if (const auto value = shownValue(state, *--before); value && within(*value))
+                    {
+                        min = std::max(min, *value);
+                        break;
+                    }
+                }
+                for (auto after = at + 1; after != order.end(); ++after)
+                {
+                    if (const auto value = shownValue(state, *after); value && within(*value))
+                    {
+                        max = std::min(max, *value);
+                        break;
+                    }
+                }
             }
             return {min, max};
         }
