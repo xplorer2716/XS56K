@@ -697,15 +697,15 @@ TASK-APP-040|131-151|In Progress|Mockup, documentation and the real run
 TASK-APP-041|152-168|In Progress|The loop end moves alone
 TASK-APP-042|169-185|In Progress|Orders as layout data, the controls back to the model
 @process/3.plan/PLAN-APP-006-program-editor-roadmap.md
-PLAN-APP-006|1-155||Editor Application — Roadmap of the Program Editor
-TASK-APP-043|51-69|In Progress|The Program tab
-TASK-APP-044|70-82|Not Started|The Amp tab and the keygroup selector
-TASK-APP-045|83-94|Not Started|The Filter tab
-TASK-APP-046|95-107|Not Started|The Keygroup tab and its four zones
-TASK-APP-047|108-119|Not Started|Adding and deleting keygroups
-TASK-APP-048|120-131|Not Started|The Mod sources tab
-TASK-APP-049|132-144|Not Started|The Modulation tab
-TASK-APP-050|145-155|Not Started|All keygroups at once
+PLAN-APP-006|1-160||Editor Application — Roadmap of the Program Editor
+TASK-APP-043|51-74|Done|The Program tab
+TASK-APP-044|75-87|Not Started|The Amp tab and the keygroup selector
+TASK-APP-045|88-99|Not Started|The Filter tab
+TASK-APP-046|100-112|Not Started|The Keygroup tab and its four zones
+TASK-APP-047|113-124|Not Started|Adding and deleting keygroups
+TASK-APP-048|125-136|Not Started|The Mod sources tab
+TASK-APP-049|137-149|Not Started|The Modulation tab
+TASK-APP-050|150-160|Not Started|All keygroups at once
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

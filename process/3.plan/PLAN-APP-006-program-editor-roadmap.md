@@ -50,7 +50,7 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 
 ### TASK-APP-043: The Program tab
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: The program editor opens on a program selected in the memory view, chosen on the sampler by name; its first tab holds the
   program-scope parameters: Output, Tuning, Pitch bend, Portamento; the header gives the keygroup count. The S5000's SysEx has no MIDI
   setting of a program (§0A), so none is shown.
@@ -69,6 +69,7 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   screen's (the MCP real run of PLAN-MCP-002 read back every value set). Diagnosed with the owner (2026-10-16): the S5000 applies the
   template and the key sent by SysEx (the per-key graphic of MIDI/TUNE shows the new tuning, and it is heard), but its fields TEMPLATE and KEY
   keep showing USER and C, even after leaving the page; the Get gives back the value sent. A firmware behaviour, nothing changed in the editor.
+  A template changed on the front panel is read back by "Read again" (owner, 2026-10-16).
 - **Assumptions**: (1) The edit controller generalises from the sample catalogue to a catalogue chosen by the layout.
 
 ### TASK-APP-044: The Amp tab and the keygroup selector
