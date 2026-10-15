@@ -74,7 +74,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-022: Tooltips of the texts cut short
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: In `XS56KApp`, a text component that gives its whole text as its tooltip when, and only when, it does not fit its bounds, used for the texts drawn
   by the views (the browser's path and details, the memory view's free memory, the status bar's connection, job and problem, the areas' titles and hints, the
   dialogs' labels); the rows keep theirs. The delay before a tooltip appears becomes a design-system token (`motion.tooltip`).
@@ -84,7 +84,15 @@ This plan implements the tasks in the format specified below.
   its whole text is shown in a tooltip; *Given* "Disks", which fits, *Then* no tooltip; *Given* the token check and the visual-literal check, *Then* they pass.
 - **Dependencies**: TASK-APP-020
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: (partial, 2026-10-15) Windows/MSVC, Debug: build warning-clean (after renaming a local `font` that hid `Label::font`, C4458); `ctest -C Debug`:
+  100% passed, 0 failed out of 1191, among them `app_sources_have_no_visual_literal`, `app_design_tokens_are_up_to_date` (with `motion.tooltip`) and
+  `app_mockups_are_up_to_date`. On the real S5000, the tooltips read through the accessibility tree: disconnected, "Disks", "Memory", "Editor", the three hints and
+  "Disconnected" have none (they fit); connected, the path "S5K:\MoogBass", "S5K - hard disk - FAT32 - free not reported", the connection text and a refusal on two
+  lines ("Creating the program XS56K TOOLTIP TEST 1 failed: A program named ... is already in memory.") have none, the file's details and the free memory keep theirs
+  (the exact bytes). No text of that session was long enough to be cut, so the tooltip of a cut text is still to be seen, by the owner: a long folder path or a long
+  file name in the browser, the pointer resting on it. A first measure of the cut (the text's width against the label's lines) would have missed texts broken
+  between words; it measures the broken text now.
 - **Assumptions**: (1) The views are not unit-tested (DEC-APP-010): checked by a run of the application, with the tooltip shown through the accessibility tree or a capture.
   (2) `motion.tooltip` is a new global motion token of 700 ms, JUCE's default, the mockups having no tooltip. (3) Texts already given whole (the rows' names) keep their
-  tooltip as it is.
+  tooltip as it is. (4) A label whose tooltip says more than its text (the exact count of bytes) keeps that tooltip whether or not it is cut. (5) The areas' titles and
+  hints became labels, drawn as before, so that they can carry the tooltip. (6) The test program XS56K TOOLTIP TEST 1 was created and deleted on the owner's sampler.

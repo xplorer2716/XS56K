@@ -104,11 +104,10 @@ namespace app::ui
         _list.onDoubleClick = [this](int row) { doubleClicked(row); };
         _list.onMenu = [this](int row) { showMenu(row); };
         addAndMakeVisible(_list);
-        for (juce::Label* label : {&_path, &_details})
+        for (CutLabel* label : {&_path, &_details})
         {
             label->setFont(_lookAndFeel.font(tokens::kFontCaptionSize));
             label->setColour(juce::Label::textColourId, colourOf(tokens::kColourTextSecondary));
-            label->setMinimumHorizontalScale(1.0f);
             label->setBorderSize({});
             addAndMakeVisible(*label);
         }
@@ -149,7 +148,6 @@ namespace app::ui
         const juce::String path =
             disk == nullptr ? juce::String(NO_DISK) : juce::String(disk->name) + PATH_SEPARATOR + juce::String(pathText(state.currentFolder));
         _path.setText(path, juce::dontSendNotification);
-        _path.setTooltip(path);
         // The sizes in the unit that reads best, the exact count of bytes in the tooltip. [RQ-APP-081, RQ-APP-026, RQ-APP-024, TASK-APP-020]
         juce::String details;
         juce::String exact;
@@ -164,7 +162,8 @@ namespace app::ui
             const juce::String head = juce::String(disk->name) + DETAIL_SEPARATOR + juce::String(std::string(diskTypeName(disk->type))) +
                                       DETAIL_SEPARATOR + juce::String(std::string(diskFormatName(disk->format))) + DETAIL_SEPARATOR + FREE_PREFIX;
             details = head + juce::String(freeSpaceText(state.freeBytes.value_or(0)));
-            exact = state.freeBytes.value_or(0) == 0 ? details : head + juce::String(bytesText(*state.freeBytes));
+            // No exact count to add when the disk reports none: the tooltip is then the whole text, when it is cut. [RQ-APP-080]
+            exact = state.freeBytes.value_or(0) == 0 ? juce::String() : head + juce::String(bytesText(*state.freeBytes));
         }
         _details.setText(details, juce::dontSendNotification);
         _details.setTooltip(exact);

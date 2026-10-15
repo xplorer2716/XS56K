@@ -78,7 +78,6 @@ namespace app::ui
         _state = connection.state;
         const juce::String text = connectionText(connection);
         _connection.setText(text, juce::dontSendNotification);
-        _connection.setTooltip(text);
         _job.setText(busy ? juce::String(*busy) : juce::String(), juce::dontSendNotification);
         if (busy && !_busy)
             startTimer(static_cast<int>(tokens::kMotionBusy.count() / SPINNER_FRAMES));
@@ -88,7 +87,6 @@ namespace app::ui
 
         const juce::String problemText = problem ? juce::String(problem->action) + FAILED_SEPARATOR + juce::String(problem->reason) : juce::String();
         _problem.setText(problemText, juce::dontSendNotification);
-        _problem.setTooltip(problemText);
         _dismiss.setVisible(problem.has_value());
         repaint();
     }

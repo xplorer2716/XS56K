@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <string>
 
+#include "CutLabel.hpp"
 #include "app/Model.hpp"
 
 namespace app::ui
@@ -51,9 +52,9 @@ namespace app::ui
         ConnectionState _state = ConnectionState::Disconnected;
         bool _busy = false;
         float _angle = 0.0f;
-        juce::Label _connection;
-        juce::Label _job;
-        juce::Label _problem;
+        CutLabel _connection;
+        CutLabel _job;
+        CutLabel _problem;
         juce::TextButton _dismiss;
     };
 }

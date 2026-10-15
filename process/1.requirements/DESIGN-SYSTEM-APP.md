@@ -164,7 +164,8 @@ Which role a parameter takes is a property of the parameter (its family), not of
 ### 2.6 Motion & Timing
 
 - **Durations:** `motion.hover` 80 ms (a hovered row or button fades to its hover colour); `motion.busy` 1000 ms (one turn of the busy
-  indicator, RQ-APP-012); `motion.message` 4000 ms (an information message stays before it fades; errors stay until dismissed).
+  indicator, RQ-APP-012); `motion.message` 4000 ms (an information message stays before it fades; errors stay until dismissed); `motion.tooltip` 700 ms (the pointer
+  rests that long on a text cut short before its whole text is shown, JUCE's own default kept; RQ-APP-080, TASK-APP-022).
 - **Easing:** linear for `motion.busy`, ease-out for the others.
 - **When not to animate:** the value of a control, its arc, a curve, a list's content — drawn at once (P5).
 

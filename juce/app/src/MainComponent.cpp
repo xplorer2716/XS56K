@@ -52,38 +52,48 @@ namespace app::ui
     }
 
     AreaPanel::AreaPanel(LookAndFeel& lookAndFeel, juce::String title, bool withTabRow)
-        : _lookAndFeel(lookAndFeel), _title(std::move(title)), _withTabRow(withTabRow)
+        : _lookAndFeel(lookAndFeel), _withTabRow(withTabRow)
     {
+        using namespace tokens;
+        // The title and the hint are labels whose whole text is their tooltip when they are cut short. [RQ-APP-080, TASK-APP-022]
+        _title.setText(title, juce::dontSendNotification);
+        _title.setFont(_lookAndFeel.font(kFontTitleSize, true));
+        _title.setColour(juce::Label::textColourId, colourOf(kColourTextSecondary));
+        _title.setBorderSize({});
+        _hint.setFont(_lookAndFeel.font(kFontValueSize));
+        _hint.setColour(juce::Label::textColourId, colourOf(kColourTextDisabled));
+        _hint.setJustificationType(juce::Justification::centred);
+        _hint.setBorderSize({});
+        addAndMakeVisible(_title);
+        addChildComponent(_hint);
     }
 
     void AreaPanel::setHint(const juce::String& hint)
     {
         if (_content != nullptr)
             _content->setVisible(hint.isEmpty());
-        if (_hint == hint)
-            return;
-        _hint = hint;
-        repaint();
+        _hint.setText(hint, juce::dontSendNotification);
+        _hint.setVisible(hint.isNotEmpty());
     }
 
     void AreaPanel::setContent(juce::Component* content)
     {
         _content = content;
         addChildComponent(content);
-        content->setVisible(_hint.isEmpty());
+        content->setVisible(_hint.getText().isEmpty());
         resized();
     }
 
     void AreaPanel::resized()
     {
         using namespace tokens;
-        if (_content == nullptr)
-            return;
         auto content = getLocalBounds().reduced(pixels(kSpaceInside));
-        content.removeFromTop(pixels(kRowHeight));
+        _title.setBounds(content.removeFromTop(pixels(kRowHeight)));
         if (_withTabRow)
             content.removeFromBottom(pixels(kTabHeight));
-        _content->setBounds(content);
+        _hint.setBounds(content);
+        if (_content != nullptr)
+            _content->setBounds(content);
     }
 
     void AreaPanel::paint(juce::Graphics& g)
@@ -94,9 +104,7 @@ namespace app::ui
         g.fillRoundedRectangle(bounds, kRadiusPanel);
 
         auto content = getLocalBounds().reduced(pixels(kSpaceInside));
-        g.setColour(colourOf(kColourTextSecondary));
-        g.setFont(_lookAndFeel.font(kFontTitleSize, true));
-        g.drawText(_title, content.removeFromTop(pixels(kRowHeight)), juce::Justification::centredLeft);
+        content.removeFromTop(pixels(kRowHeight));
 
         if (_withTabRow)
         {
@@ -104,13 +112,6 @@ namespace app::ui
             const auto tabRow = content.removeFromBottom(pixels(kTabHeight));
             g.setColour(colourOf(kColourBorderDefault));
             g.fillRect(tabRow.withHeight(pixels(kStrokeHairline)));
-        }
-
-        if (_hint.isNotEmpty())
-        {
-            g.setColour(colourOf(kColourTextDisabled));
-            g.setFont(_lookAndFeel.font(kFontValueSize));
-            g.drawFittedText(_hint, content, juce::Justification::centred, 2);
         }
     }
 

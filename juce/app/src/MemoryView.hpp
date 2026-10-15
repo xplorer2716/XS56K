@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <vector>
 
+#include "CutLabel.hpp"
 #include "ItemList.hpp"
 #include "app/MemoryController.hpp"
 #include "app/Model.hpp"
@@ -57,6 +58,6 @@ namespace app::ui
         juce::TextButton _refresh;
         /// The item of each row; none for a heading.
         std::vector<std::optional<MemoryItem>> _items;
-        juce::Label _free;
+        CutLabel _free;
     };
 }

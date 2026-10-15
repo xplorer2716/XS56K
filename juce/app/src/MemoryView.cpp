@@ -97,7 +97,6 @@ namespace app::ui
         addAndMakeVisible(_refresh);
         _free.setFont(_lookAndFeel.font(tokens::kFontCaptionSize));
         _free.setColour(juce::Label::textColourId, colourOf(tokens::kColourTextSecondary));
-        _free.setMinimumHorizontalScale(1.0f);
         _free.setBorderSize({});
         addAndMakeVisible(_free);
         _model.addListener(*this);

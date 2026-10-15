@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <utility>
 
+#include "CutLabel.hpp"
 #include "LookAndFeel.hpp"
 #include "app/DesignTokens.generated.hpp"
 
@@ -97,8 +98,8 @@ namespace app::ui
             }
 
             std::function<void(bool)> _answer;
-            juce::Label _title;
-            juce::Label _text;
+            CutLabel _title;
+            CutLabel _text;
             juce::TextButton _cancel;
             juce::TextButton _confirm;
         };

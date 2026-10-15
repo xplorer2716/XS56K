@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <optional>
 #include <vector>
 
+#include "CutLabel.hpp"
 #include "ItemList.hpp"
 #include "app/FileBrowser.hpp"
 #include "app/Model.hpp"
@@ -64,7 +65,7 @@ namespace app::ui
         FileBrowser& _browser;
         ItemList _list;
         std::vector<Entry> _entries;
-        juce::Label _path;
-        juce::Label _details;
+        CutLabel _path;
+        CutLabel _details;
     };
 }

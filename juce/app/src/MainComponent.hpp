@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <juce_gui_extra/juce_gui_extra.h>
 
 #include "BrowserView.hpp"
+#include "CutLabel.hpp"
 #include "MemoryView.hpp"
 #include "StatusBar.hpp"
 #include "app/AppSettings.hpp"
@@ -47,8 +48,8 @@ namespace app::ui
 
     private:
         LookAndFeel& _lookAndFeel;
-        juce::String _title;
-        juce::String _hint;
+        CutLabel _title;
+        CutLabel _hint;
         bool _withTabRow;
         juce::Component* _content = nullptr;
     };

@@ -79,7 +79,7 @@ namespace
         app::Controller controller{model, dispatcher, prompts, settings, backend};
         app::FileBrowser browser{model, controller};
         app::MemoryController memory{model, controller};
-        juce::TooltipWindow tooltips;
+        juce::TooltipWindow tooltips{nullptr, static_cast<int>(app::tokens::kMotionTooltip.count())};  // [RQ-APP-080, TASK-APP-022]
         std::unique_ptr<MainWindow> window;
     };
 

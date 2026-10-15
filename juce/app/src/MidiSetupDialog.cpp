@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <utility>
 #include <vector>
 
+#include "CutLabel.hpp"
 #include "LookAndFeel.hpp"
 #include "app/DesignTokens.generated.hpp"
 
@@ -155,13 +156,13 @@ namespace app::ui
 
             MidiPortLists _ports;
             std::function<void(const MidiSetup&)> _onValidated;
-            juce::Label _inputLabel;
-            juce::Label _outputLabel;
-            juce::Label _deviceIdLabel;
+            CutLabel _inputLabel;
+            CutLabel _outputLabel;
+            CutLabel _deviceIdLabel;
             juce::ComboBox _input;
             juce::ComboBox _output;
             juce::TextEditor _deviceId;
-            juce::Label _message;
+            CutLabel _message;
             juce::TextButton _cancel;
             juce::TextButton _ok;
         };

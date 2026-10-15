@@ -58,6 +58,7 @@ namespace app::tokens
     constexpr std::chrono::milliseconds kMotionHover{80};  // motion.hover
     constexpr std::chrono::milliseconds kMotionBusy{1000};  // motion.busy
     constexpr std::chrono::milliseconds kMotionMessage{4000};  // motion.message
+    constexpr std::chrono::milliseconds kMotionTooltip{700};  // motion.tooltip
     constexpr float kOpacityScrimDefault = 0.6f;  // opacity.scrim.default
 
     // semantic tokens
