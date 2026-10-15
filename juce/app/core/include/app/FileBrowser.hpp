@@ -70,9 +70,6 @@ namespace app
         void audition(const BrowserItem& file);
         /// Stops the audition in progress, if any. [RQ-APP-033]
         void stopAudition();
-        /// Refreshes the sampler's list of disks, after the warning that the sampler may stop answering, and lists them again.
-        /// [RQ-APP-034]
-        void refreshDisks();
 
         void modelChanged(ModelPart part) override;
 

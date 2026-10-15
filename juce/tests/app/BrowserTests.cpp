@@ -246,7 +246,7 @@ TEST_CASE("Given PAD.AKP of 4 096 bytes, When it is selected, Then the browser g
 }
 
 TEST_CASE("Given a selection, When its context menu opens, Then only the commands that apply are offered: audition for a sample file only, "
-          "the folder commands for a folder, create a folder and refresh for a disk [RQ-APP-027]",
+          "the folder commands without Open for a folder, only create a folder for a disk [RQ-APP-027, RQ-APP-034]",
           "[app][browser]")
 {
     const auto program = app::commandsFor(BrowserItem{BrowserItemKind::File, {}, "PAD.AKP"});
@@ -255,17 +255,17 @@ TEST_CASE("Given a selection, When its context menu opens, Then only the command
     CHECK(offers(program, BrowserCommand::Rename));
     CHECK(offers(program, BrowserCommand::Delete));
     CHECK_FALSE(offers(program, BrowserCommand::Audition));
-    CHECK_FALSE(offers(program, BrowserCommand::Open));
 
     const auto sample = app::commandsFor(BrowserItem{BrowserItemKind::File, {"DRUMS"}, "KICK.WAV"});
     CHECK(offers(sample, BrowserCommand::Audition));
 
     const auto folder = app::commandsFor(BrowserItem{BrowserItemKind::Folder, {}, "DRUMS"});
-    CHECK(folder == std::vector<BrowserCommand>{BrowserCommand::Open, BrowserCommand::LoadFolder, BrowserCommand::CreateFolder,
-                                                BrowserCommand::Rename, BrowserCommand::Delete});
+    // No "Open" (the double click opens) and no refresh of the disks (withdrawn). [RQ-APP-027, RQ-APP-034, TASK-APP-027]
+    CHECK(folder == std::vector<BrowserCommand>{BrowserCommand::LoadFolder, BrowserCommand::CreateFolder, BrowserCommand::Rename,
+                                                BrowserCommand::Delete});
 
     const auto disk = app::commandsFor(BrowserItem{BrowserItemKind::Disk, {}, "HD1"});
-    CHECK(disk == std::vector<BrowserCommand>{BrowserCommand::CreateFolder, BrowserCommand::RefreshDisks});
+    CHECK(disk == std::vector<BrowserCommand>{BrowserCommand::CreateFolder});
 }
 
 TEST_CASE("Given the browser filled, When the person disconnects, Then the browser is emptied [RQ-APP-019, RQ-APP-024]", "[app][browser]")

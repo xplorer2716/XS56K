@@ -7,7 +7,7 @@ Session APP (2026-10-15, second session of the day). After using the editor on t
 1. remove "Refresh the list of disks" from the browser's menu (reading the disks never needs it, and it hung the S5000): RQ-APP-034 withdrawn,
    RQ-APP-027 amended;
 2. remove "Open" from the menu, which repeats the double click: RQ-APP-027 amended;
-3. start and stop the audition of the selected sample with the space bar: RQ-APP-083 (new);
+3. start and stop the audition of the selected sample with the space bar, in the browser and the memory view: RQ-APP-083 (new);
 4. allow a folder of more than 26 characters, which cannot be opened, to be renamed to a shorter name: RQ-MCP-068 and RQ-APP-031 amended;
 5. make every text two points larger: RQ-APP-084 (new), ADR-APP-002 amended;
 6. resize the three areas with the mouse by dragging the dark gaps between them: RQ-APP-008 amended (Could to Must), ADR-APP-002 DEC-APP-022.
@@ -48,13 +48,13 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI
 - **Verification**: the `agnos-index` skill, 2026-10-15: exit 0, no duplicate; the IDs listed in the index.
 - **Assumptions**: (1) "2 pt" read as two logical pixels on each text size, the unit of the tokens. (2) The heights of the rows, tabs and status bar stay as they
-  are unless a text is cut (checked in TASK-APP-030). (3) The space bar acts in the browser only, the owner having named the file browser; the memory view's
-  audition (RQ-APP-041) is unchanged. (4) Only the rename of a long folder is opened up; its open, load and deletion stay refused. (5) The sizes of the areas are
+  are unless a text is cut (checked in TASK-APP-030). (3) The space bar acts in the browser and the memory view (owner, 2026-10-15), on samples only: song files
+  have no play command in the SysEx. (4) Only the rename of a long folder is opened up; its open, load and deletion stay refused. (5) The sizes of the areas are
   not kept between runs (RQ-APP-009 stays Could).
 
 ### TASK-APP-027: No "Open" and no refresh of the disks in the browser's menu
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `xs56k_app_core`, `commandsFor` no longer gives `Open` for a folder nor `RefreshDisks` for a disk, and both commands leave
   `BrowserCommand`; `FileBrowser::refreshDisks` and its confirmation are removed, with their tests; the browser view loses the two menu items. The README's
   sentence on the refresh is updated. The MCP server's refresh (DEC-MCP-020) is untouched.
@@ -65,15 +65,16 @@ This plan implements the tasks in the format specified below.
   accessibility tree, *Then* neither "Open" nor "Refresh the list of disks…" is in it, and the double click still opens a folder.
 - **Dependencies**: TASK-APP-026
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the amended case of `BrowserTests.cpp` failed first (folder `{0,3,4,5,6}`, disk `{4,8}`), then passed;
+  the refresh test removed with the command. `ctest -C Debug`: 100% passed, 0 failed out of 1192; warning-clean. The view (menu without the two items) is
+  checked with the next task's run of the application, the owner's instance holding the executable.
+- **Assumptions**: None
 
 ### TASK-APP-028: The space bar starts and stops the audition
 - **Tier**: M
 - **Status**: Not Started
-- **Description**: In `xs56k_app_core`, `FileBrowser` gains `toggleAudition(item)`: it starts the audition of a sample file not being auditioned, stops the one
-  being auditioned, and sends nothing for any other selection; the browser view calls it when the space bar is pressed while its list has the keyboard focus.
-- **Requirement refs**: RQ-APP-083, RQ-APP-033
+- **Description**: `toggleAudition(item)` in `FileBrowser` and `MemoryController` (start, stop, or nothing if not a sample); both views call it on the space bar.
+- **Requirement refs**: RQ-APP-083, RQ-APP-033, RQ-APP-041
 - **ADR refs**: ADR-APP-001 (DEC-APP-001, DEC-APP-004, DEC-APP-010)
 - **Acceptance Criteria** (Gherkin): see RQ-APP-083, in the core against the simulated sampler; *Given* the application connected to the real S5000 and a
   sample selected, *When* the space bar is sent twice through `uia.ps1`, *Then* the owner hears the sample start, then stop.

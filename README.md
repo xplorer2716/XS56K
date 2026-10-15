@@ -96,8 +96,8 @@ disk until it was switched off and on, so it needs its own option, `--allow-disk
 `XS56K`, built with `-DBUILD_APP=ON`, connects to the sampler through the ports chosen in **MIDI > MIDI setup…** (**Sampler > Connect**).
 The browser shows the sampler's own disks: a double click opens or folds a folder, the context menu (right click, or Shift+F10) loads,
 creates, renames, deletes or auditions. The memory view lists what the sampler holds, by kind, with the current item of each marked. Every
-deletion asks for a confirmation. A folder name of more than 26 characters is refused: the S5000 crashes when one is opened. The sampler's
-disk-list refresh is offered only after a warning: it hung a real S5000.
+deletion asks for a confirmation. A folder name of more than 26 characters is refused: the S5000 crashes when one is opened. The editor
+does not offer the sampler's disk-list refresh, which hung a real S5000.
 
 ## Where things are
 

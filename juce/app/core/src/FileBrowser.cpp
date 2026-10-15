@@ -102,7 +102,6 @@ namespace app
         constexpr const char* DELETING_LABEL = "Deleting ";
         constexpr const char* AUDITIONING_LABEL = "Auditioning ";
         constexpr const char* STOPPING_LABEL = "Stopping the audition";
-        constexpr const char* REFRESHING_LABEL = "Refreshing the list of disks";
         constexpr const char* THE_ROOT = "the root";
         constexpr char EXTENSION_DOT = '.';
 
@@ -421,23 +420,5 @@ namespace app
         _auditioning.reset();
         _controller.runOnSampler<bool>(STOPPING_LABEL, [](mcp::SamplerGateway& gateway) { return gateway.stopFileAudition(); },
                                        [](const bool&) {});
-    }
-
-    void FileBrowser::refreshDisks()
-    {
-        const Confirmation question{"Refresh the list of disks?", "the list of disks",
-                                    "The refresh once left a real S5000 answering nothing: it may have to be switched off and on."};
-        _controller.runOnSamplerConfirmed<DiskView>(
-            question, REFRESHING_LABEL,
-            [](mcp::SamplerGateway& gateway) {
-                const auto refreshed = gateway.listDisks(true);
-                if (!refreshed.ok())
-                    return mcp::Outcome<DiskView>::failure(refreshed.problem);
-                return readDisks(gateway);
-            },
-            [this, alive = std::weak_ptr<int>(_alive)](const DiskView& view) {
-                if (!alive.expired())
-                    _model.setBrowser(stateOf(view));
-            });
     }
 }

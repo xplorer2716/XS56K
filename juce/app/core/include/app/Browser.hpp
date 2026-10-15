@@ -89,7 +89,6 @@ namespace app
     /// The commands of the browser's context menu. [RQ-APP-027]
     enum class BrowserCommand
     {
-        Open,
         Load,
         LoadWithDependents,
         LoadFolder,
@@ -97,7 +96,6 @@ namespace app
         Rename,
         Delete,
         Audition,
-        RefreshDisks,
     };
 
     /// Only the commands that apply to `item`, in the order of the menu: for a file, load, load with its dependents, rename, delete, and

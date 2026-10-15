@@ -46,7 +46,6 @@ using app::test::setupA;
 namespace
 {
     constexpr std::uint8_t SECTION_DISK = 0x10;
-    constexpr std::uint8_t ITEM_UPDATE_DISK_LIST = 0x01;
     constexpr std::uint8_t ITEM_LOAD_FOLDER = 0x15;
     constexpr std::uint8_t ITEM_CREATE_FOLDER = 0x16;
     constexpr std::uint8_t ITEM_DELETE_SUB_FOLDER = 0x17;
@@ -282,25 +281,4 @@ TEST_CASE("Given KICK.WAV selected, When the person auditions it, Then the audit
     fixture.browser.select(rootFile("PAD.AKP"));
     REQUIRE(fixture.rig.settle());
     CHECK(fixture.sent(ITEM_STOP_FILE_AUDITION) == 1);  // nothing was playing any more
-}
-
-TEST_CASE("Given the browser, When the person asks for the refresh of the disks and cancels, Then nothing is sent; When the person confirms, "
-          "Then the refresh is sent and the disks are listed again [RQ-APP-034, RQ-APP-011, RQ-APP-013]",
-          "[app][browser]")
-{
-    CommandRig fixture;
-
-    fixture.rig.prompts.answers = {false};
-    fixture.browser.refreshDisks();
-    REQUIRE(fixture.rig.settle());
-    REQUIRE(fixture.rig.prompts.asked.size() == 1);
-    CHECK(fixture.rig.prompts.asked[0].consequence.find("switched off and on") != std::string::npos);
-    CHECK(fixture.sent(ITEM_UPDATE_DISK_LIST) == 0);
-
-    fixture.rig.prompts.answers = {true};
-    fixture.browser.refreshDisks();
-    REQUIRE(fixture.rig.settle());
-    CHECK(fixture.sent(ITEM_UPDATE_DISK_LIST) == 1);
-    CHECK(fixture.rig.model.browser().disks.size() == 1);
-    CHECK_FALSE(fixture.rig.model.problem().has_value());
 }

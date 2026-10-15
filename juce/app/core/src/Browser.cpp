@@ -184,11 +184,11 @@ namespace app
     {
         switch (item.kind)
         {
+            // A folder is opened by a double click, and the refresh of the disks is not offered. [RQ-APP-027, RQ-APP-034, TASK-APP-027]
             case BrowserItemKind::Disk:
-                return {BrowserCommand::CreateFolder, BrowserCommand::RefreshDisks};
+                return {BrowserCommand::CreateFolder};
             case BrowserItemKind::Folder:
-                return {BrowserCommand::Open, BrowserCommand::LoadFolder, BrowserCommand::CreateFolder, BrowserCommand::Rename,
-                        BrowserCommand::Delete};
+                return {BrowserCommand::LoadFolder, BrowserCommand::CreateFolder, BrowserCommand::Rename, BrowserCommand::Delete};
             case BrowserItemKind::File:
                 break;
         }

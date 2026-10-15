@@ -26,7 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app::ui
 {
-    // [RQ-APP-024 to RQ-APP-034, RQ-APP-005, ADR-APP-001 (DEC-APP-001), ADR-APP-002 (DEC-APP-013, DEC-APP-014), TASK-APP-018]
+    // [RQ-APP-024 to RQ-APP-033, RQ-APP-005, ADR-APP-001 (DEC-APP-001), ADR-APP-002 (DEC-APP-013, DEC-APP-014), TASK-APP-018]
     namespace
     {
         constexpr const char* PATH_SEPARATOR = ":\\";
@@ -39,8 +39,7 @@ namespace app::ui
         /// The menu's item ids: one per command of the core, and the extra ones of the view.
         enum MenuId
         {
-            OPEN_ID = 1,
-            LOAD_ID,
+            LOAD_ID = 1,
             LOAD_RAM_ID,
             LOAD_VIRTUAL_ID,
             LOAD_WITH_DEPENDENTS_ID,
@@ -50,7 +49,6 @@ namespace app::ui
             DELETE_ID,
             AUDITION_ID,
             STOP_AUDITION_ID,
-            REFRESH_DISKS_ID,
         };
 
         RowIcon iconOf(FileKind kind)
@@ -251,9 +249,6 @@ namespace app::ui
         {
             switch (command)
             {
-                case BrowserCommand::Open:
-                    menu.addItem(OPEN_ID, "Open");
-                    break;
                 case BrowserCommand::Load:
                     menu.addItem(LOAD_ID, "Load");
                     if (sample)
@@ -281,9 +276,6 @@ namespace app::ui
                     menu.addItem(AUDITION_ID, "Audition");
                     menu.addItem(STOP_AUDITION_ID, "Stop the audition");
                     break;
-                case BrowserCommand::RefreshDisks:
-                    menu.addItem(REFRESH_DISKS_ID, "Refresh the list of disks" + ELLIPSIS);
-                    break;
             }
         }
         menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(this).withMousePosition(),
@@ -298,9 +290,6 @@ namespace app::ui
         const BrowserItem& item = entry.item;
         switch (command)
         {
-            case OPEN_ID:
-                _browser.openFolder(pathOf(item));
-                break;
             case LOAD_ID:
                 _browser.load(item, false, mcp::SampleLoadMode::Normal);
                 break;
@@ -344,9 +333,6 @@ namespace app::ui
                 break;
             case STOP_AUDITION_ID:
                 _browser.stopAudition();
-                break;
-            case REFRESH_DISKS_ID:
-                _browser.refreshDisks();
                 break;
             default:
                 break;
