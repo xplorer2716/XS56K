@@ -1,6 +1,6 @@
 # XS56K
 
-> Drive an AKAI S5000 or S6000 sampler from a computer: a SysEx library, an MCP server for AI assistants, and, later, an editor
+> Drive an AKAI S5000 or S6000 sampler from a computer: a SysEx library, an MCP server for AI assistants, and an editor
 
 XS56K is three things that build on each other:
 
@@ -8,15 +8,16 @@ XS56K is three things that build on each other:
 2. **An MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) that lets an AI assistant, or a person talking to
    one (by voice, for example), work on the sampler: edit programs, samples and multis, load and save files on its disks.
    The goal is for it to cover every function of the samplers.
-3. **A program editor** with a real user interface. It is a goal: it does not exist yet.
+3. **A program editor** with a real user interface. It is being built: the window, the disk browser and the memory view work; the
+   panel that edits a program does not exist yet.
 
-**Status:** experimental. Only the first two parts exist, and only part of the second one.
+**Status:** experimental. The first two parts exist, the second only in part; the editor is partly built.
 
 | Part | Today | Goal |
 |---|---|---|
 | SysEx library (`juce/akm`) | All 13 sections of the spec have a command for every row (check below). Run on a real S5000 (OS 2.14), with gaps listed below. | The same, checked on an S6000 too |
 | MCP server (`juce/mcp`) | 56 tools, 72 with `--allow-disk`, 61 with `--allow-front-panel`, 77 with both. Every tool has run on a real S5000, on test objects or with the memory saved first, except what needs a board: the five effects tools only answered "no board" (the S5000 has none, so the effects themselves are untried). The front-panel keys were seen on the sampler's screen: a cursor key, `multi` and `utilities`, a held key, the data wheel and an ASCII character. Of the 384 messages of the specification, 350 have a tool, 24 are covered without one and 10 are left out on purpose; the 8 alternative sections of its Table 32 are not covered ([`documents/SYSEX-COVERAGE.md`](documents/SYSEX-COVERAGE.md), 2026-10-11). | Every function of the samplers, except ejecting a disk and nine other messages left out on purpose (ADR-MCP-005, ADR-MCP-006) |
-| Editor (`juce/app`) | A bare placeholder window, there only to exercise the build | A real editor |
+| Editor (`juce/app`) | Main window, menus, MIDI setup and connection, browser of the sampler's disks (open, fold, load, create, rename, delete, audition), memory view (the six kinds of item, create a program, rename, delete, audition, free memory). Run on a real S5000 (OS 2.14). No edit panel yet | A real program editor |
 
 ## Architecture
 
@@ -33,8 +34,9 @@ Inside the orange box is what runs on your computer; below it, what the build fe
 - **`xs56k_akm`** reaches the sampler through the ports of **`xs56k_midi`** (ports, messages, the SysEx stream). **`xs56k_midi_juce`**
   implements them with JUCE and the computer's MIDI devices: it sends the SysEx messages to the AKAI S5000 or S6000, and the sampler's
   replies come back the same way.
-- **`xs56k_framework`**, the controller core ported from XplorerEditor, depends on `xs56k_midi`. With `xs56k_midi_juce` it is linked by
-  the placeholder application `XS56K`, which is built only with `BUILD_APP=ON`.
+- **`xs56k_framework`**, the controller core ported from XplorerEditor, depends on `xs56k_midi`.
+- **The editor `XS56K`** (built only with `BUILD_APP=ON`) draws its model with JUCE; its model and controllers are **`xs56k_app_core`**
+  (no JUCE), which reaches the sampler through `xs56k_sampler`, like the MCP server, and `xs56k_midi_juce`.
 - **The build:** GitHub Actions (the canary workflow) builds and runs `ctest` from `juce/CMakeLists.txt`, which fetches JUCE 8.0.15,
   nlohmann/json 3.12.0 (the MCP server's JSON, pinned by its SHA-256) and, with `BUILD_TESTS`, Catch2 3.9.1.
 
@@ -87,8 +89,15 @@ disk until it was switched off and on, so it needs its own option, `--allow-disk
 
 ## The editor (`juce/app`)
 
-Goal. What exists is a placeholder: `XS56K`, built with `-DBUILD_APP=ON`, opens one empty window. It is there to exercise the
-build, versioning and release plumbing, and is not an editor.
+[![The editor's main window, connected: the sampler's disks at the top left, the memory view under it, the edit panel on the right](documents/mockups/main-window-connected.svg)](documents/mockups/main-window-connected.svg)
+
+*A mockup drawn from the design system (`documents/mockups/`); the edit panel shown on the right is not built yet.*
+
+`XS56K`, built with `-DBUILD_APP=ON`, connects to the sampler through the ports chosen in **MIDI > MIDI setup…** (**Sampler > Connect**).
+The browser shows the sampler's own disks: a double click opens or folds a folder, the context menu (right click, or Shift+F10) loads,
+creates, renames, deletes or auditions. The memory view lists what the sampler holds, by kind, with the current item of each marked. Every
+deletion asks for a confirmation. A folder name of more than 26 characters is refused: the S5000 crashes when one is opened. The sampler's
+disk-list refresh is offered only after a warning: it hung a real S5000.
 
 ## Where things are
 
@@ -97,7 +106,7 @@ build, versioning and release plumbing, and is not an editor.
 | `juce/akm` | the S5000 SysEx library (`xs56k_akm`), written for this project |
 | `juce/mcp` | the MCP server (`xs56k_mcp_server`) and its [README](juce/mcp/README.md) |
 | `juce/midi`, `juce/framework` | MIDI ports and application framework, ported from [XplorerEditor](https://github.com/xplorer2716/XplorerEditor) |
-| `juce/app` | the placeholder application |
+| `juce/app` | the editor: `core` (model and controllers), `src` (JUCE views), `design` (the design tokens) |
 | `juce/tests` | the tests, a simulated sampler, and the real-sampler [probe](juce/tests/probe/README.md) |
 | `documents/` | the sampler's SysEx specification and operator's manual ([index](documents/INDEX.md)) |
 | `process/` | requirements, architecture decisions, plans and the notes of each real-sampler run |
@@ -116,7 +125,7 @@ cd XS56K
 cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build juce/build -j"$(nproc)"
 
-# With the placeholder application: add -DBUILD_APP=ON
+# With the editor: add -DBUILD_APP=ON
 # Tests (this also builds the simulated MCP server)
 cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
 cmake --build juce/build -j"$(nproc)"
