@@ -113,12 +113,16 @@ namespace app::ui
             if (!_showing && onValue)
                 onValue(static_cast<std::int64_t>(juce::roundToInt(_slider.getValue())));
         };
+        _slider.onDragEnd = [this] { show(_shown); };  // a refused value leaves the thumb where the model's value is [RQ-APP-051]
         if (parameter.control == layouts::Control::Knob || parameter.control == layouts::Control::Slider)
             addAndMakeVisible(_slider);
 
         _choice.onChange = [this] {
             if (!_showing && onValue && _choice.getSelectedId() >= FIRST_ITEM_ID)
+            {
                 onValue(static_cast<std::int64_t>(_choice.getSelectedId() - FIRST_ITEM_ID));
+                show(_shown);
+            }
         };
         if (parameter.control == layouts::Control::Choice)
             addAndMakeVisible(_choice);
@@ -158,8 +162,7 @@ namespace app::ui
             return;
         if (const auto value = valueFrom(_shown, _box.getText().toStdString()); value && onValue)
             onValue(*value);
-        else
-            show(_shown);  // not a value: the box shows again what the sampler holds
+        show(_shown);  // a text that is not a value, or a value refused, leaves the box with what the model holds [RQ-APP-051]
     }
 
     void ParameterCell::resized()

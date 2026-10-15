@@ -159,6 +159,8 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-APP-040
 - **Assignee**: AI
 - **Verification**: Windows/MSVC, Debug, 2026-10-15: two new cases of `EditTests.cpp` failed first (the loop start read 10000; the loop end 4000
-  sent), then passed (157 assertions in the 12 edit cases); `ctest -C Debug`: 1211 passed. Real run: the owner's.
+  sent), then passed (157 assertions in the 12 edit cases); `ctest -C Debug`: 1211 passed. Owner's run: the loop end 4000 refused with "nothing was
+  sent", but the box kept 4000; fixed in `ParameterCell` (the box, the slider at the end of a drag and the choice show the model's value again after
+  every change; a view, not unit-tested, DEC-APP-010).
 - **Assumptions**: (1) A loop start read beyond the sample's length (2^28 - 1, F6) is not sent again and bounds nothing. (2) The switch is off by
   default, so the AKM and MCP tests keep the simple store.
