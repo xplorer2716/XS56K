@@ -102,7 +102,8 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: TASK-APP-026
 - **Assignee**: AI
 - **Verification**: Windows/MSVC, Debug, 2026-10-15: the amended case of `DiskFileOpsTests.cpp` failed first (rename of the 27-character folder to SHORT
-  refused, `DiskRenameFolder` 0), then passed; `ctest -C Debug`: 100% passed, 0 failed out of 1194; warning-clean. Real S5000: waiting for the owner.
+  refused, `DiskRenameFolder` 0), then passed; `ctest -C Debug`: 100% passed, 0 failed out of 1194; warning-clean. Real S5000: not tried, the 29-character test folder of `S5K:\A B C` is
+  no longer on the disk (root listed 2026-10-15) and the application cannot create one (RQ-MCP-068).
 - **Assumptions**: (1) Found while testing: `uia.ps1 invoke -Name XS56K` took the window, not its menu; the window is no longer a target (checked:
   `invoke XS56K`, `invoke Quit` quit the editor).
 
@@ -127,7 +128,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-031: The gaps between the areas dragged with the mouse
 - **Tier**: M
-- **Status**: In Progress
+- **Status**: Done
 - **Description**: In `XS56KApp`, `MainComponent` lays the left column and the edit panel, and the browser and the memory view, out with a
   `juce::StretchableLayoutManager` each and a `juce::StretchableLayoutResizerBar` in each gap, the minimums from the layout tokens; the look-and-feel draws the
   bars as DEC-APP-022 says, with the new component token `resizer.bar.active`.
@@ -139,7 +140,7 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI and Human (the drag)
 - **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `CoreTests.cpp` (the two resizer tokens) failed first to compile, then passed;
   `ctest -C Debug`: 100% passed, 0 failed out of 1196 (literal and token checks among them); warning-clean. The window captured at start: the same layout
-  as before. The drag: waiting for the owner.
+  as before. The drag checked by the owner the same day: OK.
 - **Assumptions**: (1) The accent is a line of `stroke.focus` across the middle of the gap, not the whole gap. (2) A new component token `resizer.bar`
   (the gap's colour) beside `resizer.bar.active`.
 
@@ -156,7 +157,8 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI
 - **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `BrowserCommandTests.cpp` failed first (a problem, no NEW in DRUMS), then passed
   (one more Select Disk, NEW created); `ctest -C Debug`: 100% passed, 0 failed out of 1197; libraries warning-clean (the executable not relinked: the
-  owner's instance was running). On the real S5000: the owner's case to be replayed by the owner.
+  owner's instance was running). On the real S5000: the owner's case (No disk, then a folder created in S5K)
+  replayed by the owner: OK.
 - **Assumptions**: (1) One more Get Disk List per command on a folder, the price of the check.
 
 ### TASK-APP-033: A log file of the errors
