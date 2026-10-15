@@ -64,9 +64,25 @@ namespace app
             return mcp::Outcome<DiskView>::success(std::move(view));
         }
 
-        /// From the sampler's current folder up to the folder both paths share, then down to `target`; the last listing is the target's.
-        mcp::Outcome<mcp::DiskContents> moveTo(mcp::SamplerGateway& gateway, const std::vector<std::string>& target)
+        /// On `disk`, the disk the tree shows, then from the sampler's current folder up to the folder both paths share, then down to
+        /// `target`; the last listing is the target's. The sampler left on another disk (a selection of "No disk" that could not be
+        /// listed) is put back on `disk` first. [RQ-APP-024, RQ-APP-025, TASK-APP-032]
+        mcp::Outcome<mcp::DiskContents> moveTo(mcp::SamplerGateway& gateway, std::optional<int> disk, const std::vector<std::string>& target)
         {
+            if (disk)
+            {
+                const auto disks = gateway.listDisks(false);
+                if (!disks.ok())
+                    return mcp::Outcome<mcp::DiskContents>::failure(disks.problem);
+                const bool there = std::any_of(disks.value->begin(), disks.value->end(),
+                                               [&disk](const mcp::DiskEntry& entry) { return entry.current && entry.handle == *disk; });
+                if (!there)
+                {
+                    const auto selected = gateway.selectDiskByHandle(*disk);
+                    if (!selected.ok())
+                        return mcp::Outcome<mcp::DiskContents>::failure(selected.problem);
+                }
+            }
             auto contents = gateway.listDiskContents();
             if (!contents.ok())
                 return contents;
@@ -126,9 +142,9 @@ namespace app
 
         /// Goes to `folder`, runs the load there, and answers the folder and the load.
         template <typename Load>
-        mcp::Outcome<LoadDone> loadAt(mcp::SamplerGateway& gateway, const std::vector<std::string>& folder, Load load)
+        mcp::Outcome<LoadDone> loadAt(mcp::SamplerGateway& gateway, std::optional<int> disk, const std::vector<std::string>& folder, Load load)
         {
-            auto there = moveTo(gateway, folder);
+            auto there = moveTo(gateway, disk, folder);
             if (!there.ok())
                 return mcp::Outcome<LoadDone>::failure(there.problem);
             auto loaded = load(gateway);
@@ -140,9 +156,10 @@ namespace app
         /// Goes to `folder`, runs the change there, and answers the folder as listed afterwards. A change the gateway did not make (a
         /// confirmation that did not match) is a problem.
         template <typename Change>
-        mcp::Outcome<mcp::DiskContents> changeAt(mcp::SamplerGateway& gateway, const std::vector<std::string>& folder, Change change)
+        mcp::Outcome<mcp::DiskContents> changeAt(mcp::SamplerGateway& gateway, std::optional<int> disk, const std::vector<std::string>& folder,
+                                                 Change change)
         {
-            const auto there = moveTo(gateway, folder);
+            const auto there = moveTo(gateway, disk, folder);
             if (!there.ok())
                 return there;
             const auto changed = change(gateway);
@@ -253,7 +270,7 @@ namespace app
     {
         const std::string label = OPENING_LABEL + (folder.empty() ? std::string(ROOT_NAME) : pathText(folder));
         _controller.runOnSampler<mcp::DiskContents>(
-            label, [folder](mcp::SamplerGateway& gateway) { return moveTo(gateway, folder); },
+            label, [folder, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) { return moveTo(gateway, disk, folder); },
             [this, alive = std::weak_ptr<int>(_alive)](const mcp::DiskContents& contents) {
                 if (alive.expired())
                     return;
@@ -307,8 +324,8 @@ namespace app
         const std::optional<MemoryKind> kind = memoryKindOf(fileKindOf(file.name));
         _controller.runOnSampler<LoadDone>(
             LOADING_LABEL + file.name,
-            [file, withDependents, mode](mcp::SamplerGateway& gateway) {
-                return loadAt(gateway, file.folder,
+            [file, withDependents, mode, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
+                return loadAt(gateway, disk, file.folder,
                               [&file, withDependents, mode](mcp::SamplerGateway& at) { return at.loadFile(file.name, withDependents, mode); });
             },
             [this, alive = std::weak_ptr<int>(_alive), kind](const LoadDone& done) {
@@ -326,8 +343,8 @@ namespace app
                                         "\" and of its sub-folders is loaded into the sampler's memory, more than the tree shows."};
         _controller.runOnSamplerConfirmed<LoadDone>(
             question, LOADING_LABEL + folder.name,
-            [folder](mcp::SamplerGateway& gateway) {
-                return loadAt(gateway, folder.folder, [&folder](mcp::SamplerGateway& at) { return at.loadFolder(folder.name); });
+            [folder, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
+                return loadAt(gateway, disk, folder.folder, [&folder](mcp::SamplerGateway& at) { return at.loadFolder(folder.name); });
             },
             [this, alive = std::weak_ptr<int>(_alive)](const LoadDone& done) {
                 if (alive.expired())
@@ -344,8 +361,8 @@ namespace app
             return;
         _controller.runOnSampler<mcp::DiskContents>(
             label,
-            [parent, name](mcp::SamplerGateway& gateway) {
-                const auto there = moveTo(gateway, parent);
+            [parent, name, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
+                const auto there = moveTo(gateway, disk, parent);
                 if (!there.ok())
                     return there;
                 return gateway.createFolder(name);
@@ -366,8 +383,8 @@ namespace app
             return;
         _controller.runOnSampler<mcp::DiskContents>(
             label,
-            [item, newName, isFile](mcp::SamplerGateway& gateway) {
-                return changeAt(gateway, item.folder, [&item, &newName, isFile](mcp::SamplerGateway& at) {
+            [item, newName, isFile, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
+                return changeAt(gateway, disk, item.folder, [&item, &newName, isFile](mcp::SamplerGateway& at) {
                     return isFile ? at.renameFile(item.name, newName) : at.renameFolder(item.name, newName);
                 });
             },
@@ -386,8 +403,8 @@ namespace app
                                                  "\" and everything it holds are deleted from the disk; this cannot be undone."};
         _controller.runOnSamplerConfirmed<mcp::DiskContents>(
             question, DELETING_LABEL + item.name,
-            [item, isFile](mcp::SamplerGateway& gateway) {
-                return changeAt(gateway, item.folder, [&item, isFile](mcp::SamplerGateway& at) {
+            [item, isFile, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
+                return changeAt(gateway, disk, item.folder, [&item, isFile](mcp::SamplerGateway& at) {
                     // The person confirmed this very name: it is the gateway's typed confirmation. [DEC-APP-007]
                     return isFile ? at.deleteFile(item.name, item.name) : at.deleteFolder(item.name, item.name, true);
                 });
@@ -402,8 +419,8 @@ namespace app
     {
         const bool queued = _controller.runOnSampler<std::string>(
             AUDITIONING_LABEL + file.name,
-            [file](mcp::SamplerGateway& gateway) {
-                const auto there = moveTo(gateway, file.folder);
+            [file, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
+                const auto there = moveTo(gateway, disk, file.folder);
                 if (!there.ok())
                     return mcp::Outcome<std::string>::failure(there.problem);
                 return gateway.startFileAudition(file.name);

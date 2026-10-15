@@ -48,6 +48,7 @@ namespace
     constexpr std::uint8_t SECTION_DISK = 0x10;
     constexpr std::uint8_t ITEM_LOAD_FOLDER = 0x15;
     constexpr std::uint8_t ITEM_CREATE_FOLDER = 0x16;
+    constexpr std::uint8_t ITEM_SELECT_DISK = 0x02;
     constexpr std::uint8_t ITEM_DELETE_SUB_FOLDER = 0x17;
     constexpr std::uint8_t ITEM_LOAD_FILE = 0x2A;
     constexpr std::uint8_t ITEM_LOAD_FILE_WITH_DEPENDENTS = 0x2B;
@@ -303,4 +304,40 @@ TEST_CASE("Given KICK.WAV selected and nothing auditioned, When the space bar to
     REQUIRE(fixture.rig.settle());
     CHECK(fixture.sent(ITEM_START_FILE_AUDITION) == 1);
     CHECK(fixture.sent(ITEM_STOP_FILE_AUDITION) == 1);
+}
+
+TEST_CASE("Given the browser on HD1 and the sampler left on another disk (a selection of No disk that could not be listed), When a folder is "
+          "created in DRUMS of HD1, Then HD1 is selected again first and the folder is created there [RQ-APP-024, RQ-APP-030, TASK-APP-032]",
+          "[app][browser]")
+{
+    CoreRig rig;
+    std::vector<DiskRecord> disks = oneDisk();
+    DiskRecord none;
+    none.handle = 1;
+    none.name = "No disk";
+    disks.push_back(none);
+    rig.sampler->setDisks(disks);
+    rig.controller.connect(setupA());
+    REQUIRE(rig.settle());
+    app::FileBrowser browser{rig.model, rig.controller};
+    browser.selectDisk(0);
+    REQUIRE(rig.settle());
+    REQUIRE(rig.model.browser().currentDisk == std::optional<int>(0));
+
+    rig.sampler->setCurrentDisk(1);  // what the sampler is left on, while the tree still shows HD1
+    const auto selections = [&rig] {
+        const auto commands = rig.sampler->acceptedCommands();
+        return std::count_if(commands.begin(), commands.end(), [](const akm::harness::AcceptedCommand& command) {
+            return command.section == SECTION_DISK && command.item == ITEM_SELECT_DISK;
+        });
+    };
+    const auto before = selections();
+
+    browser.createFolder({"DRUMS"}, "NEW");
+    REQUIRE(rig.settle());
+    CHECK(selections() == before + 1);
+    CHECK_FALSE(rig.model.problem().has_value());
+    const app::FolderListing* drums = rig.model.browser().listing({"DRUMS"});
+    REQUIRE(drums != nullptr);
+    CHECK(std::find(drums->folders.begin(), drums->folders.end(), "NEW") != drums->folders.end());
 }

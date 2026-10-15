@@ -51,11 +51,12 @@ eject are priority 2, in FTR-APP-009.
 ### RQ-APP-025: Browsing the folders
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN the person opens a folder of the tree, the application SHALL make it the sampler's current folder (RQ-AKM-063) and show its sub-folders and files under it; the browser SHALL mark the sampler's current folder and show its path at all times.
+- **Statement**: WHEN the person opens a folder of the tree, the application SHALL make it the sampler's current folder (RQ-AKM-063) and show its sub-folders and files under it; the browser SHALL mark the sampler's current folder and show its path at all times. Every command on a folder or a file of the tree SHALL first make the disk the tree shows the sampler's current disk, if it no longer is.
 - **Rationale**: the sampler lists only its current folder, and saves into it (FTR-APP-006).
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* a disk with a folder DRUMS holding KICK.WAV and a folder LOOPS, *When* the person opens DRUMS, *Then* LOOPS and KICK.WAV are shown under it, DRUMS is marked current and the path shows it.
 - **Dependencies**: RQ-APP-001, RQ-APP-024, RQ-AKM-063
+- **Amended**: 2026-10-15, the owner selected "No disk" (not listed, the tree kept S5K) then created a folder in S5K: refused, "selected disk is invalid" (TASK-APP-032).
 
 ### RQ-APP-026: What a file is
 - **Category**: Functional

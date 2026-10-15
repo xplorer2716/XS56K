@@ -124,6 +124,12 @@ lists the ports through `common::midi::MidiBackend` (RQ-MID-001), on the UI thre
   the worker to be idle, then runs the continuations). The views are thin and are not unit-tested; what they must do is in the core.
 [RQ-APP-014, RQ-BLD-014]
 
+### DEC-APP-023: Problems and connection changes are logged through `xs56k_framework`'s `Logger`, into a file beside the executable
+Decided on 2026-10-15 for RQ-APP-085, after XplorerEditor's design. `xs56k_app_core` links `xs56k_framework` (no JUCE) and `Model` writes a
+line with `XS56K_LOG` when a problem is set (error) or the connection changes (info). The application installs a `juce::FileLogger` sink
+(JUCE's size trim at start) on `log/XS56K.log` beside the executable, or in the application-data folder when that cannot be written. No
+settings for levels or domains yet. [RQ-APP-085, RQ-APP-010, RQ-APP-019]
+
 ## Consequences
 
 - **Easier.** The application reuses the gateway's tested behaviour — opening, selection, read-back, slow timeouts, verified saves, typed

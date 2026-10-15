@@ -23,6 +23,8 @@ unit-tested, are checked by running the application through `juce/tools/uia.ps1`
 | 4 | TASK-APP-029 | a folder too long to be opened can be renamed to a name of 26 characters or fewer |
 | 5 | TASK-APP-030 | the type scale two pixels larger |
 | 6 | TASK-APP-031 | the gaps between the areas dragged with the mouse |
+| 7 | TASK-APP-032 | (added) a command on a folder of the shown disk selects that disk again first |
+| 8 | TASK-APP-033 | (added) a log file of the errors beside the executable |
 
 ## References
 - **Requirements**: RQ-APP-083, RQ-APP-084 (new); RQ-APP-008, RQ-APP-027, RQ-APP-031, RQ-MCP-068 (amended); RQ-APP-034 (withdrawn); RQ-APP-033,
@@ -140,3 +142,32 @@ This plan implements the tasks in the format specified below.
   as before. The drag: waiting for the owner.
 - **Assumptions**: (1) The accent is a line of `stroke.focus` across the middle of the gap, not the whole gap. (2) A new component token `resizer.bar`
   (the gap's colour) beside `resizer.bar.active`.
+
+### TASK-APP-032: The shown disk selected again before a command on its folders
+- **Tier**: M
+- **Status**: Done
+- **Description**: In `FileBrowser`, every command on a folder or a file (open, load, create, rename, delete, audition) passes the shown disk to `moveTo`, which
+  selects it again when the sampler is on another one.
+- **Requirement refs**: RQ-APP-025, RQ-APP-024, RQ-APP-030
+- **ADR refs**: ADR-APP-001 (DEC-APP-001, DEC-APP-010)
+- **Acceptance Criteria** (Gherkin): *Given* the browser on HD1 and the sampler on another disk, *When* a folder is created in DRUMS, *Then* HD1 is selected
+  again and the folder is created, with no problem.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `BrowserCommandTests.cpp` failed first (a problem, no NEW in DRUMS), then passed
+  (one more Select Disk, NEW created); `ctest -C Debug`: 100% passed, 0 failed out of 1197; libraries warning-clean (the executable not relinked: the
+  owner's instance was running). On the real S5000: the owner's case to be replayed by the owner.
+- **Assumptions**: (1) One more Get Disk List per command on a folder, the price of the check.
+
+### TASK-APP-033: A log file of the errors
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: `xs56k_app_core` links `xs56k_framework`; `Model` logs problems and connection changes; `XS56KApp` installs a `juce::FileLogger` sink on
+  `log/XS56K.log` beside the executable (fallback: application data) and logs the start with the version.
+- **Requirement refs**: RQ-APP-085
+- **ADR refs**: ADR-APP-001 (DEC-APP-023)
+- **Acceptance Criteria** (Gherkin): see RQ-APP-085, in the core with a test sink; the file written by the application on the real S5000.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: —
+- **Assumptions**: —

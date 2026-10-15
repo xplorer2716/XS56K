@@ -148,3 +148,12 @@ reported, how destructive actions are confirmed and how the application is teste
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* a session with no disk selected, *When* the root of the current disk is opened, *Then* the problem says "Select a disk first." and holds no "select_"; *Given* the MCP server in the same case, *Then* its answer still says "Use select_disk first.".
 - **Dependencies**: RQ-APP-010, RQ-MCP-044
+
+### RQ-APP-085: A log file of the errors
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the application reports a problem (RQ-APP-010) or the connection changes (RQ-APP-019), it SHALL append a timestamped line with the level, the action and the reason to `log/XS56K.log` in the folder of the executable; IF that folder cannot be written, THEN it SHALL write to `XS56K/log` in the person's application-data folder. The start of each run SHALL be written with the version.
+- **Rationale**: the owner's request of 2026-10-15: errors kept in a text file, as XplorerEditor does.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* a log sink, *When* a problem "Creating the folder X" / "disk error" is set, *Then* one error line holds both; *When* the session connects, *Then* an info line says so.
+- **Dependencies**: RQ-APP-010, RQ-APP-019, ADR-APP-001 (DEC-APP-023)
