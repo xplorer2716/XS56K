@@ -15,9 +15,10 @@ Each change is made core first where it has behaviour (the size text, the folded
 | 1 | TASK-APP-020 | sizes in bytes, KB or MB, in the browser and the memory view |
 | 2 | TASK-APP-021 | a double click folds an open folder, and opens a folded one |
 | 3 | TASK-APP-022 | a tooltip with the whole text on every text that is cut short |
+| 4 | TASK-APP-023 | the advice of a refusal in the application's words, not the MCP server's tool names (added the same day) |
 
 ## References
-- **Requirements**: RQ-APP-079, RQ-APP-080, RQ-APP-081 (new); RQ-APP-024, RQ-APP-025, RQ-APP-026, RQ-APP-042 (amended or concerned); RQ-APP-001 to
+- **Requirements**: RQ-APP-079, RQ-APP-080, RQ-APP-081, RQ-APP-082 (new); RQ-APP-024, RQ-APP-025, RQ-APP-026, RQ-APP-042 (amended or concerned); RQ-APP-001 to
   RQ-APP-005 (FTR-APP-001, design system); RQ-APP-014
 - **ADRs**: ADR-APP-001 (DEC-APP-001, DEC-APP-004, DEC-APP-010); ADR-APP-002 (DEC-APP-011 to DEC-APP-016)
 
@@ -96,3 +97,22 @@ This plan implements the tasks in the format specified below.
   (2) `motion.tooltip` is a new global motion token of 700 ms, JUCE's default, the mockups having no tooltip. (3) Texts already given whole (the rows' names) keep their
   tooltip as it is. (4) A label whose tooltip says more than its text (the exact count of bytes) keeps that tooltip whether or not it is cut. (5) The areas' titles and
   hints became labels, drawn as before, so that they can carry the tooltip. (6) The test program XS56K TOOLTIP TEST 1 was created and deleted on the owner's sampler.
+
+### TASK-APP-023: The advice of a refusal in the application's words
+- **Tier**: M
+- **Status**: Done
+- **Description**: In `xs56k_sampler`, `GatewayConfig` gains the advice given when nothing of a kind is selected, as a function of the kind; empty, the gateway keeps
+  the MCP server's "Use select_<kind> first."; the five places that wrote it use it. In `xs56k_app_core`, the controller sets the application's advice ("Select a
+  <kind> first.").
+- **Requirement refs**: RQ-APP-082, RQ-APP-010, RQ-MCP-044
+- **ADR refs**: ADR-APP-001 (DEC-APP-002, the gateway shared with the MCP server); ADR-MCP-001
+- **Acceptance Criteria** (Gherkin): *Given* a session of the application with no disk selected, *When* the root is opened, *Then* the problem says "Select a disk
+  first." and has no "select_"; *Given* the MCP server's tests, *Then* they pass unchanged.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `BrowserTests.cpp` (RQ-APP-082) failed first (the problem held "select_" at 126 and no "Select
+  a disk first."), then passed once the gateway took the advice from its configuration and the controller gave the application's; `ctest -C Debug`: 100% passed, 0
+  failed out of 1192, the MCP server's tests and scripted conversations among them, unchanged ("Use select_disk first." kept by default). Libraries and tests
+  warning-clean; the application's executable was not relinked (the owner's instance was running).
+- **Assumptions**: (1) Asked by the owner on 2026-10-15 ("ok pour le reste") after the message "Use select_disk first." in the editor. (2) The cause of that refusal
+  right after the sampler's restart (the root opened while the sampler had no disk selected) is looked at separately, at the next restart.

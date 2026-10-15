@@ -37,6 +37,7 @@ namespace mcp
     using detail::await;
     using detail::explain;
     using detail::numberText;
+    using detail::selectAdvice;
 
     namespace
     {
@@ -999,7 +1000,7 @@ namespace mcp
             return Outcome<DiskContents>::failure(disks.problem);
         const auto current = std::find_if(disks.value->begin(), disks.value->end(), [](const DiskEntry& disk) { return disk.current; });
         if (current == disks.value->end())
-            return Outcome<DiskContents>::failure("No disk is selected: use select_disk first.");
+            return Outcome<DiskContents>::failure("No disk is selected: " + selectAdvice(_config, "disk"));
         if (!current->writable)
             return Outcome<DiskContents>::failure("The disk \"" + current->name + "\" is read-only: nothing can be saved to it. Select a writable disk.");
         return contents;

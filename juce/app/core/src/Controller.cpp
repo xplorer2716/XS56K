@@ -113,6 +113,9 @@ namespace app
         config.inputPort = setup.inputPort;
         config.outputPort = setup.outputPort;
         config.deviceId = static_cast<std::uint32_t>(setup.deviceId);
+        // The advice of a refusal in the application's words, not the MCP server's tool names. [RQ-APP-082, TASK-APP-023]
+        if (!config.selectAdvice)
+            config.selectAdvice = [](const std::string& kind) { return "Select a " + kind + " first."; };
         // On the MIDI backend's thread: only post, to the UI thread.
         config.portError = [this, alive = std::weak_ptr<int>(_alive), &dispatcher = _dispatcher](const std::string& port,
                                                                                                   const std::string& description) {

@@ -74,6 +74,9 @@ namespace mcp
         /// open (RQ-MID-023): the device was unplugged, for instance. On the MIDI backend's thread, so it must neither throw nor block.
         /// Empty: the error is dropped. [RQ-APP-022, ADR-APP-001 (DEC-APP-008), TASK-APP-012]
         std::function<void(const std::string& port, const std::string& description)> portError;
+        /// The advice given when the sampler refuses a command because nothing of a kind ("disk", "sample", "program", "multi") is selected,
+        /// as a sentence. Empty: the MCP server's own, "Use select_<kind> first.", which names its tool. [RQ-APP-082, TASK-APP-023]
+        std::function<std::string(const std::string& kind)> selectAdvice;
     };
 
     /// A value, or the reason there is none.

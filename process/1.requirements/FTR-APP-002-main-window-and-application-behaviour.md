@@ -138,3 +138,12 @@ reported, how destructive actions are confirmed and how the application is teste
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* 512 bytes, *Then* "512 bytes"; *Given* 4 096 bytes, *Then* "4.0 KB"; *Given* 117 398 bytes, *Then* "114.6 KB"; *Given* 158 548 694 bytes, *Then* "151.2 MB".
 - **Dependencies**: RQ-APP-024, RQ-APP-026, RQ-APP-042
+
+### RQ-APP-082: Messages in the application's words
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF the sampler refuses a command because nothing of the kind is selected (no disk, no sample, no program, no multi), THEN the application SHALL say so with the action to take in the application ("Select a disk first."), never with the name of an MCP server's tool ("Use select_disk first.").
+- **Rationale**: the owner saw "Use select_disk first." in the editor's status bar on 2026-10-15: a tool name the editor has no use for.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* a session with no disk selected, *When* the root of the current disk is opened, *Then* the problem says "Select a disk first." and holds no "select_"; *Given* the MCP server in the same case, *Then* its answer still says "Use select_disk first.".
+- **Dependencies**: RQ-APP-010, RQ-MCP-044

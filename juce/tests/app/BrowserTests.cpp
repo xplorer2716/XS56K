@@ -344,3 +344,19 @@ TEST_CASE("Given DRUMS folded, When a folder under it becomes the sampler's curr
     CHECK_FALSE(rig.model.browser().isFolded({"DRUMS"}));
     CHECK(rig.model.browser().currentFolder == std::vector<std::string>{"DRUMS", "LOOPS"});
 }
+
+TEST_CASE("Given a session with no disk selected, When the root of the current disk is opened, Then the problem tells the person to select a disk "
+          "in the application's words, with no MCP tool name [RQ-APP-082, TASK-APP-023]",
+          "[app][browser]")
+{
+    BrowserRig fixture;
+    CoreRig& rig = fixture.rig;
+    REQUIRE_FALSE(rig.model.browser().currentDisk.has_value());
+
+    fixture.browser.openFolder({});
+    REQUIRE(rig.settle());
+
+    REQUIRE(rig.model.problem().has_value());
+    CHECK(rig.model.problem()->reason.find("Select a disk first.") != std::string::npos);
+    CHECK(rig.model.problem()->reason.find("select_") == std::string::npos);
+}

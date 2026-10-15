@@ -56,6 +56,14 @@ namespace mcp::detail
         return future.get();
     }
 
+    /// The advice to select something of `kind` first: the configured one, or the MCP server's, which names its tool. [RQ-APP-082]
+    inline std::string selectAdvice(const GatewayConfig& config, const std::string& kind)
+    {
+        if (config.selectAdvice)
+            return config.selectAdvice(kind);
+        return "Use select_" + kind + " first.";
+    }
+
     /// What a command's outcome says when it did not succeed, as one sentence for the person. `currentObject` is what
     /// must be current for the command to find anything ("program", "sample", "multi", "disk").
     inline std::string explain(const akm::CommandResult& outcome, const std::string& doing, const GatewayConfig& config,
@@ -74,10 +82,10 @@ namespace mcp::detail
             if (error->number == akm::error_number::KEYGROUP_NOT_IN_PROGRAM)
                 text += " The current program does not have that keygroup.";
             else if (needsCurrentProgram && error->number == akm::error_number::NOT_FOUND)
-                text += " Is a " + currentObject + " selected? Use select_" + currentObject + " first.";
+                text += " Is a " + currentObject + " selected? " + selectAdvice(config, currentObject);
             // The real S5000 answers 257 (not 4) to a disk command when no disk is selected (TASK-MCP-041).
             else if (needsCurrentProgram && error->number == akm::error_number::DISK_SELECTED_DISK_INVALID)
-                text += " Is a disk selected? Use select_disk first.";
+                text += " Is a disk selected? " + selectAdvice(config, "disk");
             return text;
         }
         if (std::holds_alternative<akm::Cancelled>(outcome))

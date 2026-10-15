@@ -48,6 +48,7 @@ namespace mcp
     using detail::await;
     using detail::explain;
     using detail::numberText;
+    using detail::selectAdvice;
 
     namespace
     {
@@ -602,7 +603,7 @@ namespace mcp
         if (!listing.ok())
             return Outcome<std::string>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<std::string>::failure("No sample is current: use select_sample first.");
+            return Outcome<std::string>::failure("No sample is current: " + selectAdvice(_config, "sample"));
         const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
         const auto started = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::startSampleAudition(_connection->session, std::move(done));
@@ -1331,7 +1332,7 @@ namespace mcp
         if (!listing.ok())
             return Outcome<RenamedItem>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<RenamedItem>::failure("No sample is current: use select_sample first.");
+            return Outcome<RenamedItem>::failure("No sample is current: " + selectAdvice(_config, "sample"));
         const std::size_t current = static_cast<std::size_t>(*listing.value->current);
         const std::string before = listing.value->samples[current].name;
         const std::string wanted = normalizeText(name);
@@ -1364,7 +1365,7 @@ namespace mcp
         if (!listing.ok())
             return Outcome<DeletedItem>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<DeletedItem>::failure("No sample is current: use select_sample first.");
+            return Outcome<DeletedItem>::failure("No sample is current: " + selectAdvice(_config, "sample"));
         const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
         if (name != confirm)
             return Outcome<DeletedItem>::success(DeletedItem{false, name, static_cast<int>(listing.value->samples.size())});
