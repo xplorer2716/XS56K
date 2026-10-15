@@ -40,6 +40,7 @@ pp. 141-177, MULTI pp. 37-79); `juce/akm/include/akm/ItemDescriptor.hpp`; `proce
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the program PAD, *When* it is selected, *Then* the program editor shows PAD with its tabs; *Given* the sample KICK, *When* it is selected, *Then* the panel shows "KICK, sample" and says its editor does not exist yet.
 - **Dependencies**: RQ-APP-001, RQ-APP-037
+- **Amended**: 2026-10-15, the sample has an editor (FTR-APP-010); the acceptance's sample case now holds for a multi.
 
 ### RQ-APP-049: Tabs at the bottom of the panel, grouping as the owner decides
 - **Category**: Functional
