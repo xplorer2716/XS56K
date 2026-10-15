@@ -66,7 +66,9 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   first to compile, then passed; the "no editor" case moved to a multi; 71 app cases passed; `ctest -C Debug`: 1215 passed; the editor built
   warning-clean. Real run by the owner (2026-10-15): the label Legato renamed "Mono legato", as the sampler's screen says. Open: a change of
   the tune template or of the key changes nothing on the sampler's screen, and "Read again" gives back the value the editor set, not the
-  screen's (the MCP real run of PLAN-MCP-002 read back every value set); being diagnosed.
+  screen's (the MCP real run of PLAN-MCP-002 read back every value set). Diagnosed with the owner (2026-10-16): the S5000 applies the
+  template and the key sent by SysEx (the per-key graphic of MIDI/TUNE shows the new tuning, and it is heard), but its fields TEMPLATE and KEY
+  keep showing USER and C, even after leaving the page; the Get gives back the value sent. A firmware behaviour, nothing changed in the editor.
 - **Assumptions**: (1) The edit controller generalises from the sample catalogue to a catalogue chosen by the layout.
 
 ### TASK-APP-044: The Amp tab and the keygroup selector
