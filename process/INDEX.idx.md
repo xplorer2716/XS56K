@@ -641,10 +641,10 @@ TASK-APP-017|247-282|Done|Main window, menu bar, status, MIDI setup dialog and t
 TASK-APP-018|283-312|Done|The file browser view
 TASK-APP-019|313-339|Done|The memory view
 @process/3.plan/PLAN-APP-003-readable-sizes-folding-and-tooltips.md
-PLAN-APP-003|1-84||Editor Application — Readable Sizes, Folding Folders and Tooltips of Cut Texts
+PLAN-APP-003|1-90||Editor Application — Readable Sizes, Folding Folders and Tooltips of Cut Texts
 TASK-APP-020|29-52|Done|Sizes in bytes, kilobytes or megabytes
-TASK-APP-021|53-68|Not Started|Folding an open folder
-TASK-APP-022|69-84|Not Started|Tooltips of the texts cut short
+TASK-APP-021|53-74|Done|Folding an open folder
+TASK-APP-022|75-90|Not Started|Tooltips of the texts cut short
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

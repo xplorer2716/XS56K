@@ -52,7 +52,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-021: Folding an open folder
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `xs56k_app_core`, the browser's state records the folded folders, and `FileBrowser` folds a folder (nothing sent) or opens a folded one (as
   `openFolder`, which unfolds it); the browser view hides what a folded folder holds and calls one or the other on a double click of a folder, by its state.
 - **Requirement refs**: RQ-APP-079, RQ-APP-025
@@ -62,9 +62,15 @@ This plan implements the tasks in the format specified below.
   unfolded; the application shows DRUMS without its files once folded.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the two new cases of `BrowserTests.cpp` (RQ-APP-079) failed first to compile (no `fold`, no `isFolded`), then
+  passed: DRUMS folded, nothing sent, its listing kept; opened again, sent, listed, no longer folded and current; DRUMS folded then DRUMS\LOOPS opened: DRUMS
+  unfolded. `ctest -C Debug`: 100% passed, 0 failed out of 1191; build warning-clean. On the real S5000, the session opening in MoogBass: a first double click
+  (through the accessibility tree: select, then Return) on "MoogBass (current)" left it with its 7 files shown, a bug of the tree's branch for a path not yet
+  listed, which did not look at the folding; fixed; then the double click folded MoogBass (the rows after it are the memory view's) and a second one opened it
+  again on the sampler with its files.
 - **Assumptions**: (1) Folding is a state of the view kept in the model (DEC-APP-004), lost on disconnection like the rest of the browser's state. (2) Opening a folder
-  unfolds it and every folder on its path, so the current folder is always shown. (3) A double click on a disk keeps its present meaning (open its root).
+  unfolds it and every folder on its path, so the current folder is always shown. (3) A double click on a disk keeps its present meaning (open its root). (4) A folder
+  "shows what it holds" when it has been listed and is not folded; a folder never listed is opened by the double click.
 
 ### TASK-APP-022: Tooltips of the texts cut short
 - **Tier**: M

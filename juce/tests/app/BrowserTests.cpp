@@ -297,3 +297,50 @@ TEST_CASE("Given sizes from 0 bytes to 151 MB, When they are written, Then bytes
     CHECK(app::sizeText(158281898) == "150.9 MB");  // 150.95 MB
     CHECK(app::freeSpaceText(0) == "not reported");
 }
+
+TEST_CASE("Given DRUMS opened, When the person folds it, Then the model says it is folded and nothing is sent; When the person opens it "
+          "again, Then it is opened on the sampler, listed and no longer folded [RQ-APP-079, TASK-APP-021]",
+          "[app][browser]")
+{
+    BrowserRig fixture;
+    CoreRig& rig = fixture.rig;
+    fixture.browser.selectDisk(0);
+    fixture.browser.openFolder({"DRUMS"});
+    REQUIRE(rig.settle());
+    REQUIRE_FALSE(rig.model.browser().isFolded({"DRUMS"}));
+    const std::size_t before = rig.sampler->acceptedCommands().size();
+
+    fixture.browser.fold({"DRUMS"});
+    REQUIRE(rig.settle());
+
+    CHECK(rig.model.browser().isFolded({"DRUMS"}));
+    CHECK(rig.sampler->acceptedCommands().size() == before);
+    CHECK(rig.model.browser().listing({"DRUMS"}) != nullptr);  // what it holds is kept, only not shown
+
+    fixture.browser.openFolder({"DRUMS"});
+    REQUIRE(rig.settle());
+
+    CHECK_FALSE(rig.model.browser().isFolded({"DRUMS"}));
+    CHECK(rig.sampler->acceptedCommands().size() > before);
+    CHECK(rig.model.browser().currentFolder == std::vector<std::string>{"DRUMS"});
+    CHECK_FALSE(rig.model.problem().has_value());
+}
+
+TEST_CASE("Given DRUMS folded, When a folder under it becomes the sampler's current folder, Then DRUMS is unfolded so that the current "
+          "folder is shown [RQ-APP-079, RQ-APP-025, TASK-APP-021]",
+          "[app][browser]")
+{
+    BrowserRig fixture;
+    CoreRig& rig = fixture.rig;
+    fixture.browser.selectDisk(0);
+    fixture.browser.openFolder({"DRUMS"});
+    REQUIRE(rig.settle());
+    fixture.browser.fold({"DRUMS"});
+    REQUIRE(rig.model.browser().isFolded({"DRUMS"}));
+
+    fixture.browser.openFolder({"DRUMS", "LOOPS"});
+    REQUIRE(rig.settle());
+
+    CHECK_FALSE(rig.model.browser().isFolded({"DRUMS"}));
+    CHECK(rig.model.browser().currentFolder == std::vector<std::string>{"DRUMS", "LOOPS"});
+}

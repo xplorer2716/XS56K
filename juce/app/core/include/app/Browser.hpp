@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <set>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -122,9 +123,11 @@ namespace app
         std::vector<std::string> currentFolder;   ///< the sampler's current folder, from the root
         std::map<std::string, FolderListing> listings;  ///< by `pathText` of the folder
         std::optional<BrowserItem> selection;
+        std::set<std::string> folded;  ///< the folders folded in the tree, by `pathText`: listed, but what they hold is not shown [RQ-APP-079]
 
         [[nodiscard]] const mcp::DiskEntry* currentDiskEntry() const;
         [[nodiscard]] const FolderListing* listing(const std::vector<std::string>& folder) const;
+        [[nodiscard]] bool isFolded(const std::vector<std::string>& folder) const;
         /// The selected file, when the selection is a file that its folder's listing holds.
         [[nodiscard]] std::optional<FileDetails> selectedFile() const;
     };

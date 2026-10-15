@@ -213,6 +213,11 @@ namespace app
         return found == listings.end() ? nullptr : &found->second;
     }
 
+    bool BrowserState::isFolded(const std::vector<std::string>& folder) const
+    {
+        return folded.count(pathText(folder)) > 0;
+    }
+
     std::optional<FileDetails> BrowserState::selectedFile() const
     {
         if (!selection || selection->kind != BrowserItemKind::File)

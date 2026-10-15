@@ -91,6 +91,9 @@ namespace app
         {
             state.currentFolder = splitPath(contents.path);
             state.listings[pathText(state.currentFolder)] = FolderListing{contents.folders, contents.files};
+            // The current folder and the folders on its path are shown: none of them stays folded. [RQ-APP-079, TASK-APP-021]
+            for (std::size_t depth = 1; depth <= state.currentFolder.size(); ++depth)
+                state.folded.erase(pathText({state.currentFolder.begin(), state.currentFolder.begin() + static_cast<std::ptrdiff_t>(depth)}));
         }
 
         constexpr const char* LOADING_LABEL = "Loading ";
@@ -267,6 +270,14 @@ namespace app
             stopAudition();
         BrowserState state = _model.browser();
         state.selection = std::move(item);
+        _model.setBrowser(std::move(state));
+    }
+
+    void FileBrowser::fold(const std::vector<std::string>& folder)
+    {
+        // [RQ-APP-079, TASK-APP-021]
+        BrowserState state = _model.browser();
+        state.folded.insert(pathText(folder));
         _model.setBrowser(std::move(state));
     }
 

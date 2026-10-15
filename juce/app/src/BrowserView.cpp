@@ -184,7 +184,8 @@ namespace app::ui
                 const std::vector<std::string> path = pathOf(item);
                 rows.push_back(ItemRow{RowIcon::Folder, item.name, {}, depth, false, path == current, sameItem(state.selection, item)});
                 _entries.push_back(Entry{item, std::nullopt});
-                addFolder(state, path, depth + 1, rows);
+                if (!state.isFolded(path))
+                    addFolder(state, path, depth + 1, rows);
             }
             return;
         }
@@ -195,7 +196,8 @@ namespace app::ui
             // The sampler's current folder: the dot, and "(current)" in the tooltip. [RQ-APP-025, RQ-APP-005]
             rows.push_back(ItemRow{RowIcon::Folder, name, {}, depth, false, path == state.currentFolder, sameItem(state.selection, item)});
             _entries.push_back(Entry{item, std::nullopt});
-            addFolder(state, path, depth + 1, rows);
+            if (!state.isFolded(path))
+                addFolder(state, path, depth + 1, rows);
         }
         for (const mcp::DiskFileEntry& file : listing->files)
         {
@@ -227,9 +229,17 @@ namespace app::ui
     void BrowserView::doubleClicked(int row)
     {
         const Entry& entry = _entries[static_cast<std::size_t>(row)];
+        const BrowserState& state = _model.browser();
         if (entry.item.kind == BrowserItemKind::Folder)
-            _browser.openFolder(pathOf(entry.item));
-        else if (entry.diskHandle && _model.browser().currentDisk == entry.diskHandle)
+        {
+            // A folder that shows what it holds is folded, nothing sent; any other one is opened on the sampler. [RQ-APP-079, TASK-APP-021]
+            const std::vector<std::string> path = pathOf(entry.item);
+            if (state.listing(path) != nullptr && !state.isFolded(path))
+                _browser.fold(path);
+            else
+                _browser.openFolder(path);
+        }
+        else if (entry.diskHandle && state.currentDisk == entry.diskHandle)
             _browser.openFolder({});
     }
 
