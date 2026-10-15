@@ -36,8 +36,8 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: None
 - **Assignee**: AI
 - **Verification**: the `agnos-index` skill, 2026-10-15: exit 0, no duplicate.
-- **Assumptions**: (1) The three groups of the tab are the assistant's proposal. (2) The read-only information is in the header, not in the tab. (3) No
-  audition in the editor: the memory view has it.
+- **Assumptions**: (1) The three groups of the tab are the assistant's proposal. (2) The read-only information is in the header, not in the tab. (3) The audition
+  in the editor is the space bar (RQ-APP-083, amended at the owner's request), no button.
 
 ### TASK-APP-035: The sample layout and its generation
 - **Tier**: M
@@ -96,8 +96,9 @@ This plan implements the tasks in the format specified below.
 - **Tier**: M
 - **Status**: Not Started
 - **Description**: The edit panel draws the `EditState`: header (name and information), the tab row at the bottom, the groups with their controls, a
-  "Read again" button, the message of a kind without editor.
-- **Requirement refs**: RQ-APP-048 to RQ-APP-053, RQ-APP-086, RQ-APP-087
+  "Read again" button, the message of a kind without editor; the space bar starts and stops the audition of the edited sample, except while a value
+  is being typed.
+- **Requirement refs**: RQ-APP-048 to RQ-APP-053, RQ-APP-083, RQ-APP-086, RQ-APP-087
 - **ADR refs**: ADR-APP-004 (DEC-APP-025, DEC-APP-027); ADR-APP-001 (DEC-APP-001)
 - **Acceptance Criteria** (Gherkin): *Given* the application on the real S5000 and a sample selected, *Then* the tab shows the eight values read and the
   header the information (through `uia.ps1` and a capture).

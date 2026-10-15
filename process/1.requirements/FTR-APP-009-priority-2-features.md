@@ -24,7 +24,7 @@ sampler's RECORD pages could only be driven blind through the front-panel keys (
 ## Functional Requirements
 
 ### RQ-APP-062: Sample editor
-- **Superseded**: 2026-10-15 by FTR-APP-010 (RQ-APP-086 to RQ-APP-089), brought to priority 1 at the owner's request; the audition stays in the memory view (RQ-APP-041, RQ-APP-083).
+- **Superseded**: 2026-10-15 by FTR-APP-010 (RQ-APP-086 to RQ-APP-089), brought to priority 1 at the owner's request; the audition is the space bar, in the memory view and the sample editor (RQ-APP-041, RQ-APP-083).
 - **Category**: Functional
 - **EARS Type**: Event-driven
 - **Statement**: WHEN a sample is selected in the memory view, the edit panel SHALL show a sample editor with its playback parameters (start, end, loop start, loop end, playback mode, original pitch, semitone and fine tune, RQ-AKM-048), its read-only information (RAM or virtual, channels, length, sample rate, RQ-AKM-049) and its audition, under the rules of FTR-APP-007.

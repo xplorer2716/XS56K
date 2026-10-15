@@ -172,7 +172,7 @@ RQ-APP-021|85-93||Disconnecting and quitting close the session
 RQ-APP-022|94-102||A lost MIDI port is reported
 RQ-APP-023|103-110||Connecting at start
 @process/1.requirements/FTR-APP-004-file-browser.md
-FTR-APP-004|1-162||File Browser of the Sampler's Disks
+FTR-APP-004|1-163||File Browser of the Sampler's Disks
 RQ-APP-024|42-50||The disks
 RQ-APP-025|51-60||Browsing the folders
 RQ-APP-026|61-70||What a file is
@@ -185,7 +185,7 @@ RQ-APP-032|118-126||Deleting a file or a folder
 RQ-APP-033|127-135||Auditioning a sample on the disk
 RQ-APP-034|136-145||Refreshing the list of disks
 RQ-APP-079|146-154||Folding an open folder
-RQ-APP-083|155-162||The space bar starts and stops the audition
+RQ-APP-083|155-163||The space bar starts and stops the audition
 @process/1.requirements/FTR-APP-005-memory-view.md
 FTR-APP-005|1-103||Memory View — the Items Loaded in the Sampler, by Type
 RQ-APP-035|32-40||The items in memory, by type
@@ -678,14 +678,14 @@ TASK-APP-031|130-147|Done|The gaps between the areas dragged with the mouse
 TASK-APP-032|148-164|Done|The shown disk selected again before a command on its folders
 TASK-APP-033|165-179|Done|A log file of the errors
 @process/3.plan/PLAN-APP-005-sample-editor.md
-PLAN-APP-005|1-120||Editor Application — the Sample Editor, First Editor of the Edit Panel
+PLAN-APP-005|1-121||Editor Application — the Sample Editor, First Editor of the Edit Panel
 TASK-APP-034|29-41|Done|Requirements, ADR and plan of the sample editor
 TASK-APP-035|42-55|Not Started|The sample layout and its generation
 TASK-APP-036|56-68|Not Started|The edit controller, read side
 TASK-APP-037|69-81|Not Started|The edit controller, write side
 TASK-APP-038|82-94|Not Started|The three controls
-TASK-APP-039|95-108|Not Started|The edit panel view
-TASK-APP-040|109-120|Not Started|Mockup, documentation and the real run
+TASK-APP-039|95-109|Not Started|The edit panel view
+TASK-APP-040|110-121|Not Started|Mockup, documentation and the real run
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

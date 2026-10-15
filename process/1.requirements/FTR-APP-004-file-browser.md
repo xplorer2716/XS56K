@@ -155,8 +155,9 @@ eject are priority 2, in FTR-APP-009.
 ### RQ-APP-083: The space bar starts and stops the audition
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN the person presses the space bar while the browser or the memory view has the keyboard focus and a sample is selected in it, the application SHALL start its audition (RQ-APP-033, RQ-APP-041) if it is not being auditioned, and stop it if it is; for any other selection the space bar SHALL send nothing.
+- **Statement**: WHEN the person presses the space bar while the browser, the memory view or the sample editor (FTR-APP-010) has the keyboard focus, outside a text being typed, and a sample is selected in it or edited, the application SHALL start its audition (RQ-APP-033, RQ-APP-041) if it is not being auditioned, and stop it if it is; for any other selection the space bar SHALL send nothing.
 - **Rationale**: the owner's request of 2026-10-15: listening to samples from the keyboard. A song file cannot be played: section 16 of the SysEx has no play command.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* KICK.WAV selected and nothing auditioned, *When* the space bar is pressed, *Then* the start of the audition is sent; *When* it is pressed again, *Then* the stop is sent; *Given* PAD.AKP or a folder selected, *When* the space bar is pressed, *Then* nothing is sent; *Given* the sample KICK selected in the memory view, *Then* the same start and stop are sent.
-- **Dependencies**: RQ-APP-033, RQ-APP-041
+- **Dependencies**: RQ-APP-033, RQ-APP-041, RQ-APP-086
+- **Amended**: 2026-10-15, the owner asked for the space bar in the sample editor too (TASK-APP-039).
