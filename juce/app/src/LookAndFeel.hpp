@@ -51,6 +51,9 @@ namespace app::ui
         void drawButtonBackground(juce::Graphics& g, juce::Button& button, const juce::Colour& backgroundColour, bool highlighted,
                                   bool down) override;
         void drawButtonText(juce::Graphics& g, juce::TextButton& button, bool highlighted, bool down) override;
+        /// A boundary between two areas: the gap's colour, with a line of the accent while hovered or dragged. [RQ-APP-008, DEC-APP-022]
+        void drawStretchableLayoutResizerBar(juce::Graphics& g, int width, int height, bool isVerticalBar, bool isMouseOver,
+                                             bool isMouseDragging) override;
 
     private:
         juce::Typeface::Ptr _regular;

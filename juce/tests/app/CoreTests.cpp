@@ -237,3 +237,11 @@ TEST_CASE("Given the token module, Then the type scale is two pixels larger than
     CHECK(app::tokens::kFontTitleSize == 17.0f);
     CHECK(app::tokens::kFontHeadingSize == 20.0f);
 }
+
+TEST_CASE("Given the token module, Then a boundary between the areas is drawn in the gap's colour, and in the accent while it is hovered or "
+          "dragged [RQ-APP-008, RQ-APP-005, ADR-APP-002 (DEC-APP-022), TASK-APP-031]",
+          "[app][design]")
+{
+    CHECK(app::tokens::kResizerBar == app::tokens::kColourSurfaceBase);
+    CHECK(app::tokens::kResizerBarActive == app::tokens::kColourAccentDefault);
+}

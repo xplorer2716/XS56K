@@ -32,6 +32,13 @@ namespace app::ui
         constexpr const char* EDITOR_TITLE = "Editor";
         constexpr const char* NOT_CONNECTED_HINT = "Not connected: choose Sampler > Connect.";
         constexpr const char* EDITOR_HINT = "Select an item of the memory to edit it.";
+        // The items of a stretchable layout: an area, the bar in the gap, the other area. [RQ-APP-008, TASK-APP-031]
+        constexpr int FIRST_ITEM = 0;
+        constexpr int BAR_ITEM = 1;
+        constexpr int SECOND_ITEM = 2;
+        constexpr int ITEMS = 3;
+        constexpr double WHOLE = -1.0;  // a stretchable layout's proportion: all the room
+        constexpr double HALF = -0.5;
 
         enum MenuIndex
         {
@@ -119,10 +126,21 @@ namespace app::ui
                                  MemoryController& memory, AppSettings& settings, common::midi::MidiBackend& backend)
         : _lookAndFeel(lookAndFeel), _model(model), _controller(controller), _settings(settings), _backend(backend), _menuBar(this),
           _browser(lookAndFeel, BROWSER_TITLE, false), _browserView(lookAndFeel, model, browser), _memory(lookAndFeel, MEMORY_TITLE, false), _memoryView(lookAndFeel, model, memory), _editor(lookAndFeel, EDITOR_TITLE, true),
-          _status(lookAndFeel)
+          _status(lookAndFeel), _columnBar(&_columns, BAR_ITEM, true), _rowBar(&_rows, BAR_ITEM, false)
     {
-        for (juce::Component* component : std::initializer_list<juce::Component*>{&_menuBar, &_browser, &_memory, &_editor, &_status})
+        for (juce::Component* component :
+             std::initializer_list<juce::Component*>{&_menuBar, &_browser, &_memory, &_editor, &_status, &_columnBar, &_rowBar})
             addAndMakeVisible(*component);
+        // The minimums are the design system's; the first layout is RQ-APP-006's: the left column at its minimum width, the browser and
+        // the memory view at half its height each. [RQ-APP-008, ADR-APP-002 (DEC-APP-022), TASK-APP-031]
+        using namespace tokens;
+        const double edge = pixels(kSpaceEdge);
+        _columns.setItemLayout(FIRST_ITEM, pixels(kSizeLeftMinWidth), WHOLE, pixels(kSizeLeftMinWidth));
+        _columns.setItemLayout(BAR_ITEM, edge, edge, edge);
+        _columns.setItemLayout(SECOND_ITEM, pixels(kSizeEditMinWidth), WHOLE, WHOLE);
+        _rows.setItemLayout(FIRST_ITEM, pixels(kSizeAreaMinHeight), WHOLE, HALF);
+        _rows.setItemLayout(BAR_ITEM, edge, edge, edge);
+        _rows.setItemLayout(SECOND_ITEM, pixels(kSizeAreaMinHeight), WHOLE, HALF);
         _browser.setContent(&_browserView);
         _memory.setContent(&_memoryView);
         _status.onDismiss = [this] { _model.clearProblem(); };
@@ -143,15 +161,15 @@ namespace app::ui
         _menuBar.setBounds(area.removeFromTop(getLookAndFeel().getDefaultMenuBarHeight()));
         _status.setBounds(area.removeFromBottom(pixels(kStatusHeight)));
 
-        // Three areas: the left column (browser over memory view) and the edit panel over the full height. [RQ-APP-006]
+        // Three areas: the left column (browser over memory view) and the edit panel over the full height, the gaps between them dragged.
+        // [RQ-APP-006, RQ-APP-008, TASK-APP-031]
         const int edge = pixels(kSpaceEdge);
         area.reduce(edge, edge);
-        auto left = area.removeFromLeft(pixels(kSizeLeftMinWidth));
-        area.removeFromLeft(edge);
-        _browser.setBounds(left.removeFromTop((left.getHeight() - edge) / 2));
-        left.removeFromTop(edge);
-        _memory.setBounds(left);
-        _editor.setBounds(area);
+        juce::Component* columns[] = {nullptr, &_columnBar, &_editor};  // the left column is laid out below
+        _columns.layOutComponents(columns, ITEMS, area.getX(), area.getY(), area.getWidth(), area.getHeight(), false, true);
+        const auto left = area.withWidth(_columns.getItemCurrentAbsoluteSize(FIRST_ITEM));
+        juce::Component* rows[] = {&_browser, &_rowBar, &_memory};
+        _rows.layOutComponents(rows, ITEMS, left.getX(), left.getY(), left.getWidth(), left.getHeight(), true, true);
     }
 
     void MainComponent::modelChanged(ModelPart part)

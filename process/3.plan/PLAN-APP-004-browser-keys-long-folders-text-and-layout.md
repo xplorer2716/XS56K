@@ -125,7 +125,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-031: The gaps between the areas dragged with the mouse
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: In `XS56KApp`, `MainComponent` lays the left column and the edit panel, and the browser and the memory view, out with a
   `juce::StretchableLayoutManager` each and a `juce::StretchableLayoutResizerBar` in each gap, the minimums from the layout tokens; the look-and-feel draws the
   bars as DEC-APP-022 says, with the new component token `resizer.bar.active`.
@@ -135,5 +135,8 @@ This plan implements the tasks in the format specified below.
   the token and literal checks, *Then* they pass. The drag itself is done by the owner's mouse (the assistant never simulates mouse clicks).
 - **Dependencies**: TASK-APP-030
 - **Assignee**: AI and Human (the drag)
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `CoreTests.cpp` (the two resizer tokens) failed first to compile, then passed;
+  `ctest -C Debug`: 100% passed, 0 failed out of 1196 (literal and token checks among them); warning-clean. The window captured at start: the same layout
+  as before. The drag: waiting for the owner.
+- **Assumptions**: (1) The accent is a line of `stroke.focus` across the middle of the gap, not the whole gap. (2) A new component token `resizer.bar`
+  (the gap's colour) beside `resizer.bar.active`.

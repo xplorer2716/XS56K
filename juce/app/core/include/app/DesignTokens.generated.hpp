@@ -136,5 +136,7 @@ namespace app::tokens
     constexpr std::uint32_t kDialogScrim = 0xFF1B1C1F;  // dialog.scrim -> colour.surface.base
     constexpr float kDialogWidth = 640.0f;  // dialog.width -> size.edit.minWidth
     constexpr float kButtonHeight = 28.0f;  // button.height -> size.control.large
+    constexpr std::uint32_t kResizerBar = 0xFF1B1C1F;  // resizer.bar -> colour.surface.base
+    constexpr std::uint32_t kResizerBarActive = 0xFFA897F2;  // resizer.bar.active -> colour.accent.default
 
 }

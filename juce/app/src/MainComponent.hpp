@@ -87,5 +87,11 @@ namespace app::ui
         MemoryView _memoryView;
         AreaPanel _editor;
         StatusBar _status;
+        /// The left column and the edit panel, then the browser and the memory view, each pair with the bar in its gap that the person
+        /// drags. [RQ-APP-008, ADR-APP-002 (DEC-APP-022), TASK-APP-031]
+        juce::StretchableLayoutManager _columns;
+        juce::StretchableLayoutManager _rows;
+        juce::StretchableLayoutResizerBar _columnBar;
+        juce::StretchableLayoutResizerBar _rowBar;
     };
 }

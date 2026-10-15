@@ -147,4 +147,17 @@ namespace app::ui
         g.setColour(!button.isEnabled() ? colourOf(kColourTextDisabled) : colourOf(destructive ? kButtonDestructiveText : kButtonText));
         g.drawFittedText(button.getButtonText(), button.getLocalBounds().reduced(pixels(kSpaceInside), 0), juce::Justification::centred, 1);
     }
+
+    void LookAndFeel::drawStretchableLayoutResizerBar(juce::Graphics& g, int width, int height, bool isVerticalBar, bool isMouseOver,
+                                                      bool isMouseDragging)
+    {
+        using namespace tokens;
+        g.fillAll(colourOf(kResizerBar));
+        if (!isMouseOver && !isMouseDragging)
+            return;
+        // The accent says where to drag; the resize cursor is the second cue. [RQ-APP-005, ADR-APP-002 (DEC-APP-022), TASK-APP-031]
+        const auto bar = juce::Rectangle<int>(0, 0, width, height).toFloat();
+        g.setColour(colourOf(kResizerBarActive));
+        g.fillRect(isVerticalBar ? bar.withSizeKeepingCentre(kStrokeFocus, bar.getHeight()) : bar.withSizeKeepingCentre(bar.getWidth(), kStrokeFocus));
+    }
 }
