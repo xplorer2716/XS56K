@@ -29,7 +29,7 @@ namespace app::ui
         constexpr float SPINNER_SWEEP = juce::MathConstants<float>::pi * 1.5f;
         constexpr const char* DISMISS_TEXT = "Dismiss";
         constexpr const char* FAILED_SEPARATOR = " failed: ";
-        constexpr int CONNECTION_SHARE = 3;  // the connection text takes a third of the line
+        constexpr int CONNECTION_SHARE = 4;  // the connection text takes four ninths of the line: whole at the minimum width [RQ-APP-084]
         constexpr int TOTAL_SHARES = 9;
 
         juce::String connectionText(const ConnectionStatus& connection)

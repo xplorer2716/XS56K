@@ -127,13 +127,14 @@ Which role a parameter takes is a property of the parameter (its family), not of
 
 | Token | Size (px) | Weight | Case | Use |
 |---|---|---|---|---|
-| `font.caption` | 11 | Regular | as written | captions, units, status details |
-| `font.label` | 11 | Medium | UPPER CASE, tracking `font.label.tracking` = 0.5 px | parameter and group labels |
-| `font.value` | 13 | Regular, tabular figures | as written | values, names in lists and trees |
-| `font.title` | 15 | Medium | as written | panel titles, the edited item's name |
-| `font.heading` | 18 | Medium | as written | dialog titles |
+| `font.caption` | 13 | Regular | as written | captions, units, status details |
+| `font.label` | 13 | Medium | UPPER CASE, tracking `font.label.tracking` = 0.5 px | parameter and group labels |
+| `font.value` | 15 | Regular, tabular figures | as written | values, names in lists and trees |
+| `font.title` | 17 | Medium | as written | panel titles, the edited item's name |
+| `font.heading` | 20 | Medium | as written | dialog titles |
 
-- **Dynamic-fit bounds:** a value shrunk to fit never goes below `font.caption` (11 px) nor above its own size.
+- **Dynamic-fit bounds:** a value shrunk to fit never goes below `font.caption` (13 px) nor above its own size.
+- *Amended 2026-10-15 (RQ-APP-084, TASK-APP-030):* every size two pixels larger than the first scale (11, 13, 15, 18), at the owner's request.
 
 ### 2.3 Spacing & Layout Grid
 
@@ -277,7 +278,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 - **Group panel:** a `colour.surface.panel` rectangle, `radius.round`, holding a label row (`font.label`) and its controls on the 4 px grid;
   the groups of a tab flow left to right, then wrap.
 - **Control cell:** a knob with its label under it and its value box, as one unit of fixed width; cells align on a column grid of
-  `size.knob.large` + `size.space.8` (72 px: an 11 px upper-case label of nine letters fits; longer labels are shortened).
+  `size.knob.large` + `size.space.8` (72 px: about seven upper-case letters of the 13 px label fit, to be measured when the edit panel is built; longer labels are shortened).
 - **Context header over tabs over tab bar:** the header at the top of the edit panel (RQ-APP-050), the tab's groups in the middle, the tab bar
   at the bottom (RQ-APP-049).
 

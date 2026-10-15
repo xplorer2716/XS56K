@@ -28,6 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <vector>
 
 #include "AppTestSupport.hpp"
+#include "app/DesignTokens.generated.hpp"
 #include "akm/harness/SimulatedSampler.hpp"
 
 using app::Confirmation;
@@ -226,4 +227,13 @@ TEST_CASE("Given a sampler that never answers a load, When a job loads a file, T
     REQUIRE(rig.model.problem().has_value());
     CHECK(rig.model.problem()->action == "Loading INIT.AKP");
     CHECK(contains(rig.model.problem()->reason, "switched off and on"));
+}
+
+TEST_CASE("Given the token module, Then the type scale is two pixels larger than the first one in every role [RQ-APP-084, TASK-APP-030]", "[app][design]")
+{
+    CHECK(app::tokens::kFontCaptionSize == 13.0f);
+    CHECK(app::tokens::kFontLabelSize == 13.0f);
+    CHECK(app::tokens::kFontValueSize == 15.0f);
+    CHECK(app::tokens::kFontTitleSize == 17.0f);
+    CHECK(app::tokens::kFontHeadingSize == 20.0f);
 }

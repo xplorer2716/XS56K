@@ -43,6 +43,7 @@ namespace app::ui
         constexpr std::size_t NAME_FIELD = 0;
         constexpr std::size_t KEYGROUPS_FIELD = 1;
         constexpr int REFRESH_SHARE = 3;  // the refresh button takes a third of the left column's width
+        constexpr int FREE_LINES = 2;     // the free memory over the column's width, on two lines at most [RQ-APP-084]
 
         enum MenuId
         {
@@ -151,8 +152,7 @@ namespace app::ui
         auto footer = area.removeFromBottom(pixels(kButtonHeight));
         area.removeFromBottom(pixels(kSpaceBetween));
         _refresh.setBounds(footer.removeFromRight(pixels(kSizeLeftMinWidth) / REFRESH_SHARE));
-        footer.removeFromRight(pixels(kSpaceBetween));
-        _free.setBounds(footer);
+        _free.setBounds(area.removeFromBottom(pixels(kRowHeight) * FREE_LINES));
         _list.setBounds(area);
     }
 

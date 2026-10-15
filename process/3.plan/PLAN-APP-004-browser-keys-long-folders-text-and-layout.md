@@ -106,7 +106,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-030: The type scale two pixels larger
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `juce/app/design/tokens.json`, the global text sizes become 13, 15, 17 and 20 (renamed after their values) and the semantic font tokens alias
   them as RQ-APP-084 says; the token module, the design-system document's tables and the mockups are regenerated; the main window is captured connected and
   compared with the capture before.
@@ -116,8 +116,12 @@ This plan implements the tasks in the format specified below.
   tests that name the old sizes are updated to the new expected values only.
 - **Dependencies**: TASK-APP-026
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `CoreTests.cpp` (RQ-APP-084) failed first (5 of 5), then passed once the tokens were
+  13/13/15/17/20 and regenerated; `ctest -C Debug`: 100% passed, 0 failed out of 1195 (token, mockup and literal checks among them); warning-clean. Captured
+  connected to the real S5000: the connection text ("... DeviceID 0") and the free memory were broken or cut at the new size; fixed (the connection 4/9 of the
+  status line instead of 3/9, the free memory on two lines over the column's width above Refresh); captured again, both whole.
+- **Assumptions**: (1) The knob-label width note of DESIGN-SYSTEM-APP.md §4 rewritten for 13 px, to be measured with the edit panel. (2) Names cut at the
+  column's minimum width (long file names, the path) were cut before too and keep their tooltip.
 
 ### TASK-APP-031: The gaps between the areas dragged with the mouse
 - **Tier**: M

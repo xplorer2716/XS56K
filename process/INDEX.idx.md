@@ -654,13 +654,13 @@ TASK-APP-023|105-123|Done|The advice of a refusal in the application's words
 TASK-APP-024|124-144|Done|No folder name the sampler cannot take
 TASK-APP-025|145-164|Done|Driving the editor without the mouse, as a tool and a skill
 @process/3.plan/PLAN-APP-004-browser-keys-long-folders-text-and-layout.md
-PLAN-APP-004|1-135||Editor Application — A Shorter Browser Menu, the Space Bar, Long Folder Names, Larger Text and Draggable Areas
+PLAN-APP-004|1-139||Editor Application — A Shorter Browser Menu, the Space Bar, Long Folder Names, Larger Text and Draggable Areas
 TASK-APP-026|38-54|Done|The requirements, the ADR and the plan of the six changes
 TASK-APP-027|55-72|Done|No "Open" and no refresh of the disks in the browser's menu
 TASK-APP-028|73-88|Done|The space bar starts and stops the audition
 TASK-APP-029|89-106|In Progress|A folder too long to be opened can be renamed shorter
-TASK-APP-030|107-121|Not Started|The type scale two pixels larger
-TASK-APP-031|122-135|Not Started|The gaps between the areas dragged with the mouse
+TASK-APP-030|107-125|Done|The type scale two pixels larger
+TASK-APP-031|126-139|Not Started|The gaps between the areas dragged with the mouse
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
