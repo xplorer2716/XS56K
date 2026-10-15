@@ -7,7 +7,7 @@ argument-hint: "<path> [--body FILE]"
 # New source file with the licence header
 
 Canonical procedure, shared by GitHub Copilot (`.github/skills/new-source-file/`) and Claude Code (`.claude/skills/new-source-file/`, which
-points here; the Haiku subagent `.claude/agents/license-header.md` follows it).
+points here; the subagent `.claude/agents/license-header.md` follows it).
 
 The licence header (AGPL-3.0, 17 lines) lives once in `juce/LICENSE_HEADER.txt`. Copy it, never retype it.
 

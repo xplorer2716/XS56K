@@ -102,7 +102,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 - **Driving the editor without the mouse** (Windows): `juce/tools/uia.ps1` through the `ui-automation` skill
   (`.github/skills/ui-automation/SKILL.md`): list, invoke, type, capture. Never simulate mouse clicks.
 - **New C++ file:** the licence header is copied from `juce/LICENSE_HEADER.txt` by `juce/tools/new_source_file.py`, never typed: skill
-  `new-source-file` (`.github/skills/new-source-file/SKILL.md`), Haiku subagent `license-header` (`.claude/agents/license-header.md`).
+  `new-source-file` (`.github/skills/new-source-file/SKILL.md`), subagent `license-header` (`.claude/agents/license-header.md`).
 - **Reusable tools:** a script written for a session and used more than once becomes a generic tool in `juce/tools/`, with a skill or
   an instructions file linked here. AGNOS files are not edited for that.
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
