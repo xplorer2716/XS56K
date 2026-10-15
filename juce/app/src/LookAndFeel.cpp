@@ -25,6 +25,11 @@ namespace app::ui
     // [RQ-APP-001, RQ-APP-002, RQ-APP-004, ADR-APP-002 (DEC-APP-013, DEC-APP-015), TASK-APP-017]
     namespace
     {
+        constexpr float KNOB_POINTER_LENGTH = 0.55f;  // the pointer's share of the knob's radius: KNOB_POINTER_LENGTH of generate_mockups.py
+        constexpr float DIAMETER_PER_RADIUS = 2.0f;
+        constexpr const char* CHOICE_PREVIOUS = "<";
+        constexpr const char* CHOICE_NEXT = ">";
+
         juce::Typeface::Ptr loadTypeface(const char* data, int size, const char* name)
         {
             auto typeface = juce::Typeface::createSystemTypefaceFor(data, static_cast<size_t>(size));
@@ -159,5 +164,72 @@ namespace app::ui
         const auto bar = juce::Rectangle<int>(0, 0, width, height).toFloat();
         g.setColour(colourOf(kResizerBarActive));
         g.fillRect(isVerticalBar ? bar.withSizeKeepingCentre(kStrokeFocus, bar.getHeight()) : bar.withSizeKeepingCentre(bar.getWidth(), kStrokeFocus));
+    }
+
+    // [RQ-APP-086, RQ-APP-005, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
+    void LookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float position, float startAngle, float endAngle,
+                                       juce::Slider& slider)
+    {
+        using namespace tokens;
+        const auto bounds = juce::Rectangle<int>(x, y, width, height).toFloat();
+        const float radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) / 2.0f - kStrokeArc;
+        const auto centre = bounds.getCentre();
+        g.setColour(colourOf(kColourSurfaceRecessed));
+        const float inner = (radius - kStrokeArc) * DIAMETER_PER_RADIUS;
+        g.fillEllipse(juce::Rectangle<float>(inner, inner).withCentre(centre));
+        const auto arc = [&](float to, juce::Colour colour) {
+            juce::Path path;
+            path.addCentredArc(centre.x, centre.y, radius, radius, 0.0f, startAngle, to, true);
+            g.setColour(colour);
+            g.strokePath(path, juce::PathStrokeType(kStrokeArc, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        };
+        arc(endAngle, colourOf(kKnobArcTrack));
+        const float angle = startAngle + position * (endAngle - startAngle);
+        if (position > 0.0f)
+            arc(angle, slider.findColour(juce::Slider::rotarySliderFillColourId));
+        const auto tip = centre.getPointOnCircumference(radius * KNOB_POINTER_LENGTH, angle);
+        g.setColour(colourOf(kKnobPointer));
+        g.drawLine(juce::Line<float>(centre, tip), kStrokeFocus);
+    }
+
+    void LookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height, float position, float, float,
+                                       juce::Slider::SliderStyle, juce::Slider& slider)
+    {
+        using namespace tokens;
+        const float middle = static_cast<float>(y) + static_cast<float>(height) / 2.0f;
+        const float left = static_cast<float>(x);
+        const float right = static_cast<float>(x + width);
+        g.setColour(colourOf(kSliderTrack));
+        g.drawLine(left, middle, right, middle, kStrokeArc);
+        g.setColour(slider.findColour(juce::Slider::trackColourId));
+        g.drawLine(left, middle, position, middle, kStrokeArc);
+        g.setColour(colourOf(kSliderThumb));
+        g.fillEllipse(juce::Rectangle<float>(kSliderThumbSize, kSliderThumbSize).withCentre({position, middle}));
+    }
+
+    void LookAndFeel::drawComboBox(juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box)
+    {
+        using namespace tokens;
+        const auto bounds = juce::Rectangle<int>(0, 0, width, height).toFloat();
+        g.setColour(colourOf(kChoiceSurface));
+        g.fillRoundedRectangle(bounds, kRadiusControl);
+        if (box.hasKeyboardFocus(true))
+        {
+            g.setColour(colourOf(kColourAccentDefault));
+            g.drawRoundedRectangle(bounds.reduced(kStrokeHairline), kRadiusControl, kStrokeFocus);
+        }
+        g.setColour(colourOf(kChoiceArrow));
+        g.setFont(font(kFontValueSize));
+        const auto inside = bounds.reduced(kSpaceInside, 0).toNearestInt();
+        g.drawText(CHOICE_PREVIOUS, inside, juce::Justification::centredLeft);
+        g.drawText(CHOICE_NEXT, inside, juce::Justification::centredRight);
+    }
+
+    void LookAndFeel::positionComboBoxText(juce::ComboBox& box, juce::Label& label)
+    {
+        using namespace tokens;
+        label.setBounds(box.getLocalBounds().reduced(pixels(kSpaceInside + kFontValueSize), 0));
+        label.setFont(font(kFontValueSize));
+        label.setJustificationType(juce::Justification::centred);
     }
 }

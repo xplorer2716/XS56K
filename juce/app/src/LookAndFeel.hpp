@@ -54,6 +54,17 @@ namespace app::ui
         /// A boundary between two areas: the gap's colour, with a line of the accent while hovered or dragged. [RQ-APP-008, DEC-APP-022]
         void drawStretchableLayoutResizerBar(juce::Graphics& g, int width, int height, bool isVerticalBar, bool isMouseOver,
                                              bool isMouseDragging) override;
+        /// A knob: its track, its value arc in the parameter's colour (the pending colour while it waits) and its pointer. [RQ-APP-086,
+        /// ADR-APP-004 (DEC-APP-027), TASK-APP-038]
+        void drawRotarySlider(juce::Graphics& g, int x, int y, int width, int height, float position, float startAngle, float endAngle,
+                              juce::Slider& slider) override;
+        /// A slider: its track, filled up to the value in the parameter's colour, and its thumb. [RQ-APP-086, DEC-APP-027]
+        void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height, float position, float minPosition, float maxPosition,
+                              juce::Slider::SliderStyle style, juce::Slider& slider) override;
+        /// A choice: its surface and the arrows at both ends; the text is the ComboBox's own label. [RQ-APP-086, DEC-APP-027]
+        void drawComboBox(juce::Graphics& g, int width, int height, bool down, int buttonX, int buttonY, int buttonW, int buttonH,
+                          juce::ComboBox& box) override;
+        void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override;
 
     private:
         juce::Typeface::Ptr _regular;

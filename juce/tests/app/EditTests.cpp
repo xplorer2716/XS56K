@@ -257,3 +257,57 @@ TEST_CASE("Given KICK shown and its semitone tune changed on the front panel, Wh
     CHECK(fixture.shown("sample semitone tune") == std::optional<std::int64_t>(SEMITONES));
     CHECK(fixture.shown("sample fine tune") == std::optional<std::int64_t>(NEW_FINE));
 }
+
+namespace
+{
+    app::EditValue valueOf(const std::string& name, std::int64_t value)
+    {
+        const mcp::ParameterDefinition& definition = sampleParameter(name);
+        return app::EditValue{&definition, nullptr, value, definition.min, definition.max, false};
+    }
+}
+
+TEST_CASE("Given sample values, When they are written for the person, Then a root is a note name, a tune is signed, a mode is its label and a "
+          "position is its number [RQ-APP-051, RQ-APP-086, TASK-APP-038]",
+          "[app][edit]")
+{
+    constexpr std::int64_t A_MINUS_1 = 21;
+    constexpr std::int64_t G8 = 127;
+    constexpr std::int64_t C_SHARP_3 = 61;
+    constexpr std::int64_t DOWN = -5;
+    constexpr std::int64_t ONE_SHOT = 1;
+    constexpr std::int64_t POINT = 1024;
+    CHECK(app::valueText(valueOf("sample original pitch", C3)) == "C3");
+    CHECK(app::valueText(valueOf("sample original pitch", A_MINUS_1)) == "A-1");
+    CHECK(app::valueText(valueOf("sample original pitch", G8)) == "G8");
+    CHECK(app::valueText(valueOf("sample original pitch", C_SHARP_3)) == "C#3");
+    CHECK(app::valueText(valueOf("sample fine tune", FINE)) == "+10");
+    CHECK(app::valueText(valueOf("sample fine tune", DOWN)) == "-5");
+    CHECK(app::valueText(valueOf("sample fine tune", 0)) == "0");
+    CHECK(app::valueText(valueOf("sample playback mode", ONE_SHOT)) == "ONE SHOT");
+    CHECK(app::valueText(valueOf("sample start position", POINT)) == "1024");
+}
+
+TEST_CASE("Given a text typed by the person, When it is read for a parameter, Then a note name, a signed number, a label or a number gives its "
+          "value, and anything else gives none [RQ-APP-051, RQ-APP-086, TASK-APP-038]",
+          "[app][edit]")
+{
+    CHECK(app::valueFrom(valueOf("sample original pitch", 0), "C3") == std::optional<std::int64_t>(C3));
+    CHECK(app::valueFrom(valueOf("sample original pitch", 0), "c#3") == std::optional<std::int64_t>(C3 + 1));
+    CHECK(app::valueFrom(valueOf("sample original pitch", 0), "60") == std::optional<std::int64_t>(C3));
+    CHECK(app::valueFrom(valueOf("sample fine tune", 0), "+10") == std::optional<std::int64_t>(FINE));
+    CHECK(app::valueFrom(valueOf("sample fine tune", 0), "-5") == std::optional<std::int64_t>(-5));
+    CHECK(app::valueFrom(valueOf("sample playback mode", 0), "one shot") == std::optional<std::int64_t>(1));
+    CHECK(app::valueFrom(valueOf("sample start position", 0), " 2048 ") == std::optional<std::int64_t>(2048));
+    CHECK_FALSE(app::valueFrom(valueOf("sample start position", 0), "abc").has_value());
+    CHECK_FALSE(app::valueFrom(valueOf("sample original pitch", 0), "H3").has_value());
+}
+
+TEST_CASE("Given KICK read, Then its information line reads RAM, mono, its length in points and its rate in Hz [RQ-APP-087, TASK-APP-038]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+    CHECK(app::infoText(fixture.rig.model.edit()) == "RAM, mono, 22050 points, 44100 Hz");
+}

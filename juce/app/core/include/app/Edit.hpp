@@ -22,6 +22,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "app/EditorLayout.hpp"
@@ -53,4 +55,13 @@ namespace app
         std::vector<EditValue> values;
         std::vector<EditValue> info;
     };
+
+    /// A value as the sampler's screen writes it: a root as a note name ("C3"), a signed tune with its sign ("+10"), a choice by its label
+    /// ("ONE SHOT"), any other number as it is. [RQ-APP-051, RQ-APP-086, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
+    [[nodiscard]] std::string valueText(const EditValue& value);
+    /// What the person typed for a parameter: a number (a leading + allowed), a note name for a root, a label for a choice, without regard
+    /// to case or surrounding spaces; nothing when it is none of them. The range is checked by the edit controller. [RQ-APP-051, TASK-APP-038]
+    [[nodiscard]] std::optional<std::int64_t> valueFrom(const EditValue& value, std::string_view text);
+    /// The sample's information line: "RAM, mono, 22050 points, 44100 Hz". [RQ-APP-087, TASK-APP-038]
+    [[nodiscard]] std::string infoText(const EditState& state);
 }
