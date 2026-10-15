@@ -142,7 +142,7 @@ TEST_CASE("Given two disks, When the person selects one, Then it becomes the sam
     REQUIRE(onHard.currentDiskEntry() != nullptr);
     CHECK(app::diskFormatName(onHard.currentDiskEntry()->format) == "MSDOS");
     REQUIRE(onHard.freeBytes.has_value());
-    CHECK(app::freeSpaceText(*onHard.freeBytes) == "1 000 000 bytes");
+    CHECK(app::freeSpaceText(*onHard.freeBytes) == "976.6 KB");  // in the unit of RQ-APP-081 since TASK-APP-020
     CHECK(onHard.currentFolder.empty());
     REQUIRE(onHard.listing({}) != nullptr);
     CHECK(onHard.listing({})->folders == std::vector<std::string>{"DRUMS", "SYNTH"});
@@ -279,4 +279,21 @@ TEST_CASE("Given the browser filled, When the person disconnects, Then the brows
 
     CHECK(rig.model.browser().disks.empty());
     CHECK_FALSE(rig.model.browser().currentDisk.has_value());
+}
+
+TEST_CASE("Given sizes from 0 bytes to 151 MB, When they are written, Then bytes under 1 KB, otherwise KB or MB with one decimal, 1 KB being 1 024 "
+          "bytes, a value that rounds to 1024.0 going to the next unit [RQ-APP-081, RQ-APP-026, RQ-APP-042, TASK-APP-020]",
+          "[app][browser]")
+{
+    CHECK(app::sizeText(0) == "0 bytes");
+    CHECK(app::sizeText(512) == "512 bytes");
+    CHECK(app::sizeText(1023) == "1023 bytes");
+    CHECK(app::sizeText(1024) == "1.0 KB");
+    CHECK(app::sizeText(4096) == "4.0 KB");
+    CHECK(app::sizeText(117398) == "114.6 KB");
+    CHECK(app::sizeText(1048575) == "1.0 MB");
+    CHECK(app::sizeText(1048576) == "1.0 MB");
+    CHECK(app::sizeText(158548694) == "151.2 MB");
+    CHECK(app::sizeText(158281898) == "150.9 MB");  // 150.95 MB
+    CHECK(app::freeSpaceText(0) == "not reported");
 }

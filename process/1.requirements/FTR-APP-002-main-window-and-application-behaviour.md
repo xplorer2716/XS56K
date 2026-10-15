@@ -118,3 +118,23 @@ reported, how destructive actions are confirmed and how the application is teste
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the test suite, *When* `ctest` runs on a runner with no display, *Then* the FTR-APP tests run and pass; *Given* a priority-1 functional RQ-APP, *When* its ID is searched in `juce/tests/`, *Then* at least one test case names it.
 - **Dependencies**: RQ-AKM-016, RQ-BLD-014
+
+### RQ-APP-080: A text cut short is shown whole in a tooltip
+- **Category**: Non-Functional
+- **NFR Type**: Usability
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF a text of the window (a name, a label, a path, a status or a detail) does not fit the space it is drawn in, THEN the application SHALL show it whole in a tooltip once the pointer has rested on it for the design system's tooltip delay.
+- **Metric**: every text component of the window that can be cut short gives its whole text as its tooltip when, and only when, it is cut.
+- **Measurement Method**: a run of the application at its minimum size with long names (a capture of the tooltip), and a review of the components that draw text.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the path "S5K:\\Soul - Funky - Acid jazz" wider than the browser, *When* the pointer rests on it, *Then* the whole path is shown in a tooltip; *Given* the title "Disks", which fits, *Then* it has no tooltip.
+- **Dependencies**: RQ-APP-001, RQ-APP-006
+
+### RQ-APP-081: Sizes in the unit that reads best
+- **Category**: Functional
+- **EARS Type**: Ubiquitous
+- **Statement**: The application SHALL write a size in bytes under 1 KB ("512 bytes"), and otherwise in kilobytes, megabytes or gigabytes with one decimal (1 KB = 1 024 bytes, 1 MB = 1 024 KB, 1 GB = 1 024 MB: "114.6 KB", "151.2 MB", "29.8 GB" for the free space of a large disk), the unit chosen so that the number is below 1 024.
+- **Rationale**: the owner's request of 2026-10-15: "117 398 bytes" or "158 281 898 bytes" cannot be read at a glance.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* 512 bytes, *Then* "512 bytes"; *Given* 4 096 bytes, *Then* "4.0 KB"; *Given* 117 398 bytes, *Then* "114.6 KB"; *Given* 158 548 694 bytes, *Then* "151.2 MB".
+- **Dependencies**: RQ-APP-024, RQ-APP-026, RQ-APP-042

@@ -41,7 +41,6 @@ namespace app::ui
         BrowserView(LookAndFeel& lookAndFeel, Model& model, FileBrowser& browser);
         ~BrowserView() override;
 
-        void paint(juce::Graphics& g) override;
         void resized() override;
 
     private:
@@ -65,7 +64,7 @@ namespace app::ui
         FileBrowser& _browser;
         ItemList _list;
         std::vector<Entry> _entries;
-        juce::String _path;
-        juce::String _details;
+        juce::Label _path;
+        juce::Label _details;
     };
 }

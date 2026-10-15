@@ -41,7 +41,6 @@ namespace app::ui
         MemoryView(LookAndFeel& lookAndFeel, Model& model, MemoryController& memory);
         ~MemoryView() override;
 
-        void paint(juce::Graphics& g) override;
         void resized() override;
 
     private:
@@ -58,6 +57,6 @@ namespace app::ui
         juce::TextButton _refresh;
         /// The item of each row; none for a heading.
         std::vector<std::optional<MemoryItem>> _items;
-        juce::String _free;
+        juce::Label _free;
     };
 }

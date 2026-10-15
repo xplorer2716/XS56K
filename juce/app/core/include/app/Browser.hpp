@@ -51,7 +51,11 @@ namespace app
 
     /// A count of bytes with its thousands apart: "4 096 bytes". [RQ-APP-024, RQ-APP-026]
     [[nodiscard]] std::string bytesText(std::uint64_t bytes);
-    /// The free space of a disk: "not reported" for 0, which the S5000 answered for a FAT32 disk that was not full. [RQ-APP-024]
+    /// A size in the unit that reads best: bytes under 1 KB ("512 bytes"), otherwise KB or MB with one decimal ("114.6 KB", "151.2 MB"), 1 KB being
+    /// 1 024 bytes; a value that rounds to 1024.0 in its unit is written in the next one. [RQ-APP-081, TASK-APP-020]
+    [[nodiscard]] std::string sizeText(std::uint64_t bytes);
+    /// The free space of a disk, as `sizeText` writes it: "not reported" for 0, which the S5000 answered for a FAT32 disk that was not full.
+    /// [RQ-APP-024, RQ-APP-081]
     [[nodiscard]] std::string freeSpaceText(std::uint64_t freeBytes);
 
     /// A folder's path as the folder names from the root, and as the sampler writes it: the names joined by a backslash, the root empty.

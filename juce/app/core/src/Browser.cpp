@@ -53,6 +53,9 @@ namespace app
         constexpr char PATH_SEPARATOR = '\\';
         constexpr char THOUSANDS_SEPARATOR = ' ';
         constexpr std::size_t DIGITS_PER_GROUP = 3;
+        constexpr std::uint64_t UNIT_STEP = 1024;
+        constexpr std::uint64_t TENTHS = 10;
+        constexpr std::array<std::string_view, 3> UNITS{" KB", " MB", " GB"};
 
         template <std::size_t N>
         std::string_view nameAt(const std::array<std::string_view, N>& names, int code)
@@ -129,11 +132,27 @@ namespace app
         return text + std::string(BYTES);
     }
 
+    std::string sizeText(std::uint64_t bytes)
+    {
+        // [RQ-APP-081, TASK-APP-020]
+        if (bytes < UNIT_STEP)
+            return std::to_string(bytes) + std::string(BYTES);
+        std::uint64_t unitBytes = UNIT_STEP;
+        for (std::size_t unit = 0; unit < UNITS.size(); ++unit, unitBytes *= UNIT_STEP)
+        {
+            // Tenths of the unit, rounded to the nearest; a value that rounds to 1024.0 goes to the next unit, if there is one.
+            const std::uint64_t tenths = (bytes * TENTHS + unitBytes / 2) / unitBytes;
+            if (tenths < UNIT_STEP * TENTHS || unit + 1 == UNITS.size())
+                return std::to_string(tenths / TENTHS) + "." + std::to_string(tenths % TENTHS) + std::string(UNITS[unit]);
+        }
+        return bytesText(bytes);
+    }
+
     std::string freeSpaceText(std::uint64_t freeBytes)
     {
         if (freeBytes == 0)
             return std::string(NOT_REPORTED);
-        return bytesText(freeBytes);
+        return sizeText(freeBytes);
     }
 
     std::vector<std::string> splitPath(std::string_view samplerPath)

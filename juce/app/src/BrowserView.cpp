@@ -104,6 +104,15 @@ namespace app::ui
         _list.onDoubleClick = [this](int row) { doubleClicked(row); };
         _list.onMenu = [this](int row) { showMenu(row); };
         addAndMakeVisible(_list);
+        for (juce::Label* label : {&_path, &_details})
+        {
+            label->setFont(_lookAndFeel.font(tokens::kFontCaptionSize));
+            label->setColour(juce::Label::textColourId, colourOf(tokens::kColourTextSecondary));
+            label->setMinimumHorizontalScale(1.0f);
+            label->setBorderSize({});
+            addAndMakeVisible(*label);
+        }
+        _details.setJustificationType(juce::Justification::centredLeft);
         _model.addListener(*this);
         rebuild();
     }
@@ -137,17 +146,28 @@ namespace app::ui
         _list.setRows(std::move(rows));
 
         const mcp::DiskEntry* disk = state.currentDiskEntry();
-        _path = disk == nullptr ? juce::String(NO_DISK) : juce::String(disk->name) + PATH_SEPARATOR + juce::String(pathText(state.currentFolder));
+        const juce::String path =
+            disk == nullptr ? juce::String(NO_DISK) : juce::String(disk->name) + PATH_SEPARATOR + juce::String(pathText(state.currentFolder));
+        _path.setText(path, juce::dontSendNotification);
+        _path.setTooltip(path);
+        // The sizes in the unit that reads best, the exact count of bytes in the tooltip. [RQ-APP-081, RQ-APP-026, RQ-APP-024, TASK-APP-020]
+        juce::String details;
+        juce::String exact;
         if (const auto file = state.selectedFile())
-            _details = juce::String(file->name) + DETAIL_SEPARATOR + juce::String(std::string(fileKindName(file->kind))) + DETAIL_SEPARATOR +
-                       juce::String(bytesText(file->sizeBytes));
+        {
+            details = juce::String(file->name) + DETAIL_SEPARATOR + juce::String(std::string(fileKindName(file->kind))) + DETAIL_SEPARATOR +
+                      juce::String(sizeText(file->sizeBytes));
+            exact = juce::String(file->name) + DETAIL_SEPARATOR + juce::String(bytesText(file->sizeBytes));
+        }
         else if (disk != nullptr)
-            _details = juce::String(disk->name) + DETAIL_SEPARATOR + juce::String(std::string(diskTypeName(disk->type))) + DETAIL_SEPARATOR +
-                       juce::String(std::string(diskFormatName(disk->format))) + DETAIL_SEPARATOR + FREE_PREFIX +
-                       juce::String(freeSpaceText(state.freeBytes.value_or(0)));
-        else
-            _details = {};
-        repaint();
+        {
+            const juce::String head = juce::String(disk->name) + DETAIL_SEPARATOR + juce::String(std::string(diskTypeName(disk->type))) +
+                                      DETAIL_SEPARATOR + juce::String(std::string(diskFormatName(disk->format))) + DETAIL_SEPARATOR + FREE_PREFIX;
+            details = head + juce::String(freeSpaceText(state.freeBytes.value_or(0)));
+            exact = state.freeBytes.value_or(0) == 0 ? details : head + juce::String(bytesText(*state.freeBytes));
+        }
+        _details.setText(details, juce::dontSendNotification);
+        _details.setTooltip(exact);
     }
 
     void BrowserView::addFolder(const BrowserState& state, const std::vector<std::string>& folder, int depth, std::vector<ItemRow>& rows)
@@ -185,22 +205,12 @@ namespace app::ui
         }
     }
 
-    void BrowserView::paint(juce::Graphics& g)
-    {
-        using namespace tokens;
-        auto area = getLocalBounds();
-        g.setFont(_lookAndFeel.font(kFontCaptionSize));
-        g.setColour(colourOf(kColourTextSecondary));
-        g.drawText(_path, area.removeFromTop(pixels(kRowHeight)), juce::Justification::centredLeft, true);
-        g.drawFittedText(_details, area.removeFromBottom(pixels(kRowHeight) * DETAIL_LINES), juce::Justification::centredLeft, DETAIL_LINES);
-    }
-
     void BrowserView::resized()
     {
         using namespace tokens;
         auto area = getLocalBounds();
-        area.removeFromTop(pixels(kRowHeight));
-        area.removeFromBottom(pixels(kRowHeight) * DETAIL_LINES);
+        _path.setBounds(area.removeFromTop(pixels(kRowHeight)));
+        _details.setBounds(area.removeFromBottom(pixels(kRowHeight) * DETAIL_LINES));
         _list.setBounds(area);
     }
 

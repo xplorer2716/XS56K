@@ -73,12 +73,12 @@ namespace app::ui
             return RowIcon::SceneList;
         }
 
-        /// "2 097 152 bytes free of 8 388 608 (25 %), MPKS 40 % free". [RQ-APP-042]
-        juce::String freeText(const std::optional<FreeMemory>& free)
+        /// "2.0 MB free of 8.0 MB (25 %), MPKS 40 % free", or with the exact counts of bytes for the tooltip. [RQ-APP-042, RQ-APP-081]
+        juce::String freeText(const std::optional<FreeMemory>& free, std::string (*size)(std::uint64_t))
         {
             if (!free)
                 return {};
-            return juce::String(bytesText(free->freeWaveBytes)) + " free of " + juce::String(bytesText(free->totalWaveBytes)) + " (" +
+            return juce::String(size(free->freeWaveBytes)) + " free of " + juce::String(size(free->totalWaveBytes)) + " (" +
                    juce::String(free->freeWavePercent) + " %), MPKS " + juce::String(free->freeMpksPercent) + " % free";
         }
     }
@@ -95,6 +95,11 @@ namespace app::ui
         _refresh.onClick = [this] { _memory.refresh(); };
         addAndMakeVisible(_list);
         addAndMakeVisible(_refresh);
+        _free.setFont(_lookAndFeel.font(tokens::kFontCaptionSize));
+        _free.setColour(juce::Label::textColourId, colourOf(tokens::kColourTextSecondary));
+        _free.setMinimumHorizontalScale(1.0f);
+        _free.setBorderSize({});
+        addAndMakeVisible(_free);
         _model.addListener(*this);
         rebuild();
     }
@@ -131,18 +136,8 @@ namespace app::ui
             }
         }
         _list.setRows(std::move(rows));
-        _free = freeText(state.free);
-        repaint();
-    }
-
-    void MemoryView::paint(juce::Graphics& g)
-    {
-        using namespace tokens;
-        auto footer = getLocalBounds().removeFromBottom(pixels(kButtonHeight));
-        footer.removeFromRight(_refresh.getWidth() + pixels(kSpaceBetween));
-        g.setFont(_lookAndFeel.font(kFontCaptionSize));
-        g.setColour(colourOf(kColourTextSecondary));
-        g.drawFittedText(_free, footer, juce::Justification::centredLeft, 2);
+        _free.setText(freeText(state.free, sizeText), juce::dontSendNotification);
+        _free.setTooltip(freeText(state.free, bytesText));
     }
 
     void MemoryView::resized()
@@ -152,6 +147,8 @@ namespace app::ui
         auto footer = area.removeFromBottom(pixels(kButtonHeight));
         area.removeFromBottom(pixels(kSpaceBetween));
         _refresh.setBounds(footer.removeFromRight(pixels(kSizeLeftMinWidth) / REFRESH_SHARE));
+        footer.removeFromRight(pixels(kSpaceBetween));
+        _free.setBounds(footer);
         _list.setBounds(area);
     }
 

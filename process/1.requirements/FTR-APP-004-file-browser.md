@@ -59,11 +59,12 @@ eject are priority 2, in FTR-APP-009.
 ### RQ-APP-026: What a file is
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN the person selects a file, the browser SHALL show its name, its size in bytes (RQ-AKM-065) and its kind taken from its extension (program, sample, multi, song file, set list, scenelist, or unknown for any other extension), each kind with its own icon.
+- **Statement**: WHEN the person selects a file, the browser SHALL show its name, its size (RQ-AKM-065) in the unit of RQ-APP-081 with the exact count of bytes in its tooltip, and its kind taken from its extension (program, sample, multi, song file, set list, scenelist, or unknown for any other extension), each kind with its own icon.
 - **Rationale**: the person chooses what to load by kind and size.
 - **Priority**: Must
-- **Acceptance Criteria** (Gherkin): *Given* PAD.AKP of 4 096 bytes, *When* it is selected, *Then* the browser shows "PAD.AKP", 4 096 bytes, "program"; *Given* README.TXT, *Then* its kind is "unknown".
-- **Dependencies**: RQ-APP-001, RQ-APP-025, RQ-AKM-065
+- **Acceptance Criteria** (Gherkin): *Given* PAD.AKP of 4 096 bytes, *When* it is selected, *Then* the browser shows "PAD.AKP", "4.0 KB" (4 096 bytes in its tooltip), "program"; *Given* README.TXT, *Then* its kind is "unknown".
+- **Dependencies**: RQ-APP-001, RQ-APP-025, RQ-APP-081, RQ-AKM-065
+- **Amended**: 2026-10-15, the owner asked for sizes in kilobytes or megabytes as they read best (RQ-APP-081, TASK-APP-020).
 
 ### RQ-APP-027: The commands offered fit the selection
 - **Category**: Functional
@@ -136,3 +137,12 @@ eject are priority 2, in FTR-APP-009.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the browser, *When* the person asks for the refresh and cancels, *Then* nothing is sent; *When* the person confirms, *Then* the refresh is sent and the disks are listed again.
 - **Dependencies**: RQ-APP-001, RQ-APP-011, RQ-APP-013, RQ-AKM-060, RQ-AKM-070
+
+### RQ-APP-079: Folding an open folder
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the person double-clicks a folder of the tree that shows its contents, the browser SHALL fold it (its sub-folders and files no longer shown, nothing sent to the sampler); WHEN the person double-clicks a folded folder, the application SHALL open it as RQ-APP-025 does and show its contents again.
+- **Rationale**: the owner's request of 2026-10-15: a tree whose opened folders cannot be closed grows until it cannot be read.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* DRUMS opened with KICK.WAV under it, *When* the person double-clicks DRUMS, *Then* KICK.WAV is no longer shown and nothing is sent; *When* the person double-clicks DRUMS again, *Then* DRUMS is opened on the sampler and KICK.WAV is shown again.
+- **Dependencies**: RQ-APP-025
