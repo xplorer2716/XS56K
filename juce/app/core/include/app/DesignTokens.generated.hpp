@@ -127,8 +127,13 @@ namespace app::tokens
     constexpr std::uint32_t kStatusDotConnected = 0xFF6CCB7A;  // status.dot.connected -> colour.status.success
     constexpr std::uint32_t kStatusDotFailed = 0xFFF47A74;  // status.dot.failed -> colour.status.error
     constexpr std::uint32_t kStatusSpinner = 0xFFA9AAB2;  // status.spinner -> colour.text.secondary
+    constexpr float kStatusHeight = 28.0f;  // status.height -> size.control.large
+    constexpr float kStatusDotSize = 12.0f;  // status.dot.size -> size.icon.small
+    constexpr float kStatusSpinnerSize = 16.0f;  // status.spinner.size -> size.icon.default
     constexpr std::uint32_t kDialogSurface = 0xFF35363C;  // dialog.surface -> colour.surface.raised
     constexpr std::uint32_t kDialogBorder = 0xFF45464D;  // dialog.border -> colour.border.default
     constexpr std::uint32_t kDialogScrim = 0xFF1B1C1F;  // dialog.scrim -> colour.surface.base
+    constexpr float kDialogWidth = 640.0f;  // dialog.width -> size.edit.minWidth
+    constexpr float kButtonHeight = 28.0f;  // button.height -> size.control.large
 
 }

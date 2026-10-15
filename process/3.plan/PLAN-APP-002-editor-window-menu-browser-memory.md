@@ -238,7 +238,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-017: Main window, menu bar, status, MIDI setup dialog and the JUCE adapters
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `XS56KApp`, replacing the placeholder window: the main window with its three areas (browser at the top left, memory view under it, the edit panel's area on
   the right with its row of tabs along its bottom edge, empty until FTR-APP-007), the menu bar ("MIDI setup", "Connect" only when disconnected, "Disconnect" only when
   connected, "Quit"), the connection state and the busy indicator (the job's label, the message after a slow-operation timeout), the MIDI setup dialog, and the JUCE adapters of the
@@ -253,10 +253,24 @@ This plan implements the tasks in the format specified below.
   raw visual literals, *Then* it passes; `BUILD_APP=ON` builds warning-clean and the application starts and quits.
 - **Dependencies**: TASK-APP-012
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: (partial, 2026-10-15) Windows/MSVC, Debug, `BUILD_TESTS=ON`, `BUILD_APP=ON`: build warning-clean, `XS56K.exe` and `Inter-LICENSE.txt` next
+  to it; `ctest -C Debug`: 100% passed, 0 failed out of 1184, among them `app_sources_have_no_visual_literal` (the application's sources and the core) and
+  `app_visual_literal_check_fails_on_a_fixture` (the check names lines 6, 8 and 9 of the fixture). The application started and a capture of its window showed
+  the three areas (Disks at the top left, Memory under it, Editor on the right with its tab row's line at the bottom), the menu bar "XS56K", "Sampler", "MIDI",
+  and the status bar "Disconnected" with an empty dot, as `documents/mockups/main-window-disconnected.svg` lays them out (left column 240 px, the token's
+  minimum, where the mockup's example uses 300). By the owner on the running application, 2026-10-15, with the real S5000 (MIDIN2 / MIDIOUT15, ESI M8U eX):
+  Connect and Disconnect work; the MIDI setup dialog marks the ports in use and refuses the DeviceID 40 ("The DeviceID 40 is not valid: a sampler's DeviceID
+  is 0 to 31."); a second instance is refused the connection, the first one holding the ports. Quitting while connected was not reported on; the owner accepted
+  the task and asked to go on.
 - **Assumptions**: (1) The views are not unit-tested (DEC-APP-010): what they do is in the core. This task's verification is the build, a run of the application on Windows,
   and a screenshot compared with the mockups. (2) The resizing of the areas and the restoring of the window (RQ-APP-008, RQ-APP-009, `Could`) are not done: the layout is the design
-  system's default. (3) The session's dialogs of the MIDI setup follow DEC-APP-009's order: ports listed on the UI thread, nothing sent to the sampler.
+  system's default. (3) The session's dialogs of the MIDI setup follow DEC-APP-009's order: ports listed on the UI thread, nothing sent to the sampler. (4) The source check of DEC-APP-014
+  did not exist: it is added here (`CheckNoVisualLiterals.cmake`, with a fixture it must fail on), scanning `juce/app/src` and `juce/app/core`. (5) Component tokens
+  added (aliases of existing global sizes, no new global): `status.height`, `status.dot.size`, `status.spinner.size`, `dialog.width` (→ `size.edit.minWidth`) and
+  `button.height`; the document's §4 names them. (6) The menus are "XS56K" (Quit), "Sampler" (Connect or Disconnect, only the one that applies) and "MIDI" (MIDI
+  setup…); "Connect" with no stored setup opens the MIDI setup first. (7) The left column has the token's minimum width (240 px), resizing being RQ-APP-008
+  (`Could`). (8) Inter is embedded from the repository's `.woff2` files; if the operating system cannot load that format, the system's sans-serif is used and the
+  failure is logged (DEC-APP-015). (9) The confirmation dialog's confirm button is "Confirm", in the destructive style, whatever the action.
 
 ### TASK-APP-018: The file browser view
 - **Tier**: M

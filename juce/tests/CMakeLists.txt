@@ -282,6 +282,19 @@ add_test(NAME app_core_check_fails_on_a_juce_include
 set_tests_properties(app_core_check_fails_on_a_juce_include PROPERTIES
     PASS_REGULAR_EXPRESSION "juce_include_fixture/Fixture\\.cpp:")
 
+# No raw visual literal in the editor application's sources: colours, font sizes, radii, strokes and spacings come from the token module;
+# the check fails on a fixture that holds three. [RQ-APP-004, ADR-APP-002 (DEC-APP-014), TASK-APP-017]
+add_test(NAME app_sources_have_no_visual_literal
+    COMMAND ${CMAKE_COMMAND}
+        "-DSOURCE_DIRS=${PROJECT_SOURCE_DIR}/app/src;${PROJECT_SOURCE_DIR}/app/core"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoVisualLiterals.cmake)
+add_test(NAME app_visual_literal_check_fails_on_a_fixture
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIRS=${CMAKE_CURRENT_SOURCE_DIR}/app/visual_literal_fixture
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoVisualLiterals.cmake)
+set_tests_properties(app_visual_literal_check_fails_on_a_fixture PROPERTIES
+    PASS_REGULAR_EXPRESSION "Fixture\\.cpp:6:.*Fixture\\.cpp:8:.*Fixture\\.cpp:9:")
+
 # No JUCE include in the public headers of the AKM layer. [RQ-AKM-019]
 add_test(NAME akm_public_headers_have_no_juce_include
     COMMAND ${CMAKE_COMMAND}

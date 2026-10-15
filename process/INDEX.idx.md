@@ -626,7 +626,7 @@ TASK-APP-007|161-183|Done|The token file and `generate_design.py`
 TASK-APP-008|184-199|Done|`generate_mockups.py` and its `--check`
 TASK-APP-009|200-216|Done|First mockups — the main window and a confirmation
 @process/3.plan/PLAN-APP-002-editor-window-menu-browser-memory.md
-PLAN-APP-002|1-292||Editor Application — Main Window and Menu, File Browser, Memory View
+PLAN-APP-002|1-306||Editor Application — Main Window and Menu, File Browser, Memory View
 TASK-APP-010|42-61|Done|Split `xs56k_sampler` from `xs56k_mcp`
 TASK-APP-011|62-94|Done|`xs56k_app_core`: sampler worker, UI dispatcher, prompts, settings and the model's skeleton
 TASK-APP-012|95-129|Done|The connection and the MIDI setup, in the core
@@ -634,9 +634,9 @@ TASK-APP-013|130-159|Done|The file browser, read side
 TASK-APP-014|160-191|Done|The file browser, commands
 TASK-APP-015|192-221|Done|The memory view, read side
 TASK-APP-016|222-238|Not Started|The memory view, commands
-TASK-APP-017|239-260|Not Started|Main window, menu bar, status, MIDI setup dialog and the JUCE adapters
-TASK-APP-018|261-277|Not Started|The file browser view
-TASK-APP-019|278-292|Not Started|The memory view
+TASK-APP-017|239-274|Done|Main window, menu bar, status, MIDI setup dialog and the JUCE adapters
+TASK-APP-018|275-291|Not Started|The file browser view
+TASK-APP-019|292-306|Not Started|The memory view
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

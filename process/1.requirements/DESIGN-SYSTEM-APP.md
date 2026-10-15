@@ -246,7 +246,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 |---|---|
 | Anatomy | raised box, label |
 | States implemented | idle, hover, pressed, focused, disabled |
-| Tokens used | `button.surface` → `colour.surface.raised`; `button.text` → `colour.text.primary`; `button.destructive.surface` → `colour.status.destructive`; `button.destructive.text` → `colour.surface.base` |
+| Tokens used | `button.surface` → `colour.surface.raised`; `button.text` → `colour.text.primary`; `button.destructive.surface` → `colour.status.destructive`; `button.destructive.text` → `colour.surface.base`; `button.height` → `size.control.large` (TASK-APP-017) |
 | Variants | default, destructive (confirm of RQ-APP-011) |
 | Behaviour owner | RQ-APP-011 |
 
@@ -255,7 +255,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 |---|---|
 | Anatomy | connection dot and text, busy spinner and job label, message area |
 | States implemented | idle, active (connected), error, pending (busy) |
-| Tokens used | `status.dot.connected` → `colour.status.success`; `status.dot.failed` → `colour.status.error`; `status.spinner` → `colour.text.secondary` |
+| Tokens used | `status.dot.connected` → `colour.status.success`; `status.dot.failed` → `colour.status.error`; `status.spinner` → `colour.text.secondary`; `status.height` → `size.control.large`; `status.dot.size` → `size.icon.small`; `status.spinner.size` → `size.icon.default` (TASK-APP-017) |
 | Behaviour owner | RQ-APP-012, RQ-APP-019 |
 
 ### Dialog (confirmation, question, MIDI setup)
@@ -263,7 +263,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 |---|---|
 | Anatomy | title, text naming the object and what is lost, buttons |
 | States implemented | idle, focused |
-| Tokens used | `dialog.surface` → `colour.surface.raised`; `dialog.border` → `colour.border.default`; `dialog.title` → `font.heading` |
+| Tokens used | `dialog.surface` → `colour.surface.raised`; `dialog.border` → `colour.border.default`; `dialog.title` → `font.heading`; `dialog.width` → `size.edit.minWidth` (TASK-APP-017: room for a reason of the sampler on one or two lines) |
 | Behaviour owner | RQ-APP-011, RQ-APP-015, RQ-APP-045 |
 
 **Size tokens used above** (global): `size.control.small` 20 · `size.control.medium` 24 · `size.control.large` 28 · `size.knob.large` 40 (px);
