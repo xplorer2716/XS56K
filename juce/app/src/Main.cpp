@@ -28,6 +28,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "MainComponent.hpp"
 #include "app/Controller.hpp"
 #include "app/DesignTokens.generated.hpp"
+#include "app/EditController.hpp"
 #include "app/FileBrowser.hpp"
 #include "app/MemoryController.hpp"
 #include "app/Model.hpp"
@@ -61,7 +62,7 @@ namespace
         {
             juce::LookAndFeel::setDefaultLookAndFeel(&lookAndFeel);
             window = std::make_unique<MainWindow>(
-                JUCE_APPLICATION_NAME_STRING, std::make_unique<app::ui::MainComponent>(lookAndFeel, model, controller, browser, memory, settings, backend));
+                JUCE_APPLICATION_NAME_STRING, std::make_unique<app::ui::MainComponent>(lookAndFeel, model, controller, browser, memory, editor, settings, backend));
         }
 
         ~Application()
@@ -80,6 +81,7 @@ namespace
         app::Controller controller{model, dispatcher, prompts, settings, backend};
         app::FileBrowser browser{model, controller};
         app::MemoryController memory{model, controller};
+        app::EditController editor{model, controller};  // [RQ-APP-048, TASK-APP-039]
         juce::TooltipWindow tooltips{nullptr, static_cast<int>(app::tokens::kMotionTooltip.count())};  // [RQ-APP-080, TASK-APP-022]
         std::unique_ptr<MainWindow> window;
     };

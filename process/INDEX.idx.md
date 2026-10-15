@@ -679,14 +679,14 @@ TASK-APP-031|130-147|Done|The gaps between the areas dragged with the mouse
 TASK-APP-032|148-164|Done|The shown disk selected again before a command on its folders
 TASK-APP-033|165-179|Done|A log file of the errors
 @process/3.plan/PLAN-APP-005-sample-editor.md
-PLAN-APP-005|1-136||Editor Application — the Sample Editor, First Editor of the Edit Panel
+PLAN-APP-005|1-144||Editor Application — the Sample Editor, First Editor of the Edit Panel
 TASK-APP-034|29-41|Done|Requirements, ADR and plan of the sample editor
 TASK-APP-035|42-57|Done|The sample layout and its generation
 TASK-APP-036|58-74|Done|The edit controller, read side
 TASK-APP-037|75-92|Done|The edit controller, write side
-TASK-APP-038|93-105|Not Started|The four controls
-TASK-APP-039|106-120|Not Started|The edit panel view
-TASK-APP-040|121-136|In Progress|Mockup, documentation and the real run
+TASK-APP-038|93-109|Done|The four controls
+TASK-APP-039|110-128|Done|The edit panel view
+TASK-APP-040|129-144|In Progress|Mockup, documentation and the real run
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

@@ -21,10 +21,12 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "BrowserView.hpp"
 #include "CutLabel.hpp"
+#include "EditView.hpp"
 #include "MemoryView.hpp"
 #include "StatusBar.hpp"
 #include "app/AppSettings.hpp"
 #include "app/Controller.hpp"
+#include "app/EditController.hpp"
 #include "app/FileBrowser.hpp"
 #include "app/MemoryController.hpp"
 #include "app/Model.hpp"
@@ -43,6 +45,8 @@ namespace app::ui
         void setHint(const juce::String& hint);
         /// The component drawn under the title, shown only while it has something to show (no hint). [TASK-APP-018]
         void setContent(juce::Component* content);
+        /// The titles of the tab row and the one shown, drawn along the bottom edge. [RQ-APP-049, TASK-APP-039]
+        void setTabs(const juce::StringArray& titles, int shown);
         void paint(juce::Graphics& g) override;
         void resized() override;
 
@@ -51,6 +55,8 @@ namespace app::ui
         CutLabel _title;
         CutLabel _hint;
         bool _withTabRow;
+        juce::StringArray _tabs;
+        int _shownTab = 0;
         juce::Component* _content = nullptr;
     };
 
@@ -61,6 +67,7 @@ namespace app::ui
     {
     public:
         MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser, MemoryController& memory,
+                      EditController& editor,
                       AppSettings& settings, common::midi::MidiBackend& backend);
         ~MainComponent() override;
 
@@ -86,6 +93,7 @@ namespace app::ui
         AreaPanel _memory;
         MemoryView _memoryView;
         AreaPanel _editor;
+        EditView _editView;
         StatusBar _status;
         /// The left column and the edit panel, then the browser and the memory view, each pair with the bar in its gap that the person
         /// drags. [RQ-APP-008, ADR-APP-002 (DEC-APP-022), TASK-APP-031]

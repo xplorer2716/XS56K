@@ -91,6 +91,13 @@ namespace app::ui
         resized();
     }
 
+    void AreaPanel::setTabs(const juce::StringArray& titles, int shown)
+    {
+        _tabs = titles;
+        _shownTab = shown;
+        repaint();
+    }
+
     void AreaPanel::resized()
     {
         using namespace tokens;
@@ -119,13 +126,32 @@ namespace app::ui
             const auto tabRow = content.removeFromBottom(pixels(kTabHeight));
             g.setColour(colourOf(kColourBorderDefault));
             g.fillRect(tabRow.withHeight(pixels(kStrokeHairline)));
+            // The tabs of the editor shown, the one shown underlined in the accent and in the primary text colour. [RQ-APP-049, TASK-APP-039]
+            g.setFont(_lookAndFeel.font(kFontLabelSize, true));
+            int x = tabRow.getX();
+            for (int i = 0; i < _tabs.size(); ++i)
+            {
+                const juce::String title = _tabs[i].toUpperCase();
+                const int width = juce::roundToInt(juce::GlyphArrangement::getStringWidth(g.getCurrentFont(), title)) + 2 * pixels(kSpaceGroup);
+                const auto tab = juce::Rectangle<int>(x, tabRow.getY(), width, tabRow.getHeight());
+                const bool shown = i == _shownTab;
+                g.setColour(colourOf(shown ? kTabTextSelected : kTabText));
+                g.drawText(title, tab, juce::Justification::centred);
+                if (shown)
+                {
+                    g.setColour(colourOf(kTabUnderlineSelected));
+                    g.fillRect(tab.withHeight(pixels(kStrokeFocus)));
+                }
+                x += width;
+            }
         }
     }
 
     MainComponent::MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser,
-                                 MemoryController& memory, AppSettings& settings, common::midi::MidiBackend& backend)
+                                 MemoryController& memory, EditController& editor, AppSettings& settings, common::midi::MidiBackend& backend)
         : _lookAndFeel(lookAndFeel), _model(model), _controller(controller), _settings(settings), _backend(backend), _menuBar(this),
           _browser(lookAndFeel, BROWSER_TITLE, false), _browserView(lookAndFeel, model, browser), _memory(lookAndFeel, MEMORY_TITLE, false), _memoryView(lookAndFeel, model, memory), _editor(lookAndFeel, EDITOR_TITLE, true),
+          _editView(lookAndFeel, model, editor, memory),
           _status(lookAndFeel), _columnBar(&_columns, BAR_ITEM, true), _rowBar(&_rows, BAR_ITEM, false)
     {
         for (juce::Component* component :
@@ -143,6 +169,8 @@ namespace app::ui
         _rows.setItemLayout(SECOND_ITEM, pixels(kSizeAreaMinHeight), WHOLE, HALF);
         _browser.setContent(&_browserView);
         _memory.setContent(&_memoryView);
+        _editView.onTabs = [this](const juce::StringArray& titles, int shown) { _editor.setTabs(titles, shown); };  // [RQ-APP-049]
+        _editor.setContent(&_editView);
         _status.onDismiss = [this] { _model.clearProblem(); };
         _model.addListener(*this);
         modelChanged(ModelPart::Connection);
@@ -174,6 +202,9 @@ namespace app::ui
 
     void MainComponent::modelChanged(ModelPart part)
     {
+        // The edit panel shows its editor while an item is edited, the hint otherwise. [RQ-APP-048, TASK-APP-039]
+        if (part == ModelPart::Edit && _model.connection().state == ConnectionState::Connected)
+            _editor.setHint(_model.edit().item ? juce::String() : juce::String(EDITOR_HINT));
         if (part != ModelPart::Connection && part != ModelPart::Busy && part != ModelPart::Problem)
             return;
         _status.show(_model.connection(), _model.busy(), _model.problem());
@@ -182,7 +213,7 @@ namespace app::ui
             const bool connected = _model.connection().state == ConnectionState::Connected;
             _browser.setHint(connected ? juce::String() : juce::String(NOT_CONNECTED_HINT));
             _memory.setHint(connected ? juce::String() : juce::String(NOT_CONNECTED_HINT));
-            _editor.setHint(connected ? juce::String(EDITOR_HINT) : juce::String(NOT_CONNECTED_HINT));
+            _editor.setHint(connected ? (_model.edit().item ? juce::String() : juce::String(EDITOR_HINT)) : juce::String(NOT_CONNECTED_HINT));
             menuItemsChanged();
         }
     }

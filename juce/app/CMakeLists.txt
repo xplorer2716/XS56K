@@ -16,6 +16,7 @@ juce_add_gui_app(XS56KApp
 target_sources(XS56KApp PRIVATE
     src/BrowserView.cpp
     src/CutLabel.cpp
+    src/EditView.cpp
     src/ItemList.cpp
     src/JuceAdapters.cpp
     src/LookAndFeel.cpp
@@ -23,6 +24,7 @@ target_sources(XS56KApp PRIVATE
     src/MainComponent.cpp
     src/MemoryView.cpp
     src/MidiSetupDialog.cpp
+    src/ParameterCell.cpp
     src/StatusBar.cpp
     src/TextPrompt.cpp)
 

@@ -92,7 +92,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-038: The four controls
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Value box, choice, knob and slider in `XS56KApp`, drawn by the look-and-feel from the component tokens, with the pending state; the
   note-name text of the original pitch in the core (tested).
 - **Requirement refs**: RQ-APP-051, RQ-APP-086, RQ-APP-003, RQ-APP-005, RQ-APP-001, RQ-APP-004
@@ -100,12 +100,16 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): *Given* 60, *Then* the note text is "C3" (core test); the literal and token checks pass.
 - **Dependencies**: TASK-APP-034
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: three new cases of `EditTests.cpp` (value text, value typed, information line) failed first to
+  compile, then passed (119 assertions in the 10 edit cases): C3, A-1, G8, C#3, +10, -5, 0, ONE SHOT, 1024; "c#3", "+10", "one shot", " 2048 " read,
+  "abc" and "H3" refused; "RAM, mono, 22050 points, 44100 Hz". `ctest -C Debug`: 1209 passed, the literal and token checks among them; the controls
+  seen drawn on the real S5000 (TASK-APP-039's capture).
+- **Assumptions**: (1) The value text and the typed value are in the core (tested); the controls in `ParameterCell` (not unit-tested, DEC-APP-010).
+  (2) The knob's arc and pointer follow the mockup generator's constants. (3) A text that is not a value puts the box back to the value held.
 
 ### TASK-APP-039: The edit panel view
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The edit panel draws the `EditState`: header (name and information), the tab row at the bottom, the groups with their controls, a
   "Read again" button, the message of a kind without editor; the space bar starts and stops the audition of the edited sample, except while a value
   is being typed.
@@ -115,8 +119,12 @@ This plan implements the tasks in the format specified below.
   header the information (through `uia.ps1` and a capture).
 - **Dependencies**: TASK-APP-036, TASK-APP-037, TASK-APP-038
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: build warning-clean; `ctest -C Debug`: 1209 passed. On the real S5000 (OS 2.14) through
+  `uia.ps1`, the sample `100_1 001 100.000 BPM` selected in the memory view: the panel showed its name, SAMPLE, "RAM, stereo, 105840 points, 44100 Hz",
+  "Read again", Playback 0 / 105840 / NO LOOPING, Loop 1 / 105825, Pitch C3 / 0 / 0, the tab SAMPLE underlined (captured); a first capture had the
+  information broken over two lines, fixed by sizing the kind to its text. The changes by the mouse and the space bar: the owner's to try.
+- **Assumptions**: (1) The groups are drawn on the raised surface over the panel. (2) "Read again" sits at the right of the header. (3) A kind with
+  no editor reads "This kind has no editor yet." under its name.
 
 ### TASK-APP-040: Mockup, documentation and the real run
 - **Tier**: M
