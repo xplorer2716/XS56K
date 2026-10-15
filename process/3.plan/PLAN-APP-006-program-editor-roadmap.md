@@ -64,7 +64,9 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   `program-editor-connected.svg` and `-writing.svg` generated and looked at (a long template name overflows its choice in the mockup). Two new
   cases of `EditTests.cpp` (PAD's fourteen values, "2 keygroups", legato "ON"; loudness 70 and legato typed "off" sent and read back) failed
   first to compile, then passed; the "no editor" case moved to a multi; 71 app cases passed; `ctest -C Debug`: 1215 passed; the editor built
-  warning-clean. Real run: the S5000 had no program in memory (2026-10-15); pending.
+  warning-clean. Real run by the owner (2026-10-15): the label Legato renamed "Mono legato", as the sampler's screen says. Open: a change of
+  the tune template or of the key changes nothing on the sampler's screen, and "Read again" gives back the value the editor set, not the
+  screen's (the MCP real run of PLAN-MCP-002 read back every value set); being diagnosed.
 - **Assumptions**: (1) The edit controller generalises from the sample catalogue to a catalogue chosen by the layout.
 
 ### TASK-APP-044: The Amp tab and the keygroup selector

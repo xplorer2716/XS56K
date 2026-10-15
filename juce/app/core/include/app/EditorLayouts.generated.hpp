@@ -26,7 +26,7 @@ namespace app::layouts
         {"aftertouch pitch", "Aftertouch", Role::Modulation, Control::Knob},
     }};
     inline constexpr std::array<LayoutParameter, 4> kProgramTab0Group3{{
-        {"legato", "Legato", Role::General, Control::Choice},
+        {"legato", "Mono legato", Role::General, Control::Choice},
         {"portamento", "Portamento", Role::General, Control::Choice},
         {"portamento mode", "Mode", Role::General, Control::Choice},
         {"portamento time", "Time", Role::General, Control::Knob},

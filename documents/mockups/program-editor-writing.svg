@@ -127,7 +127,7 @@
 <text x="728" y="284" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
 <text x="848" y="284" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>
 <text x="788" y="284" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">OFF</text>
-<text x="788" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">LEGATO</text>
+<text x="788" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">MONO LEGATO</text>
 <rect x="864" y="267" width="136" height="24" fill="#202125" rx="3"/>
 <text x="872" y="284" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
 <text x="992" y="284" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>

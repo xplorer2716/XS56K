@@ -17,7 +17,7 @@
         {"name": "pitch bend mode", "label": "Mode", "role": "modulation", "control": "choice"},
         {"name": "aftertouch pitch", "label": "Aftertouch", "role": "modulation", "control": "knob"}]},
       {"title": "Portamento", "parameters": [
-        {"name": "legato", "label": "Legato", "role": "general", "control": "choice"},
+        {"name": "legato", "label": "Mono legato", "role": "general", "control": "choice"},
         {"name": "portamento", "label": "Portamento", "role": "general", "control": "choice"},
         {"name": "portamento mode", "label": "Mode", "role": "general", "control": "choice"},
         {"name": "portamento time", "label": "Time", "role": "general", "control": "knob"}]}]}
