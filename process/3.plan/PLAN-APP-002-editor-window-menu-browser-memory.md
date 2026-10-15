@@ -221,7 +221,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-016: The memory view, commands
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: In `xs56k_app_core`: create a program (name and number of keygroups; refused with nothing sent if the name exists), rename a program, a sample or a
   multi (refused if the name exists in the kind), delete one after a confirmation naming it, and audition a sample of the memory (stopped on another selection).
 - **Requirement refs**: RQ-APP-038, RQ-APP-039, RQ-APP-040, RQ-APP-041, RQ-APP-011
@@ -232,9 +232,17 @@ This plan implements the tasks in the format specified below.
   *When* it is auditioned, *Then* the audition starts, and *when* SNARE is selected, *Then* the audition of KICK stops.
 - **Dependencies**: TASK-APP-015
 - **Assignee**: AI
-- **Verification**: (at closure)
+- **Verification**: Windows/MSVC, Debug, `BUILD_TESTS=ON`, `BUILD_APP=ON`, 2026-10-15, build warning-clean; `ctest -C Debug`: 100% passed, 0 failed out of 1188,
+  the 4 cases of `MemoryCommandTests.cpp` among them, all passing at their first run. RQ-APP-038: LEAD created with 2 keygroups (`0A &03` sent once), listed,
+  current and selected; "pad" refused with no command sent, the reason naming PAD. RQ-APP-039: KICK renamed KICK 2 (`0E &09` once), the list KICK 2, SNARE;
+  KICK 2 to SNARE refused, nothing sent. RQ-APP-040/011: PAD deleted and cancelled: one question naming PAD, nothing sent; confirmed: `0A &08` once, PAD gone,
+  BASS kept. RQ-APP-041: KICK auditioned (`0E &0A`), SNARE selected: one stop (`0E &0B`), then PAD selected: no second stop.
 - **Assumptions**: (1) The gateway's `createProgram`, `renameCurrent*`, `deleteCurrent*` and the audition calls are used as they are; the delete passes the name the
-  person confirmed as the gateway's typed confirmation (DEC-APP-007).
+  person confirmed as the gateway's typed confirmation (DEC-APP-007). (2) A taken name is compared as the gateway compares it (without regard to case, spaces or
+  hyphens), in the model's list, before anything is sent. (3) Song files, scenelists and set lists are renamed and deleted the same way (the gateway's named-list
+  calls, a set list by its name), beyond the three kinds the requirements name, so the view needs no special case. (4) After a create or a rename the lists are read
+  again and the item selected (the model's "memory changed"); after a delete they are read again. (5) The edit panel that a created program opens in (RQ-APP-038) comes
+  with FTR-APP-007: here it is selected. (6) Deleting the sample being auditioned stops its audition first.
 
 ### TASK-APP-017: Main window, menu bar, status, MIDI setup dialog and the JUCE adapters
 - **Tier**: L

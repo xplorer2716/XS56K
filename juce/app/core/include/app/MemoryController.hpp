@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "app/Controller.hpp"
 #include "app/Memory.hpp"
@@ -46,14 +47,31 @@ namespace app
         /// one, is only selected in the view. [RQ-APP-037, RQ-APP-010]
         void select(MemoryItem item);
 
+        /// Creates a program of `keygroups` keygroups, which becomes current and selected; a name a program already bears (without regard to
+        /// case, spaces or hyphens) is refused with nothing sent. [RQ-APP-038, TASK-APP-016]
+        void createProgram(const std::string& name, int keygroups);
+        /// Selects a program, a sample or a multi on the sampler and renames it; a name another item of the kind bears is refused with
+        /// nothing sent. [RQ-APP-039, TASK-APP-016]
+        void rename(const MemoryItem& item, const std::string& newName);
+        /// After a confirmation naming it, selects a program, a sample or a multi on the sampler and deletes it; a cancel sends nothing.
+        /// [RQ-APP-040, RQ-APP-011, TASK-APP-016]
+        void remove(const MemoryItem& item);
+        /// Selects a sample and starts its audition; it stops on `stopAudition` or when another item is selected. [RQ-APP-041, TASK-APP-016]
+        void audition(const MemoryItem& sample);
+        /// Stops the audition in progress, if any. [RQ-APP-041, TASK-APP-016]
+        void stopAudition();
+
         void modelChanged(ModelPart part) override;
 
     private:
         void read(std::optional<MemoryItem> select);
+        /// True, with the reason shown, when another item of the kind bears `name`. [RQ-APP-038, RQ-APP-039]
+        bool refuseTakenName(MemoryKind kind, const std::string& name, const std::string& action);
 
         Model& _model;
         Controller& _controller;
         ConnectionState _lastState = ConnectionState::Disconnected;
+        std::optional<MemoryItem> _auditioning;
         /// Expires with the controller: a result that comes back after it is ignored.
         std::shared_ptr<int> _alive = std::make_shared<int>(0);
     };
