@@ -7,6 +7,10 @@
 # A number starting with 0 is let through (`reduced (0)`, `Colour (0x…)` is caught by its own pattern), so that "nothing" stays writable.
 # [RQ-APP-004, ADR-APP-002 (DEC-APP-014), TASK-APP-017]
 
+# A script run with -P sets no policy of its own: before CMake 4, the list commands drop the empty elements (CMP0007), so the blank lines
+# would vanish from the lines of a file and the line numbers given would be wrong; the CI runners still have CMake 3.
+cmake_policy(SET CMP0007 NEW)
+
 if(NOT DEFINED SOURCE_DIRS)
     message(FATAL_ERROR "SOURCE_DIRS is not set")
 endif()
