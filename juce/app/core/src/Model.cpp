@@ -103,6 +103,13 @@ namespace app
         notify(ModelPart::Memory);
     }
 
+    // [RQ-APP-048, ADR-APP-004 (DEC-APP-025), TASK-APP-036]
+    void Model::setEdit(EditState edit)
+    {
+        _edit = std::move(edit);
+        notify(ModelPart::Edit);
+    }
+
     void Model::addListener(ModelListener& listener)
     {
         _listeners.push_back(&listener);

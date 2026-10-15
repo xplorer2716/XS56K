@@ -1,0 +1,164 @@
+/*
+XS56K - a realtime editor for the AKAI S5000/S6000 samplers
+Copyright (C) 2026 https://github.com/xplorer2716
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Affero General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Affero General Public License for more details.
+
+You should have received a copy of the GNU Affero General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+// The edit controller against the simulated sampler: what it reads when a sample is selected, what it does for a kind with no editor, the
+// read again, the end of the connection. [RQ-APP-048, RQ-APP-050, RQ-APP-053, RQ-APP-086, RQ-APP-087, ADR-APP-004 (DEC-APP-025), TASK-APP-036]
+#include <catch2/catch_test_macros.hpp>
+
+#include <algorithm>
+#include <cstdint>
+#include <optional>
+#include <string>
+
+#include "AppTestSupport.hpp"
+#include "SimulatedPrograms.hpp"
+#include "akm/harness/SimulatedSampler.hpp"
+#include "app/EditController.hpp"
+#include "app/MemoryController.hpp"
+#include "mcp/ParameterCatalogue.hpp"
+
+using app::ConnectionState;
+using app::MemoryItem;
+using app::MemoryKind;
+using app::test::CoreRig;
+using app::test::setupA;
+
+namespace
+{
+    constexpr std::uint8_t SECTION_SAMPLE = 0x0E;
+    constexpr std::uint8_t RAM = 0;
+    constexpr std::uint8_t MONO = 1;
+    constexpr std::uint32_t KICK_LENGTH = 22050;
+    constexpr std::uint32_t KICK_RATE = 44100;
+    constexpr std::int64_t FINE = 10;
+    constexpr std::int64_t C3 = 60;
+    constexpr std::size_t PLAYBACK_GROUP_PARAMETERS = 3;
+    constexpr std::size_t TAB_PARAMETERS = 8;
+    constexpr std::size_t INFO_ROWS = 4;
+
+    const mcp::ParameterDefinition& sampleParameter(const std::string& name)
+    {
+        const auto& rows = mcp::ParameterCatalogue::samples().parameters();
+        return *std::find_if(rows.begin(), rows.end(), [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
+    }
+
+    /// The programs PAD, the samples KICK (RAM, mono, 22050 points at 44100 Hz, fine tune +10, root C3) and SNARE; connected.
+    struct EditRig
+    {
+        EditRig()
+        {
+            mcp::test::seedSimulatedPrograms(rig.backend, {{"PAD"}}, 0);
+            rig.sampler->setSampleNames({"KICK", "SNARE"});
+            rig.sampler->setSampleAttributes(0, RAM, MONO, KICK_LENGTH, KICK_RATE);
+            set("sample fine tune", FINE);
+            set("sample original pitch", C3);
+            rig.controller.connect(setupA());
+            REQUIRE(rig.settle());
+            REQUIRE(rig.model.connection().state == ConnectionState::Connected);
+        }
+
+        /// A value of KICK put on the sampler from outside the application (the front panel).
+        void set(const std::string& name, std::int64_t value)
+        {
+            REQUIRE(rig.gateway.selectSampleByName("KICK").ok());
+            REQUIRE(rig.gateway.writeSampleParameter(sampleParameter(name), value).ok());
+        }
+
+        [[nodiscard]] std::optional<std::int64_t> shown(const std::string& name) const
+        {
+            for (const app::EditValue& value : rig.model.edit().values)
+            {
+                if (value.definition->name == name)
+                    return value.value;
+            }
+            return std::nullopt;
+        }
+
+        [[nodiscard]] std::size_t sentToSamples() const
+        {
+            const auto commands = rig.sampler->acceptedCommands();
+            return static_cast<std::size_t>(std::count_if(commands.begin(), commands.end(), [](const akm::harness::AcceptedCommand& command) {
+                return command.section == SECTION_SAMPLE;
+            }));
+        }
+
+        CoreRig rig;
+        app::MemoryController memory{rig.model, rig.controller};
+        app::EditController editor{rig.model, rig.controller};
+    };
+}
+
+TEST_CASE("Given KICK, When it is selected in the memory view, Then the sample editor shows its eight parameters read from the sampler in the "
+          "layout's order and its information, the positions bounded by its length [RQ-APP-086, RQ-APP-087, RQ-APP-053, TASK-APP-036]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+
+    const app::EditState& edit = fixture.rig.model.edit();
+    REQUIRE(edit.item == std::optional<MemoryItem>(MemoryItem{MemoryKind::Sample, "KICK"}));
+    REQUIRE(edit.layout != nullptr);
+    CHECK(edit.layout->editor == "sample");
+    REQUIRE(edit.values.size() == TAB_PARAMETERS);
+    CHECK(edit.values[0].definition->name == "sample start position");
+    CHECK(edit.values[PLAYBACK_GROUP_PARAMETERS].definition->name == "sample loop start");
+    CHECK(fixture.shown("sample fine tune") == std::optional<std::int64_t>(FINE));
+    CHECK(fixture.shown("sample original pitch") == std::optional<std::int64_t>(C3));
+    CHECK(edit.values[0].max == KICK_LENGTH);  // a position stays within the sample [RQ-APP-088]
+    REQUIRE(edit.info.size() == INFO_ROWS);
+    CHECK(edit.info[0].value == RAM);
+    CHECK(edit.info[1].value == MONO);
+    CHECK(edit.info[2].value == KICK_LENGTH);
+    CHECK(edit.info[3].value == KICK_RATE);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given the program PAD, When it is selected, Then the panel names it and has no editor for it, and nothing of the sample section is "
+          "sent [RQ-APP-048, TASK-APP-036]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    const std::size_t before = fixture.sentToSamples();
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+
+    const app::EditState& edit = fixture.rig.model.edit();
+    CHECK(edit.item == std::optional<MemoryItem>(MemoryItem{MemoryKind::Program, "PAD"}));
+    CHECK(edit.layout == nullptr);
+    CHECK(edit.values.empty());
+    CHECK(fixture.sentToSamples() == before);
+}
+
+TEST_CASE("Given KICK shown, When its fine tune is changed on the front panel and the person asks to read again, Then the new value is shown; "
+          "When the session ends, Then the panel is empty [RQ-APP-053, RQ-APP-019, TASK-APP-036]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
+    REQUIRE(fixture.rig.settle());
+
+    constexpr std::int64_t NEW_FINE = 20;
+    fixture.set("sample fine tune", NEW_FINE);
+    fixture.editor.readAgain();
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("sample fine tune") == std::optional<std::int64_t>(NEW_FINE));
+
+    fixture.rig.controller.disconnect();
+    REQUIRE(fixture.rig.settle());
+    CHECK_FALSE(fixture.rig.model.edit().item.has_value());
+}

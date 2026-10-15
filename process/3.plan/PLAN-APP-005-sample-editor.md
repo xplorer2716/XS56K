@@ -57,7 +57,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-036: The edit controller, read side
 - **Tier**: L
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `EditController` and `EditState` (`ModelPart::Edit`): on a sample selected, read the tab's parameters and the four read-only rows;
   a kind with no layout shows "no editor yet"; read again on request.
 - **Requirement refs**: RQ-APP-048, RQ-APP-050, RQ-APP-053, RQ-APP-086, RQ-APP-087
@@ -65,8 +65,12 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): see RQ-APP-086 (read part), RQ-APP-087, RQ-APP-048 (a program: no editor yet), on the simulated sampler.
 - **Dependencies**: TASK-APP-035
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the three cases of `EditTests.cpp` were written before the code but first ran after it (their first
+  run aborted on a seeding error of the test itself, a current program index of 1 for one program); then passed (46 assertions): KICK read in the
+  layout's order, fine tune 10, root 60, positions bounded by 22050, information RAM/mono/22050/44100; PAD named with no editor and nothing of
+  section 0E sent; read again after a front-panel change; emptied on disconnection. `ctest -C Debug`: 100% passed, 0 failed out of 1202.
+- **Assumptions**: (1) A reading selects the sample by name first (one message), rather than asking which is current. (2) A position is a
+  catalogue row whose unit is "sample points" and that can be set. (3) A reading that comes back for an item no longer edited is dropped.
 
 ### TASK-APP-037: The edit controller, write side
 - **Tier**: L
