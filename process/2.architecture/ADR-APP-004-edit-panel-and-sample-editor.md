@@ -57,6 +57,17 @@ current, and how a parameter is read and written. The sample's: `samples()`, `se
 the read-only rows as information. The program's: `standard()`, `selectProgramByName` (whose answer gives the keygroup count of the header),
 `readParameter`/`writeParameter`, the keygroup selection not used by a program parameter (it will be, TASK-APP-044). [RQ-APP-048, RQ-APP-093]
 
+### DEC-APP-031: An envelope is layout data, drawn as a graph over its knobs
+A group may hold an `envelope`: its stages in order, each a time parameter and an end level (a parameter, or a fixed level from 0 to 100), and
+one `sustain` mark where the envelope holds until the release. `generate_design.py` checks each name is one of the group's parameters and
+generates the stages with the group. The edit panel draws the graph above the group's knobs from the values shown (each stage at most a
+equal share of the graph's width, the sustain plateau one share), in the role's colour, from tokens `envelope.*`; dragging a breakpoint calls the
+same `set` as a knob. ADSR (Amp, Filter) and the Aux envelope's four rates and levels are the same data. A group also says its `scope`
+(`keygroup` or `program`), checked against the catalogue by a core test, and drawn after its title; and `row: true` when it starts a new row
+of the tab (the Envelopes tab: Amp, Filter, Aux, a row each). The three rows are told apart by their role colours (owner, 2026-10-16): Amp a
+new role `amp` (`colour.role.amp`, blue), Filter `filter` (amber), Aux `modulation` (teal); each colour comes with its group's title (DEC-APP-016,
+RQ-APP-005). [RQ-APP-056, RQ-APP-094, RQ-APP-095]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

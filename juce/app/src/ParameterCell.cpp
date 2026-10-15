@@ -46,6 +46,8 @@ namespace app::ui
                 return colourOf(kColourRoleModulation);
             case layouts::Role::Filter:
                 return colourOf(kColourRoleFilter);
+            case layouts::Role::Amp:
+                return colourOf(kColourRoleAmp);
             case layouts::Role::General:
                 break;
         }

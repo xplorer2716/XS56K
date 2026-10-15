@@ -93,7 +93,6 @@
     "editor": {
       "item": "PAD",
       "kind": "Program",
-      "info": "2 keygroups",
       "layout": "program",
       "tab": "Program",
       "values": {
@@ -147,7 +146,8 @@
           "text": "0",
           "fraction": 0.0
         }
-      }
+      },
+      "keygroup": "KEYGROUP 1 OF 2"
     }
   },
   "states": {
@@ -166,7 +166,6 @@
       "editor": {
         "item": "PAD",
         "kind": "Program",
-        "info": "2 keygroups",
         "layout": "program",
         "tab": "Program",
         "values": {
@@ -223,7 +222,8 @@
         },
         "pending": [
           "program loudness"
-        ]
+        ],
+        "keygroup": "KEYGROUP 1 OF 2"
       }
     }
   }

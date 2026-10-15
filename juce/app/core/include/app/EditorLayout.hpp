@@ -41,6 +41,7 @@ namespace app::layouts
         Sample,
         Modulation,
         Filter,
+        Amp,
         General,
     };
 
@@ -52,10 +53,32 @@ namespace app::layouts
         Control control;
     };
 
+    /// Where a group's parameters live, said after its title (RQ-APP-056); `None` for an editor of one kind (the sample's).
+    enum class Scope
+    {
+        None,
+        Program,
+        Keygroup,
+        Zone,
+    };
+
+    /// A stage of an envelope drawn as a graph: its time parameter and its end level, a parameter or `fixedLevel` (0 to 100); or the sustain
+    /// mark, where the envelope holds until the release. [RQ-APP-095, ADR-APP-004 (DEC-APP-031)]
+    struct EnvelopeStage
+    {
+        std::string_view time;
+        std::string_view level;
+        int fixedLevel = 0;
+        bool sustain = false;
+    };
+
     struct LayoutGroup
     {
         std::string_view title;
         std::span<const LayoutParameter> parameters;
+        Scope scope = Scope::None;
+        std::span<const EnvelopeStage> envelope;  ///< empty: no graph
+        bool newRow = false;                      ///< the group starts a new row of its tab (DEC-APP-031)
     };
 
     struct LayoutTab

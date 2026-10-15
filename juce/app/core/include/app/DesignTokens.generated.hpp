@@ -20,6 +20,7 @@ namespace app::tokens
     constexpr std::uint32_t kColourGrey100 = 0xFFECECEF;  // colour.grey.100
     constexpr std::uint32_t kColourViolet300 = 0xFFA897F2;  // colour.violet.300
     constexpr std::uint32_t kColourTeal300 = 0xFF4FD1C1;  // colour.teal.300
+    constexpr std::uint32_t kColourBlue300 = 0xFF6FB1F2;  // colour.blue.300
     constexpr std::uint32_t kColourAmber300 = 0xFFE9A85A;  // colour.amber.300
     constexpr std::uint32_t kColourYellow300 = 0xFFF2C94C;  // colour.yellow.300
     constexpr std::uint32_t kColourRed300 = 0xFFF47A74;  // colour.red.300
@@ -50,6 +51,7 @@ namespace app::tokens
     constexpr float kSizeKnobLarge = 40.0f;  // size.knob.large
     constexpr float kSizeIconSmall = 12.0f;  // size.icon.small
     constexpr float kSizeIconDefault = 16.0f;  // size.icon.default
+    constexpr float kSizeGraphHeight = 64.0f;  // size.graph.height
     constexpr float kSizeWindowMinWidth = 1024.0f;  // size.window.minWidth
     constexpr float kSizeWindowMinHeight = 680.0f;  // size.window.minHeight
     constexpr float kSizeLeftMinWidth = 240.0f;  // size.left.minWidth
@@ -60,6 +62,7 @@ namespace app::tokens
     constexpr std::chrono::milliseconds kMotionMessage{4000};  // motion.message
     constexpr std::chrono::milliseconds kMotionTooltip{700};  // motion.tooltip
     constexpr float kOpacityScrimDefault = 0.6f;  // opacity.scrim.default
+    constexpr float kOpacityFillDefault = 0.25f;  // opacity.fill.default
 
     // semantic tokens
     constexpr std::uint32_t kColourSurfaceBase = 0xFF1B1C1F;  // colour.surface.base -> colour.grey.950
@@ -74,6 +77,7 @@ namespace app::tokens
     constexpr std::uint32_t kColourRoleSample = 0xFFA897F2;  // colour.role.sample -> colour.violet.300
     constexpr std::uint32_t kColourRoleModulation = 0xFF4FD1C1;  // colour.role.modulation -> colour.teal.300
     constexpr std::uint32_t kColourRoleFilter = 0xFFE9A85A;  // colour.role.filter -> colour.amber.300
+    constexpr std::uint32_t kColourRoleAmp = 0xFF6FB1F2;  // colour.role.amp -> colour.blue.300
     constexpr std::uint32_t kColourRoleGeneral = 0xFFA9AAB2;  // colour.role.general -> colour.grey.300
     constexpr std::uint32_t kColourStatusActive = 0xFFF2C94C;  // colour.status.active -> colour.yellow.300
     constexpr std::uint32_t kColourStatusSuccess = 0xFF6CCB7A;  // colour.status.success -> colour.green.300
@@ -96,6 +100,7 @@ namespace app::tokens
     constexpr float kStrokeFocus = 2.0f;  // stroke.focus -> size.stroke.focus
     constexpr float kStrokeArc = 3.0f;  // stroke.arc -> size.stroke.arc
     constexpr float kOpacityScrim = 0.6f;  // opacity.scrim -> opacity.scrim.default
+    constexpr float kOpacityFill = 0.25f;  // opacity.fill -> opacity.fill.default
 
     // component tokens
     constexpr std::uint32_t kKnobArcTrack = 0xFF45464D;  // knob.arc.track -> colour.border.default
@@ -141,5 +146,9 @@ namespace app::tokens
     constexpr std::uint32_t kSliderTrack = 0xFF45464D;  // slider.track -> colour.border.default
     constexpr std::uint32_t kSliderThumb = 0xFFECECEF;  // slider.thumb -> colour.text.primary
     constexpr float kSliderThumbSize = 12.0f;  // slider.thumb.size -> size.icon.small
+    constexpr std::uint32_t kEnvelopeSurface = 0xFF202125;  // envelope.surface -> colour.surface.recessed
+    constexpr std::uint32_t kEnvelopeHandle = 0xFFECECEF;  // envelope.handle -> colour.text.primary
+    constexpr float kEnvelopeHandleSize = 12.0f;  // envelope.handle.size -> size.icon.small
+    constexpr float kEnvelopeHeight = 64.0f;  // envelope.height -> size.graph.height
 
 }

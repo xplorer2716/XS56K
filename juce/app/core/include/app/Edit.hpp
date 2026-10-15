@@ -55,6 +55,7 @@ namespace app
         std::vector<EditValue> values;
         std::vector<EditValue> info;
         std::optional<int> keygroups;  ///< a program's keygroup count, read when it is made current [RQ-APP-093]
+        int keygroup = 1;              ///< the keygroup whose values a program's tab shows, 1 to `keygroups` [RQ-APP-058]
     };
 
     /// A value as the sampler's screen writes it: a root as a note name ("C3"), a signed tune with its sign ("+10"), a choice by its label

@@ -1,22 +1,75 @@
 {
-  "_comment": "The program editor (FTR-APP-008): its first tab, the program's own parameters (PLAN-APP-006 step 1); the assistant's proposal of 2026-10-15, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030)]",
+  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031)]",
   "editor": "program",
   "tabs": [
+    {"title": "Envelopes", "groups": [
+      {"title": "Amp envelope", "scope": "keygroup",
+       "envelope": [
+         {"time": "amplitude envelope attack", "level": 100},
+         {"time": "amplitude envelope decay", "level": "amplitude envelope sustain"},
+         {"sustain": true},
+         {"time": "amplitude envelope release", "level": 0}], "parameters": [
+        {"name": "amplitude envelope attack", "label": "Attack", "role": "amp", "control": "knob"},
+        {"name": "amplitude envelope decay", "label": "Decay", "role": "amp", "control": "knob"},
+        {"name": "amplitude envelope sustain", "label": "Sustain", "role": "amp", "control": "knob"},
+        {"name": "amplitude envelope release", "label": "Release", "role": "amp", "control": "knob"}]},
+      {"title": "Amp level and velocity", "scope": "keygroup", "parameters": [
+        {"name": "keygroup level", "label": "Level", "role": "amp", "control": "knob"},
+        {"name": "amplitude envelope velocity to attack", "label": "Vel>Att", "role": "amp", "control": "knob"},
+        {"name": "amplitude envelope on-velocity to release", "label": "On>Rel", "role": "amp", "control": "knob"},
+        {"name": "amplitude envelope off-velocity to release", "label": "Off>Rel", "role": "amp", "control": "knob"},
+        {"name": "amplitude envelope key scale", "label": "Keyscale", "role": "amp", "control": "knob"}]},
+      {"title": "Filter envelope", "scope": "keygroup", "row": true,
+       "envelope": [
+         {"time": "filter envelope attack", "level": 100},
+         {"time": "filter envelope decay", "level": "filter envelope sustain"},
+         {"sustain": true},
+         {"time": "filter envelope release", "level": 0}], "parameters": [
+        {"name": "filter envelope attack", "label": "Attack", "role": "filter", "control": "knob"},
+        {"name": "filter envelope decay", "label": "Decay", "role": "filter", "control": "knob"},
+        {"name": "filter envelope sustain", "label": "Sustain", "role": "filter", "control": "knob"},
+        {"name": "filter envelope release", "label": "Release", "role": "filter", "control": "knob"}]},
+      {"title": "Filter depth and velocity", "scope": "keygroup", "parameters": [
+        {"name": "filter envelope depth", "label": "Depth", "role": "filter", "control": "knob"},
+        {"name": "filter envelope velocity to attack", "label": "Vel>Att", "role": "filter", "control": "knob"},
+        {"name": "filter envelope on-velocity to release", "label": "On>Rel", "role": "filter", "control": "knob"},
+        {"name": "filter envelope off-velocity to release", "label": "Off>Rel", "role": "filter", "control": "knob"},
+        {"name": "filter envelope key scale", "label": "Keyscale", "role": "filter", "control": "knob"}]},
+      {"title": "Aux envelope", "scope": "keygroup", "row": true,
+       "envelope": [
+         {"time": "aux envelope rate 1", "level": "aux envelope level 1"},
+         {"time": "aux envelope rate 2", "level": "aux envelope level 2"},
+         {"time": "aux envelope rate 3", "level": "aux envelope level 3"},
+         {"sustain": true},
+         {"time": "aux envelope rate 4", "level": "aux envelope level 4"}], "parameters": [
+        {"name": "aux envelope rate 1", "label": "R1", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope rate 2", "label": "R2", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope rate 3", "label": "R3", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope rate 4", "label": "R4", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope level 1", "label": "L1", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope level 2", "label": "L2", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope level 3", "label": "L3", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope level 4", "label": "L4", "role": "modulation", "control": "knob"}]},
+      {"title": "Aux velocity and key", "scope": "keygroup", "parameters": [
+        {"name": "aux envelope velocity to rate 1", "label": "Vel>R1", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope velocity to rate 4", "label": "Vel>R4", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope off-velocity to rate 4", "label": "OffV>R4", "role": "modulation", "control": "knob"},
+        {"name": "aux envelope keyboard to rate 2 and 4", "label": "Key>R2/4", "role": "modulation", "control": "knob"}]}]},
     {"title": "Program", "groups": [
-      {"title": "Output", "parameters": [
+      {"title": "Output", "scope": "program", "parameters": [
         {"name": "program loudness", "label": "Loudness", "role": "general", "control": "knob"},
         {"name": "program velocity sensitivity", "label": "Vel sens", "role": "general", "control": "knob"}]},
-      {"title": "Tuning", "parameters": [
+      {"title": "Tuning", "scope": "program", "parameters": [
         {"name": "program semitone tune", "label": "Semi", "role": "general", "control": "knob"},
         {"name": "program fine tune", "label": "Fine", "role": "general", "control": "knob"},
         {"name": "tune template", "label": "Template", "role": "general", "control": "choice"},
         {"name": "tune key", "label": "Key", "role": "general", "control": "choice"}]},
-      {"title": "Pitch bend", "parameters": [
+      {"title": "Pitch bend", "scope": "program", "parameters": [
         {"name": "pitch bend up", "label": "Up", "role": "modulation", "control": "knob"},
         {"name": "pitch bend down", "label": "Down", "role": "modulation", "control": "knob"},
         {"name": "pitch bend mode", "label": "Mode", "role": "modulation", "control": "choice"},
         {"name": "aftertouch pitch", "label": "Aftertouch", "role": "modulation", "control": "knob"}]},
-      {"title": "Portamento", "parameters": [
+      {"title": "Portamento", "scope": "program", "parameters": [
         {"name": "legato", "label": "Mono legato", "role": "general", "control": "choice"},
         {"name": "portamento", "label": "Portamento", "role": "general", "control": "choice"},
         {"name": "portamento mode", "label": "Mode", "role": "general", "control": "choice"},

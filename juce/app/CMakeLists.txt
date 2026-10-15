@@ -17,6 +17,7 @@ target_sources(XS56KApp PRIVATE
     src/BrowserView.cpp
     src/CutLabel.cpp
     src/EditView.cpp
+    src/EnvelopeGraph.cpp
     src/ItemList.cpp
     src/JuceAdapters.cpp
     src/LookAndFeel.cpp

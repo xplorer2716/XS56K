@@ -56,6 +56,7 @@ namespace
     constexpr std::size_t INFO_ROWS = 4;
     constexpr int PAD_KEYGROUPS = 2;
     constexpr std::size_t PROGRAM_TAB_PARAMETERS = 14;
+    constexpr std::size_t PROGRAM_TAB = 1;
 
     const mcp::ParameterDefinition& sampleParameter(const std::string& name)
     {
@@ -192,6 +193,8 @@ namespace
         REQUIRE(fixture.rig.gateway.writeParameter(programParameter("legato"), LEGATO_ON, mcp::KeygroupSelection::all()).ok());
         fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
         REQUIRE(fixture.rig.settle());
+        fixture.editor.showTab(PROGRAM_TAB);
+        REQUIRE(fixture.rig.settle());
     }
 }
 
@@ -205,6 +208,7 @@ TEST_CASE("Given the program PAD of 2 keygroups, When it is selected, Then the p
     const app::EditState& edit = fixture.rig.model.edit();
     REQUIRE(edit.layout != nullptr);
     CHECK(edit.layout->editor == "program");
+    CHECK(edit.tab == PROGRAM_TAB);
     REQUIRE(edit.values.size() == PROGRAM_TAB_PARAMETERS);
     CHECK(edit.values[0].definition->name == "program loudness");
     CHECK(fixture.shown("program loudness") == std::optional<std::int64_t>(PAD_LOUDNESS));
@@ -471,4 +475,89 @@ TEST_CASE("Given KICK read, Then its information line reads RAM, mono, its lengt
     fixture.memory.select(MemoryItem{MemoryKind::Sample, "KICK"});
     REQUIRE(fixture.rig.settle());
     CHECK(app::infoText(fixture.rig.model.edit()) == "RAM, mono, 22050 points, 44100 Hz");
+}
+
+namespace
+{
+    constexpr std::int64_t FIRST_ATTACK = 10;
+    constexpr std::int64_t SECOND_ATTACK = 40;
+    constexpr int SECOND_KEYGROUP = 2;
+
+    /// PAD's amp attacks 10 and 40, put on the sampler from outside the application, then PAD selected: its first tab, Envelopes.
+    void showPadEnvelopes(EditRig& fixture)
+    {
+        const mcp::ParameterDefinition& attack = programParameter("amplitude envelope attack");
+        REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+        REQUIRE(fixture.rig.gateway.writeParameter(attack, FIRST_ATTACK, mcp::KeygroupSelection::of(1)).ok());
+        REQUIRE(fixture.rig.gateway.writeParameter(attack, SECOND_ATTACK, mcp::KeygroupSelection::of(SECOND_KEYGROUP)).ok());
+        fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+        REQUIRE(fixture.rig.settle());
+    }
+
+    std::int64_t attackOf(EditRig& fixture, int keygroup)
+    {
+        REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+        const auto read = fixture.rig.gateway.readParameter(programParameter("amplitude envelope attack"), mcp::KeygroupSelection::of(keygroup));
+        REQUIRE(read.ok());
+        return read.value->front().value;
+    }
+}
+
+TEST_CASE("Given PAD of 2 keygroups with amp attacks 10 and 40, When it is selected, Then the Envelopes tab shows keygroup 1's attack; When "
+          "keygroup 2 is chosen, Then it shows 40; When the person sets it to 50, Then keygroup 2 reads 50 and keygroup 1 still 10 "
+          "[RQ-APP-094, RQ-APP-058, TASK-APP-044]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showPadEnvelopes(fixture);
+    const app::EditState& edit = fixture.rig.model.edit();
+    REQUIRE(edit.layout != nullptr);
+    CHECK(edit.layout->tabs[edit.tab].title == "Envelopes");
+    CHECK(edit.keygroup == 1);
+    CHECK(fixture.shown("amplitude envelope attack") == std::optional<std::int64_t>(FIRST_ATTACK));
+
+    fixture.editor.chooseKeygroup(SECOND_KEYGROUP);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.model.edit().keygroup == SECOND_KEYGROUP);
+    CHECK(fixture.shown("amplitude envelope attack") == std::optional<std::int64_t>(SECOND_ATTACK));
+
+    constexpr std::int64_t NEW_ATTACK = 50;
+    fixture.editor.set(fixture.index("amplitude envelope attack"), NEW_ATTACK);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("amplitude envelope attack") == std::optional<std::int64_t>(NEW_ATTACK));
+    CHECK(attackOf(fixture, SECOND_KEYGROUP) == NEW_ATTACK);
+    CHECK(attackOf(fixture, 1) == FIRST_ATTACK);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD of 2 keygroups shown, When the person chooses keygroup 3 or 0, Then nothing changes [RQ-APP-058, TASK-APP-044]", "[app][edit]")
+{
+    EditRig fixture;
+    showPadEnvelopes(fixture);
+    for (const int none : {0, PAD_KEYGROUPS + 1})
+    {
+        fixture.editor.chooseKeygroup(none);
+        REQUIRE(fixture.rig.settle());
+        CHECK(fixture.rig.model.edit().keygroup == 1);
+    }
+}
+
+TEST_CASE("Given PAD shown on its Envelopes tab, When the person shows the Program tab, Then its values are read; When the tab is shown again, "
+          "Then nothing is read [RQ-APP-049, RQ-APP-053, TASK-APP-044]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showPadEnvelopes(fixture);
+    fixture.editor.showTab(PROGRAM_TAB);
+    REQUIRE(fixture.rig.settle());
+    const app::EditState& edit = fixture.rig.model.edit();
+    CHECK(edit.tab == PROGRAM_TAB);
+    REQUIRE(edit.values.size() == PROGRAM_TAB_PARAMETERS);
+    CHECK(edit.values[0].definition->name == "program loudness");
+    CHECK(edit.keygroups == std::optional<int>(PAD_KEYGROUPS));
+
+    const std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.showTab(PROGRAM_TAB);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
 }

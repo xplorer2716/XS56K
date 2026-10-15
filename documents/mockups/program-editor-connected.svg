@@ -46,10 +46,14 @@
 <rect x="316" y="32" width="956" height="44" fill="#2A2B30" rx="6"/>
 <text x="324" y="59.67" font-size="17" font-weight="500" fill="#ECECEF">PAD</text>
 <text x="375" y="59.67" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">PROGRAM</text>
-<text x="1264" y="59.67" font-size="13" font-weight="400" fill="#A9AAB2" text-anchor="end">2 keygroups</text>
+<rect x="1064" y="42" width="200" height="24" fill="#202125" rx="3"/>
+<text x="1072" y="59" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
+<text x="1256" y="59" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>
+<text x="1164" y="59" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">KEYGROUP 1 OF 2</text>
 <rect x="316" y="92" width="160" height="122" fill="#2A2B30" rx="6"/>
 <rect x="324" y="100" width="3" height="13" fill="#A9AAB2"/>
 <text x="335" y="113" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">OUTPUT</text>
+<text x="468" y="113" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="end" letter-spacing="0.5">PROGRAM</text>
 <circle cx="360" cy="141" r="14" fill="#202125"/>
 <path d="M 347.98 153.02 A 17 17 0 1 1 372.02 153.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
 <path d="M 347.98 153.02 A 17 17 0 1 1 376.79 138.34" fill="none" stroke="#A9AAB2" stroke-width="3" stroke-linecap="round"/>
@@ -67,6 +71,7 @@
 <rect x="492" y="92" width="448" height="122" fill="#2A2B30" rx="6"/>
 <rect x="500" y="100" width="3" height="13" fill="#A9AAB2"/>
 <text x="511" y="113" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">TUNING</text>
+<text x="932" y="113" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="end" letter-spacing="0.5">PROGRAM</text>
 <circle cx="536" cy="141" r="14" fill="#202125"/>
 <path d="M 523.98 153.02 A 17 17 0 1 1 548.02 153.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
 <path d="M 523.98 153.02 A 17 17 0 0 1 536 124" fill="none" stroke="#A9AAB2" stroke-width="3" stroke-linecap="round"/>
@@ -94,6 +99,7 @@
 <rect x="316" y="230" width="376" height="122" fill="#2A2B30" rx="6"/>
 <rect x="324" y="238" width="3" height="13" fill="#4FD1C1"/>
 <text x="335" y="251" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">PITCH BEND</text>
+<text x="684" y="251" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="end" letter-spacing="0.5">PROGRAM</text>
 <circle cx="360" cy="279" r="14" fill="#202125"/>
 <path d="M 347.98 291.02 A 17 17 0 1 1 372.02 291.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
 <path d="M 347.98 291.02 A 17 17 0 0 1 344.4 285.75" fill="none" stroke="#4FD1C1" stroke-width="3" stroke-linecap="round"/>
@@ -123,6 +129,7 @@
 <rect x="708" y="230" width="520" height="122" fill="#2A2B30" rx="6"/>
 <rect x="716" y="238" width="3" height="13" fill="#A9AAB2"/>
 <text x="727" y="251" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">PORTAMENTO</text>
+<text x="1220" y="251" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="end" letter-spacing="0.5">PROGRAM</text>
 <rect x="720" y="267" width="136" height="24" fill="#202125" rx="3"/>
 <text x="728" y="284" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
 <text x="848" y="284" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>
@@ -145,8 +152,9 @@
 <rect x="1152" y="324" width="64" height="20" fill="#202125" rx="3"/>
 <text x="1184" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">0</text>
 <rect x="316" y="736" width="956" height="28" fill="#2A2B30" rx="6"/>
-<text x="377.5" y="754.33" font-size="13" font-weight="500" fill="#ECECEF" text-anchor="middle" letter-spacing="0.5">PROGRAM</text>
-<rect x="324" y="736" width="107" height="2" fill="#A897F2"/>
+<text x="390.5" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">ENVELOPES</text>
+<text x="510.5" y="754.33" font-size="13" font-weight="500" fill="#ECECEF" text-anchor="middle" letter-spacing="0.5">PROGRAM</text>
+<rect x="457" y="736" width="107" height="2" fill="#A897F2"/>
 <rect x="0" y="772" width="1280" height="28" fill="#2A2B30"/>
 <circle cx="12" cy="786" r="4" fill="#6CCB7A"/>
 <text x="24" y="791" font-size="15" font-weight="400" fill="#ECECEF">Connected: AKAI S5000, OS 2.14, DeviceID 0</text>

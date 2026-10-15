@@ -13,11 +13,11 @@ the real S5000 when it is done. Two orders, independent of each other:
 | Implementation | Tab | Scope | New piece |
 |---|---|---|---|
 | 1 | Program | program | the program editor itself: the program chosen by name, the program-scope parameters of `ParameterCatalogue::standard()` (DEC-APP-030) |
-| 2 | Amp | keygroup | the keygroup selector (RQ-APP-058); each parameter says its scope (RQ-APP-056) |
+| 2 | Envelopes | keygroup | the keygroup selector (RQ-APP-058); each group says its scope (RQ-APP-056); the envelope graph; Amp, Filter and Aux envelopes a row each |
 | 3 | Filter | keygroup | none: a layout |
 | 4 | Keygroup | keygroup and zones | the parameters of the four zones; a sample chosen among those in memory (RQ-APP-060); orders note and velocity (RQ-APP-092) |
 | 5 | (in Keygroup) | program | adding and deleting keygroups (RQ-APP-061) |
-| 6 | Mod sources | program and keygroup | none: LFO 1 and LFO 2 (program), the Aux envelope (keygroup) |
+| 6 | Mod sources | program | none: LFO 1 and LFO 2 |
 | 7 | Modulation | keygroup | the routings of the modulation sources, source to destination |
 | 8 | (selector) | keygroup | "all keygroups": a state "the values differ" in the controls (RQ-APP-059, Could) |
 
@@ -26,14 +26,13 @@ the real S5000 when it is done. Two orders, independent of each other:
 | Screen | Tab | Holds |
 |---|---|---|
 | 1 | Keygroup | the key span, the four zones: sample, level, pan, tune, velocity span, playback, mute and solo |
-| 2 | Amp | the keygroup's level and velocity, the Amp envelope |
-| 3 | Filter | mode, cutoff, resonance, keyboard track, the Filter envelope |
-| 4 | Mod sources | LFO 1, LFO 2, the Aux envelope |
+| 2 | Envelopes | Amp (with the keygroup level), Filter and Aux envelopes, a row each |
+| 3 | Filter | mode, cutoff, resonance, keyboard track, attenuation |
+| 4 | Mod sources | LFO 1, LFO 2 |
 | 5 | Modulation | the routings of the sources |
 | 6 | Program | output, tuning, pitch bend, portamento: set once |
 
-The three envelopes (Amp, Filter, Aux) are knobs first; an envelope graph could come later as a fifth control of the library (DEC-APP-027),
-changing nothing else. A zone's sample could open the sample editor.
+The three envelopes (Amp, Filter, Aux) are graphs moved by the mouse, over their knobs (owner, 2026-10-16; DEC-APP-031). A zone's sample could open the sample editor.
 
 ## References
 - **Requirements**: RQ-APP-056 to RQ-APP-061 (FTR-APP-008); RQ-APP-048 to RQ-APP-055, RQ-APP-091, RQ-APP-092 (FTR-APP-007); RQ-AKM-022 to
@@ -72,23 +71,31 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   A template changed on the front panel is read back by "Read again"; the other twelve parameters work (owner, 2026-10-16).
 - **Assumptions**: (1) The edit controller generalises from the sample catalogue to a catalogue chosen by the layout.
 
-### TASK-APP-044: The Amp tab and the keygroup selector
+### TASK-APP-044: The Envelopes tab and the keygroup selector
 - **Tier**: M
-- **Status**: Not Started
-- **Description**: The keygroup selector (1 to the keygroup count); the Amp tab: the keygroup's level and velocity, the Amp envelope; each parameter
-  shows its scope.
-- **Requirement refs**: RQ-APP-056, RQ-APP-058
-- **ADR refs**: ADR-APP-004
-- **Acceptance Criteria** (Gherkin): RQ-APP-058's.
+- **Status**: In Progress
+- **Description**: The keygroup selector (1 to the keygroup count); the Envelopes tab: the Amp, Filter and Aux envelopes a row each, each drawn
+  as a graph that the mouse moves (owner, 2026-10-16), with its other parameters beside it; each group shows its scope.
+- **Requirement refs**: RQ-APP-094, RQ-APP-095 (new), RQ-APP-056, RQ-APP-058
+- **ADR refs**: ADR-APP-004 (DEC-APP-030, DEC-APP-031)
+- **Acceptance Criteria** (Gherkin): RQ-APP-058's, RQ-APP-094's and RQ-APP-095's; the mockup validated by the owner first.
 - **Dependencies**: TASK-APP-043
 - **Assignee**: AI
-- **Verification**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-16. Mockup first: the Amp tab, then at the owner's requests the three envelopes in one tab
+  (a row each, `row` in the layout) and a colour per envelope (new role `amp`, blue); `screens/envelopes-editor.json` and its two mockups looked
+  at; generator tests written first and failing (the envelope stages and the scope generated, a name outside its group or an unknown scope
+  refused, a row started; the graph drawn from the values with its breakpoints and the scope, a row drawn under the first): 21 design and 19
+  mockup tests pass. Core: five cases (attacks 10 and 40 on two keygroups, the second chosen and set to 50 alone; keygroups 0 and 3 refused;
+  the Program tab shown and shown again with nothing read; every program group's scope against the catalogue) failed first to compile, then
+  passed; 75 app cases; `ctest -C Debug`: 1219 passed; the editor built warning-clean. Real S5000 (OS 2.14) through `uia.ps1`: "New Program 1"
+  opened on Envelopes, "Keygroup 1 of 1", the three rows in their colours, Amp 1 / 50 / 100 / 15 read, the pane scrolling (captured). The drag
+  of a breakpoint, a program of several keygroups and the tab clicks: the owner's to try.
 - **Assumptions**: —
 
 ### TASK-APP-045: The Filter tab
 - **Tier**: S
 - **Status**: Not Started
-- **Description**: Mode, cutoff, resonance, keyboard track, the Filter envelope: a layout, no code expected.
+- **Description**: Mode, cutoff, resonance, keyboard track, attenuation (its envelope is in the Envelopes tab): a layout, no code expected.
 - **Requirement refs**: RQ-APP-057
 - **ADR refs**: ADR-APP-004 (DEC-APP-024)
 - **Acceptance Criteria** (Gherkin): *Given* keygroup 2 chosen, *Then* the Filter tab shows keygroup 2's filter.
@@ -125,10 +132,10 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 ### TASK-APP-048: The Mod sources tab
 - **Tier**: S
 - **Status**: Not Started
-- **Description**: LFO 1 and LFO 2 (program) and the Aux envelope (keygroup), in one tab mixing the two scopes.
+- **Description**: LFO 1 and LFO 2 (program); the Aux envelope is in the Envelopes tab.
 - **Requirement refs**: RQ-APP-056, RQ-APP-057
 - **ADR refs**: ADR-APP-004 (DEC-APP-024)
-- **Acceptance Criteria** (Gherkin): *Given* the tab shown, *Then* each parameter says whether it belongs to the program or to the keygroup.
+- **Acceptance Criteria** (Gherkin): *Given* the tab shown, *Then* each group reads PROGRAM.
 - **Dependencies**: TASK-APP-044
 - **Assignee**: AI
 - **Verification**: —

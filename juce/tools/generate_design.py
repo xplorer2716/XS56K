@@ -26,7 +26,8 @@ DEFAULT_DOC = ROOT / "process" / "1.requirements" / "DESIGN-SYSTEM-APP.md"
 DEFAULT_LAYOUTS = ROOT / "juce" / "app" / "design" / "layouts"
 DEFAULT_LAYOUTS_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "EditorLayouts.generated.hpp"
 CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider"}
-ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "general": "General"}
+ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
+SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone"}
 
 TIERS = ("global", "semantic", "component")
 COLOUR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -202,6 +203,26 @@ def cpp_text(text):
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
+def render_envelope(editor, group):
+    """An envelope group's stages as C++ initialisers: a time and an end level (a parameter, or a fixed level 0 to 100), or the sustain
+    mark. Each name must be one of the group's parameters. [RQ-APP-095, ADR-APP-004 (DEC-APP-031)]"""
+    names = {parameter["name"] for parameter in group.get("parameters", [])}
+    stages = []
+    for stage in group.get("envelope", []):
+        if stage.get("sustain"):
+            stages.append('{"", "", 0, true}')
+            continue
+        level = stage.get("level", 0)
+        for name in [stage.get("time")] + ([level] if isinstance(level, str) else []):
+            if name not in names:
+                raise TokenError(f"the layout {editor} draws {name} in the envelope of {group['title']}, which does not show it")
+        if isinstance(level, str):
+            stages.append(f"{{{cpp_text(stage['time'])}, {cpp_text(level)}, 0, false}}")
+        else:
+            stages.append(f"{{{cpp_text(stage['time'])}, \"\", {int(level)}, false}}")
+    return stages
+
+
 def render_layouts(layouts):
     """The editor layouts, by editor name, as constexpr tables in namespace `app::layouts` (types in `app/EditorLayout.hpp`)."""
     lines = [
@@ -236,7 +257,19 @@ def render_layouts(layouts):
                 lines.append(f"    inline constexpr std::array<LayoutParameter, {len(rows)}> {name}{{{{")
                 lines += [f"        {row}," for row in rows]
                 lines.append("    }};")
-                group_names.append(f"LayoutGroup{{{cpp_text(group['title'])}, {name}}}")
+                scope = group.get("scope")
+                if scope is not None and scope not in SCOPES:
+                    raise TokenError(f"the layout {editor} gives the group {group['title']} the unknown scope {scope}")
+                scope_cpp = f"Scope::{SCOPES[scope]}" if scope else "Scope::None"
+                envelope = render_envelope(editor, group)
+                envelope_cpp = "{}"
+                if envelope:
+                    envelope_cpp = f"{name}Envelope"
+                    lines.append(f"    inline constexpr std::array<EnvelopeStage, {len(envelope)}> {envelope_cpp}{{{{")
+                    lines += [f"        {stage}," for stage in envelope]
+                    lines.append("    }};")
+                row = "true" if group.get("row") else "false"
+                group_names.append(f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}}}")
             name = f"{prefix}Tab{tab_index}"
             lines.append(f"    inline constexpr std::array<LayoutGroup, {len(group_names)}> {name}Groups{{{{")
             lines += [f"        {group}," for group in group_names]

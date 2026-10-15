@@ -47,10 +47,16 @@ namespace app::ui
         void setContent(juce::Component* content);
         /// The titles of the tab row and the one shown, drawn along the bottom edge. [RQ-APP-049, TASK-APP-039]
         void setTabs(const juce::StringArray& titles, int shown);
+        /// The person clicked the tab at `index`. [RQ-APP-049, TASK-APP-044]
+        std::function<void(int index)> onTabChosen;
         void paint(juce::Graphics& g) override;
         void resized() override;
+        void mouseDown(const juce::MouseEvent& event) override;
 
     private:
+        /// Where each tab of the row is drawn.
+        [[nodiscard]] std::vector<juce::Rectangle<int>> tabBounds() const;
+
         LookAndFeel& _lookAndFeel;
         CutLabel _title;
         CutLabel _hint;

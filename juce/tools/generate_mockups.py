@@ -41,7 +41,7 @@ CHOICE_CELLS = 2                # a choice selector is as wide as two knob cells
 SLIDER_CELLS = 3                # a slider (a position in sample points) is as wide as three knob cells
 DIALOG_WIDTH_IN_KNOBS = 12      # a dialog is twelve knob diameters wide
 BUTTON_WIDTH_IN_KNOBS = 3       # a dialog button is three knob diameters wide
-KEYGROUP_SELECTOR_IN_KNOBS = 4  # the keygroup selector is four knob diameters wide
+KEYGROUP_SELECTOR_IN_KNOBS = 5  # the keygroup selector is five knob diameters wide
 ELLIPSIS = "…"
 
 
@@ -114,6 +114,15 @@ class Canvas:
         large = 1 if sweep > 180 else 0
         self.items.append(f'<path d="M {fmt(x1)} {fmt(y1)} A {fmt(r)} {fmt(r)} 0 {large} 1 {fmt(x2)} {fmt(y2)}" fill="none" '
                           f'stroke="{stroke}" stroke-width="{fmt(width)}" stroke-linecap="round"/>')
+
+    def polyline(self, points, stroke, width):
+        shown = " ".join(f"{fmt(x)},{fmt(y)}" for x, y in points)
+        self.items.append(f'<polyline points="{shown}" fill="none" stroke="{stroke}" stroke-width="{fmt(width)}" '
+                          f'stroke-linejoin="round" stroke-linecap="round"/>')
+
+    def polygon(self, points, fill, opacity):
+        shown = " ".join(f"{fmt(x)},{fmt(y)}" for x, y in points)
+        self.items.append(f'<polygon points="{shown}" fill="{fill}" fill-opacity="{fmt(opacity)}"/>')
 
     def text(self, x, y, content, size, fill, weight=WEIGHT_REGULAR, anchor="start", tracking=None, upper=False):
         shown = content.upper() if upper else content
@@ -228,7 +237,42 @@ def group_size(t, group):
     width = cells * cell_width(t) + 2 * inside
     height = (inside + t("font.label.size") + t("space.between") + t("knob.size.default") + t("space.between")
               + t("font.label.size") + t("size.space.1") + t("valuebox.height") + inside)
+    if group.get("envelope"):
+        height += t("envelope.height") + t("space.between")  # the graph above the knobs [RQ-APP-095]
     return width, height
+
+
+def envelope_points(envelope, values, x, y, w, h):
+    """The envelope's shape from the values shown: from level 0, each stage as wide as its time's part of one share of the width (a share per
+    stage, the sustain plateau one share), ending at its level; and the breakpoints, one per stage that has a time.
+    [RQ-APP-095, ADR-APP-004 (DEC-APP-031)]"""
+    share = w / max(1, len(envelope))
+    bottom = y + h
+    points = [(x, bottom)]
+    handles = []
+    level = 0.0
+    for stage in envelope:
+        if stage.get("sustain"):
+            points.append((points[-1][0] + share, bottom - h * level))
+            continue
+        time = float(values.get(stage["time"], {}).get("fraction", 0.0))
+        end = stage.get("level", 0)
+        level = float(values.get(end, {}).get("fraction", 0.0)) if isinstance(end, str) else end / 100.0
+        points.append((points[-1][0] + share * time, bottom - h * level))
+        handles.append(points[-1])
+    return points, handles
+
+
+def draw_envelope(c, x, y, w, group, values, colour):
+    t = c.t
+    h = t("envelope.height")
+    c.rect(x, y, w, h, t("envelope.surface"), t("radius.control"))
+    margin = t("envelope.handle.size")  # the breakpoints stay whole inside the graph
+    points, handles = envelope_points(group["envelope"], values, x + margin, y + margin, w - 2 * margin, h - 2 * margin)
+    c.polygon(points + [(points[-1][0], points[0][1])], colour, t("opacity.fill"))
+    c.polyline(points, colour, t("stroke.arc"))
+    for hx, hy in handles:
+        c.circle(hx, hy, t("envelope.handle.size") / 2, t("envelope.handle"))
 
 
 def draw_value_box(c, x, y, w, text, pending):
@@ -287,7 +331,13 @@ def draw_group(c, x, y, group, values, pending):
     marker = role_colour(t, sorted(roles)[0]) if len(roles) == 1 else t("colour.text.secondary")
     c.rect(x + inside, y + inside, t("stroke.arc"), t("font.label.size"), marker)
     draw_label(c, x + inside + t("stroke.arc") + t("size.space.2"), title_y, group["title"])
+    if group.get("scope"):
+        # Where the group's parameters live: the program, the keygroup chosen, or a zone of it. [RQ-APP-056, DEC-APP-031]
+        draw_label(c, x + width - inside, title_y, group["scope"], t("colour.text.secondary"), "end")
     knob_top = title_y + t("space.between")
+    if group.get("envelope"):
+        draw_envelope(c, x + inside, knob_top, width - 2 * inside, group, values, marker)
+        knob_top += t("envelope.height") + t("space.between")
     cell_x = x + inside
     for parameter in group["parameters"]:
         cells = control_cells(parameter)
@@ -350,7 +400,7 @@ def draw_editor(c, x, y, w, h, editor, layouts):
     row_height = 0.0
     for group in tab["groups"]:
         width, height = group_size(t, group)
-        if group_x > x and group_x + width > x + w:
+        if group_x > x and (group_x + width > x + w or group.get("row")):
             group_x, group_y = x, group_y + row_height + t("space.group")
             row_height = 0.0
         draw_group(c, group_x, group_y, group, editor.get("values", {}), set(editor.get("pending", [])))

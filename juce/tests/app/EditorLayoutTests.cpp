@@ -84,3 +84,30 @@ TEST_CASE("Given the sample editor's layout, Then its one order is start, loop s
     CHECK(order[2] == "sample loop end");
     CHECK(order[3] == "sample end position");
 }
+
+TEST_CASE("Given the program editor's layout, Then every name is a parameter of the standard catalogue and every group's parameters live where "
+          "its scope says [RQ-APP-056, RQ-APP-093, RQ-APP-094, DEC-APP-031, TASK-APP-044]",
+          "[app][layout]")
+{
+    const app::layouts::EditorLayout* program = layoutOf("program");
+    REQUIRE(program != nullptr);
+    const auto& rows = mcp::ParameterCatalogue::standard().parameters();
+    for (const auto& tab : program->tabs)
+    {
+        for (const auto& group : tab.groups)
+        {
+            INFO(std::string(group.title));
+            CHECK(group.scope != app::layouts::Scope::None);
+            for (const auto& parameter : group.parameters)
+            {
+                INFO(std::string(parameter.name));
+                const auto row = std::find_if(rows.begin(), rows.end(), [&parameter](const mcp::ParameterDefinition& definition) {
+                    return definition.name == parameter.name;
+                });
+                REQUIRE(row != rows.end());
+                const bool programScope = row->scope == mcp::ParameterScope::Program;
+                CHECK(programScope == (group.scope == app::layouts::Scope::Program));
+            }
+        }
+    }
+}

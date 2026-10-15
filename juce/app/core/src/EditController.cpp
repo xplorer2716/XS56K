@@ -28,8 +28,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app
 {
-    // [RQ-APP-048, RQ-APP-053, RQ-APP-086 to RQ-APP-088, RQ-APP-090, RQ-APP-093, ADR-APP-004 (DEC-APP-025, DEC-APP-028, DEC-APP-030),
-    // TASK-APP-036, TASK-APP-041, TASK-APP-043]
+    // [RQ-APP-048, RQ-APP-053, RQ-APP-058, RQ-APP-086 to RQ-APP-088, RQ-APP-090, RQ-APP-093, RQ-APP-094, ADR-APP-004 (DEC-APP-025, DEC-APP-028,
+    // DEC-APP-030), TASK-APP-036, TASK-APP-041, TASK-APP-043, TASK-APP-044]
     namespace
     {
         constexpr const char* READING_LABEL = "Reading ";
@@ -54,11 +54,11 @@ namespace app
             std::string_view editor;
             const mcp::ParameterCatalogue& (*catalogue)();
             Selected (*select)(mcp::SamplerGateway&, const std::string&);
-            Value (*read)(mcp::SamplerGateway&, const mcp::ParameterDefinition&);
-            Value (*write)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, std::int64_t);
+            Value (*read)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, int keygroup);
+            Value (*write)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, std::int64_t, int keygroup);
         };
 
-        /// A program parameter's one value: a program parameter has no keygroup (TASK-APP-044 brings the keygroup's).
+        /// A program parameter's one value: of the program, or of the keygroup asked for.
         Value programValue(const mcp::Outcome<std::vector<mcp::ParameterValue>>& values)
         {
             if (!values.ok())
@@ -74,12 +74,12 @@ namespace app
             return selected.ok() ? Selected::success(std::nullopt) : Selected::failure(selected.problem);
         }
 
-        Value readSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter)
+        Value readSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int /*keygroup*/)
         {
             return gateway.readSampleParameter(parameter);
         }
 
-        Value writeSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value)
+        Value writeSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int /*keygroup*/)
         {
             return gateway.writeSampleParameter(parameter, value);
         }
@@ -90,14 +90,15 @@ namespace app
             return selected.ok() ? Selected::success(selected.value->keygroupCount) : Selected::failure(selected.problem);
         }
 
-        Value readProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter)
+        // A program parameter takes no keygroup: the gateway leaves the selection aside for it. [RQ-APP-094]
+        Value readProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int keygroup)
         {
-            return programValue(gateway.readParameter(parameter, mcp::KeygroupSelection::all()));
+            return programValue(gateway.readParameter(parameter, mcp::KeygroupSelection::of(keygroup)));
         }
 
-        Value writeProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value)
+        Value writeProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int keygroup)
         {
-            return programValue(gateway.writeParameter(parameter, value, mcp::KeygroupSelection::all()));
+            return programValue(gateway.writeParameter(parameter, value, mcp::KeygroupSelection::of(keygroup)));
         }
 
         const std::array<Binding, 2> BINDINGS{{
@@ -136,13 +137,14 @@ namespace app
         }
 
         /// The tab's parameters in the layout's order, then the catalogue's read-only rows, each with the catalogue's range; nothing read yet.
-        EditState emptyState(const MemoryItem& item, const layouts::EditorLayout* layout)
+        EditState emptyState(const MemoryItem& item, const layouts::EditorLayout* layout, std::size_t tab = 0)
         {
             EditState state;
             state.item = item;
             state.layout = layout;
+            state.tab = tab;
             const Binding* binding = bindingOf(item.kind);
-            if (layout == nullptr || layout->tabs.empty() || binding == nullptr)
+            if (layout == nullptr || tab >= layout->tabs.size() || binding == nullptr)
                 return state;
             for (const layouts::LayoutGroup& group : layout->tabs[state.tab].groups)
             {
@@ -160,23 +162,25 @@ namespace app
             return state;
         }
 
-        /// What one reading brings back: the tab's values and the information, in the state's order, and a program's keygroup count.
+        /// What one reading brings back: the tab's values and the information, in the state's order, a program's keygroup count and the
+        /// keygroup read (the first when the one asked for is gone).
         struct Reading
         {
             std::vector<std::int64_t> values;
             std::vector<std::int64_t> info;
             std::optional<int> keygroups;
+            int keygroup = 1;
         };
 
         using Definitions = std::vector<const mcp::ParameterDefinition*>;
 
         /// Each parameter of `rows` read from the current item, into `into`; the problem of the first that fails.
-        std::optional<std::string> readInto(const Binding& binding, mcp::SamplerGateway& gateway, const Definitions& rows,
+        std::optional<std::string> readInto(const Binding& binding, mcp::SamplerGateway& gateway, const Definitions& rows, int keygroup,
                                             std::vector<std::int64_t>& into)
         {
             for (const mcp::ParameterDefinition* definition : rows)
             {
-                const auto read = binding.read(gateway, *definition);
+                const auto read = binding.read(gateway, *definition, keygroup);
                 if (!read.ok())
                     return read.problem;
                 into.push_back(*read.value);
@@ -185,7 +189,7 @@ namespace app
         }
 
         mcp::Outcome<Reading> readOn(const Binding& binding, mcp::SamplerGateway& gateway, const std::string& item, const Definitions& values,
-                                     const Definitions& info)
+                                     const Definitions& info, int keygroup)
         {
             // The edited item is made the sampler's current one first: the front panel may have moved it. [DEC-APP-025]
             const auto selected = binding.select(gateway, item);
@@ -193,9 +197,10 @@ namespace app
                 return mcp::Outcome<Reading>::failure(selected.problem);
             Reading reading;
             reading.keygroups = *selected.value;
+            reading.keygroup = reading.keygroups && keygroup > *reading.keygroups ? 1 : keygroup;  // the program lost keygroups meanwhile
             for (const auto& [rows, into] : {std::pair{&values, &reading.values}, std::pair{&info, &reading.info}})
             {
-                if (const auto problem = readInto(binding, gateway, *rows, *into))
+                if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into))
                     return mcp::Outcome<Reading>::failure(*problem);
             }
             return mcp::Outcome<Reading>::success(std::move(reading));
@@ -210,7 +215,7 @@ namespace app
         };
 
         Written writeOn(const Binding& binding, mcp::SamplerGateway& gateway, const std::string& item, const mcp::ParameterDefinition& parameter,
-                        std::int64_t value, const Definitions& tab)
+                        std::int64_t value, const Definitions& tab, int keygroup)
         {
             Written written;
             const auto selected = binding.select(gateway, item);
@@ -225,17 +230,17 @@ namespace app
             const mcp::ParameterDefinition* loopStartParameter = definitionOf(binding, LOOP_START_NAME);
             if (parameter.name == LOOP_END_NAME && loopStartParameter != nullptr)
             {
-                if (const auto read = binding.read(gateway, *loopStartParameter); read.ok() && *read.value <= value)
+                if (const auto read = binding.read(gateway, *loopStartParameter, keygroup); read.ok() && *read.value <= value)
                     loopStart = *read.value;
             }
-            if (const auto set = binding.write(gateway, parameter, value); !set.ok())
+            if (const auto set = binding.write(gateway, parameter, value, keygroup); !set.ok())
                 written.problem = set.problem;
             else if (loopStart)
             {
-                if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart); !again.ok())
+                if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart, keygroup); !again.ok())
                     written.problem = again.problem;
             }
-            if (const auto problem = readInto(binding, gateway, tab, written.values))
+            if (const auto problem = readInto(binding, gateway, tab, keygroup, written.values))
             {
                 written.problem = written.problem ? *written.problem + " " + *problem : *problem;
                 written.values.clear();
@@ -347,19 +352,50 @@ namespace app
             read();
     }
 
+    void EditController::showTab(std::size_t index)
+    {
+        const EditState& state = _model.edit();
+        if (state.layout == nullptr || index >= state.layout->tabs.size() || index == state.tab)
+            return;
+        EditState next = emptyState(*state.item, state.layout, index);
+        next.keygroups = state.keygroups;
+        next.keygroup = state.keygroup;
+        _writing.clear();  // a write in flight ends on the tab it was for; its result is not shown [RQ-APP-049]
+        _waiting.clear();
+        _model.setEdit(std::move(next));
+        read();
+    }
+
+    void EditController::chooseKeygroup(int keygroup)
+    {
+        const EditState& state = _model.edit();
+        if (state.layout == nullptr || !state.keygroups || keygroup < 1 || keygroup > *state.keygroups || keygroup == state.keygroup)
+            return;
+        EditState next = state;
+        next.keygroup = keygroup;
+        for (EditValue& value : next.values)
+            value.pending = false;
+        _writing.clear();  // a write in flight ends on the keygroup it was for; its result is not shown [RQ-APP-058]
+        _waiting.clear();
+        _model.setEdit(std::move(next));
+        read();
+    }
+
     void EditController::read()
     {
         const EditState& state = _model.edit();
         const MemoryItem item = *state.item;
         _controller.runOnSampler<Reading>(
             READING_LABEL + item.name,
-            [binding = bindingOf(state), name = item.name, values = definitionsOf(state.values),
-             info = definitionsOf(state.info)](mcp::SamplerGateway& gateway) { return readOn(*binding, gateway, name, values, info); },
-            [this, alive = std::weak_ptr<int>(_alive), item](const Reading& reading) {
-                if (alive.expired() || _model.edit().item != std::optional<MemoryItem>(item))
-                    return;  // another item was selected meanwhile: its own reading follows
-                EditState next = _model.edit();
+            [binding = bindingOf(state), name = item.name, values = definitionsOf(state.values), info = definitionsOf(state.info),
+             keygroup = state.keygroup](mcp::SamplerGateway& gateway) { return readOn(*binding, gateway, name, values, info, keygroup); },
+            [this, alive = std::weak_ptr<int>(_alive), item, tab = state.tab, keygroup = state.keygroup](const Reading& reading) {
+                const EditState& now = _model.edit();
+                if (alive.expired() || now.item != std::optional<MemoryItem>(item) || now.tab != tab || now.keygroup != keygroup)
+                    return;  // another item, tab or keygroup was chosen meanwhile: its own reading follows
+                EditState next = now;
                 next.keygroups = reading.keygroups;
+                next.keygroup = reading.keygroup;
                 std::int64_t length = 0;
                 for (std::size_t i = 0; i < next.info.size() && i < reading.info.size(); ++i)
                 {
@@ -411,13 +447,20 @@ namespace app
         _writing.insert(index);
         const bool queued = _controller.runOnSampler<Written>(
             label,
-            [binding = bindingOf(state), name = item.name, parameter = shown.definition, value,
-             tab = definitionsOf(state.values)](mcp::SamplerGateway& gateway) {
-                return mcp::Outcome<Written>::success(writeOn(*binding, gateway, name, *parameter, value, tab));
+            [binding = bindingOf(state), name = item.name, parameter = shown.definition, value, tab = definitionsOf(state.values),
+             keygroup = state.keygroup](mcp::SamplerGateway& gateway) {
+                return mcp::Outcome<Written>::success(writeOn(*binding, gateway, name, *parameter, value, tab, keygroup));
             },
-            [this, alive = std::weak_ptr<int>(_alive), item, index, label](const Written& written) {
-                if (alive.expired() || _model.edit().item != std::optional<MemoryItem>(item))
-                    return;  // another item is edited: open() forgot the writes of this one
+            [this, alive = std::weak_ptr<int>(_alive), item, index, label, tab = state.tab, keygroup = state.keygroup](const Written& written) {
+                if (alive.expired())
+                    return;
+                const EditState& now = _model.edit();
+                if (now.item != std::optional<MemoryItem>(item) || now.tab != tab || now.keygroup != keygroup)
+                {
+                    if (written.problem && now.item == std::optional<MemoryItem>(item))
+                        _model.setProblem(Problem{label, *written.problem});
+                    return;  // another item, tab or keygroup is shown: its writes were forgotten when it was chosen
+                }
                 _writing.erase(index);
                 EditState next = _model.edit();
                 for (std::size_t i = 0; i < next.values.size() && i < written.values.size(); ++i)

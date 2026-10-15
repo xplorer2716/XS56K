@@ -153,6 +153,52 @@ class RenderingAScreen(unittest.TestCase):
         thumb = self.gen.Theme(data)("slider.thumb")
         self.assertIn(f'fill="{thumb}"', svg)
 
+    def test_given_an_envelope_group_when_rendered_then_its_shape_is_drawn_from_the_values_with_its_scope_and_breakpoints(self):
+        # Attack 10, decay 50, sustain 80, release 30: a rise, a fall to 80 %, a plateau, a fall to 0. [RQ-APP-095, DEC-APP-031, TASK-APP-044]
+        data = tokens()
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"] = [{"title": "Amp envelope", "scope": "keygroup", "envelope": [
+            {"time": "amplitude envelope attack", "level": 100},
+            {"time": "amplitude envelope decay", "level": "amplitude envelope sustain"},
+            {"sustain": True},
+            {"time": "amplitude envelope release", "level": 0}], "parameters": [
+            {"name": "amplitude envelope attack", "label": "Attack", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope decay", "label": "Decay", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope sustain", "label": "Sustain", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope release", "label": "Release", "role": "modulation", "control": "knob"}]}]
+        screen = copy.deepcopy(SCREEN)
+        screen["content"]["editor"]["tab"] = "Filter"
+        screen["content"]["editor"]["values"] = {
+            "amplitude envelope attack": {"text": "10", "fraction": 0.1}, "amplitude envelope decay": {"text": "50", "fraction": 0.5},
+            "amplitude envelope sustain": {"text": "80", "fraction": 0.8}, "amplitude envelope release": {"text": "30", "fraction": 0.3}}
+        svg = self.render(screen=screen, layout=layout, data=data)
+        theme = self.gen.Theme(data)
+        lines = re.findall(r'<polyline points="([^"]+)"[^>]*stroke="([^"]+)"', svg)
+        self.assertEqual(len(lines), 1)
+        points, stroke = lines[0]
+        self.assertEqual(stroke, theme("colour.role.modulation"))
+        xy = [tuple(float(v) for v in pair.split(",")) for pair in points.split()]
+        self.assertEqual(len(xy), 5)  # the start, the attack's peak, the decay's end, the plateau's end, the release's end
+        (x0, y0), (x1, y1), (x2, y2), (x3, y3), (x4, y4) = xy
+        self.assertLess(y1, y2)                         # the peak is above the sustain
+        self.assertAlmostEqual(y2, y3)                  # the plateau
+        self.assertAlmostEqual(y0, y4)                  # back to 0
+        self.assertAlmostEqual((x2 - x1) / (x1 - x0), 5.0, places=3)  # the decay is five times the attack
+        self.assertIn(">KEYGROUP<", svg)
+        handles = re.findall(r'<circle [^>]*fill="' + re.escape(theme("envelope.handle")) + '"', svg)
+        self.assertEqual(len(handles), 3)  # a breakpoint per stage that has a time
+
+    def test_given_a_group_that_starts_a_row_when_rendered_then_it_is_drawn_under_the_first_at_the_left(self):
+        # Two narrow groups would share a row; the second starts its own. [RQ-APP-094, DEC-APP-031, TASK-APP-044]
+        layout = copy.deepcopy(LAYOUT)
+        second = {"title": "SECOND", "row": True, "parameters": [{"name": "filter resonance", "label": "RES", "role": "filter", "control": "knob"}]}
+        layout["tabs"][0]["groups"].append(second)
+        svg = self.render(layout=layout)
+        first_x, first_y = [float(v) for v in re.search(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>FILTER<', svg).groups()]
+        second_x, second_y = [float(v) for v in re.search(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>SECOND<', svg).groups()]
+        self.assertAlmostEqual(first_x, second_x)
+        self.assertGreater(second_y, first_y)
+
     def test_given_an_editor_with_no_keygroup_and_an_information_line_when_rendered_then_the_line_is_shown(self):
         # The sample editor's header: its information instead of a keygroup selector. [RQ-APP-087, TASK-APP-040]
         screen = copy.deepcopy(SCREEN)

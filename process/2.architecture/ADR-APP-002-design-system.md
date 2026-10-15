@@ -60,7 +60,7 @@ font's `LICENSE.txt` (SIL OFL 1.1), embedded in `XS56KApp` with `juce_add_binary
 cannot be loaded, the system's default sans-serif is used and the failure is logged. The licence file is shipped with the application. [RQ-APP-001]
 
 ### DEC-APP-016: A colour belongs to a parameter's family, not to the tab it is in
-Each parameter of an editor layout (DEC-APP-006) carries a role — sample, modulation, filter, general — that decides its colour
+Each parameter of an editor layout (DEC-APP-006) carries a role — sample, modulation, filter, amp, general — that decides its colour
 (`colour.role.*`); a tab that mixes families shows each parameter in its own colour; each role colour comes with its group's label, and each
 status colour with a word or an icon (the document's §3). [RQ-APP-005, RQ-APP-056]
 

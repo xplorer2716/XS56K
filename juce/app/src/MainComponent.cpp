@@ -98,6 +98,35 @@ namespace app::ui
         repaint();
     }
 
+    std::vector<juce::Rectangle<int>> AreaPanel::tabBounds() const
+    {
+        using namespace tokens;
+        std::vector<juce::Rectangle<int>> bounds;
+        if (!_withTabRow)
+            return bounds;
+        auto content = getLocalBounds().reduced(pixels(kSpaceInside));
+        const auto tabRow = content.removeFromBottom(pixels(kTabHeight));
+        const juce::Font font = _lookAndFeel.font(kFontLabelSize, true);
+        int x = tabRow.getX();
+        for (const juce::String& title : _tabs)
+        {
+            const int width = juce::roundToInt(juce::GlyphArrangement::getStringWidth(font, title.toUpperCase())) + 2 * pixels(kSpaceGroup);
+            bounds.emplace_back(x, tabRow.getY(), width, tabRow.getHeight());
+            x += width;
+        }
+        return bounds;
+    }
+
+    void AreaPanel::mouseDown(const juce::MouseEvent& event)
+    {
+        const auto bounds = tabBounds();
+        for (std::size_t i = 0; i < bounds.size(); ++i)
+        {
+            if (bounds[i].contains(event.getPosition()) && onTabChosen)
+                onTabChosen(static_cast<int>(i));  // [RQ-APP-049, TASK-APP-044]
+        }
+    }
+
     void AreaPanel::resized()
     {
         using namespace tokens;
@@ -128,21 +157,18 @@ namespace app::ui
             g.fillRect(tabRow.withHeight(pixels(kStrokeHairline)));
             // The tabs of the editor shown, the one shown underlined in the accent and in the primary text colour. [RQ-APP-049, TASK-APP-039]
             g.setFont(_lookAndFeel.font(kFontLabelSize, true));
-            int x = tabRow.getX();
+            const auto tabs = tabBounds();
             for (int i = 0; i < _tabs.size(); ++i)
             {
-                const juce::String title = _tabs[i].toUpperCase();
-                const int width = juce::roundToInt(juce::GlyphArrangement::getStringWidth(g.getCurrentFont(), title)) + 2 * pixels(kSpaceGroup);
-                const auto tab = juce::Rectangle<int>(x, tabRow.getY(), width, tabRow.getHeight());
+                const auto& tab = tabs[static_cast<std::size_t>(i)];
                 const bool shown = i == _shownTab;
                 g.setColour(colourOf(shown ? kTabTextSelected : kTabText));
-                g.drawText(title, tab, juce::Justification::centred);
+                g.drawText(_tabs[i].toUpperCase(), tab, juce::Justification::centred);
                 if (shown)
                 {
                     g.setColour(colourOf(kTabUnderlineSelected));
                     g.fillRect(tab.withHeight(pixels(kStrokeFocus)));
                 }
-                x += width;
             }
         }
     }
@@ -170,6 +196,7 @@ namespace app::ui
         _browser.setContent(&_browserView);
         _memory.setContent(&_memoryView);
         _editView.onTabs = [this](const juce::StringArray& titles, int shown) { _editor.setTabs(titles, shown); };  // [RQ-APP-049]
+        _editor.onTabChosen = [this](int index) { _editView.showTab(index); };
         _editor.setContent(&_editView);
         _status.onDismiss = [this] { _model.clearProblem(); };
         _model.addListener(*this);

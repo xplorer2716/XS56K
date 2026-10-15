@@ -8,8 +8,8 @@ XS56K is three things that build on each other:
 2. **An MCP server** ([Model Context Protocol](https://modelcontextprotocol.io)) that lets an AI assistant, or a person talking to
    one (by voice, for example), work on the sampler: edit programs, samples and multis, load and save files on its disks.
    The goal is for it to cover every function of the samplers.
-3. **A program editor** with a real user interface. It is being built: the window, the disk browser and the memory view work; the
-   panel that edits a program does not exist yet.
+3. **A program editor** with a real user interface. It is being built: the window, the disk browser, the memory view and the sample
+   editor work; the program editor has its Envelopes and Program tabs.
 
 **Status:** experimental. The first two parts exist, the second only in part; the editor is partly built.
 
@@ -17,7 +17,7 @@ XS56K is three things that build on each other:
 |---|---|---|
 | SysEx library (`juce/akm`) | All 13 sections of the spec have a command for every row (check below). Run on a real S5000 (OS 2.14), with gaps listed below. | The same, checked on an S6000 too |
 | MCP server (`juce/mcp`) | 56 tools, 72 with `--allow-disk`, 61 with `--allow-front-panel`, 77 with both. Every tool has run on a real S5000, on test objects or with the memory saved first, except what needs a board: the five effects tools only answered "no board" (the S5000 has none, so the effects themselves are untried). The front-panel keys were seen on the sampler's screen: a cursor key, `multi` and `utilities`, a held key, the data wheel and an ASCII character. Of the 384 messages of the specification, 350 have a tool, 24 are covered without one and 10 are left out on purpose; the 8 alternative sections of its Table 32 are not covered ([`documents/SYSEX-COVERAGE.md`](documents/SYSEX-COVERAGE.md), 2026-10-11). | Every function of the samplers, except ejecting a disk and nine other messages left out on purpose (ADR-MCP-005, ADR-MCP-006) |
-| Editor (`juce/app`) | Main window, menus, MIDI setup and connection, browser of the sampler's disks (open, fold, load, create, rename, delete, audition), memory view (the six kinds of item, create a program, rename, delete, audition, free memory), sample editor (start, end, loop, playback mode, root, tuning). Run on a real S5000 (OS 2.14). No program editor yet | A real program editor |
+| Editor (`juce/app`) | Main window, menus, MIDI setup and connection, browser of the sampler's disks (open, fold, load, create, rename, delete, audition), memory view (the six kinds of item, create a program, rename, delete, audition, free memory), sample editor (start, end, loop, playback mode, root, tuning), program editor (keygroup selector; Envelopes tab: Amp, Filter and Aux envelopes drawn as graphs moved by the mouse; Program tab: output, tuning, pitch bend, portamento). Run on a real S5000 (OS 2.14) | The program editor's other tabs |
 
 ## Architecture
 
@@ -91,14 +91,15 @@ disk until it was switched off and on, so it needs its own option, `--allow-disk
 
 [![The editor's main window, connected: the sampler's disks at the top left, the memory view under it, the edit panel on the right](documents/mockups/main-window-connected.svg)](documents/mockups/main-window-connected.svg)
 
-*A mockup drawn from the design system (`documents/mockups/`); the program editor shown on the right is not built yet, the sample editor is
-([mockup](documents/mockups/sample-editor-connected.svg)).*
+*A mockup drawn from the design system (`documents/mockups/`); the sample editor ([mockup](documents/mockups/sample-editor-connected.svg)) and
+the program editor's Envelopes tab ([mockup](documents/mockups/envelopes-editor-connected.svg)) are built.*
 
 `XS56K`, built with `-DBUILD_APP=ON`, connects to the sampler through the ports chosen in **MIDI > MIDI setup…** (**Sampler > Connect**).
 The browser shows the sampler's own disks: a double click opens or folds a folder, the context menu (right click, or Shift+F10) loads,
 creates, renames, deletes or auditions. The memory view lists what the sampler holds, by kind, with the current item of each marked. A sample
 selected there opens the sample editor: its values are read from the sampler, each change is sent and the whole tab read back, and the space
-bar starts or stops its audition. Every
+bar starts or stops its audition. A program opens the program editor on the keygroup chosen in its header: the Envelopes tab draws the Amp,
+Filter and Aux envelopes, whose breakpoints the mouse drags, and the Program tab holds the program's own settings. Every
 deletion asks for a confirmation. A folder name of more than 26 characters is refused: the S5000 crashes when one is opened. The editor
 does not offer the sampler's disk-list refresh, which hung a real S5000. The errors and the connection changes are written to
 `log/XS56K.log` beside the executable.

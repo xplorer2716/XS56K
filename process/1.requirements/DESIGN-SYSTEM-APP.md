@@ -84,6 +84,7 @@ tokens unchanged.
 | `colour.grey.100` | `#ECECEF` |
 | `colour.violet.300` | `#A897F2` |
 | `colour.teal.300` | `#4FD1C1` |
+| `colour.blue.300` | `#6FB1F2` |
 | `colour.amber.300` | `#E9A85A` |
 | `colour.yellow.300` | `#F2C94C` |
 | `colour.red.300` | `#F47A74` |
@@ -106,7 +107,8 @@ tokens unchanged.
 | `colour.accent.default` | `colour.violet.300` | selection, focus, current tab |
 | `colour.role.sample` | `colour.violet.300` | samples, zones, sample assignment |
 | `colour.role.modulation` | `colour.teal.300` | envelopes, LFOs, modulation sources |
-| `colour.role.filter` | `colour.amber.300` | filter (its envelope is an envelope: modulation) |
+| `colour.role.filter` | `colour.amber.300` | filter and its envelope |
+| `colour.role.amp` | `colour.blue.300` | amplitude: the amp envelope and the levels |
 | `colour.role.general` | `colour.grey.300` | parameters of no colour-coded family (output, MIDI/tune, pitch bend) |
 | `colour.status.active` | `colour.yellow.300` | on, current item of a list, a switch that is on |
 | `colour.status.success` | `colour.green.300` | connected |
@@ -309,6 +311,10 @@ Which role a parameter takes is a property of the parameter (its family), not of
 | `colour.role.filter` | `colour.surface.panel` | 6.87 |
 | `colour.role.filter` | `colour.surface.recessed` | 7.82 |
 | `colour.role.filter` | `colour.surface.raised` | 5.86 |
+| `colour.role.amp` | `colour.surface.base` | 7.50 |
+| `colour.role.amp` | `colour.surface.panel` | 6.22 |
+| `colour.role.amp` | `colour.surface.recessed` | 7.08 |
+| `colour.role.amp` | `colour.surface.raised` | 5.30 |
 | `colour.status.active` | `colour.surface.base` | 10.74 |
 | `colour.status.active` | `colour.surface.panel` | 8.90 |
 | `colour.status.active` | `colour.surface.recessed` | 10.14 |

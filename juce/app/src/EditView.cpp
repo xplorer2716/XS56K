@@ -24,12 +24,16 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app::ui
 {
-    // [RQ-APP-048 to RQ-APP-053, RQ-APP-083, RQ-APP-086, RQ-APP-087, ADR-APP-004 (DEC-APP-025, DEC-APP-027), TASK-APP-039]
+    // [RQ-APP-048 to RQ-APP-053, RQ-APP-056, RQ-APP-058, RQ-APP-083, RQ-APP-086, RQ-APP-087, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-025,
+    // DEC-APP-027, DEC-APP-031), TASK-APP-039, TASK-APP-044]
     namespace
     {
         constexpr const char* READ_AGAIN_TEXT = "Read again";
         constexpr const char* NO_EDITOR = "This kind has no editor yet.";
-        constexpr int READ_AGAIN_SHARE = 6;  // the button takes a sixth of the panel's width
+        constexpr const char* KEYGROUP_TEXT = "Keygroup ";
+        constexpr const char* OF_TEXT = " of ";
+        constexpr int READ_AGAIN_SHARE = 6;          // the button takes a sixth of the panel's width
+        constexpr float KEYGROUP_SELECTOR_KNOBS = 5;  // the keygroup selector is five knob diameters wide, as in the mockups
 
         const char* kindText(MemoryKind kind)
         {
@@ -49,6 +53,32 @@ namespace app::ui
                     break;
             }
             return "Scenelist";
+        }
+
+        /// Where a group's parameters live, written after its title. [RQ-APP-056]
+        const char* scopeText(layouts::Scope scope)
+        {
+            switch (scope)
+            {
+                case layouts::Scope::Program:
+                    return "Program";
+                case layouts::Scope::Keygroup:
+                    return "Keygroup";
+                case layouts::Scope::Zone:
+                    return "Zone";
+                case layouts::Scope::None:
+                    break;
+            }
+            return "";
+        }
+
+        /// The group's colour: its parameters' when they share one family, the secondary text colour otherwise. [RQ-APP-005]
+        juce::Colour groupColour(const layouts::LayoutGroup& group)
+        {
+            std::set<layouts::Role> roles;
+            for (const layouts::LayoutParameter& parameter : group.parameters)
+                roles.insert(parameter.role);
+            return roles.size() == 1 ? roleColour(*roles.begin()) : colourOf(tokens::kColourTextSecondary);
         }
     }
 
@@ -74,6 +104,17 @@ namespace app::ui
         _readAgain.setButtonText(READ_AGAIN_TEXT);
         _readAgain.onClick = [this] { _editor.readAgain(); };  // [RQ-APP-053]
         addAndMakeVisible(_readAgain);
+        // The keygroup whose values a program's tab shows, chosen by the person. [RQ-APP-058]
+        _keygroup.onChange = [this] {
+            if (_keygroup.getSelectedId() > 0)
+                _editor.chooseKeygroup(_keygroup.getSelectedId());
+        };
+        addChildComponent(_keygroup);
+        _pane.painter = [this](juce::Graphics& g) { paintGroups(g); };
+        _pane.addMouseListener(this, false);
+        _viewport.setViewedComponent(&_pane, false);
+        _viewport.setScrollBarsShown(true, false);  // the groups wrap to the width; only the height scrolls
+        addAndMakeVisible(_viewport);
         setWantsKeyboardFocus(true);
         _model.addListener(*this);
         rebuild();
@@ -84,12 +125,18 @@ namespace app::ui
         _model.removeListener(*this);
     }
 
+    void EditView::showTab(int index)
+    {
+        if (index >= 0)
+            _editor.showTab(static_cast<std::size_t>(index));  // [RQ-APP-049]
+    }
+
     void EditView::modelChanged(ModelPart part)
     {
         if (part != ModelPart::Edit)
             return;
         const EditState& state = _model.edit();
-        if (state.item != _item || state.layout != _layout)
+        if (state.item != _item || state.layout != _layout || state.tab != _tab)
             rebuild();
         else
             update();
@@ -100,22 +147,38 @@ namespace app::ui
         const EditState& state = _model.edit();
         _item = state.item;
         _layout = state.layout;
+        _tab = state.tab;
         _groups.clear();
         juce::StringArray titles;
-        if (_layout != nullptr)
+        if (_layout != nullptr && _tab < _layout->tabs.size())
         {
             for (const layouts::LayoutTab& tab : _layout->tabs)
                 titles.add(juce::String(std::string(tab.title)));
+            const auto indexOf = [this](std::string_view name) -> std::optional<std::size_t> {
+                const auto& values = _model.edit().values;
+                for (std::size_t i = 0; i < values.size(); ++i)
+                {
+                    if (values[i].definition->name == name)
+                        return i;
+                }
+                return std::nullopt;
+            };
             std::size_t index = 0;
-            for (const layouts::LayoutGroup& layout : _layout->tabs[state.tab].groups)
+            for (const layouts::LayoutGroup& layout : _layout->tabs[_tab].groups)
             {
                 Group group;
                 group.layout = &layout;
+                if (!layout.envelope.empty())
+                {
+                    group.graph = std::make_unique<EnvelopeGraph>(layout.envelope, indexOf, groupColour(layout));
+                    group.graph->onValue = [this](std::size_t at, std::int64_t value) { _editor.set(at, value); };  // [RQ-APP-095]
+                    _pane.addAndMakeVisible(*group.graph);
+                }
                 for (const layouts::LayoutParameter& parameter : layout.parameters)
                 {
                     auto cell = std::make_unique<ParameterCell>(_lookAndFeel, parameter);
                     cell->onValue = [this, index](std::int64_t value) { _editor.set(index, value); };  // [RQ-APP-052]
-                    addAndMakeVisible(*cell);
+                    _pane.addAndMakeVisible(*cell);
                     group.cells.push_back(std::move(cell));
                     ++index;
                 }
@@ -123,11 +186,12 @@ namespace app::ui
             }
         }
         if (onTabs)
-            onTabs(titles, static_cast<int>(state.tab));
+            onTabs(titles, static_cast<int>(_tab));
         _name.setText(_item ? juce::String(_item->name) : juce::String(), juce::dontSendNotification);
         _kind.setText(_item ? juce::String(kindText(_item->kind)).toUpperCase() : juce::String(), juce::dontSendNotification);
         _message.setText(_item && _layout == nullptr ? juce::String(NO_EDITOR) : juce::String(), juce::dontSendNotification);
         _readAgain.setVisible(_layout != nullptr);
+        _viewport.setViewPosition(0, 0);
         update();
         resized();
         repaint();
@@ -136,10 +200,23 @@ namespace app::ui
     void EditView::update()
     {
         const EditState& state = _model.edit();
-        _info.setText(juce::String(infoText(state)), juce::dontSendNotification);
+        // A program shows its keygroup selector where a sample shows its information. [RQ-APP-058, RQ-APP-087]
+        const int keygroups = state.keygroups.value_or(0);
+        if (keygroups != _keygroupItems)
+        {
+            _keygroup.clear(juce::dontSendNotification);
+            for (int keygroup = 1; keygroup <= keygroups; ++keygroup)
+                _keygroup.addItem(KEYGROUP_TEXT + juce::String(keygroup) + OF_TEXT + juce::String(keygroups), keygroup);
+            _keygroupItems = keygroups;
+        }
+        _keygroup.setSelectedId(keygroups > 0 ? state.keygroup : 0, juce::dontSendNotification);
+        _keygroup.setVisible(keygroups > 0 && _layout != nullptr);
+        _info.setText(keygroups > 0 ? juce::String() : juce::String(infoText(state)), juce::dontSendNotification);
         std::size_t index = 0;
         for (Group& group : _groups)
         {
+            if (group.graph)
+                group.graph->show(state.values);
             for (auto& cell : group.cells)
             {
                 if (index < state.values.size())
@@ -156,8 +233,9 @@ namespace app::ui
         for (const layouts::LayoutParameter& parameter : group.parameters)
             cells += ParameterCell::cells(parameter.control);
         const int inside = pixels(kSpaceInside);
+        const int graph = group.envelope.empty() ? 0 : pixels(kEnvelopeHeight) + pixels(kSpaceBetween);  // [RQ-APP-095]
         return {cells * ParameterCell::cellWidth() + 2 * inside,
-                inside + pixels(kFontLabelSize) + pixels(kSpaceBetween) + ParameterCell::cellHeight() + inside};
+                inside + pixels(kFontLabelSize) + pixels(kSpaceBetween) + graph + ParameterCell::cellHeight() + inside};
     }
 
     void EditView::resized()
@@ -171,40 +249,57 @@ namespace app::ui
         _name.setBounds(header.removeFromLeft(nameWidth));
         const int kindWidth = juce::roundToInt(juce::GlyphArrangement::getStringWidth(_kind.getFont(), _kind.getText())) + pixels(kSpaceGroup);
         _kind.setBounds(header.removeFromLeft(kindWidth));
+        _keygroup.setBounds(header.removeFromRight(pixels(KEYGROUP_SELECTOR_KNOBS * kKnobSizeDefault))
+                                .withSizeKeepingCentre(pixels(KEYGROUP_SELECTOR_KNOBS * kKnobSizeDefault), pixels(kSizeControlMedium)));
         _info.setBounds(header);
         area.removeFromTop(pixels(kSpaceGroup));
         _message.setBounds(area);
+        _viewport.setBounds(area);
+        layoutGroups();
+    }
 
-        // The groups flow left to right, then wrap, as in the mockups. [RQ-APP-086]
+    void EditView::layoutGroups()
+    {
+        using namespace tokens;
+        // The groups flow left to right, then wrap, as in the mockups; a group may start its own row. [RQ-APP-086, RQ-APP-094, DEC-APP-031]
+        const int width = _viewport.getWidth() - _viewport.getScrollBarThickness();
         const int gap = pixels(kSpaceGroup);
-        int x = area.getX();
-        int y = area.getY();
+        const int inside = pixels(kSpaceInside);
+        int x = 0;
+        int y = 0;
         int rowHeight = 0;
+        int bottom = 0;
         for (Group& group : _groups)
         {
             const auto size = sizeOf(*group.layout);
-            if (x > area.getX() && x + size.x > area.getRight())
+            if (x > 0 && (x + size.x > width || group.layout->newRow))
             {
-                x = area.getX();
+                x = 0;
                 y += rowHeight + gap;
                 rowHeight = 0;
             }
             group.bounds = {x, y, size.x, size.y};
-            const int inside = pixels(kSpaceInside);
+            int top = y + inside + pixels(kFontLabelSize) + pixels(kSpaceBetween);
+            if (group.graph)
+            {
+                group.graph->setBounds(x + inside, top, size.x - 2 * inside, pixels(kEnvelopeHeight));
+                top += pixels(kEnvelopeHeight) + pixels(kSpaceBetween);
+            }
             int cellX = x + inside;
-            const int cellY = y + inside + pixels(kFontLabelSize) + pixels(kSpaceBetween);
             for (std::size_t i = 0; i < group.cells.size(); ++i)
             {
-                const int width = ParameterCell::cells(group.layout->parameters[i].control) * ParameterCell::cellWidth();
-                group.cells[i]->setBounds(cellX, cellY, width, ParameterCell::cellHeight());
-                cellX += width;
+                const int cellWidth = ParameterCell::cells(group.layout->parameters[i].control) * ParameterCell::cellWidth();
+                group.cells[i]->setBounds(cellX, top, cellWidth, ParameterCell::cellHeight());
+                cellX += cellWidth;
             }
             x += size.x + gap;
             rowHeight = std::max(rowHeight, size.y);
+            bottom = std::max(bottom, y + size.y);
         }
+        _pane.setSize(std::max(0, width), bottom);
     }
 
-    void EditView::paint(juce::Graphics& g)
+    void EditView::paintGroups(juce::Graphics& g)
     {
         using namespace tokens;
         const int inside = pixels(kSpaceInside);
@@ -212,18 +307,16 @@ namespace app::ui
         {
             g.setColour(colourOf(kColourSurfaceRaised));
             g.fillRoundedRectangle(group.bounds.toFloat(), kRadiusPanel);
-            // The group's mark: its parameters' colour when they share one family, the secondary text colour otherwise. [RQ-APP-005]
-            std::set<layouts::Role> roles;
-            for (const layouts::LayoutParameter& parameter : group.layout->parameters)
-                roles.insert(parameter.role);
             const auto title = juce::Rectangle<int>(group.bounds.getX() + inside, group.bounds.getY() + inside, group.bounds.getWidth() - 2 * inside,
                                                     pixels(kFontLabelSize));
-            g.setColour(roles.size() == 1 ? roleColour(*roles.begin()) : colourOf(kColourTextSecondary));
+            g.setColour(groupColour(*group.layout));
             g.fillRect(title.withWidth(pixels(kStrokeArc)));
             g.setColour(colourOf(kColourTextSecondary));
             g.setFont(_lookAndFeel.font(kFontLabelSize, true));
             g.drawText(juce::String(std::string(group.layout->title)).toUpperCase(), title.withTrimmedLeft(pixels(kStrokeArc) + pixels(kSizeSpace2)),
                        juce::Justification::centredLeft);
+            // Where the group's parameters live: the program, the keygroup chosen, or a zone of it. [RQ-APP-056, DEC-APP-031]
+            g.drawText(juce::String(scopeText(group.layout->scope)).toUpperCase(), title, juce::Justification::centredRight);
         }
     }
 

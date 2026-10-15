@@ -210,6 +210,54 @@ class WritingTheEditorLayouts(unittest.TestCase):
             self.gen.render_layouts({"sample": layout})
         self.assertIn("sample loop end", str(raised.exception))
 
+    def test_given_an_envelope_group_when_written_then_its_scope_and_stages_are_generated_in_order(self):
+        # An envelope is layout data: its stages, a time and an end level each, and the sustain mark. [RQ-APP-095, DEC-APP-031, TASK-APP-044]
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"] = [{"title": "Amp envelope", "scope": "keygroup", "envelope": [
+            {"time": "amplitude envelope attack", "level": 100},
+            {"time": "amplitude envelope decay", "level": "amplitude envelope sustain"},
+            {"sustain": True},
+            {"time": "amplitude envelope release", "level": 0}], "parameters": [
+            {"name": "amplitude envelope attack", "label": "Attack", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope decay", "label": "Decay", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope sustain", "label": "Sustain", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope release", "label": "Release", "role": "modulation", "control": "knob"}]}]
+        header = self.gen.render_layouts({"program": layout})
+        self.assertIn("Scope::Keygroup", header)
+        self.assertIn('{"amplitude envelope attack", "", 100, false}', header)
+        self.assertIn('{"amplitude envelope decay", "amplitude envelope sustain", 0, false}', header)
+        self.assertIn('{"", "", 0, true}', header)
+        self.assertLess(header.index('"amplitude envelope attack", ""'), header.index('"amplitude envelope release", ""'))
+
+    def test_given_an_envelope_naming_a_parameter_of_no_group_or_an_unknown_scope_when_written_then_it_fails_and_names_it(self):
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"] = [{"title": "Amp envelope", "scope": "keygroup", "envelope": [
+            {"time": "amplitude envelope attack", "level": 100},
+            {"time": "amplitude envelope decay", "level": "amplitude envelope sustain"},
+            {"sustain": True},
+            {"time": "amplitude envelope release", "level": 0}], "parameters": [
+            {"name": "amplitude envelope attack", "label": "Attack", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope decay", "label": "Decay", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope sustain", "label": "Sustain", "role": "modulation", "control": "knob"},
+            {"name": "amplitude envelope release", "label": "Release", "role": "modulation", "control": "knob"}]}]
+        layout["tabs"][0]["groups"][0]["envelope"][0]["time"] = "filter envelope attack"
+        with self.assertRaises(self.gen.TokenError) as raised:
+            self.gen.render_layouts({"program": layout})
+        self.assertIn("filter envelope attack", str(raised.exception))
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][0]["scope"] = "multi"
+        with self.assertRaises(self.gen.TokenError) as raised:
+            self.gen.render_layouts({"sample": layout})
+        self.assertIn("multi", str(raised.exception))
+
+    def test_given_a_group_that_starts_a_row_when_written_then_it_says_so_and_the_others_do_not(self):
+        # The Envelopes tab: Amp, Filter and Aux a row each. [RQ-APP-094, DEC-APP-031, TASK-APP-044]
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][1]["row"] = True
+        header = self.gen.render_layouts({"sample": layout})
+        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, true}', header)
+        self.assertIn('LayoutGroup{"Playback", kSampleTab0Group0, Scope::None, {}, false}', header)
+
     def test_given_no_layout_when_written_then_the_table_is_empty_and_still_compiles(self):
         header = self.gen.render_layouts({})
         self.assertIn("kEditorLayouts", header)
