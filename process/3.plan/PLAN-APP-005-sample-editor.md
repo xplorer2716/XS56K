@@ -41,7 +41,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-035: The sample layout and its generation
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `juce/app/design/layouts/sample.json`; `generate_design.py` writes `EditorLayouts.generated.hpp` from `layouts/` with `--check`;
   Python tests first; a C++ test checks the names against `ParameterCatalogue::samples()`.
 - **Requirement refs**: RQ-APP-086, RQ-APP-049
@@ -50,8 +50,10 @@ This plan implements the tasks in the format specified below.
   parameters; *Given* an unknown catalogue name, *Then* the C++ test fails; `--check` fails on a stale header.
 - **Dependencies**: TASK-APP-034
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: three new Python tests (tables in order, unknown control or role named, no layout) and the
+  `--check` test extended failed first, then passed (17 OK); the C++ case of `EditorLayoutTests.cpp` passed (35 assertions) and failed with
+  "sample finer tune" put in the layout for the check, then restored; `ctest -C Debug`: 100% passed, 0 failed out of 1199.
+- **Assumptions**: (1) The types are hand-written in `EditorLayout.hpp`, the tables generated. (2) Spans over `constexpr` arrays, no allocation.
 
 ### TASK-APP-036: The edit controller, read side
 - **Tier**: L

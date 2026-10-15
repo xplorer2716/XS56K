@@ -499,6 +499,7 @@ DEC-QLT-009|106-110||The path traversal alerts of the generators are the owner's
 @process/2.architecture/REVIEW-CODE-AKM-MCP-2026-10-11.md
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
+@process/3.plan/CHECKPOINT-APP-2026-10-15.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-05.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-06.md
@@ -678,14 +679,14 @@ TASK-APP-031|130-147|Done|The gaps between the areas dragged with the mouse
 TASK-APP-032|148-164|Done|The shown disk selected again before a command on its folders
 TASK-APP-033|165-179|Done|A log file of the errors
 @process/3.plan/PLAN-APP-005-sample-editor.md
-PLAN-APP-005|1-125||Editor Application — the Sample Editor, First Editor of the Edit Panel
+PLAN-APP-005|1-127||Editor Application — the Sample Editor, First Editor of the Edit Panel
 TASK-APP-034|29-41|Done|Requirements, ADR and plan of the sample editor
-TASK-APP-035|42-55|Not Started|The sample layout and its generation
-TASK-APP-036|56-68|Not Started|The edit controller, read side
-TASK-APP-037|69-81|Not Started|The edit controller, write side
-TASK-APP-038|82-94|Not Started|The four controls
-TASK-APP-039|95-109|Not Started|The edit panel view
-TASK-APP-040|110-125|In Progress|Mockup, documentation and the real run
+TASK-APP-035|42-57|Done|The sample layout and its generation
+TASK-APP-036|58-70|Not Started|The edit controller, read side
+TASK-APP-037|71-83|Not Started|The edit controller, write side
+TASK-APP-038|84-96|Not Started|The four controls
+TASK-APP-039|97-111|Not Started|The edit panel view
+TASK-APP-040|112-127|In Progress|Mockup, documentation and the real run
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

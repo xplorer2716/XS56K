@@ -90,7 +90,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   are `ctest` entries when CMake finds Python 3. [RQ-MCP-058 to RQ-MCP-066, ADR-MCP-006]
 - **Design tokens and mockups of the editor:** the design system's values are data (`juce/app/design/tokens.json`); `python3
   juce/tools/generate_design.py` (`python` on Windows) writes `juce/app/core/include/app/DesignTokens.generated.hpp` and the value tables of
-  `process/1.requirements/DESIGN-SYSTEM-APP.md`, and `python3 juce/tools/generate_mockups.py` writes the static SVG mockups of
+  `process/1.requirements/DESIGN-SYSTEM-APP.md`, and the editor layouts of `juce/app/design/layouts/` into `EditorLayouts.generated.hpp`;
+  `python3 juce/tools/generate_mockups.py` writes the static SVG mockups of
   `documents/mockups/` from the tokens, the layouts and the screens of `juce/app/design/`. Never edit the generated files by hand; `--check`
   fails when they are out of date, and both checks and the scripts' tests are `ctest` entries when CMake finds Python 3. [RQ-APP-002,
   RQ-APP-074 to RQ-APP-078, ADR-APP-002, ADR-APP-003]

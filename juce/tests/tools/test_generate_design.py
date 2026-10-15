@@ -162,20 +162,70 @@ class WritingTheDocumentTables(unittest.TestCase):
         self.assertIn("global-colours", str(raised.exception))
 
 
+LAYOUT = {
+    "editor": "sample",
+    "tabs": [{"title": "Sample", "groups": [
+        {"title": "Playback", "parameters": [
+            {"name": "sample start position", "label": "Start", "role": "sample", "control": "slider"},
+            {"name": "sample playback mode", "label": "Mode", "role": "sample", "control": "choice"}]},
+        {"title": "Pitch", "parameters": [
+            {"name": "sample fine tune", "label": "Fine", "role": "general", "control": "knob"}]}]}],
+}
+
+
+class WritingTheEditorLayouts(unittest.TestCase):
+    """The editor layouts as C++ tables of the core. [RQ-APP-086, RQ-APP-049, ADR-APP-004 (DEC-APP-024), TASK-APP-035]"""
+
+    def setUp(self):
+        self.gen = load_script()
+
+    def test_given_a_layout_when_written_then_its_tabs_groups_and_parameters_are_constexpr_tables_in_order(self):
+        header = self.gen.render_layouts({"sample": LAYOUT})
+        self.assertIn("namespace app::layouts", header)
+        self.assertIn('{"sample start position", "Start", Role::Sample, Control::Slider}', header)
+        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob}', header)
+        self.assertLess(header.index('"Playback"'), header.index('"Pitch"'))
+        self.assertIn('"sample"', header)
+        self.assertIn("kEditorLayouts", header)
+        includes = [line for line in header.splitlines() if line.startswith("#include")]
+        self.assertFalse([line for line in includes if "juce" in line.lower()])
+
+    def test_given_an_unknown_control_or_role_when_written_then_it_fails_and_names_it(self):
+        for key, value in (("control", "fader"), ("role", "nowhere")):
+            layout = copy.deepcopy(LAYOUT)
+            layout["tabs"][0]["groups"][0]["parameters"][0][key] = value
+            with self.assertRaises(self.gen.TokenError) as raised:
+                self.gen.render_layouts({"sample": layout})
+            self.assertIn(value, str(raised.exception))
+
+    def test_given_no_layout_when_written_then_the_table_is_empty_and_still_compiles(self):
+        header = self.gen.render_layouts({})
+        self.assertIn("kEditorLayouts", header)
+
+
 class CheckingTheGeneratedFiles(unittest.TestCase):
     def test_given_fresh_files_when_checked_then_it_passes_and_given_an_edit_then_it_fails_naming_the_file(self):
         with tempfile.TemporaryDirectory() as folder:
             folder = pathlib.Path(folder)
             tokens, header, doc = folder / "tokens.json", folder / "Tokens.hpp", folder / "doc.md"
+            layouts, layouts_header = folder / "layouts", folder / "Layouts.hpp"
+            layouts.mkdir()
+            (layouts / "sample.json").write_text(json.dumps(LAYOUT), encoding="utf-8")
             tokens.write_text(json.dumps(MINIMAL), encoding="utf-8")
             doc.write_text(DOC, encoding="utf-8")
-            paths = ["--tokens", str(tokens), "--header", str(header), "--doc", str(doc)]
+            paths = ["--tokens", str(tokens), "--header", str(header), "--doc", str(doc), "--layouts", str(layouts),
+                     "--layouts-header", str(layouts_header)]
             self.assertEqual(run_script(*paths).returncode, 0)
             self.assertEqual(run_script("--check", *paths).returncode, 0)
             header.write_text(header.read_text(encoding="utf-8") + "// edited\n", encoding="utf-8")
             result = run_script("--check", *paths)
             self.assertNotEqual(result.returncode, 0)
             self.assertIn("Tokens.hpp", result.stdout + result.stderr)
+            self.assertEqual(run_script(*paths).returncode, 0)
+            layouts_header.write_text(layouts_header.read_text(encoding="utf-8") + "// edited\n", encoding="utf-8")
+            result = run_script("--check", *paths)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Layouts.hpp", result.stdout + result.stderr)
 
 
 if __name__ == "__main__":
