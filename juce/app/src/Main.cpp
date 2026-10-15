@@ -70,6 +70,7 @@ namespace
             juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
         }
 
+        app::ui::LogSession log{VERSION_FULL_STRING};  // first built, last destroyed: every problem of the run is logged [RQ-APP-085]
         app::ui::LookAndFeel lookAndFeel;
         common::midi::JuceMidiBackend backend;
         app::ui::PropertiesSettings settings;

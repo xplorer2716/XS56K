@@ -12,4 +12,5 @@ add_library(xs56k_app_core STATIC
     src/Model.cpp
     src/SamplerWorker.cpp)
 target_include_directories(xs56k_app_core PUBLIC include)
-target_link_libraries(xs56k_app_core PUBLIC xs56k_sampler PRIVATE xs56k::warnings)
+# xs56k_framework for its Logger (no JUCE). [RQ-APP-085, ADR-APP-001 (DEC-APP-023)]
+target_link_libraries(xs56k_app_core PUBLIC xs56k_sampler xs56k_framework PRIVATE xs56k::warnings)

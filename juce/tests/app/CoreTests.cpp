@@ -22,13 +22,18 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // DEC-APP-004, DEC-APP-007)]
 #include <catch2/catch_test_macros.hpp>
 
+#include <algorithm>
 #include <chrono>
+#include <initializer_list>
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
 
 #include "AppTestSupport.hpp"
 #include "app/DesignTokens.generated.hpp"
+#include "app/Model.hpp"
+#include "midiapp/service/Logger.hpp"
 #include "akm/harness/SimulatedSampler.hpp"
 
 using app::Confirmation;
@@ -244,4 +249,41 @@ TEST_CASE("Given the token module, Then a boundary between the areas is drawn in
 {
     CHECK(app::tokens::kResizerBar == app::tokens::kColourSurfaceBase);
     CHECK(app::tokens::kResizerBarActive == app::tokens::kColourAccentDefault);
+}
+
+namespace
+{
+    /// The log lines, kept in memory. [RQ-APP-085]
+    struct LinesSink final : midiapp::service::ILogSink
+    {
+        explicit LinesSink(std::vector<std::string>& lines) : _lines(lines) {}
+        void write(const std::string& line) override { _lines.push_back(line); }
+        std::vector<std::string>& _lines;
+    };
+
+    bool anyLineHas(const std::vector<std::string>& lines, std::initializer_list<const char*> parts)
+    {
+        return std::any_of(lines.begin(), lines.end(), [&parts](const std::string& line) {
+            return std::all_of(parts.begin(), parts.end(), [&line](const char* part) { return line.find(part) != std::string::npos; });
+        });
+    }
+}
+
+TEST_CASE("Given a log sink, When a problem is set, Then an error line holds its action and reason; When the session connects, Then an info line "
+          "says so [RQ-APP-085, TASK-APP-033]",
+          "[app][log]")
+{
+    using midiapp::service::Logger;
+    std::vector<std::string> lines;
+    Logger::configure(std::make_unique<LinesSink>(lines));
+    Logger::setLevel(midiapp::service::TraceLevel::Info);
+
+    app::Model model;
+    model.setProblem(app::Problem{"Creating the folder X", "disk error: selected disk is invalid"});
+    model.setConnection(app::ConnectionStatus{app::ConnectionState::Connected, {}, std::nullopt});
+    Logger::shutdown();
+    Logger::setLevel(midiapp::service::TraceLevel::Off);
+
+    CHECK(anyLineHas(lines, {"[ERROR]", "Creating the folder X", "disk error: selected disk is invalid"}));
+    CHECK(anyLineHas(lines, {"[INFO]", "Connected"}));
 }

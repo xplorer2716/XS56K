@@ -161,7 +161,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-033: A log file of the errors
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `xs56k_app_core` links `xs56k_framework`; `Model` logs problems and connection changes; `XS56KApp` installs a `juce::FileLogger` sink on
   `log/XS56K.log` beside the executable (fallback: application data) and logs the start with the version.
 - **Requirement refs**: RQ-APP-085
@@ -169,5 +169,8 @@ This plan implements the tasks in the format specified below.
 - **Acceptance Criteria** (Gherkin): see RQ-APP-085, in the core with a test sink; the file written by the application on the real S5000.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-15: the new case of `CoreTests.cpp` failed first (no line), then passed; `ctest -C Debug`: 100% passed,
+  0 failed out of 1198; warning-clean. A run on the real S5000 wrote `juce/build/app/XS56KApp_artefacts/Debug/log/XS56K.log`: started with the version,
+  Connecting, Connected, Disconnected, stopped.
+- **Assumptions**: (1) Info level, one domain (CTL); no settings for them yet. (2) The sink sits with the JUCE adapters (`JuceAdapters.cpp`). (3) The
+  timestamps are UTC, as the framework's `Logger` writes them.

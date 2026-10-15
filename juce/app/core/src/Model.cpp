@@ -20,8 +20,34 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <utility>
 
+#include "midiapp/service/Logger.hpp"
+
 namespace app
 {
+    namespace
+    {
+        using midiapp::service::LogDomain;
+        using midiapp::service::TraceLevel;
+        constexpr const char* REASON_SEPARATOR = ": ";
+
+        /// The connection's state in the log's words. [RQ-APP-085]
+        const char* stateText(ConnectionState state)
+        {
+            switch (state)
+            {
+                case ConnectionState::Disconnected:
+                    return "Disconnected";
+                case ConnectionState::Connecting:
+                    return "Connecting";
+                case ConnectionState::Connected:
+                    return "Connected";
+                case ConnectionState::Failed:
+                    return "Connection failed";
+            }
+            return "";
+        }
+    }
+
     // [RQ-APP-010, RQ-APP-012, ADR-APP-001 (DEC-APP-004), TASK-APP-011]
     void Model::setBusy(std::optional<std::string> label)
     {
@@ -33,6 +59,8 @@ namespace app
 
     void Model::setProblem(Problem problem)
     {
+        // Every problem shown is also written to the log. [RQ-APP-085, ADR-APP-001 (DEC-APP-023), TASK-APP-033]
+        XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Error, problem.action + REASON_SEPARATOR + problem.reason);
         _problem = std::move(problem);
         notify(ModelPart::Problem);
     }
@@ -48,6 +76,9 @@ namespace app
     // [RQ-APP-019, TASK-APP-012]
     void Model::setConnection(ConnectionStatus status)
     {
+        // [RQ-APP-085, TASK-APP-033]
+        XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Info,
+                  std::string(stateText(status.state)) + (status.reason.empty() ? std::string() : REASON_SEPARATOR + status.reason));
         _connection = std::move(status);
         notify(ModelPart::Connection);
     }

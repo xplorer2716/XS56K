@@ -147,4 +147,53 @@ namespace app::ui
         _file->setValue(juce::String(std::string(key)), juce::String(value));
         _file->saveIfNeeded();
     }
+
+    // [RQ-APP-085, ADR-APP-001 (DEC-APP-023), TASK-APP-033]
+    namespace
+    {
+        constexpr const char* LOG_FOLDER = "log";
+        constexpr const char* LOG_FILE = "XS56K.log";
+        constexpr const char* APP_DATA_FOLDER = "XS56K";
+
+        /// One line of `Logger` into the file.
+        class FileLogSink final : public midiapp::service::ILogSink
+        {
+        public:
+            FileLogSink(const juce::File& file, const juce::String& welcome) : _logger(file, welcome) {}
+            void write(const std::string& line) override { _logger.logMessage(line); }
+
+        private:
+            juce::FileLogger _logger;
+        };
+
+        /// `log` beside the executable when it can be created and written, otherwise in the person's application-data folder.
+        juce::File logFile()
+        {
+            const juce::File beside =
+                juce::File::getSpecialLocation(juce::File::currentExecutableFile).getParentDirectory().getChildFile(LOG_FOLDER);
+            if (beside.createDirectory().wasOk() && beside.hasWriteAccess())
+                return beside.getChildFile(LOG_FILE);
+            return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+                .getChildFile(APP_DATA_FOLDER)
+                .getChildFile(LOG_FOLDER)
+                .getChildFile(LOG_FILE);
+        }
+    }
+
+    LogSession::LogSession(const juce::String& version)
+    {
+        using namespace midiapp::service;
+        const juce::File file = logFile();
+        file.getParentDirectory().createDirectory();
+        Logger::configure(std::make_unique<FileLogSink>(file, juce::String()));
+        Logger::setLevel(TraceLevel::Info);
+        XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Info, ("XS56K " + version + " started").toStdString());
+    }
+
+    LogSession::~LogSession()
+    {
+        using namespace midiapp::service;
+        XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Info, std::string("XS56K stopped"));
+        Logger::shutdown();
+    }
 }

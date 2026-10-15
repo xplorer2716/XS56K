@@ -25,6 +25,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "app/AppSettings.hpp"
 #include "app/UiDispatcher.hpp"
 #include "app/UserPrompts.hpp"
+#include "midiapp/service/Logger.hpp"
 
 namespace app::ui
 {
@@ -62,5 +63,17 @@ namespace app::ui
 
     private:
         std::unique_ptr<juce::PropertiesFile> _file;
+    };
+
+    /// The log of the run: a `juce::FileLogger` on `log/XS56K.log` beside the executable (or in the application-data folder when that
+    /// cannot be written), installed as `Logger`'s sink while it lives, with the start of the run and its version. [RQ-APP-085,
+    /// ADR-APP-001 (DEC-APP-023), TASK-APP-033]
+    class LogSession final
+    {
+    public:
+        explicit LogSession(const juce::String& version);
+        ~LogSession();
+        LogSession(const LogSession&) = delete;
+        LogSession& operator=(const LogSession&) = delete;
     };
 }
