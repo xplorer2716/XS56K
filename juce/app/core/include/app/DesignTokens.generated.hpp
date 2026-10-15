@@ -138,5 +138,8 @@ namespace app::tokens
     constexpr float kButtonHeight = 28.0f;  // button.height -> size.control.large
     constexpr std::uint32_t kResizerBar = 0xFF1B1C1F;  // resizer.bar -> colour.surface.base
     constexpr std::uint32_t kResizerBarActive = 0xFFA897F2;  // resizer.bar.active -> colour.accent.default
+    constexpr std::uint32_t kSliderTrack = 0xFF45464D;  // slider.track -> colour.border.default
+    constexpr std::uint32_t kSliderThumb = 0xFFECECEF;  // slider.thumb -> colour.text.primary
+    constexpr float kSliderThumbSize = 12.0f;  // slider.thumb.size -> size.icon.small
 
 }

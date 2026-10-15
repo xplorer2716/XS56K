@@ -4,12 +4,12 @@
   "tabs": [
     {"title": "Sample", "groups": [
       {"title": "Playback", "parameters": [
-        {"name": "sample start position", "label": "Start", "role": "sample", "control": "valuebox"},
-        {"name": "sample end position", "label": "End", "role": "sample", "control": "valuebox"},
+        {"name": "sample start position", "label": "Start", "role": "sample", "control": "slider"},
+        {"name": "sample end position", "label": "End", "role": "sample", "control": "slider"},
         {"name": "sample playback mode", "label": "Mode", "role": "sample", "control": "choice"}]},
       {"title": "Loop", "parameters": [
-        {"name": "sample loop start", "label": "Loop start", "role": "sample", "control": "valuebox"},
-        {"name": "sample loop end", "label": "Loop end", "role": "sample", "control": "valuebox"}]},
+        {"name": "sample loop start", "label": "Loop start", "role": "sample", "control": "slider"},
+        {"name": "sample loop end", "label": "Loop end", "role": "sample", "control": "slider"}]},
       {"title": "Pitch", "parameters": [
         {"name": "sample original pitch", "label": "Root", "role": "general", "control": "valuebox"},
         {"name": "sample semitone tune", "label": "Semi", "role": "general", "control": "knob"},

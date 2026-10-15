@@ -43,49 +43,60 @@
 <text x="324" y="59.67" font-size="17" font-weight="500" fill="#ECECEF">KICK</text>
 <text x="392" y="59.67" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">SAMPLE</text>
 <text x="1264" y="59.67" font-size="13" font-weight="400" fill="#A9AAB2" text-anchor="end">RAM, mono, 22050 points, 44100 Hz</text>
-<rect x="316" y="92" width="448" height="122" fill="#2A2B30" rx="6"/>
+<rect x="316" y="92" width="592" height="122" fill="#2A2B30" rx="6"/>
 <rect x="324" y="100" width="3" height="13" fill="#A897F2"/>
 <text x="335" y="113" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">PLAYBACK</text>
-<rect x="328" y="131" width="136" height="20" fill="#202125" rx="3"/>
-<text x="396" y="146" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">0</text>
-<text x="396" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">START</text>
-<rect x="472" y="131" width="136" height="20" fill="#202125" rx="3"/>
-<text x="540" y="146" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">22050</text>
-<text x="540" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">END</text>
-<rect x="616" y="129" width="136" height="24" fill="#202125" rx="3"/>
-<text x="624" y="146" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
-<text x="744" y="146" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>
-<text x="684" y="146" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">ONE SHOT</text>
-<text x="684" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">MODE</text>
-<rect x="780" y="92" width="304" height="122" fill="#2A2B30" rx="6"/>
-<rect x="788" y="100" width="3" height="13" fill="#A897F2"/>
-<text x="799" y="113" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">LOOP</text>
-<rect x="792" y="131" width="136" height="20" fill="#202125" rx="3"/>
-<text x="860" y="146" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">11025</text>
-<text x="860" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">LOOP START</text>
-<rect x="936" y="131" width="136" height="20" fill="#202125" rx="3"/>
-<text x="1004" y="146" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">22050</text>
-<text x="1004" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">LOOP END</text>
-<rect x="316" y="230" width="304" height="122" fill="#2A2B30" rx="6"/>
-<rect x="324" y="238" width="3" height="13" fill="#A9AAB2"/>
-<text x="335" y="251" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">PITCH</text>
-<rect x="328" y="269" width="136" height="20" fill="#202125" rx="3"/>
-<text x="396" y="284" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">C3</text>
-<text x="396" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">ROOT</text>
-<circle cx="504" cy="279" r="14" fill="#202125"/>
-<path d="M 491.98 291.02 A 17 17 0 1 1 516.02 291.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
-<path d="M 491.98 291.02 A 17 17 0 0 1 504 262" fill="none" stroke="#A9AAB2" stroke-width="3" stroke-linecap="round"/>
-<line x1="504" y1="279" x2="504" y2="269.65" stroke="#ECECEF" stroke-width="2" stroke-linecap="round"/>
-<text x="504" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">SEMI</text>
-<rect x="472" y="324" width="64" height="20" fill="#202125" rx="3"/>
-<text x="504" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">0</text>
-<circle cx="576" cy="279" r="14" fill="#202125"/>
-<path d="M 563.98 291.02 A 17 17 0 1 1 588.02 291.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
-<path d="M 563.98 291.02 A 17 17 0 0 1 583.72 263.85" fill="none" stroke="#A9AAB2" stroke-width="3" stroke-linecap="round"/>
-<line x1="576" y1="279" x2="580.24" y2="270.67" stroke="#ECECEF" stroke-width="2" stroke-linecap="round"/>
-<text x="576" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">FINE</text>
-<rect x="544" y="324" width="64" height="20" fill="#202125" rx="3"/>
-<text x="576" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">+10</text>
+<line x1="336" y1="141" x2="528" y2="141" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
+<circle cx="336" cy="141" r="6" fill="#ECECEF"/>
+<text x="432" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">START</text>
+<rect x="328" y="186" width="208" height="20" fill="#202125" rx="3"/>
+<text x="432" y="201" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">0</text>
+<line x1="552" y1="141" x2="744" y2="141" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
+<line x1="552" y1="141" x2="744" y2="141" stroke="#A897F2" stroke-width="3" stroke-linecap="round"/>
+<circle cx="744" cy="141" r="6" fill="#ECECEF"/>
+<text x="648" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">END</text>
+<rect x="544" y="186" width="208" height="20" fill="#202125" rx="3"/>
+<text x="648" y="201" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">22050</text>
+<rect x="760" y="129" width="136" height="24" fill="#202125" rx="3"/>
+<text x="768" y="146" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
+<text x="888" y="146" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>
+<text x="828" y="146" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">ONE SHOT</text>
+<text x="828" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">MODE</text>
+<rect x="316" y="230" width="448" height="122" fill="#2A2B30" rx="6"/>
+<rect x="324" y="238" width="3" height="13" fill="#A897F2"/>
+<text x="335" y="251" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">LOOP</text>
+<line x1="336" y1="279" x2="528" y2="279" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
+<line x1="336" y1="279" x2="432" y2="279" stroke="#A897F2" stroke-width="3" stroke-linecap="round"/>
+<circle cx="432" cy="279" r="6" fill="#ECECEF"/>
+<text x="432" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">LOOP START</text>
+<rect x="328" y="324" width="208" height="20" fill="#202125" rx="3"/>
+<text x="432" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">11025</text>
+<line x1="552" y1="279" x2="744" y2="279" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
+<line x1="552" y1="279" x2="744" y2="279" stroke="#A897F2" stroke-width="3" stroke-linecap="round"/>
+<circle cx="744" cy="279" r="6" fill="#ECECEF"/>
+<text x="648" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">LOOP END</text>
+<rect x="544" y="324" width="208" height="20" fill="#202125" rx="3"/>
+<text x="648" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">22050</text>
+<rect x="780" y="230" width="304" height="122" fill="#2A2B30" rx="6"/>
+<rect x="788" y="238" width="3" height="13" fill="#A9AAB2"/>
+<text x="799" y="251" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">PITCH</text>
+<rect x="792" y="269" width="136" height="20" fill="#202125" rx="3"/>
+<text x="860" y="284" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">C3</text>
+<text x="860" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">ROOT</text>
+<circle cx="968" cy="279" r="14" fill="#202125"/>
+<path d="M 955.98 291.02 A 17 17 0 1 1 980.02 291.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
+<path d="M 955.98 291.02 A 17 17 0 0 1 968 262" fill="none" stroke="#A9AAB2" stroke-width="3" stroke-linecap="round"/>
+<line x1="968" y1="279" x2="968" y2="269.65" stroke="#ECECEF" stroke-width="2" stroke-linecap="round"/>
+<text x="968" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">SEMI</text>
+<rect x="936" y="324" width="64" height="20" fill="#202125" rx="3"/>
+<text x="968" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">0</text>
+<circle cx="1040" cy="279" r="14" fill="#202125"/>
+<path d="M 1027.98 291.02 A 17 17 0 1 1 1052.02 291.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>
+<path d="M 1027.98 291.02 A 17 17 0 0 1 1047.72 263.85" fill="none" stroke="#A9AAB2" stroke-width="3" stroke-linecap="round"/>
+<line x1="1040" y1="279" x2="1044.24" y2="270.67" stroke="#ECECEF" stroke-width="2" stroke-linecap="round"/>
+<text x="1040" y="320" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">FINE</text>
+<rect x="1008" y="324" width="64" height="20" fill="#202125" rx="3"/>
+<text x="1040" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">+10</text>
 <rect x="316" y="736" width="956" height="28" fill="#2A2B30" rx="6"/>
 <text x="371" y="754.33" font-size="13" font-weight="500" fill="#ECECEF" text-anchor="middle" letter-spacing="0.5">SAMPLE</text>
 <rect x="324" y="736" width="94" height="2" fill="#A897F2"/>

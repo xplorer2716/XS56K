@@ -38,6 +38,7 @@ KNOB_START_DEGREES = 135.0      # the knob's arc starts at the bottom left...
 KNOB_SWEEP_DEGREES = 270.0      # ...and turns clockwise through the top to the bottom right
 KNOB_POINTER_LENGTH = 0.55      # the pointer's length, as a part of the arc's radius
 CHOICE_CELLS = 2                # a choice selector is as wide as two knob cells
+SLIDER_CELLS = 3                # a slider (a position in sample points) is as wide as three knob cells
 DIALOG_WIDTH_IN_KNOBS = 12      # a dialog is twelve knob diameters wide
 BUTTON_WIDTH_IN_KNOBS = 3       # a dialog button is three knob diameters wide
 KEYGROUP_SELECTOR_IN_KNOBS = 4  # the keygroup selector is four knob diameters wide
@@ -214,8 +215,11 @@ def cell_width(t):
 
 
 def control_cells(parameter):
-    # A choice and a value box alone (a position in sample points) are two knob cells wide. [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
-    return CHOICE_CELLS if parameter.get("control") in ("choice", "valuebox") else 1
+    # A choice and a value box alone are two knob cells wide, a slider three. [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
+    control = parameter.get("control")
+    if control == "slider":
+        return SLIDER_CELLS
+    return CHOICE_CELLS if control in ("choice", "valuebox") else 1
 
 
 def group_size(t, group):
@@ -246,6 +250,18 @@ def draw_knob(c, cx, cy, fraction, colour, pending):
     angle = math.radians(KNOB_START_DEGREES + KNOB_SWEEP_DEGREES * fraction)
     pointer = radius * KNOB_POINTER_LENGTH
     c.line(cx, cy, cx + pointer * math.cos(angle), cy + pointer * math.sin(angle), t("knob.pointer"), t("stroke.focus"))
+
+
+def draw_slider(c, x, cy, w, fraction, colour, pending):
+    """A horizontal track, filled up to the value in the parameter's colour, with its thumb. [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]"""
+    t = c.t
+    stroke = t("stroke.arc")
+    c.line(x, cy, x + w, cy, t("slider.track"), stroke)
+    value_colour = t("colour.status.pending") if pending else colour
+    end = x + w * fraction
+    if fraction > 0:
+        c.line(x, cy, end, cy, value_colour, stroke)
+    c.circle(end, cy, t("slider.thumb.size") / 2, t("slider.thumb"))
 
 
 def draw_choice(c, x, y, w, text, pending):
@@ -283,6 +299,10 @@ def draw_group(c, x, y, group, values, pending):
         if parameter.get("control") == "choice":
             box_y = knob_top + (t("knob.size.default") - t("size.control.medium")) / 2
             draw_choice(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
+        elif parameter.get("control") == "slider":
+            margin = t("slider.thumb.size")
+            draw_slider(c, cell_x + margin, knob_top + t("knob.size.default") / 2, w - 2 * margin, float(value.get("fraction", 0.0)),
+                        colour, is_pending)
         elif parameter.get("control") == "valuebox":
             box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
             draw_value_box(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)

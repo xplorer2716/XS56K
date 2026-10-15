@@ -138,6 +138,21 @@ class RenderingAScreen(unittest.TestCase):
         self.assertIn(">1024<", svg)
         self.assertIn(">START<", svg)
 
+    def test_given_a_slider_parameter_when_rendered_then_a_track_its_thumb_and_its_value_box_are_drawn_and_no_knob(self):
+        # A position a musician drags, and can type: a slider with its value box. [RQ-APP-086, ADR-APP-004 (DEC-APP-027), TASK-APP-040]
+        data = tokens()
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][0]["parameters"] = [
+            {"name": "sample start position", "label": "START", "role": "sample", "control": "slider"}]
+        screen = copy.deepcopy(SCREEN)
+        screen["content"]["editor"]["values"] = {"sample start position": {"text": "1024", "fraction": 0.25}}
+        svg = self.render(screen=screen, layout=layout, data=data)
+        self.assertEqual(svg.count("<path"), 0)
+        self.assertIn(">1024<", svg)
+        self.assertIn(">START<", svg)
+        thumb = self.gen.Theme(data)("slider.thumb")
+        self.assertIn(f'fill="{thumb}"', svg)
+
     def test_given_an_editor_with_no_keygroup_and_an_information_line_when_rendered_then_the_line_is_shown(self):
         # The sample editor's header: its information instead of a keygroup selector. [RQ-APP-087, TASK-APP-040]
         screen = copy.deepcopy(SCREEN)

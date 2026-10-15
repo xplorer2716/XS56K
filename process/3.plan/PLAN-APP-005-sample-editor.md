@@ -12,7 +12,7 @@ controls. Core first with tests on the simulated sampler, then the views, checke
 | 2 | TASK-APP-035 | `layouts/sample.json` and its generation into `EditorLayouts.generated.hpp` |
 | 3 | TASK-APP-036 | `EditController`, read side: the tab and the information read on selection, and on request |
 | 4 | TASK-APP-037 | `EditController`, write side: range, set and read back, one pending per parameter, the tab read again |
-| 5 | TASK-APP-038 | the three controls (value box, choice, knob) drawn from the tokens |
+| 5 | TASK-APP-038 | the four controls (value box, choice, knob, slider) drawn from the tokens |
 | 6 | TASK-APP-039 | the edit panel view: header, tab row, groups, "Read again" |
 | 7 | TASK-APP-040 | mockup of the sample editor, READMEs, run on the real S5000 |
 
@@ -79,10 +79,10 @@ This plan implements the tasks in the format specified below.
 - **Verification**: —
 - **Assumptions**: —
 
-### TASK-APP-038: The three controls
+### TASK-APP-038: The four controls
 - **Tier**: M
 - **Status**: Not Started
-- **Description**: Value box, choice and knob in `XS56KApp`, drawn by the look-and-feel from the component tokens, with the pending state; the
+- **Description**: Value box, choice, knob and slider in `XS56KApp`, drawn by the look-and-feel from the component tokens, with the pending state; the
   note-name text of the original pitch in the core (tested).
 - **Requirement refs**: RQ-APP-051, RQ-APP-086, RQ-APP-003, RQ-APP-005, RQ-APP-001, RQ-APP-004
 - **ADR refs**: ADR-APP-004 (DEC-APP-027); ADR-APP-002 (DEC-APP-013, DEC-APP-014)
@@ -119,5 +119,7 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI
 - **Verification**: (mockup part, done first at the owner's request, 2026-10-15) two new tests of `test_generate_mockups.py` (a value box alone, no knob;
   an information line instead of the keygroup) failed first, then passed (15 tests OK); `layouts/sample.json` and `screens/sample-editor.json` written;
-  `sample-editor-connected.svg` and `sample-editor-writing.svg` generated and looked at as images.
+  `sample-editor-connected.svg` and `sample-editor-writing.svg` generated and looked at as images. Then, at the owner's request, sliders for the four
+  positions: a third test (a slider: track, thumb, value box, no knob) failed first, then passed (16 tests OK); tokens `slider.track`, `slider.thumb`,
+  `slider.thumb.size` added.
 - **Assumptions**: —
