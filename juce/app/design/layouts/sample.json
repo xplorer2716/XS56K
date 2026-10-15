@@ -1,15 +1,15 @@
 {
-  "_comment": "The sample editor (FTR-APP-010): one tab, three groups, the assistant's proposal of 2026-10-15, data the owner can change. Parameter names are those of mcp::ParameterCatalogue::samples(). [RQ-APP-086, ADR-APP-004 (DEC-APP-024, DEC-APP-027), ADR-APP-003 (DEC-APP-018)]",
+  "_comment": "The sample editor (FTR-APP-010): one tab, three groups, the assistant's proposal of 2026-10-15, data the owner can change; groups named after the sampler's EDIT SAMPLE pages TRIM and LOOP (owner, 2026-10-15). Parameter names are those of mcp::ParameterCatalogue::samples(). [RQ-APP-086, ADR-APP-004 (DEC-APP-024, DEC-APP-027), ADR-APP-003 (DEC-APP-018)]",
   "editor": "sample",
   "tabs": [
     {"title": "Sample", "groups": [
-      {"title": "Playback", "parameters": [
+      {"title": "Trim", "parameters": [
         {"name": "sample start position", "label": "Start", "role": "sample", "control": "slider"},
-        {"name": "sample end position", "label": "End", "role": "sample", "control": "slider"},
-        {"name": "sample playback mode", "label": "Mode", "role": "sample", "control": "choice"}]},
+        {"name": "sample end position", "label": "End", "role": "sample", "control": "slider"}]},
       {"title": "Loop", "parameters": [
         {"name": "sample loop start", "label": "Loop start", "role": "sample", "control": "slider"},
-        {"name": "sample loop end", "label": "Loop end", "role": "sample", "control": "slider"}]},
+        {"name": "sample loop end", "label": "Loop end", "role": "sample", "control": "slider"},
+        {"name": "sample playback mode", "label": "Mode", "role": "sample", "control": "choice"}]},
       {"title": "Pitch", "parameters": [
         {"name": "sample original pitch", "label": "Root", "role": "general", "control": "valuebox"},
         {"name": "sample semitone tune", "label": "Semi", "role": "general", "control": "knob"},

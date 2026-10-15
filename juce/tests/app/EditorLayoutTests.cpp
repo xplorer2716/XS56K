@@ -36,7 +36,7 @@ namespace
     }
 }
 
-TEST_CASE("Given the sample editor's layout, Then its tab Sample holds Playback, Loop and Pitch, each name is a settable parameter of the "
+TEST_CASE("Given the sample editor's layout, Then its tab Sample holds Trim, Loop and Pitch, each name is a settable parameter of the "
           "sample catalogue, and every settable parameter of a sample is in it once [RQ-APP-086, TASK-APP-035]",
           "[app][layout]")
 {
@@ -45,7 +45,7 @@ TEST_CASE("Given the sample editor's layout, Then its tab Sample holds Playback,
     REQUIRE(sample->tabs.size() == 1);
     CHECK(sample->tabs[0].title == "Sample");
     REQUIRE(sample->tabs[0].groups.size() == 3);
-    CHECK(sample->tabs[0].groups[0].title == "Playback");
+    CHECK(sample->tabs[0].groups[0].title == "Trim");
     CHECK(sample->tabs[0].groups[1].title == "Loop");
     CHECK(sample->tabs[0].groups[2].title == "Pitch");
 

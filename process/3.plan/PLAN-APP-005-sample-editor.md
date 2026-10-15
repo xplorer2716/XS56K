@@ -141,4 +141,8 @@ This plan implements the tasks in the format specified below.
   `sample-editor-connected.svg` and `sample-editor-writing.svg` generated and looked at as images. Then, at the owner's request, sliders for the four
   positions: a third test (a slider: track, thumb, value box, no knob) failed first, then passed (16 tests OK); tokens `slider.track`, `slider.thumb`,
   `slider.thumb.size` added.
+  Real run by the owner (S5000 OS 2.14, `100_1 001 100.000 BPM`, 2026-10-15): fine tune, root note, start and end, and the space bar's play and stop
+  OK. Owner's change: the group Playback renamed Trim (the sampler's page for start and end), the playback mode moved to Loop (its page on the
+  sampler); `EditorLayoutTests` and `EditTests` changed first, 52 app, layout and mockup tests passed. Open: moving loop start or loop end moves the
+  other, keeping the loop length, with the sampler's loop lock open; SysEx has no loop lock (§0E, manual p. 152); a reading in 4 steps is asked.
 - **Assumptions**: —

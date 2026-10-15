@@ -9,14 +9,14 @@
 
 namespace app::layouts
 {
-    inline constexpr std::array<LayoutParameter, 3> kSampleTab0Group0{{
+    inline constexpr std::array<LayoutParameter, 2> kSampleTab0Group0{{
         {"sample start position", "Start", Role::Sample, Control::Slider},
         {"sample end position", "End", Role::Sample, Control::Slider},
-        {"sample playback mode", "Mode", Role::Sample, Control::Choice},
     }};
-    inline constexpr std::array<LayoutParameter, 2> kSampleTab0Group1{{
+    inline constexpr std::array<LayoutParameter, 3> kSampleTab0Group1{{
         {"sample loop start", "Loop start", Role::Sample, Control::Slider},
         {"sample loop end", "Loop end", Role::Sample, Control::Slider},
+        {"sample playback mode", "Mode", Role::Sample, Control::Choice},
     }};
     inline constexpr std::array<LayoutParameter, 3> kSampleTab0Group2{{
         {"sample original pitch", "Root", Role::General, Control::ValueBox},
@@ -24,7 +24,7 @@ namespace app::layouts
         {"sample fine tune", "Fine", Role::General, Control::Knob},
     }};
     inline constexpr std::array<LayoutGroup, 3> kSampleTab0Groups{{
-        LayoutGroup{"Playback", kSampleTab0Group0},
+        LayoutGroup{"Trim", kSampleTab0Group0},
         LayoutGroup{"Loop", kSampleTab0Group1},
         LayoutGroup{"Pitch", kSampleTab0Group2},
     }};

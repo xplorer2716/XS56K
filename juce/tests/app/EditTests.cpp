@@ -48,7 +48,7 @@ namespace
     constexpr std::uint32_t KICK_RATE = 44100;
     constexpr std::int64_t FINE = 10;
     constexpr std::int64_t C3 = 60;
-    constexpr std::size_t PLAYBACK_GROUP_PARAMETERS = 3;
+    constexpr std::size_t TRIM_GROUP_PARAMETERS = 2;
     constexpr std::size_t TAB_PARAMETERS = 8;
     constexpr std::size_t INFO_ROWS = 4;
 
@@ -138,7 +138,7 @@ TEST_CASE("Given KICK, When it is selected in the memory view, Then the sample e
     CHECK(edit.layout->editor == "sample");
     REQUIRE(edit.values.size() == TAB_PARAMETERS);
     CHECK(edit.values[0].definition->name == "sample start position");
-    CHECK(edit.values[PLAYBACK_GROUP_PARAMETERS].definition->name == "sample loop start");
+    CHECK(edit.values[TRIM_GROUP_PARAMETERS].definition->name == "sample loop start");
     CHECK(fixture.shown("sample fine tune") == std::optional<std::int64_t>(FINE));
     CHECK(fixture.shown("sample original pitch") == std::optional<std::int64_t>(C3));
     CHECK(edit.values[0].max == KICK_LENGTH);  // a position stays within the sample [RQ-APP-088]
