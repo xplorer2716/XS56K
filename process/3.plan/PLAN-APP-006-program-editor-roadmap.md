@@ -69,7 +69,7 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   screen's (the MCP real run of PLAN-MCP-002 read back every value set). Diagnosed with the owner (2026-10-16): the S5000 applies the
   template and the key sent by SysEx (the per-key graphic of MIDI/TUNE shows the new tuning, and it is heard), but its fields TEMPLATE and KEY
   keep showing USER and C, even after leaving the page; the Get gives back the value sent. A firmware behaviour, nothing changed in the editor.
-  A template changed on the front panel is read back by "Read again" (owner, 2026-10-16).
+  A template changed on the front panel is read back by "Read again"; the other twelve parameters work (owner, 2026-10-16).
 - **Assumptions**: (1) The edit controller generalises from the sample catalogue to a catalogue chosen by the layout.
 
 ### TASK-APP-044: The Amp tab and the keygroup selector
