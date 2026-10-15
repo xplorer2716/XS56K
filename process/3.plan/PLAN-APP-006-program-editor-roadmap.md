@@ -89,7 +89,8 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   the Program tab shown and shown again with nothing read; every program group's scope against the catalogue) failed first to compile, then
   passed; 75 app cases; `ctest -C Debug`: 1219 passed; the editor built warning-clean. Real S5000 (OS 2.14) through `uia.ps1`: "New Program 1"
   opened on Envelopes, "Keygroup 1 of 1", the three rows in their colours, Amp 1 / 50 / 100 / 15 read, the pane scrolling (captured). The drag
-  of a breakpoint, a program of several keygroups and the tab clicks: the owner's to try.
+  of a breakpoint, a program of several keygroups and the tab clicks: the owner's to try. Owner, 2026-10-16: the envelopes, their graphs and
+  the tabs work; the velocity, depth and key parameters are still to be found and checked on the sampler's screens.
 - **Assumptions**: —
 
 ### TASK-APP-045: The Filter tab
