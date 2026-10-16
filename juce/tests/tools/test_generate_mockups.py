@@ -229,6 +229,35 @@ class RenderingAScreen(unittest.TestCase):
             self.render_type("2-POLE LP", shape_set="vowels")
         self.assertIn("vowels", str(raised.exception))
 
+    def render_zones(self, values):
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"] = [{"title": "Zones", "scope": "zone", "zones": 4, "parameters": [
+            {"name": "zone sample", "label": "Sample", "role": "sample", "control": "sample"},
+            {"name": "zone level", "label": "Level", "role": "amp", "control": "valuebox"}]}]
+        screen = copy.deepcopy(SCREEN)
+        screen["content"]["editor"]["values"] = values
+        return self.render(screen=screen, layout=layout)
+
+    def test_given_a_zone_grid_when_rendered_then_each_zone_is_a_column_and_each_parameter_a_row_labelled_once(self):
+        # The Keygroup tab's zones, as the sampler's ZONE page sets them out. [RQ-APP-057, RQ-APP-060, DEC-APP-033, TASK-APP-046]
+        svg = self.render_zones({"zone sample": [{"text": "KICK"}, {"text": "SNARE"}, {"text": ""}, {"text": ""}],
+                                 "zone level": [{"text": "0"}, {"text": "-3"}, {"text": "0"}, {"text": "0"}]})
+        heads = [float(re.search(rf'<text x="([\d.]+)"[^>]*>ZONE {zone}<', svg).group(1)) for zone in range(1, 5)]
+        self.assertEqual(heads, sorted(heads))
+        self.assertEqual(svg.count(">LEVEL<"), 1)
+        self.assertEqual(svg.count(">SAMPLE<"), 1)
+        kick_x = float(re.search(r'<text x="([\d.]+)"[^>]*>KICK<', svg).group(1))
+        snare_x = float(re.search(r'<text x="([\d.]+)"[^>]*>SNARE<', svg).group(1))
+        self.assertAlmostEqual(kick_x, heads[0])
+        self.assertAlmostEqual(snare_x, heads[1])
+        minus_x = float(re.search(r'<text x="([\d.]+)"[^>]*>-3<', svg).group(1))
+        self.assertAlmostEqual(minus_x, heads[1])
+        self.assertIn(">ZONE<", svg)  # the scope
+
+    def test_given_a_zone_with_no_sample_when_rendered_then_it_reads_none(self):
+        svg = self.render_zones({"zone sample": [{"text": "KICK"}, {"text": ""}, {"text": ""}, {"text": ""}]})
+        self.assertEqual(svg.count(">NONE<"), 3)
+
     def test_given_a_group_that_starts_a_row_when_rendered_then_it_is_drawn_under_the_first_at_the_left(self):
         # Two narrow groups would share a row; the second starts its own. [RQ-APP-094, DEC-APP-031, TASK-APP-044]
         layout = copy.deepcopy(LAYOUT)

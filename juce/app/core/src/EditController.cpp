@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -29,8 +30,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app
 {
-    // [RQ-APP-048, RQ-APP-053, RQ-APP-058, RQ-APP-086 to RQ-APP-088, RQ-APP-090, RQ-APP-093, RQ-APP-094, ADR-APP-004 (DEC-APP-025, DEC-APP-028,
-    // DEC-APP-030), TASK-APP-036, TASK-APP-041, TASK-APP-043, TASK-APP-044]
+    // [RQ-APP-048, RQ-APP-053, RQ-APP-058, RQ-APP-060, RQ-APP-086 to RQ-APP-088, RQ-APP-090, RQ-APP-093, RQ-APP-094, ADR-APP-004 (DEC-APP-025,
+    // DEC-APP-028, DEC-APP-030, DEC-APP-033), TASK-APP-036, TASK-APP-041, TASK-APP-043, TASK-APP-044, TASK-APP-046]
     namespace
     {
         constexpr const char* READING_LABEL = "Reading ";
@@ -42,6 +43,9 @@ namespace app
         constexpr const char* LOOP_START_NAME = "sample loop start";
         constexpr const char* LOOP_END_NAME = "sample loop end";
         constexpr const char* NO_VALUE = "The sampler answered no value.";
+        constexpr const char* ZONE_SAMPLE_NAME = "zone sample";
+        constexpr const char* OF_ZONE = " of zone ";
+        constexpr const char* NO_SAMPLE_REMOVAL = "The editor cannot remove a zone's sample yet: choose another sample. Nothing was sent.";
 
         using Value = mcp::Outcome<std::int64_t>;
         /// What making an item current brings back: a program's keygroup count, nothing for a sample.
@@ -55,9 +59,40 @@ namespace app
             std::string_view editor;
             const mcp::ParameterCatalogue& (*catalogue)();
             Selected (*select)(mcp::SamplerGateway&, const std::string&);
-            Value (*read)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, int keygroup);
-            Value (*write)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, std::int64_t, int keygroup);
+            Value (*read)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, int keygroup, int zone);
+            Value (*write)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, std::int64_t, int keygroup, int zone);
         };
+
+        /// A value of the tab to read: its catalogue row and its zone (1 to 4 in a zone grid, 0 otherwise). [DEC-APP-033]
+        struct Target
+        {
+            const mcp::ParameterDefinition* definition = nullptr;
+            int zone = 0;
+        };
+
+        /// The zone selection of a value: one zone in a grid, none asked for otherwise.
+        mcp::ZoneSelection zonesOf(int zone)
+        {
+            return zone > 0 ? mcp::ZoneSelection::of(zone) : mcp::ZoneSelection::all();
+        }
+
+        /// A zone's sample has no catalogue row: this one names it, a choice whose labels are the samples in memory. [RQ-APP-060, DEC-APP-033]
+        const mcp::ParameterDefinition& zoneSampleDefinition()
+        {
+            static const mcp::ParameterDefinition definition = [] {
+                mcp::ParameterDefinition made;
+                made.name = ZONE_SAMPLE_NAME;
+                made.scope = mcp::ParameterScope::Zone;
+                made.kind = mcp::ParameterKind::Choice;
+                return made;
+            }();
+            return definition;
+        }
+
+        bool isZoneSample(const mcp::ParameterDefinition* definition)
+        {
+            return definition == &zoneSampleDefinition();
+        }
 
         /// A program parameter's one value: of the program, or of the keygroup asked for.
         Value programValue(const mcp::Outcome<std::vector<mcp::ParameterValue>>& values)
@@ -75,12 +110,13 @@ namespace app
             return selected.ok() ? Selected::success(std::nullopt) : Selected::failure(selected.problem);
         }
 
-        Value readSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int /*keygroup*/)
+        Value readSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int /*keygroup*/, int /*zone*/)
         {
             return gateway.readSampleParameter(parameter);
         }
 
-        Value writeSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int /*keygroup*/)
+        Value writeSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int /*keygroup*/,
+                          int /*zone*/)
         {
             return gateway.writeSampleParameter(parameter, value);
         }
@@ -91,15 +127,16 @@ namespace app
             return selected.ok() ? Selected::success(selected.value->keygroupCount) : Selected::failure(selected.problem);
         }
 
-        // A program parameter takes no keygroup: the gateway leaves the selection aside for it. [RQ-APP-094]
-        Value readProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int keygroup)
+        // A program parameter takes no keygroup: the gateway leaves the selection aside for it; a zone's, the zone of its column. [RQ-APP-094,
+        // DEC-APP-033]
+        Value readProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int keygroup, int zone)
         {
-            return programValue(gateway.readParameter(parameter, mcp::KeygroupSelection::of(keygroup)));
+            return programValue(gateway.readParameter(parameter, mcp::KeygroupSelection::of(keygroup), zonesOf(zone)));
         }
 
-        Value writeProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int keygroup)
+        Value writeProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int keygroup, int zone)
         {
-            return programValue(gateway.writeParameter(parameter, value, mcp::KeygroupSelection::of(keygroup)));
+            return programValue(gateway.writeParameter(parameter, value, mcp::KeygroupSelection::of(keygroup), zonesOf(zone)));
         }
 
         const std::array<Binding, 2> BINDINGS{{
@@ -133,7 +170,22 @@ namespace app
         {
             const auto& rows = binding.catalogue().parameters();
             const auto found = std::ranges::find_if(rows, [name](const mcp::ParameterDefinition& row) { return row.name == name; });
-            return found == rows.end() ? nullptr : std::to_address(found);
+            if (found != rows.end())
+                return std::to_address(found);
+            return binding.kind == MemoryKind::Program && name == ZONE_SAMPLE_NAME ? &zoneSampleDefinition() : nullptr;
+        }
+
+        /// A group's values: one per parameter, or, in a zone grid, one per parameter and zone, parameter by parameter. [DEC-APP-033]
+        void addGroupValues(const Binding& binding, const layouts::LayoutGroup& group, std::vector<EditValue>& into)
+        {
+            for (const layouts::LayoutParameter& parameter : group.parameters)
+            {
+                const mcp::ParameterDefinition* definition = definitionOf(binding, parameter.name);
+                if (definition == nullptr)
+                    continue;
+                for (int zone = group.zones > 0 ? 1 : 0; zone <= group.zones; ++zone)
+                    into.emplace_back(definition, &parameter, 0, definition->min, definition->max, false, zone);
+            }
         }
 
         /// The tab's parameters in the layout's order, then the catalogue's read-only rows, each with the catalogue's range; nothing read yet.
@@ -147,13 +199,7 @@ namespace app
             if (layout == nullptr || tab >= layout->tabs.size() || binding == nullptr)
                 return state;
             for (const layouts::LayoutGroup& group : layout->tabs[state.tab].groups)
-            {
-                for (const layouts::LayoutParameter& parameter : group.parameters)
-                {
-                    if (const mcp::ParameterDefinition* definition = definitionOf(*binding, parameter.name))
-                        state.values.emplace_back(definition, &parameter, 0, definition->min, definition->max, false);
-                }
-            }
+                addGroupValues(*binding, group, state.values);
             for (const mcp::ParameterDefinition& definition : binding->catalogue().parameters())
             {
                 if (definition.readOnly)
@@ -170,21 +216,67 @@ namespace app
             std::vector<std::int64_t> info;
             std::optional<int> keygroups;
             int keygroup = 1;
+            std::vector<std::string> samples;
         };
 
-        using Definitions = std::vector<const mcp::ParameterDefinition*>;
+        using Definitions = std::vector<Target>;
 
-        /// Each parameter of `rows` read from the current item, into `into`; the problem of the first that fails.
-        std::optional<std::string> readInto(const Binding& binding, mcp::SamplerGateway& gateway, const Definitions& rows, int keygroup,
-                                            std::vector<std::int64_t>& into)
+        /// The samples in memory and the sample of each zone of a keygroup, read once for all the zone samples of a tab. [RQ-APP-060]
+        struct ZoneSamples
         {
-            for (const mcp::ParameterDefinition* definition : rows)
+            bool read = false;
+            std::vector<std::string> memory;
+            std::vector<mcp::ZoneSampleEntry> zones;
+        };
+
+        std::optional<std::string> readZoneSamples(mcp::SamplerGateway& gateway, int keygroup, ZoneSamples& samples)
+        {
+            const auto listing = gateway.listSamples();
+            if (!listing.ok())
+                return listing.problem;
+            const auto zones = gateway.readZoneSamples(mcp::KeygroupSelection::of(keygroup));
+            if (!zones.ok())
+                return zones.problem;
+            samples.memory.clear();
+            for (const mcp::SampleEntry& entry : listing.value->samples)
+                samples.memory.push_back(entry.name);
+            samples.zones = zones.value->entries;
+            samples.read = true;
+            return std::nullopt;
+        }
+
+        /// A zone's sample as a value: 1 plus its place among the samples in memory, 0 when the zone has none. [RQ-APP-060, DEC-APP-033]
+        std::int64_t zoneSampleValue(const ZoneSamples& samples, int zone)
+        {
+            const auto entry = std::ranges::find_if(samples.zones, [zone](const mcp::ZoneSampleEntry& found) { return found.zone == zone; });
+            if (entry == samples.zones.end() || entry->sample.empty())
+                return 0;
+            const auto place = std::ranges::find(samples.memory, entry->sample);
+            return place == samples.memory.end() ? 0 : static_cast<std::int64_t>(std::distance(samples.memory.begin(), place)) + 1;
+        }
+
+        /// Each value of `rows` read from the current item, into `into`, and the samples in memory into `memory` when a zone's sample is
+        /// among them; the problem of the first that fails.
+        std::optional<std::string> readInto(const Binding& binding, mcp::SamplerGateway& gateway, const Definitions& rows, int keygroup,
+                                            std::vector<std::int64_t>& into, std::vector<std::string>& memory)
+        {
+            ZoneSamples samples;
+            for (const Target& target : rows)
             {
-                const auto read = binding.read(gateway, *definition, keygroup);
+                if (isZoneSample(target.definition))
+                {
+                    if (const auto problem = samples.read ? std::nullopt : readZoneSamples(gateway, keygroup, samples))
+                        return problem;
+                    into.push_back(zoneSampleValue(samples, target.zone));
+                    continue;
+                }
+                const auto read = binding.read(gateway, *target.definition, keygroup, target.zone);
                 if (!read.ok())
                     return read.problem;
                 into.push_back(*read.value);
             }
+            if (samples.read)
+                memory = samples.memory;
             return std::nullopt;
         }
 
@@ -200,7 +292,7 @@ namespace app
             reading.keygroup = reading.keygroups.has_value() && keygroup > *reading.keygroups ? 1 : keygroup;  // the program lost keygroups meanwhile
             for (const auto& [rows, into] : {std::pair{&values, &reading.values}, std::pair{&info, &reading.info}})
             {
-                if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into))
+                if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into, reading.samples))
                     return mcp::Outcome<Reading>::failure(*problem);
             }
             return mcp::Outcome<Reading>::success(std::move(reading));
@@ -212,11 +304,33 @@ namespace app
         {
             std::optional<std::string> problem;
             std::vector<std::int64_t> values;
+            std::vector<std::string> samples;
         };
 
-        Written writeOn(const Binding& binding, mcp::SamplerGateway& gateway, const std::string& item, const mcp::ParameterDefinition& parameter,
-                        std::int64_t value, const Definitions& tab, int keygroup)
+        /// What a value is written to: its row, its zone, and the samples in memory a zone's sample is chosen among.
+        struct Write
         {
+            const mcp::ParameterDefinition* parameter = nullptr;
+            int zone = 0;
+            std::vector<std::string> samples;
+        };
+
+        /// One write on the sampler: a zone's sample assigned by name, any other value set; the problem, if any. [RQ-APP-060, DEC-APP-033]
+        std::optional<std::string> setOn(const Binding& binding, mcp::SamplerGateway& gateway, const Write& target, std::int64_t value, int keygroup)
+        {
+            if (isZoneSample(target.parameter))
+            {
+                const auto assigned = gateway.assignZoneSample(keygroup, target.zone, target.samples[static_cast<std::size_t>(value - 1)]);
+                return assigned.ok() ? std::nullopt : std::optional<std::string>(assigned.problem);
+            }
+            const auto set = binding.write(gateway, *target.parameter, value, keygroup, target.zone);
+            return set.ok() ? std::nullopt : std::optional<std::string>(set.problem);
+        }
+
+        Written writeOn(const Binding& binding, mcp::SamplerGateway& gateway, const std::string& item, const Write& target, std::int64_t value,
+                        const Definitions& tab, int keygroup)
+        {
+            const mcp::ParameterDefinition& parameter = *target.parameter;
             Written written;
             if (const auto selected = binding.select(gateway, item); !selected.ok())
             {
@@ -229,17 +343,17 @@ namespace app
             const mcp::ParameterDefinition* loopStartParameter = definitionOf(binding, LOOP_START_NAME);
             if (parameter.name == LOOP_END_NAME && loopStartParameter != nullptr)
             {
-                if (const auto read = binding.read(gateway, *loopStartParameter, keygroup); read.ok() && *read.value <= value)
+                if (const auto read = binding.read(gateway, *loopStartParameter, keygroup, 0); read.ok() && *read.value <= value)
                     loopStart = *read.value;
             }
-            if (const auto set = binding.write(gateway, parameter, value, keygroup); !set.ok())
-                written.problem = set.problem;
+            if (const auto problem = setOn(binding, gateway, target, value, keygroup))
+                written.problem = problem;
             else if (loopStart.has_value())
             {
-                if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart, keygroup); !again.ok())
+                if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart, keygroup, 0); !again.ok())
                     written.problem = again.problem;
             }
-            if (const auto problem = readInto(binding, gateway, tab, keygroup, written.values))
+            if (const auto problem = readInto(binding, gateway, tab, keygroup, written.values, written.samples))
             {
                 written.problem = written.problem ? *written.problem + " " + *problem : *problem;
                 written.values.clear();
@@ -259,6 +373,7 @@ namespace app
             EditState next = now;
             next.keygroups = reading.keygroups;
             next.keygroup = reading.keygroup;
+            next.samples = reading.samples;
             std::int64_t length = 0;
             for (std::size_t i = 0; i < next.info.size() && i < reading.info.size(); ++i)
             {
@@ -272,6 +387,8 @@ namespace app
                 value.value = reading.values[i];
                 if (value.definition->unit == POSITION_UNIT)
                     value.max = length;
+                if (isZoneSample(value.definition))
+                    value.max = static_cast<std::int64_t>(next.samples.size());  // [RQ-APP-060]
             }
             return next;
         }
@@ -280,6 +397,8 @@ namespace app
         EditState withWritten(const EditState& now, std::size_t index, const Written& written, bool waiting)
         {
             EditState next = now;
+            if (!written.samples.empty())
+                next.samples = written.samples;
             for (std::size_t i = 0; i < next.values.size() && i < written.values.size(); ++i)
                 next.values[i].value = written.values[i];
             next.values[index].pending = waiting;
@@ -293,19 +412,20 @@ namespace app
             return lower;
         }
 
-        /// The value shown for `name`, if the tab has it.
-        std::optional<std::int64_t> shownValue(const EditState& state, std::string_view name)
+        /// The value shown for `name` in `zone` (0 outside a zone grid), if the tab has it.
+        std::optional<std::int64_t> shownValue(const EditState& state, std::string_view name, int zone)
         {
             for (const EditValue& value : state.values)
             {
-                if (value.definition->name == name)
+                if (value.definition->name == name && value.zone == zone)
                     return value.value;
             }
             return std::nullopt;
         }
 
         /// The range a value may take now: its own, narrowed by its nearest neighbours in each order of the layout; a neighbour outside the
-        /// value's own range (2^28 - 1, a loop start the S5000 pushed below 0) bounds nothing. [RQ-APP-088, RQ-APP-092, DEC-APP-029]
+        /// value's own range (2^28 - 1, a loop start the S5000 pushed below 0) bounds nothing; in a zone grid, its neighbours of the same zone.
+        /// [RQ-APP-088, RQ-APP-092, DEC-APP-029, DEC-APP-033]
         std::pair<std::int64_t, std::int64_t> rangeOf(const EditState& state, const EditValue& shown)
         {
             std::int64_t min = shown.min;
@@ -318,7 +438,7 @@ namespace app
                     continue;
                 for (auto before = at; before != order.begin();)
                 {
-                    if (const auto value = shownValue(state, *--before); value && within(*value))
+                    if (const auto value = shownValue(state, *--before, shown.zone); value && within(*value))
                     {
                         min = std::max(min, *value);
                         break;
@@ -326,7 +446,7 @@ namespace app
                 }
                 for (auto after = at + 1; after != order.end(); ++after)
                 {
-                    if (const auto value = shownValue(state, *after); value && within(*value))
+                    if (const auto value = shownValue(state, *after, shown.zone); value && within(*value))
                     {
                         max = std::min(max, *value);
                         break;
@@ -340,8 +460,17 @@ namespace app
         {
             Definitions definitions;
             for (const EditValue& value : values)
-                definitions.push_back(value.definition);
+                definitions.push_back(Target{value.definition, value.zone});
             return definitions;
+        }
+
+        /// What the person reads in the busy line: "Setting the level of zone 2 of PAD". [RQ-APP-052]
+        std::string settingLabel(const EditValue& shown, const std::string& item)
+        {
+            std::string label = SETTING_LABEL + lowerCase(shown.layout->label);
+            if (shown.zone > 0)
+                label += OF_ZONE + std::to_string(shown.zone);
+            return label + OF + item;
         }
     }
 
@@ -441,7 +570,12 @@ namespace app
         if (state.layout == nullptr || index >= state.values.size())
             return;
         const EditValue& shown = state.values[index];
-        const std::string label = SETTING_LABEL + lowerCase(shown.layout->label) + OF + state.item->name;
+        const std::string label = settingLabel(shown, state.item->name);
+        if (isZoneSample(shown.definition) && value == 0)
+        {
+            _model.setProblem(Problem{label, NO_SAMPLE_REMOVAL});  // the gateway assigns a sample, it cannot remove one [RQ-APP-060]
+            return;
+        }
         const auto [min, max] = rangeOf(state, shown);
         if (value < min || value > max)
         {
@@ -472,13 +606,13 @@ namespace app
         const EditState& state = _model.edit();
         const MemoryItem item = *state.item;
         const EditValue& shown = state.values[index];
-        const std::string label = SETTING_LABEL + lowerCase(shown.layout->label) + OF + item.name;
+        const std::string label = settingLabel(shown, item.name);
         _writing.insert(index);
         const bool queued = _controller.runOnSampler<Written>(
             label,
-            [binding = bindingOf(state), name = item.name, parameter = shown.definition, value, tab = definitionsOf(state.values),
-             keygroup = state.keygroup](mcp::SamplerGateway& gateway) {
-                return mcp::Outcome<Written>::success(writeOn(*binding, gateway, name, *parameter, value, tab, keygroup));
+            [binding = bindingOf(state), name = item.name, target = Write{shown.definition, shown.zone, state.samples}, value,
+             tab = definitionsOf(state.values), keygroup = state.keygroup](mcp::SamplerGateway& gateway) {
+                return mcp::Outcome<Written>::success(writeOn(*binding, gateway, name, target, value, tab, keygroup));
             },
             [this, alive = std::weak_ptr<int>(_alive), item, index, label, tab = state.tab, keygroup = state.keygroup](const Written& written) {
                 if (alive.expired())

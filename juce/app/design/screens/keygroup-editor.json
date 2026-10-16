@@ -1,0 +1,587 @@
+{
+  "_comment": "The main window with the program editor's Keygroup tab (FTR-APP-008): the key span, the keygroup's options, and its four zones side by side, a column each, as the sampler's ZONE page. Example content only, no visual value (those are the tokens'). [RQ-APP-074, RQ-APP-057, RQ-APP-060, RQ-APP-092, ADR-APP-003 (DEC-APP-018), ADR-APP-004 (DEC-APP-033), TASK-APP-046]",
+  "name": "keygroup-editor",
+  "size": [
+    1280,
+    800
+  ],
+  "leftWidth": 300,
+  "browserShare": 0.5,
+  "menu": [
+    "XS56K",
+    "Sampler",
+    "MIDI"
+  ],
+  "content": {
+    "browser": {
+      "path": "S5K:\\DrumsLoops",
+      "rows": [
+        {
+          "kind": "disk",
+          "name": "S5K",
+          "depth": 0,
+          "detail": "FAT32"
+        },
+        {
+          "kind": "folder",
+          "name": "DrumsLoops",
+          "depth": 1,
+          "current": true
+        },
+        {
+          "kind": "sample",
+          "name": "KICK.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "sample",
+          "name": "SNARE.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "folder",
+          "name": "MoogBass",
+          "depth": 1
+        }
+      ]
+    },
+    "memory": {
+      "free": "150.3 MB free of 151.2 MB (99 %)",
+      "kinds": [
+        {
+          "title": "Multis",
+          "items": []
+        },
+        {
+          "title": "Programs",
+          "items": [
+            {
+              "name": "PAD",
+              "current": true,
+              "selected": true
+            },
+            {
+              "name": "BASS"
+            }
+          ]
+        },
+        {
+          "title": "Samples",
+          "items": [
+            {
+              "name": "KICK"
+            },
+            {
+              "name": "SNARE"
+            },
+            {
+              "name": "HAT"
+            }
+          ]
+        },
+        {
+          "title": "Song files",
+          "items": []
+        },
+        {
+          "title": "Set lists",
+          "items": []
+        },
+        {
+          "title": "Scenelists",
+          "items": []
+        }
+      ]
+    },
+    "editor": {
+      "item": "PAD",
+      "kind": "Program",
+      "layout": "program",
+      "tab": "Keygroup",
+      "values": {
+        "keygroup low note": {
+          "text": "C1"
+        },
+        "keygroup high note": {
+          "text": "G8"
+        },
+        "keygroup semitone tune": {
+          "text": "0",
+          "fraction": 0.5
+        },
+        "keygroup fine tune": {
+          "text": "0",
+          "fraction": 0.5
+        },
+        "keygroup mute group": {
+          "text": "0",
+          "fraction": 0.0
+        },
+        "keygroup fx override": {
+          "text": "OFF"
+        },
+        "keygroup fx send level": {
+          "text": "25",
+          "fraction": 0.25
+        },
+        "keygroup zone crossfade": {
+          "text": "OFF"
+        },
+        "keygroup crossfade": {
+          "text": "OFF"
+        },
+        "zone sample": [
+          {
+            "text": "KICK"
+          },
+          {
+            "text": "SNARE"
+          },
+          {
+            "text": ""
+          },
+          {
+            "text": ""
+          }
+        ],
+        "zone level": [
+          {
+            "text": "0"
+          },
+          {
+            "text": "-3"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          }
+        ],
+        "zone pan": [
+          {
+            "text": "0"
+          },
+          {
+            "text": "-10"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          }
+        ],
+        "zone semitone tune": [
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          }
+        ],
+        "zone fine tune": [
+          {
+            "text": "0"
+          },
+          {
+            "text": "+5"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          }
+        ],
+        "zone low velocity": [
+          {
+            "text": "0"
+          },
+          {
+            "text": "64"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          }
+        ],
+        "zone high velocity": [
+          {
+            "text": "63"
+          },
+          {
+            "text": "127"
+          },
+          {
+            "text": "127"
+          },
+          {
+            "text": "127"
+          }
+        ],
+        "zone velocity to start": [
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          }
+        ],
+        "zone playback": [
+          {
+            "text": "AS SAMPLE"
+          },
+          {
+            "text": "ONE SHOT"
+          },
+          {
+            "text": "AS SAMPLE"
+          },
+          {
+            "text": "AS SAMPLE"
+          }
+        ],
+        "zone output": [
+          {
+            "text": "MULTI"
+          },
+          {
+            "text": "MULTI"
+          },
+          {
+            "text": "MULTI"
+          },
+          {
+            "text": "MULTI"
+          }
+        ],
+        "zone filter": [
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          },
+          {
+            "text": "0"
+          }
+        ],
+        "zone keyboard tracking": [
+          {
+            "text": "ON"
+          },
+          {
+            "text": "ON"
+          },
+          {
+            "text": "ON"
+          },
+          {
+            "text": "ON"
+          }
+        ],
+        "zone mute": [
+          {
+            "text": "OFF"
+          },
+          {
+            "text": "OFF"
+          },
+          {
+            "text": "OFF"
+          },
+          {
+            "text": "OFF"
+          }
+        ],
+        "zone solo": [
+          {
+            "text": "OFF"
+          },
+          {
+            "text": "OFF"
+          },
+          {
+            "text": "OFF"
+          },
+          {
+            "text": "OFF"
+          }
+        ]
+      },
+      "keygroup": "KEYGROUP 1 OF 2"
+    }
+  },
+  "states": {
+    "connected": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0"
+      }
+    },
+    "writing": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0",
+        "busy": "Setting the sample of zone 3"
+      },
+      "editor": {
+        "item": "PAD",
+        "kind": "Program",
+        "layout": "program",
+        "tab": "Keygroup",
+        "values": {
+          "keygroup low note": {
+            "text": "C1"
+          },
+          "keygroup high note": {
+            "text": "G8"
+          },
+          "keygroup semitone tune": {
+            "text": "0",
+            "fraction": 0.5
+          },
+          "keygroup fine tune": {
+            "text": "0",
+            "fraction": 0.5
+          },
+          "keygroup mute group": {
+            "text": "0",
+            "fraction": 0.0
+          },
+          "keygroup fx override": {
+            "text": "OFF"
+          },
+          "keygroup fx send level": {
+            "text": "25",
+            "fraction": 0.25
+          },
+          "keygroup zone crossfade": {
+            "text": "OFF"
+          },
+          "keygroup crossfade": {
+            "text": "OFF"
+          },
+          "zone sample": [
+            {
+              "text": "KICK"
+            },
+            {
+              "text": "SNARE"
+            },
+            {
+              "text": "HAT"
+            },
+            {
+              "text": ""
+            }
+          ],
+          "zone level": [
+            {
+              "text": "0"
+            },
+            {
+              "text": "-3"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            }
+          ],
+          "zone pan": [
+            {
+              "text": "0"
+            },
+            {
+              "text": "-10"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            }
+          ],
+          "zone semitone tune": [
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            }
+          ],
+          "zone fine tune": [
+            {
+              "text": "0"
+            },
+            {
+              "text": "+5"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            }
+          ],
+          "zone low velocity": [
+            {
+              "text": "0"
+            },
+            {
+              "text": "64"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            }
+          ],
+          "zone high velocity": [
+            {
+              "text": "63"
+            },
+            {
+              "text": "127"
+            },
+            {
+              "text": "127"
+            },
+            {
+              "text": "127"
+            }
+          ],
+          "zone velocity to start": [
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            }
+          ],
+          "zone playback": [
+            {
+              "text": "AS SAMPLE"
+            },
+            {
+              "text": "ONE SHOT"
+            },
+            {
+              "text": "AS SAMPLE"
+            },
+            {
+              "text": "AS SAMPLE"
+            }
+          ],
+          "zone output": [
+            {
+              "text": "MULTI"
+            },
+            {
+              "text": "MULTI"
+            },
+            {
+              "text": "MULTI"
+            },
+            {
+              "text": "MULTI"
+            }
+          ],
+          "zone filter": [
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            },
+            {
+              "text": "0"
+            }
+          ],
+          "zone keyboard tracking": [
+            {
+              "text": "ON"
+            },
+            {
+              "text": "ON"
+            },
+            {
+              "text": "ON"
+            },
+            {
+              "text": "ON"
+            }
+          ],
+          "zone mute": [
+            {
+              "text": "OFF"
+            },
+            {
+              "text": "OFF"
+            },
+            {
+              "text": "OFF"
+            },
+            {
+              "text": "OFF"
+            }
+          ],
+          "zone solo": [
+            {
+              "text": "OFF"
+            },
+            {
+              "text": "OFF"
+            },
+            {
+              "text": "OFF"
+            },
+            {
+              "text": "OFF"
+            }
+          ]
+        },
+        "pending": [
+          "zone sample@3"
+        ],
+        "keygroup": "KEYGROUP 1 OF 2"
+      }
+    }
+  }
+}

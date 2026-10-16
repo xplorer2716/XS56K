@@ -152,10 +152,11 @@
 <rect x="1152" y="324" width="64" height="20" fill="#202125" rx="3"/>
 <text x="1184" y="339" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">0</text>
 <rect x="316" y="736" width="956" height="28" fill="#2A2B30" rx="6"/>
-<text x="390.5" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">ENVELOPES</text>
-<text x="504" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">FILTER</text>
-<text x="604.5" y="754.33" font-size="13" font-weight="500" fill="#ECECEF" text-anchor="middle" letter-spacing="0.5">PROGRAM</text>
-<rect x="551" y="736" width="107" height="2" fill="#A897F2"/>
+<text x="384" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">KEYGROUP</text>
+<text x="510.5" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">ENVELOPES</text>
+<text x="624" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">FILTER</text>
+<text x="724.5" y="754.33" font-size="13" font-weight="500" fill="#ECECEF" text-anchor="middle" letter-spacing="0.5">PROGRAM</text>
+<rect x="671" y="736" width="107" height="2" fill="#A897F2"/>
 <rect x="0" y="772" width="1280" height="28" fill="#2A2B30"/>
 <circle cx="12" cy="786" r="4" fill="#6CCB7A"/>
 <text x="24" y="791" font-size="15" font-weight="400" fill="#ECECEF">Connected: AKAI S5000, OS 2.14, DeviceID 0</text>

@@ -29,6 +29,7 @@ namespace app::ui
         constexpr int CHOICE_CELLS = 2;  // a choice and a value box alone: two knob cells, as in the mockups
         constexpr int SLIDER_CELLS = 3;
         constexpr int FIRST_ITEM_ID = 1;  // a ComboBox item id is the choice's code plus one: 0 means no selection
+        constexpr const char* NO_SAMPLE = "NONE";  // a zone that plays no sample, as the mockups write it [RQ-APP-060]
         // The knob's arc as the mockups draw it (KNOB_START_DEGREES 135, KNOB_SWEEP_DEGREES 270 of generate_mockups.py, from the right
         // clockwise): from the bottom left, through the top, to the bottom right; JUCE counts from the top.
         constexpr float KNOB_START = juce::MathConstants<float>::pi * 1.25f;
@@ -62,6 +63,7 @@ namespace app::ui
         {
             case Choice:
             case ValueBox:
+            case Sample:
                 return CHOICE_CELLS;
             case Slider:
                 return SLIDER_CELLS;
@@ -84,8 +86,8 @@ namespace app::ui
         return pixels(kKnobSizeDefault + kSpaceBetween + kFontLabelSize + kSizeSpace1 + kValueboxHeight);
     }
 
-    ParameterCell::ParameterCell(LookAndFeel& lookAndFeel, const layouts::LayoutParameter& parameter)
-        : _lookAndFeel(lookAndFeel), _parameter(parameter)
+    ParameterCell::ParameterCell(LookAndFeel& lookAndFeel, const layouts::LayoutParameter& parameter, bool inGrid)
+        : _lookAndFeel(lookAndFeel), _parameter(parameter), _inGrid(inGrid)
     {
         using namespace tokens;
         _label.setText(juce::String(std::string(parameter.label)).toUpperCase(), juce::dontSendNotification);
@@ -93,7 +95,8 @@ namespace app::ui
         _label.setColour(juce::Label::textColourId, colourOf(kColourTextSecondary));
         _label.setJustificationType(juce::Justification::centred);
         _label.setBorderSize({});
-        addAndMakeVisible(_label);
+        if (!inGrid)
+            addAndMakeVisible(_label);  // a grid labels its row once [DEC-APP-033]
 
         // The value box: the exact value, typed. [RQ-APP-051]
         _box.setFont(_lookAndFeel.font(kFontValueSize));
@@ -103,7 +106,8 @@ namespace app::ui
         _box.setBorderSize({});
         _box.setEditable(true, true, false);
         _box.onTextChange = [this] { valueBoxEdited(); };
-        if (parameter.control != layouts::Control::Choice)
+        const bool chosen = parameter.control == layouts::Control::Choice || parameter.control == layouts::Control::Sample;
+        if (!chosen)
             addAndMakeVisible(_box);
 
         const juce::Colour colour = roleColour(parameter.role);
@@ -128,7 +132,7 @@ namespace app::ui
                 show(_shown);
             }
         };
-        if (parameter.control == layouts::Control::Choice)
+        if (chosen)
             addAndMakeVisible(_choice);
     }
 
@@ -150,7 +154,7 @@ namespace app::ui
         _slider.setColour(juce::Slider::rotarySliderFillColourId, colour);
         _slider.setColour(juce::Slider::trackColourId, colour);
 
-        if (_choice.getNumItems() == 0)
+        if (_choice.getNumItems() == 0 && _parameter.control != layouts::Control::Sample)
         {
             int id = FIRST_ITEM_ID;
             for (const std::string& label : value.definition->labels)
@@ -160,6 +164,20 @@ namespace app::ui
         _choice.setColour(juce::ComboBox::textColourId, colourOf(value.pending ? kColourStatusPending : kChoiceText));
         if (!_parameter.shapes.empty())
             repaint();  // the shape follows the value shown [RQ-APP-096]
+    }
+
+    void ParameterCell::setSamples(const std::vector<std::string>& samples)
+    {
+        if (samples == _samples && _choice.getNumItems() > 0)
+            return;
+        _samples = samples;
+        const juce::ScopedValueSetter<bool> showing(_showing, true);
+        _choice.clear(juce::dontSendNotification);
+        _choice.addItem(NO_SAMPLE, FIRST_ITEM_ID);  // value 0 [RQ-APP-060, DEC-APP-033]
+        int id = FIRST_ITEM_ID + 1;
+        for (const std::string& sample : samples)
+            _choice.addItem(juce::String(sample), id++);
+        _choice.setSelectedId(static_cast<int>(_shown.value) + FIRST_ITEM_ID, juce::dontSendNotification);
     }
 
     void ParameterCell::paint(juce::Graphics& g)
@@ -202,6 +220,13 @@ namespace app::ui
         using enum app::layouts::Control;
         using namespace tokens;
         auto area = getLocalBounds().reduced(pixels(kSizeSpace1), 0);
+        if (_inGrid)
+        {
+            // A zone grid's cell: its control alone, a row high. [DEC-APP-033]
+            _box.setBounds(area);
+            _choice.setBounds(area);
+            return;
+        }
         auto top = area.removeFromTop(pixels(kKnobSizeDefault));
         area.removeFromTop(pixels(kSpaceBetween));
         const auto label = area.removeFromTop(pixels(kFontLabelSize));
@@ -214,6 +239,7 @@ namespace app::ui
                 _slider.setBounds(top.withSizeKeepingCentre(pixels(kKnobSizeDefault), pixels(kKnobSizeDefault)));
                 _box.setBounds(bottom);
                 break;
+            case Sample:
             case Choice:
                 if (_parameter.shapes.empty())
                 {

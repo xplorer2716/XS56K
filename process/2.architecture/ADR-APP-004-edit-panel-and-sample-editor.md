@@ -77,6 +77,16 @@ role's colour on `envelope.surface` with `stroke.arc` (the mockups the same); a 
 shapes are the user manual's (EDIT PROGRAM, FILTER MODE, pp. 114 to 118), 19 of 26; the other seven are not drawn there and await the owner's.
 [RQ-APP-096, RQ-APP-057]
 
+### DEC-APP-033: The zones are a grid, one column per zone; a zone's sample is chosen by name
+A group of `zone` scope may say `"zones": 4`: it is drawn as the sampler's ZONE page sets the zones out (owner, 2026-10-16), a column per zone
+under its number and a row per parameter, labelled once; each cell a value box or a choice, a row high (`generate_design.py` refuses another
+control there, a grid of another scope, more than four columns). The edit state holds a value per parameter and zone (`EditValue::zone`, 0
+outside a grid), each read and written with that zone's selection; an order bounds a value by its neighbours of the same zone. A zone's sample
+is the control `sample`, which only a grid has and no catalogue row backs: the controller reads the samples in memory with the tab
+(`EditState::samples`) and the keygroup's zone samples, a value being 1 plus the sample's place, 0 none; a choice is assigned by name
+(`assignZoneSample`) and read back. Choosing no sample is refused with nothing sent: the gateway cannot remove a zone's sample yet.
+[RQ-APP-057, RQ-APP-060, RQ-APP-092]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

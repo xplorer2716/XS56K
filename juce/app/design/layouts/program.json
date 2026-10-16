@@ -1,7 +1,36 @@
 {
-  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031), TASK-APP-045]",
+  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031, DEC-APP-033), TASK-APP-045, TASK-APP-046]",
   "editor": "program",
+  "orders": [["keygroup low note", "keygroup high note"], ["zone low velocity", "zone high velocity"]],
   "tabs": [
+    {"title": "Keygroup", "groups": [
+      {"title": "Key span", "scope": "keygroup", "parameters": [
+        {"name": "keygroup low note", "label": "Low", "role": "general", "control": "valuebox"},
+        {"name": "keygroup high note", "label": "High", "role": "general", "control": "valuebox"},
+        {"name": "keygroup semitone tune", "label": "Semi", "role": "general", "control": "knob"},
+        {"name": "keygroup fine tune", "label": "Fine", "role": "general", "control": "knob"}]},
+      {"title": "Keygroup", "scope": "keygroup", "parameters": [
+        {"name": "keygroup mute group", "label": "Mute grp", "role": "general", "control": "knob"},
+        {"name": "keygroup fx override", "label": "FX", "role": "general", "control": "choice"},
+        {"name": "keygroup fx send level", "label": "FX send", "role": "general", "control": "knob"},
+        {"name": "keygroup zone crossfade", "label": "Zone xfade", "role": "general", "control": "choice"}]},
+      {"title": "Zones", "scope": "zone", "zones": 4, "row": true, "parameters": [
+        {"name": "zone sample", "label": "Sample", "role": "sample", "control": "sample"},
+        {"name": "zone level", "label": "Level", "role": "amp", "control": "valuebox"},
+        {"name": "zone pan", "label": "Pan", "role": "amp", "control": "valuebox"},
+        {"name": "zone semitone tune", "label": "Semi", "role": "general", "control": "valuebox"},
+        {"name": "zone fine tune", "label": "Fine", "role": "general", "control": "valuebox"},
+        {"name": "zone low velocity", "label": "Vel low", "role": "general", "control": "valuebox"},
+        {"name": "zone high velocity", "label": "Vel high", "role": "general", "control": "valuebox"},
+        {"name": "zone velocity to start", "label": "Vel>Start", "role": "sample", "control": "valuebox"},
+        {"name": "zone playback", "label": "Playback", "role": "sample", "control": "choice"},
+        {"name": "zone output", "label": "Output", "role": "general", "control": "choice"},
+        {"name": "zone filter", "label": "Filter", "role": "filter", "control": "valuebox"},
+        {"name": "zone keyboard tracking", "label": "Key track", "role": "general", "control": "choice"},
+        {"name": "zone mute", "label": "Mute", "role": "general", "control": "choice"},
+        {"name": "zone solo", "label": "Solo", "role": "general", "control": "choice"}]},
+      {"title": "Xfade", "scope": "program", "parameters": [
+        {"name": "keygroup crossfade", "label": "Keygroups", "role": "general", "control": "choice"}]}]},
     {"title": "Envelopes", "groups": [
       {"title": "Amp envelope", "scope": "keygroup",
        "envelope": [

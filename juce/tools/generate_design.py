@@ -28,7 +28,9 @@ DEFAULT_DOC = ROOT / "process" / "1.requirements" / "DESIGN-SYSTEM-APP.md"
 DEFAULT_LAYOUTS = ROOT / "juce" / "app" / "design" / "layouts"
 DEFAULT_SHAPES = ROOT / "juce" / "app" / "design" / "shapes"
 DEFAULT_LAYOUTS_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "EditorLayouts.generated.hpp"
-CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider"}
+CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider", "sample": "Sample"}
+GRID_CONTROLS = ("choice", "valuebox", "sample")  # a zone grid's cells are a row high [RQ-APP-057, DEC-APP-033]
+ZONE_COUNT = 4  # the zones of a keygroup
 ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
 SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone"}
 
@@ -293,8 +295,24 @@ def render_scope(editor, group):
     return f"Scope::{SCOPES[scope]}" if scope else "Scope::None"
 
 
+def render_zones(editor, group):
+    """A zone grid's column count, 0 for a group that is none: a grid is of zone scope, at most four columns, each cell a choice, a value
+    box or a zone's sample; a zone's sample lives in a grid only. [RQ-APP-057, RQ-APP-060, DEC-APP-033]"""
+    zones = int(group.get("zones", 0))
+    for parameter in group.get("parameters", []):
+        if zones and parameter.get("control") not in GRID_CONTROLS:
+            raise TokenError(f"the layout {editor} puts {parameter['name']} in the zone grid {group['title']} as a {parameter.get('control')}")
+        if not zones and parameter.get("control") == "sample":
+            raise TokenError(f"the layout {editor} puts the sample control {parameter['name']} outside a zone grid")
+    if zones and (group.get("scope") != "zone" or not 1 <= zones <= ZONE_COUNT):
+        raise TokenError(f"the layout {editor} gives the group {group['title']} {zones} zone columns, which only a zone group of 1 to "
+                         f"{ZONE_COUNT} has")
+    return zones
+
+
 def render_group(editor, group, name, lines, shapes):
     """One group: its tables are appended to `lines`, its initialiser is returned."""
+    zones = render_zones(editor, group)
     lines += render_parameters(editor, group, name, shapes)
     scope_cpp = render_scope(editor, group)
     envelope = render_envelope(editor, group)
@@ -305,7 +323,7 @@ def render_group(editor, group, name, lines, shapes):
         lines += [f"        {stage}," for stage in envelope]
         lines.append(CLOSE_TABLE)
     row = "true" if group.get("row") else "false"
-    return f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}}}"
+    return f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}, {zones}}}"
 
 
 def render_tab(editor, prefix, tab_index, tab, lines, shapes):

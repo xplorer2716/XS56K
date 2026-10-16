@@ -102,6 +102,11 @@ TEST_CASE("Given the program editor's layout, Then every name is a parameter of 
             for (const auto& parameter : group.parameters)
             {
                 INFO(std::string(parameter.name));
+                if (parameter.control == app::layouts::Control::Sample)
+                {
+                    CHECK(group.zones > 0);  // a zone's sample is no catalogue row: it is chosen by name in a zone grid [RQ-APP-060, DEC-APP-033]
+                    continue;
+                }
                 const auto row = std::ranges::find_if(rows, [&parameter](const mcp::ParameterDefinition& definition) {
                     return definition.name == parameter.name;
                 });

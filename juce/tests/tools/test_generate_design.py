@@ -255,8 +255,8 @@ class WritingTheEditorLayouts(unittest.TestCase):
         layout = copy.deepcopy(LAYOUT)
         layout["tabs"][0]["groups"][1]["row"] = True
         header = self.gen.render_layouts({"sample": layout})
-        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, true}', header)
-        self.assertIn('LayoutGroup{"Playback", kSampleTab0Group0, Scope::None, {}, false}', header)
+        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, true, 0}', header)
+        self.assertIn('LayoutGroup{"Playback", kSampleTab0Group0, Scope::None, {}, false, 0}', header)
 
     def test_given_no_layout_when_written_then_the_table_is_empty_and_still_compiles(self):
         header = self.gen.render_layouts({})
@@ -315,6 +315,49 @@ class WritingTheChoiceShapes(unittest.TestCase):
             (pathlib.Path(folder) / "filter-types.json").write_text(json.dumps(SHAPES["filter types"]), encoding="utf-8")
             self.assertEqual(self.gen.read_shapes(folder), SHAPES)
         self.assertEqual(self.gen.read_shapes(pathlib.Path(folder) / "none"), {})
+
+
+ZONE_GRID = {"title": "Zones", "scope": "zone", "zones": 4, "parameters": [
+    {"name": "zone sample", "label": "Sample", "role": "sample", "control": "sample"},
+    {"name": "zone level", "label": "Level", "role": "amp", "control": "valuebox"},
+    {"name": "zone playback", "label": "Playback", "role": "sample", "control": "choice"}]}
+
+
+class WritingTheZoneGrid(unittest.TestCase):
+    """The Keygroup tab's four zones: a group drawn as a grid, a row per parameter and a column per zone; the zone's sample chosen among
+    those in memory. [RQ-APP-057, RQ-APP-060, ADR-APP-004 (DEC-APP-033), TASK-APP-046]"""
+
+    def setUp(self):
+        self.gen = load_script()
+
+    @staticmethod
+    def layout(group):
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"] = [copy.deepcopy(group)]
+        return layout
+
+    def test_given_a_zone_group_of_four_columns_when_written_then_it_says_its_zones_and_the_sample_control(self):
+        header = self.gen.render_layouts({"program": self.layout(ZONE_GRID)})
+        self.assertIn('{"zone sample", "Sample", Role::Sample, Control::Sample, {}}', header)
+        self.assertIn('LayoutGroup{"Zones", kProgramTab0Group0, Scope::Zone, {}, false, 4}', header)
+
+    def test_given_a_group_that_is_no_grid_when_written_then_it_has_no_zone_columns(self):
+        header = self.gen.render_layouts({"sample": LAYOUT})
+        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, false, 0}', header)
+
+    def test_given_columns_outside_a_zone_scope_a_knob_in_a_grid_or_a_sample_outside_one_when_written_then_it_fails_and_names_it(self):
+        keygroup = copy.deepcopy(ZONE_GRID)
+        keygroup["scope"] = "keygroup"
+        knob = copy.deepcopy(ZONE_GRID)
+        knob["parameters"][1]["control"] = "knob"
+        loose = {"title": "Loose", "scope": "zone", "parameters": [copy.deepcopy(ZONE_GRID["parameters"][0])]}
+        five = copy.deepcopy(ZONE_GRID)
+        five["zones"] = 5
+        for group, named in ((keygroup, "Zones"), (knob, "zone level"), (loose, "zone sample"), (five, "Zones")):
+            layouts = {"program": self.layout(group)}
+            with self.assertRaises(self.gen.TokenError) as raised:
+                self.gen.render_layouts(layouts)
+            self.assertIn(named, str(raised.exception))
 
 
 class CheckingTheGeneratedFiles(unittest.TestCase):

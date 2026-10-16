@@ -41,6 +41,8 @@ KNOB_START_DEGREES = 135.0      # the knob's arc starts at the bottom left...
 KNOB_SWEEP_DEGREES = 270.0      # ...and turns clockwise through the top to the bottom right
 KNOB_POINTER_LENGTH = 0.55      # the pointer's length, as a part of the arc's radius
 CHOICE_CELLS = 2                # a choice selector is as wide as two knob cells
+GRID_LABEL_CELLS = 2            # a zone grid's row labels take two knob cells [DEC-APP-033]
+NO_SAMPLE = "NONE"              # a zone that plays no sample [RQ-APP-060]
 SLIDER_CELLS = 3                # a slider (a position in sample points) is as wide as three knob cells
 DIALOG_WIDTH_IN_KNOBS = 12      # a dialog is twelve knob diameters wide
 BUTTON_WIDTH_IN_KNOBS = 3       # a dialog button is three knob diameters wide
@@ -235,8 +237,18 @@ def control_cells(parameter):
     return CHOICE_CELLS if control in ("choice", "valuebox") else 1
 
 
+def grid_row_pitch(t):
+    return t("valuebox.height") + t("size.space.2")
+
+
 def group_size(t, group):
     inside = t("space.inside")
+    zones = group.get("zones", 0)
+    if zones:
+        # A zone grid: its title, a head row of zone numbers, then a row per parameter. [RQ-APP-057, DEC-APP-033]
+        width = (GRID_LABEL_CELLS + zones * CHOICE_CELLS) * cell_width(t) + 2 * inside
+        rows = len(group["parameters"]) + 1
+        return width, inside + t("font.label.size") + t("space.between") + rows * grid_row_pitch(t) + inside
     cells = sum(control_cells(parameter) for parameter in group["parameters"])
     width = cells * cell_width(t) + 2 * inside
     height = (inside + t("font.label.size") + t("space.between") + t("knob.size.default") + t("space.between")
@@ -361,6 +373,35 @@ def draw_choice_cell(c, cell_x, knob_top, w, parameter, value, is_pending, shape
     draw_choice(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), text, is_pending, t("valuebox.height"))
 
 
+def draw_zone_grid(c, x, top, group, values, pending):
+    """The zones of a keygroup side by side, as the sampler's ZONE page: a column per zone under its number, a row per parameter labelled
+    once at the left; each cell a choice (the zone's sample among those in memory, NONE when it has none) or a value box.
+    [RQ-APP-057, RQ-APP-060, ADR-APP-004 (DEC-APP-033)]"""
+    t = c.t
+    cw = cell_width(t)
+    column_w = CHOICE_CELLS * cw
+    first = x + GRID_LABEL_CELLS * cw
+    pitch = grid_row_pitch(t)
+    baseline = (t("valuebox.height") + t("font.label.size")) / 2
+    for zone in range(group["zones"]):
+        draw_label(c, first + zone * column_w + column_w / 2, top + baseline, f"Zone {zone + 1}", anchor="middle")
+    for row, parameter in enumerate(group["parameters"], start=1):
+        y = top + row * pitch
+        draw_label(c, x + t("size.space.1"), y + baseline, parameter["label"])
+        cells = values.get(parameter["name"], [])
+        for zone in range(group["zones"]):
+            value = cells[zone] if zone < len(cells) else {}
+            text = value.get("text", "")
+            is_pending = f"{parameter['name']}@{zone + 1}" in pending
+            cell_x = first + zone * column_w + t("size.space.1")
+            w = column_w - t("size.space.2")
+            if parameter.get("control") == "valuebox":
+                draw_value_box(c, cell_x, y, w, text, is_pending)
+            else:
+                shown = text or (NO_SAMPLE if parameter.get("control") == "sample" else "")
+                draw_choice(c, cell_x, y, w, shown, is_pending, t("valuebox.height"))
+
+
 def draw_group(c, x, y, group, values, pending, shapes=None):
     t = c.t
     inside = t("space.inside")
@@ -375,6 +416,9 @@ def draw_group(c, x, y, group, values, pending, shapes=None):
         # Where the group's parameters live: the program, the keygroup chosen, or a zone of it. [RQ-APP-056, DEC-APP-031]
         draw_label(c, x + width - inside, title_y, group["scope"], t("colour.text.secondary"), "end")
     knob_top = title_y + t("space.between")
+    if group.get("zones"):
+        draw_zone_grid(c, x + inside, knob_top, group, values, pending)
+        return width, height
     if group.get("envelope"):
         draw_envelope(c, x + inside, knob_top, width - 2 * inside, group, values, marker)
         knob_top += t(ENVELOPE_HEIGHT) + t("space.between")

@@ -139,16 +139,29 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 
 ### TASK-APP-046: The Keygroup tab and its four zones
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The key span and, for each of the four zones, sample, level, pan, tune, velocity span, playback, mute and solo; the sample chosen
   among the samples in memory; low note before high note, low velocity before high velocity (orders).
 - **Requirement refs**: RQ-APP-057, RQ-APP-060, RQ-APP-092
-- **ADR refs**: ADR-APP-004
+- **ADR refs**: ADR-APP-004 (DEC-APP-033, new)
 - **Acceptance Criteria** (Gherkin): RQ-APP-060's.
 - **Dependencies**: TASK-APP-044
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: (1) A zone is a column of the tab, the zone number a leading argument of its parameters.
+- **Verification**: Windows/MSVC, Debug, 2026-10-16. The owner chose the zones in columns, as the S5000's ZONE page. Generator tests first and
+  failing: design 3 (a zone grid's columns and the `sample` control generated; a group that is none has 0; columns outside a zone scope, a knob
+  in a grid, a sample outside one, five columns refused, naming them), mockups 2 (each zone a column under its number, each parameter a row
+  labelled once; a zone with no sample reads NONE); then 28 design and 23 mockup tests pass. Mockup: the crossfade group overlapped its scope
+  and the grid ran under the tabs, so the crossfade moved beside the grid as "Xfade"; validated by the owner. Core first and failing to
+  compile: five cases (zone 1 KICK, zones 2 to 4 none, zone 2's level -3 in its column; SNARE assigned to zone 2 by name and read back; zone 3's
+  level set alone; zone 1's low velocity 70 refused above its high 63 while zone 2's is accepted; no sample refused with nothing sent); the
+  first fourth case failed on a fixture that left zone 2's high velocity at 0, given 127 as its title says; the Keygroup tab now opens first,
+  so the tab indices of the earlier cases moved and the Envelopes cases show their tab; the layout case skips the `sample` control, which no
+  catalogue row backs. 83 app cases pass. Build warning-clean; `ctest -C Debug`: 1230 passed; `tidy.py`: 14 sources, 0 findings (`rebuild`
+  over the cognitive complexity threshold at first: its cells moved into `addCells`); the IDE's SonarQube: nothing. Not verified: the grid
+  drawn by JUCE and the real S5000 (the owner's run), GCC and Apple Clang (CI).
+- **Assumptions**: (1) The zones are a column each (owner, 2026-10-16), replacing the leading-argument idea. (2) In the grid the numbers are value
+  boxes and the rest choices, so that fourteen rows fit. (3) The Keygroup tab is first, as in the proposed screen order (TASK-APP-002 decides).
+  (4) The gateway cannot remove a zone's sample: NONE is shown and refused (RQ-APP-060's "or no sample" stays open).
 
 ### TASK-APP-047: Adding and deleting keygroups
 - **Tier**: S

@@ -34,6 +34,7 @@ namespace app::layouts
         Switch,
         ValueBox,
         Slider,
+        Sample,  ///< a zone's sample, chosen among those in memory; in a zone grid only (DEC-APP-033)
     };
 
     /// The family of a parameter, which decides its colour (ADR-APP-002 DEC-APP-016).
@@ -106,6 +107,7 @@ namespace app::layouts
         Scope scope = Scope::None;
         std::span<const EnvelopeStage> envelope;  ///< empty: no graph
         bool newRow = false;                      ///< the group starts a new row of its tab (DEC-APP-031)
+        int zones = 0;                            ///< a zone grid's columns, one per zone; 0: no grid (DEC-APP-033)
     };
 
     struct LayoutTab

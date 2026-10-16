@@ -37,11 +37,12 @@ namespace app::ui
 
     /// The edit panel's content: the edited item's name and kind, with its information or a program's keygroup selector, and "Read again"
     /// above; the tab's groups of parameters drawn as the mockups draw them, each group in a panel with its title and its scope, an envelope
-    /// group with its graph above its knobs, flowing left to right then wrapping (or starting a row where the layout says), in a pane that
-    /// scrolls when the panel is too short; for a kind with no editor, a message. The space bar starts or stops the audition of the edited
-    /// sample, except while a value is typed (the text box takes the key). The tab row is drawn by the area, which `onTabs` tells, and a tab
-    /// chosen there comes back through `showTab`. [RQ-APP-048 to RQ-APP-053, RQ-APP-056, RQ-APP-058, RQ-APP-083, RQ-APP-086, RQ-APP-087,
-    /// RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-025, DEC-APP-027, DEC-APP-031), ADR-APP-001 (DEC-APP-001), TASK-APP-039, TASK-APP-044]
+    /// group with its graph above its knobs, a zone group as a grid of a column per zone, flowing left to right then wrapping (or starting a
+    /// row where the layout says), in a pane that scrolls when the panel is too short; for a kind with no editor, a message. The space bar
+    /// starts or stops the audition of the edited sample, except while a value is typed (the text box takes the key). The tab row is drawn by
+    /// the area, which `onTabs` tells, and a tab chosen there comes back through `showTab`. [RQ-APP-048 to RQ-APP-053, RQ-APP-056, RQ-APP-058,
+    /// RQ-APP-060, RQ-APP-083, RQ-APP-086, RQ-APP-087, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-025, DEC-APP-027, DEC-APP-031,
+    /// DEC-APP-033), ADR-APP-001 (DEC-APP-001), TASK-APP-039, TASK-APP-044, TASK-APP-046]
     class EditView final : public juce::Component, private ModelListener
     {
     public:
@@ -78,7 +79,12 @@ namespace app::ui
         void rebuild();
         void update();
         void layoutGroups();
+        /// The group's cells, numbered from `index` on in the edit state's order.
+        void addCells(Group& group, std::size_t& index);
         void paintGroups(juce::Graphics& g);
+        /// A zone grid's cells, a column per zone and a row per parameter, and its zone numbers and row labels. [DEC-APP-033]
+        void layoutGrid(Group& group, int left, int top) const;
+        void paintGridLabels(juce::Graphics& g, const Group& group) const;
         [[nodiscard]] static juce::Point<int> sizeOf(const layouts::LayoutGroup& group);
 
         LookAndFeel& _lookAndFeel;

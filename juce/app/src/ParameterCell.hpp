@@ -21,6 +21,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <cstdint>
 #include <functional>
+#include <string>
+#include <vector>
 
 #include "CutLabel.hpp"
 #include "app/Edit.hpp"
@@ -33,12 +35,13 @@ namespace app::ui
     /// One parameter of an editor's tab, as the mockups draw it (the layout's `control` is the contract, DEC-APP-027): a knob with its label and
     /// value box under it; a choice; a value box alone; or a value box with its label and a slider under it. A value given by the person (a
     /// drag, a choice, a text typed) is reported through `onValue`; the value shown is always the one the model holds, with the pending state in
-    /// the pending colour and an ellipsis (RQ-APP-005). Every visual value comes from the tokens. [RQ-APP-051, RQ-APP-052, RQ-APP-086,
-    /// RQ-APP-003, RQ-APP-004, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
+    /// the pending colour and an ellipsis (RQ-APP-005). Every visual value comes from the tokens. In a zone grid the cell is its control alone,
+    /// a row high, its label drawn once by the row (DEC-APP-033). [RQ-APP-051, RQ-APP-052, RQ-APP-086, RQ-APP-003, RQ-APP-004, RQ-APP-060,
+    /// ADR-APP-004 (DEC-APP-027, DEC-APP-033), TASK-APP-038, TASK-APP-046]
     class ParameterCell final : public juce::Component
     {
     public:
-        ParameterCell(LookAndFeel& lookAndFeel, const layouts::LayoutParameter& parameter);
+        ParameterCell(LookAndFeel& lookAndFeel, const layouts::LayoutParameter& parameter, bool inGrid = false);
 
         /// How many knob cells wide the control is: a knob one, a choice or a value box two, a slider three.
         [[nodiscard]] static int cells(layouts::Control control);
@@ -48,6 +51,8 @@ namespace app::ui
 
         /// Shows what the model holds; a value the person is dragging is not moved under the pointer.
         void show(const EditValue& value);
+        /// A zone's sample: the samples in memory it is chosen among, after NONE (value 0). [RQ-APP-060, DEC-APP-033]
+        void setSamples(const std::vector<std::string>& samples);
 
         std::function<void(std::int64_t)> onValue;
 
@@ -65,6 +70,8 @@ namespace app::ui
         juce::Slider _slider;
         juce::ComboBox _choice;
         juce::Rectangle<int> _shapeArea;  ///< where a choice's shape is drawn; empty: none
+        bool _inGrid = false;
+        std::vector<std::string> _samples;  ///< the choices of a zone's sample, as last given
         EditValue _shown;
         /// True while the controls are set from the model: that is no value the person gave.
         bool _showing = false;

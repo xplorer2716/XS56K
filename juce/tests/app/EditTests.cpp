@@ -57,8 +57,10 @@ namespace
     constexpr std::size_t INFO_ROWS = 4;
     constexpr int PAD_KEYGROUPS = 2;
     constexpr std::size_t PROGRAM_TAB_PARAMETERS = 14;
-    constexpr std::size_t FILTER_TAB = 1;
-    constexpr std::size_t PROGRAM_TAB = 2;
+    constexpr std::size_t KEYGROUP_TAB = 0;
+    constexpr std::size_t ENVELOPES_TAB = 1;
+    constexpr std::size_t FILTER_TAB = 2;
+    constexpr std::size_t PROGRAM_TAB = 3;
 
     const mcp::ParameterDefinition& sampleParameter(const std::string& name)
     {
@@ -109,6 +111,29 @@ namespace
                     return i;
             }
             FAIL_CHECK("no parameter " << name);
+            return 0;
+        }
+
+        /// The value shown for `name` in the column of zone `zone` (1 to 4) of a zone grid. [RQ-APP-060, DEC-APP-033]
+        [[nodiscard]] std::optional<std::int64_t> shownIn(const std::string& name, int zone) const
+        {
+            for (const app::EditValue& value : rig.model.edit().values)
+            {
+                if (value.definition->name == name && value.zone == zone)
+                    return value.value;
+            }
+            return std::nullopt;
+        }
+
+        [[nodiscard]] std::size_t indexIn(const std::string& name, int zone) const
+        {
+            const auto& values = rig.model.edit().values;
+            for (std::size_t i = 0; i < values.size(); ++i)
+            {
+                if (values[i].definition->name == name && values[i].zone == zone)
+                    return i;
+            }
+            FAIL_CHECK("no parameter " << name << " in zone " << zone);
             return 0;
         }
 
@@ -485,7 +510,7 @@ namespace
     constexpr std::int64_t SECOND_ATTACK = 40;
     constexpr int SECOND_KEYGROUP = 2;
 
-    /// PAD's amp attacks 10 and 40, put on the sampler from outside the application, then PAD selected: its first tab, Envelopes.
+    /// PAD's amp attacks 10 and 40, put on the sampler from outside the application, then PAD selected and its Envelopes tab shown.
     void showPadEnvelopes(EditRig& fixture)
     {
         const mcp::ParameterDefinition& attack = programParameter("amplitude envelope attack");
@@ -493,6 +518,8 @@ namespace
         REQUIRE(fixture.rig.gateway.writeParameter(attack, FIRST_ATTACK, mcp::KeygroupSelection::of(1)).ok());
         REQUIRE(fixture.rig.gateway.writeParameter(attack, SECOND_ATTACK, mcp::KeygroupSelection::of(SECOND_KEYGROUP)).ok());
         fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+        REQUIRE(fixture.rig.settle());
+        fixture.editor.showTab(ENVELOPES_TAB);
         REQUIRE(fixture.rig.settle());
     }
 
@@ -619,4 +646,134 @@ TEST_CASE("Given PAD shown on its Filter tab, When the person chooses 4-POLE LP,
     const auto& parameter = edit.layout->tabs[FILTER_TAB].groups[0].parameters[0];
     CHECK_FALSE(app::layouts::shapeOf(parameter, type.definition->labels[static_cast<std::size_t>(type.value)]).empty());
     CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+namespace
+{
+    constexpr int ZONES = 4;
+    constexpr int SECOND_ZONE = 2;
+    constexpr std::int64_t SECOND_ZONE_LEVEL = -3;
+
+    /// PAD's keygroup 1 with zone 1 playing KICK and zone 2's level -3, put on the sampler from outside the application, then PAD selected:
+    /// its first tab, Keygroup.
+    void showPadZones(EditRig& fixture)
+    {
+        REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+        REQUIRE(fixture.rig.gateway.assignZoneSample(1, 1, "KICK").ok());
+        const mcp::ParameterDefinition& level = programParameter("zone level");
+        const auto zone = mcp::ZoneSelection::of(SECOND_ZONE);
+        REQUIRE(fixture.rig.gateway.writeParameter(level, SECOND_ZONE_LEVEL, mcp::KeygroupSelection::of(1), zone).ok());
+        fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+        REQUIRE(fixture.rig.settle());
+        REQUIRE(fixture.rig.model.edit().tab == KEYGROUP_TAB);
+    }
+
+    /// The value of a zone's sample: 1 plus the sample's place among those in memory, 0 for none. [RQ-APP-060, DEC-APP-033]
+    std::int64_t sampleValue(const EditRig& fixture, const std::string& name)
+    {
+        const auto& samples = fixture.rig.model.edit().samples;
+        const auto found = std::ranges::find(samples, name);
+        REQUIRE(found != samples.end());
+        return static_cast<std::int64_t>(std::distance(samples.begin(), found)) + 1;
+    }
+
+    std::string zoneSampleOf(EditRig& fixture, int zone)
+    {
+        REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+        const auto read = fixture.rig.gateway.readZoneSamples(mcp::KeygroupSelection::of(1));
+        REQUIRE(read.ok());
+        const auto found = std::ranges::find_if(read.value->entries, [zone](const mcp::ZoneSampleEntry& entry) { return entry.zone == zone; });
+        REQUIRE(found != read.value->entries.end());
+        return found->sample;
+    }
+}
+
+TEST_CASE("Given PAD's keygroup 1 with KICK in zone 1 and zone 2 at level -3, When PAD is selected, Then the Keygroup tab shows each zone in its "
+          "column: zone 1 KICK, zones 2 to 4 no sample, zone 2's level -3 and zone 1's 0 [RQ-APP-060, RQ-APP-057, DEC-APP-033, TASK-APP-046]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showPadZones(fixture);
+    const app::EditState& edit = fixture.rig.model.edit();
+    CHECK(edit.layout->tabs[edit.tab].title == "Keygroup");
+    CHECK(fixture.shownIn("zone sample", 1) == std::optional<std::int64_t>(sampleValue(fixture, "KICK")));
+    for (int zone = 2; zone <= ZONES; ++zone)
+        CHECK(fixture.shownIn("zone sample", zone) == std::optional<std::int64_t>(0));
+    CHECK(fixture.shownIn("zone level", SECOND_ZONE) == std::optional<std::int64_t>(SECOND_ZONE_LEVEL));
+    CHECK(fixture.shownIn("zone level", 1) == std::optional<std::int64_t>(0));
+    CHECK_FALSE(fixture.shownIn("keygroup low note", 1).has_value());  // a keygroup value has no zone
+    CHECK(fixture.shown("keygroup low note").has_value());
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD's Keygroup tab, When the person assigns SNARE to zone 2, Then it is sent by name and read back, and zone 2 reads SNARE "
+          "[RQ-APP-060, RQ-APP-052, DEC-APP-033, TASK-APP-046]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showPadZones(fixture);
+    const std::int64_t snare = sampleValue(fixture, "SNARE");
+    fixture.editor.set(fixture.indexIn("zone sample", SECOND_ZONE), snare);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shownIn("zone sample", SECOND_ZONE) == std::optional<std::int64_t>(snare));
+    CHECK(zoneSampleOf(fixture, SECOND_ZONE) == "SNARE");
+    CHECK(zoneSampleOf(fixture, 1) == "KICK");
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD's Keygroup tab, When the person sets zone 3's level to 10, Then zone 3 alone reads 10 [RQ-APP-057, DEC-APP-033, TASK-APP-046]",
+          "[app][edit]")
+{
+    constexpr int THIRD_ZONE = 3;
+    constexpr std::int64_t LEVEL = 10;
+    EditRig fixture;
+    showPadZones(fixture);
+    fixture.editor.set(fixture.indexIn("zone level", THIRD_ZONE), LEVEL);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shownIn("zone level", THIRD_ZONE) == std::optional<std::int64_t>(LEVEL));
+    CHECK(fixture.shownIn("zone level", SECOND_ZONE) == std::optional<std::int64_t>(SECOND_ZONE_LEVEL));
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    const mcp::ParameterDefinition& level = programParameter("zone level");
+    const auto read = fixture.rig.gateway.readParameter(level, mcp::KeygroupSelection::of(1), mcp::ZoneSelection::of(THIRD_ZONE));
+    REQUIRE(read.ok());
+    CHECK(read.value->front().value == LEVEL);
+}
+
+TEST_CASE("Given zone 1 playing velocities 0 to 63, When the person sets zone 1's low velocity to 70, Then nothing is sent; zone 2's low velocity "
+          "may be 70, its high velocity being 127 [RQ-APP-092, DEC-APP-029, DEC-APP-033, TASK-APP-046]",
+          "[app][edit]")
+{
+    constexpr std::int64_t HIGH = 63;
+    constexpr std::int64_t LOW = 70;
+    EditRig fixture;
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    constexpr std::int64_t TOP = 127;
+    const mcp::ParameterDefinition& high = programParameter("zone high velocity");
+    REQUIRE(fixture.rig.gateway.writeParameter(high, HIGH, mcp::KeygroupSelection::of(1), mcp::ZoneSelection::of(1)).ok());
+    REQUIRE(fixture.rig.gateway.writeParameter(high, TOP, mcp::KeygroupSelection::of(1), mcp::ZoneSelection::of(SECOND_ZONE)).ok());
+    showPadZones(fixture);
+    const std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.set(fixture.indexIn("zone low velocity", 1), LOW);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    CHECK(fixture.rig.model.problem().has_value());
+    fixture.rig.model.clearProblem();
+    fixture.editor.set(fixture.indexIn("zone low velocity", SECOND_ZONE), LOW);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shownIn("zone low velocity", SECOND_ZONE) == std::optional<std::int64_t>(LOW));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD's Keygroup tab with KICK in zone 1, When the person chooses no sample for it, Then nothing is sent and a problem says the "
+          "editor cannot remove a zone's sample yet [RQ-APP-060, DEC-APP-033, TASK-APP-046]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showPadZones(fixture);
+    const std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.set(fixture.indexIn("zone sample", 1), 0);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(zoneSampleOf(fixture, 1) == "KICK");
 }

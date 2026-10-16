@@ -43,6 +43,7 @@ namespace app
         std::int64_t min = 0;
         std::int64_t max = 0;
         bool pending = false;
+        int zone = 0;  ///< the zone (1 to 4) of a zone grid's value; 0 outside a grid [RQ-APP-060, DEC-APP-033]
     };
 
     /// The item edited (none when nothing is selected), its editor (null for a kind that has none yet, RQ-APP-048), the tab shown, the tab's
@@ -56,6 +57,9 @@ namespace app
         std::vector<EditValue> info;
         std::optional<int> keygroups;  ///< a program's keygroup count, read when it is made current [RQ-APP-093]
         int keygroup = 1;              ///< the keygroup whose values a program's tab shows, 1 to `keygroups` [RQ-APP-058]
+        /// The samples in memory, read with a tab that holds a zone's sample: that value is 1 plus the sample's place here, 0 none.
+        /// [RQ-APP-060, DEC-APP-033]
+        std::vector<std::string> samples;
     };
 
     /// A value as the sampler's screen writes it: a root as a note name ("C3"), a signed tune with its sign ("+10"), a choice by its label
