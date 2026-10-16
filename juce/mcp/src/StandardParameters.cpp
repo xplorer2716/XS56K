@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "StandardParameters.hpp"
 
+#include <array>
 #include <utility>
 
 namespace mcp
@@ -691,13 +692,13 @@ namespace mcp
             akm::ItemId setValue;
             akm::ItemId getValue;
         };
-        const LfoModulation lfoModulations[]{
+        const auto lfoModulations = std::to_array<LfoModulation>({
             {"rate", akm::ItemId::ProgramSetLfoRateModSource, akm::ItemId::ProgramGetLfoRateModSource,
              akm::ItemId::ProgramSetLfoRateModValue, akm::ItemId::ProgramGetLfoRateModValue},
             {"delay", akm::ItemId::ProgramSetLfoDelayModSource, akm::ItemId::ProgramGetLfoDelayModSource,
              akm::ItemId::ProgramSetLfoDelayModValue, akm::ItemId::ProgramGetLfoDelayModValue},
             {"depth", akm::ItemId::ProgramSetLfoDepthModSource, akm::ItemId::ProgramGetLfoDepthModSource,
-             akm::ItemId::ProgramSetLfoDepthModValue, akm::ItemId::ProgramGetLfoDepthModValue}};
+             akm::ItemId::ProgramSetLfoDepthModValue, akm::ItemId::ProgramGetLfoDepthModValue}});
         for (const std::int64_t lfo : {FIRST_LFO, SECOND_LFO})
         {
             for (const LfoModulation& modulation : lfoModulations)

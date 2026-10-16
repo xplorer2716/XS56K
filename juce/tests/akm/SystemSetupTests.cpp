@@ -142,22 +142,22 @@ namespace
 
     SamplerNameResult getName(SessionHarness& harness)
     {
-        return await<SamplerNameResult>(harness, [&](auto done) { akm::getSamplerName(harness.session(), done); });
+        return await<SamplerNameResult>(harness, [&](const auto& done) { akm::getSamplerName(harness.session(), done); });
     }
 
     SamplerModelResult getModel(SessionHarness& harness)
     {
-        return await<SamplerModelResult>(harness, [&](auto done) { akm::getSamplerModel(harness.session(), done); });
+        return await<SamplerModelResult>(harness, [&](const auto& done) { akm::getSamplerModel(harness.session(), done); });
     }
 
     PlayModeResult getPlayMode(SessionHarness& harness)
     {
-        return await<PlayModeResult>(harness, [&](auto done) { akm::getPlayMode(harness.session(), done); });
+        return await<PlayModeResult>(harness, [&](const auto& done) { akm::getPlayMode(harness.session(), done); });
     }
 
     FrontPanelLockResult getLock(SessionHarness& harness)
     {
-        return await<FrontPanelLockResult>(harness, [&](auto done) { akm::getFrontPanelLock(harness.session(), done); });
+        return await<FrontPanelLockResult>(harness, [&](const auto& done) { akm::getFrontPanelLock(harness.session(), done); });
     }
 
     // The first data byte of the last frame the host sent.
@@ -168,31 +168,31 @@ namespace
 
     ClockDateResult getClock(SessionHarness& harness)
     {
-        return await<ClockDateResult>(harness, [&](auto done) { akm::getClockDate(harness.session(), done); });
+        return await<ClockDateResult>(harness, [&](const auto& done) { akm::getClockDate(harness.session(), done); });
     }
 
     MemoryPercentResult getWavePercent(SessionHarness& harness)
     {
         return await<MemoryPercentResult>(harness,
-                                          [&](auto done) { akm::getFreeWaveMemoryPercent(harness.session(), done); });
+                                          [&](const auto& done) { akm::getFreeWaveMemoryPercent(harness.session(), done); });
     }
 
     MemoryPercentResult getMpksPercent(SessionHarness& harness)
     {
         return await<MemoryPercentResult>(harness,
-                                          [&](auto done) { akm::getFreeMpksMemoryPercent(harness.session(), done); });
+                                          [&](const auto& done) { akm::getFreeMpksMemoryPercent(harness.session(), done); });
     }
 
     MemoryBytesResult getTotalWaveBytes(SessionHarness& harness)
     {
         return await<MemoryBytesResult>(harness,
-                                        [&](auto done) { akm::getTotalWaveMemoryBytes(harness.session(), done); });
+                                        [&](const auto& done) { akm::getTotalWaveMemoryBytes(harness.session(), done); });
     }
 
     MemoryBytesResult getFreeWaveBytes(SessionHarness& harness)
     {
         return await<MemoryBytesResult>(harness,
-                                        [&](auto done) { akm::getFreeWaveMemoryBytes(harness.session(), done); });
+                                        [&](const auto& done) { akm::getFreeWaveMemoryBytes(harness.session(), done); });
     }
 }
 

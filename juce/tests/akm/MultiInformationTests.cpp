@@ -85,13 +85,13 @@ TEST_CASE("Given a simulated sampler holding A (32 parts) and B (64 parts), When
     holdTwoMultis(harness);
 
     CHECK(await<akm::MultiCountResult>(harness, [&](auto done) { akm::getMultiCount(harness.session(), done); }).count == 2);
-    const auto names = await<akm::MultiNameListResult>(harness, [&](auto done) { akm::getAllMultiNames(harness.session(), done); });
+    const auto names = await<akm::MultiNameListResult>(harness, [&](const auto& done) { akm::getAllMultiNames(harness.session(), done); });
     REQUIRE(names.names.has_value());
     CHECK(*names.names == std::vector<std::string>{"A", "B"});
-    const auto counts = await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getAllMultiPartCounts(harness.session(), done); });
+    const auto counts = await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getAllMultiPartCounts(harness.session(), done); });
     REQUIRE(counts.values.has_value());
     CHECK(*counts.values == std::vector<int>{32, 64});
-    const auto current = await<akm::MultiPartCountResult>(harness, [&](auto done) { akm::getCurrentMultiPartCount(harness.session(), done); });
+    const auto current = await<akm::MultiPartCountResult>(harness, [&](const auto& done) { akm::getCurrentMultiPartCount(harness.session(), done); });
     CHECK(current.partCount == 64);
 }
 
@@ -103,9 +103,9 @@ TEST_CASE("Given a multi with a program number set and one without, When &41 and
     holdTwoMultis(harness);
     harness.sampler().setMultiProgramNumber(1, 4);
 
-    const auto current = await<akm::MultiProgramNumberResult>(harness, [&](auto done) { akm::getMultiProgramNumber(harness.session(), done); });
+    const auto current = await<akm::MultiProgramNumberResult>(harness, [&](const auto& done) { akm::getMultiProgramNumber(harness.session(), done); });
     CHECK(current.frontPanelNumber == 5);
-    const auto all = await<akm::MultiProgramNumbersResult>(harness, [&](auto done) { akm::getAllMultiProgramNumbers(harness.session(), done); });
+    const auto all = await<akm::MultiProgramNumbersResult>(harness, [&](const auto& done) { akm::getAllMultiProgramNumbers(harness.session(), done); });
     REQUIRE(all.numbers.has_value());
     REQUIRE(all.numbers->size() == 2);
     CHECK_FALSE((*all.numbers)[0].has_value());
@@ -124,12 +124,12 @@ TEST_CASE("Given a part with no program assigned and a part with one, When their
     holdTwoMultis(harness);
     harness.sampler().setMultiPartProgram(1, 2, "LEAD");
 
-    const auto none = await<akm::MultiNameResult>(harness, [&](auto done) { akm::getMultiPartName(harness.session(), 0, done); });
+    const auto none = await<akm::MultiNameResult>(harness, [&](const auto& done) { akm::getMultiPartName(harness.session(), 0, done); });
     REQUIRE(none.name.has_value());
     CHECK(none.name->empty());
     CHECK(await<akm::MultiNameResult>(harness, [&](auto done) { akm::getMultiPartName(harness.session(), 2, done); }).name == "LEAD");
 
-    const auto all = await<akm::MultiNameListResult>(harness, [&](auto done) { akm::getAllMultiPartNames(harness.session(), done); });
+    const auto all = await<akm::MultiNameListResult>(harness, [&](const auto& done) { akm::getAllMultiPartNames(harness.session(), done); });
     REQUIRE(all.names.has_value());
     REQUIRE(all.names->size() == 64);
     CHECK((*all.names)[2] == "LEAD");
@@ -161,7 +161,7 @@ TEST_CASE("Given a part whose twelve parameters were set, When &47 is read, Then
         expected.push_back(static_cast<int>(decoded->front()));
     }
 
-    const auto all = await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getAllMultiPartParameters(harness.session(), 3, done); });
+    const auto all = await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getAllMultiPartParameters(harness.session(), 3, done); });
     REQUIRE(all.values.has_value());
     CHECK(*all.values == expected);
     CHECK(expected.size() == 12);
@@ -178,7 +178,7 @@ TEST_CASE("Given parts 1 muted and 2 soloed in a 32-part multi, When &48 is read
     REQUIRE(std::holds_alternative<akm::Done>(*harness.submitAndWait(akm::makeRequest(akm::ItemId::MultiSetMute, {1, 1}))));
     REQUIRE(std::holds_alternative<akm::Done>(*harness.submitAndWait(akm::makeRequest(akm::ItemId::MultiSetSolo, {2, 1}))));
 
-    const auto status = await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getMultiMuteSoloStatus(harness.session(), done); });
+    const auto status = await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getMultiMuteSoloStatus(harness.session(), done); });
     REQUIRE(status.values.has_value());
     REQUIRE(status.values->size() == 32);
     for (std::size_t part = 0; part < status.values->size(); ++part)
@@ -193,12 +193,12 @@ TEST_CASE("Given no multi is current, When a Get of the current multi is request
     REQUIRE(harness.establishChecksumMode(false).has_value());
     harness.sampler().setMultiNames({"A"});
 
-    requireNotFound(await<akm::MultiProgramNumberResult>(harness, [&](auto done) { akm::getMultiProgramNumber(harness.session(), done); }).outcome);
-    requireNotFound(await<akm::MultiPartCountResult>(harness, [&](auto done) { akm::getCurrentMultiPartCount(harness.session(), done); }).outcome);
-    requireNotFound(await<akm::MultiNameResult>(harness, [&](auto done) { akm::getMultiPartName(harness.session(), 0, done); }).outcome);
-    requireNotFound(await<akm::MultiNameListResult>(harness, [&](auto done) { akm::getAllMultiPartNames(harness.session(), done); }).outcome);
-    requireNotFound(await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getAllMultiPartParameters(harness.session(), 0, done); }).outcome);
-    requireNotFound(await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getMultiMuteSoloStatus(harness.session(), done); }).outcome);
+    requireNotFound(await<akm::MultiProgramNumberResult>(harness, [&](const auto& done) { akm::getMultiProgramNumber(harness.session(), done); }).outcome);
+    requireNotFound(await<akm::MultiPartCountResult>(harness, [&](const auto& done) { akm::getCurrentMultiPartCount(harness.session(), done); }).outcome);
+    requireNotFound(await<akm::MultiNameResult>(harness, [&](const auto& done) { akm::getMultiPartName(harness.session(), 0, done); }).outcome);
+    requireNotFound(await<akm::MultiNameListResult>(harness, [&](const auto& done) { akm::getAllMultiPartNames(harness.session(), done); }).outcome);
+    requireNotFound(await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getAllMultiPartParameters(harness.session(), 0, done); }).outcome);
+    requireNotFound(await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getMultiMuteSoloStatus(harness.session(), done); }).outcome);
 }
 
 TEST_CASE("Given no multi in memory, When the count and the three all-multis Gets are read, Then the count is 0 and each list is empty, not a failure [RQ-AKM-091]",
@@ -209,13 +209,13 @@ TEST_CASE("Given no multi in memory, When the count and the three all-multis Get
     REQUIRE(harness.establishChecksumMode(false).has_value());
 
     CHECK(await<akm::MultiCountResult>(harness, [&](auto done) { akm::getMultiCount(harness.session(), done); }).count == 0);
-    const auto names = await<akm::MultiNameListResult>(harness, [&](auto done) { akm::getAllMultiNames(harness.session(), done); });
+    const auto names = await<akm::MultiNameListResult>(harness, [&](const auto& done) { akm::getAllMultiNames(harness.session(), done); });
     REQUIRE(names.names.has_value());
     CHECK(names.names->empty());
-    const auto counts = await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getAllMultiPartCounts(harness.session(), done); });
+    const auto counts = await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getAllMultiPartCounts(harness.session(), done); });
     REQUIRE(counts.values.has_value());
     CHECK(counts.values->empty());
-    const auto numbers = await<akm::MultiProgramNumbersResult>(harness, [&](auto done) { akm::getAllMultiProgramNumbers(harness.session(), done); });
+    const auto numbers = await<akm::MultiProgramNumbersResult>(harness, [&](const auto& done) { akm::getAllMultiProgramNumbers(harness.session(), done); });
     REQUIRE(numbers.numbers.has_value());
     CHECK(numbers.numbers->empty());
 }
@@ -226,12 +226,12 @@ TEST_CASE("Given the checksum mode unknown, When a name or a variable-length Get
     ManualScenarioDriver driver;
     SessionHarness harness{driver};
 
-    requireChecksumModeRefusal(await<akm::MultiNameResult>(harness, [&](auto done) { akm::getMultiPartName(harness.session(), 0, done); }).outcome);
-    requireChecksumModeRefusal(await<akm::MultiNameListResult>(harness, [&](auto done) { akm::getAllMultiPartNames(harness.session(), done); }).outcome);
-    requireChecksumModeRefusal(await<akm::MultiNameListResult>(harness, [&](auto done) { akm::getAllMultiNames(harness.session(), done); }).outcome);
-    requireChecksumModeRefusal(await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getMultiMuteSoloStatus(harness.session(), done); }).outcome);
-    requireChecksumModeRefusal(await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getAllMultiPartCounts(harness.session(), done); }).outcome);
-    requireChecksumModeRefusal(await<akm::MultiProgramNumbersResult>(harness, [&](auto done) { akm::getAllMultiProgramNumbers(harness.session(), done); }).outcome);
+    requireChecksumModeRefusal(await<akm::MultiNameResult>(harness, [&](const auto& done) { akm::getMultiPartName(harness.session(), 0, done); }).outcome);
+    requireChecksumModeRefusal(await<akm::MultiNameListResult>(harness, [&](const auto& done) { akm::getAllMultiPartNames(harness.session(), done); }).outcome);
+    requireChecksumModeRefusal(await<akm::MultiNameListResult>(harness, [&](const auto& done) { akm::getAllMultiNames(harness.session(), done); }).outcome);
+    requireChecksumModeRefusal(await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getMultiMuteSoloStatus(harness.session(), done); }).outcome);
+    requireChecksumModeRefusal(await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getAllMultiPartCounts(harness.session(), done); }).outcome);
+    requireChecksumModeRefusal(await<akm::MultiProgramNumbersResult>(harness, [&](const auto& done) { akm::getAllMultiProgramNumbers(harness.session(), done); }).outcome);
     CHECK(harness.sentCount() == 0);
 }
 
@@ -243,10 +243,10 @@ TEST_CASE("Given a part number above 127, When a part's name or parameters are r
     REQUIRE(harness.establishChecksumMode(false).has_value());
     const std::size_t sentBefore = harness.sentCount();
 
-    const auto name = await<akm::MultiNameResult>(harness, [&](auto done) { akm::getMultiPartName(harness.session(), 128, done); });
+    const auto name = await<akm::MultiNameResult>(harness, [&](const auto& done) { akm::getMultiPartName(harness.session(), 128, done); });
     REQUIRE(std::holds_alternative<Refused>(name.outcome));
     CHECK(std::get<Refused>(name.outcome).reason == RefusalReason::ArgumentOutOfRange);
-    const auto parameters = await<akm::MultiValueListResult>(harness, [&](auto done) { akm::getAllMultiPartParameters(harness.session(), 128, done); });
+    const auto parameters = await<akm::MultiValueListResult>(harness, [&](const auto& done) { akm::getAllMultiPartParameters(harness.session(), 128, done); });
     REQUIRE(std::holds_alternative<Refused>(parameters.outcome));
     CHECK(std::get<Refused>(parameters.outcome).reason == RefusalReason::ArgumentOutOfRange);
     CHECK(harness.sentCount() == sentBefore);

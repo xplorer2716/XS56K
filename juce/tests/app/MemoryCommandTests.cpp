@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // The memory view of the editor application, commands, over the gateway and the simulated sampler: creating a program, renaming and
 // deleting an item, and auditioning a sample of the memory, each refusal or cancel sending nothing. [TASK-APP-016, RQ-APP-038, RQ-APP-039,
 // RQ-APP-040, RQ-APP-041, RQ-APP-011, ADR-APP-001 (DEC-APP-005, DEC-APP-007)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -65,7 +66,7 @@ namespace
         [[nodiscard]] bool holds(MemoryKind kind, const std::string& name) const
         {
             const auto& names = list(kind).names;
-            return std::find(names.begin(), names.end(), name) != names.end();
+            return std::ranges::find(names, name) != names.end();
         }
 
         [[nodiscard]] std::size_t sent(std::uint8_t section, std::uint8_t item) const

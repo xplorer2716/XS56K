@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // The commands of the file browser over the gateway and the simulated sampler: loading a file or a folder, creating, renaming and deleting,
 // auditioning a sample from the disk and refreshing the list of disks, each refusal or cancel sending nothing. [TASK-APP-014, RQ-APP-011,
 // RQ-APP-013, RQ-APP-028 to RQ-APP-034, ADR-APP-001 (DEC-APP-005, DEC-APP-007)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -114,8 +115,8 @@ namespace
             const app::FolderListing* root = rig.model.browser().listing({});
             if (root == nullptr)
                 return false;
-            const bool folder = std::find(root->folders.begin(), root->folders.end(), name) != root->folders.end();
-            const bool file = std::any_of(root->files.begin(), root->files.end(), [&name](const mcp::DiskFileEntry& entry) { return entry.name == name; });
+            const bool folder = std::ranges::find(root->folders, name) != root->folders.end();
+            const bool file = std::ranges::any_of(root->files, [&name](const mcp::DiskFileEntry& entry) { return entry.name == name; });
             return folder || file;
         }
 
@@ -211,7 +212,7 @@ TEST_CASE("Given DRUMS holding LOOPS, When the person creates NEW KIT in DRUMS, 
     REQUIRE(fixture.rig.settle());
     const app::FolderListing* drums = fixture.rig.model.browser().listing({"DRUMS"});
     REQUIRE(drums != nullptr);
-    CHECK(std::find(drums->folders.begin(), drums->folders.end(), "NEW KIT") != drums->folders.end());
+    CHECK(std::ranges::find(drums->folders, "NEW KIT") != drums->folders.end());
     CHECK(fixture.sent(ITEM_CREATE_FOLDER) == 1);
 
     fixture.browser.createFolder({"DRUMS"}, "LOOPS");
@@ -339,5 +340,5 @@ TEST_CASE("Given the browser on HD1 and the sampler left on another disk (a sele
     CHECK_FALSE(rig.model.problem().has_value());
     const app::FolderListing* drums = rig.model.browser().listing({"DRUMS"});
     REQUIRE(drums != nullptr);
-    CHECK(std::find(drums->folders.begin(), drums->folders.end(), "NEW") != drums->folders.end());
+    CHECK(std::ranges::find(drums->folders, "NEW") != drums->folders.end());
 }

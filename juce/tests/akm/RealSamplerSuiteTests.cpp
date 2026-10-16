@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // first against the simulated sampler, so that its checks, its log and the state it leaves are checked before any
 // hardware is involved. [TASK-AKM-010, RQ-AKM-010, RQ-AKM-011, RQ-AKM-015, RQ-AKM-017, RQ-AKM-018, RQ-AKM-019,
 // RQ-AKM-039, RQ-AKM-040, RQ-AKM-041, RQ-AKM-042, ADR-AKM-001 (DEC-AKM-007, DEC-AKM-008)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_string.hpp>
 
@@ -123,7 +124,7 @@ namespace
     // The report of the check whose title contains `part`.
     const CheckReport& reportOf(const RealSuiteResult& result, const std::string& part)
     {
-        const auto found = std::find_if(result.checks.begin(), result.checks.end(),
+        const auto found = std::ranges::find_if(result.checks,
                                         [&part](const CheckReport& report) { return report.title.find(part) != std::string::npos; });
         REQUIRE(found != result.checks.end());
         return *found;
@@ -1985,7 +1986,7 @@ namespace
     bool sentMultiItem(const SimulatedSampler& sampler, std::uint8_t item)
     {
         const auto commands = sampler.acceptedCommands();
-        return std::any_of(commands.begin(), commands.end(),
+        return std::ranges::any_of(commands,
                            [item](const auto& command) { return command.section == SECTION_MULTI && command.item == item; });
     }
 }
@@ -2095,7 +2096,7 @@ namespace
     bool sentFxItem(const SimulatedSampler& sampler, std::uint8_t item)
     {
         const auto commands = sampler.acceptedCommands();
-        return std::any_of(commands.begin(), commands.end(),
+        return std::ranges::any_of(commands,
                            [item](const auto& command) { return command.section == SECTION_MULTI_FX && command.item == item; });
     }
 

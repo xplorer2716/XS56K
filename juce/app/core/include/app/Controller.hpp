@@ -55,7 +55,7 @@ namespace app
         /// Queues `call` (it runs on the worker, so it may block on the sampler) under `label`; on success `onSuccess` gets the value on the
         /// UI thread, on failure the model gets the problem and `onSuccess` is not called. [RQ-APP-010, RQ-APP-012]
         template <typename T>
-        void run(std::string label, std::function<mcp::Outcome<T>()> call, std::function<void(const T&)> onSuccess)
+        void run(const std::string& label, std::function<mcp::Outcome<T>()> call, std::function<void(const T&)> onSuccess)
         {
             queue(label, wrap<T>(std::move(call), std::move(onSuccess), {}));
         }
@@ -75,7 +75,7 @@ namespace app
         /// Queues a call to the gateway of the connection, as `run` does; while the application is not connected it queues nothing and
         /// answers false. [RQ-APP-019]
         template <typename T>
-        bool runOnSampler(std::string label, std::function<mcp::Outcome<T>(mcp::SamplerGateway&)> call, std::function<void(const T&)> onSuccess)
+        bool runOnSampler(const std::string& label, std::function<mcp::Outcome<T>(mcp::SamplerGateway&)> call, std::function<void(const T&)> onSuccess)
         {
             if (!connected())
                 return false;
@@ -86,7 +86,7 @@ namespace app
         /// Asks `question` first, then queues the call to the gateway only when the person confirms and the application is still connected:
         /// a cancel sends nothing. [RQ-APP-011, RQ-APP-019, DEC-APP-007]
         template <typename T>
-        void runOnSamplerConfirmed(Confirmation question, std::string label, std::function<mcp::Outcome<T>(mcp::SamplerGateway&)> call,
+        void runOnSamplerConfirmed(const Confirmation& question, std::string label, std::function<mcp::Outcome<T>(mcp::SamplerGateway&)> call,
                                    std::function<void(const T&)> onSuccess)
         {
             if (!connected())

@@ -284,7 +284,7 @@ namespace akm::harness
 
             const auto terminalSeen = [&] {
                 const auto received = inbox.from(mark);
-                return std::any_of(received.begin(), received.end(),
+                return std::ranges::any_of(received,
                                    [userRef](const Received& item) { return isTerminalFor(item, userRef); });
             };
             const bool terminal = driver.waitUntil(terminalSeen, options.answerTimeout);

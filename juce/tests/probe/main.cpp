@@ -762,7 +762,7 @@ int main(int argc, char** argv)
         std::cout << "\nLog written to " << logPath << "\n";
         if (!result.portsOpened)
             return EXIT_USAGE;
-        const auto answered = std::find(result.discoveredDeviceIds.begin(), result.discoveredDeviceIds.end(),
+        const auto answered = std::ranges::find(result.discoveredDeviceIds,
                                         static_cast<std::uint8_t>(arguments.deviceId));
         if (answered == result.discoveredDeviceIds.end())
             return EXIT_NO_ANSWER;

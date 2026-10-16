@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // The editor layouts against the catalogues: every name exists and can be set, and the sample editor holds every settable parameter of a
 // sample. [RQ-APP-086, RQ-APP-049, ADR-APP-001 (DEC-APP-006), ADR-APP-004 (DEC-APP-024), TASK-APP-035]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -31,7 +32,7 @@ namespace
     const app::layouts::EditorLayout* layoutOf(std::string_view editor)
     {
         const auto& layouts = app::layouts::kEditorLayouts;
-        const auto found = std::find_if(layouts.begin(), layouts.end(), [editor](const auto& layout) { return layout.editor == editor; });
+        const auto found = std::ranges::find_if(layouts, [editor](const auto& layout) { return layout.editor == editor; });
         return found == layouts.end() ? nullptr : &*found;
     }
 }
@@ -57,7 +58,7 @@ TEST_CASE("Given the sample editor's layout, Then its tab Sample holds Trim, Loo
         {
             named.insert(std::string(parameter.name));
             const auto& rows = catalogue.parameters();
-            const auto row = std::find_if(rows.begin(), rows.end(), [&parameter](const mcp::ParameterDefinition& definition) {
+            const auto row = std::ranges::find_if(rows, [&parameter](const mcp::ParameterDefinition& definition) {
                 return definition.name == parameter.name;
             });
             INFO(std::string(parameter.name));
@@ -101,7 +102,7 @@ TEST_CASE("Given the program editor's layout, Then every name is a parameter of 
             for (const auto& parameter : group.parameters)
             {
                 INFO(std::string(parameter.name));
-                const auto row = std::find_if(rows.begin(), rows.end(), [&parameter](const mcp::ParameterDefinition& definition) {
+                const auto row = std::ranges::find_if(rows, [&parameter](const mcp::ParameterDefinition& definition) {
                     return definition.name == parameter.name;
                 });
                 REQUIRE(row != rows.end());

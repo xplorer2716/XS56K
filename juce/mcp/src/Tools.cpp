@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "mcp/Tools.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <cmath>
 #include <initializer_list>
@@ -102,7 +103,7 @@ namespace mcp
             const std::set<std::string> known(allowed.begin(), allowed.end());
             for (const auto& [key, value] : arguments.items())
             {
-                if (known.count(key) == 0)
+                if (!known.contains(key))
                 {
                     const std::vector<std::string> names(allowed.begin(), allowed.end());
                     return failure("Unknown argument '" + key + "'. " +
@@ -216,7 +217,7 @@ namespace mcp
         std::string describeReading(const ParameterDefinition& parameter, const std::vector<ParameterValue>& values,
                                     KeygroupSelection selection, ZoneSelection zones)
         {
-            const bool allEqual = std::all_of(values.begin(), values.end(), [&values](const ParameterValue& value) {
+            const bool allEqual = std::ranges::all_of(values, [&values](const ParameterValue& value) {
                 return value.value == values.front().value;
             });
             if (allEqual)
@@ -355,7 +356,7 @@ namespace mcp
                                          " characters, letters, digits, spaces and punctuation of plain ASCII.";
             if (name.empty() || name.size() > maxLength)
                 return "The name \"" + name + "\" has " + std::to_string(name.size()) + " characters. " + accepted;
-            if (!std::all_of(name.begin(), name.end(), [](char c) { return c >= FIRST_PRINTABLE && c <= LAST_PRINTABLE; }))
+            if (!std::ranges::all_of(name, [](char c) { return c >= FIRST_PRINTABLE && c <= LAST_PRINTABLE; }))
                 return "The name \"" + name + "\" has a character the sampler does not take. " + accepted;
             return std::nullopt;
         }
@@ -470,7 +471,7 @@ namespace mcp
             {
                 const json& names = arguments.at("parameters");
                 if (!names.is_array() || names.empty() ||
-                    !std::all_of(names.begin(), names.end(), [](const json& name) { return name.is_string(); }))
+                    !std::ranges::all_of(names, [](const json& name) { return name.is_string(); }))
                     return failure("The argument 'parameters' must be a list of parameter names.");
                 std::vector<std::string> problems;
                 for (const json& name : names)
@@ -1047,7 +1048,7 @@ namespace mcp
         /// "part level = 80 (part 3)", "part mute = on (all 32 parts)", or one value per part when they differ.
         std::string describePartReading(const ParameterDefinition& parameter, const std::vector<PartValue>& values, PartSelection parts)
         {
-            const bool allEqual = std::all_of(values.begin(), values.end(), [&values](const PartValue& value) {
+            const bool allEqual = std::ranges::all_of(values, [&values](const PartValue& value) {
                 return value.value == values.front().value;
             });
             if (allEqual)
@@ -1229,9 +1230,9 @@ namespace mcp
 
     namespace
     {
-        constexpr const char* DISK_TYPES[] = {"floppy", "hard disk", "CD-ROM", "removable"};
+        constexpr auto DISK_TYPES = std::to_array<const char*>({"floppy", "hard disk", "CD-ROM", "removable"});
         constexpr int DISK_TYPE_COUNT = 4;
-        constexpr const char* DISK_FORMATS[] = {"other", "MSDOS", "FAT32", "ISO9660", "S1000", "S3000", "EMU", "ROLAND"};
+        constexpr auto DISK_FORMATS = std::to_array<const char*>({"other", "MSDOS", "FAT32", "ISO9660", "S1000", "S3000", "EMU", "ROLAND"});
         constexpr int DISK_FORMAT_COUNT = 8;
 
         constexpr const char* DISK_NOTICE =
@@ -1290,7 +1291,7 @@ namespace mcp
             std::vector<std::string> added;
             for (const std::string& name : after)
             {
-                const auto known = std::find(remaining.begin(), remaining.end(), name);
+                const auto known = std::ranges::find(remaining, name);
                 if (known != remaining.end())
                     remaining.erase(known);
                 else
@@ -1312,17 +1313,17 @@ namespace mcp
             const char* noun;
         };
 
-        constexpr SaveKindWord SAVE_KINDS[] = {
+        constexpr auto SAVE_KINDS = std::to_array<SaveKindWord>({
             {SaveKind::Program, "program", "program"},      {SaveKind::Sample, "sample", "sample"},
             {SaveKind::Multi, "multi", "multi"},            {SaveKind::SongFile, "song_file", "song file"},
             {SaveKind::SetList, "set_list", "set list"},    {SaveKind::SceneList, "scenelist", "scenelist"},
-        };
+        });
         constexpr const char* SAVE_KIND_LIST = "\"program\", \"sample\", \"multi\", \"song_file\", \"set_list\" or \"scenelist\"";
 
         /// A kind as the client says it, in other letters, with a space or a hyphen for the underscore. [RQ-MCP-050]
         std::string kindWordKey(std::string word)
         {
-            std::replace(word.begin(), word.end(), '_', ' ');
+            std::ranges::replace(word, '_', ' ');
             return normalizeText(word);
         }
 
@@ -1368,7 +1369,7 @@ namespace mcp
             std::vector<std::string> gained;
             for (const DiskFileEntry& file : outcome.filesAfter)
             {
-                const bool known = std::any_of(outcome.filesBefore.begin(), outcome.filesBefore.end(),
+                const bool known = std::ranges::any_of(outcome.filesBefore,
                                                [&file](const DiskFileEntry& before) { return before.name == file.name; });
                 if (!known)
                     gained.push_back(file.name);
@@ -1702,7 +1703,7 @@ namespace mcp
                                "\" to " + where + " but no file bearing that name appears in the folder (files added: " +
                                (gainedFiles(outcome).empty() ? "none" : joined(gainedFiles(outcome), ", ")) +
                                "). It may have saved it under another name, or not at all.");
-            const bool replaced = std::any_of(outcome.filesBefore.begin(), outcome.filesBefore.end(),
+            const bool replaced = std::ranges::any_of(outcome.filesBefore,
                                               [&outcome](const DiskFileEntry& file) { return file.name == outcome.savedFile->name; });
             return ok("Saved the " + std::string(saveKindName(*kind)) + " \"" + outcome.itemName + "\" to " + where + ": the file " +
                       outcome.savedFile->name + " (" + std::to_string(outcome.savedFile->sizeBytes) + " bytes) is in the folder" +
@@ -2484,7 +2485,7 @@ namespace mcp
 
         std::string lowerCase(std::string text)
         {
-            std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::ranges::transform(text, text.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return text;
         }
 
@@ -2495,14 +2496,14 @@ namespace mcp
 
         int daysInMonth(int year, int month)
         {
-            constexpr int DAYS[MONTHS_IN_YEAR] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+            constexpr auto DAYS = std::to_array<int>({31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31});
             return month == 2 && isLeapYear(year) ? 29 : DAYS[month - 1];
         }
 
         /// The day of the week of a date as the sampler counts it: 1 to 7, 1 = Sunday (Sakamoto's method). [RQ-AKM-054]
         int dayOfWeekOf(int year, int month, int day)
         {
-            constexpr int MONTH_OFFSET[MONTHS_IN_YEAR] = {0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4};
+            constexpr auto MONTH_OFFSET = std::to_array<int>({0, 3, 2, 5, 0, 3, 5, 1, 4, 6, 2, 4});
             constexpr int MARCH = 3;
             const int y = month < MARCH ? year - 1 : year;
             const int sundayIsZero = (y + y / 4 - y / 100 + y / 400 + MONTH_OFFSET[month - 1] + day) % DAYS_IN_WEEK;
@@ -2511,7 +2512,7 @@ namespace mcp
 
         std::string dayName(int dayOfWeek)
         {
-            constexpr const char* NAMES[DAYS_IN_WEEK] = {"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
+            constexpr auto NAMES = std::to_array<const char*>({"Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"});
             if (dayOfWeek < 1 || dayOfWeek > DAYS_IN_WEEK)
                 return "day of week " + std::to_string(dayOfWeek);
             return NAMES[dayOfWeek - 1];
@@ -2767,26 +2768,26 @@ namespace mcp
             Meaning meaning;
         };
 
-        constexpr Word<MidiSwitch> MIDI_SWITCHES[] = {
+        constexpr auto MIDI_SWITCHES = std::to_array<Word<MidiSwitch>>({
             {SWITCH_PROGRAM_CHANGE, MidiSwitch::ProgramChange},
             {SWITCH_MULTI_SELECT, MidiSwitch::MultiSelect},
             {SWITCH_MULTI_SELECT_CHANNEL, MidiSwitch::MultiSelectChannel},
             {SWITCH_EXTERNAL_APM_CONTROLLER, MidiSwitch::ExternalApmController},
             {SWITCH_AFTERTOUCH, MidiSwitch::Aftertouch},
-        };
-        constexpr Word<int> PROGRAM_CHANGE_VALUES[] = {{"on", 1}, {"off", 0}};
-        constexpr Word<int> MULTI_SELECT_MODES[] = {{"off", 0}, {"program_change", 1}, {"bank", 2}};
-        constexpr Word<int> AFTERTOUCH_TYPES[] = {{"channel", 0}, {"polyphonic", 1}};
-        constexpr Word<MidiFilterKind> FILTER_EVENTS[] = {
+        });
+        constexpr auto PROGRAM_CHANGE_VALUES = std::to_array<Word<int>>({{"on", 1}, {"off", 0}});
+        constexpr auto MULTI_SELECT_MODES = std::to_array<Word<int>>({{"off", 0}, {"program_change", 1}, {"bank", 2}});
+        constexpr auto AFTERTOUCH_TYPES = std::to_array<Word<int>>({{"channel", 0}, {"polyphonic", 1}});
+        constexpr auto FILTER_EVENTS = std::to_array<Word<MidiFilterKind>>({
             {"note_on", MidiFilterKind::NoteOn},
             {"aftertouch", MidiFilterKind::Aftertouch},
             {"wheels", MidiFilterKind::Wheels},
             {"volume", MidiFilterKind::Volume},
-        };
-        constexpr Word<bool> FILTER_ACTIONS[] = {{ACTION_ALLOW, true}, {ACTION_IGNORE, false}};
+        });
+        constexpr auto FILTER_ACTIONS = std::to_array<Word<bool>>({{ACTION_ALLOW, true}, {ACTION_IGNORE, false}});
 
         template <typename Meaning, std::size_t Count>
-        std::optional<Meaning> meaningOf(const Word<Meaning> (&words)[Count], const std::string& text)
+        std::optional<Meaning> meaningOf(const std::array<Word<Meaning>, Count>& words, const std::string& text)
         {
             for (const Word<Meaning>& word : words)
             {
@@ -2797,7 +2798,7 @@ namespace mcp
         }
 
         template <typename Meaning, std::size_t Count>
-        std::string wordList(const Word<Meaning> (&words)[Count])
+        std::string wordList(const std::array<Word<Meaning>, Count>& words)
         {
             std::vector<std::string> texts;
             for (const Word<Meaning>& word : words)
@@ -2806,7 +2807,7 @@ namespace mcp
         }
 
         template <typename Meaning, std::size_t Count>
-        json wordArray(const Word<Meaning> (&words)[Count])
+        json wordArray(const std::array<Word<Meaning>, Count>& words)
         {
             json array = json::array();
             for (const Word<Meaning>& word : words)
@@ -2869,7 +2870,7 @@ namespace mcp
             else
                 return {std::nullopt, "The channel must be a whole number. " + midiChannelFormat()};
             const bool digitsOnly = !text.empty() && text.size() <= MAX_MIDI_CHANNEL_DIGITS &&
-                                    std::all_of(text.begin(), text.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+                                    std::ranges::all_of(text, [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
             const int channel = digitsOnly ? std::stoi(text) : MAX_MIDI_CHANNEL + 1;
             if (channel < MIN_MIDI_CHANNEL || channel > MAX_MIDI_CHANNEL)
                 return {std::nullopt, "The channel \"" + text + "\" is not one of the sampler's, which are " + midiChannelRange() + ". " + midiChannelFormat()};
@@ -2880,7 +2881,7 @@ namespace mcp
         int parseControllerNumber(const std::string& text)
         {
             const bool digitsOnly = !text.empty() && text.size() <= MAX_CONTROLLER_DIGITS &&
-                                    std::all_of(text.begin(), text.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+                                    std::ranges::all_of(text, [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
             return digitsOnly ? std::stoi(text) : NOT_A_CONTROLLER;
         }
 
@@ -3305,11 +3306,11 @@ namespace mcp
             const char* listTool;
         };
 
-        constexpr BulkTool BULK_TOOLS[] = {
+        constexpr auto BULK_TOOLS = std::to_array<BulkTool>({
             {BulkKind::Program, "delete_all_programs", "program", "list_programs"},
             {BulkKind::Sample, "delete_all_samples", "sample", "list_samples"},
             {BulkKind::Multi, "delete_all_multis", "multi", "list_multis"},
-        };
+        });
 
         // The programs, samples and multis always, then the song files, set lists and scenelists the sampler holds, as a list ("a, b and c").
         std::string countsText(const std::vector<std::string>& parts)
@@ -3624,7 +3625,7 @@ namespace mcp
                 if (allowed.empty())
                     return failure("With the EB20 only the modules 2 and 3 of channels 0 and 1 may change type (the specification, p. 35): the module " +
                                    std::to_string(moduleIndex) + " of the effects channel " + std::to_string(channel) + " may not.");
-                if (std::find(allowed.begin(), allowed.end(), kind->code) == allowed.end())
+                if (std::ranges::find(allowed, kind->code) == allowed.end())
                     return failure("The module " + std::to_string(moduleIndex) + " of the effects channel " + std::to_string(channel) +
                                    " takes one of these types: " + fxKindNames(allowed) + ", not " + kind->name + ".");
                 type = kind->code;
@@ -3787,7 +3788,7 @@ namespace mcp
             "stands between a key and the loss. The sampler only QUEUES what it is sent: an accepted command does not say the sampler acted on it. "
             "Use it only when the person asked for that key.";
 
-        const Word<WheelDirection> WHEEL_DIRECTIONS[] = {{DIRECTION_FORWARDS, WheelDirection::Forwards}, {DIRECTION_BACKWARDS, WheelDirection::Backwards}};
+        const auto WHEEL_DIRECTIONS = std::to_array<Word<WheelDirection>>({{DIRECTION_FORWARDS, WheelDirection::Forwards}, {DIRECTION_BACKWARDS, WheelDirection::Backwards}});
 
         /// A single ASCII character from a number (0 to 127) or a one-character text, or the reason it is not one. [RQ-MCP-054]
         std::optional<std::string> asciiArgument(const json& given, int& ascii)

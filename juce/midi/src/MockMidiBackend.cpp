@@ -38,6 +38,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "common/midi/MockMidiBackend.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <map>
 
 namespace common::midi
@@ -144,14 +145,21 @@ namespace common::midi
 
         ~MockInputPort() override
         {
-            const std::lock_guard lock(_state->mutex);
-            _body->closed = true;
-            auto& ports = _state->openInputs[_name];
-            // Drop this body's entry, and take the opportunity to clear any
-            // expired ones so the vector cannot grow without bound across a
-            // long test that hot-swaps devices repeatedly.
-            std::erase_if(ports, [this](const std::weak_ptr<InputPortBody>& candidate)
-                          { return candidate.expired() || candidate.lock() == _body; });
+            try  // a destructor must not throw (the lock can) [TASK-QLT-025]
+            {
+                const std::lock_guard lock(_state->mutex);
+                _body->closed = true;
+                auto& ports = _state->openInputs[_name];
+                // Drop this body's entry, and take the opportunity to clear any
+                // expired ones so the vector cannot grow without bound across a
+                // long test that hot-swaps devices repeatedly.
+                std::erase_if(ports, [this](const std::weak_ptr<InputPortBody>& candidate)
+                              { return candidate.expired() || candidate.lock() == _body; });
+            }
+            catch (...)
+            {
+                std::fputs("MockMidiBackend: an input port could not be closed\n", stderr);
+            }
         }
 
         [[nodiscard]] std::string deviceName() const override { return _name; }
@@ -181,9 +189,16 @@ namespace common::midi
 
         ~MockOutputPort() override
         {
-            const std::lock_guard lock(_state->mutex);
-            auto& ports = _state->openOutputs[_name];
-            std::erase(ports, this);
+            try  // a destructor must not throw (the lock can) [TASK-QLT-025]
+            {
+                const std::lock_guard lock(_state->mutex);
+                auto& ports = _state->openOutputs[_name];
+                std::erase(ports, this);
+            }
+            catch (...)
+            {
+                std::fputs("MockMidiBackend: an output port could not be closed\n", stderr);
+            }
         }
 
         [[nodiscard]] std::string deviceName() const override { return _name; }

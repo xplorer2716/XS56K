@@ -60,7 +60,7 @@ namespace app::ui
         const juce::StringArray MENU_NAMES{"XS56K", "Sampler", "MIDI"};
     }
 
-    AreaPanel::AreaPanel(LookAndFeel& lookAndFeel, juce::String title, bool withTabRow)
+    AreaPanel::AreaPanel(LookAndFeel& lookAndFeel, const juce::String& title, bool withTabRow)
         : _lookAndFeel(lookAndFeel), _withTabRow(withTabRow)
     {
         using namespace tokens;

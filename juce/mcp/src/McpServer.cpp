@@ -88,7 +88,7 @@ namespace mcp
 
         std::string legacyVersionFor(const std::string& requested)
         {
-            const auto known = std::find(LEGACY_PROTOCOL_VERSIONS.begin(), LEGACY_PROTOCOL_VERSIONS.end(), requested);
+            const auto known = std::ranges::find(LEGACY_PROTOCOL_VERSIONS, requested);
             return std::string(known != LEGACY_PROTOCOL_VERSIONS.end() ? *known : LEGACY_PROTOCOL_VERSIONS.front());
         }
 
@@ -123,7 +123,7 @@ namespace mcp
         {
             if (!line.empty() && line.back() == '\r')
                 line.pop_back();
-            if (std::all_of(line.begin(), line.end(), [](unsigned char c) { return c == ' ' || c == '\t'; }))
+            if (std::ranges::all_of(line, [](unsigned char c) { return c == ' ' || c == '\t'; }))
                 continue;
             if (const auto answer = handleLine(line))
             {
@@ -243,7 +243,7 @@ namespace mcp
             return errorResponse(id, ERROR_INVALID_PARAMS, "Invalid params: name must be a string");
         const std::string toolName = name->get<std::string>();
 
-        const auto tool = std::find_if(_tools.begin(), _tools.end(),
+        const auto tool = std::ranges::find_if(_tools,
                                        [&toolName](const Tool& candidate) { return candidate.definition.name == toolName; });
         if (tool == _tools.end())
             return errorResponse(id, ERROR_INVALID_PARAMS, "Unknown tool: " + toolName);

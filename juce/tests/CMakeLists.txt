@@ -358,6 +358,9 @@ if(Python3_FOUND)
     # itself when bash is missing. [TASK-BLD-013, RQ-BLD-016, ADR-BLD-006 (DEC-BLD-029, DEC-BLD-030)]
     add_test(NAME bld_publish_deployment_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_publish_deployment.py")
+    # The clang-tidy runner: its selection of files and its filter of the findings, against a replaced clang-tidy. [TASK-QLT-024, RQ-QLT-013]
+    add_test(NAME qlt_tidy_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_tidy.py")
 else()
     message(STATUS "Python 3 not found: the item catalogue, coverage table, design tokens, mockups, mutation-tool and publish-step checks of juce/tests/tools are not registered")
 endif()

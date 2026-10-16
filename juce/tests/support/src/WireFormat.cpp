@@ -68,7 +68,7 @@ namespace akm::harness
             return "still alive (F0 F7)";
         if (const auto* rejected = std::get_if<Rejected>(&decoded))
             return "rejected: " + std::string(describe(rejected->reason));
-        const Confirmation& confirmation = std::get<Confirmation>(decoded);
+        const auto& confirmation = std::get<Confirmation>(decoded);
         std::ostringstream text;
         switch (confirmation.replyId)
         {

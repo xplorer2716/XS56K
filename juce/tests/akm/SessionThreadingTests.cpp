@@ -100,8 +100,8 @@ TEST_CASE("Given a thousand commands answered from the simulation's own thread, 
 
     const std::lock_guard lock(mutex);
     REQUIRE(order.size() == ORDERED_COMMANDS);
-    CHECK(std::is_sorted(order.begin(), order.end()));
-    CHECK(std::adjacent_find(order.begin(), order.end()) == order.end());
+    CHECK(std::ranges::is_sorted(order));
+    CHECK(std::ranges::adjacent_find(order) == order.end());
     // One session thread, and never the test's own.
     CHECK(std::count(threads.begin(), threads.end(), threads.front()) == static_cast<long>(ORDERED_COMMANDS));
     CHECK(threads.front() != std::this_thread::get_id());
@@ -120,7 +120,7 @@ TEST_CASE("Given a simulation that delivers its confirmations before send() retu
     REQUIRE(harness.waitForCompletions(CONCURRENT_COMMANDS, REAL_WAIT));
     const std::vector<CommandResult> results = harness.recorder().results();
     REQUIRE(results.size() == CONCURRENT_COMMANDS);
-    CHECK(std::all_of(results.begin(), results.end(), [](const CommandResult& result) { return is<Done>(result); }));
+    CHECK(std::ranges::all_of(results, [](const CommandResult& result) { return is<Done>(result); }));
 }
 
 TEST_CASE("Given a confirmation arriving just as the timeout falls due, When they race, Then the command completes exactly once [RQ-AKM-010, RQ-AKM-020]",
@@ -172,7 +172,7 @@ TEST_CASE("Given commands in flight and queued on real threads, When the session
     // either way.
     const std::vector<CommandResult> results = harness.recorder().results();
     CHECK(results.size() == CONCURRENT_COMMANDS);
-    CHECK(std::all_of(results.begin(), results.end(), [](const CommandResult& result) {
+    CHECK(std::ranges::all_of(results, [](const CommandResult& result) {
         return is<Done>(result) || is<Timeout>(result) || is<Cancelled>(result)
                || (std::holds_alternative<Refused>(result)
                    && std::get<Refused>(result).reason == RefusalReason::SessionClosed);

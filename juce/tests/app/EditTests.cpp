@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // The edit controller against the simulated sampler: what it reads when a sample is selected, what it does for a kind with no editor, the
 // read again, the end of the connection. [RQ-APP-048, RQ-APP-050, RQ-APP-053, RQ-APP-086, RQ-APP-087, ADR-APP-004 (DEC-APP-025), TASK-APP-036]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -61,7 +62,7 @@ namespace
     const mcp::ParameterDefinition& sampleParameter(const std::string& name)
     {
         const auto& rows = mcp::ParameterCatalogue::samples().parameters();
-        return *std::find_if(rows.begin(), rows.end(), [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
+        return *std::ranges::find_if(rows, [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
     }
 
     /// The program PAD (2 keygroups), the multi M1, the samples KICK (RAM, mono, 22050 points at 44100 Hz, played to its end, fine tune +10, root C3) and SNARE; connected.
@@ -179,7 +180,7 @@ namespace
     const mcp::ParameterDefinition& programParameter(const std::string& name)
     {
         const auto& rows = mcp::ParameterCatalogue::standard().parameters();
-        return *std::find_if(rows.begin(), rows.end(), [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
+        return *std::ranges::find_if(rows, [&name](const mcp::ParameterDefinition& row) { return row.name == name; });
     }
 
     constexpr std::int64_t PAD_LOUDNESS = 80;

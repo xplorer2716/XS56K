@@ -86,7 +86,7 @@ namespace
 
     std::optional<std::string> partName(SessionHarness& harness, int part)
     {
-        return await<akm::MultiNameResult>(harness, [&](auto done) { akm::getMultiPartName(harness.session(), part, done); }).name;
+        return await<akm::MultiNameResult>(harness, [&](const auto& done) { akm::getMultiPartName(harness.session(), part, done); }).name;
     }
 }
 

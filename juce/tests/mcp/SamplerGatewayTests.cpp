@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // first needed, the programs, the keygroups, the parameters read, set and read back, and the sentences that say what
 // went wrong. [TASK-MCP-004, RQ-MCP-003, RQ-MCP-005, RQ-MCP-006, RQ-MCP-007, RQ-MCP-009,
 // ADR-MCP-001 (DEC-MCP-003, DEC-MCP-004, DEC-MCP-006)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -538,7 +539,7 @@ namespace
         bool anyContains(std::string_view part)
         {
             const std::lock_guard lock(mutex);
-            return std::any_of(lines.begin(), lines.end(), [&](const std::string& line) { return line.find(part) != std::string::npos; });
+            return std::ranges::any_of(lines, [&](const std::string& line) { return line.find(part) != std::string::npos; });
         }
     };
 }

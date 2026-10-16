@@ -184,7 +184,7 @@ namespace mcp
 
         bool oneOf(const std::string& text, std::initializer_list<const char*> options)
         {
-            return std::any_of(options.begin(), options.end(), [&text](const char* option) { return text == option; });
+            return std::ranges::any_of(options, [&text](const char* option) { return text == option; });
         }
     }
 
@@ -193,7 +193,7 @@ namespace mcp
         std::string lowered(text);
         replaceAll(lowered, UTF8_MINUS_SIGN, "-");
         replaceAll(lowered, UTF8_EN_DASH, "-");
-        std::transform(lowered.begin(), lowered.end(), lowered.begin(), [](unsigned char c) {
+        std::ranges::transform(lowered, lowered.begin(), [](unsigned char c) {
             return static_cast<char>(c >= 'A' && c <= 'Z' ? c - 'A' + 'a' : c);
         });
 
@@ -260,7 +260,7 @@ namespace mcp
         for (const GroupDefinition& group : _groups)
         {
             const bool named = normalizeText(group.name) == wanted;
-            const bool aliased = std::any_of(group.aliases.begin(), group.aliases.end(),
+            const bool aliased = std::ranges::any_of(group.aliases,
                                              [&wanted](const std::string& alias) { return normalizeText(alias) == wanted; });
             if (!wanted.empty() && (named || aliased))
                 found.push_back(&group);
@@ -315,7 +315,7 @@ namespace mcp
                 candidates.push_back({best, order, &parameter});
         }
 
-        std::sort(candidates.begin(), candidates.end(), [](const Candidate& a, const Candidate& b) {
+        std::ranges::sort(candidates, [](const Candidate& a, const Candidate& b) {
             return a.distance != b.distance ? a.distance < b.distance : a.order < b.order;
         });
         for (std::size_t i = 0; i < candidates.size() && i < MAX_SUGGESTIONS; ++i)

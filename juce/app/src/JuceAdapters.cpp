@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "JuceAdapters.hpp"
 
+#include <cstdio>
 #include <exception>
 #include <string>
 #include <utility>
@@ -36,6 +37,22 @@ namespace app::ui
         constexpr const char* CANCEL_TEXT = "Cancel";
         constexpr const char* CONFIRM_TEXT = "Confirm";
         constexpr int TEXT_LINES = 3;
+        constexpr const char* CLOSED_DIALOG_FAILED = "The answer of a closed dialog failed";
+        constexpr const char* LOG_STOP_FAILED = "The log could not be closed";
+
+        /// Logs a failure met in a destructor; when the log itself fails, the text goes to the standard error. Never throws. [TASK-QLT-025]
+        void logFromDestructor(const char* text, const char* detail = nullptr) noexcept
+        {
+            try
+            {
+                using namespace midiapp::service;
+                XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Error, detail == nullptr ? std::string(text) : std::string(text) + ": " + detail);
+            }
+            catch (...)
+            {
+                std::fputs(text, stderr);
+            }
+        }
 
         /// The confirmation: its question as the title, the object and what is lost, and two buttons; the confirm button is the destructive
         /// one of the design system. Answers once, on a button or on the window's close.
@@ -77,14 +94,12 @@ namespace app::ui
                 }
                 catch (const std::exception& error)
                 {
-                    using namespace midiapp::service;
                     // Nothing can be done about a failing answer while the dialog is destroyed: it is logged.
-                    XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Error, std::string("The answer of a closed dialog failed: ") + error.what());
+                    logFromDestructor(CLOSED_DIALOG_FAILED, error.what());
                 }
                 catch (...)
                 {
-                    using namespace midiapp::service;
-                    XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Error, std::string("The answer of a closed dialog failed"));
+                    logFromDestructor(CLOSED_DIALOG_FAILED);
                 }
             }
 
@@ -209,8 +224,15 @@ namespace app::ui
 
     LogSession::~LogSession()
     {
-        using namespace midiapp::service;
-        XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Info, std::string("XS56K stopped"));
-        Logger::shutdown();
+        try  // a destructor must not throw [TASK-QLT-025]
+        {
+            using namespace midiapp::service;
+            XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Info, std::string("XS56K stopped"));
+            Logger::shutdown();
+        }
+        catch (...)
+        {
+            std::fputs(LOG_STOP_FAILED, stderr);
+        }
     }
 }

@@ -26,7 +26,7 @@ namespace akm
     {
         // A linear scan: the table is short, and a lookup happens only while a REPLY is decoded in mode
         // Unknown, at the speed of MIDI.
-        const auto found = std::find_if(ITEM_TABLE.begin(), ITEM_TABLE.end(), [section, item](const ItemDescriptor& record) {
+        const auto found = std::ranges::find_if(ITEM_TABLE, [section, item](const ItemDescriptor& record) {
             return record.section == section && record.item == item;
         });
         return found == ITEM_TABLE.end() ? nullptr : std::to_address(found);
@@ -34,7 +34,7 @@ namespace akm
 
     const ItemDescriptor* findReplyItem(std::uint8_t section, std::uint8_t item)
     {
-        const auto found = std::find_if(ITEM_TABLE.begin(), ITEM_TABLE.end(), [section, item](const ItemDescriptor& record) {
+        const auto found = std::ranges::find_if(ITEM_TABLE, [section, item](const ItemDescriptor& record) {
             return record.item == item && (record.section == section || record.replySection == section);
         });
         return found == ITEM_TABLE.end() ? nullptr : std::to_address(found);

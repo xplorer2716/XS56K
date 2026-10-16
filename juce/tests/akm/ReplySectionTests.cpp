@@ -82,12 +82,12 @@ namespace
 
     ClockDateResult getClock(SessionHarness& harness)
     {
-        return await<ClockDateResult>(harness, [&](auto done) { akm::getClockDate(harness.session(), done); });
+        return await<ClockDateResult>(harness, [&](const auto& done) { akm::getClockDate(harness.session(), done); });
     }
 
     SamplerNameResult getName(SessionHarness& harness)
     {
-        return await<SamplerNameResult>(harness, [&](auto done) { akm::getSamplerName(harness.session(), done); });
+        return await<SamplerNameResult>(harness, [&](const auto& done) { akm::getSamplerName(harness.session(), done); });
     }
 
     void answerUnder(SessionHarness& harness, std::uint8_t item, std::uint8_t replySection)
