@@ -1,12 +1,18 @@
 # Attaches one archive to the deployment for this commit, creating the release
-# if this workflow is the first to reach it. [RQ-BLD-007, RQ-BLD-010, ADR-BLD-003]
+# as a draft if this workflow is the first to reach it, and publishing it when
+# this workflow attaches the last archive. [RQ-BLD-007, RQ-BLD-010, RQ-BLD-016,
+# ADR-BLD-003, ADR-BLD-006 (DEC-BLD-029, DEC-BLD-030)]
+#
+# A published release is immutable (repository setting), so it must be complete
+# when it is published: the logic, in publish.sh, is described by ADR-BLD-006.
 #
 # Adapted from xplorer2716/XplorerEditor's own
 # .github/actions/publish-deployment/action.yml (AGENTS.md). Several workflows
 # publish into ONE release, so this keeps the two properties that requires:
 # the tag is a function of the commit alone (resolve-version), and creation is
-# idempotent — whichever workflow arrives first creates the release, the
-# others only upload. Losing that race is not an error; failing to upload is.
+# idempotent — whichever workflow arrives first creates the draft, the others
+# only upload; if several create one, the oldest is kept. Losing that race is
+# not an error; failing to upload is.
 #
 # Dropped, not carried over: XplorerEditor's first-launch notice (unsigned-
 # binary warning per OS). Explicitly out of scope here (ADR-BLD-003) — no
@@ -16,7 +22,7 @@
 # commits since the previous deployment OF THE SAME STREAM, found among the
 # tags. A shallow checkout would produce notes claiming every commit is new.
 name: 'Publish into the deployment for this commit'
-description: 'Creates or reuses this commit''s release, writes its notes, and attaches one archive.'
+description: 'Creates or reuses this commit''s draft release, writes its notes, attaches one archive, and publishes the release when it is complete.'
 
 inputs:
   archive:
@@ -34,6 +40,9 @@ inputs:
   stage:
     description: 'Empty for production, "preprod" on the dev branch. Canary never reaches this action.'
     required: true
+  expected-assets:
+    description: 'Number of archives the deployment has when complete (one per publishing workflow of the stream); the release is published when that many are attached.'
+    required: true
   token:
     description: 'Token carrying contents: write.'
     required: true
@@ -49,79 +58,6 @@ runs:
         DISPLAY: ${{ inputs.version-display }}
         TAG: ${{ inputs.version-full }}
         STAGE: ${{ inputs.stage }}
-      run: |
-        set -euo pipefail
-
-        # A canary build publishes nothing (RQ-BLD-005). Reaching here with
-        # that stage means a workflow was wired to the wrong action.
-        if [ "$STAGE" = canary ]; then
-          echo "::error::canary builds publish no deployment; this action must not be called for them"
-          exit 1
-        fi
-
-        echo "Attaching ${ASSET_NAME} to ${TAG}"
-
-        if ! gh release view "$TAG" >/dev/null 2>&1; then
-          notes="${RUNNER_TEMP}/deployment-notes.md"
-
-          if [ -z "$STAGE" ]; then
-            echo "Production deployment \`${DISPLAY}\`." > "$notes"
-            # The merge into main is a NEW commit, so a production deployment
-            # carries a different version from the pre-release that was
-            # actually tested — accepted (ADR-BLD-003). Naming the promoted
-            # build is what keeps the chain readable — derived from the
-            # merge's second parent, which IS the dev tip that was merged.
-            if promoted=$(git rev-parse --verify -q 'HEAD^2'); then
-              promoted_version="$(TZ=UTC git log -1 --format=%cd \
-                  --date=format-local:'%Y.%m.%d-%H%M' "$promoted")-preprod"
-              {
-                echo
-                echo "Promotes the pre-production deployment \`${promoted_version}\`."
-              } >> "$notes"
-            fi
-            match='????.??.??-????'
-          else
-            {
-              echo "**Pre-production deployment \`${DISPLAY}\`. This is NOT a production"
-              echo "deployment** — it is built from \`dev\` for integration testing, and its"
-              echo "binaries report \`-preprod\` in their reported version."
-            } > "$notes"
-            match='*-preprod'
-          fi
-
-          # Changes since the previous deployment OF THE SAME STREAM: a
-          # production release must not list a dev release as its
-          # predecessor, and vice versa.
-          prev=$(git tag --list "$match" --sort=-creatordate \
-                 | grep -vx "$TAG" | head -1 || true)
-          {
-            echo
-            if [ -n "$prev" ]; then
-              echo "## Changes since \`${prev}\`"
-              echo
-              git log "${prev}..HEAD" --pretty='- %s (%h)'
-            else
-              echo "## Changes"
-              echo
-              git log -20 --pretty='- %s (%h)'
-            fi
-          } >> "$notes"
-
-          if [ -z "$STAGE" ]; then
-            create_flags=(--latest --title "XS56K ${DISPLAY}")
-          else
-            create_flags=(--prerelease --latest=false --title "XS56K ${DISPLAY} (pre-production)")
-          fi
-
-          # A concurrent publisher may create the release between the check
-          # above and this line. Losing that race is harmless — the upload
-          # below is the step that must succeed, and it fails loudly if the
-          # release genuinely does not exist.
-          gh release create "$TAG" "${create_flags[@]}" --notes-file "$notes" || true
-        fi
-
-        # Uploaded under its own file name: package-deployment already named
-        # it for its version, os, architecture and configuration, which is
-        # what makes several assets of one deployment coexist without
-        # colliding.
-        gh release upload "$TAG" "$ARCHIVE" --clobber
+        EXPECTED_ASSETS: ${{ inputs.expected-assets }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: bash "${ACTION_PATH}/publish.sh"
