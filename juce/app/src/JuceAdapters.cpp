@@ -67,8 +67,15 @@ namespace app::ui
             ~ConfirmationContent() override
             {
                 // Closed by its window: a cancel; the window is going, so it is not asked to end its modal state.
-                if (_answer)
-                    std::exchange(_answer, nullptr)(false);
+                // A destructor must not throw, and the answer has no one left to report to. [TASK-QLT-021, RQ-QLT-001]
+                try
+                {
+                    if (_answer)
+                        std::exchange(_answer, nullptr)(false);
+                }
+                catch (...)  // NOSONAR: nothing can be done about a failing answer while the dialog is destroyed
+                {
+                }
             }
 
             void resized() override

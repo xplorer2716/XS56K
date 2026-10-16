@@ -207,9 +207,15 @@ namespace app::test
             }
             ~Input() override
             {
-                _owner.setInputError({});
-                _port.reset();
-                _owner.record("release " + _name);
+                try  // a destructor must not throw [TASK-QLT-021, RQ-QLT-001]
+                {
+                    _owner.setInputError({});
+                    _port.reset();
+                    _owner.record("release " + _name);
+                }
+                catch (...)  // NOSONAR: a recording that fails has no one to report to
+                {
+                }
             }
             Input(const Input&) = delete;
             Input& operator=(const Input&) = delete;
@@ -239,8 +245,14 @@ namespace app::test
             }
             ~Output() override
             {
-                _port.reset();
-                _owner.record("release " + _name);
+                try  // a destructor must not throw [TASK-QLT-021, RQ-QLT-001]
+                {
+                    _port.reset();
+                    _owner.record("release " + _name);
+                }
+                catch (...)  // NOSONAR: a recording that fails has no one to report to
+                {
+                }
             }
             Output(const Output&) = delete;
             Output& operator=(const Output&) = delete;

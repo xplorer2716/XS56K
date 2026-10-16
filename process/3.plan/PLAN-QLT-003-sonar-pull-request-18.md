@@ -1,0 +1,58 @@
+# PLAN-QLT-003: SonarCloud Quality Gate of Pull Request 18
+
+## Overview
+
+Third plan of FTR-QLT-001 (ADR-QLT-001), written on 2026-10-16 after the owner pushed the editor work (PLAN-APP-005, PLAN-APP-006) in pull request 18 and its quality gate failed: reliability rating D and security rating C (maintainability, duplication and hotspots pass). Audit of the PR's 196 open issues (152 production, 44 test code), read with `sonar api get /api/issues/search?pullRequest=18` and facets, not file by file. The owner's order (2026-10-16): fix all the production code, in the order of the audit; push step 1, then do step 2.
+
+| Step | Issues | Task |
+|---|---|---|
+| 1. The gate: 3 `cpp:S1048` bugs (1 production, 2 in test support) and 3 `pythonsecurity:S8707` in `new_source_file.py` | 6 | TASK-QLT-021 |
+| 2. The other BLOCKER and CRITICAL of production code: `cpp:S3491` x2, `cpp:S1186` x4, `python:S3776` x1, `python:S1192` x2 | 9 | TASK-QLT-022 |
+| 3. The MAJOR and MINOR of production code, by rule family (`cpp:S6197`, `S7172`, `S6177`, `S6004`, `S6185`...) | about 140 | TASK-QLT-023 |
+
+Test-code issues are accepted by path rule, not fixed (DEC-QLT-001), except the two of step 1, which count in the gate. `sonar analyze --file` cannot report the rules on this connection: a fix is checked by the build and the tests, and SonarCloud's own analysis, which the owner refreshes, has the last word (DEC-QLT-005).
+
+## References
+- **Requirements**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007 (`process/1.requirements/FTR-QLT-001-sonar-blocker-critical.md`)
+- **ADRs**: ADR-QLT-001 (DEC-QLT-002, DEC-QLT-005, DEC-QLT-008)
+
+This plan implements the tasks in the format specified below.
+---
+
+## Tasks
+
+### TASK-QLT-021: The quality gate of PR 18 — three destructors and the path of `new_source_file.py`
+- **Tier**: M
+- **Status**: Done
+- **Description**: The destructors of `ConfirmationContent` (`JuceAdapters.cpp`) and of the two fake ports of `AppTestSupport.hpp` no longer let an exception out (`cpp:S1048`). `new_source_file.py` writes and checks only a `.cpp`, `.hpp` or `.h` file under `juce/` (`pythonsecurity:S8707`), and is tested.
+- **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
+- **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
+- **Acceptance Criteria** (Gherkin): *Given* the destructors changed, *When* the suite runs, *Then* it passes unmodified. *Given* `new_source_file.py juce/../x.cpp`, *Then* it refuses, writes nothing, and exits 1. *Given* a path under `juce/`, *Then* the file is created as before.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: Changed: `JuceAdapters.cpp` (`~ConfirmationContent`), `AppTestSupport.hpp` (`~Input`, `~Output`), `new_source_file.py` (`source_path`) and new `test_new_source_file.py` (7 tests, ctest entry `qlt_new_source_file_script_tests`). `cmake --build juce/build --config Debug --parallel`: warning-clean under `/WX`; `ctest -C Debug -j 8`: 1220/1220 passed (1219 before plus the new entry), no test modified. Not verified: that SonarCloud no longer reports `cpp:S1048` x3 and `pythonsecurity:S8707` x3 (the owner refreshes the analysis; the taint rule may not recognise `resolve()` plus `is_relative_to` as a sanitiser); GCC and Apple Clang (CI).
+- **Assumptions**: The tool is tightened rather than accepted: the change is short, and a path given by an assistant is the very case of the rule. Its target must be under `juce/` with a C++ suffix, which is every use in `.github/skills/new-source-file/SKILL.md`.
+
+### TASK-QLT-022: The other BLOCKER and CRITICAL of production code
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: `&*` removed in `EditController.cpp` (`cpp:S3491` x2); a comment in the five empty methods of `Controller.cpp`, `FileBrowser.cpp` x2 and `MemoryController.cpp` (`cpp:S1186`, the fifth being test code); `generate_design.py`'s layout rendering cut into named steps (`python:S3776`, 46 to 15 or less) and the duplicated literals of `generate_design.py` and `generate_mockups.py` named (`python:S1192`).
+- **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
+- **ADR refs**: ADR-QLT-001 (DEC-QLT-002, DEC-QLT-008)
+- **Acceptance Criteria** (Gherkin): *Given* the changes, *When* `generate_design.py` and `generate_mockups.py` run, *Then* `git diff` of the generated header, the design document and the mockups is empty, and `--check` passes. *When* the suite runs, *Then* it passes unmodified.
+- **Dependencies**: TASK-QLT-021
+- **Assignee**: AI
+- **Verification**: To fill at closure.
+- **Assumptions**: None
+
+### TASK-QLT-023: The MAJOR and MINOR of production code, by rule family
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: The rest of the 152 production issues, one rule family at a time, re-read with the triage tool first (the lines will have moved). A change that would alter an output stops and asks the owner (RQ-QLT-003).
+- **Requirement refs**: RQ-QLT-004, RQ-QLT-007
+- **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
+- **Acceptance Criteria** (Gherkin): *Given* a family fixed, *When* the build runs, *Then* it is warning-clean, and *When* the suite runs, *Then* it passes unmodified.
+- **Dependencies**: TASK-QLT-022
+- **Assignee**: AI
+- **Verification**: To fill at closure.
+- **Assumptions**: None

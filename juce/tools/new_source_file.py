@@ -13,6 +13,17 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "juce" / "LICENSE_HEADER.txt"
+SOURCE_ROOT = ROOT / "juce"
+SOURCE_SUFFIXES = (".cpp", ".hpp", ".h")
+
+
+def source_path(path):
+    """`path` resolved, when it is a C++ file under `juce/`; otherwise ValueError. A path given by an assistant is never trusted further.
+    [TASK-QLT-021, RQ-QLT-001]"""
+    resolved = (ROOT / path).resolve()
+    if not resolved.is_relative_to(SOURCE_ROOT.resolve()) or resolved.suffix not in SOURCE_SUFFIXES:
+        raise ValueError(f"{path}: not a {'/'.join(SOURCE_SUFFIXES)} file under juce/")
+    return resolved
 
 
 def header():
@@ -20,7 +31,7 @@ def header():
 
 
 def create(path, body=""):
-    path = pathlib.Path(path)
+    path = source_path(path)
     if path.exists():
         raise FileExistsError(f"{path} exists: nothing written")
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -35,7 +46,11 @@ def main(argv=None):
     parser.add_argument("--check", action="store_true", help="check that each file starts with the header")
     arguments = parser.parse_args(argv)
     if arguments.check:
-        missing = [p for p in arguments.paths if not pathlib.Path(p).read_text(encoding="utf-8").startswith(header())]
+        try:
+            missing = [p for p in arguments.paths if not source_path(p).read_text(encoding="utf-8").startswith(header())]
+        except ValueError as error:
+            print(f"new_source_file: {error}", file=sys.stderr)
+            return 1
         if missing:
             print("new_source_file: no licence header: " + ", ".join(missing))
             return 1
@@ -47,7 +62,7 @@ def main(argv=None):
     body = pathlib.Path(arguments.body).read_text(encoding="utf-8") if arguments.body else ""
     try:
         create(arguments.paths[0], body)
-    except (FileExistsError, OSError) as error:
+    except (FileExistsError, OSError, ValueError) as error:
         print(f"new_source_file: {error}", file=sys.stderr)
         return 1
     print(f"new_source_file: created {arguments.paths[0]}")

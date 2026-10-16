@@ -350,6 +350,9 @@ if(Python3_FOUND)
     # replaced `sonar` CLI, never against SonarCloud. [TASK-QLT-001, RQ-QLT-006, RQ-QLT-008, ADR-QLT-001 (DEC-QLT-003)]
     add_test(NAME qlt_sonar_triage_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_sonar_triage.py")
+    # The new-source-file tool writes only a C++ file under juce/. [TASK-QLT-021, RQ-QLT-001]
+    add_test(NAME qlt_new_source_file_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_new_source_file.py")
 else()
     message(STATUS "Python 3 not found: the item catalogue, coverage table, design tokens, mockups and mutation-tool checks of juce/tests/tools are not registered")
 endif()
