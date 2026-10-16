@@ -17,6 +17,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "MainComponent.hpp"
 
+#include <array>
+
 #include "LookAndFeel.hpp"
 #include "MidiSetupDialog.hpp"
 #include "app/DesignTokens.generated.hpp"
@@ -220,11 +222,11 @@ namespace app::ui
         // [RQ-APP-006, RQ-APP-008, TASK-APP-031]
         const int edge = pixels(kSpaceEdge);
         area.reduce(edge, edge);
-        juce::Component* columns[] = {nullptr, &_columnBar, &_editor};  // the left column is laid out below
-        _columns.layOutComponents(columns, ITEMS, area.getX(), area.getY(), area.getWidth(), area.getHeight(), false, true);
+        std::array<juce::Component*, ITEMS> columns{nullptr, &_columnBar, &_editor};  // the left column is laid out below
+        _columns.layOutComponents(columns.data(), ITEMS, area.getX(), area.getY(), area.getWidth(), area.getHeight(), false, true);
         const auto left = area.withWidth(_columns.getItemCurrentAbsoluteSize(FIRST_ITEM));
-        juce::Component* rows[] = {&_browser, &_rowBar, &_memory};
-        _rows.layOutComponents(rows, ITEMS, left.getX(), left.getY(), left.getWidth(), left.getHeight(), true, true);
+        std::array<juce::Component*, ITEMS> rows{&_browser, &_rowBar, &_memory};
+        _rows.layOutComponents(rows.data(), ITEMS, left.getX(), left.getY(), left.getWidth(), left.getHeight(), true, true);
     }
 
     void MainComponent::modelChanged(ModelPart part)

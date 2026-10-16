@@ -37,18 +37,19 @@ namespace app::ui
 
     juce::Colour roleColour(layouts::Role role)
     {
+        using enum app::layouts::Role;
         using namespace tokens;
         switch (role)
         {
-            case layouts::Role::Sample:
+            case Sample:
                 return colourOf(kColourRoleSample);
-            case layouts::Role::Modulation:
+            case Modulation:
                 return colourOf(kColourRoleModulation);
-            case layouts::Role::Filter:
+            case Filter:
                 return colourOf(kColourRoleFilter);
-            case layouts::Role::Amp:
+            case Amp:
                 return colourOf(kColourRoleAmp);
-            case layouts::Role::General:
+            case General:
                 break;
         }
         return colourOf(kColourRoleGeneral);
@@ -56,15 +57,16 @@ namespace app::ui
 
     int ParameterCell::cells(layouts::Control control)
     {
+        using enum app::layouts::Control;
         switch (control)
         {
-            case layouts::Control::Choice:
-            case layouts::Control::ValueBox:
+            case Choice:
+            case ValueBox:
                 return CHOICE_CELLS;
-            case layouts::Control::Slider:
+            case Slider:
                 return SLIDER_CELLS;
-            case layouts::Control::Knob:
-            case layouts::Control::Switch:
+            case Knob:
+            case Switch:
                 break;
         }
         return KNOB_CELLS;
@@ -169,6 +171,7 @@ namespace app::ui
 
     void ParameterCell::resized()
     {
+        using enum app::layouts::Control;
         using namespace tokens;
         auto area = getLocalBounds().reduced(pixels(kSizeSpace1), 0);
         auto top = area.removeFromTop(pixels(kKnobSizeDefault));
@@ -178,18 +181,18 @@ namespace app::ui
         const auto bottom = area.removeFromTop(pixels(kValueboxHeight));
         switch (_parameter.control)
         {
-            case layouts::Control::Knob:
-            case layouts::Control::Switch:
+            case Knob:
+            case Switch:
                 _slider.setBounds(top.withSizeKeepingCentre(pixels(kKnobSizeDefault), pixels(kKnobSizeDefault)));
                 _box.setBounds(bottom);
                 break;
-            case layouts::Control::Choice:
+            case Choice:
                 _choice.setBounds(top.withSizeKeepingCentre(top.getWidth(), pixels(kSizeControlMedium)));
                 break;
-            case layouts::Control::ValueBox:
+            case ValueBox:
                 _box.setBounds(top.withSizeKeepingCentre(top.getWidth(), pixels(kValueboxHeight)));
                 break;
-            case layouts::Control::Slider:
+            case Slider:
                 // The value box on top, the slider under the label. [RQ-APP-086, owner 2026-10-15]
                 _box.setBounds(top.withSizeKeepingCentre(top.getWidth(), pixels(kValueboxHeight)));
                 _slider.setBounds(bottom);

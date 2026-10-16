@@ -109,7 +109,7 @@ namespace app
 
         const Binding* bindingOf(MemoryKind kind)
         {
-            const auto found = std::find_if(BINDINGS.begin(), BINDINGS.end(), [kind](const Binding& binding) { return binding.kind == kind; });
+            const auto found = std::ranges::find_if(BINDINGS, [kind](const Binding& binding) { return binding.kind == kind; });
             return found == BINDINGS.end() ? nullptr : std::to_address(found);
         }
 
@@ -125,16 +125,15 @@ namespace app
             if (binding == nullptr)
                 return nullptr;
             const auto& all = layouts::kEditorLayouts;
-            const auto found = std::find_if(all.begin(), all.end(),
-                                            [binding](const layouts::EditorLayout& layout) { return layout.editor == binding->editor; });
+            const auto found = std::ranges::find_if(all, [binding](const layouts::EditorLayout& layout) { return layout.editor == binding->editor; });
             return found == all.end() ? nullptr : std::to_address(found);
         }
 
         const mcp::ParameterDefinition* definitionOf(const Binding& binding, std::string_view name)
         {
             const auto& rows = binding.catalogue().parameters();
-            const auto found = std::find_if(rows.begin(), rows.end(), [name](const mcp::ParameterDefinition& row) { return row.name == name; });
-            return found == rows.end() ? nullptr : &*found;
+            const auto found = std::ranges::find_if(rows, [name](const mcp::ParameterDefinition& row) { return row.name == name; });
+            return found == rows.end() ? nullptr : std::to_address(found);
         }
 
         /// The tab's parameters in the layout's order, then the catalogue's read-only rows, each with the catalogue's range; nothing read yet.
@@ -152,13 +151,13 @@ namespace app
                 for (const layouts::LayoutParameter& parameter : group.parameters)
                 {
                     if (const mcp::ParameterDefinition* definition = definitionOf(*binding, parameter.name))
-                        state.values.push_back(EditValue{definition, &parameter, 0, definition->min, definition->max, false});
+                        state.values.emplace_back(definition, &parameter, 0, definition->min, definition->max, false);
                 }
             }
             for (const mcp::ParameterDefinition& definition : binding->catalogue().parameters())
             {
                 if (definition.readOnly)
-                    state.info.push_back(EditValue{&definition, nullptr, 0, definition.min, definition.max, false});
+                    state.info.emplace_back(&definition, nullptr, 0, definition.min, definition.max, false);
             }
             return state;
         }
@@ -198,7 +197,7 @@ namespace app
                 return mcp::Outcome<Reading>::failure(selected.problem);
             Reading reading;
             reading.keygroups = *selected.value;
-            reading.keygroup = reading.keygroups && keygroup > *reading.keygroups ? 1 : keygroup;  // the program lost keygroups meanwhile
+            reading.keygroup = reading.keygroups.has_value() && keygroup > *reading.keygroups ? 1 : keygroup;  // the program lost keygroups meanwhile
             for (const auto& [rows, into] : {std::pair{&values, &reading.values}, std::pair{&info, &reading.info}})
             {
                 if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into))
@@ -219,8 +218,7 @@ namespace app
                         std::int64_t value, const Definitions& tab, int keygroup)
         {
             Written written;
-            const auto selected = binding.select(gateway, item);
-            if (!selected.ok())
+            if (const auto selected = binding.select(gateway, item); !selected.ok())
             {
                 written.problem = selected.problem;
                 return written;
@@ -236,7 +234,7 @@ namespace app
             }
             if (const auto set = binding.write(gateway, parameter, value, keygroup); !set.ok())
                 written.problem = set.problem;
-            else if (loopStart)
+            else if (loopStart.has_value())
             {
                 if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart, keygroup); !again.ok())
                     written.problem = again.problem;
@@ -249,10 +247,49 @@ namespace app
             return written;
         }
 
+        /// Whether the panel still shows `item`'s `tab` on `keygroup`: a result for another screen is not shown. [RQ-APP-091]
+        bool showsScreen(const EditState& now, const MemoryItem& item, std::size_t tab, int keygroup)
+        {
+            return now.item == std::optional<MemoryItem>(item) && now.tab == tab && now.keygroup == keygroup;
+        }
+
+        /// The state with what a reading brought back: the information, the values and their positions' upper bound. [RQ-APP-088]
+        EditState withReading(const EditState& now, const Reading& reading)
+        {
+            EditState next = now;
+            next.keygroups = reading.keygroups;
+            next.keygroup = reading.keygroup;
+            std::int64_t length = 0;
+            for (std::size_t i = 0; i < next.info.size() && i < reading.info.size(); ++i)
+            {
+                next.info[i].value = reading.info[i];
+                if (next.info[i].definition->name == LENGTH_NAME)
+                    length = reading.info[i];
+            }
+            for (std::size_t i = 0; i < next.values.size() && i < reading.values.size(); ++i)
+            {
+                EditValue& value = next.values[i];
+                value.value = reading.values[i];
+                if (value.definition->unit == POSITION_UNIT)
+                    value.max = length;
+            }
+            return next;
+        }
+
+        /// The state with the values a write read again; the parameter written stays pending while another value waits for it. [RQ-APP-054]
+        EditState withWritten(const EditState& now, std::size_t index, const Written& written, bool waiting)
+        {
+            EditState next = now;
+            for (std::size_t i = 0; i < next.values.size() && i < written.values.size(); ++i)
+                next.values[i].value = written.values[i];
+            next.values[index].pending = waiting;
+            return next;
+        }
+
         std::string lowerCase(std::string_view text)
         {
             std::string lower(text);
-            std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            std::ranges::transform(lower, lower.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
             return lower;
         }
 
@@ -276,7 +313,7 @@ namespace app
             const auto within = [&shown](std::int64_t value) { return value >= shown.min && value <= shown.max; };
             for (const std::span<const std::string_view> order : state.layout->orders)
             {
-                const auto at = std::find(order.begin(), order.end(), shown.definition->name);
+                const auto at = std::ranges::find(order, shown.definition->name);
                 if (at == order.end())
                     continue;
                 for (auto before = at; before != order.begin();)
@@ -370,7 +407,7 @@ namespace app
     void EditController::chooseKeygroup(int keygroup)
     {
         const EditState& state = _model.edit();
-        if (state.layout == nullptr || !state.keygroups || keygroup < 1 || keygroup > *state.keygroups || keygroup == state.keygroup)
+        if (state.layout == nullptr || !state.keygroups.has_value() || keygroup < 1 || keygroup > *state.keygroups || keygroup == state.keygroup)
             return;
         EditState next = state;
         next.keygroup = keygroup;
@@ -392,26 +429,9 @@ namespace app
              keygroup = state.keygroup](mcp::SamplerGateway& gateway) { return readOn(*binding, gateway, name, values, info, keygroup); },
             [this, alive = std::weak_ptr<int>(_alive), item, tab = state.tab, keygroup = state.keygroup](const Reading& reading) {
                 const EditState& now = _model.edit();
-                if (alive.expired() || now.item != std::optional<MemoryItem>(item) || now.tab != tab || now.keygroup != keygroup)
+                if (alive.expired() || !showsScreen(now, item, tab, keygroup))
                     return;  // another item, tab or keygroup was chosen meanwhile: its own reading follows
-                EditState next = now;
-                next.keygroups = reading.keygroups;
-                next.keygroup = reading.keygroup;
-                std::int64_t length = 0;
-                for (std::size_t i = 0; i < next.info.size() && i < reading.info.size(); ++i)
-                {
-                    next.info[i].value = reading.info[i];
-                    if (next.info[i].definition->name == LENGTH_NAME)
-                        length = reading.info[i];
-                }
-                for (std::size_t i = 0; i < next.values.size() && i < reading.values.size(); ++i)
-                {
-                    EditValue& value = next.values[i];
-                    value.value = reading.values[i];
-                    if (value.definition->unit == POSITION_UNIT)
-                        value.max = length;  // [RQ-APP-088]
-                }
-                _model.setEdit(std::move(next));
+                _model.setEdit(withReading(now, reading));
             });
     }
 
@@ -431,7 +451,7 @@ namespace app
         EditState next = state;
         next.values[index].pending = true;
         _model.setEdit(std::move(next));
-        if (_writing.count(index) != 0)
+        if (_writing.contains(index))
         {
             _waiting[index] = value;  // sent when the write in flight ends, a later value replacing it [RQ-APP-054]
             return;
@@ -455,20 +475,15 @@ namespace app
             [this, alive = std::weak_ptr<int>(_alive), item, index, label, tab = state.tab, keygroup = state.keygroup](const Written& written) {
                 if (alive.expired())
                     return;
-                const EditState& now = _model.edit();
-                if (now.item != std::optional<MemoryItem>(item) || now.tab != tab || now.keygroup != keygroup)
+                if (const EditState& now = _model.edit(); !showsScreen(now, item, tab, keygroup))
                 {
                     if (written.problem && now.item == std::optional<MemoryItem>(item))
                         _model.setProblem(Problem{label, *written.problem});
                     return;  // another item, tab or keygroup is shown: its writes were forgotten when it was chosen
                 }
                 _writing.erase(index);
-                EditState next = _model.edit();
-                for (std::size_t i = 0; i < next.values.size() && i < written.values.size(); ++i)
-                    next.values[i].value = written.values[i];
                 const auto waiting = _waiting.find(index);
-                next.values[index].pending = waiting != _waiting.end();
-                _model.setEdit(std::move(next));
+                _model.setEdit(withWritten(_model.edit(), index, written, waiting != _waiting.end()));
                 if (written.problem)
                     _model.setProblem(Problem{label, *written.problem});
                 if (waiting != _waiting.end())

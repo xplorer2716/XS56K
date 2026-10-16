@@ -80,8 +80,8 @@ namespace app::ui
             return _preview;
         const Stage& shown = _stages[stage];
         Shape shape;
-        shape.time = shown.time ? fractionOf(*shown.time) : 0.0f;
-        shape.level = shown.level ? fractionOf(*shown.level) : shown.fixedLevel;
+        shape.time = shown.time.has_value() ? fractionOf(*shown.time) : 0.0f;
+        shape.level = shown.level.has_value() ? fractionOf(*shown.level) : shown.fixedLevel;
         return shape;
     }
 
@@ -125,7 +125,7 @@ namespace app::ui
         // Pending while one of its values is being written, as the knobs are. [RQ-APP-052]
         const auto pendingAt = [this](const std::optional<std::size_t>& index) { return index && *index < _values.size() && _values[*index].pending; };
         const bool pending =
-            std::any_of(_stages.begin(), _stages.end(), [&pendingAt](const Stage& stage) { return pendingAt(stage.time) || pendingAt(stage.level); });
+            std::ranges::any_of(_stages, [&pendingAt](const Stage& stage) { return pendingAt(stage.time) || pendingAt(stage.level); });
         const juce::Colour colour = pending ? colourOf(kColourStatusPending) : _colour;
         std::vector<std::optional<std::size_t>> handles;
         const auto shown = points(&handles);
@@ -143,7 +143,7 @@ namespace app::ui
         g.setColour(colourOf(kEnvelopeHandle));
         for (std::size_t i = 0; i < shown.size(); ++i)
         {
-            if (handles[i])
+            if (handles[i].has_value())
                 g.fillEllipse(juce::Rectangle<float>(kEnvelopeHandleSize, kEnvelopeHandleSize).withCentre(shown[i]));
         }
     }
@@ -157,20 +157,20 @@ namespace app::ui
         for (std::size_t i = 0; i < shown.size(); ++i)
         {
             const float distance = shown[i].getDistanceFrom(event.position);
-            if (handles[i] && distance <= nearest)
+            if (handles[i].has_value() && distance <= nearest)
             {
                 nearest = distance;
                 grabbed = handles[i];
             }
         }
-        if (grabbed)
+        if (grabbed.has_value())
             _preview = shapeOf(*grabbed);  // the shape held, before the drag moves it
         _dragged = grabbed;
     }
 
     void EnvelopeGraph::mouseDrag(const juce::MouseEvent& event)
     {
-        if (!_dragged)
+        if (!_dragged.has_value())
             return;
         const std::size_t stage = *_dragged;
         const auto area = plot();
@@ -181,22 +181,22 @@ namespace app::ui
         std::vector<std::optional<std::size_t>> handles;
         const auto shown = points(&handles);
         _dragged = held;
-        const auto at = std::find(handles.begin(), handles.end(), std::optional<std::size_t>(stage));
+        const auto at = std::ranges::find(handles, std::optional<std::size_t>(stage));
         const float start = shown[static_cast<std::size_t>(at - handles.begin()) - 1].x;
         const Stage& dragged = _stages[stage];
         _preview.time = std::clamp((event.position.x - start) / share, 0.0f, 1.0f);
-        if (dragged.level)
+        if (dragged.level.has_value())
             _preview.level = std::clamp((area.getBottom() - event.position.y) / area.getHeight(), 0.0f, 1.0f);
         repaint();
         if (!onValue)
             return;
-        if (dragged.time && *dragged.time < _values.size())
+        if (dragged.time.has_value() && *dragged.time < _values.size())
         {
             const std::int64_t time = valueAt(*dragged.time, _preview.time);
             if (time != _values[*dragged.time].value)
                 onValue(*dragged.time, time);
         }
-        if (dragged.level && *dragged.level < _values.size())
+        if (dragged.level.has_value() && *dragged.level < _values.size())
         {
             const std::int64_t level = valueAt(*dragged.level, _preview.level);
             if (level != _values[*dragged.level].value)

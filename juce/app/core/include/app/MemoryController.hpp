@@ -67,7 +67,7 @@ namespace app
         void modelChanged(ModelPart part) override;
 
     private:
-        void read(std::optional<MemoryItem> select);
+        void read(const std::optional<MemoryItem>& select);
         /// True, with the reason shown, when another item of the kind bears `name`. [RQ-APP-038, RQ-APP-039]
         bool refuseTakenName(MemoryKind kind, const std::string& name, const std::string& action);
 

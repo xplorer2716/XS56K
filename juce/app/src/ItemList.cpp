@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "ItemList.hpp"
 
 #include <algorithm>
+#include <array>
 #include <utility>
 
 #include "LookAndFeel.hpp"
@@ -33,7 +34,7 @@ namespace app::ui
         constexpr float THIRD = 1.0f / 3.0f;
         constexpr float HALF = 0.5f;
         constexpr float QUARTER = 0.25f;
-        constexpr float WAVE_HEIGHTS[] = {0.4f, 1.0f, 0.6f, 0.8f, 0.3f};
+        constexpr std::array WAVE_HEIGHTS{0.4f, 1.0f, 0.6f, 0.8f, 0.3f};
         constexpr int LIST_LINES = 3;
     }
 
@@ -53,7 +54,7 @@ namespace app::ui
     {
         _rows = std::move(rows);
         _list.updateContent();
-        const auto selected = std::find_if(_rows.begin(), _rows.end(), [](const ItemRow& row) { return row.selected; });
+        const auto selected = std::ranges::find_if(_rows, [](const ItemRow& row) { return row.selected; });
         _syncing = true;
         if (selected == _rows.end())
             _list.deselectAllRows();

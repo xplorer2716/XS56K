@@ -52,8 +52,7 @@ namespace app
             return std::nullopt;
         int deviceId = 0;
         const char* const end = deviceIdText->data() + deviceIdText->size();
-        const auto parsed = std::from_chars(deviceIdText->data(), end, deviceId);
-        if (parsed.ec != std::errc{} || parsed.ptr != end || deviceIdProblem(deviceId))
+        if (const auto parsed = std::from_chars(deviceIdText->data(), end, deviceId); parsed.ec != std::errc{} || parsed.ptr != end || deviceIdProblem(deviceId))
             return std::nullopt;
         return MidiSetup{*input, *output, deviceId};
     }

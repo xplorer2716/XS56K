@@ -58,7 +58,7 @@ namespace app
         return _worker.idle();
     }
 
-    void Controller::queue(std::string label, std::function<JobResult()> work)
+    void Controller::queue(const std::string& label, std::function<JobResult()> work)
     {
         _labels.push_back(label);
         _model.setBusy(_labels.front());
@@ -171,12 +171,12 @@ namespace app
         _model.setConnection(std::move(after));
         {
             const std::deque<SamplerWorker::Job> dropped = _worker.dropQueued();
-            for (std::size_t i = 0; i < dropped.size(); ++i)
+            for ([[maybe_unused]] const SamplerWorker::Job& job : dropped)
                 _labels.pop_back();
         }
         _model.setBusy(_labels.empty() ? std::nullopt : std::optional<std::string>(_labels.front()));
         // The worker lets the gateway go, after the job in progress: its destruction closes the session (RQ-AKM-042), then the ports.
-        queue(DISCONNECTING_LABEL, [gateway = std::move(_gateway)]() mutable -> JobResult {
+        queue(DISCONNECTING_LABEL, [gateway = std::move(_gateway)]() mutable {
             gateway.reset();
             return JobResult{{}, [] { /* nothing to show: the connection is closed */ }, {}};
         });

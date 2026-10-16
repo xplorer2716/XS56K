@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <cctype>
 #include <cstdint>
 #include <optional>
+#include <string_view>
 #include <utility>
 
 namespace app
@@ -49,7 +50,7 @@ namespace app
                 return mcp::Outcome<DiskView>::failure(disks.problem);
             DiskView view;
             view.disks = std::move(*disks.value);
-            const auto current = std::find_if(view.disks.begin(), view.disks.end(), [](const mcp::DiskEntry& disk) { return disk.current; });
+            const auto current = std::ranges::find_if(view.disks, [](const mcp::DiskEntry& disk) { return disk.current; });
             if (current == view.disks.end())
                 return mcp::Outcome<DiskView>::success(std::move(view));
             view.currentDisk = current->handle;
@@ -69,17 +70,16 @@ namespace app
         /// listed) is put back on `disk` first. [RQ-APP-024, RQ-APP-025, TASK-APP-032]
         mcp::Outcome<mcp::DiskContents> moveTo(mcp::SamplerGateway& gateway, std::optional<int> disk, const std::vector<std::string>& target)
         {
-            if (disk)
+            if (disk.has_value())
             {
                 const auto disks = gateway.listDisks(false);
                 if (!disks.ok())
                     return mcp::Outcome<mcp::DiskContents>::failure(disks.problem);
-                const bool there = std::any_of(disks.value->begin(), disks.value->end(),
-                                               [&disk](const mcp::DiskEntry& entry) { return entry.current && entry.handle == *disk; });
+                const bool there = std::ranges::any_of(*disks.value,
+                                                      [&disk](const mcp::DiskEntry& entry) { return entry.current && entry.handle == *disk; });
                 if (!there)
                 {
-                    const auto selected = gateway.selectDiskByHandle(*disk);
-                    if (!selected.ok())
+                    if (const auto selected = gateway.selectDiskByHandle(*disk); !selected.ok())
                         return mcp::Outcome<mcp::DiskContents>::failure(selected.problem);
                 }
             }
@@ -87,7 +87,7 @@ namespace app
             if (!contents.ok())
                 return contents;
             const std::vector<std::string> here = splitPath(contents.value->path);
-            const auto shared = static_cast<std::size_t>(std::mismatch(here.begin(), here.end(), target.begin(), target.end()).first - here.begin());
+            const auto shared = static_cast<std::size_t>(std::ranges::mismatch(here, target).in1 - here.begin());
             for (std::size_t level = here.size(); level > shared; --level)
             {
                 contents = gateway.closeFolder();
@@ -128,7 +128,7 @@ namespace app
             mcp::LoadOutcome outcome;
         };
 
-        bool sameName(const std::string& a, const std::string& b)
+        bool sameName(std::string_view a, std::string_view b)
         {
             return a.size() == b.size() && std::equal(a.begin(), a.end(), b.begin(), [](char x, char y) {
                        return std::toupper(static_cast<unsigned char>(x)) == std::toupper(static_cast<unsigned char>(y));
@@ -159,8 +159,7 @@ namespace app
         mcp::Outcome<mcp::DiskContents> changeAt(mcp::SamplerGateway& gateway, std::optional<int> disk, const std::vector<std::string>& folder,
                                                  Change change)
         {
-            const auto there = moveTo(gateway, disk, folder);
-            if (!there.ok())
+            if (const auto there = moveTo(gateway, disk, folder); !there.ok())
                 return there;
             const auto changed = change(gateway);
             if (!changed.ok())
@@ -172,19 +171,20 @@ namespace app
 
         const std::vector<std::string>& namesOf(const mcp::MemoryNames& names, MemoryKind kind)
         {
+            using enum app::MemoryKind;
             switch (kind)
             {
-                case MemoryKind::Multi:
+                case Multi:
                     return names.multis;
-                case MemoryKind::Program:
+                case Program:
                     return names.programs;
-                case MemoryKind::Sample:
+                case Sample:
                     return names.samples;
-                case MemoryKind::SongFile:
+                case SongFile:
                     return names.songFiles;
-                case MemoryKind::SetList:
+                case SetList:
                     return names.setLists;
-                case MemoryKind::SceneList:
+                case SceneList:
                     break;
             }
             return names.sceneLists;
@@ -195,10 +195,8 @@ namespace app
         {
             const auto& before = namesOf(outcome.before, kind);
             const auto& after = namesOf(outcome.after, kind);
-            const auto added = std::find_if(after.begin(), after.end(), [&before](const std::string& name) {
-                return std::find(before.begin(), before.end(), name) == before.end();
-            });
-            if (added != after.end())
+            if (const auto added = std::ranges::find_if(after, [&before](const std::string& name) { return std::ranges::find(before, name) == before.end(); });
+                added != after.end())
                 return MemoryItem{kind, *added};
             return std::nullopt;
         }
@@ -228,13 +226,14 @@ namespace app
 
     void FileBrowser::modelChanged(ModelPart part)
     {
+        using enum app::ConnectionState;
         if (part != ModelPart::Connection)
             return;
         const ConnectionState state = _model.connection().state;
         const ConnectionState last = std::exchange(_lastState, state);
-        if (state == ConnectionState::Connected && last != ConnectionState::Connected)
+        if (state == Connected && last != Connected)
             refresh();
-        else if (state != ConnectionState::Connected && last == ConnectionState::Connected)
+        else if (state != Connected && last == Connected)
             _model.setBrowser(BrowserState{});
     }
 
@@ -251,8 +250,7 @@ namespace app
         _controller.runOnSampler<DiskView>(
             SELECTING_LABEL,
             [handle](mcp::SamplerGateway& gateway) {
-                const auto selected = gateway.selectDiskByHandle(handle);
-                if (!selected.ok())
+                if (const auto selected = gateway.selectDiskByHandle(handle); !selected.ok())
                     return mcp::Outcome<DiskView>::failure(selected.problem);
                 return readDisks(gateway);
             },
@@ -311,9 +309,8 @@ namespace app
         if (listing == nullptr)
             return false;
         const auto same = [&name](const std::string& other) { return sameName(other, name); };
-        const bool taken = std::any_of(listing->folders.begin(), listing->folders.end(), same)
-                           || std::any_of(listing->files.begin(), listing->files.end(),
-                                          [&same](const mcp::DiskFileEntry& file) { return same(file.name); });
+        const bool taken = std::ranges::any_of(listing->folders, same)
+                           || std::ranges::any_of(listing->files, [&same](const mcp::DiskFileEntry& file) { return same(file.name); });
         if (taken)
             _model.setProblem(Problem{action, "A folder or a file named \"" + name + "\" is already in " + folderName(folder) + "."});
         return taken;
@@ -362,8 +359,7 @@ namespace app
         _controller.runOnSampler<mcp::DiskContents>(
             label,
             [parent, name, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
-                const auto there = moveTo(gateway, disk, parent);
-                if (!there.ok())
+                if (const auto there = moveTo(gateway, disk, parent); !there.ok())
                     return there;
                 return gateway.createFolder(name);
             },
@@ -420,8 +416,7 @@ namespace app
         const bool queued = _controller.runOnSampler<std::string>(
             AUDITIONING_LABEL + file.name,
             [file, disk = _model.browser().currentDisk](mcp::SamplerGateway& gateway) {
-                const auto there = moveTo(gateway, disk, file.folder);
-                if (!there.ok())
+                if (const auto there = moveTo(gateway, disk, file.folder); !there.ok())
                     return mcp::Outcome<std::string>::failure(there.problem);
                 return gateway.startFileAudition(file.name);
             },

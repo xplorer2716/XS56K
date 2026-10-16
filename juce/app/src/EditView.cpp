@@ -37,19 +37,20 @@ namespace app::ui
 
         const char* kindText(MemoryKind kind)
         {
+            using enum app::MemoryKind;
             switch (kind)
             {
-                case MemoryKind::Multi:
+                case Multi:
                     return "Multi";
-                case MemoryKind::Program:
+                case Program:
                     return "Program";
-                case MemoryKind::Sample:
+                case Sample:
                     return "Sample";
-                case MemoryKind::SongFile:
+                case SongFile:
                     return "Song file";
-                case MemoryKind::SetList:
+                case SetList:
                     return "Set list";
-                case MemoryKind::SceneList:
+                case SceneList:
                     break;
             }
             return "Scenelist";
@@ -58,15 +59,16 @@ namespace app::ui
         /// Where a group's parameters live, written after its title. [RQ-APP-056]
         const char* scopeText(layouts::Scope scope)
         {
+            using enum app::layouts::Scope;
             switch (scope)
             {
-                case layouts::Scope::Program:
+                case Program:
                     return "Program";
-                case layouts::Scope::Keygroup:
+                case Keygroup:
                     return "Keygroup";
-                case layouts::Scope::Zone:
+                case Zone:
                     return "Zone";
-                case layouts::Scope::None:
+                case None:
                     break;
             }
             return "";

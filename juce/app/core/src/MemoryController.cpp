@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "app/MemoryController.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <string>
 #include <utility>
@@ -33,7 +34,7 @@ namespace app
 
         std::optional<std::size_t> indexOf(const std::vector<std::string>& names, const std::string& name)
         {
-            const auto found = std::find(names.begin(), names.end(), name);
+            const auto found = std::ranges::find(names, name);
             if (found == names.end())
                 return std::nullopt;
             return static_cast<std::size_t>(found - names.begin());
@@ -44,7 +45,7 @@ namespace app
             MemoryList list;
             for (const mcp::NamedListEntry& entry : listing.entries)
                 list.names.push_back(entry.name);
-            if (listing.current)
+            if (listing.current.has_value())
                 list.current = static_cast<std::size_t>(*listing.current);
             return list;
         }
@@ -71,7 +72,7 @@ namespace app
             MemoryList& sampleList = state.list(MemoryKind::Sample);
             for (const mcp::SampleEntry& sample : samples.value->samples)
                 sampleList.names.push_back(sample.name);
-            if (samples.value->current)
+            if (samples.value->current.has_value())
                 sampleList.current = static_cast<std::size_t>(*samples.value->current);
 
             const auto multis = gateway.listMultis();
@@ -80,12 +81,12 @@ namespace app
             MemoryList& multiList = state.list(MemoryKind::Multi);
             for (const mcp::MultiEntry& multi : multis.value->multis)
                 multiList.names.push_back(multi.name);
-            if (multis.value->current)
+            if (multis.value->current.has_value())
                 multiList.current = static_cast<std::size_t>(*multis.value->current);
 
-            const std::pair<MemoryKind, mcp::NamedListKind> named[] = {{MemoryKind::SongFile, mcp::NamedListKind::SongFile},
-                                                                       {MemoryKind::SetList, mcp::NamedListKind::SetList},
-                                                                       {MemoryKind::SceneList, mcp::NamedListKind::SceneList}};
+            const std::array<std::pair<MemoryKind, mcp::NamedListKind>, 3> named{{{MemoryKind::SongFile, mcp::NamedListKind::SongFile},
+                                                                                   {MemoryKind::SetList, mcp::NamedListKind::SetList},
+                                                                                   {MemoryKind::SceneList, mcp::NamedListKind::SceneList}}};
             for (const auto& [kind, listKind] : named)
             {
                 const auto listing = gateway.listNamedItems(listKind);
@@ -162,19 +163,20 @@ namespace app
 
         std::string kindName(MemoryKind kind)
         {
+            using enum app::MemoryKind;
             switch (kind)
             {
-                case MemoryKind::Program:
+                case Program:
                     return "program";
-                case MemoryKind::Sample:
+                case Sample:
                     return "sample";
-                case MemoryKind::Multi:
+                case Multi:
                     return "multi";
-                case MemoryKind::SongFile:
+                case SongFile:
                     return "song file";
-                case MemoryKind::SetList:
+                case SetList:
                     return "set list";
-                case MemoryKind::SceneList:
+                case SceneList:
                     break;
             }
             return "scenelist";
@@ -269,6 +271,7 @@ namespace app
 
     void MemoryController::modelChanged(ModelPart part)
     {
+        using enum app::ConnectionState;
         if (part == ModelPart::MemoryChanged)
         {
             read(_model.lastMemoryChange().select);
@@ -278,9 +281,9 @@ namespace app
             return;
         const ConnectionState state = _model.connection().state;
         const ConnectionState last = std::exchange(_lastState, state);
-        if (state == ConnectionState::Connected && last != ConnectionState::Connected)
+        if (state == Connected && last != Connected)
             refresh();
-        else if (state != ConnectionState::Connected && last == ConnectionState::Connected)
+        else if (state != Connected && last == Connected)
             _model.setMemory(MemoryState{});
     }
 
@@ -289,7 +292,7 @@ namespace app
         read(std::nullopt);
     }
 
-    void MemoryController::read(std::optional<MemoryItem> select)
+    void MemoryController::read(const std::optional<MemoryItem>& select)
     {
         _controller.runOnSampler<MemoryState>(READING_LABEL, readMemory,
                                               [this, alive = std::weak_ptr<int>(_alive), select](const MemoryState& read) {
@@ -297,8 +300,8 @@ namespace app
                                                       return;
                                                   MemoryState state = read;
                                                   // The selection stays on an item that is still there.
-                                                  const auto& previous = _model.memory().selection;
-                                                  if (previous && indexOf(state.list(previous->kind).names, previous->name))
+                                                  if (const auto& previous = _model.memory().selection;
+                                                      previous.has_value() && indexOf(state.list(previous->kind).names, previous->name))
                                                       state.selection = previous;
                                                   _model.setMemory(std::move(state));
                                                   if (select)
@@ -338,7 +341,7 @@ namespace app
     {
         const auto& names = _model.memory().list(kind).names;
         const auto taken =
-            std::find_if(names.begin(), names.end(), [key = nameKey(name)](const std::string& other) { return nameKey(other) == key; });
+            std::ranges::find_if(names, [key = nameKey(name)](const std::string& other) { return nameKey(other) == key; });
         if (taken == names.end())
             return false;
         _model.setProblem(Problem{action, "A " + kindName(kind) + " named \"" + *taken + "\" is already in memory."});

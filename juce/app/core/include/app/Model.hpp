@@ -112,7 +112,7 @@ namespace app
         void setConnection(ConnectionStatus status);
         void setBrowser(BrowserState browser);
         /// Says that an action changed the memory, with the item to select afterwards, if any. [RQ-APP-028, RQ-APP-036]
-        void memoryChanged(std::optional<MemoryItem> select);
+        void memoryChanged(const std::optional<MemoryItem>& select);
         void setMemory(MemoryState memory);
         void setEdit(EditState edit);
 
@@ -120,7 +120,7 @@ namespace app
         void removeListener(ModelListener& listener);
 
     private:
-        void notify(ModelPart part);
+        void notify(ModelPart part) const;
 
         std::optional<std::string> _busy;
         std::optional<Problem> _problem;

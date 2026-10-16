@@ -350,11 +350,8 @@ def draw_group(c, x, y, group, values, pending):
         if parameter.get("control") == "choice":
             box_y = knob_top + (t("knob.size.default") - t("size.control.medium")) / 2
             draw_choice(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
-        elif parameter.get("control") == "slider":
-            # The value box on top, the slider under the label (owner, 2026-10-15). [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
-            box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
-            draw_value_box(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
-        elif parameter.get("control") == "valuebox":
+        elif parameter.get("control") in ("slider", "valuebox"):
+            # A slider has its value box on top, the slider under the label (owner, 2026-10-15). [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
             box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
             draw_value_box(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
         else:

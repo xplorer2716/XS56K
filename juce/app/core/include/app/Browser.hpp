@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
@@ -119,9 +120,9 @@ namespace app
         std::optional<int> currentDisk;           ///< the handle of the sampler's current disk
         std::optional<std::uint64_t> freeBytes;   ///< of the current disk, as read
         std::vector<std::string> currentFolder;   ///< the sampler's current folder, from the root
-        std::map<std::string, FolderListing> listings;  ///< by `pathText` of the folder
+        std::map<std::string, FolderListing, std::less<>> listings;  ///< by `pathText` of the folder
         std::optional<BrowserItem> selection;
-        std::set<std::string> folded;  ///< the folders folded in the tree, by `pathText`: listed, but what they hold is not shown [RQ-APP-079]
+        std::set<std::string, std::less<>> folded;  ///< the folders folded in the tree, by `pathText`: listed, but what they hold is not shown [RQ-APP-079]
 
         [[nodiscard]] const mcp::DiskEntry* currentDiskEntry() const;
         [[nodiscard]] const FolderListing* listing(const std::vector<std::string>& folder) const;

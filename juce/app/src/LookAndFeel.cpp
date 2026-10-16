@@ -17,6 +17,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "LookAndFeel.hpp"
 
+#include <cmath>
+
 #include "BinaryData.h"
 #include "app/DesignTokens.generated.hpp"
 
@@ -184,7 +186,7 @@ namespace app::ui
             g.strokePath(path, juce::PathStrokeType(kStrokeArc, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
         };
         arc(endAngle, colourOf(kKnobArcTrack));
-        const float angle = startAngle + position * (endAngle - startAngle);
+        const float angle = std::lerp(startAngle, endAngle, position);
         if (position > 0.0f)
             arc(angle, slider.findColour(juce::Slider::rotarySliderFillColourId));
         const auto tip = centre.getPointOnCircumference(radius * KNOB_POINTER_LENGTH, angle);
@@ -197,8 +199,8 @@ namespace app::ui
     {
         using namespace tokens;
         const float middle = static_cast<float>(y) + static_cast<float>(height) / 2.0f;
-        const float left = static_cast<float>(x);
-        const float right = static_cast<float>(x + width);
+        const auto left = static_cast<float>(x);
+        const auto right = static_cast<float>(x + width);
         g.setColour(colourOf(kSliderTrack));
         g.drawLine(left, middle, right, middle, kStrokeArc);
         g.setColour(slider.findColour(juce::Slider::trackColourId));

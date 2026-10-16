@@ -62,7 +62,7 @@ def main(argv=None):
     body = pathlib.Path(arguments.body).read_text(encoding="utf-8") if arguments.body else ""
     try:
         create(arguments.paths[0], body)
-    except (FileExistsError, OSError, ValueError) as error:
+    except (OSError, ValueError) as error:  # FileExistsError is an OSError
         print(f"new_source_file: {error}", file=sys.stderr)
         return 1
     print(f"new_source_file: created {arguments.paths[0]}")

@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <memory>
 #include <utility>
 
 namespace app
@@ -89,21 +90,22 @@ namespace app
 
     std::string_view fileKindName(FileKind kind)
     {
+        using enum app::FileKind;
         switch (kind)
         {
-            case FileKind::Program:
+            case Program:
                 return "program";
-            case FileKind::Sample:
+            case Sample:
                 return "sample";
-            case FileKind::Multi:
+            case Multi:
                 return "multi";
-            case FileKind::SongFile:
+            case SongFile:
                 return "song file";
-            case FileKind::SetList:
+            case SetList:
                 return "set list";
-            case FileKind::SceneList:
+            case SceneList:
                 return "scenelist";
-            case FileKind::Unknown:
+            case Unknown:
                 break;
         }
         return UNKNOWN;
@@ -162,8 +164,7 @@ namespace app
         while (start < samplerPath.size())
         {
             const auto end = samplerPath.find(PATH_SEPARATOR, start);
-            const std::string_view name = samplerPath.substr(start, end == std::string_view::npos ? std::string_view::npos : end - start);
-            if (!name.empty())
+            if (const std::string_view name = samplerPath.substr(start, end == std::string_view::npos ? std::string_view::npos : end - start); !name.empty())
                 folders.emplace_back(name);
             if (end == std::string_view::npos)
                 break;
@@ -182,29 +183,31 @@ namespace app
 
     std::vector<BrowserCommand> commandsFor(const BrowserItem& item)
     {
+        using enum app::BrowserCommand;
+        using enum app::BrowserItemKind;
         switch (item.kind)
         {
             // A folder is opened by a double click, and the refresh of the disks is not offered. [RQ-APP-027, RQ-APP-034, TASK-APP-027]
-            case BrowserItemKind::Disk:
-                return {BrowserCommand::CreateFolder};
-            case BrowserItemKind::Folder:
-                return {BrowserCommand::LoadFolder, BrowserCommand::CreateFolder, BrowserCommand::Rename, BrowserCommand::Delete};
-            case BrowserItemKind::File:
+            case Disk:
+                return {CreateFolder};
+            case Folder:
+                return {LoadFolder, CreateFolder, Rename, Delete};
+            case File:
                 break;
         }
-        std::vector<BrowserCommand> commands{BrowserCommand::Load, BrowserCommand::LoadWithDependents, BrowserCommand::Rename,
-                                             BrowserCommand::Delete};
+        std::vector commands{Load, LoadWithDependents, Rename,
+                                             Delete};
         if (fileKindOf(item.name) == FileKind::Sample)
-            commands.push_back(BrowserCommand::Audition);
+            commands.push_back(Audition);
         return commands;
     }
 
     const mcp::DiskEntry* BrowserState::currentDiskEntry() const
     {
-        if (!currentDisk)
+        if (!currentDisk.has_value())
             return nullptr;
-        const auto found = std::find_if(disks.begin(), disks.end(), [this](const mcp::DiskEntry& disk) { return disk.handle == *currentDisk; });
-        return found == disks.end() ? nullptr : &*found;
+        const auto found = std::ranges::find_if(disks, [this](const mcp::DiskEntry& disk) { return disk.handle == *currentDisk; });
+        return found == disks.end() ? nullptr : std::to_address(found);
     }
 
     const FolderListing* BrowserState::listing(const std::vector<std::string>& folder) const
@@ -215,7 +218,7 @@ namespace app
 
     bool BrowserState::isFolded(const std::vector<std::string>& folder) const
     {
-        return folded.count(pathText(folder)) > 0;
+        return folded.contains(pathText(folder));
     }
 
     std::optional<FileDetails> BrowserState::selectedFile() const
@@ -225,8 +228,7 @@ namespace app
         const FolderListing* folder = listing(selection->folder);
         if (folder == nullptr)
             return std::nullopt;
-        const auto found = std::find_if(folder->files.begin(), folder->files.end(),
-                                        [this](const mcp::DiskFileEntry& file) { return file.name == selection->name; });
+        const auto found = std::ranges::find_if(folder->files, [this](const mcp::DiskFileEntry& file) { return file.name == selection->name; });
         if (found == folder->files.end())
             return std::nullopt;
         return FileDetails{found->name, found->sizeBytes, fileKindOf(found->name)};

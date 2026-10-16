@@ -137,7 +137,7 @@ namespace app::ui
             const bool current = state.currentDisk == disk.handle;
             rows.push_back(ItemRow{RowIcon::Disk, disk.name, juce::String(std::string(diskFormatName(disk.format))), 0, false, current,
                                    sameItem(state.selection, item)});
-            _entries.push_back(Entry{item, disk.handle});
+            _entries.emplace_back(item, disk.handle);
             if (current)
                 addFolder(state, {}, 1, rows);
         }
@@ -181,7 +181,7 @@ namespace app::ui
                 const BrowserItem item{BrowserItemKind::Folder, folder, current[folder.size()]};
                 const std::vector<std::string> path = pathOf(item);
                 rows.push_back(ItemRow{RowIcon::Folder, item.name, {}, depth, false, path == current, sameItem(state.selection, item)});
-                _entries.push_back(Entry{item, std::nullopt});
+                _entries.emplace_back(item, std::nullopt);
                 if (!state.isFolded(path))
                     addFolder(state, path, depth + 1, rows);
             }
@@ -193,7 +193,7 @@ namespace app::ui
             const std::vector<std::string> path = pathOf(item);
             // The sampler's current folder: the dot, and "(current)" in the tooltip. [RQ-APP-025, RQ-APP-005]
             rows.push_back(ItemRow{RowIcon::Folder, name, {}, depth, false, path == state.currentFolder, sameItem(state.selection, item)});
-            _entries.push_back(Entry{item, std::nullopt});
+            _entries.emplace_back(item, std::nullopt);
             if (!state.isFolded(path))
                 addFolder(state, path, depth + 1, rows);
         }
@@ -201,7 +201,7 @@ namespace app::ui
         {
             const BrowserItem item{BrowserItemKind::File, folder, file.name};
             rows.push_back(ItemRow{iconOf(fileKindOf(file.name)), file.name, {}, depth, false, false, sameItem(state.selection, item)});
-            _entries.push_back(Entry{item, std::nullopt});
+            _entries.emplace_back(item, std::nullopt);
         }
     }
 
@@ -218,7 +218,7 @@ namespace app::ui
     {
         const Entry& entry = _entries[static_cast<std::size_t>(row)];
         const BrowserState& state = _model.browser();
-        if (entry.diskHandle && state.currentDisk != entry.diskHandle)
+        if (entry.diskHandle.has_value() && state.currentDisk != entry.diskHandle)
             _browser.selectDisk(*entry.diskHandle);
         else
             _browser.select(entry.item);
@@ -237,12 +237,13 @@ namespace app::ui
             else
                 _browser.openFolder(path);
         }
-        else if (entry.diskHandle && state.currentDisk == entry.diskHandle)
+        else if (entry.diskHandle.has_value() && state.currentDisk == entry.diskHandle)
             _browser.openFolder({});
     }
 
     void BrowserView::showMenu(int row)
     {
+        using enum app::BrowserCommand;
         const Entry entry = _entries[static_cast<std::size_t>(row)];
         const bool sample = entry.item.kind == BrowserItemKind::File && fileKindOf(entry.item.name) == FileKind::Sample;
         juce::PopupMenu menu;
@@ -250,7 +251,7 @@ namespace app::ui
         {
             switch (command)
             {
-                case BrowserCommand::Load:
+                case Load:
                     menu.addItem(LOAD_ID, "Load");
                     if (sample)
                     {
@@ -258,22 +259,22 @@ namespace app::ui
                         menu.addItem(LOAD_VIRTUAL_ID, "Load as virtual");
                     }
                     break;
-                case BrowserCommand::LoadWithDependents:
+                case LoadWithDependents:
                     menu.addItem(LOAD_WITH_DEPENDENTS_ID, "Load with dependents");
                     break;
-                case BrowserCommand::LoadFolder:
+                case LoadFolder:
                     menu.addItem(LOAD_FOLDER_ID, "Load the folder" + ELLIPSIS);
                     break;
-                case BrowserCommand::CreateFolder:
+                case CreateFolder:
                     menu.addItem(CREATE_FOLDER_ID, "Create a folder" + ELLIPSIS);
                     break;
-                case BrowserCommand::Rename:
+                case Rename:
                     menu.addItem(RENAME_ID, "Rename" + ELLIPSIS);
                     break;
-                case BrowserCommand::Delete:
+                case Delete:
                     menu.addItem(DELETE_ID, "Delete" + ELLIPSIS);
                     break;
-                case BrowserCommand::Audition:
+                case Audition:
                     menu.addItem(AUDITION_ID, "Audition");
                     menu.addItem(STOP_AUDITION_ID, "Stop the audition");
                     break;

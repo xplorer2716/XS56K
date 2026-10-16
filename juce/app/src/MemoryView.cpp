@@ -17,6 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "MemoryView.hpp"
 
+#include <functional>
 #include <string>
 #include <utility>
 
@@ -75,7 +76,7 @@ namespace app::ui
         }
 
         /// "2.0 MB free of 8.0 MB (25 %), MPKS 40 % free", or with the exact counts of bytes for the tooltip. [RQ-APP-042, RQ-APP-081]
-        juce::String freeText(const std::optional<FreeMemory>& free, std::string (*size)(std::uint64_t))
+        juce::String freeText(const std::optional<FreeMemory>& free, const std::function<std::string(std::uint64_t)>& size)
         {
             if (!free)
                 return {};

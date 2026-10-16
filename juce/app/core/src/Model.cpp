@@ -33,15 +33,16 @@ namespace app
         /// The connection's state in the log's words. [RQ-APP-085]
         const char* stateText(ConnectionState state)
         {
+            using enum app::ConnectionState;
             switch (state)
             {
-                case ConnectionState::Disconnected:
+                case Disconnected:
                     return "Disconnected";
-                case ConnectionState::Connecting:
+                case Connecting:
                     return "Connecting";
-                case ConnectionState::Connected:
+                case Connected:
                     return "Connected";
-                case ConnectionState::Failed:
+                case Failed:
                     return "Connection failed";
             }
             return "";
@@ -91,9 +92,9 @@ namespace app
     }
 
     // [RQ-APP-028, RQ-APP-035, RQ-APP-036, TASK-APP-014, TASK-APP-015]
-    void Model::memoryChanged(std::optional<MemoryItem> select)
+    void Model::memoryChanged(const std::optional<MemoryItem>& select)
     {
-        _memoryChange = MemoryChange{_memoryChange.number + 1, std::move(select)};
+        _memoryChange = MemoryChange{_memoryChange.number + 1, select};
         notify(ModelPart::MemoryChanged);
     }
 
@@ -120,7 +121,7 @@ namespace app
         std::erase(_listeners, &listener);
     }
 
-    void Model::notify(ModelPart part)
+    void Model::notify(ModelPart part) const
     {
         // A listener may remove itself while it is told: tell a copy.
         const std::vector<ModelListener*> listeners = _listeners;

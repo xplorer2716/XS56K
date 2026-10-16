@@ -130,7 +130,7 @@ namespace app
         static std::function<JobResult()> wrap(std::function<mcp::Outcome<T>()> call, std::function<void(const T&)> onSuccess,
                                                std::function<void(const std::string&)> onFailure)
         {
-            return [call = std::move(call), onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)]() -> JobResult {
+            return [call = std::move(call), onSuccess = std::move(onSuccess), onFailure = std::move(onFailure)]() {
                 mcp::Outcome<T> outcome = call();
                 if (!outcome.ok())
                     return JobResult{std::move(outcome.problem), {}, onFailure};
@@ -139,7 +139,7 @@ namespace app
         }
 
         [[nodiscard]] bool connected() const;
-        void queue(std::string label, std::function<JobResult()> work);
+        void queue(const std::string& label, std::function<JobResult()> work);
         void finished(JobResult result);
         /// Sets the connection state at once, then drops the jobs not started and destroys the gateway on the worker. [DEC-APP-008]
         void releaseGateway(ConnectionStatus after);

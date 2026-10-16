@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <array>
 #include <cctype>
 #include <charconv>
+#include <memory>
 #include <string_view>
 
 namespace app
@@ -71,7 +72,7 @@ namespace app
         std::string upper(std::string_view text)
         {
             std::string result(text);
-            std::transform(result.begin(), result.end(), result.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
+            std::ranges::transform(result, result.begin(), [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
             return result;
         }
 
@@ -95,11 +96,11 @@ namespace app
             {
                 if (name.size() <= length)
                     continue;
-                const auto found = std::find(NOTE_NAMES.begin(), NOTE_NAMES.end(), std::string_view(name).substr(0, length));
+                const auto found = std::ranges::find(NOTE_NAMES, std::string_view(name).substr(0, length));
                 if (found == NOTE_NAMES.end() || (length == 1 && name[1] == SHARP))
                     continue;
                 const auto octave = number(std::string_view(name).substr(length));
-                if (!octave)
+                if (!octave.has_value())
                     return std::nullopt;
                 return (*octave - OCTAVE_OF_NOTE_ZERO) * NOTES_PER_OCTAVE + (found - NOTE_NAMES.begin());
             }
@@ -108,20 +109,20 @@ namespace app
 
         const EditValue* infoNamed(const EditState& state, std::string_view name)
         {
-            const auto found = std::find_if(state.info.begin(), state.info.end(), [name](const EditValue& value) { return value.definition->name == name; });
-            return found == state.info.end() ? nullptr : &*found;
+            const auto found = std::ranges::find_if(state.info, [name](const EditValue& value) { return value.definition->name == name; });
+            return found == state.info.end() ? nullptr : std::to_address(found);
         }
     }
 
     std::string valueText(const EditValue& value)
     {
+        using enum mcp::ParameterKind;
         const mcp::ParameterDefinition& definition = *value.definition;
         if (isNote(value))
             return noteName(value.value);
-        const bool labelled = definition.kind == mcp::ParameterKind::Choice || definition.kind == mcp::ParameterKind::Switch;
-        if (labelled && value.value >= 0 && static_cast<std::size_t>(value.value) < definition.labels.size())
+        if (const bool labelled = definition.kind == Choice || definition.kind == Switch; labelled && value.value >= 0 && static_cast<std::size_t>(value.value) < definition.labels.size())
             return upper(definition.labels[static_cast<std::size_t>(value.value)]);  // the catalogue says "on", the sampler's screen "ON"
-        if (definition.kind == mcp::ParameterKind::Signed && value.value > 0)
+        if (definition.kind == Signed && value.value > 0)
             return PLUS + std::to_string(value.value);
         return std::to_string(value.value);
     }
@@ -129,13 +130,12 @@ namespace app
     std::optional<std::int64_t> valueFrom(const EditValue& value, std::string_view text)
     {
         const std::string typed = trimmed(text);
-        if (const auto read = number(typed))
+        if (const auto read = number(typed); read.has_value())
             return read;
         if (isNote(value))
             return noteFrom(typed);
         const auto& labels = value.definition->labels;
-        const auto found = std::find_if(labels.begin(), labels.end(), [key = upper(typed)](const std::string& label) { return upper(label) == key; });
-        if (found != labels.end())
+        if (const auto found = std::ranges::find_if(labels, [key = upper(typed)](const std::string& label) { return upper(label) == key; }); found != labels.end())
             return static_cast<std::int64_t>(found - labels.begin());
         return std::nullopt;
     }
@@ -154,7 +154,7 @@ namespace app
             add(std::to_string(length->value) + std::string(POINTS));
         if (const EditValue* rate = infoNamed(state, RATE_NAME))
             add(std::to_string(rate->value) + std::string(HERTZ));
-        if (state.keygroups)
+        if (state.keygroups.has_value())
             add(std::to_string(*state.keygroups) + std::string(*state.keygroups == 1 ? KEYGROUP : KEYGROUPS));
         return text;
     }

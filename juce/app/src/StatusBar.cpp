@@ -34,18 +34,19 @@ namespace app::ui
 
         juce::String connectionText(const ConnectionStatus& connection)
         {
+            using enum app::ConnectionState;
             switch (connection.state)
             {
-                case ConnectionState::Disconnected:
+                case Disconnected:
                     return "Disconnected";
-                case ConnectionState::Connecting:
+                case Connecting:
                     return "Connecting" + ELLIPSIS;
-                case ConnectionState::Connected:
+                case Connected:
                     if (connection.sampler)
                         return "Connected: " + juce::String(connection.sampler->model) + " \"" + juce::String(connection.sampler->name) + "\", OS " +
                                juce::String(connection.sampler->osVersion) + ", DeviceID " + juce::String(connection.sampler->deviceId);
                     return "Connected";
-                case ConnectionState::Failed:
+                case Failed:
                     break;
             }
             return "Not connected: " + juce::String(connection.reason);

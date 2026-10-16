@@ -47,12 +47,12 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-023: The MAJOR and MINOR of production code, by rule family
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The rest of the 152 production issues, one rule family at a time, re-read with the triage tool first (the lines will have moved). A change that would alter an output stops and asks the owner (RQ-QLT-003).
 - **Requirement refs**: RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002)
 - **Acceptance Criteria** (Gherkin): *Given* a family fixed, *When* the build runs, *Then* it is warning-clean, and *When* the suite runs, *Then* it passes unmodified.
 - **Dependencies**: TASK-QLT-022
 - **Assignee**: AI
-- **Verification**: To fill at closure.
-- **Assumptions**: None
+- **Verification**: Fixed, by rule: `cpp:S7172` x24 (`has_value()`), `S6197` x23 (`std::ranges::` algorithms, `ranges::mismatch(...).in1`), `S6177` x16 (`using enum` in 16 functions), `S6004` x13 (declaration moved into the `if`; three over-applied by the script were put back by hand after the compiler refused them), `S6003` x6 (`emplace_back`), `S6225` x5 (`std::to_address`), `S5945` x4 (`std::array`), `S1238` (`const&` for `MemoryController::read`, `Model::memoryChanged`, `Controller::queue`), `S1188` x2 (`EditController.cpp`: `showsScreen`, `withReading`, `withWritten`), `S6045` x2 (`std::less<>`), `S6009` x2, `S6171` x2 (`contains`), `S3574` x2, `S5827` x2, `S1103` x2 (also in the generator), `S5205`, `S6012`, `S5566`, `S5817`, `S6179`, and `python:S5713`, `python:S1871`. `cmake --build`: warning-clean under `/WX`; `ctest -C Debug -j 8`: 1220/1220 passed unmodified; `generate_design.py --check` and `generate_mockups.py --check`: up to date, generated files unchanged but for the header comment of `S1103`. Not fixed, with the reason: `cpp:S6185` x10 + 1 in `juce/mcp` (`std::format`: not usable on Apple Clang's libc++ of the macOS runner, not testable here), `cpp:S6168` (`std::jthread`: same), `cpp:S7035` x2 (`std::to_underlying` is C++23, the project is C++20), `cpp:S3642` x4 (the unscoped menu ids are `int`s given to JUCE's menus; an `enum class` would need a cast at every use), `cpp:S107` x4 (three are JUCE `LookAndFeel` overrides whose signature is fixed, one is `MainComponent`'s constructor that wires the application). Not verified: that SonarCloud no longer reports the fixed rules (the owner refreshes the analysis); GCC and Apple Clang (CI) for `using enum` and `emplace_back` of aggregates.
+- **Assumptions**: A rule whose fix needs a library or standard the CI platforms may lack is left for the owner to decide (RQ-QLT-003), not guessed. `std::lerp` replaces `a + t * (b - a)` for the knob's angle: the same value within float rounding, drawn only.

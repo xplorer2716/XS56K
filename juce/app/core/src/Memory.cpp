@@ -22,19 +22,20 @@ namespace app
     // [RQ-APP-028, RQ-APP-035, TASK-APP-014, TASK-APP-015]
     std::string_view memoryHeading(MemoryKind kind)
     {
+        using enum app::MemoryKind;
         switch (kind)
         {
-            case MemoryKind::Multi:
+            case Multi:
                 return "Multis";
-            case MemoryKind::Program:
+            case Program:
                 return "Programs";
-            case MemoryKind::Sample:
+            case Sample:
                 return "Samples";
-            case MemoryKind::SongFile:
+            case SongFile:
                 return "Song files";
-            case MemoryKind::SetList:
+            case SetList:
                 return "Set lists";
-            case MemoryKind::SceneList:
+            case SceneList:
                 break;
         }
         return "Scenelists";
@@ -65,7 +66,7 @@ namespace app
     std::optional<std::string> MemoryState::current(MemoryKind kind) const
     {
         const MemoryList& items = list(kind);
-        if (!items.current || *items.current >= items.names.size())
+        if (!items.current.has_value() || *items.current >= items.names.size())
             return std::nullopt;
         return items.names[*items.current];
     }
