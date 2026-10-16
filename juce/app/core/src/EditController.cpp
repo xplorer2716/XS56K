@@ -31,7 +31,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 namespace app
 {
     // [RQ-APP-048, RQ-APP-053, RQ-APP-058, RQ-APP-060, RQ-APP-086 to RQ-APP-088, RQ-APP-090, RQ-APP-093, RQ-APP-094, ADR-APP-004 (DEC-APP-025,
-    // DEC-APP-028, DEC-APP-030, DEC-APP-033), TASK-APP-036, TASK-APP-041, TASK-APP-043, TASK-APP-044, TASK-APP-046]
+    // DEC-APP-028, DEC-APP-030, DEC-APP-033, DEC-APP-034), TASK-APP-036, TASK-APP-041, TASK-APP-043, TASK-APP-044, TASK-APP-046, TASK-APP-047]
     namespace
     {
         constexpr const char* READING_LABEL = "Reading ";
@@ -46,6 +46,13 @@ namespace app
         constexpr const char* ZONE_SAMPLE_NAME = "zone sample";
         constexpr const char* OF_ZONE = " of zone ";
         constexpr const char* NO_SAMPLE_REMOVAL = "The editor cannot remove a zone's sample yet: choose another sample. Nothing was sent.";
+        constexpr int MOST_KEYGROUPS = 99;  // a program's keygroups at most (RQ-MCP-035)
+        constexpr const char* ADDING_LABEL = "Adding keygroups to ";
+        constexpr const char* ADD_ACTION = "Add";
+        constexpr const char* DELETING_LABEL = "Deleting keygroup ";
+        constexpr const char* KEYGROUP_WORD = "keygroup ";
+        constexpr const char* FULL = " has the 99 keygroups a program can have: nothing was sent.";
+        constexpr const char* LAST = " is the program's last keygroup: a program keeps one. Nothing was sent.";
 
         using Value = mcp::Outcome<std::int64_t>;
         /// What making an item current brings back: a program's keygroup count, nothing for a sample.
@@ -546,6 +553,80 @@ namespace app
         _waiting.clear();
         _model.setEdit(std::move(next));
         read();
+    }
+
+    void EditController::addKeygroups()
+    {
+        const EditState& state = _model.edit();
+        if (state.layout == nullptr || !state.keygroups.has_value())
+            return;
+        const MemoryItem item = *state.item;
+        const int have = *state.keygroups;
+        if (have >= MOST_KEYGROUPS)
+        {
+            _model.setProblem(Problem{ADDING_LABEL + item.name, item.name + FULL});
+            return;
+        }
+        const int most = MOST_KEYGROUPS - have;
+        const std::string text = item.name + " has " + std::to_string(have) + " keygroups; a program has up to " + std::to_string(MOST_KEYGROUPS) +
+                                 ". How many keygroups to add, from 1 to " + std::to_string(most) + "?";
+        const CountQuestion question{"Add keygroups to " + item.name, text, 1, most, 1, ADD_ACTION};
+        _controller.askCount(question, [this, item, keygroup = state.keygroup](std::optional<int> count) {
+            if (!count.has_value())
+                return;  // cancelled: nothing is sent [RQ-APP-061]
+            _controller.runOnSampler<mcp::KeygroupChange>(
+                ADDING_LABEL + item.name,
+                [name = item.name, added = *count](mcp::SamplerGateway& gateway) {
+                    if (const auto selected = gateway.selectProgramByName(name); !selected.ok())
+                        return mcp::Outcome<mcp::KeygroupChange>::failure(selected.problem);
+                    return gateway.addKeygroups(added);
+                },
+                [this, item, keygroup](const mcp::KeygroupChange& change) { keygroupsChanged(item, change.keygroupCount, keygroup); });
+        });
+    }
+
+    void EditController::deleteKeygroup()
+    {
+        const EditState& state = _model.edit();
+        if (state.layout == nullptr || !state.keygroups.has_value())
+            return;
+        const MemoryItem item = *state.item;
+        const int keygroup = state.keygroup;
+        const std::string object = KEYGROUP_WORD + std::to_string(keygroup);
+        if (*state.keygroups <= 1)
+        {
+            _model.setProblem(Problem{DELETING_LABEL + std::to_string(keygroup) + OF + item.name, "Keygroup 1" + std::string(LAST)});
+            return;  // the last keygroup: no question, nothing sent [RQ-APP-061]
+        }
+        const Confirmation question{"Delete " + object + " of " + item.name + "?", object,
+                                    "Keygroup " + std::to_string(keygroup) + " is deleted with its zones and its settings. If " + item.name +
+                                        " was not saved to a disk, they are lost."};
+        _controller.runOnSamplerConfirmed<mcp::KeygroupChange>(
+            question, DELETING_LABEL + std::to_string(keygroup) + OF + item.name,
+            [name = item.name, keygroup](mcp::SamplerGateway& gateway) {
+                if (const auto selected = gateway.selectProgramByName(name); !selected.ok())
+                    return mcp::Outcome<mcp::KeygroupChange>::failure(selected.problem);
+                return gateway.deleteKeygroup(keygroup, name);
+            },
+            [this, item, keygroup](const mcp::KeygroupChange& change) {
+                keygroupsChanged(item, change.keygroupCount, std::min(keygroup, change.keygroupCount));
+            });
+    }
+
+    void EditController::keygroupsChanged(const MemoryItem& item, int keygroups, int keygroup)
+    {
+        const EditState& now = _model.edit();
+        if (now.item != std::optional<MemoryItem>(item))
+            return;  // another item is shown: its own reading tells its keygroups
+        EditState next = now;
+        next.keygroups = keygroups;
+        next.keygroup = std::clamp(keygroup, 1, std::max(1, keygroups));
+        for (EditValue& value : next.values)
+            value.pending = false;
+        _writing.clear();
+        _waiting.clear();
+        _model.setEdit(std::move(next));
+        read();  // [RQ-APP-058, RQ-APP-061]
     }
 
     void EditController::read()

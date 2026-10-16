@@ -19,6 +19,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include <cstdio>
 #include <exception>
+#include <initializer_list>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -28,7 +30,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app::ui
 {
-    // [RQ-APP-011, RQ-APP-012, RQ-APP-016, ADR-APP-001 (DEC-APP-003, DEC-APP-007, DEC-APP-009), TASK-APP-017]
+    // [RQ-APP-011, RQ-APP-012, RQ-APP-016, RQ-APP-061, ADR-APP-001 (DEC-APP-003, DEC-APP-007, DEC-APP-009), ADR-APP-004 (DEC-APP-034),
+    // TASK-APP-017, TASK-APP-047]
     namespace
     {
         constexpr const char* SETTINGS_NAME = "XS56K";
@@ -36,6 +39,8 @@ namespace app::ui
         constexpr const char* MAC_SETTINGS_FOLDER = "Application Support";
         constexpr const char* CANCEL_TEXT = "Cancel";
         constexpr const char* CONFIRM_TEXT = "Confirm";
+        constexpr int COUNT_DIGITS = 2;  // a count of keygroups: up to 99 [RQ-APP-061]
+        constexpr const char* DIGITS = "0123456789";
         constexpr int TEXT_LINES = 3;
         constexpr const char* CLOSED_DIALOG_FAILED = "The answer of a closed dialog failed";
         constexpr const char* LOG_STOP_FAILED = "The log could not be closed";
@@ -54,43 +59,19 @@ namespace app::ui
             }
         }
 
-        /// The confirmation: its question as the title, the object and what is lost, and two buttons; the confirm button is the destructive
-        /// one of the design system. Answers once, on a button or on the window's close.
-        class ConfirmationContent final : public juce::Component
+        /// A dialog's content that answers once: on a button, or with `cancelled` when its window closes. [RQ-APP-011, DEC-APP-007]
+        template <typename Answer>
+        class AnsweredContent : public juce::Component
         {
         public:
-            ConfirmationContent(LookAndFeel& lookAndFeel, const Confirmation& question, std::function<void(bool)> answer)
-                : _answer(std::move(answer))
-            {
-                using namespace tokens;
-                _title.setText(question.question, juce::dontSendNotification);
-                _title.setFont(lookAndFeel.font(kFontHeadingSize, true));
-                _text.setText(question.consequence, juce::dontSendNotification);
-                _text.setFont(lookAndFeel.font(kFontValueSize));
-                _text.setJustificationType(juce::Justification::topLeft);
-                _text.setMinimumHorizontalScale(1.0f);
-                _cancel.setButtonText(CANCEL_TEXT);
-                _confirm.setButtonText(CONFIRM_TEXT);
-                _confirm.getProperties().set(DESTRUCTIVE_PROPERTY, true);
-                _cancel.onClick = [this] { finish(false); };
-                _confirm.onClick = [this] { finish(true); };
-                addAndMakeVisible(_title);
-                addAndMakeVisible(_text);
-                addAndMakeVisible(_cancel);
-                addAndMakeVisible(_confirm);
-                const int lineHeight = pixels(kRowHeight);
-                setSize(pixels(kDialogWidth), pixels(kSpaceGroup) * 2 + lineHeight * (TEXT_LINES + 1) + pixels(kSpaceBetween) * 2 +
-                                                  pixels(kButtonHeight));
-            }
-
-            ~ConfirmationContent() override
+            ~AnsweredContent() override
             {
                 // Closed by its window: a cancel; the window is going, so it is not asked to end its modal state.
                 // A destructor must not throw, and the answer has no one left to report to. [TASK-QLT-021, RQ-QLT-001]
                 try
                 {
                     if (_answer)
-                        std::exchange(_answer, nullptr)(false);
+                        std::exchange(_answer, nullptr)(_cancelled);
                 }
                 catch (const std::exception& error)
                 {
@@ -103,37 +84,130 @@ namespace app::ui
                 }
             }
 
-            void resized() override
-            {
-                using namespace tokens;
-                auto area = getLocalBounds().reduced(pixels(kSpaceGroup));
-                _title.setBounds(area.removeFromTop(pixels(kRowHeight)));
-                area.removeFromTop(pixels(kSpaceBetween));
-                auto buttons = area.removeFromBottom(pixels(kButtonHeight));
-                area.removeFromBottom(pixels(kSpaceBetween));
-                _text.setBounds(area);
-                const int buttonWidth = pixels(kSizeLeftMinWidth) / 2;
-                _confirm.setBounds(buttons.removeFromRight(buttonWidth));
-                buttons.removeFromRight(pixels(kSpaceBetween));
-                _cancel.setBounds(buttons.removeFromRight(buttonWidth));
-            }
+        protected:
+            AnsweredContent(std::function<void(Answer)> answer, Answer cancelled) : _answer(std::move(answer)), _cancelled(std::move(cancelled)) {}
 
-        private:
-            void finish(bool confirmed)
+            void finish(Answer given)
             {
                 if (!_answer)
                     return;
                 auto answer = std::exchange(_answer, nullptr);
-                answer(confirmed);
+                answer(std::move(given));
                 if (auto* window = findParentComponentOfClass<juce::DialogWindow>())
                     window->exitModalState(0);
             }
 
-            std::function<void(bool)> _answer;
-            CutLabel _title;
-            CutLabel _text;
-            juce::TextButton _cancel;
-            juce::TextButton _confirm;
+            /// The title, the text under it and the two buttons, laid out as every dialog of the application; `field`, when given, between
+            /// the text and the buttons.
+            void layOut(juce::Component* field)
+            {
+                using namespace tokens;
+                auto area = getLocalBounds().reduced(pixels(kSpaceGroup));
+                title.setBounds(area.removeFromTop(pixels(kRowHeight)));
+                area.removeFromTop(pixels(kSpaceBetween));
+                auto buttons = area.removeFromBottom(pixels(kButtonHeight));
+                area.removeFromBottom(pixels(kSpaceBetween));
+                const int buttonWidth = pixels(kSizeLeftMinWidth) / 2;
+                if (field != nullptr)
+                {
+                    field->setBounds(area.removeFromBottom(pixels(kValueboxHeight)).withWidth(buttonWidth));
+                    area.removeFromBottom(pixels(kSpaceBetween));
+                }
+                text.setBounds(area);
+                confirm.setBounds(buttons.removeFromRight(buttonWidth));
+                buttons.removeFromRight(pixels(kSpaceBetween));
+                cancel.setBounds(buttons.removeFromRight(buttonWidth));
+            }
+
+            void setUp(LookAndFeel& look, const std::string& heading, const std::string& body, const char* confirmText)
+            {
+                using namespace tokens;
+                title.setText(heading, juce::dontSendNotification);
+                title.setFont(look.font(kFontHeadingSize, true));
+                text.setText(body, juce::dontSendNotification);
+                text.setFont(look.font(kFontValueSize));
+                text.setJustificationType(juce::Justification::topLeft);
+                text.setMinimumHorizontalScale(1.0f);
+                cancel.setButtonText(CANCEL_TEXT);
+                confirm.setButtonText(confirmText);
+                for (juce::Component* part : std::initializer_list<juce::Component*>{&title, &text, &cancel, &confirm})
+                    addAndMakeVisible(*part);
+            }
+
+            CutLabel title;
+            CutLabel text;
+            juce::TextButton cancel;
+            juce::TextButton confirm;
+
+        private:
+            std::function<void(Answer)> _answer;
+            Answer _cancelled;
+        };
+
+        /// The confirmation: its question as the title, the object and what is lost, and two buttons; the confirm button is the destructive
+        /// one of the design system. Answers once, on a button or on the window's close.
+        class ConfirmationContent final : public AnsweredContent<bool>
+        {
+        public:
+            ConfirmationContent(LookAndFeel& lookAndFeel, const Confirmation& question, std::function<void(bool)> answer)
+                : AnsweredContent<bool>(std::move(answer), false)
+            {
+                using namespace tokens;
+                setUp(lookAndFeel, question.question, question.consequence, CONFIRM_TEXT);
+                confirm.getProperties().set(DESTRUCTIVE_PROPERTY, true);
+                cancel.onClick = [this] { finish(false); };
+                confirm.onClick = [this] { finish(true); };
+                const int lineHeight = pixels(kRowHeight);
+                setSize(pixels(kDialogWidth), pixels(kSpaceGroup) * 2 + lineHeight * (TEXT_LINES + 1) + pixels(kSpaceBetween) * 2 +
+                                                  pixels(kButtonHeight));
+            }
+
+            void resized() override { layOut(nullptr); }
+        };
+
+        /// A count asked: the question as the title, what it is for, a field holding the count offered, and two buttons. A text that is
+        /// not a count from `min` to `max` keeps the dialog open, the field in the pending colour. [RQ-APP-061, DEC-APP-034, TASK-APP-047]
+        class CountContent final : public AnsweredContent<std::optional<int>>
+        {
+        public:
+            CountContent(LookAndFeel& lookAndFeel, const CountQuestion& question, std::function<void(std::optional<int>)> answer)
+                : AnsweredContent<std::optional<int>>(std::move(answer), std::nullopt), _min(question.min), _max(question.max)
+            {
+                using namespace tokens;
+                setUp(lookAndFeel, question.question, question.text, question.action.c_str());
+                _field.setFont(lookAndFeel.font(kFontValueSize));
+                _field.setJustification(juce::Justification::centred);
+                _field.setInputRestrictions(COUNT_DIGITS, DIGITS);
+                _field.setText(juce::String(question.initial), juce::dontSendNotification);
+                _field.setColour(juce::TextEditor::backgroundColourId, colourOf(kValueboxSurface));
+                _field.setColour(juce::TextEditor::textColourId, colourOf(kValueboxText));
+                _field.onReturnKey = [this] { given(); };
+                addAndMakeVisible(_field);
+                cancel.onClick = [this] { finish(std::nullopt); };
+                confirm.onClick = [this] { given(); };
+                const int lineHeight = pixels(kRowHeight);
+                setSize(pixels(kDialogWidth), pixels(kSpaceGroup) * 2 + lineHeight * (TEXT_LINES + 1) + pixels(kSpaceBetween) * 3 +
+                                                  pixels(kValueboxHeight) + pixels(kButtonHeight));
+            }
+
+            void resized() override { layOut(&_field); }
+
+        private:
+            void given()
+            {
+                const int count = _field.getText().getIntValue();
+                if (_field.getText().isEmpty() || count < _min || count > _max)
+                {
+                    _field.setColour(juce::TextEditor::textColourId, colourOf(tokens::kColourStatusPending));  // not a count it takes
+                    _field.repaint();
+                    return;
+                }
+                finish(count);
+            }
+
+            int _min;
+            int _max;
+            juce::TextEditor _field;
         };
     }
 
@@ -149,6 +223,18 @@ namespace app::ui
         juce::DialogWindow::LaunchOptions options;
         options.dialogTitle = question.question;
         options.content.setOwned(new ConfirmationContent(_lookAndFeel, question, std::move(answer)));
+        options.dialogBackgroundColour = colourOf(tokens::kDialogSurface);
+        options.escapeKeyTriggersCloseButton = true;
+        options.useNativeTitleBar = true;
+        options.resizable = false;
+        options.launchAsync();
+    }
+
+    void DialogPrompts::askCount(const CountQuestion& question, std::function<void(std::optional<int>)> answer)
+    {
+        juce::DialogWindow::LaunchOptions options;
+        options.dialogTitle = question.question;
+        options.content.setOwned(new CountContent(_lookAndFeel, question, std::move(answer)));
         options.dialogBackgroundColour = colourOf(tokens::kDialogSurface);
         options.escapeKeyTriggersCloseButton = true;
         options.useNativeTitleBar = true;

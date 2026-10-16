@@ -87,6 +87,15 @@ is the control `sample`, which only a grid has and no catalogue row backs: the c
 (`assignZoneSample`) and read back. Choosing no sample is refused with nothing sent: the gateway cannot remove a zone's sample yet.
 [RQ-APP-057, RQ-APP-060, RQ-APP-092]
 
+### DEC-APP-034: Keygroups added and deleted from the header, a count asked by the prompts
+The header of a program shows "Add..." and "Delete" left of the keygroup selector, on every tab (owner, 2026-10-16). `UserPrompts` gains
+`askCount` (a title, what it is for, a range and a count offered; none on a cancel), a JUCE dialog with a field in the application and a
+script in the tests; the controller forwards it while it lives. `EditController::addKeygroups` asks for 1 up to the 99 a program may have less
+those it has, then sends `addKeygroups`; `deleteKeygroup` asks the confirmation of RQ-APP-011 naming the keygroup and the program, then sends
+`deleteKeygroup` with the program's name as its confirmation; the last keygroup is refused with no question and nothing sent, and its button
+is disabled. Either way the program is made current first, and the tab is read again with the count the sampler answered, the keygroup shown
+kept where it still exists. The two dialogs share one base that answers once and treats a closed window as a cancel. [RQ-APP-061, RQ-APP-011]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

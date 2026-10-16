@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <deque>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -95,6 +96,16 @@ namespace app
                                         onSuccess = std::move(onSuccess)](bool confirmed) mutable {
                 if (confirmed && !alive.expired())
                     runOnSampler<T>(std::move(label), std::move(call), std::move(onSuccess));
+            });
+        }
+
+        /// Asks the person for a count; `answer` gets it on the UI thread while the controller lives, or nothing on a cancel.
+        /// [RQ-APP-061, DEC-APP-034]
+        void askCount(const CountQuestion& question, std::function<void(std::optional<int>)> answer)
+        {
+            _prompts.askCount(question, [alive = std::weak_ptr<int>(_alive), answer = std::move(answer)](std::optional<int> count) {
+                if (!alive.expired())
+                    answer(count);
             });
         }
 

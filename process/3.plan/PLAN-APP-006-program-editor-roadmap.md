@@ -164,16 +164,24 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   (4) The gateway cannot remove a zone's sample: NONE is shown and refused (RQ-APP-060's "or no sample" stays open).
 
 ### TASK-APP-047: Adding and deleting keygroups
-- **Tier**: S
-- **Status**: Not Started
+- **Tier**: M (re-tiered from S at the session's start: a controller action and its tests)
+- **Status**: Done
 - **Description**: In the Keygroup tab, add keygroups and delete the current one after confirmation; the last one cannot be deleted.
-- **Requirement refs**: RQ-APP-061
-- **ADR refs**: ADR-APP-001
+- **Requirement refs**: RQ-APP-061, RQ-APP-011
+- **ADR refs**: ADR-APP-001 (DEC-APP-007); ADR-APP-004 (DEC-APP-034, new)
 - **Acceptance Criteria** (Gherkin): RQ-APP-061's.
 - **Dependencies**: TASK-APP-046
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-16. Mockups first: tests of the header's buttons (left of the selector, a disabled one greyed)
+  and of a dialog's field failed, then 25 mockup tests pass; `keygroup-editor-connected`, `-add-keygroups` and `-delete-keygroup` looked at
+  (the delete button named as the real dialog names it, "Confirm"); validated by the owner. Core first and failing to compile: four cases (2
+  added: the selector goes from 1 to 4, PAD has 4 on the sampler, 1 to 97 offered; a cancelled count sends nothing; keygroup 3 deleted after a
+  question naming it and PAD: 1 to 3, keygroup 3 shown; a cancelled deletion sends nothing, the last keygroup asks nothing and sends nothing);
+  then 87 app cases pass. Build warning-clean (a parameter hiding a member of `juce::Component` renamed); `ctest -C Debug`: 1234 passed;
+  `tidy.py`: 15 sources, 0 findings; the IDE's SonarQube: nothing. Not verified: the dialogs drawn by JUCE and the real S5000 (the owner's
+  run), GCC and Apple Clang (CI).
+- **Assumptions**: (1) The buttons are in the header, so on every tab (owner: "fais comme tu proposes"). (2) The confirmation dialog keeps its
+  button "Confirm". (3) A count that is not 1 to the most keeps the dialog open, the field in the pending colour.
 
 ### TASK-APP-048: The Mod sources tab
 - **Tier**: S

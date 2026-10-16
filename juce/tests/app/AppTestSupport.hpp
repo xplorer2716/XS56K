@@ -111,8 +111,22 @@ namespace app::test
             answer(confirmed);
         }
 
+        void askCount(const CountQuestion& question, std::function<void(std::optional<int>)> answer) override
+        {
+            countsAsked.push_back(question);
+            std::optional<int> count;
+            if (!counts.empty())
+            {
+                count = counts.front();
+                counts.pop_front();
+            }
+            answer(count);
+        }
+
         std::deque<bool> answers;
         std::vector<Confirmation> asked;
+        std::deque<int> counts;  ///< a count asked with none left is cancelled [RQ-APP-061]
+        std::vector<CountQuestion> countsAsked;
     };
 
     /// Settings that live as long as the test.

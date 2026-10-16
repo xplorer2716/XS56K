@@ -777,3 +777,101 @@ TEST_CASE("Given PAD's Keygroup tab with KICK in zone 1, When the person chooses
     REQUIRE(fixture.rig.model.problem().has_value());
     CHECK(zoneSampleOf(fixture, 1) == "KICK");
 }
+
+namespace
+{
+    constexpr int ADDED = 2;
+    constexpr int THIRD_KEYGROUP = 3;
+
+    int padKeygroupsOnSampler(EditRig& fixture)
+    {
+        const auto selected = fixture.rig.gateway.selectProgramByName("PAD");
+        REQUIRE(selected.ok());
+        return selected.value->keygroupCount;
+    }
+
+    void selectPad(EditRig& fixture)
+    {
+        fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+        REQUIRE(fixture.rig.settle());
+    }
+}
+
+TEST_CASE("Given PAD with 2 keygroups, When the person adds 2, Then the selector goes from 1 to 4 and PAD has 4 keygroups on the sampler; the "
+          "question offers 1 to 97 [RQ-APP-061, DEC-APP-034, TASK-APP-047]",
+          "[app][edit]")
+{
+    constexpr int MOST = 97;
+    EditRig fixture;
+    selectPad(fixture);
+    fixture.rig.prompts.counts.emplace_back(ADDED);
+    fixture.editor.addKeygroups();
+    REQUIRE(fixture.rig.settle());
+    REQUIRE(fixture.rig.prompts.countsAsked.size() == 1);
+    CHECK(fixture.rig.prompts.countsAsked.front().min == 1);
+    CHECK(fixture.rig.prompts.countsAsked.front().max == MOST);
+    CHECK(fixture.rig.model.edit().keygroups == std::optional<int>(PAD_KEYGROUPS + ADDED));
+    CHECK(padKeygroupsOnSampler(fixture) == PAD_KEYGROUPS + ADDED);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD with 2 keygroups, When the person cancels the count, Then nothing is sent [RQ-APP-061, DEC-APP-034, TASK-APP-047]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    selectPad(fixture);
+    const std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.addKeygroups();
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    CHECK(fixture.rig.model.edit().keygroups == std::optional<int>(PAD_KEYGROUPS));
+}
+
+TEST_CASE("Given PAD with 4 keygroups, When the person deletes keygroup 3 and confirms, Then the question names keygroup 3 and PAD, and the "
+          "selector goes from 1 to 3 [RQ-APP-061, RQ-APP-011, DEC-APP-034, TASK-APP-047]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    selectPad(fixture);
+    fixture.rig.prompts.counts.emplace_back(ADDED);
+    fixture.editor.addKeygroups();
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.chooseKeygroup(THIRD_KEYGROUP);
+    REQUIRE(fixture.rig.settle());
+    fixture.rig.prompts.answers.push_back(true);
+    fixture.editor.deleteKeygroup();
+    REQUIRE(fixture.rig.settle());
+    REQUIRE(fixture.rig.prompts.asked.size() == 1);
+    const app::Confirmation& question = fixture.rig.prompts.asked.front();
+    CHECK(question.question.find("keygroup 3") != std::string::npos);
+    CHECK(question.question.find("PAD") != std::string::npos);
+    CHECK(fixture.rig.model.edit().keygroups == std::optional<int>(THIRD_KEYGROUP));
+    CHECK(fixture.rig.model.edit().keygroup == THIRD_KEYGROUP);
+    CHECK(padKeygroupsOnSampler(fixture) == THIRD_KEYGROUP);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD with 2 keygroups, When the person cancels the deletion, Then nothing is sent; Given PAD down to 1 keygroup, When the person "
+          "deletes it, Then no question is asked and nothing is sent [RQ-APP-061, DEC-APP-034, TASK-APP-047]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    selectPad(fixture);
+    std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.deleteKeygroup();
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    CHECK(fixture.rig.model.edit().keygroups == std::optional<int>(PAD_KEYGROUPS));
+
+    fixture.rig.prompts.answers.push_back(true);
+    fixture.editor.deleteKeygroup();
+    REQUIRE(fixture.rig.settle());
+    REQUIRE(fixture.rig.model.edit().keygroups == std::optional<int>(1));
+    const std::size_t questions = fixture.rig.prompts.asked.size();
+    before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.deleteKeygroup();
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.prompts.asked.size() == questions);
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    CHECK(fixture.rig.model.problem().has_value());
+}

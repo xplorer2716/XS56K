@@ -1,5 +1,5 @@
 {
-  "_comment": "The main window with the program editor's Keygroup tab (FTR-APP-008): the key span, the keygroup's options, and its four zones side by side, a column each, as the sampler's ZONE page. Example content only, no visual value (those are the tokens'). [RQ-APP-074, RQ-APP-057, RQ-APP-060, RQ-APP-092, ADR-APP-003 (DEC-APP-018), ADR-APP-004 (DEC-APP-033), TASK-APP-046]",
+  "_comment": "The main window with the program editor's Keygroup tab (FTR-APP-008): the key span, the keygroup's options, and its four zones side by side, a column each, as the sampler's ZONE page. Example content only, no visual value (those are the tokens'). [RQ-APP-074, RQ-APP-057, RQ-APP-060, RQ-APP-092, ADR-APP-003 (DEC-APP-018), ADR-APP-004 (DEC-APP-033), TASK-APP-046; RQ-APP-061, DEC-APP-034, TASK-APP-047: the header's Add and Delete, and their dialogs]",
   "name": "keygroup-editor",
   "size": [
     1280,
@@ -327,7 +327,15 @@
           }
         ]
       },
-      "keygroup": "KEYGROUP 1 OF 2"
+      "keygroup": "KEYGROUP 1 OF 2",
+      "actions": [
+        {
+          "text": "Add..."
+        },
+        {
+          "text": "Delete"
+        }
+      ]
     }
   },
   "states": {
@@ -580,7 +588,59 @@
         "pending": [
           "zone sample@3"
         ],
-        "keygroup": "KEYGROUP 1 OF 2"
+        "keygroup": "KEYGROUP 1 OF 2",
+        "actions": [
+          {
+            "text": "Add..."
+          },
+          {
+            "text": "Delete"
+          }
+        ]
+      }
+    },
+    "add-keygroups": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0"
+      },
+      "dialog": {
+        "title": "Add keygroups to PAD",
+        "text": [
+          "PAD has 2 keygroups; a program has up to 99.",
+          "How many keygroups to add, from 1 to 97?"
+        ],
+        "field": "2",
+        "buttons": [
+          {
+            "text": "Cancel"
+          },
+          {
+            "text": "Add"
+          }
+        ]
+      }
+    },
+    "delete-keygroup": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0"
+      },
+      "dialog": {
+        "title": "Delete keygroup 1 of PAD?",
+        "text": [
+          "Keygroup 1 is deleted with its zones and its settings.",
+          "If PAD was not saved to a disk, they are lost."
+        ],
+        "buttons": [
+          {
+            "text": "Cancel"
+          },
+          {
+            "text": "Confirm",
+            "destructive": true
+          }
+        ]
       }
     }
   }

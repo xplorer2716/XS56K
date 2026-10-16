@@ -56,6 +56,12 @@ namespace app
         /// Shows the values of the program's keygroup `keygroup` (1 to its count) and reads them; nothing for a keygroup the program does
         /// not have. [RQ-APP-058, RQ-APP-094, TASK-APP-044]
         void chooseKeygroup(int keygroup);
+        /// Asks how many keygroups to add to the program (1 up to the 99 it may have), adds them and reads the tab again with the new count;
+        /// a cancel sends nothing. [RQ-APP-061, ADR-APP-004 (DEC-APP-034), TASK-APP-047]
+        void addKeygroups();
+        /// After a confirmation naming it and the program, deletes the keygroup shown and shows the one that takes its place; the program's
+        /// last keygroup is refused with no question and nothing sent. [RQ-APP-061, RQ-APP-011, DEC-APP-034, TASK-APP-047]
+        void deleteKeygroup();
 
         void modelChanged(ModelPart part) override;
 
@@ -65,6 +71,8 @@ namespace app
         void write(std::size_t index, std::int64_t value);
         /// Sends the value that waited behind the write of the parameter at `index`, which has just ended.
         void writeWaiting(std::size_t index);
+        /// The program now has `keygroups`, the one shown being `keygroup`: the tab is read again for it.
+        void keygroupsChanged(const MemoryItem& item, int keygroups, int keygroup);
 
         Model& _model;
         Controller& _controller;

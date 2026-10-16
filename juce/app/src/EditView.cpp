@@ -39,6 +39,9 @@ namespace app::ui
         constexpr int GRID_LABEL_CELLS = 2;           // a zone grid's row labels take two knob cells, as in the mockups [DEC-APP-033]
         constexpr int GRID_COLUMN_CELLS = 2;          // a zone's column: a choice's width
         constexpr const char* ZONE_TEXT = "Zone ";
+        constexpr const char* ADD_TEXT = "Add...";
+        constexpr const char* DELETE_TEXT = "Delete";
+        constexpr float HEADER_BUTTON_KNOBS = 3;  // a header button is three knob diameters wide, as in the mockups [DEC-APP-034]
 
         /// The height of a zone grid's row: a value box and the space under it. [DEC-APP-033]
         int gridPitch()
@@ -124,6 +127,13 @@ namespace app::ui
                 _editor.chooseKeygroup(_keygroup.getSelectedId());
         };
         addChildComponent(_keygroup);
+        // Adding keygroups and deleting the one shown, beside the selector. [RQ-APP-061, DEC-APP-034]
+        _addKeygroups.setButtonText(ADD_TEXT);
+        _addKeygroups.onClick = [this] { _editor.addKeygroups(); };
+        _deleteKeygroup.setButtonText(DELETE_TEXT);
+        _deleteKeygroup.onClick = [this] { _editor.deleteKeygroup(); };
+        addChildComponent(_addKeygroups);
+        addChildComponent(_deleteKeygroup);
         _pane.painter = [this](juce::Graphics& g) { paintGroups(g); };
         _pane.addMouseListener(this, false);
         _viewport.setViewedComponent(&_pane, false);
@@ -236,6 +246,9 @@ namespace app::ui
         }
         _keygroup.setSelectedId(keygroups > 0 ? state.keygroup : 0, juce::dontSendNotification);
         _keygroup.setVisible(keygroups > 0 && _layout != nullptr);
+        _addKeygroups.setVisible(_keygroup.isVisible());
+        _deleteKeygroup.setVisible(_keygroup.isVisible());
+        _deleteKeygroup.setEnabled(keygroups > 1);  // a program keeps one keygroup [RQ-APP-061]
         _info.setText(keygroups > 0 ? juce::String() : juce::String(infoText(state)), juce::dontSendNotification);
         std::size_t index = 0;
         for (Group& group : _groups)
@@ -287,6 +300,12 @@ namespace app::ui
         _kind.setBounds(header.removeFromLeft(kindWidth));
         _keygroup.setBounds(header.removeFromRight(pixels(KEYGROUP_SELECTOR_KNOBS * kKnobSizeDefault))
                                 .withSizeKeepingCentre(pixels(KEYGROUP_SELECTOR_KNOBS * kKnobSizeDefault), pixels(kSizeControlMedium)));
+        const int buttonWidth = pixels(HEADER_BUTTON_KNOBS * kKnobSizeDefault);
+        for (juce::TextButton* button : {&_deleteKeygroup, &_addKeygroups})
+        {
+            header.removeFromRight(pixels(kSpaceInside));
+            button->setBounds(header.removeFromRight(buttonWidth).withSizeKeepingCentre(buttonWidth, pixels(kSizeControlMedium)));
+        }
         _info.setBounds(header);
         area.removeFromTop(pixels(kSpaceGroup));
         _message.setBounds(area);

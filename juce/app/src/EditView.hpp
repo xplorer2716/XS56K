@@ -41,8 +41,8 @@ namespace app::ui
     /// row where the layout says), in a pane that scrolls when the panel is too short; for a kind with no editor, a message. The space bar
     /// starts or stops the audition of the edited sample, except while a value is typed (the text box takes the key). The tab row is drawn by
     /// the area, which `onTabs` tells, and a tab chosen there comes back through `showTab`. [RQ-APP-048 to RQ-APP-053, RQ-APP-056, RQ-APP-058,
-    /// RQ-APP-060, RQ-APP-083, RQ-APP-086, RQ-APP-087, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-025, DEC-APP-027, DEC-APP-031,
-    /// DEC-APP-033), ADR-APP-001 (DEC-APP-001), TASK-APP-039, TASK-APP-044, TASK-APP-046]
+    /// RQ-APP-060, RQ-APP-061, RQ-APP-083, RQ-APP-086, RQ-APP-087, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-025, DEC-APP-027, DEC-APP-031,
+    /// DEC-APP-033, DEC-APP-034), ADR-APP-001 (DEC-APP-001), TASK-APP-039, TASK-APP-044, TASK-APP-046, TASK-APP-047]
     class EditView final : public juce::Component, private ModelListener
     {
     public:
@@ -96,6 +96,8 @@ namespace app::ui
         CutLabel _info;
         CutLabel _message;
         juce::ComboBox _keygroup;
+        juce::TextButton _addKeygroups;    ///< a program's keygroups added, how many asked [RQ-APP-061]
+        juce::TextButton _deleteKeygroup;  ///< the keygroup shown deleted after a confirmation; disabled for the last one
         juce::TextButton _readAgain;
         juce::Viewport _viewport;
         Pane _pane;

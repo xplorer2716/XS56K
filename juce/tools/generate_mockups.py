@@ -450,6 +450,20 @@ def draw_group(c, x, y, group, values, pending, shapes=None):
     return width, height
 
 
+def draw_header_actions(c, right, y, actions):
+    """The header's buttons, right-aligned before `right` in their order; a disabled one in the disabled colour.
+    [RQ-APP-061, ADR-APP-004 (DEC-APP-034)]"""
+    t = c.t
+    w = BUTTON_WIDTH_IN_KNOBS * t("knob.size.default")
+    h = t("size.control.medium")
+    x = right - len(actions) * (w + t("space.inside")) + t("space.inside")
+    for action in actions:
+        colour = t("colour.text.disabled") if action.get("disabled") else t("button.text")
+        c.rect(x, y, w, h, t("choice.surface"), t("radius.control"))
+        c.text(x + w / 2, y + h / 2 + t("font.value.size") / 3, action["text"], t("font.value.size"), colour, WEIGHT_MEDIUM, "middle")
+        x += w + t("space.inside")
+
+
 def draw_editor(c, x, y, w, h, editor, layouts, shapes=None):
     t = c.t
     inside = t("space.inside")
@@ -469,7 +483,9 @@ def draw_editor(c, x, y, w, h, editor, layouts, shapes=None):
     draw_label(c, x + inside + item_width, title_y, editor["kind"], t("header.kind"))
     if "keygroup" in editor:
         selector_w = KEYGROUP_SELECTOR_IN_KNOBS * t("knob.size.default")
-        draw_choice(c, x + w - inside - selector_w, y + (header_h - t("size.control.medium")) / 2, selector_w, editor["keygroup"], False)
+        control_y = y + (header_h - t("size.control.medium")) / 2
+        draw_choice(c, x + w - inside - selector_w, control_y, selector_w, editor["keygroup"], False)
+        draw_header_actions(c, x + w - inside - selector_w - inside, control_y, editor.get("actions", []))
     elif "info" in editor:
         # An editor with no part to choose shows what the item is instead (the sample's information). [RQ-APP-087]
         c.text(x + w - inside, title_y, editor["info"], t("font.caption.size"), t("colour.text.secondary"), anchor="end")
@@ -536,8 +552,9 @@ def draw_dialog(c, width, height, dialog):
     w = DIALOG_WIDTH_IN_KNOBS * t("knob.size.default")
     lines = dialog.get("text", [])
     button_h = t("size.control.large")
+    field_h = t("valuebox.height") + t("size.space.4") if "field" in dialog else 0  # a value typed, under the text [RQ-APP-061]
     h = (2 * t("size.space.4") + t("font.heading.size") + t("size.space.4") + len(lines) * (t("font.value.size") + t("size.space.2"))
-         + t("size.space.4") + button_h)
+         + field_h + t("size.space.4") + button_h)
     x, y = (width - w) / 2, (height - h) / 2
     c.rect(x, y, w, h, t("dialog.surface"), t("radius.panel"), t("dialog.border"), t("stroke.hairline"))
     text_y = y + t("size.space.4") + t("font.heading.size")
@@ -546,6 +563,9 @@ def draw_dialog(c, width, height, dialog):
     for line in lines:
         text_y += t("font.value.size") + t("size.space.2")
         c.text(x + t("size.space.4"), text_y, line, t("font.value.size"), t("colour.text.secondary"))
+    if "field" in dialog:
+        draw_value_box(c, x + t("size.space.4"), text_y + t("size.space.4"), BUTTON_WIDTH_IN_KNOBS * t("knob.size.default"), dialog["field"],
+                       False)
     button_w = BUTTON_WIDTH_IN_KNOBS * t("knob.size.default")
     button_x = x + w - t("size.space.4") - button_w
     button_y = y + h - t("size.space.4") - button_h

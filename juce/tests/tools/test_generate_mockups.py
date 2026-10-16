@@ -258,6 +258,32 @@ class RenderingAScreen(unittest.TestCase):
         svg = self.render_zones({"zone sample": [{"text": "KICK"}, {"text": ""}, {"text": ""}, {"text": ""}]})
         self.assertEqual(svg.count(">NONE<"), 3)
 
+    def test_given_header_actions_when_rendered_then_they_are_buttons_left_of_the_keygroup_selector_a_disabled_one_greyed(self):
+        # Adding keygroups and deleting the current one, beside the selector. [RQ-APP-061, DEC-APP-034, TASK-APP-047]
+        data = tokens()
+        screen = copy.deepcopy(SCREEN)
+        screen["content"]["editor"]["actions"] = [{"text": "Add..."}, {"text": "Delete", "disabled": True}]
+        svg = self.render(screen=screen, data=data)
+        add_x = float(re.search(r'<text x="([\d.]+)"[^>]*>Add\.\.\.<', svg).group(1))
+        delete_x = float(re.search(r'<text x="([\d.]+)"[^>]*>Delete<', svg).group(1))
+        selector_x = float(re.search(r'<text x="([\d.]+)"[^>]*>KEYGROUP 1 OF 2<', svg).group(1))
+        self.assertLess(add_x, delete_x)
+        self.assertLess(delete_x, selector_x)
+        disabled = self.gen.Theme(data)("colour.text.disabled")
+        self.assertRegex(svg, r'<text [^>]*fill="' + re.escape(disabled) + r'"[^>]*>Delete<')
+
+    def test_given_a_dialog_with_a_field_when_rendered_then_the_value_typed_is_shown_in_a_box(self):
+        screen = copy.deepcopy(SCREEN)
+        screen["states"]["add"] = {"connection": {"state": "connected", "text": "Connected"},
+                                   "dialog": {"title": "Add keygroups to PAD", "text": ["How many?"], "field": "2",
+                                              "buttons": [{"text": "Cancel"}, {"text": "Add"}]}}
+        svg = self.render(screen=screen, state="add")
+        field_y = float(re.search(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>2<', svg).group(1))
+        question_y = float(re.search(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>How many\?<', svg).group(1))
+        add_y = float(re.search(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>Add<', svg).group(1))
+        self.assertLess(question_y, field_y)
+        self.assertLess(field_y, add_y)
+
     def test_given_a_group_that_starts_a_row_when_rendered_then_it_is_drawn_under_the_first_at_the_left(self):
         # Two narrow groups would share a row; the second starts its own. [RQ-APP-094, DEC-APP-031, TASK-APP-044]
         layout = copy.deepcopy(LAYOUT)
