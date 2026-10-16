@@ -105,9 +105,12 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `new-source-file` (`.github/skills/new-source-file/SKILL.md`), subagent `license-header` (`.claude/agents/license-header.md`).
 - **Reusable tools:** a script written for a session and used more than once becomes a generic tool in `juce/tools/`, with a skill or
   an instructions file linked here. AGNOS files are not edited for that.
-- **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
+- **Lint:** the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
+- **Static analysis, before every commit that changed code under `juce/`:** `python juce/tools/tidy.py` (clang-tidy with the Sonar-matching
+  checks of `juce/.clang-tidy`, on what changed; `--fix` for its automatic fixes, `--all` for the whole code), then the IDE's SonarQube
+  findings: skill `static-analysis` (`.github/skills/static-analysis/SKILL.md`). It must exit 0. [RQ-QLT-012, ADR-QLT-002]
 
 Do not invent commands beyond these; `CONTRIBUTING.md` still has none.
 
