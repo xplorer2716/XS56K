@@ -5,12 +5,13 @@ Reads `juce/app/design/tokens.json` (global tokens hold values, semantic tokens 
 ones), checks it (every alias resolves, no cycle, no semantic or component token holding a value, every listed text pair reaches the minimum
 contrast), and writes:
   - `juce/app/core/include/app/DesignTokens.generated.hpp`: `constexpr` constants in namespace `app::tokens`, no JUCE include;
-  - the tables between the `<!-- BEGIN GENERATED: ... -->` markers of `process/1.requirements/DESIGN-SYSTEM-APP.md`.
-`--check` writes nothing and fails, naming the files, when either is behind the token file. Never run during the build.
+  - the tables between the `<!-- BEGIN GENERATED: ... -->` markers of `process/1.requirements/DESIGN-SYSTEM-APP.md`;
+  - `juce/app/core/include/app/EditorLayouts.generated.hpp`: the editor layouts of `juce/app/design/layouts/*.json` as `constexpr` tables.
+`--check` writes nothing and fails, naming the files, when one is behind its source. Never run during the build.
 
-Usage: python3 juce/tools/generate_design.py [--check] [--tokens PATH] [--header PATH] [--doc PATH]
+Usage: python3 juce/tools/generate_design.py [--check] [--tokens PATH] [--header PATH] [--doc PATH] [--layouts DIR] [--layouts-header PATH]
 
-[TASK-APP-007, RQ-APP-002, RQ-APP-005, ADR-APP-002 (DEC-APP-011, DEC-APP-012)]
+[TASK-APP-007, TASK-APP-035, RQ-APP-002, RQ-APP-005, RQ-APP-086, ADR-APP-002 (DEC-APP-011, DEC-APP-012), ADR-APP-004 (DEC-APP-024)]
 """
 import argparse
 import json
@@ -22,6 +23,11 @@ ROOT = pathlib.Path(__file__).resolve().parents[2]
 DEFAULT_TOKENS = ROOT / "juce" / "app" / "design" / "tokens.json"
 DEFAULT_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "DesignTokens.generated.hpp"
 DEFAULT_DOC = ROOT / "process" / "1.requirements" / "DESIGN-SYSTEM-APP.md"
+DEFAULT_LAYOUTS = ROOT / "juce" / "app" / "design" / "layouts"
+DEFAULT_LAYOUTS_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "EditorLayouts.generated.hpp"
+CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider"}
+ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
+SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone"}
 
 TIERS = ("global", "semantic", "component")
 COLOUR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -193,6 +199,143 @@ def replace_sections(text, sections):
     return text
 
 
+def cpp_text(text):
+    return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
+def render_envelope(editor, group):
+    """An envelope group's stages as C++ initialisers: a time and an end level (a parameter, or a fixed level 0 to 100), or the sustain
+    mark. Each name must be one of the group's parameters. [RQ-APP-095, ADR-APP-004 (DEC-APP-031)]"""
+    names = {parameter["name"] for parameter in group.get("parameters", [])}
+    stages = []
+    for stage in group.get("envelope", []):
+        if stage.get("sustain"):
+            stages.append('{"", "", 0, true}')
+            continue
+        level = stage.get("level", 0)
+        for name in [stage.get("time")] + ([level] if isinstance(level, str) else []):
+            if name not in names:
+                raise TokenError(f"the layout {editor} draws {name} in the envelope of {group['title']}, which does not show it")
+        if isinstance(level, str):
+            stages.append(f"{{{cpp_text(stage['time'])}, {cpp_text(level)}, 0, false}}")
+        else:
+            stages.append(f"{{{cpp_text(stage['time'])}, \"\", {int(level)}, false}}")
+    return stages
+
+
+CLOSE_TABLE = "    }};"  # the end of a constexpr table of the generated header
+
+
+def render_parameters(editor, group, name):
+    """The table of one group's parameters, as lines. Each control and role must be a known one."""
+    rows = []
+    for parameter in group.get("parameters", []):
+        control, role = parameter.get("control"), parameter.get("role")
+        if control not in CONTROLS:
+            raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown control {control}")
+        if role not in ROLES:
+            raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown role {role}")
+        rows.append(f"{{{cpp_text(parameter['name'])}, {cpp_text(parameter['label'])}, Role::{ROLES[role]}, Control::{CONTROLS[control]}}}")
+    return ([f"    inline constexpr std::array<LayoutParameter, {len(rows)}> {name}{{{{"] + [f"        {row}," for row in rows] + [CLOSE_TABLE])
+
+
+def render_scope(editor, group):
+    scope = group.get("scope")
+    if scope is not None and scope not in SCOPES:
+        raise TokenError(f"the layout {editor} gives the group {group['title']} the unknown scope {scope}")
+    return f"Scope::{SCOPES[scope]}" if scope else "Scope::None"
+
+
+def render_group(editor, group, name, lines):
+    """One group: its tables are appended to `lines`, its initialiser is returned."""
+    lines += render_parameters(editor, group, name)
+    scope_cpp = render_scope(editor, group)
+    envelope = render_envelope(editor, group)
+    envelope_cpp = "{}"
+    if envelope:
+        envelope_cpp = f"{name}Envelope"
+        lines.append(f"    inline constexpr std::array<EnvelopeStage, {len(envelope)}> {envelope_cpp}{{{{")
+        lines += [f"        {stage}," for stage in envelope]
+        lines.append(CLOSE_TABLE)
+    row = "true" if group.get("row") else "false"
+    return f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}}}"
+
+
+def render_tab(editor, prefix, tab_index, tab, lines):
+    """One tab: its groups' tables, then its own, are appended to `lines`; its initialiser is returned."""
+    group_names = [render_group(editor, group, f"{prefix}Tab{tab_index}Group{group_index}", lines)
+                   for group_index, group in enumerate(tab.get("groups", []))]
+    name = f"{prefix}Tab{tab_index}"
+    lines.append(f"    inline constexpr std::array<LayoutGroup, {len(group_names)}> {name}Groups{{{{")
+    lines += [f"        {group}," for group in group_names]
+    lines.append(CLOSE_TABLE)
+    return f"LayoutTab{{{cpp_text(tab['title'])}, {name}Groups}}"
+
+
+def render_orders(editor, prefix, layout, lines):
+    """The chains of parameters whose values must not decrease, each name one the layout shows. [RQ-APP-092, DEC-APP-029]"""
+    shown = {parameter["name"] for tab in layout.get("tabs", []) for group in tab.get("groups", [])
+             for parameter in group.get("parameters", [])}
+    order_names = []
+    for order_index, order in enumerate(layout.get("orders", [])):
+        for name in order:
+            if name not in shown:
+                raise TokenError(f"the layout {editor} orders {name}, which it does not show")
+        name = f"{prefix}Order{order_index}"
+        lines.append(f"    inline constexpr std::array<std::string_view, {len(order)}> {name}{{{{")
+        lines += [f"        {cpp_text(item)}," for item in order]
+        lines.append(CLOSE_TABLE)
+        order_names.append(f"std::span<const std::string_view>{{{name}}}")
+    lines.append(f"    inline constexpr std::array<std::span<const std::string_view>, {len(order_names)}> {prefix}Orders{{{{")
+    lines += [f"        {order}," for order in order_names]
+    lines.append(CLOSE_TABLE)
+
+
+def render_editor(editor, layout, lines):
+    """One editor: its tabs and orders are appended to `lines`; its initialiser is returned."""
+    prefix = "k" + editor[:1].upper() + editor[1:]
+    tab_names = [render_tab(editor, prefix, tab_index, tab, lines) for tab_index, tab in enumerate(layout.get("tabs", []))]
+    lines.append(f"    inline constexpr std::array<LayoutTab, {len(tab_names)}> {prefix}Tabs{{{{")
+    lines += [f"        {tab}," for tab in tab_names]
+    lines.append(CLOSE_TABLE)
+    render_orders(editor, prefix, layout, lines)
+    return f"EditorLayout{{{cpp_text(editor)}, {prefix}Tabs, {prefix}Orders}}"
+
+
+def render_layouts(layouts):
+    """The editor layouts, by editor name, as constexpr tables in namespace `app::layouts` (types in `app/EditorLayout.hpp`)."""
+    lines = [
+        "// GENERATED by juce/tools/generate_design.py from the JSON files of juce/app/design/layouts/: do not edit by hand.",
+        "// The editor layouts: each editor's tabs, groups and parameters, by catalogue name. No JUCE.",
+        "// [RQ-APP-049, RQ-APP-086, RQ-APP-092, ADR-APP-001 (DEC-APP-006), ADR-APP-004 (DEC-APP-024, DEC-APP-029)]",
+        "#pragma once",
+        "",
+        "#include <array>",
+        "",
+        '#include "app/EditorLayout.hpp"',
+        "",
+        "namespace app::layouts",
+        "{",
+    ]
+    editors = [render_editor(editor, layout, lines) for editor, layout in sorted(layouts.items())]
+    lines.append(f"    inline constexpr std::array<EditorLayout, {len(editors)}> kEditorLayouts{{{{")
+    lines += [f"        {editor}," for editor in editors]
+    lines.append(CLOSE_TABLE)
+    lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def read_layouts(folder):
+    folder = pathlib.Path(folder)
+    if not folder.is_dir():
+        return {}
+    layouts = {}
+    for path in sorted(folder.glob("*.json")):
+        layout = json.loads(path.read_text(encoding="utf-8"))
+        layouts[layout.get("editor", path.stem)] = layout
+    return layouts
+
+
 def generate(tokens_path, doc_path):
     data = json.loads(pathlib.Path(tokens_path).read_text(encoding="utf-8"))
     resolved = resolve_all(data)
@@ -210,25 +353,29 @@ def main(argv=None):
     parser.add_argument("--tokens", default=str(DEFAULT_TOKENS))
     parser.add_argument("--header", default=str(DEFAULT_HEADER))
     parser.add_argument("--doc", default=str(DEFAULT_DOC))
+    parser.add_argument("--layouts", default=str(DEFAULT_LAYOUTS))
+    parser.add_argument("--layouts-header", default=str(DEFAULT_LAYOUTS_HEADER))
     arguments = parser.parse_args(argv)
     try:
         header, doc = generate(arguments.tokens, arguments.doc)
+        layouts_header = render_layouts(read_layouts(arguments.layouts))
     except (TokenError, OSError, ValueError) as error:
         print(f"generate_design: {error}", file=sys.stderr)
         return 1
-    outputs = [(pathlib.Path(arguments.header), header), (pathlib.Path(arguments.doc), doc)]
+    outputs = [(pathlib.Path(arguments.header), header), (pathlib.Path(arguments.doc), doc),
+               (pathlib.Path(arguments.layouts_header), layouts_header)]
     if arguments.check:
         behind = [str(path) for path, content in outputs if not path.exists() or path.read_text(encoding="utf-8") != content]
         if behind:
-            print("generate_design: behind the token file, run python3 juce/tools/generate_design.py: " + ", ".join(behind))
+            print("generate_design: behind their sources, run python3 juce/tools/generate_design.py: " + ", ".join(behind))
             return 1
-        print("generate_design: the token module and the document's tables are up to date")
+        print("generate_design: the token module, the document's tables and the editor layouts are up to date")
         return 0
     for path, content in outputs:
         path.parent.mkdir(parents=True, exist_ok=True)
         with open(path, "w", encoding="utf-8", newline="\n") as stream:
             stream.write(content)
-    print(f"generate_design: wrote {outputs[0][0]} and the tables of {outputs[1][0]}")
+    print(f"generate_design: wrote {outputs[0][0]}, the tables of {outputs[1][0]} and {outputs[2][0]}")
     return 0
 
 

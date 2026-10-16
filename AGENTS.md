@@ -7,24 +7,24 @@ Guidance for AI coding agents working in this repository.
 
 - **Name:** XS56K
 - **Purpose:** Drive an AKAI S5000 or S6000 sampler from a computer: a SysEx library, an MCP server
-  for AI assistants, and, later, an editor.
+  for AI assistants, and an editor.
 - **Stack:** C++ / [JUCE](https://juce.com/) 8.0.15
-- **Status:** experimental. Only the first two parts exist, and only part of the second one.
+- **Status:** experimental. The editor is partly built: the sample editor exists, the program editor has its first two tabs.
 
 XS56K is three things that build on each other (see `README.md`):
 
 1. **A SysEx library** (`juce/akm`) that aims to cover every MIDI SysEx message of the S5000 and S6000.
 2. **An MCP server** (`juce/mcp`) that lets an AI assistant work on the sampler. The goal is every function of the
    samplers that the SysEx specification offers.
-3. **A program editor** (`juce/app`): a goal, it does not exist yet. Only a placeholder window exists.
+3. **A program editor** (`juce/app`): main window, menus, MIDI setup, disk browser, memory view, the sample editor
+   (FTR-APP-010) and the program editor's Envelopes and Program tabs (FTR-APP-008, PLAN-APP-006); the save (FTR-APP-006) is not built. Light MVC (`ADR-APP-001`): `juce/app/core` (`xs56k_app_core`, model and
+   controllers, no JUCE, tested on the simulated sampler) over `xs56k_sampler` (the gateway shared with the MCP server);
+   `juce/app/src` holds the thin JUCE views, every visual value from the design tokens (`ADR-APP-002`).
 
 `juce/midi` and `juce/framework` are ported from
 [xplorer2716/XplorerEditor](https://github.com/xplorer2716/XplorerEditor) (a real-time editor for
 the Oberheim Xpander/Matrix-12, itself a JUCE C++ port of a .NET application) — this repository's
-CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. `juce/app` is a
-**minimal, intentionally undesigned placeholder** (a bare `juce::DocumentWindow`) — not `model`,
-`controller`, `settings`, or any real editor UI — that exists solely so the build/version/deploy
-plumbing has a real GUI target to exercise. `juce/akm` is the S5000 SysEx layer (namespace `akm`,
+CI setup and `juce/CMakeLists.txt` are likewise adapted from that project's. `juce/akm` is the S5000 SysEx layer (namespace `akm`,
 library `xs56k_akm`), written for this repository, not ported: it depends on `xs56k_midi` only and
 exposes no JUCE type in its public headers (`ADR-AKM-001`, `FTR-AKM-001`). `juce/mcp` is an MCP (Model Context
 Protocol) server that exposes the AKM layer to an MCP client, to edit programs, zones, samples and multis in the sampler's
@@ -64,9 +64,9 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   (`FetchContent`, pinned in `juce/CMakeLists.txt`), not installed separately. [RQ-BLD-001]
 - **Build (libraries only):** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug`, then `cmake --build juce/build --parallel`
   (builds the `xs56k_midi`/`xs56k_midi_juce`, `xs56k_framework` and `xs56k_akm` static libraries only). [RQ-BLD-002, RQ-AKM-019]
-- **Build (with the placeholder app):** add `-DBUILD_APP=ON` (and, to embed a real version,
+- **Build (with the editor):** add `-DBUILD_APP=ON` (and, to embed a real version,
   `-DVERSION_NUMERIC=... -DVERSION_FULL=...` — see `.github/actions/resolve-version`); produces
-  an `XS56K` executable that opens one placeholder window. [RQ-BLD-007]
+  the `XS56K` editor (`juce/build/app/XS56KApp_artefacts/<config>/`). [RQ-BLD-007]
 - **Test:** `cmake -S juce -B juce/build -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON`, then `cmake --build juce/build --parallel`,
   then `ctest --test-dir juce/build --output-on-failure`
   (`BUILD_TESTS` defaults to `OFF`; Catch2 is fetched by CMake, pinned in `juce/CMakeLists.txt`). With
@@ -90,7 +90,8 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   are `ctest` entries when CMake finds Python 3. [RQ-MCP-058 to RQ-MCP-066, ADR-MCP-006]
 - **Design tokens and mockups of the editor:** the design system's values are data (`juce/app/design/tokens.json`); `python3
   juce/tools/generate_design.py` (`python` on Windows) writes `juce/app/core/include/app/DesignTokens.generated.hpp` and the value tables of
-  `process/1.requirements/DESIGN-SYSTEM-APP.md`, and `python3 juce/tools/generate_mockups.py` writes the static SVG mockups of
+  `process/1.requirements/DESIGN-SYSTEM-APP.md`, and the editor layouts of `juce/app/design/layouts/` into `EditorLayouts.generated.hpp`;
+  `python3 juce/tools/generate_mockups.py` writes the static SVG mockups of
   `documents/mockups/` from the tokens, the layouts and the screens of `juce/app/design/`. Never edit the generated files by hand; `--check`
   fails when they are out of date, and both checks and the scripts' tests are `ctest` entries when CMake finds Python 3. [RQ-APP-002,
   RQ-APP-074 to RQ-APP-078, ADR-APP-002, ADR-APP-003]
@@ -98,12 +99,17 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   `juce/mcp/README.md` (options, tools, safety rules, tests). Every destructive tool asks for a `confirm`; never send the disk
   refresh (`--allow-disk-refresh`) to the owner's sampler without asking him first, and never call `clear_sampler_memory` or a `delete_all_*`
   tool on it unless he says so for that call: a general "do it all without me" is not enough, ask each time. [FTR-MCP-*, ADR-MCP-*]
+- **Driving the editor without the mouse** (Windows): `juce/tools/uia.ps1` through the `ui-automation` skill
+  (`.github/skills/ui-automation/SKILL.md`): list, invoke, type, capture. Never simulate mouse clicks.
+- **New C++ file:** the licence header is copied from `juce/LICENSE_HEADER.txt` by `juce/tools/new_source_file.py`, never typed: skill
+  `new-source-file` (`.github/skills/new-source-file/SKILL.md`), subagent `license-header` (`.claude/agents/license-header.md`).
+- **Reusable tools:** a script written for a session and used more than once becomes a generic tool in `juce/tools/`, with a skill or
+  an instructions file linked here. AGNOS files are not edited for that.
 - **Lint:** not a separate step — the build itself is warning-clean at `-Wall -Wextra -Wpedantic
   -Werror` (`/W4 /WX` on MSVC) for project code (not JUCE's own sources), enforced via the
   `xs56k::warnings` interface target in `juce/CMakeLists.txt`. [RQ-BLD-003]
 
-Do not invent commands beyond these; check `CONTRIBUTING.md` (which still has none) and this file
-again once a real editor UI exists.
+Do not invent commands beyond these; `CONTRIBUTING.md` still has none.
 
 ## Conventions
 
@@ -117,12 +123,12 @@ again once a real editor UI exists.
     `juce/tools/generate_workflows.py` generates 15 more (`<os>-<arch>-<config>-<stage>`,
     `windows-x64`/`macos-arm64`/`linux-x64` × canary/dev/prod) that build, run the test suites
     (`ctest`, before anything is packaged: a failing test stops the job — `RQ-BLD-014`,
-    `ADR-BLD-005`), package and — on `dev` and `prod` — publish the placeholder app as a GitHub
+    `ADR-BLD-005`), package and — on `dev` and `prod` — publish the editor app as a GitHub
     Release (`ADR-BLD-003`). `cut-deployment.yml`
     (`workflow_dispatch` on `main`) triggers the three `prod` ones by pushing a version tag —
     **not yet usable**: it needs a `CUT_DEPLOYMENT` repository secret (a PAT) that has not been
     added (`GITHUB_TOKEN` can't trigger other workflows when it pushes). No SBOM/icon/AppImage/
-    code-signing exists — explicitly out of scope until the placeholder becomes a real UI.
+    code-signing exists — out of scope until the editor is usable.
 - Branch naming: `type/short-description`
 - Commit messages: [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
 - Versioning: [SemVer](https://semver.org/spec/v2.0.0.html) — record user-facing changes in `CHANGELOG.md` under `[Unreleased]`.

@@ -1,0 +1,230 @@
+{
+  "_comment": "The main window with the program editor's Program tab (FTR-APP-008): example content only, no visual value (those are the tokens'). [RQ-APP-074, RQ-APP-093, ADR-APP-003 (DEC-APP-018), ADR-APP-004 (DEC-APP-030), TASK-APP-043]",
+  "name": "program-editor",
+  "size": [
+    1280,
+    800
+  ],
+  "leftWidth": 300,
+  "browserShare": 0.5,
+  "menu": [
+    "XS56K",
+    "Sampler",
+    "MIDI"
+  ],
+  "content": {
+    "browser": {
+      "path": "S5K:\\DrumsLoops",
+      "rows": [
+        {
+          "kind": "disk",
+          "name": "S5K",
+          "depth": 0,
+          "detail": "FAT32"
+        },
+        {
+          "kind": "folder",
+          "name": "DrumsLoops",
+          "depth": 1,
+          "current": true
+        },
+        {
+          "kind": "sample",
+          "name": "KICK.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "sample",
+          "name": "SNARE.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "folder",
+          "name": "MoogBass",
+          "depth": 1
+        }
+      ]
+    },
+    "memory": {
+      "free": "150.3 MB free of 151.2 MB (99 %)",
+      "kinds": [
+        {
+          "title": "Multis",
+          "items": []
+        },
+        {
+          "title": "Programs",
+          "items": [
+            {
+              "name": "PAD",
+              "current": true,
+              "selected": true
+            },
+            {
+              "name": "BASS"
+            }
+          ]
+        },
+        {
+          "title": "Samples",
+          "items": [
+            {
+              "name": "KICK"
+            },
+            {
+              "name": "SNARE"
+            }
+          ]
+        },
+        {
+          "title": "Song files",
+          "items": []
+        },
+        {
+          "title": "Set lists",
+          "items": []
+        },
+        {
+          "title": "Scenelists",
+          "items": []
+        }
+      ]
+    },
+    "editor": {
+      "item": "PAD",
+      "kind": "Program",
+      "layout": "program",
+      "tab": "Program",
+      "values": {
+        "program loudness": {
+          "text": "80",
+          "fraction": 0.8
+        },
+        "program velocity sensitivity": {
+          "text": "+25",
+          "fraction": 0.625
+        },
+        "program semitone tune": {
+          "text": "0",
+          "fraction": 0.5
+        },
+        "program fine tune": {
+          "text": "0",
+          "fraction": 0.5
+        },
+        "tune template": {
+          "text": "EVEN-TEMPERED"
+        },
+        "tune key": {
+          "text": "C"
+        },
+        "pitch bend up": {
+          "text": "2",
+          "fraction": 0.08
+        },
+        "pitch bend down": {
+          "text": "2",
+          "fraction": 0.08
+        },
+        "pitch bend mode": {
+          "text": "NORMAL"
+        },
+        "aftertouch pitch": {
+          "text": "0",
+          "fraction": 0.5
+        },
+        "legato": {
+          "text": "OFF"
+        },
+        "portamento": {
+          "text": "OFF"
+        },
+        "portamento mode": {
+          "text": "TIME"
+        },
+        "portamento time": {
+          "text": "0",
+          "fraction": 0.0
+        }
+      },
+      "keygroup": "KEYGROUP 1 OF 2"
+    }
+  },
+  "states": {
+    "connected": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0"
+      }
+    },
+    "writing": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0",
+        "busy": "Setting the loudness of PAD"
+      },
+      "editor": {
+        "item": "PAD",
+        "kind": "Program",
+        "layout": "program",
+        "tab": "Program",
+        "values": {
+          "program loudness": {
+            "text": "70",
+            "fraction": 0.7
+          },
+          "program velocity sensitivity": {
+            "text": "+25",
+            "fraction": 0.625
+          },
+          "program semitone tune": {
+            "text": "0",
+            "fraction": 0.5
+          },
+          "program fine tune": {
+            "text": "0",
+            "fraction": 0.5
+          },
+          "tune template": {
+            "text": "EVEN-TEMPERED"
+          },
+          "tune key": {
+            "text": "C"
+          },
+          "pitch bend up": {
+            "text": "2",
+            "fraction": 0.08
+          },
+          "pitch bend down": {
+            "text": "2",
+            "fraction": 0.08
+          },
+          "pitch bend mode": {
+            "text": "NORMAL"
+          },
+          "aftertouch pitch": {
+            "text": "0",
+            "fraction": 0.5
+          },
+          "legato": {
+            "text": "OFF"
+          },
+          "portamento": {
+            "text": "OFF"
+          },
+          "portamento mode": {
+            "text": "TIME"
+          },
+          "portamento time": {
+            "text": "0",
+            "fraction": 0.0
+          }
+        },
+        "pending": [
+          "program loudness"
+        ],
+        "keygroup": "KEYGROUP 1 OF 2"
+      }
+    }
+  }
+}

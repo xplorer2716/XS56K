@@ -155,6 +155,16 @@ the front panel's), `documents/_index/sysex_spec.items.tsv` (section 10), the AK
 - **Acceptance Criteria** (Gherkin): *Given* a server launched with `--allow-disk` only, *When* `list_disks` is called with `refresh` true, *Then* the answer is an error that names `--allow-disk-refresh` and the sampler received no section 10 item 01. *Given* a server launched with both options, *When* `list_disks` is called with `refresh` true, *Then* the refresh is sent once.
 - **Dependencies**: RQ-MCP-023, RQ-MCP-024, RQ-MCP-029; ADR-MCP-003 (DEC-MCP-020)
 
+### RQ-MCP-068: A folder name the S5000 cannot take is never sent
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF a folder's name, or the new name of a folder, is longer than 26 characters, THEN the gateway SHALL refuse to open, load, create or delete that folder, or to rename a folder to that name, with nothing sent, and SHALL say that the sampler stops answering on such a name and that the folder can be renamed to 26 characters or fewer; the rename of a folder whose present name is longer than 26 characters to a new name of 26 characters or fewer SHALL be sent.
+- **Rationale**: on 2026-10-15 the owner's S5000 (OS 2.14) crashed (a register dump on its screen, a power cycle needed) on the Open Folder (`&13`) of a 29-character name, with or without spaces, and opened names of 5, 6 and 26 characters; 27 and 28 were not tried, so 26 is the longest name known to be safe.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the folders `ABCDEFGHIJKLMNOPQRSTUVWXYZ` (26) and `ABCDEFGHIJKLMNOPQRSTUVWXYZ1` (27), *When* the second is opened, loaded or deleted, or a folder of 27 characters is created or a folder renamed to one, *Then* the answer is an error that names the limit and nothing of it is sent; *When* the first is opened, *Then* it is; *When* the second is renamed `SHORT`, *Then* the rename is sent.
+- **Dependencies**: RQ-MCP-024, RQ-MCP-025, RQ-MCP-032, RQ-APP-025, RQ-APP-031
+- **Amended**: 2026-10-15, the owner found that a folder too long to be opened could not be renamed to a shorter name either (TASK-APP-029). The rename of a folder by its old name does not open it; whether the S5000 takes a long old name in that message is checked on the real sampler with the owner present.
+
 ---
 
 ## Open points

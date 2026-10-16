@@ -105,6 +105,15 @@ namespace akm::harness
         std::uint8_t item = 0;
     };
 
+    /// An item the sampler takes this long to answer, where `SamplerBehaviour::replyDelay` delays every item: a slow disk command
+    /// among ordinary ones. The longer of the two delays applies. [RQ-APP-013, TASK-APP-011]
+    struct SlowItem
+    {
+        std::uint8_t section = 0;
+        std::uint8_t item = 0;
+        Scheduler::Clock::duration delay = Scheduler::Clock::duration::zero();
+    };
+
     /// What a real bus does badly, switchable per sampler.
     struct SamplerBehaviour
     {
@@ -138,6 +147,8 @@ namespace akm::harness
         /// Items whose REPLY carries another section than the command's. The real S5000 does it for the clock, and
         /// so does the model by default; `clear()` it for a sampler that follows the spec to the letter.
         std::vector<ReplySectionOverride> replySectionOverrides{S5000_CLOCK_REPLY_SECTION};
+        /// Items answered after a delay of their own. [RQ-APP-013, TASK-APP-011]
+        std::vector<SlowItem> slowItems{};
     };
 
     /// A command the sampler accepted: addressed to it, well framed, with a valid checksum when checksums
@@ -400,6 +411,9 @@ namespace akm::harness
         std::uint8_t channels = 1;  ///< 1 = mono, 2 = stereo
         std::uint32_t length = 0;
         std::uint32_t rate = 0;
+        /// The real S5000's rule, off by default: Set Loop End (&2A) keeps the loop length and moves the loop start, a start below 0
+        /// reading back as 2^28 - 1 (OBSERVATIONS-RQ-AKM-051, F6). [RQ-APP-090, TASK-APP-041]
+        bool loopEndKeepsLength = false;
     };
 
     /// One multi in the sampler's memory (§0C, spec Tables 16-17): what the lot's primitives set or read. A multi
@@ -597,6 +611,10 @@ namespace akm::harness
         void setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
                                  std::uint32_t length, std::uint32_t rate);
 
+        /// Makes Set Loop End keep the loop length of the sample at `index`, as the real S5000 does (`SampleRecord::loopEndKeepsLength`).
+        /// A no-op when `index` names no sample. [RQ-APP-090, TASK-APP-041]
+        void setSampleLoopEndKeepsLength(std::size_t index, bool keeps);
+
         /// Sets what &04 reports (RQ-AKM-053): 0 = S5000, 1 = S6000, any other byte a REPLY no model has.
         void setModel(std::uint8_t model);
 
@@ -700,5 +718,7 @@ namespace akm::harness
         std::vector<std::size_t> _currentFolderPath;
         // The copy of the current folder's file list a disk with `staleFileListAfterSave` serves (see `applyStaleFileList`).
         std::optional<std::vector<FileRecord>> _staleFiles;
+        // The delay of the `SlowItem` the last processed message matched, zero when none; set by `process`.
+        Scheduler::Clock::duration _itemDelay = Scheduler::Clock::duration::zero();
     };
 }

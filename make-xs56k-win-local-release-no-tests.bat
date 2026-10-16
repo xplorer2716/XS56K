@@ -6,7 +6,7 @@ rem Local Windows x64 GUI build. [RQ-BLD-002, RQ-BLD-007]
 rem
 rem Deliberately Release with BUILD_TESTS=OFF: this script exists to
 rem produce a binary quickly, so it fetches and compiles neither Catch2 nor the
-rem test suites (not yet ported anyway - see PLAN-BLD-001). Two consequences
+rem test suites (run them with BUILD_TESTS=ON and ctest, see AGENTS.md). Two consequences
 rem worth stating out loud to whoever runs it, since both are silent otherwise:
 rem   * no test is built or run here;
 rem   * XS56KApp is a minimal placeholder GUI (juce::DocumentWindow), not the
@@ -78,5 +78,5 @@ echo Building XS56K...
 "%CMAKE_EXE%" --build "%BUILD_DIR%" --config %CONFIGURATION% --parallel
 if errorlevel 1 exit /b %errorlevel%
 
-echo Build completed. XS56K.exe is under "%BUILD_DIR%\app\XS56KApp_artefacts\%CONFIGURATION%".
+echo Build completed: "%BUILD_DIR%\app\XS56KApp_artefacts\%CONFIGURATION%\XS56K.exe"
 exit /b 0

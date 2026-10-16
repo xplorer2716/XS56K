@@ -48,6 +48,7 @@ namespace mcp
     using detail::await;
     using detail::explain;
     using detail::numberText;
+    using detail::selectAdvice;
 
     namespace
     {
@@ -87,10 +88,10 @@ namespace mcp
                     text += " Samplers answered at DeviceID";
                     for (const std::uint8_t responder : opened.responders)
                         text += " " + numberText(responder);
-                    return text + ": set the DeviceID of the server to one of them.";
+                    return text + ": set the DeviceID to one of them.";
                 }
                 case akm::OpenStatus::AmbiguousSamplers:
-                    return "Several samplers answered; set the DeviceID of the server to the one to use.";
+                    return "Several samplers answered; set the DeviceID to the one to use.";
                 case akm::OpenStatus::InvalidDeviceId:
                     return "DeviceID " + numberText(config.deviceId) + " is not valid: a sampler's DeviceID is 0 to " +
                            numberText(MAX_DEVICE_ID) + ".";
@@ -156,6 +157,40 @@ namespace mcp
 
             std::function<void(const std::string&)> _log;
         };
+
+        // The input port the session is given, which also tells `GatewayConfig::portError` when the device reports an error (it was
+        // unplugged, for instance): the session sets its own callbacks and has no use for the error. [RQ-APP-022, RQ-MID-023,
+        // ADR-APP-001 (DEC-APP-008), TASK-APP-012]
+        class WatchedInputPort final : public common::midi::MidiInputPort
+        {
+        public:
+            WatchedInputPort(std::unique_ptr<common::midi::MidiInputPort> port,
+                             std::function<void(const std::string&, const std::string&)> portError)
+                : _port(std::move(port)), _portError(std::move(portError))
+            {
+            }
+
+            [[nodiscard]] std::string deviceName() const override { return _port->deviceName(); }
+
+            void setCallbacks(common::midi::MidiInputCallbacks callbacks) override
+            {
+                callbacks.onError = [portError = _portError, name = _port->deviceName(),
+                                     previous = std::move(callbacks.onError)](const std::string& description) {
+                    portError(name, description);
+                    if (previous)
+                        previous(description);
+                };
+                _port->setCallbacks(std::move(callbacks));
+            }
+
+            void start() override { _port->start(); }
+            void stop() override { _port->stop(); }
+            [[nodiscard]] bool isStarted() const override { return _port->isStarted(); }
+
+        private:
+            std::unique_ptr<common::midi::MidiInputPort> _port;
+            std::function<void(const std::string&, const std::string&)> _portError;
+        };
     }
 
     // The ports, the executor and the scheduler outlive the session, which is destroyed first (members are destroyed
@@ -206,10 +241,12 @@ namespace mcp
         if (_connection)
             return std::nullopt;
 
-        auto input = _backend.openInput(_config.inputPort);
+        std::unique_ptr<common::midi::MidiInputPort> input = _backend.openInput(_config.inputPort);
         if (!input)
             return "The MIDI input port \"" + _config.inputPort + "\" was not found. Available input ports: " +
                    portList(_backend.inputDeviceNames()) + ".";
+        if (_config.portError)
+            input = std::make_unique<WatchedInputPort>(std::move(input), _config.portError);
         auto output = _backend.openOutput(_config.outputPort);
         if (!output)
             return "The MIDI output port \"" + _config.outputPort + "\" was not found. Available output ports: " +
@@ -566,7 +603,7 @@ namespace mcp
         if (!listing.ok())
             return Outcome<std::string>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<std::string>::failure("No sample is current: use select_sample first.");
+            return Outcome<std::string>::failure("No sample is current: " + selectAdvice(_config, "sample"));
         const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
         const auto started = await<akm::CommandResult>(waitFor(1), [this](std::function<void(const akm::CommandResult&)> done) {
             akm::startSampleAudition(_connection->session, std::move(done));
@@ -1295,7 +1332,7 @@ namespace mcp
         if (!listing.ok())
             return Outcome<RenamedItem>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<RenamedItem>::failure("No sample is current: use select_sample first.");
+            return Outcome<RenamedItem>::failure("No sample is current: " + selectAdvice(_config, "sample"));
         const std::size_t current = static_cast<std::size_t>(*listing.value->current);
         const std::string before = listing.value->samples[current].name;
         const std::string wanted = normalizeText(name);
@@ -1328,7 +1365,7 @@ namespace mcp
         if (!listing.ok())
             return Outcome<DeletedItem>::failure(listing.problem);
         if (!listing.value->current)
-            return Outcome<DeletedItem>::failure("No sample is current: use select_sample first.");
+            return Outcome<DeletedItem>::failure("No sample is current: " + selectAdvice(_config, "sample"));
         const std::string name = listing.value->samples[static_cast<std::size_t>(*listing.value->current)].name;
         if (name != confirm)
             return Outcome<DeletedItem>::success(DeletedItem{false, name, static_cast<int>(listing.value->samples.size())});

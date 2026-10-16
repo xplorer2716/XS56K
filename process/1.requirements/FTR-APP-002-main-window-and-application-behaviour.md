@@ -49,11 +49,12 @@ reported, how destructive actions are confirmed and how the application is teste
 ### RQ-APP-008: The areas can be resized
 - **Category**: Functional
 - **EARS Type**: Event-driven
-- **Statement**: WHEN the person drags the boundary between the left areas and the edit panel, or between the browser and the memory view, the application SHALL resize the areas on both sides, down to a minimum size given by the design system.
+- **Statement**: WHEN the person drags with the mouse the boundary between the left areas and the edit panel, or between the browser and the memory view (the dark gap of `space.edge` between them), the application SHALL resize the areas on both sides, down to a minimum size given by the design system (`layout.left.min`, `layout.area.min`, `layout.edit.min`); WHILE the pointer is over a boundary, it SHALL take the shape of a resize cursor.
 - **Rationale**: a long file tree or a long list of samples needs room.
-- **Priority**: Could
-- **Acceptance Criteria** (Gherkin): *Given* the main window, *When* the boundary between browser and memory view is dragged down, *Then* the browser grows and the memory view shrinks, never below its minimum size.
-- **Dependencies**: RQ-APP-001, RQ-APP-006
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the main window, *When* the boundary between browser and memory view is dragged down, *Then* the browser grows and the memory view shrinks, never below its minimum size; *When* the boundary between the left column and the edit panel is dragged right, *Then* the left column widens and the edit panel narrows, never below its minimum width.
+- **Dependencies**: RQ-APP-001, RQ-APP-006, ADR-APP-002 (DEC-APP-022)
+- **Amended**: 2026-10-15, the owner asked for it (priority Could to Must) and named the dark gaps between the areas as the boundaries (TASK-APP-031). Keeping the sizes between runs stays RQ-APP-009 (Could).
 
 ### RQ-APP-009: The window comes back as it was left
 - **Category**: Functional
@@ -118,3 +119,41 @@ reported, how destructive actions are confirmed and how the application is teste
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the test suite, *When* `ctest` runs on a runner with no display, *Then* the FTR-APP tests run and pass; *Given* a priority-1 functional RQ-APP, *When* its ID is searched in `juce/tests/`, *Then* at least one test case names it.
 - **Dependencies**: RQ-AKM-016, RQ-BLD-014
+
+### RQ-APP-080: A text cut short is shown whole in a tooltip
+- **Category**: Non-Functional
+- **NFR Type**: Usability
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF a text of the window (a name, a label, a path, a status or a detail) does not fit the space it is drawn in, THEN the application SHALL show it whole in a tooltip once the pointer has rested on it for the design system's tooltip delay.
+- **Metric**: every text component of the window that can be cut short gives its whole text as its tooltip when, and only when, it is cut.
+- **Measurement Method**: a run of the application at its minimum size with long names (a capture of the tooltip), and a review of the components that draw text.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the path "S5K:\\Soul - Funky - Acid jazz" wider than the browser, *When* the pointer rests on it, *Then* the whole path is shown in a tooltip; *Given* the title "Disks", which fits, *Then* it has no tooltip.
+- **Dependencies**: RQ-APP-001, RQ-APP-006
+
+### RQ-APP-081: Sizes in the unit that reads best
+- **Category**: Functional
+- **EARS Type**: Ubiquitous
+- **Statement**: The application SHALL write a size in bytes under 1 KB ("512 bytes"), and otherwise in kilobytes, megabytes or gigabytes with one decimal (1 KB = 1 024 bytes, 1 MB = 1 024 KB, 1 GB = 1 024 MB: "114.6 KB", "151.2 MB", "29.8 GB" for the free space of a large disk), the unit chosen so that the number is below 1 024.
+- **Rationale**: the owner's request of 2026-10-15: "117 398 bytes" or "158 281 898 bytes" cannot be read at a glance.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* 512 bytes, *Then* "512 bytes"; *Given* 4 096 bytes, *Then* "4.0 KB"; *Given* 117 398 bytes, *Then* "114.6 KB"; *Given* 158 548 694 bytes, *Then* "151.2 MB".
+- **Dependencies**: RQ-APP-024, RQ-APP-026, RQ-APP-042
+
+### RQ-APP-082: Messages in the application's words
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: IF the sampler refuses a command because nothing of the kind is selected (no disk, no sample, no program, no multi), THEN the application SHALL say so with the action to take in the application ("Select a disk first."), never with the name of an MCP server's tool ("Use select_disk first.").
+- **Rationale**: the owner saw "Use select_disk first." in the editor's status bar on 2026-10-15: a tool name the editor has no use for.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* a session with no disk selected, *When* the root of the current disk is opened, *Then* the problem says "Select a disk first." and holds no "select_"; *Given* the MCP server in the same case, *Then* its answer still says "Use select_disk first.".
+- **Dependencies**: RQ-APP-010, RQ-MCP-044
+
+### RQ-APP-085: A log file of the errors
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the application reports a problem (RQ-APP-010) or the connection changes (RQ-APP-019), it SHALL append a timestamped line with the level, the action and the reason to `log/XS56K.log` in the folder of the executable; IF that folder cannot be written, THEN it SHALL write to `XS56K/log` in the person's application-data folder. The start of each run SHALL be written with the version.
+- **Rationale**: the owner's request of 2026-10-15: errors kept in a text file, as XplorerEditor does.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* a log sink, *When* a problem "Creating the folder X" / "disk error" is set, *Then* one error line holds both; *When* the session connects, *Then* an info line says so.
+- **Dependencies**: RQ-APP-010, RQ-APP-019, ADR-APP-001 (DEC-APP-023)

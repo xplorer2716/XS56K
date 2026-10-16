@@ -14,50 +14,106 @@ GNU Affero General Public License for more details.
 
 You should have received a copy of the GNU Affero General Public License
 along with this program.  If not, see <https://www.gnu.org/licenses/>.
-
 */
-// Minimal placeholder application entry point — see juce/app/CMakeLists.txt
-// for why this exists and what it deliberately is not.
-// [RQ-BLD-002, RQ-BLD-007, TASK-BLD-005]
+// The editor application: the JUCE adapters of the core's interfaces, the core (model, controller, browser and memory view controllers) and
+// the main window. Quitting closes the session with the sampler first, without blocking the message thread.
+// [RQ-APP-006, RQ-APP-007, RQ-APP-021, RQ-BLD-007, ADR-APP-001 (DEC-APP-001, DEC-APP-008, DEC-APP-010), TASK-APP-017]
 #include <juce_gui_extra/juce_gui_extra.h>
-  
+
+#include <memory>
+
+#include "JuceAdapters.hpp"
+#include "LookAndFeel.hpp"
+#include "MainComponent.hpp"
+#include "app/Controller.hpp"
+#include "app/DesignTokens.generated.hpp"
+#include "app/EditController.hpp"
+#include "app/FileBrowser.hpp"
+#include "app/MemoryController.hpp"
+#include "app/Model.hpp"
+#include "common/midi/JuceMidiBackend.hpp"
+
 namespace
 {
-class MainWindow : public juce::DocumentWindow
-{
-public:
-    explicit MainWindow (const juce::String& name)
-        : DocumentWindow (name,
-                           juce::Desktop::getInstance().getDefaultLookAndFeel()
-                               .findColour (juce::ResizableWindow::backgroundColourId),
-                           DocumentWindow::allButtons)
+    class MainWindow final : public juce::DocumentWindow
     {
-        setUsingNativeTitleBar (true);
-        setContentOwned (new juce::Label ({}, "XS56K -- placeholder window (TASK-BLD-005 stub)"), true);
-        centreWithSize (400, 200);
-        setVisible (true);
-    }
+    public:
+        MainWindow(const juce::String& name, std::unique_ptr<juce::Component> content)
+            : DocumentWindow(name, app::ui::colourOf(app::tokens::kColourSurfaceBase), DocumentWindow::allButtons)
+        {
+            using namespace app::tokens;
+            setUsingNativeTitleBar(true);
+            setContentOwned(content.release(), true);
+            setResizable(true, false);
+            getConstrainer()->setMinimumSize(app::ui::pixels(kSizeWindowMinWidth), app::ui::pixels(kSizeWindowMinHeight));
+            centreWithSize(getWidth(), getHeight());
+            setVisible(true);
+        }
 
-    void closeButtonPressed() override
+        void closeButtonPressed() override { juce::JUCEApplication::getInstance()->systemRequestedQuit(); }
+    };
+
+    /// What the application is made of, in the order it is built; destroyed in the reverse order, the window first and the MIDI backend
+    /// last, after the controller that reaches the sampler through it.
+    struct Application
     {
-        juce::JUCEApplication::getInstance()->systemRequestedQuit();
-    }
-};
+        Application()
+        {
+            juce::LookAndFeel::setDefaultLookAndFeel(&lookAndFeel);
+            window = std::make_unique<MainWindow>(
+                JUCE_APPLICATION_NAME_STRING, std::make_unique<app::ui::MainComponent>(lookAndFeel, model, controller, browser, memory, editor, settings, backend));
+        }
 
-//
-class XS56KApplication : public juce::JUCEApplication
-{
-public:
-    const juce::String getApplicationName() override { return JUCE_APPLICATION_NAME_STRING; }
-    const juce::String getApplicationVersion() override { return VERSION_FULL_STRING; }
-    bool moreThanOneInstanceAllowed() override { return true; }
+        ~Application()
+        {
+            window = nullptr;
+            juce::LookAndFeel::setDefaultLookAndFeel(nullptr);
+        }
 
-    void initialise (const juce::String&) override { mainWindow = std::make_unique<MainWindow> (getApplicationName()); }
-    void shutdown() override { mainWindow = nullptr; }
+        app::ui::LogSession log{VERSION_FULL_STRING};  // first built, last destroyed: every problem of the run is logged [RQ-APP-085]
+        app::ui::LookAndFeel lookAndFeel;
+        common::midi::JuceMidiBackend backend;
+        app::ui::PropertiesSettings settings;
+        app::ui::MessageThreadDispatcher dispatcher;
+        app::ui::DialogPrompts prompts{lookAndFeel};
+        app::Model model;
+        app::Controller controller{model, dispatcher, prompts, settings, backend};
+        app::FileBrowser browser{model, controller};
+        app::MemoryController memory{model, controller};
+        app::EditController editor{model, controller};  // [RQ-APP-048, TASK-APP-039]
+        juce::TooltipWindow tooltips{nullptr, static_cast<int>(app::tokens::kMotionTooltip.count())};  // [RQ-APP-080, TASK-APP-022]
+        std::unique_ptr<MainWindow> window;
+    };
 
-private:
-    std::unique_ptr<juce::DocumentWindow> mainWindow;
-};
-} // namespace
+    class XS56KApplication final : public juce::JUCEApplication
+    {
+    public:
+        const juce::String getApplicationName() override { return JUCE_APPLICATION_NAME_STRING; }
+        const juce::String getApplicationVersion() override { return VERSION_FULL_STRING; }
+        bool moreThanOneInstanceAllowed() override { return true; }
 
-START_JUCE_APPLICATION (XS56KApplication)
+        void initialise(const juce::String&) override { _application = std::make_unique<Application>(); }
+        void shutdown() override { _application = nullptr; }
+
+        /// The session is closed and the ports released on the sampler worker; the application quits when that is done, the status bar
+        /// saying what it waits for. A second request while it waits changes nothing. [RQ-APP-021]
+        void systemRequestedQuit() override
+        {
+            if (_application == nullptr)
+            {
+                quit();
+                return;
+            }
+            if (_quitting)
+                return;
+            _quitting = true;
+            _application->controller.quit([] { juce::JUCEApplication::quit(); });
+        }
+
+    private:
+        std::unique_ptr<Application> _application;
+        bool _quitting = false;
+    };
+}
+
+START_JUCE_APPLICATION(XS56KApplication)

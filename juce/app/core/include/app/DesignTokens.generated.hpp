@@ -20,6 +20,7 @@ namespace app::tokens
     constexpr std::uint32_t kColourGrey100 = 0xFFECECEF;  // colour.grey.100
     constexpr std::uint32_t kColourViolet300 = 0xFFA897F2;  // colour.violet.300
     constexpr std::uint32_t kColourTeal300 = 0xFF4FD1C1;  // colour.teal.300
+    constexpr std::uint32_t kColourBlue300 = 0xFF6FB1F2;  // colour.blue.300
     constexpr std::uint32_t kColourAmber300 = 0xFFE9A85A;  // colour.amber.300
     constexpr std::uint32_t kColourYellow300 = 0xFFF2C94C;  // colour.yellow.300
     constexpr std::uint32_t kColourRed300 = 0xFFF47A74;  // colour.red.300
@@ -27,10 +28,10 @@ namespace app::tokens
     constexpr std::string_view kFontFamilyUi = "Inter";  // font.family.ui
     constexpr int kFontWeightRegular = 400;  // font.weight.regular
     constexpr int kFontWeightMedium = 500;  // font.weight.medium
-    constexpr float kSizeText11 = 11.0f;  // size.text.11
     constexpr float kSizeText13 = 13.0f;  // size.text.13
     constexpr float kSizeText15 = 15.0f;  // size.text.15
-    constexpr float kSizeText18 = 18.0f;  // size.text.18
+    constexpr float kSizeText17 = 17.0f;  // size.text.17
+    constexpr float kSizeText20 = 20.0f;  // size.text.20
     constexpr float kSizeTrackingLabel = 0.5f;  // size.tracking.label
     constexpr float kSizeSpace1 = 4.0f;  // size.space.1
     constexpr float kSizeSpace2 = 8.0f;  // size.space.2
@@ -50,6 +51,7 @@ namespace app::tokens
     constexpr float kSizeKnobLarge = 40.0f;  // size.knob.large
     constexpr float kSizeIconSmall = 12.0f;  // size.icon.small
     constexpr float kSizeIconDefault = 16.0f;  // size.icon.default
+    constexpr float kSizeGraphHeight = 64.0f;  // size.graph.height
     constexpr float kSizeWindowMinWidth = 1024.0f;  // size.window.minWidth
     constexpr float kSizeWindowMinHeight = 680.0f;  // size.window.minHeight
     constexpr float kSizeLeftMinWidth = 240.0f;  // size.left.minWidth
@@ -58,7 +60,9 @@ namespace app::tokens
     constexpr std::chrono::milliseconds kMotionHover{80};  // motion.hover
     constexpr std::chrono::milliseconds kMotionBusy{1000};  // motion.busy
     constexpr std::chrono::milliseconds kMotionMessage{4000};  // motion.message
+    constexpr std::chrono::milliseconds kMotionTooltip{700};  // motion.tooltip
     constexpr float kOpacityScrimDefault = 0.6f;  // opacity.scrim.default
+    constexpr float kOpacityFillDefault = 0.25f;  // opacity.fill.default
 
     // semantic tokens
     constexpr std::uint32_t kColourSurfaceBase = 0xFF1B1C1F;  // colour.surface.base -> colour.grey.950
@@ -73,18 +77,19 @@ namespace app::tokens
     constexpr std::uint32_t kColourRoleSample = 0xFFA897F2;  // colour.role.sample -> colour.violet.300
     constexpr std::uint32_t kColourRoleModulation = 0xFF4FD1C1;  // colour.role.modulation -> colour.teal.300
     constexpr std::uint32_t kColourRoleFilter = 0xFFE9A85A;  // colour.role.filter -> colour.amber.300
+    constexpr std::uint32_t kColourRoleAmp = 0xFF6FB1F2;  // colour.role.amp -> colour.blue.300
     constexpr std::uint32_t kColourRoleGeneral = 0xFFA9AAB2;  // colour.role.general -> colour.grey.300
     constexpr std::uint32_t kColourStatusActive = 0xFFF2C94C;  // colour.status.active -> colour.yellow.300
     constexpr std::uint32_t kColourStatusSuccess = 0xFF6CCB7A;  // colour.status.success -> colour.green.300
     constexpr std::uint32_t kColourStatusError = 0xFFF47A74;  // colour.status.error -> colour.red.300
     constexpr std::uint32_t kColourStatusDestructive = 0xFFF47A74;  // colour.status.destructive -> colour.red.300
     constexpr std::uint32_t kColourStatusPending = 0xFFA9AAB2;  // colour.status.pending -> colour.grey.300
-    constexpr float kFontCaptionSize = 11.0f;  // font.caption.size -> size.text.11
-    constexpr float kFontLabelSize = 11.0f;  // font.label.size -> size.text.11
+    constexpr float kFontCaptionSize = 13.0f;  // font.caption.size -> size.text.13
+    constexpr float kFontLabelSize = 13.0f;  // font.label.size -> size.text.13
     constexpr float kFontLabelTracking = 0.5f;  // font.label.tracking -> size.tracking.label
-    constexpr float kFontValueSize = 13.0f;  // font.value.size -> size.text.13
-    constexpr float kFontTitleSize = 15.0f;  // font.title.size -> size.text.15
-    constexpr float kFontHeadingSize = 18.0f;  // font.heading.size -> size.text.18
+    constexpr float kFontValueSize = 15.0f;  // font.value.size -> size.text.15
+    constexpr float kFontTitleSize = 17.0f;  // font.title.size -> size.text.17
+    constexpr float kFontHeadingSize = 20.0f;  // font.heading.size -> size.text.20
     constexpr float kSpaceInside = 8.0f;  // space.inside -> size.space.2
     constexpr float kSpaceBetween = 8.0f;  // space.between -> size.space.2
     constexpr float kSpaceGroup = 16.0f;  // space.group -> size.space.4
@@ -95,6 +100,7 @@ namespace app::tokens
     constexpr float kStrokeFocus = 2.0f;  // stroke.focus -> size.stroke.focus
     constexpr float kStrokeArc = 3.0f;  // stroke.arc -> size.stroke.arc
     constexpr float kOpacityScrim = 0.6f;  // opacity.scrim -> opacity.scrim.default
+    constexpr float kOpacityFill = 0.25f;  // opacity.fill -> opacity.fill.default
 
     // component tokens
     constexpr std::uint32_t kKnobArcTrack = 0xFF45464D;  // knob.arc.track -> colour.border.default
@@ -127,8 +133,22 @@ namespace app::tokens
     constexpr std::uint32_t kStatusDotConnected = 0xFF6CCB7A;  // status.dot.connected -> colour.status.success
     constexpr std::uint32_t kStatusDotFailed = 0xFFF47A74;  // status.dot.failed -> colour.status.error
     constexpr std::uint32_t kStatusSpinner = 0xFFA9AAB2;  // status.spinner -> colour.text.secondary
+    constexpr float kStatusHeight = 28.0f;  // status.height -> size.control.large
+    constexpr float kStatusDotSize = 12.0f;  // status.dot.size -> size.icon.small
+    constexpr float kStatusSpinnerSize = 16.0f;  // status.spinner.size -> size.icon.default
     constexpr std::uint32_t kDialogSurface = 0xFF35363C;  // dialog.surface -> colour.surface.raised
     constexpr std::uint32_t kDialogBorder = 0xFF45464D;  // dialog.border -> colour.border.default
     constexpr std::uint32_t kDialogScrim = 0xFF1B1C1F;  // dialog.scrim -> colour.surface.base
+    constexpr float kDialogWidth = 640.0f;  // dialog.width -> size.edit.minWidth
+    constexpr float kButtonHeight = 28.0f;  // button.height -> size.control.large
+    constexpr std::uint32_t kResizerBar = 0xFF1B1C1F;  // resizer.bar -> colour.surface.base
+    constexpr std::uint32_t kResizerBarActive = 0xFFA897F2;  // resizer.bar.active -> colour.accent.default
+    constexpr std::uint32_t kSliderTrack = 0xFF45464D;  // slider.track -> colour.border.default
+    constexpr std::uint32_t kSliderThumb = 0xFFECECEF;  // slider.thumb -> colour.text.primary
+    constexpr float kSliderThumbSize = 12.0f;  // slider.thumb.size -> size.icon.small
+    constexpr std::uint32_t kEnvelopeSurface = 0xFF202125;  // envelope.surface -> colour.surface.recessed
+    constexpr std::uint32_t kEnvelopeHandle = 0xFFECECEF;  // envelope.handle -> colour.text.primary
+    constexpr float kEnvelopeHandleSize = 12.0f;  // envelope.handle.size -> size.icon.small
+    constexpr float kEnvelopeHeight = 64.0f;  // envelope.height -> size.graph.height
 
 }

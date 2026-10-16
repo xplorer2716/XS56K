@@ -37,10 +37,24 @@ namespace mcp
     using detail::await;
     using detail::explain;
     using detail::numberText;
+    using detail::selectAdvice;
 
     namespace
     {
         constexpr const char* DISK = "disk";
+        /// The longest folder name known to be safe: a real S5000 (OS 2.14) crashed on the Open Folder of a 29-character name, with or without
+        /// spaces, and opened one of 26; 27 and 28 were not tried. [RQ-MCP-068, TASK-APP-024]
+        constexpr std::size_t MAX_FOLDER_NAME = 26;
+
+        /// Why `name` is not sent, when it is longer than the sampler can take. [RQ-MCP-068]
+        std::optional<std::string> folderNameTooLong(std::string_view name)
+        {
+            if (name.size() <= MAX_FOLDER_NAME)
+                return std::nullopt;
+            return "The folder name \"" + std::string(name) + "\" has " + std::to_string(name.size()) + " characters: the S5000 stops answering on a folder name of more than " +
+                   std::to_string(MAX_FOLDER_NAME) + " characters, so nothing was sent. Rename the folder to " +
+                   std::to_string(MAX_FOLDER_NAME) + " characters or fewer.";
+        }
 
         std::string diskList(const std::vector<DiskEntry>& disks)
         {
@@ -259,6 +273,8 @@ namespace mcp
 
     Outcome<DiskContents> SamplerGateway::openFolder(std::string_view name)
     {
+        if (const auto problem = folderNameTooLong(name))
+            return Outcome<DiskContents>::failure(*problem);
         if (const auto problem = connect())
             return Outcome<DiskContents>::failure(*problem);
 
@@ -391,6 +407,8 @@ namespace mcp
 
     Outcome<LoadOutcome> SamplerGateway::loadFolder(std::string_view name)
     {
+        if (const auto problem = folderNameTooLong(name))
+            return Outcome<LoadOutcome>::failure(*problem);
         const auto contents = listDiskContents();
         if (!contents.ok())
             return Outcome<LoadOutcome>::failure(contents.problem);
@@ -674,6 +692,10 @@ namespace mcp
 
     Outcome<DiskChange> SamplerGateway::renameFolder(std::string_view name, std::string_view newName)
     {
+        // Only the new name is checked: the rename does not open the folder, and is the way out of a name too long to be opened.
+        // [RQ-MCP-068, RQ-APP-031, TASK-APP-029]
+        if (const auto problem = folderNameTooLong(newName))
+            return Outcome<DiskChange>::failure(*problem);
         const auto here = writableFolder();
         if (!here.ok())
             return Outcome<DiskChange>::failure(here.problem);
@@ -749,6 +771,8 @@ namespace mcp
 
     Outcome<DiskChange> SamplerGateway::deleteFolder(std::string_view name, std::string_view confirm, bool deleteContents)
     {
+        if (const auto problem = folderNameTooLong(name))
+            return Outcome<DiskChange>::failure(*problem);
         const auto here = writableFolder();
         if (!here.ok())
             return Outcome<DiskChange>::failure(here.problem);
@@ -834,6 +858,8 @@ namespace mcp
 
     Outcome<DiskContents> SamplerGateway::createFolder(std::string_view name)
     {
+        if (const auto problem = folderNameTooLong(name))
+            return Outcome<DiskContents>::failure(*problem);
         const auto here = writableFolder();
         if (!here.ok())
             return Outcome<DiskContents>::failure(here.problem);
@@ -999,7 +1025,7 @@ namespace mcp
             return Outcome<DiskContents>::failure(disks.problem);
         const auto current = std::find_if(disks.value->begin(), disks.value->end(), [](const DiskEntry& disk) { return disk.current; });
         if (current == disks.value->end())
-            return Outcome<DiskContents>::failure("No disk is selected: use select_disk first.");
+            return Outcome<DiskContents>::failure("No disk is selected: " + selectAdvice(_config, "disk"));
         if (!current->writable)
             return Outcome<DiskContents>::failure("The disk \"" + current->name + "\" is read-only: nothing can be saved to it. Select a writable disk.");
         return contents;

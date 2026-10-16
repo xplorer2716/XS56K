@@ -130,3 +130,15 @@ user interface and discuss it before code is generated: static mockups, from a d
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* a description naming a token that does not exist, *When* the generator runs, *Then* it fails and names the token; *Given* the tests, *When* `ctest` runs, *Then* they pass.
 - **Dependencies**: RQ-APP-074, RQ-APP-077
+
+### RQ-APP-084: Text sizes two points larger
+- **Category**: Non-Functional
+- **NFR Type**: Usability
+- **EARS Type**: Ubiquitous
+- **Statement**: The design system's type scale SHALL be two pixels larger in every role than its first scale: `font.caption` and `font.label` 13, `font.value` 15, `font.title` 17, `font.heading` 20; every text of the application and of the mockups SHALL take its size from these tokens, and no text SHALL be cut where it was whole before.
+- **Metric**: the five font-size tokens equal 13, 13, 15, 17 and 20; the token, literal and mockup checks pass.
+- **Measurement Method**: the generated token module and the design-system document's tables, the `ctest` checks, and a capture of the main window connected to the sampler compared with the one before.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the token file, *When* the token module is generated, *Then* `kFontCaptionSize` is 13, `kFontValueSize` 15, `kFontTitleSize` 17 and `kFontHeadingSize` 20; *Given* the main window connected, *When* it is captured, *Then* the names of the browser's rows and the areas' titles are whole.
+- **Dependencies**: RQ-APP-001, RQ-APP-002, RQ-APP-004
+- **Rationale**: the owner's request of 2026-10-15 ("augmenter la taille de toutes les polices de caractères de 2 pt"): the first scale, compact like the plugin Vital's, reads too small on the owner's screen.

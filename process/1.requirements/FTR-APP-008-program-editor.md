@@ -94,3 +94,30 @@ The pages of the sampler's EDIT PROGRAM mode (user manual pp. 80-127) are a sour
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* PAD with 2 keygroups, *When* the person adds 2, *Then* the selector goes from 1 to 4; *When* the person deletes keygroup 3 and confirms, *Then* it goes from 1 to 3; *Given* a program with 1 keygroup, *When* the person deletes it, *Then* nothing is sent.
 - **Dependencies**: RQ-APP-001, RQ-APP-011, RQ-APP-058, RQ-AKM-022
+
+### RQ-APP-093: The Program tab
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN a program is selected in the memory view, the edit panel SHALL show the program editor, its header giving the program's keygroup count, with a tab "Program" holding the program's own parameters in four groups: Output (loudness, velocity sensitivity), Tuning (semitone and fine tune, tune template, key), Pitch bend (up, down, mode, aftertouch pitch), Portamento (legato, portamento, its mode and time), each edited under the rules of RQ-APP-051 to RQ-APP-054 and RQ-APP-091.
+- **Rationale**: the first step of PLAN-APP-006: the program's own parameters need no keygroup; the amplitude and pan modulation inputs go to the Modulation tab, the keygroup crossfade to the Keygroup tab. The grouping is the assistant's proposal, data the owner can change (TASK-APP-002).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the program PAD of 2 keygroups, *When* it is selected, *Then* the header reads "2 keygroups" and the tab Program shows its fourteen parameters read from the sampler; *When* the person sets its loudness to 70, *Then* it is sent, read back and shown; *Given* legato on, *Then* it reads "ON".
+- **Dependencies**: RQ-APP-048, RQ-APP-051 to RQ-APP-054, RQ-APP-056, RQ-APP-091, RQ-AKM-024
+
+### RQ-APP-094: The Envelopes tab
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: The program editor SHALL have a tab "Envelopes" holding the current keygroup's three envelopes, one row each: Amp (its graph of RQ-APP-095 over attack, decay, sustain and release; then the keygroup level, velocity to attack, on- and off-velocity to release, key scale), Filter (its graph over its four stages; then its depth, velocity to attack, on- and off-velocity to release, key scale), Aux (its graph over rates 1 to 4 and levels 1 to 4; then velocity to rates 1 and 4, off-velocity to rate 4, keyboard to rates 2 and 4); each group SHALL say the scope of its parameters (KEYGROUP or PROGRAM, RQ-APP-056), and WHEN the person chooses another keygroup in the selector of RQ-APP-058, the tab SHALL show that keygroup's values.
+- **Rationale**: step 2 of PLAN-APP-006; the keygroup selector is the new piece. The three envelopes in one tab, a row each (owner, 2026-10-16: "il y a beaucoup de place de libre"); the modulation inputs go to the Modulation tab.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* PAD of 2 keygroups with amp attacks 10 and 40, *When* the Envelopes tab shows keygroup 1, *Then* the attack reads 10 and the envelope group reads KEYGROUP; *When* the person chooses keygroup 2, *Then* the attack reads 40; *When* the person sets it to 50, *Then* keygroup 2 reads 50 and keygroup 1 still 10.
+- **Dependencies**: RQ-APP-056, RQ-APP-058, RQ-APP-095, RQ-AKM-029, RQ-AKM-030
+
+### RQ-APP-095: The envelopes are drawn and moved by the mouse
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: An envelope group (Amp and Filter envelopes, the Aux envelope) SHALL draw the envelope's shape from the values shown: a segment per stage, its width the stage's time and its end the stage's level, the sustain held as a plateau until the release; WHEN the person drags a breakpoint, the application SHALL set the time of its stage from the horizontal move and its level from the vertical move when that level is a parameter, under the rules of RQ-APP-052, RQ-APP-054 and RQ-APP-091; the knobs of the stages stay, for exact values.
+- **Rationale**: the owner, 2026-10-16: "je veux des enveloppes graphiques"; a musician reads an envelope as a shape.
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the attack 10, decay 50, sustain 80 and release 30, *Then* the graph rises over a tenth of a stage's width, falls to 80 % over half of one, holds, then falls to 0 over 30 %; *When* the person drags the decay's end down to 60 %, *Then* the sustain is set to 60 and the graph follows the value read back.
+- **Dependencies**: RQ-APP-052, RQ-APP-054, RQ-APP-091, ADR-APP-004

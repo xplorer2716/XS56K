@@ -38,10 +38,12 @@ KNOB_START_DEGREES = 135.0      # the knob's arc starts at the bottom left...
 KNOB_SWEEP_DEGREES = 270.0      # ...and turns clockwise through the top to the bottom right
 KNOB_POINTER_LENGTH = 0.55      # the pointer's length, as a part of the arc's radius
 CHOICE_CELLS = 2                # a choice selector is as wide as two knob cells
+SLIDER_CELLS = 3                # a slider (a position in sample points) is as wide as three knob cells
 DIALOG_WIDTH_IN_KNOBS = 12      # a dialog is twelve knob diameters wide
 BUTTON_WIDTH_IN_KNOBS = 3       # a dialog button is three knob diameters wide
-KEYGROUP_SELECTOR_IN_KNOBS = 4  # the keygroup selector is four knob diameters wide
+KEYGROUP_SELECTOR_IN_KNOBS = 5  # the keygroup selector is five knob diameters wide
 ELLIPSIS = "…"
+ENVELOPE_HEIGHT = "envelope.height"  # the token of the graph drawn above an envelope group's knobs
 
 
 class MockupError(Exception):
@@ -113,6 +115,15 @@ class Canvas:
         large = 1 if sweep > 180 else 0
         self.items.append(f'<path d="M {fmt(x1)} {fmt(y1)} A {fmt(r)} {fmt(r)} 0 {large} 1 {fmt(x2)} {fmt(y2)}" fill="none" '
                           f'stroke="{stroke}" stroke-width="{fmt(width)}" stroke-linecap="round"/>')
+
+    def polyline(self, points, stroke, width):
+        shown = " ".join(f"{fmt(x)},{fmt(y)}" for x, y in points)
+        self.items.append(f'<polyline points="{shown}" fill="none" stroke="{stroke}" stroke-width="{fmt(width)}" '
+                          f'stroke-linejoin="round" stroke-linecap="round"/>')
+
+    def polygon(self, points, fill, opacity):
+        shown = " ".join(f"{fmt(x)},{fmt(y)}" for x, y in points)
+        self.items.append(f'<polygon points="{shown}" fill="{fill}" fill-opacity="{fmt(opacity)}"/>')
 
     def text(self, x, y, content, size, fill, weight=WEIGHT_REGULAR, anchor="start", tracking=None, upper=False):
         shown = content.upper() if upper else content
@@ -214,7 +225,11 @@ def cell_width(t):
 
 
 def control_cells(parameter):
-    return CHOICE_CELLS if parameter.get("control") == "choice" else 1
+    # A choice and a value box alone are two knob cells wide, a slider three. [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
+    control = parameter.get("control")
+    if control == "slider":
+        return SLIDER_CELLS
+    return CHOICE_CELLS if control in ("choice", "valuebox") else 1
 
 
 def group_size(t, group):
@@ -223,7 +238,42 @@ def group_size(t, group):
     width = cells * cell_width(t) + 2 * inside
     height = (inside + t("font.label.size") + t("space.between") + t("knob.size.default") + t("space.between")
               + t("font.label.size") + t("size.space.1") + t("valuebox.height") + inside)
+    if group.get("envelope"):
+        height += t(ENVELOPE_HEIGHT) + t("space.between")  # the graph above the knobs [RQ-APP-095]
     return width, height
+
+
+def envelope_points(envelope, values, x, y, w, h):
+    """The envelope's shape from the values shown: from level 0, each stage as wide as its time's part of one share of the width (a share per
+    stage, the sustain plateau one share), ending at its level; and the breakpoints, one per stage that has a time.
+    [RQ-APP-095, ADR-APP-004 (DEC-APP-031)]"""
+    share = w / max(1, len(envelope))
+    bottom = y + h
+    points = [(x, bottom)]
+    handles = []
+    level = 0.0
+    for stage in envelope:
+        if stage.get("sustain"):
+            points.append((points[-1][0] + share, bottom - h * level))
+            continue
+        time = float(values.get(stage["time"], {}).get("fraction", 0.0))
+        end = stage.get("level", 0)
+        level = float(values.get(end, {}).get("fraction", 0.0)) if isinstance(end, str) else end / 100.0
+        points.append((points[-1][0] + share * time, bottom - h * level))
+        handles.append(points[-1])
+    return points, handles
+
+
+def draw_envelope(c, x, y, w, group, values, colour):
+    t = c.t
+    h = t(ENVELOPE_HEIGHT)
+    c.rect(x, y, w, h, t("envelope.surface"), t("radius.control"))
+    margin = t("envelope.handle.size")  # the breakpoints stay whole inside the graph
+    points, handles = envelope_points(group["envelope"], values, x + margin, y + margin, w - 2 * margin, h - 2 * margin)
+    c.polygon(points + [(points[-1][0], points[0][1])], colour, t("opacity.fill"))
+    c.polyline(points, colour, t("stroke.arc"))
+    for hx, hy in handles:
+        c.circle(hx, hy, t("envelope.handle.size") / 2, t("envelope.handle"))
 
 
 def draw_value_box(c, x, y, w, text, pending):
@@ -245,6 +295,18 @@ def draw_knob(c, cx, cy, fraction, colour, pending):
     angle = math.radians(KNOB_START_DEGREES + KNOB_SWEEP_DEGREES * fraction)
     pointer = radius * KNOB_POINTER_LENGTH
     c.line(cx, cy, cx + pointer * math.cos(angle), cy + pointer * math.sin(angle), t("knob.pointer"), t("stroke.focus"))
+
+
+def draw_slider(c, x, cy, w, fraction, colour, pending):
+    """A horizontal track, filled up to the value in the parameter's colour, with its thumb. [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]"""
+    t = c.t
+    stroke = t("stroke.arc")
+    c.line(x, cy, x + w, cy, t("slider.track"), stroke)
+    value_colour = t("colour.status.pending") if pending else colour
+    end = x + w * fraction
+    if fraction > 0:
+        c.line(x, cy, end, cy, value_colour, stroke)
+    c.circle(end, cy, t("slider.thumb.size") / 2, t("slider.thumb"))
 
 
 def draw_choice(c, x, y, w, text, pending):
@@ -270,7 +332,13 @@ def draw_group(c, x, y, group, values, pending):
     marker = role_colour(t, sorted(roles)[0]) if len(roles) == 1 else t("colour.text.secondary")
     c.rect(x + inside, y + inside, t("stroke.arc"), t("font.label.size"), marker)
     draw_label(c, x + inside + t("stroke.arc") + t("size.space.2"), title_y, group["title"])
+    if group.get("scope"):
+        # Where the group's parameters live: the program, the keygroup chosen, or a zone of it. [RQ-APP-056, DEC-APP-031]
+        draw_label(c, x + width - inside, title_y, group["scope"], t("colour.text.secondary"), "end")
     knob_top = title_y + t("space.between")
+    if group.get("envelope"):
+        draw_envelope(c, x + inside, knob_top, width - 2 * inside, group, values, marker)
+        knob_top += t(ENVELOPE_HEIGHT) + t("space.between")
     cell_x = x + inside
     for parameter in group["parameters"]:
         cells = control_cells(parameter)
@@ -282,11 +350,19 @@ def draw_group(c, x, y, group, values, pending):
         if parameter.get("control") == "choice":
             box_y = knob_top + (t("knob.size.default") - t("size.control.medium")) / 2
             draw_choice(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
+        elif parameter.get("control") in ("slider", "valuebox"):
+            # A slider has its value box on top, the slider under the label (owner, 2026-10-15). [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
+            box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
+            draw_value_box(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
         else:
             draw_knob(c, centre, knob_top + t("knob.size.default") / 2, float(value.get("fraction", 0.0)), colour, is_pending)
         label_y = knob_top + t("knob.size.default") + t("space.between") + t("font.label.size")
         draw_label(c, centre, label_y, parameter["label"], anchor="middle")
-        if parameter.get("control") != "choice":
+        if parameter.get("control") == "slider":
+            margin = t("slider.thumb.size")
+            draw_slider(c, cell_x + margin, label_y + t("size.space.1") + t("valuebox.height") / 2, w - 2 * margin,
+                        float(value.get("fraction", 0.0)), colour, is_pending)
+        elif parameter.get("control") not in ("choice", "valuebox"):
             draw_value_box(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), value.get("text", ""), is_pending)
         cell_x += w
     return width, height
@@ -309,8 +385,12 @@ def draw_editor(c, x, y, w, h, editor, layouts):
     c.text(x + inside, title_y, editor["item"], t("font.title.size"), t("header.title"), WEIGHT_MEDIUM)
     item_width = len(editor["item"]) * t("font.title.size")
     draw_label(c, x + inside + item_width, title_y, editor["kind"], t("header.kind"))
-    selector_w = KEYGROUP_SELECTOR_IN_KNOBS * t("knob.size.default")
-    draw_choice(c, x + w - inside - selector_w, y + (header_h - t("size.control.medium")) / 2, selector_w, editor.get("keygroup", ""), False)
+    if "keygroup" in editor:
+        selector_w = KEYGROUP_SELECTOR_IN_KNOBS * t("knob.size.default")
+        draw_choice(c, x + w - inside - selector_w, y + (header_h - t("size.control.medium")) / 2, selector_w, editor["keygroup"], False)
+    elif "info" in editor:
+        # An editor with no part to choose shows what the item is instead (the sample's information). [RQ-APP-087]
+        c.text(x + w - inside, title_y, editor["info"], t("font.caption.size"), t("colour.text.secondary"), anchor="end")
 
     tabs = layout["tabs"]
     tab = next((candidate for candidate in tabs if candidate["title"] == editor.get("tab")), tabs[0])
@@ -318,7 +398,7 @@ def draw_editor(c, x, y, w, h, editor, layouts):
     row_height = 0.0
     for group in tab["groups"]:
         width, height = group_size(t, group)
-        if group_x > x and group_x + width > x + w:
+        if group_x > x and (group_x + width > x + w or group.get("row")):
             group_x, group_y = x, group_y + row_height + t("space.group")
             row_height = 0.0
         draw_group(c, group_x, group_y, group, editor.get("values", {}), set(editor.get("pending", [])))

@@ -95,8 +95,9 @@ and scenelists, the creation of a multi, and "delete all" and "clear memory" (FT
 ### RQ-APP-042: The free memory
 - **Category**: Functional
 - **EARS Type**: Ubiquitous
-- **Statement**: The memory view SHALL show the sampler's free and total sample (wave) memory in bytes and the free percentage of the memory for multis, programs, keygroups and samples (RQ-AKM-053), read again with the lists (RQ-APP-036).
+- **Statement**: The memory view SHALL show the sampler's free and total sample (wave) memory in the unit of RQ-APP-081 and the free percentage of the memory for multis, programs, keygroups and samples (RQ-AKM-053), read again with the lists (RQ-APP-036).
 - **Rationale**: the person checks the room left before loading a large sample.
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the simulated sampler with 8 MB of wave memory of which 2 MB free, *When* the session opens, *Then* the view shows 2 MB free of 8 MB and the free percentage; *When* a sample is loaded, *Then* the figures are read again.
-- **Dependencies**: RQ-APP-001, RQ-APP-035, RQ-APP-036, RQ-AKM-053
+- **Dependencies**: RQ-APP-001, RQ-APP-035, RQ-APP-036, RQ-APP-081, RQ-AKM-053
+- **Amended**: 2026-10-15, sizes in kilobytes or megabytes (RQ-APP-081, TASK-APP-020).

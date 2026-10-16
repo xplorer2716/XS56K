@@ -1131,6 +1131,33 @@ namespace akm::harness
         // (spec Tables 18-19), the same shape as Program's own PARAMETER_GROUP_RANGES — none of these
         // items take a selector (they all act on the current sample), the same "no selector" shape as
         // Program's Output group, so the generic function below already handles it without change.
+        constexpr std::uint8_t SAMPLE_SET_LOOP_START = 0x29;
+        constexpr std::uint8_t SAMPLE_SET_LOOP_END = 0x2A;
+        constexpr std::size_t COMPOUND_WORD_BYTES = 4;
+        /// What the real S5000 reads back for a loop start pushed below 0 by Set Loop End (OBSERVATIONS-RQ-AKM-051, F6).
+        constexpr std::uint32_t NEGATIVE_LOOP_START = 0x0FFFFFFF;
+
+        std::uint32_t wordOf(const Bytes& bytes)
+        {
+            std::uint32_t value = 0;
+            for (std::size_t i = 0; i < COMPOUND_WORD_BYTES && i < bytes.size(); ++i)
+                value = (value << 7) | (bytes[i] & 0x7F);
+            return value;
+        }
+
+        Bytes wordBytes(std::uint32_t value)
+        {
+            return Bytes{static_cast<std::uint8_t>((value >> 21) & 0x7F), static_cast<std::uint8_t>((value >> 14) & 0x7F),
+                         static_cast<std::uint8_t>((value >> 7) & 0x7F), static_cast<std::uint8_t>(value & 0x7F)};
+        }
+
+        template <typename Parameters>
+        std::int64_t storedWord(const Parameters& parameters, std::uint8_t setItem)
+        {
+            const auto found = parameters.find({setItem, Bytes{}});
+            return found == parameters.end() ? 0 : static_cast<std::int64_t>(wordOf(found->second));
+        }
+
         constexpr std::array<ParameterGroupRange, 2> SAMPLE_PARAMETER_GROUP_RANGES{{
             {0x20, 0x24, 0x20},  // Start/End Position, Original Pitch, Semitone/Fine Tune
             {0x28, 0x2A, 0x20},  // Playback Mode, Loop Start/End
@@ -1148,7 +1175,16 @@ namespace akm::harness
                 return failure(error_number::NOT_SUPPORTED);
             if (!current.has_value())
                 return failure(error_number::NOT_FOUND);
-            return executeStoredParameter(SECTION_SAMPLE, match, data, samples[*current].parameters);
+            SampleRecord& sample = samples[*current];
+            if (sample.loopEndKeepsLength && match.access == ParameterAccess::Set && match.setItem == SAMPLE_SET_LOOP_END &&
+                data.size() >= COMPOUND_WORD_BYTES)
+            {
+                // The real S5000: the loop start follows the new loop end at the old loop length. [RQ-APP-090]
+                const std::int64_t length = storedWord(sample.parameters, SAMPLE_SET_LOOP_END) - storedWord(sample.parameters, SAMPLE_SET_LOOP_START);
+                const std::int64_t start = static_cast<std::int64_t>(wordOf(data)) - length;
+                sample.parameters[{SAMPLE_SET_LOOP_START, Bytes{}}] = wordBytes(start < 0 ? NEGATIVE_LOOP_START : static_cast<std::uint32_t>(start));
+            }
+            return executeStoredParameter(SECTION_SAMPLE, match, data, sample.parameters);
         }
 
         // §0E sample lifecycle (RQ-AKM-045): select by name/index, delete/rename the current sample,
@@ -3139,6 +3175,13 @@ namespace akm::harness
         _samples[index].rate = rate;
     }
 
+    void SimulatedSampler::setSampleLoopEndKeepsLength(std::size_t index, bool keeps)
+    {
+        const std::lock_guard lock(_mutex);
+        if (index < _samples.size())
+            _samples[index].loopEndKeepsLength = keeps;
+    }
+
     void SimulatedSampler::setPlayMode(std::uint8_t playMode)
     {
         const std::lock_guard lock(_mutex);
@@ -3250,6 +3293,7 @@ namespace akm::harness
             stillAlive = _settings.stillAlive;
             confirmations = process(message);
             behaviour = _behaviour;
+            behaviour.replyDelay = std::max(behaviour.replyDelay, _itemDelay);
         }
         if (confirmations.empty() || behaviour.silent)
             return;
@@ -3305,6 +3349,9 @@ namespace akm::harness
         const Bytes userRefs(message.begin() + FIRST_USER_REF_INDEX, message.begin() + static_cast<std::ptrdiff_t>(sectionIndex));
         const std::uint8_t section = message[sectionIndex];
         const std::uint8_t item = message[sectionIndex + 1];
+        const auto slow = std::find_if(_behaviour.slowItems.begin(), _behaviour.slowItems.end(),
+                                       [section, item](const SlowItem& candidate) { return candidate.section == section && candidate.item == item; });
+        _itemDelay = slow != _behaviour.slowItems.end() ? slow->delay : Scheduler::Clock::duration::zero();
         const std::size_t endIndex = message.size() - END_BYTE_SIZE;
         Bytes data(message.begin() + static_cast<std::ptrdiff_t>(sectionIndex + SECTION_AND_ITEM_SIZE),
                    message.begin() + static_cast<std::ptrdiff_t>(endIndex));

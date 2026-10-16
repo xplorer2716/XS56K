@@ -199,9 +199,17 @@ add_test(NAME mcp_simulated_server_disk_conversation
 # configures the tests. [RQ-MCP-012, ADR-MCP-001 (DEC-MCP-009)]
 get_target_property(shipped_server_libraries xs56k_mcp_server LINK_LIBRARIES)
 get_target_property(shipped_library_libraries xs56k_mcp LINK_LIBRARIES)
-foreach(library IN LISTS shipped_server_libraries shipped_library_libraries)
+get_target_property(shipped_sampler_libraries xs56k_sampler LINK_LIBRARIES)
+foreach(library IN LISTS shipped_server_libraries shipped_library_libraries shipped_sampler_libraries)
     if(library MATCHES "test_support")
         message(FATAL_ERROR "The shipped MCP server links the test support (${library}): it must not")
+    endif()
+endforeach()
+# The gateway's library is shared with the editor application: it must not bring the MCP protocol or JSON with it.
+# [RQ-APP-014, ADR-APP-001 (DEC-APP-002), TASK-APP-010]
+foreach(library IN LISTS shipped_sampler_libraries)
+    if(library MATCHES "nlohmann|xs56k_mcp")
+        message(FATAL_ERROR "xs56k_sampler links ${library}: the gateway must depend on the AKM layer only")
     endif()
 endforeach()
 # The server never saves, loads, touches the disk or deletes everything, and only the gateway creates, renames or deletes
@@ -242,6 +250,53 @@ add_test(NAME mcp_readme_names_every_tool_and_option
         -DROOT_README=${PROJECT_SOURCE_DIR}/../README.md
         -DINPUT_FILE=${CMAKE_CURRENT_SOURCE_DIR}/mcp/conversations/list_tools.jsonl
         -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckReadmeCoversTools.cmake)
+
+# The editor application's core: the controller and the model against the gateway over the simulated sampler, with a real worker
+# thread and a UI dispatcher the test drains; no display, no JUCE. [RQ-APP-014, ADR-APP-001 (DEC-APP-010), TASK-APP-011]
+add_executable(xs56k_app_tests
+    app/BrowserCommandTests.cpp
+    app/BrowserTests.cpp
+    app/ConnectionTests.cpp
+    app/CoreTests.cpp
+    app/EditorLayoutTests.cpp
+    app/EditTests.cpp
+    app/MemoryCommandTests.cpp
+    app/MemoryTests.cpp)
+# The memory tests seed programs with the raw-frame helpers of the AKM and MCP tests (no MCP server). [TASK-APP-015]
+target_include_directories(xs56k_app_tests PRIVATE app akm mcp)
+target_link_libraries(xs56k_app_tests PRIVATE
+    xs56k_app_core
+    xs56k_akm_test_support
+    Catch2::Catch2WithMain
+    xs56k::warnings)
+catch_discover_tests(xs56k_app_tests)
+# No JUCE include anywhere in the core, its sources included; the check fails on a fixture that has one. [RQ-APP-014,
+# ADR-APP-001 (DEC-APP-001, DEC-APP-010), TASK-APP-011]
+add_test(NAME app_core_has_no_juce_include
+    COMMAND ${CMAKE_COMMAND}
+        -DHEADER_DIR=${PROJECT_SOURCE_DIR}/app/core
+        -DWITH_SOURCES=ON
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoJuceIncludes.cmake)
+add_test(NAME app_core_check_fails_on_a_juce_include
+    COMMAND ${CMAKE_COMMAND}
+        -DHEADER_DIR=${CMAKE_CURRENT_SOURCE_DIR}/app/juce_include_fixture
+        -DWITH_SOURCES=ON
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoJuceIncludes.cmake)
+set_tests_properties(app_core_check_fails_on_a_juce_include PROPERTIES
+    PASS_REGULAR_EXPRESSION "juce_include_fixture/Fixture\\.cpp:")
+
+# No raw visual literal in the editor application's sources: colours, font sizes, radii, strokes and spacings come from the token module;
+# the check fails on a fixture that holds three. [RQ-APP-004, ADR-APP-002 (DEC-APP-014), TASK-APP-017]
+add_test(NAME app_sources_have_no_visual_literal
+    COMMAND ${CMAKE_COMMAND}
+        "-DSOURCE_DIRS=${PROJECT_SOURCE_DIR}/app/src;${PROJECT_SOURCE_DIR}/app/core"
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoVisualLiterals.cmake)
+add_test(NAME app_visual_literal_check_fails_on_a_fixture
+    COMMAND ${CMAKE_COMMAND}
+        -DSOURCE_DIRS=${CMAKE_CURRENT_SOURCE_DIR}/app/visual_literal_fixture
+        -P ${CMAKE_CURRENT_SOURCE_DIR}/CheckNoVisualLiterals.cmake)
+set_tests_properties(app_visual_literal_check_fails_on_a_fixture PROPERTIES
+    PASS_REGULAR_EXPRESSION "Fixture\\.cpp:6:.*Fixture\\.cpp:8:.*Fixture\\.cpp:9:")
 
 # No JUCE include in the public headers of the AKM layer. [RQ-AKM-019]
 add_test(NAME akm_public_headers_have_no_juce_include
@@ -295,6 +350,9 @@ if(Python3_FOUND)
     # replaced `sonar` CLI, never against SonarCloud. [TASK-QLT-001, RQ-QLT-006, RQ-QLT-008, ADR-QLT-001 (DEC-QLT-003)]
     add_test(NAME qlt_sonar_triage_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_sonar_triage.py")
+    # The new-source-file tool writes only a C++ file under juce/. [TASK-QLT-021, RQ-QLT-001]
+    add_test(NAME qlt_new_source_file_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_new_source_file.py")
 else()
     message(STATUS "Python 3 not found: the item catalogue, coverage table, design tokens, mockups and mutation-tool checks of juce/tests/tools are not registered")
 endif()

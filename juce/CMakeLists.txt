@@ -8,11 +8,12 @@
 # split are carried over from xplorer2716/XplorerEditor's own juce/CMakeLists.txt
 # (see documents/INDEX.md / AGENTS.md for that repo's role as the source this
 # framework and MIDI layer were ported from). Trimmed to what this repository
-# actually has: only the midi, framework, akm (the S5000 SysEx layer, native to
-# this repository) and a MINIMAL PLACEHOLDER app layer
-# (juce/app — see its own CMakeLists.txt) exist so far — no model/controller/
-# settings layer, so there is no real editor UI, only enough of a GUI target
-# to exercise the versioning/deployment-matrix/cut-deployment plumbing below.
+# actually has: the midi, framework, akm (the S5000 SysEx layer, native to
+# this repository) and mcp layers, the editor's model and controller without
+# JUCE (juce/app/core, ADR-APP-001) and a MINIMAL PLACEHOLDER app layer
+# (juce/app — see its own CMakeLists.txt): no real editor UI yet, only enough
+# of a GUI target to exercise the versioning/deployment-matrix/cut-deployment
+# plumbing below.
 cmake_minimum_required(VERSION 3.22)
 
 # --- Product version: DERIVED, never declared [RQ-BLD-009, ADR-BLD-003 (DEC-BLD-011)] ---
@@ -123,6 +124,9 @@ add_subdirectory(midi)
 add_subdirectory(framework)
 add_subdirectory(akm)  # [RQ-AKM-019, ADR-AKM-001 (DEC-AKM-001)]
 add_subdirectory(mcp)  # [RQ-MCP-011, ADR-MCP-001 (DEC-MCP-001)]
+# The editor application's model and controller: no JUCE, built and tested with the libraries whatever BUILD_APP says.
+# [RQ-APP-014, ADR-APP-001 (DEC-APP-010), TASK-APP-011]
+add_subdirectory(app/core)
 
 if(BUILD_TESTS)
     add_subdirectory(tests)  # [RQ-AKM-016, ADR-AKM-001 (DEC-AKM-008), TASK-AKM-003]

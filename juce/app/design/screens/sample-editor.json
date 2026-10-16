@@ -1,0 +1,48 @@
+{
+  "_comment": "The main window with the sample editor (FTR-APP-010): example content only, no visual value (those are the tokens'). The second state shows the loop end being written, every value of the tab then read again (RQ-APP-089). [RQ-APP-074, RQ-APP-086, RQ-APP-087, ADR-APP-003 (DEC-APP-018), ADR-APP-004, TASK-APP-040]",
+  "name": "sample-editor",
+  "size": [1280, 800],
+  "leftWidth": 300,
+  "browserShare": 0.5,
+  "menu": ["XS56K", "Sampler", "MIDI"],
+  "content": {
+    "browser": {"path": "S5K:\\DrumsLoops", "rows": [
+      {"kind": "disk", "name": "S5K", "depth": 0, "detail": "FAT32"},
+      {"kind": "folder", "name": "DrumsLoops", "depth": 1, "current": true},
+      {"kind": "sample", "name": "KICK.WAV", "depth": 2},
+      {"kind": "sample", "name": "SNARE.WAV", "depth": 2},
+      {"kind": "folder", "name": "MoogBass", "depth": 1}]},
+    "memory": {"free": "150.3 MB free of 151.2 MB (99 %)", "kinds": [
+      {"title": "Multis", "items": []},
+      {"title": "Programs", "items": []},
+      {"title": "Samples", "items": [{"name": "KICK", "current": true, "selected": true}, {"name": "SNARE"}]},
+      {"title": "Song files", "items": []},
+      {"title": "Set lists", "items": []},
+      {"title": "Scenelists", "items": []}]},
+    "editor": {"item": "KICK", "kind": "Sample", "info": "RAM, mono, 22050 points, 44100 Hz", "layout": "sample", "tab": "Sample",
+      "values": {
+        "sample start position": {"text": "0", "fraction": 0.0},
+        "sample end position": {"text": "22050", "fraction": 1.0},
+        "sample playback mode": {"text": "ONE SHOT"},
+        "sample loop start": {"text": "11025", "fraction": 0.5},
+        "sample loop end": {"text": "22050", "fraction": 1.0},
+        "sample original pitch": {"text": "C3"},
+        "sample semitone tune": {"text": "0", "fraction": 0.5},
+        "sample fine tune": {"text": "+10", "fraction": 0.6}}}
+  },
+  "states": {
+    "connected": {"connection": {"state": "connected", "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0"}},
+    "writing": {"connection": {"state": "connected", "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0", "busy": "Setting the loop end of KICK"},
+      "editor": {"item": "KICK", "kind": "Sample", "info": "RAM, mono, 22050 points, 44100 Hz", "layout": "sample", "tab": "Sample",
+        "values": {
+          "sample start position": {"text": "0", "fraction": 0.0},
+          "sample end position": {"text": "22050", "fraction": 1.0},
+          "sample playback mode": {"text": "ONE SHOT"},
+          "sample loop start": {"text": "11025", "fraction": 0.5},
+          "sample loop end": {"text": "20000", "fraction": 0.907},
+          "sample original pitch": {"text": "C3"},
+          "sample semitone tune": {"text": "0", "fraction": 0.5},
+          "sample fine tune": {"text": "+10", "fraction": 0.6}},
+        "pending": ["sample loop end", "sample loop start"]}}
+  }
+}

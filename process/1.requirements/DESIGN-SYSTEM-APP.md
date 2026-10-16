@@ -84,6 +84,7 @@ tokens unchanged.
 | `colour.grey.100` | `#ECECEF` |
 | `colour.violet.300` | `#A897F2` |
 | `colour.teal.300` | `#4FD1C1` |
+| `colour.blue.300` | `#6FB1F2` |
 | `colour.amber.300` | `#E9A85A` |
 | `colour.yellow.300` | `#F2C94C` |
 | `colour.red.300` | `#F47A74` |
@@ -106,7 +107,8 @@ tokens unchanged.
 | `colour.accent.default` | `colour.violet.300` | selection, focus, current tab |
 | `colour.role.sample` | `colour.violet.300` | samples, zones, sample assignment |
 | `colour.role.modulation` | `colour.teal.300` | envelopes, LFOs, modulation sources |
-| `colour.role.filter` | `colour.amber.300` | filter (its envelope is an envelope: modulation) |
+| `colour.role.filter` | `colour.amber.300` | filter and its envelope |
+| `colour.role.amp` | `colour.blue.300` | amplitude: the amp envelope and the levels |
 | `colour.role.general` | `colour.grey.300` | parameters of no colour-coded family (output, MIDI/tune, pitch bend) |
 | `colour.status.active` | `colour.yellow.300` | on, current item of a list, a switch that is on |
 | `colour.status.success` | `colour.green.300` | connected |
@@ -127,13 +129,14 @@ Which role a parameter takes is a property of the parameter (its family), not of
 
 | Token | Size (px) | Weight | Case | Use |
 |---|---|---|---|---|
-| `font.caption` | 11 | Regular | as written | captions, units, status details |
-| `font.label` | 11 | Medium | UPPER CASE, tracking `font.label.tracking` = 0.5 px | parameter and group labels |
-| `font.value` | 13 | Regular, tabular figures | as written | values, names in lists and trees |
-| `font.title` | 15 | Medium | as written | panel titles, the edited item's name |
-| `font.heading` | 18 | Medium | as written | dialog titles |
+| `font.caption` | 13 | Regular | as written | captions, units, status details |
+| `font.label` | 13 | Medium | UPPER CASE, tracking `font.label.tracking` = 0.5 px | parameter and group labels |
+| `font.value` | 15 | Regular, tabular figures | as written | values, names in lists and trees |
+| `font.title` | 17 | Medium | as written | panel titles, the edited item's name |
+| `font.heading` | 20 | Medium | as written | dialog titles |
 
-- **Dynamic-fit bounds:** a value shrunk to fit never goes below `font.caption` (11 px) nor above its own size.
+- **Dynamic-fit bounds:** a value shrunk to fit never goes below `font.caption` (13 px) nor above its own size.
+- *Amended 2026-10-15 (RQ-APP-084, TASK-APP-030):* every size two pixels larger than the first scale (11, 13, 15, 18), at the owner's request.
 
 ### 2.3 Spacing & Layout Grid
 
@@ -164,7 +167,8 @@ Which role a parameter takes is a property of the parameter (its family), not of
 ### 2.6 Motion & Timing
 
 - **Durations:** `motion.hover` 80 ms (a hovered row or button fades to its hover colour); `motion.busy` 1000 ms (one turn of the busy
-  indicator, RQ-APP-012); `motion.message` 4000 ms (an information message stays before it fades; errors stay until dismissed).
+  indicator, RQ-APP-012); `motion.message` 4000 ms (an information message stays before it fades; errors stay until dismissed); `motion.tooltip` 700 ms (the pointer
+  rests that long on a text cut short before its whole text is shown, JUCE's own default kept; RQ-APP-080, TASK-APP-022).
 - **Easing:** linear for `motion.busy`, ease-out for the others.
 - **When not to animate:** the value of a control, its arc, a curve, a list's content — drawn at once (P5).
 
@@ -246,7 +250,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 |---|---|
 | Anatomy | raised box, label |
 | States implemented | idle, hover, pressed, focused, disabled |
-| Tokens used | `button.surface` → `colour.surface.raised`; `button.text` → `colour.text.primary`; `button.destructive.surface` → `colour.status.destructive`; `button.destructive.text` → `colour.surface.base` |
+| Tokens used | `button.surface` → `colour.surface.raised`; `button.text` → `colour.text.primary`; `button.destructive.surface` → `colour.status.destructive`; `button.destructive.text` → `colour.surface.base`; `button.height` → `size.control.large` (TASK-APP-017) |
 | Variants | default, destructive (confirm of RQ-APP-011) |
 | Behaviour owner | RQ-APP-011 |
 
@@ -255,7 +259,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 |---|---|
 | Anatomy | connection dot and text, busy spinner and job label, message area |
 | States implemented | idle, active (connected), error, pending (busy) |
-| Tokens used | `status.dot.connected` → `colour.status.success`; `status.dot.failed` → `colour.status.error`; `status.spinner` → `colour.text.secondary` |
+| Tokens used | `status.dot.connected` → `colour.status.success`; `status.dot.failed` → `colour.status.error`; `status.spinner` → `colour.text.secondary`; `status.height` → `size.control.large`; `status.dot.size` → `size.icon.small`; `status.spinner.size` → `size.icon.default` (TASK-APP-017) |
 | Behaviour owner | RQ-APP-012, RQ-APP-019 |
 
 ### Dialog (confirmation, question, MIDI setup)
@@ -263,7 +267,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 |---|---|
 | Anatomy | title, text naming the object and what is lost, buttons |
 | States implemented | idle, focused |
-| Tokens used | `dialog.surface` → `colour.surface.raised`; `dialog.border` → `colour.border.default`; `dialog.title` → `font.heading` |
+| Tokens used | `dialog.surface` → `colour.surface.raised`; `dialog.border` → `colour.border.default`; `dialog.title` → `font.heading`; `dialog.width` → `size.edit.minWidth` (TASK-APP-017: room for a reason of the sampler on one or two lines) |
 | Behaviour owner | RQ-APP-011, RQ-APP-015, RQ-APP-045 |
 
 **Size tokens used above** (global): `size.control.small` 20 · `size.control.medium` 24 · `size.control.large` 28 · `size.knob.large` 40 (px);
@@ -276,7 +280,7 @@ Which role a parameter takes is a property of the parameter (its family), not of
 - **Group panel:** a `colour.surface.panel` rectangle, `radius.round`, holding a label row (`font.label`) and its controls on the 4 px grid;
   the groups of a tab flow left to right, then wrap.
 - **Control cell:** a knob with its label under it and its value box, as one unit of fixed width; cells align on a column grid of
-  `size.knob.large` + `size.space.8` (72 px: an 11 px upper-case label of nine letters fits; longer labels are shortened).
+  `size.knob.large` + `size.space.8` (72 px: about seven upper-case letters of the 13 px label fit, to be measured when the edit panel is built; longer labels are shortened).
 - **Context header over tabs over tab bar:** the header at the top of the edit panel (RQ-APP-050), the tab's groups in the middle, the tab bar
   at the bottom (RQ-APP-049).
 
@@ -307,6 +311,10 @@ Which role a parameter takes is a property of the parameter (its family), not of
 | `colour.role.filter` | `colour.surface.panel` | 6.87 |
 | `colour.role.filter` | `colour.surface.recessed` | 7.82 |
 | `colour.role.filter` | `colour.surface.raised` | 5.86 |
+| `colour.role.amp` | `colour.surface.base` | 7.50 |
+| `colour.role.amp` | `colour.surface.panel` | 6.22 |
+| `colour.role.amp` | `colour.surface.recessed` | 7.08 |
+| `colour.role.amp` | `colour.surface.raised` | 5.30 |
 | `colour.status.active` | `colour.surface.base` | 10.74 |
 | `colour.status.active` | `colour.surface.panel` | 8.90 |
 | `colour.status.active` | `colour.surface.recessed` | 10.14 |
