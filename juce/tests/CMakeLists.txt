@@ -353,6 +353,9 @@ if(Python3_FOUND)
     # The new-source-file tool writes only a C++ file under juce/. [TASK-QLT-021, RQ-QLT-001]
     add_test(NAME qlt_new_source_file_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_new_source_file.py")
+    # The clang-tidy runner: its selection of files and its filter of the findings, against a replaced clang-tidy. [TASK-QLT-024, RQ-QLT-013]
+    add_test(NAME qlt_tidy_script_tests
+        COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_tidy.py")
 else()
     message(STATUS "Python 3 not found: the item catalogue, coverage table, design tokens, mockups and mutation-tool checks of juce/tests/tools are not registered")
 endif()

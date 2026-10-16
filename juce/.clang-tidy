@@ -1,0 +1,45 @@
+# clang-tidy configuration of XS56K: the checks that match the SonarCloud rules met on the project, and a few bug finders.
+# Run through juce/tools/tidy.py (skill static-analysis); every finding is an error. [RQ-QLT-009, ADR-QLT-002 (DEC-QLT-010)]
+#
+# bugprone-exception-escape                   cpp:S1048  a destructor or a noexcept function lets an exception out
+# bugprone-empty-catch                        cpp:S108, cpp:S2486  a catch that does nothing with the exception
+# performance-unnecessary-value-param         cpp:S1238  a large parameter copied but only read
+# performance-move-const-arg                  cpp:S5415  std::move of what is taken by const reference
+# modernize-use-ranges                        cpp:S6197  the std::ranges algorithm over begin()/end()
+# readability-container-contains              cpp:S6171  contains() over count() or find() != end()
+# modernize-use-emplace                       cpp:S6003  emplace_back over push_back of a temporary
+# modernize-avoid-c-arrays                    cpp:S5945  std::array over a C array
+# modernize-use-auto                          cpp:S5827  auto where a cast already names the type
+# modernize-loop-convert                      cpp:S5566  a range for over an index loop
+# readability-function-cognitive-complexity   cpp:S3776  Sonar's C++ threshold, 25
+# bugprone-use-after-move, bugprone-dangling-handle, performance-unnecessary-copy-initialization: bug finders
+#
+# Not enabled: modernize-use-std-format (the Linux CI's GCC 11 has no <format>; midiapp::service::formatStr is the portable form).
+# The Sonar rules with no check here (S7172, S6004, S6177, S6225, S3491, S1188, S6045, S3574, Python) are listed in .github/skills/static-analysis/SKILL.md.
+Checks: >
+  -*,
+  bugprone-exception-escape,
+  bugprone-empty-catch,
+  performance-unnecessary-value-param,
+  performance-move-const-arg,
+  modernize-use-ranges,
+  readability-container-contains,
+  modernize-use-emplace,
+  modernize-avoid-c-arrays,
+  modernize-use-auto,
+  modernize-loop-convert,
+  readability-function-cognitive-complexity,
+  bugprone-use-after-move,
+  bugprone-dangling-handle,
+  performance-unnecessary-copy-initialization
+WarningsAsErrors: '*'
+# The project's own directories; JUCE (_deps), the build trees and the generated files are left out.
+HeaderFilterRegex: '.*[/\\]juce[/\\](akm|app|framework|mcp|midi)[/\\].*'
+ExcludeHeaderFilterRegex: '.*(\.generated\.hpp|[/\\]_deps[/\\].*|BinaryData\.h)$'
+CheckOptions:
+  # Sonar's S1048 is about destructors: the implicit moves of a lambda's captures and main() are left out.
+  bugprone-exception-escape.CheckMoveMemberFunctions: false
+  bugprone-exception-escape.CheckMain: false
+  readability-function-cognitive-complexity.Threshold: 25
+  readability-function-cognitive-complexity.IgnoreMacros: true
+  readability-function-cognitive-complexity.DescribeBasicIncrements: false
