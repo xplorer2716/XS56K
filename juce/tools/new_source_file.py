@@ -10,6 +10,7 @@ Usage: python3 juce/tools/new_source_file.py <path> [--body FILE]
 import argparse
 import pathlib
 import sys
+import tempfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 TEMPLATE = ROOT / "juce" / "LICENSE_HEADER.txt"
@@ -23,6 +24,15 @@ def source_path(path):
     resolved = (ROOT / path).resolve()
     if not resolved.is_relative_to(SOURCE_ROOT.resolve()) or resolved.suffix not in SOURCE_SUFFIXES:
         raise ValueError(f"{path}: not a {'/'.join(SOURCE_SUFFIXES)} file under juce/")
+    return resolved
+
+
+def body_path(path):
+    """`path` resolved, when it is a file of the repository or of the system's temporary directory (where a session writes its scratch
+    files); otherwise ValueError. [TASK-QLT-021, RQ-QLT-001]"""
+    resolved = pathlib.Path(path).resolve()
+    if not any(resolved.is_relative_to(root.resolve()) for root in (ROOT, pathlib.Path(tempfile.gettempdir()))):
+        raise ValueError(f"{path}: the body is neither in the repository nor in the temporary directory")
     return resolved
 
 
@@ -59,8 +69,8 @@ def main(argv=None):
     if len(arguments.paths) != 1:
         print("new_source_file: give one path to create", file=sys.stderr)
         return 1
-    body = pathlib.Path(arguments.body).read_text(encoding="utf-8") if arguments.body else ""
     try:
+        body = body_path(arguments.body).read_text(encoding="utf-8") if arguments.body else ""
         create(arguments.paths[0], body)
     except (OSError, ValueError) as error:  # FileExistsError is an OSError
         print(f"new_source_file: {error}", file=sys.stderr)

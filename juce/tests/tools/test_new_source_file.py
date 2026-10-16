@@ -37,6 +37,19 @@ class SourcePathTests(unittest.TestCase):
             tool.source_path("juce/tools/generate_design.py")
 
 
+class BodyPathTests(unittest.TestCase):
+    def test_given_a_file_in_the_temporary_directory_when_resolved_then_it_is_accepted(self):
+        with tempfile.NamedTemporaryFile(suffix=".txt") as body:
+            self.assertEqual(tool.body_path(body.name), pathlib.Path(body.name).resolve())
+
+    def test_given_a_file_of_the_repository_when_resolved_then_it_is_accepted(self):
+        self.assertEqual(tool.body_path(ROOT / "README.md"), (ROOT / "README.md").resolve())
+
+    def test_given_a_file_elsewhere_when_resolved_then_it_is_refused(self):
+        with self.assertRaises(ValueError):
+            tool.body_path(pathlib.Path(tempfile.gettempdir()).anchor + "elsewhere.txt")
+
+
 class MainTests(unittest.TestCase):
     def run_main(self, arguments):
         errors = io.StringIO()
@@ -48,6 +61,12 @@ class MainTests(unittest.TestCase):
         self.assertEqual(status, 1)
         self.assertIn("not a", errors)
         self.assertFalse((ROOT / "escaped.cpp").exists())
+
+    def test_given_a_body_outside_the_allowed_places_when_creating_then_the_status_is_1(self):
+        status, errors = self.run_main(["juce/app/src/Never.cpp", "--body", pathlib.Path(tempfile.gettempdir()).anchor + "elsewhere.txt"])
+        self.assertEqual(status, 1)
+        self.assertIn("body", errors)
+        self.assertFalse((ROOT / "juce/app/src/Never.cpp").exists())
 
     def test_given_a_refused_path_when_checking_then_the_status_is_1(self):
         status, _ = self.run_main(["--check", "README.md"])
