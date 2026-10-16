@@ -293,6 +293,38 @@ class RenderingAScreen(unittest.TestCase):
         wide["parameters"][1]["cells"] = 3
         self.assertAlmostEqual(self.gen.group_size(theme, wide)[0] - narrow, self.gen.cell_width(theme))
 
+    def test_given_a_group_of_columns_when_rendered_then_each_input_is_a_row_named_once_under_column_heads_their_scope_above(self):
+        # The Modulation tab: the source and the amount of each input of a destination. [RQ-APP-057, DEC-APP-035, TASK-APP-049]
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"] = [{"title": "Pitch", "columns": [{"title": "Source", "scope": "program"},
+                                                                      {"title": "Amount", "scope": "keygroup"}], "parameters": [
+            {"name": "pitch modulation 1 source", "label": "Input 1", "role": "modulation", "control": "choice"},
+            {"name": "pitch modulation 1 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+            {"name": "pitch modulation 2 source", "label": "Input 2", "role": "modulation", "control": "choice"},
+            {"name": "pitch modulation 2 amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]}]
+        screen = copy.deepcopy(SCREEN)
+        screen["content"]["editor"]["values"] = {
+            "pitch modulation 1 source": {"text": "MODWHEEL"}, "pitch modulation 1 amount": {"text": "+12"},
+            "pitch modulation 2 source": {"text": "LFO1"}, "pitch modulation 2 amount": {"text": "0"}}
+        svg = self.render(screen=screen, layout=layout)
+        source = re.search(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>SOURCE<', svg)
+        source_x, amount_x = float(source.group(1)), float(re.search(r'<text x="([\d.]+)"[^>]*>AMOUNT<', svg).group(1))
+        self.assertLess(source_x, amount_x)
+        programs = [(float(x), float(y)) for x, y in re.findall(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>PROGRAM<', svg)]
+        above = [y for x, y in programs if abs(x - source_x) < 1e-6]  # the column's scope on the group's title line; the header names the kind
+        self.assertEqual(len(above), 1)
+        self.assertLess(above[0], float(source.group(2)))
+        self.assertAlmostEqual(float(re.search(r'<text x="([\d.]+)"[^>]*>KEYGROUP<', svg).group(1)), amount_x)
+        modwheel = re.search(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>MODWHEEL<', svg)
+        twelve = re.search(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*>\+12<', svg)
+        self.assertAlmostEqual(float(modwheel.group(1)), source_x)
+        self.assertAlmostEqual(float(twelve.group(1)), amount_x)
+        self.assertAlmostEqual(float(modwheel.group(2)), float(twelve.group(2)))
+        lfo_y = float(re.search(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>LFO1<', svg).group(1))
+        self.assertGreater(lfo_y, float(modwheel.group(2)))
+        self.assertEqual(svg.count(">INPUT 1<"), 1)
+        self.assertEqual(svg.count(">AMOUNT<"), 1)  # the column head only: a row is named by its first cell
+
     def test_given_a_group_that_starts_a_row_when_rendered_then_it_is_drawn_under_the_first_at_the_left(self):
         # Two narrow groups would share a row; the second starts its own. [RQ-APP-094, DEC-APP-031, TASK-APP-044]
         layout = copy.deepcopy(LAYOUT)

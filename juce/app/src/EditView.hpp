@@ -85,6 +85,8 @@ namespace app::ui
         /// A zone grid's cells, a column per zone and a row per parameter, and its zone numbers and row labels. [DEC-APP-033]
         void layoutGrid(Group& group, int left, int top) const;
         void paintGridLabels(juce::Graphics& g, const Group& group) const;
+        /// A grid column's head: its zone number, or its title with its scope above it on the group's title line. [DEC-APP-035]
+        void paintGridHead(juce::Graphics& g, const Group& group, int column, int x, int top) const;
         [[nodiscard]] static juce::Point<int> sizeOf(const layouts::LayoutGroup& group);
 
         LookAndFeel& _lookAndFeel;

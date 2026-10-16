@@ -307,7 +307,8 @@
 <rect x="444" y="736" width="133" height="2" fill="#A897F2"/>
 <text x="624" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">FILTER</text>
 <text x="698.5" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">LFO</text>
-<text x="779.5" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">PROGRAM</text>
+<text x="799" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">MODULATION</text>
+<text x="925.5" y="754.33" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">PROGRAM</text>
 <rect x="0" y="772" width="1280" height="28" fill="#2A2B30"/>
 <circle cx="12" cy="786" r="4" fill="#6CCB7A"/>
 <text x="24" y="791" font-size="15" font-weight="400" fill="#ECECEF">Connected: AKAI S5000, OS 2.14, DeviceID 0</text>

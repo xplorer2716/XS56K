@@ -246,6 +246,12 @@ def grid_row_pitch(t):
 def group_size(t, group):
     inside = t("space.inside")
     zones = group.get("zones", 0)
+    columns = group.get("columns", [])
+    if columns:
+        # Routings: a head row of column titles, then a row per input. [RQ-APP-057, DEC-APP-035]
+        width = (GRID_LABEL_CELLS + len(columns) * CHOICE_CELLS) * cell_width(t) + 2 * inside
+        rows = len(group["parameters"]) // len(columns) + 1  # the head: the columns' titles, their scopes on the group's title line
+        return width, inside + t("font.label.size") + t("space.between") + rows * grid_row_pitch(t) + inside
     if zones:
         # A zone grid: its title, a head row of zone numbers, then a row per parameter. [RQ-APP-057, DEC-APP-033]
         width = (GRID_LABEL_CELLS + zones * CHOICE_CELLS) * cell_width(t) + 2 * inside
@@ -404,6 +410,34 @@ def draw_zone_grid(c, x, top, group, values, pending):
                 draw_choice(c, cell_x, y, w, shown, is_pending, t("valuebox.height"))
 
 
+def draw_column_grid(c, x, top, group, values, pending):
+    """A destination's routings: a column per part of an input (its source, its amount) under a head that says where it lives, a row per
+    input named by its first cell. [RQ-APP-057, RQ-APP-056, ADR-APP-004 (DEC-APP-035)]"""
+    t = c.t
+    column_w = CHOICE_CELLS * cell_width(t)
+    first = x + GRID_LABEL_CELLS * cell_width(t)
+    pitch = grid_row_pitch(t)
+    baseline = (t("valuebox.height") + t("font.label.size")) / 2
+    columns = group["columns"]
+    for index, column in enumerate(columns):
+        centre = first + index * column_w + column_w / 2
+        draw_label(c, centre, top - t("space.between"), column["scope"], t("colour.text.disabled"), "middle")  # on the title line
+        draw_label(c, centre, top + baseline, column["title"], anchor="middle")
+    parameters = group["parameters"]
+    for row in range(len(parameters) // len(columns)):
+        y = top + (row + 1) * pitch
+        cells = parameters[row * len(columns):(row + 1) * len(columns)]
+        draw_label(c, x + t("size.space.1"), y + baseline, cells[0]["label"])
+        for index, parameter in enumerate(cells):
+            text = values.get(parameter["name"], {}).get("text", "")
+            is_pending = parameter["name"] in pending
+            cell_x = first + index * column_w + t("size.space.1")
+            if parameter.get("control") == "valuebox":
+                draw_value_box(c, cell_x, y, column_w - t("size.space.2"), text, is_pending)
+            else:
+                draw_choice(c, cell_x, y, column_w - t("size.space.2"), text, is_pending, t("valuebox.height"))
+
+
 def draw_group(c, x, y, group, values, pending, shapes=None):
     t = c.t
     inside = t("space.inside")
@@ -420,6 +454,9 @@ def draw_group(c, x, y, group, values, pending, shapes=None):
     knob_top = title_y + t("space.between")
     if group.get("zones"):
         draw_zone_grid(c, x + inside, knob_top, group, values, pending)
+        return width, height
+    if group.get("columns"):
+        draw_column_grid(c, x + inside, knob_top, group, values, pending)
         return width, height
     if group.get("envelope"):
         draw_envelope(c, x + inside, knob_top, width - 2 * inside, group, values, marker)

@@ -1,5 +1,5 @@
 {
-  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031, DEC-APP-033), TASK-APP-045, TASK-APP-046, TASK-APP-048]",
+  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031, DEC-APP-033, DEC-APP-035), TASK-APP-045, TASK-APP-046, TASK-APP-048, TASK-APP-049]",
   "editor": "program",
   "orders": [["keygroup low note", "keygroup high note"], ["zone low velocity", "zone high velocity"]],
   "tabs": [
@@ -108,6 +108,48 @@
         {"name": "lfo 2 retrigger", "label": "Retrigger", "role": "modulation", "control": "choice"},
         {"name": "lfo 2 clock sync", "label": "Clock sync", "role": "modulation", "control": "choice"},
         {"name": "lfo 2 clock division", "label": "Division", "role": "modulation", "control": "choice", "cells": 3}]}]},
+    {"title": "Modulation", "groups": [
+      {"title": "Pitch", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "keygroup"}], "parameters": [
+        {"name": "pitch modulation 1 source", "label": "Input 1", "role": "modulation", "control": "choice"},
+        {"name": "pitch modulation 1 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "pitch modulation 2 source", "label": "Input 2", "role": "modulation", "control": "choice"},
+        {"name": "pitch modulation 2 amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]},
+      {"title": "Filter", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "keygroup"}], "parameters": [
+        {"name": "filter modulation 1 source", "label": "Input 1", "role": "modulation", "control": "choice"},
+        {"name": "filter modulation 1 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "filter modulation 2 source", "label": "Input 2", "role": "modulation", "control": "choice"},
+        {"name": "filter modulation 2 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "filter modulation 3 source", "label": "Input 3", "role": "modulation", "control": "choice"},
+        {"name": "filter modulation 3 amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]},
+      {"title": "Keygroup amp", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "keygroup"}], "row": true, "parameters": [
+        {"name": "keygroup amp modulation source", "label": "Input 1", "role": "modulation", "control": "choice"},
+        {"name": "keygroup amp modulation amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]},
+      {"title": "Program amp", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "program"}], "parameters": [
+        {"name": "program amp modulation 1 source", "label": "Input 1", "role": "modulation", "control": "choice"},
+        {"name": "program amp modulation 1 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "program amp modulation 2 source", "label": "Input 2", "role": "modulation", "control": "choice"},
+        {"name": "program amp modulation 2 amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]},
+      {"title": "Pan", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "program"}], "row": true, "parameters": [
+        {"name": "pan modulation 1 source", "label": "Input 1", "role": "modulation", "control": "choice"},
+        {"name": "pan modulation 1 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "pan modulation 2 source", "label": "Input 2", "role": "modulation", "control": "choice"},
+        {"name": "pan modulation 2 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "pan modulation 3 source", "label": "Input 3", "role": "modulation", "control": "choice"},
+        {"name": "pan modulation 3 amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]},
+      {"title": "LFO 1", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "program"}], "parameters": [
+        {"name": "lfo 1 rate modulation source", "label": "Rate", "role": "modulation", "control": "choice"},
+        {"name": "lfo 1 rate modulation amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "lfo 1 delay modulation source", "label": "Delay", "role": "modulation", "control": "choice"},
+        {"name": "lfo 1 delay modulation amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "lfo 1 depth modulation source", "label": "Depth", "role": "modulation", "control": "choice"},
+        {"name": "lfo 1 depth modulation amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]},
+      {"title": "LFO 2", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "program"}], "row": true, "parameters": [
+        {"name": "lfo 2 rate modulation source", "label": "Rate", "role": "modulation", "control": "choice"},
+        {"name": "lfo 2 rate modulation amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "lfo 2 delay modulation source", "label": "Delay", "role": "modulation", "control": "choice"},
+        {"name": "lfo 2 delay modulation amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+        {"name": "lfo 2 depth modulation source", "label": "Depth", "role": "modulation", "control": "choice"},
+        {"name": "lfo 2 depth modulation amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]}]},
     {"title": "Program", "groups": [
       {"title": "Output", "scope": "program", "parameters": [
         {"name": "program loudness", "label": "Loudness", "role": "general", "control": "knob"},

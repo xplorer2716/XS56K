@@ -206,16 +206,26 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 
 ### TASK-APP-049: The Modulation tab
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The routings of the keygroup modulation sources: each source, its destination and its amount.
-- **Requirement refs**: RQ-APP-057
-- **ADR refs**: a new decision (the control of a routing)
+- **Requirement refs**: RQ-APP-057, RQ-APP-056
+- **ADR refs**: ADR-APP-004 (DEC-APP-035, new: the control of a routing)
 - **Acceptance Criteria** (Gherkin): *Given* the Aux envelope routed to the filter cutoff, *Then* the tab shows the routing; *When* the person changes
   its amount, *Then* it is sent and read back.
 - **Dependencies**: TASK-APP-048
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-16. The 17 inputs of the catalogue inventoried (pitch 2, filter 3, keygroup amp 1, program amp 2,
+  pan 3, LFO 1 and LFO 2 rate, delay and depth), a source a program value and an amount a keygroup's or the program's; the owner chose a group
+  per destination. Generator tests first and failing: design 2 (columns with their title and scope, the group pointing to them; columns that do
+  not divide the parameters, a knob in them, an unknown scope, zones too refused), mockups 1 (each input a row named once, the cells under
+  their column, its scope above it); then 32 design and 27 mockup tests pass. Mockup `modulation-editor`: the heads "SOURCE · PROGRAM" touched,
+  then a two-line head pushed LFO 2 under the tabs, so the scope went to the group's title line above its column; validated by the owner.
+  C++ first and failing to compile: the layout case checks each cell's catalogue scope against its column; the core case (AUX ENV routed to
+  filter input 1 at 50 on keygroup 1: 34 values, the routing shown; 70 set, read back on keygroup 1); then 90 app cases pass. The view's zone
+  grid now lays out any grid. Build warning-clean; `ctest -C Debug`: 1237 passed; `tidy.py`: 15 sources, 0 findings; the IDE's SonarQube:
+  nothing. Not verified: the grid drawn by JUCE and the real S5000 (the owner's run), GCC and Apple Clang (CI).
+- **Assumptions**: (1) The keygroup's amplitude input and the program's two are two groups, their amounts living in different places. (2) The
+  Modulation tab sits between LFO and Program; the Program tab moved to index 5.
 
 ### TASK-APP-050: All keygroups at once
 - **Tier**: M

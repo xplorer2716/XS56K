@@ -96,6 +96,15 @@ those it has, then sends `addKeygroups`; `deleteKeygroup` asks the confirmation 
 is disabled. Either way the program is made current first, and the tab is read again with the count the sampler answered, the keygroup shown
 kept where it still exists. The two dialogs share one base that answers once and treats a closed window as a cancel. [RQ-APP-061, RQ-APP-011]
 
+### DEC-APP-035: The routings are groups of columns, one group per destination
+The Modulation tab has a group per destination (pitch, filter, keygroup amplitude, program amplitude, pan, LFO 1 and LFO 2; owner,
+2026-10-16), each a grid: a row per input, named by its first cell, and the columns the layout gives (`"columns"`: Source and Amount, each with
+the scope of its cells, drawn above it on the group's title line, since a routing's source is a program value and its amount often a
+keygroup's). The parameters are read a row at a time, so the edit state keeps the layout's order and the controller is unchanged; the grid's
+cells are choices or value boxes, a row high, as the zone grid's (DEC-APP-033), which the view shares. `generate_design.py` refuses columns
+that do not divide the parameters, another control, an unknown scope, and zones with columns; a core test checks each cell's catalogue scope
+against its column. [RQ-APP-057, RQ-APP-056]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

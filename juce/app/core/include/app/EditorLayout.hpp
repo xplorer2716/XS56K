@@ -101,6 +101,13 @@ namespace app::layouts
         bool sustain = false;
     };
 
+    /// A column of a group of columns: its title and where its cells live, drawn above it (a routing's source and amount). [DEC-APP-035]
+    struct LayoutColumn
+    {
+        std::string_view title;
+        Scope scope = Scope::None;
+    };
+
     struct LayoutGroup
     {
         std::string_view title;
@@ -109,6 +116,7 @@ namespace app::layouts
         std::span<const EnvelopeStage> envelope;  ///< empty: no graph
         bool newRow = false;                      ///< the group starts a new row of its tab (DEC-APP-031)
         int zones = 0;                            ///< a zone grid's columns, one per zone; 0: no grid (DEC-APP-033)
+        std::span<const LayoutColumn> columns{};  ///< a group of columns, its parameters read a row at a time; empty: none (DEC-APP-035)
     };
 
     struct LayoutTab

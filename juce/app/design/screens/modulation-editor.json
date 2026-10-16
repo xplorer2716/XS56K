@@ -1,0 +1,350 @@
+{
+  "_comment": "The main window with the program editor's Modulation tab (FTR-APP-008): a group per destination, each input a row with its source and its amount, the columns saying where they live. Example content only, no visual value (those are the tokens'). [RQ-APP-074, RQ-APP-056, RQ-APP-057, ADR-APP-003 (DEC-APP-018), ADR-APP-004 (DEC-APP-035), TASK-APP-049]",
+  "name": "modulation-editor",
+  "size": [
+    1280,
+    800
+  ],
+  "leftWidth": 300,
+  "browserShare": 0.5,
+  "menu": [
+    "XS56K",
+    "Sampler",
+    "MIDI"
+  ],
+  "content": {
+    "browser": {
+      "path": "S5K:\\DrumsLoops",
+      "rows": [
+        {
+          "kind": "disk",
+          "name": "S5K",
+          "depth": 0,
+          "detail": "FAT32"
+        },
+        {
+          "kind": "folder",
+          "name": "DrumsLoops",
+          "depth": 1,
+          "current": true
+        },
+        {
+          "kind": "sample",
+          "name": "KICK.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "sample",
+          "name": "SNARE.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "folder",
+          "name": "MoogBass",
+          "depth": 1
+        }
+      ]
+    },
+    "memory": {
+      "free": "150.3 MB free of 151.2 MB (99 %)",
+      "kinds": [
+        {
+          "title": "Multis",
+          "items": []
+        },
+        {
+          "title": "Programs",
+          "items": [
+            {
+              "name": "PAD",
+              "current": true,
+              "selected": true
+            },
+            {
+              "name": "BASS"
+            }
+          ]
+        },
+        {
+          "title": "Samples",
+          "items": [
+            {
+              "name": "KICK"
+            },
+            {
+              "name": "SNARE"
+            }
+          ]
+        },
+        {
+          "title": "Song files",
+          "items": []
+        },
+        {
+          "title": "Set lists",
+          "items": []
+        },
+        {
+          "title": "Scenelists",
+          "items": []
+        }
+      ]
+    },
+    "editor": {
+      "item": "PAD",
+      "kind": "Program",
+      "layout": "program",
+      "tab": "Modulation",
+      "values": {
+        "pitch modulation 1 source": {
+          "text": "MODWHEEL"
+        },
+        "pitch modulation 1 amount": {
+          "text": "+12"
+        },
+        "pitch modulation 2 source": {
+          "text": "NO SOURCE"
+        },
+        "pitch modulation 2 amount": {
+          "text": "0"
+        },
+        "filter modulation 1 source": {
+          "text": "FILT ENV"
+        },
+        "filter modulation 1 amount": {
+          "text": "+50"
+        },
+        "filter modulation 2 source": {
+          "text": "VELOCITY"
+        },
+        "filter modulation 2 amount": {
+          "text": "+20"
+        },
+        "filter modulation 3 source": {
+          "text": "NO SOURCE"
+        },
+        "filter modulation 3 amount": {
+          "text": "0"
+        },
+        "keygroup amp modulation source": {
+          "text": "VELOCITY"
+        },
+        "keygroup amp modulation amount": {
+          "text": "+30"
+        },
+        "program amp modulation 1 source": {
+          "text": "NO SOURCE"
+        },
+        "program amp modulation 1 amount": {
+          "text": "0"
+        },
+        "program amp modulation 2 source": {
+          "text": "NO SOURCE"
+        },
+        "program amp modulation 2 amount": {
+          "text": "0"
+        },
+        "pan modulation 1 source": {
+          "text": "LFO2"
+        },
+        "pan modulation 1 amount": {
+          "text": "+25"
+        },
+        "pan modulation 2 source": {
+          "text": "NO SOURCE"
+        },
+        "pan modulation 2 amount": {
+          "text": "0"
+        },
+        "pan modulation 3 source": {
+          "text": "NO SOURCE"
+        },
+        "pan modulation 3 amount": {
+          "text": "0"
+        },
+        "lfo 1 rate modulation source": {
+          "text": "NO SOURCE"
+        },
+        "lfo 1 rate modulation amount": {
+          "text": "0"
+        },
+        "lfo 1 delay modulation source": {
+          "text": "NO SOURCE"
+        },
+        "lfo 1 delay modulation amount": {
+          "text": "0"
+        },
+        "lfo 1 depth modulation source": {
+          "text": "MODWHEEL"
+        },
+        "lfo 1 depth modulation amount": {
+          "text": "+40"
+        },
+        "lfo 2 rate modulation source": {
+          "text": "NO SOURCE"
+        },
+        "lfo 2 rate modulation amount": {
+          "text": "0"
+        },
+        "lfo 2 delay modulation source": {
+          "text": "NO SOURCE"
+        },
+        "lfo 2 delay modulation amount": {
+          "text": "0"
+        },
+        "lfo 2 depth modulation source": {
+          "text": "NO SOURCE"
+        },
+        "lfo 2 depth modulation amount": {
+          "text": "0"
+        }
+      },
+      "keygroup": "KEYGROUP 1 OF 2",
+      "actions": [
+        {
+          "text": "Add..."
+        },
+        {
+          "text": "Delete"
+        }
+      ]
+    }
+  },
+  "states": {
+    "connected": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0"
+      }
+    },
+    "writing": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0",
+        "busy": "Setting the amount of PAD, keygroup 1"
+      },
+      "editor": {
+        "item": "PAD",
+        "kind": "Program",
+        "layout": "program",
+        "tab": "Modulation",
+        "values": {
+          "pitch modulation 1 source": {
+            "text": "MODWHEEL"
+          },
+          "pitch modulation 1 amount": {
+            "text": "+12"
+          },
+          "pitch modulation 2 source": {
+            "text": "NO SOURCE"
+          },
+          "pitch modulation 2 amount": {
+            "text": "0"
+          },
+          "filter modulation 1 source": {
+            "text": "FILT ENV"
+          },
+          "filter modulation 1 amount": {
+            "text": "+35"
+          },
+          "filter modulation 2 source": {
+            "text": "VELOCITY"
+          },
+          "filter modulation 2 amount": {
+            "text": "+20"
+          },
+          "filter modulation 3 source": {
+            "text": "NO SOURCE"
+          },
+          "filter modulation 3 amount": {
+            "text": "0"
+          },
+          "keygroup amp modulation source": {
+            "text": "VELOCITY"
+          },
+          "keygroup amp modulation amount": {
+            "text": "+30"
+          },
+          "program amp modulation 1 source": {
+            "text": "NO SOURCE"
+          },
+          "program amp modulation 1 amount": {
+            "text": "0"
+          },
+          "program amp modulation 2 source": {
+            "text": "NO SOURCE"
+          },
+          "program amp modulation 2 amount": {
+            "text": "0"
+          },
+          "pan modulation 1 source": {
+            "text": "LFO2"
+          },
+          "pan modulation 1 amount": {
+            "text": "+25"
+          },
+          "pan modulation 2 source": {
+            "text": "NO SOURCE"
+          },
+          "pan modulation 2 amount": {
+            "text": "0"
+          },
+          "pan modulation 3 source": {
+            "text": "NO SOURCE"
+          },
+          "pan modulation 3 amount": {
+            "text": "0"
+          },
+          "lfo 1 rate modulation source": {
+            "text": "NO SOURCE"
+          },
+          "lfo 1 rate modulation amount": {
+            "text": "0"
+          },
+          "lfo 1 delay modulation source": {
+            "text": "NO SOURCE"
+          },
+          "lfo 1 delay modulation amount": {
+            "text": "0"
+          },
+          "lfo 1 depth modulation source": {
+            "text": "MODWHEEL"
+          },
+          "lfo 1 depth modulation amount": {
+            "text": "+40"
+          },
+          "lfo 2 rate modulation source": {
+            "text": "NO SOURCE"
+          },
+          "lfo 2 rate modulation amount": {
+            "text": "0"
+          },
+          "lfo 2 delay modulation source": {
+            "text": "NO SOURCE"
+          },
+          "lfo 2 delay modulation amount": {
+            "text": "0"
+          },
+          "lfo 2 depth modulation source": {
+            "text": "NO SOURCE"
+          },
+          "lfo 2 depth modulation amount": {
+            "text": "0"
+          }
+        },
+        "pending": [
+          "filter modulation 1 amount"
+        ],
+        "keygroup": "KEYGROUP 1 OF 2",
+        "actions": [
+          {
+            "text": "Add..."
+          },
+          {
+            "text": "Delete"
+          }
+        ]
+      }
+    }
+  }
+}

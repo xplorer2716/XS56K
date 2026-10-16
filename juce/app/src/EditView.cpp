@@ -43,7 +43,21 @@ namespace app::ui
         constexpr const char* DELETE_TEXT = "Delete";
         constexpr float HEADER_BUTTON_KNOBS = 3;  // a header button is three knob diameters wide, as in the mockups [DEC-APP-034]
 
-        /// The height of a zone grid's row: a value box and the space under it. [DEC-APP-033]
+        /// A grid's columns: a zone grid's zones, or a group's columns (a routing's source and amount); 0 for a group that is no grid.
+        /// [DEC-APP-033, DEC-APP-035]
+        int gridColumns(const layouts::LayoutGroup& group)
+        {
+            return group.zones > 0 ? group.zones : static_cast<int>(group.columns.size());
+        }
+
+        /// A grid's rows: a parameter each in a zone grid, an input of a few parameters each in a group of columns.
+        int gridRows(const layouts::LayoutGroup& group)
+        {
+            const auto parameters = static_cast<int>(group.parameters.size());
+            return group.zones > 0 ? parameters : parameters / std::max(1, gridColumns(group));
+        }
+
+        /// The height of a grid's row: a value box and the space under it. [DEC-APP-033]
         int gridPitch()
         {
             using namespace tokens;
@@ -216,14 +230,15 @@ namespace app::ui
 
     void EditView::addCells(Group& group, std::size_t& index)
     {
-        // A zone grid has a cell per parameter and zone, parameter by parameter, as the edit state's values. [DEC-APP-033]
+        // A zone grid has a cell per parameter and zone, parameter by parameter, as the edit state's values; a group of columns a cell per
+        // parameter, a row at a time. [DEC-APP-033, DEC-APP-035]
         const layouts::LayoutGroup& layout = *group.layout;
         const int perParameter = std::max(1, layout.zones);
         for (const layouts::LayoutParameter& parameter : layout.parameters)
         {
             for (int zone = 0; zone < perParameter; ++zone)
             {
-                auto cell = std::make_unique<ParameterCell>(_lookAndFeel, parameter, layout.zones > 0);
+                auto cell = std::make_unique<ParameterCell>(_lookAndFeel, parameter, gridColumns(layout) > 0);
                 cell->onValue = [this, at = index](std::int64_t value) { _editor.set(at, value); };  // [RQ-APP-052]
                 _pane.addAndMakeVisible(*cell);
                 group.cells.push_back(std::move(cell));
@@ -275,11 +290,11 @@ namespace app::ui
         for (const layouts::LayoutParameter& parameter : group.parameters)
             cells += ParameterCell::cells(parameter);
         const int inside = pixels(kSpaceInside);
-        if (group.zones > 0)
+        if (const int columns = gridColumns(group); columns > 0)
         {
-            // A zone grid: a head row of zone numbers, then a row per parameter. [DEC-APP-033]
-            const int rows = static_cast<int>(group.parameters.size()) + 1;
-            return {(GRID_LABEL_CELLS + group.zones * GRID_COLUMN_CELLS) * ParameterCell::cellWidth() + 2 * inside,
+            // A grid: a head row of zone numbers or column titles, then its rows. [DEC-APP-033, DEC-APP-035]
+            const int rows = gridRows(group) + 1;
+            return {(GRID_LABEL_CELLS + columns * GRID_COLUMN_CELLS) * ParameterCell::cellWidth() + 2 * inside,
                     inside + pixels(kFontLabelSize) + pixels(kSpaceBetween) + rows * gridPitch() + inside};
         }
         const int graph = group.envelope.empty() ? 0 : pixels(kEnvelopeHeight) + pixels(kSpaceBetween);  // [RQ-APP-095]
@@ -340,10 +355,11 @@ namespace app::ui
                 group.graph->setBounds(x + inside, top, size.x - 2 * inside, pixels(kEnvelopeHeight));
                 top += pixels(kEnvelopeHeight) + pixels(kSpaceBetween);
             }
-            if (group.layout->zones > 0)
+            const bool grid = gridColumns(*group.layout) > 0;
+            if (grid)
                 layoutGrid(group, x + inside, top);
             int cellX = x + inside;
-            for (std::size_t i = 0; group.layout->zones == 0 && i < group.cells.size(); ++i)
+            for (std::size_t i = 0; !grid && i < group.cells.size(); ++i)
             {
                 const int cellWidth = ParameterCell::cells(group.layout->parameters[i]) * ParameterCell::cellWidth();
                 group.cells[i]->setBounds(cellX, top, cellWidth, ParameterCell::cellHeight());
@@ -374,22 +390,23 @@ namespace app::ui
                        juce::Justification::centredLeft);
             // Where the group's parameters live: the program, the keygroup chosen, or a zone of it. [RQ-APP-056, DEC-APP-031]
             g.drawText(juce::String(scopeText(group.layout->scope)).toUpperCase(), title, juce::Justification::centredRight);
-            if (group.layout->zones > 0)
+            if (gridColumns(*group.layout) > 0)
                 paintGridLabels(g, group);
         }
     }
 
     void EditView::layoutGrid(Group& group, int left, int top) const
     {
-        // A column per zone under its number, a row per parameter: as the sampler's ZONE page. [RQ-APP-057, DEC-APP-033]
+        // A column per zone under its number, a row per parameter: as the sampler's ZONE page; or a column per part of an input, a row per
+        // input. [RQ-APP-057, DEC-APP-033, DEC-APP-035]
         const int columnWidth = GRID_COLUMN_CELLS * ParameterCell::cellWidth();
         const int first = left + GRID_LABEL_CELLS * ParameterCell::cellWidth();
-        const auto zones = static_cast<std::size_t>(group.layout->zones);
+        const auto columns = static_cast<std::size_t>(gridColumns(*group.layout));
         for (std::size_t i = 0; i < group.cells.size(); ++i)
         {
-            const int row = static_cast<int>(i / zones) + 1;
-            const int zone = static_cast<int>(i % zones);
-            group.cells[i]->setBounds(first + zone * columnWidth, top + row * gridPitch(), columnWidth, pixels(tokens::kValueboxHeight));
+            const int row = static_cast<int>(i / columns) + 1;
+            const int column = static_cast<int>(i % columns);
+            group.cells[i]->setBounds(first + column * columnWidth, top + row * gridPitch(), columnWidth, pixels(tokens::kValueboxHeight));
         }
     }
 
@@ -402,18 +419,41 @@ namespace app::ui
         const int columnWidth = GRID_COLUMN_CELLS * ParameterCell::cellWidth();
         const int first = left + GRID_LABEL_CELLS * ParameterCell::cellWidth();
         const int height = pixels(kValueboxHeight);
-        g.setColour(colourOf(kColourTextSecondary));
+        const layouts::LayoutGroup& layout = *group.layout;
+        const int columns = gridColumns(layout);
         g.setFont(_lookAndFeel.font(kFontLabelSize, true));
-        for (int zone = 0; zone < group.layout->zones; ++zone)
-            g.drawText(juce::String(ZONE_TEXT + std::to_string(zone + 1)).toUpperCase(), first + zone * columnWidth, top, columnWidth, height,
-                       juce::Justification::centred);
+        for (int column = 0; column < columns; ++column)
+            paintGridHead(g, group, column, first + column * columnWidth, top);
+        // A zone grid names each parameter's row; a group of columns, each input's row by its first cell.
+        g.setColour(colourOf(kColourTextSecondary));
+        const auto step = static_cast<std::size_t>(layout.zones > 0 ? 1 : columns);
         int y = top;
-        for (const layouts::LayoutParameter& parameter : group.layout->parameters)
+        for (std::size_t i = 0; i < layout.parameters.size(); i += step)
         {
             y += gridPitch();
-            g.drawText(juce::String(std::string(parameter.label)).toUpperCase(), left + pixels(kSizeSpace1), y, first - left, height,
+            g.drawText(juce::String(std::string(layout.parameters[i].label)).toUpperCase(), left + pixels(kSizeSpace1), y, first - left, height,
                        juce::Justification::centredLeft);
         }
+    }
+
+    void EditView::paintGridHead(juce::Graphics& g, const Group& group, int column, int x, int top) const
+    {
+        using namespace tokens;
+        const int columnWidth = GRID_COLUMN_CELLS * ParameterCell::cellWidth();
+        const int height = pixels(kValueboxHeight);
+        const layouts::LayoutGroup& layout = *group.layout;
+        g.setColour(colourOf(kColourTextSecondary));
+        if (layout.zones > 0)
+        {
+            g.drawText(juce::String(ZONE_TEXT + std::to_string(column + 1)).toUpperCase(), x, top, columnWidth, height, juce::Justification::centred);
+            return;
+        }
+        // A column's title, and where its cells live above it, on the group's title line. [RQ-APP-056, DEC-APP-035]
+        const layouts::LayoutColumn& head = layout.columns[static_cast<std::size_t>(column)];
+        g.drawText(juce::String(std::string(head.title)).toUpperCase(), x, top, columnWidth, height, juce::Justification::centred);
+        g.setColour(colourOf(kColourTextDisabled));
+        g.drawText(juce::String(scopeText(head.scope)).toUpperCase(), x, group.bounds.getY() + pixels(kSpaceInside), columnWidth,
+                   pixels(kFontLabelSize), juce::Justification::centred);
     }
 
     bool EditView::keyPressed(const juce::KeyPress& key)

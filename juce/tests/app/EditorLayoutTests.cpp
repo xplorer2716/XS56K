@@ -87,7 +87,7 @@ TEST_CASE("Given the sample editor's layout, Then its one order is start, loop s
 }
 
 TEST_CASE("Given the program editor's layout, Then every name is a parameter of the standard catalogue and every group's parameters live where "
-          "its scope says [RQ-APP-056, RQ-APP-093, RQ-APP-094, DEC-APP-031, TASK-APP-044]",
+          "its scope, or its column's, says [RQ-APP-056, RQ-APP-093, RQ-APP-094, DEC-APP-031, DEC-APP-035, TASK-APP-044, TASK-APP-049]",
           "[app][layout]")
 {
     const app::layouts::EditorLayout* program = layoutOf("program");
@@ -98,9 +98,12 @@ TEST_CASE("Given the program editor's layout, Then every name is a parameter of 
         for (const auto& group : tab.groups)
         {
             INFO(std::string(group.title));
-            CHECK(group.scope != app::layouts::Scope::None);
-            for (const auto& parameter : group.parameters)
+            // A group of columns says the scope of each column: of its cells. [RQ-APP-056, DEC-APP-035]
+            CHECK((group.scope != app::layouts::Scope::None) != !group.columns.empty());
+            for (std::size_t i = 0; i < group.parameters.size(); ++i)
             {
+                const auto& parameter = group.parameters[i];
+                const app::layouts::Scope scope = group.columns.empty() ? group.scope : group.columns[i % group.columns.size()].scope;
                 INFO(std::string(parameter.name));
                 if (parameter.control == app::layouts::Control::Sample)
                 {
@@ -112,7 +115,7 @@ TEST_CASE("Given the program editor's layout, Then every name is a parameter of 
                 });
                 REQUIRE(row != rows.end());
                 const bool programScope = row->scope == mcp::ParameterScope::Program;
-                CHECK(programScope == (group.scope == app::layouts::Scope::Program));
+                CHECK(programScope == (scope == app::layouts::Scope::Program));
             }
         }
     }

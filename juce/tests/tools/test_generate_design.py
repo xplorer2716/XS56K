@@ -255,8 +255,8 @@ class WritingTheEditorLayouts(unittest.TestCase):
         layout = copy.deepcopy(LAYOUT)
         layout["tabs"][0]["groups"][1]["row"] = True
         header = self.gen.render_layouts({"sample": layout})
-        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, true, 0}', header)
-        self.assertIn('LayoutGroup{"Playback", kSampleTab0Group0, Scope::None, {}, false, 0}', header)
+        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, true, 0, {}}', header)
+        self.assertIn('LayoutGroup{"Playback", kSampleTab0Group0, Scope::None, {}, false, 0, {}}', header)
 
     def test_given_no_layout_when_written_then_the_table_is_empty_and_still_compiles(self):
         header = self.gen.render_layouts({})
@@ -339,11 +339,11 @@ class WritingTheZoneGrid(unittest.TestCase):
     def test_given_a_zone_group_of_four_columns_when_written_then_it_says_its_zones_and_the_sample_control(self):
         header = self.gen.render_layouts({"program": self.layout(ZONE_GRID)})
         self.assertIn('{"zone sample", "Sample", Role::Sample, Control::Sample, {}, 0}', header)
-        self.assertIn('LayoutGroup{"Zones", kProgramTab0Group0, Scope::Zone, {}, false, 4}', header)
+        self.assertIn('LayoutGroup{"Zones", kProgramTab0Group0, Scope::Zone, {}, false, 4, {}}', header)
 
     def test_given_a_group_that_is_no_grid_when_written_then_it_has_no_zone_columns(self):
         header = self.gen.render_layouts({"sample": LAYOUT})
-        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, false, 0}', header)
+        self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, false, 0, {}}', header)
 
     def test_given_columns_outside_a_zone_scope_a_knob_in_a_grid_or_a_sample_outside_one_when_written_then_it_fails_and_names_it(self):
         keygroup = copy.deepcopy(ZONE_GRID)
@@ -381,6 +381,51 @@ class WritingAWiderControl(unittest.TestCase):
             with self.assertRaises(self.gen.TokenError) as raised:
                 self.gen.render_layouts(layouts)
             self.assertIn(named["name"], str(raised.exception))
+
+
+ROUTES = {"title": "Pitch", "columns": [{"title": "Source", "scope": "program"}, {"title": "Amount", "scope": "keygroup"}],
+          "parameters": [
+              {"name": "pitch modulation 1 source", "label": "Input 1", "role": "modulation", "control": "choice"},
+              {"name": "pitch modulation 1 amount", "label": "Amount", "role": "modulation", "control": "valuebox"},
+              {"name": "pitch modulation 2 source", "label": "Input 2", "role": "modulation", "control": "choice"},
+              {"name": "pitch modulation 2 amount", "label": "Amount", "role": "modulation", "control": "valuebox"}]}
+
+
+class WritingTheRoutingColumns(unittest.TestCase):
+    """The Modulation tab: a group per destination, its inputs a row each and its columns the source and the amount, each column saying
+    where it lives. [RQ-APP-057, RQ-APP-056, ADR-APP-004 (DEC-APP-035), TASK-APP-049]"""
+
+    def setUp(self):
+        self.gen = load_script()
+
+    @staticmethod
+    def layout(group):
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"] = [copy.deepcopy(group)]
+        return layout
+
+    def test_given_a_group_of_columns_when_written_then_each_column_has_its_title_and_scope_and_the_group_points_to_them(self):
+        header = self.gen.render_layouts({"program": self.layout(ROUTES)})
+        self.assertIn('kProgramTab0Group0Columns{{', header)
+        self.assertIn('{"Source", Scope::Program}', header)
+        self.assertIn('{"Amount", Scope::Keygroup}', header)
+        self.assertIn('LayoutGroup{"Pitch", kProgramTab0Group0, Scope::None, {}, false, 0, kProgramTab0Group0Columns}', header)
+
+    def test_given_columns_that_do_not_divide_the_parameters_a_knob_in_them_an_unknown_scope_or_zones_too_then_it_fails_naming_it(self):
+        odd = copy.deepcopy(ROUTES)
+        odd["parameters"].pop()
+        knob = copy.deepcopy(ROUTES)
+        knob["parameters"][1]["control"] = "knob"
+        unknown = copy.deepcopy(ROUTES)
+        unknown["columns"][1]["scope"] = "multi"
+        zones = copy.deepcopy(ROUTES)
+        zones["zones"] = 4
+        zones["scope"] = "zone"
+        for group, named in ((odd, "Pitch"), (knob, "pitch modulation 1 amount"), (unknown, "multi"), (zones, "Pitch")):
+            layouts = {"program": self.layout(group)}
+            with self.assertRaises(self.gen.TokenError) as raised:
+                self.gen.render_layouts(layouts)
+            self.assertIn(named, str(raised.exception))
 
 
 class CheckingTheGeneratedFiles(unittest.TestCase):

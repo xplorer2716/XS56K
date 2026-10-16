@@ -13,7 +13,8 @@ contrast), and writes:
 Usage: python3 juce/tools/generate_design.py [--check] [--tokens PATH] [--header PATH] [--doc PATH] [--layouts DIR] [--shapes DIR]
        [--layouts-header PATH]
 
-[TASK-APP-007, TASK-APP-035, RQ-APP-002, RQ-APP-005, RQ-APP-086, ADR-APP-002 (DEC-APP-011, DEC-APP-012), ADR-APP-004 (DEC-APP-024, DEC-APP-032), TASK-APP-051]
+[TASK-APP-007, TASK-APP-035, RQ-APP-002, RQ-APP-005, RQ-APP-086, ADR-APP-002 (DEC-APP-011, DEC-APP-012), ADR-APP-004 (DEC-APP-024, DEC-APP-032,
+DEC-APP-033, DEC-APP-035), TASK-APP-046, TASK-APP-049, TASK-APP-051]
 """
 import argparse
 import json
@@ -32,6 +33,7 @@ CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": 
 GRID_CONTROLS = ("choice", "valuebox", "sample")  # a zone grid's cells are a row high [RQ-APP-057, DEC-APP-033]
 ZONE_COUNT = 4  # the zones of a keygroup
 WIDE_CONTROLS = ("choice", "valuebox")  # the controls a layout may widen
+COLUMN_CONTROLS = ("choice", "valuebox")  # a routing's cells: its source and its amount [DEC-APP-035]
 MIN_CELLS, MAX_CELLS = 1, 3
 ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
 SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone"}
@@ -325,9 +327,34 @@ def render_zones(editor, group):
     return zones
 
 
+def render_columns(editor, group, name, lines):
+    """A group of columns: each a title and the scope of its cells, the parameters read a row at a time; `{}` for a group that is none.
+    Its cells are choices or value boxes, as many on each row, and a group is not both columns and zones. [RQ-APP-057, DEC-APP-035]"""
+    columns = group.get("columns", [])
+    if not columns:
+        return "{}"
+    parameters = group.get("parameters", [])
+    if group.get("zones") or len(parameters) % len(columns) != 0:
+        raise TokenError(f"the layout {editor} gives the group {group['title']} {len(columns)} columns, which do not lay out its "
+                         f"{len(parameters)} parameters, or zones too")
+    for parameter in parameters:
+        if parameter.get("control") not in COLUMN_CONTROLS:
+            raise TokenError(f"the layout {editor} puts {parameter['name']} in the columns of {group['title']} as a {parameter.get('control')}")
+    for column in columns:
+        if column.get("scope") not in SCOPES:
+            raise TokenError(f"the layout {editor} gives the column {column.get('title')} of {group['title']} the unknown scope "
+                             f"{column.get('scope')}")
+    table = f"{name}Columns"
+    lines.append(f"    inline constexpr std::array<LayoutColumn, {len(columns)}> {table}{{{{")
+    lines += [f"        {{{cpp_text(column['title'])}, Scope::{SCOPES[column['scope']]}}}," for column in columns]
+    lines.append(CLOSE_TABLE)
+    return table
+
+
 def render_group(editor, group, name, lines, shapes):
     """One group: its tables are appended to `lines`, its initialiser is returned."""
     zones = render_zones(editor, group)
+    columns = render_columns(editor, group, name, lines)
     lines += render_parameters(editor, group, name, shapes)
     scope_cpp = render_scope(editor, group)
     envelope = render_envelope(editor, group)
@@ -338,7 +365,7 @@ def render_group(editor, group, name, lines, shapes):
         lines += [f"        {stage}," for stage in envelope]
         lines.append(CLOSE_TABLE)
     row = "true" if group.get("row") else "false"
-    return f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}, {zones}}}"
+    return f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}, {zones}, {columns}}}"
 
 
 def render_tab(editor, prefix, tab_index, tab, lines, shapes):

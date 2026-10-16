@@ -61,7 +61,8 @@ namespace
     constexpr std::size_t ENVELOPES_TAB = 1;
     constexpr std::size_t FILTER_TAB = 2;
     constexpr std::size_t LFO_TAB = 3;
-    constexpr std::size_t PROGRAM_TAB = 4;
+    constexpr std::size_t MODULATION_TAB = 4;
+    constexpr std::size_t PROGRAM_TAB = 5;
 
     const mcp::ParameterDefinition& sampleParameter(const std::string& name)
     {
@@ -898,5 +899,38 @@ TEST_CASE("Given PAD with LFO 1's rate 43, When the LFO tab is shown, Then it ho
         CHECK(group.scope == app::layouts::Scope::Program);
     CHECK(edit.values.size() == LFO_PARAMETERS);
     CHECK(fixture.shown("lfo 1 rate") == std::optional<std::int64_t>(RATE));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given the Aux envelope routed to PAD's filter input 1 with an amount of 50 on keygroup 1, When the Modulation tab is shown, Then it "
+          "shows the routing; When the person sets its amount to 70, Then it is sent and read back on keygroup 1 [RQ-APP-057, DEC-APP-035, "
+          "TASK-APP-049]",
+          "[app][edit]")
+{
+    constexpr std::int64_t AUX_ENV = 11;  // the source's code (spec Table 13)
+    constexpr std::int64_t AMOUNT = 50;
+    constexpr std::int64_t NEW_AMOUNT = 70;
+    constexpr std::size_t ROUTING_VALUES = 34;
+    EditRig fixture;
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    REQUIRE(fixture.rig.gateway.writeParameter(programParameter("filter modulation 1 source"), AUX_ENV, mcp::KeygroupSelection::all()).ok());
+    REQUIRE(fixture.rig.gateway.writeParameter(programParameter("filter modulation 1 amount"), AMOUNT, mcp::KeygroupSelection::of(1)).ok());
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.showTab(MODULATION_TAB);
+    REQUIRE(fixture.rig.settle());
+    const app::EditState& edit = fixture.rig.model.edit();
+    CHECK(edit.layout->tabs[edit.tab].title == "Modulation");
+    CHECK(edit.values.size() == ROUTING_VALUES);
+    CHECK(fixture.shown("filter modulation 1 source") == std::optional<std::int64_t>(AUX_ENV));
+    CHECK(fixture.shown("filter modulation 1 amount") == std::optional<std::int64_t>(AMOUNT));
+
+    fixture.editor.set(fixture.index("filter modulation 1 amount"), NEW_AMOUNT);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("filter modulation 1 amount") == std::optional<std::int64_t>(NEW_AMOUNT));
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    const auto read = fixture.rig.gateway.readParameter(programParameter("filter modulation 1 amount"), mcp::KeygroupSelection::of(1));
+    REQUIRE(read.ok());
+    CHECK(read.value->front().value == NEW_AMOUNT);
     CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
