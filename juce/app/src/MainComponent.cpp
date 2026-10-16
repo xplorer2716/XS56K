@@ -231,13 +231,14 @@ namespace app::ui
 
     void MainComponent::modelChanged(ModelPart part)
     {
+        using enum ModelPart;
         // The edit panel shows its editor while an item is edited, the hint otherwise. [RQ-APP-048, TASK-APP-039]
-        if (part == ModelPart::Edit && _model.connection().state == ConnectionState::Connected)
+        if (part == Edit && _model.connection().state == ConnectionState::Connected)
             _editor.setHint(_model.edit().item ? juce::String() : juce::String(EDITOR_HINT));
-        if (part != ModelPart::Connection && part != ModelPart::Busy && part != ModelPart::Problem)
+        if (part != Connection && part != Busy && part != Problem)
             return;
         _status.show(_model.connection(), _model.busy(), _model.problem());
-        if (part == ModelPart::Connection)
+        if (part == Connection)
         {
             const bool connected = _model.connection().state == ConnectionState::Connected;
             _browser.setHint(connected ? juce::String() : juce::String(NOT_CONNECTED_HINT));

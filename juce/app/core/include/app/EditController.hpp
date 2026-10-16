@@ -63,6 +63,8 @@ namespace app
         void open(std::optional<MemoryItem> item);
         void read();
         void write(std::size_t index, std::int64_t value);
+        /// Sends the value that waited behind the write of the parameter at `index`, which has just ended.
+        void writeWaiting(std::size_t index);
 
         Model& _model;
         Controller& _controller;

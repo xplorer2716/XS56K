@@ -46,7 +46,7 @@ namespace app
         void selectDisk(int handle);
         /// Makes `folder` (from the root of the current disk) the sampler's current folder and lists it: the sampler goes up to the folder
         /// both paths share, then down. [RQ-APP-025]
-        void openFolder(std::vector<std::string> folder);
+        void openFolder(const std::vector<std::string>& folder);
         /// Selects a disk, a folder or a file in the browser; nothing is sent to the sampler, except the stop of an audition of another
         /// file. [RQ-APP-026, RQ-APP-027, RQ-APP-033]
         void select(BrowserItem item);

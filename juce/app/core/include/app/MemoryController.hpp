@@ -45,7 +45,7 @@ namespace app
         /// Makes `item` the sampler's current item of its kind (select by name) and the view's selection; when the sampler refuses, the
         /// selection goes back to the sampler's current item and the error is reported. A set list, of which the sampler has no current
         /// one, is only selected in the view. [RQ-APP-037, RQ-APP-010]
-        void select(MemoryItem item);
+        void select(const MemoryItem& item);
 
         /// Creates a program of `keygroups` keygroups, which becomes current and selected; a name a program already bears (without regard to
         /// case, spaces or hyphens) is refused with nothing sent. [RQ-APP-038, TASK-APP-016]

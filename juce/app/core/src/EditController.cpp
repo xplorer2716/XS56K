@@ -459,6 +459,14 @@ namespace app
         write(index, value);
     }
 
+    void EditController::writeWaiting(std::size_t index)
+    {
+        const auto waiting = _waiting.find(index);
+        const std::int64_t latest = waiting->second;
+        _waiting.erase(waiting);
+        write(index, latest);  // [RQ-APP-054]
+    }
+
     void EditController::write(std::size_t index, std::int64_t value)
     {
         const EditState& state = _model.edit();
@@ -482,16 +490,12 @@ namespace app
                     return;  // another item, tab or keygroup is shown: its writes were forgotten when it was chosen
                 }
                 _writing.erase(index);
-                const auto waiting = _waiting.find(index);
-                _model.setEdit(withWritten(_model.edit(), index, written, waiting != _waiting.end()));
+                const bool waiting = _waiting.contains(index);
+                _model.setEdit(withWritten(_model.edit(), index, written, waiting));
                 if (written.problem)
                     _model.setProblem(Problem{label, *written.problem});
-                if (waiting != _waiting.end())
-                {
-                    const std::int64_t latest = waiting->second;
-                    _waiting.erase(waiting);
-                    write(index, latest);
-                }
+                if (waiting)
+                    writeWaiting(index);
             });
         if (!queued)
         {

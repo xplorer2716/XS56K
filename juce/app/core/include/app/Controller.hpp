@@ -57,7 +57,7 @@ namespace app
         template <typename T>
         void run(std::string label, std::function<mcp::Outcome<T>()> call, std::function<void(const T&)> onSuccess)
         {
-            queue(std::move(label), wrap<T>(std::move(call), std::move(onSuccess), {}));
+            queue(label, wrap<T>(std::move(call), std::move(onSuccess), {}));
         }
 
         /// Asks `question` first, and queues the job only when the person confirms: a cancel sends nothing. [RQ-APP-011, DEC-APP-007]

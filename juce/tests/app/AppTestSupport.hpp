@@ -213,8 +213,9 @@ namespace app::test
                     _port.reset();
                     _owner.record("release " + _name);
                 }
-                catch (...)  // NOSONAR: a recording that fails has no one to report to
+                catch (...)
                 {
+                    // A recording that fails has no one to report to.
                 }
             }
             Input(const Input&) = delete;
@@ -250,8 +251,9 @@ namespace app::test
                     _port.reset();
                     _owner.record("release " + _name);
                 }
-                catch (...)  // NOSONAR: a recording that fails has no one to report to
+                catch (...)
                 {
+                    // A recording that fails has no one to report to.
                 }
             }
             Output(const Output&) = delete;

@@ -73,8 +73,9 @@ namespace app::ui
                     if (_answer)
                         std::exchange(_answer, nullptr)(false);
                 }
-                catch (...)  // NOSONAR: nothing can be done about a failing answer while the dialog is destroyed
+                catch (...)
                 {
+                    // Nothing can be done about a failing answer while the dialog is destroyed.
                 }
             }
 

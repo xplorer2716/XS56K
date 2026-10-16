@@ -304,12 +304,12 @@ namespace app
                                                       previous.has_value() && indexOf(state.list(previous->kind).names, previous->name))
                                                       state.selection = previous;
                                                   _model.setMemory(std::move(state));
-                                                  if (select)
+                                                  if (select.has_value())
                                                       this->select(*select);
                                               });
     }
 
-    void MemoryController::select(MemoryItem item)
+    void MemoryController::select(const MemoryItem& item)
     {
         if (_auditioning && !(*_auditioning == item))
             stopAudition();

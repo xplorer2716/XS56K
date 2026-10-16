@@ -264,7 +264,7 @@ namespace app
             });
     }
 
-    void FileBrowser::openFolder(std::vector<std::string> folder)
+    void FileBrowser::openFolder(const std::vector<std::string>& folder)
     {
         const std::string label = OPENING_LABEL + (folder.empty() ? std::string(ROOT_NAME) : pathText(folder));
         _controller.runOnSampler<mcp::DiskContents>(
@@ -374,8 +374,8 @@ namespace app
         const std::string label = RENAMING_LABEL + item.name;
         const bool isFile = item.kind == BrowserItemKind::File;
         const auto dot = item.name.rfind(EXTENSION_DOT);
-        const std::string finalName = isFile && dot != std::string::npos ? newName + item.name.substr(dot) : newName;
-        if (refuseTakenName(item.folder, finalName, label))
+        if (const std::string finalName = isFile && dot != std::string::npos ? newName + item.name.substr(dot) : newName;
+            refuseTakenName(item.folder, finalName, label))
             return;
         _controller.runOnSampler<mcp::DiskContents>(
             label,
