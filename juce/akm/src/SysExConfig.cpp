@@ -95,7 +95,7 @@ namespace akm
     void echo(Session& session, const std::array<std::uint8_t, ECHO_DATA_SIZE>& data, EchoCompletion completion)
     {
         std::array<std::int64_t, ECHO_DATA_SIZE> values{};
-        std::copy(data.begin(), data.end(), values.begin());
+        std::ranges::copy(data, values.begin());
 
         session.submit(makeRequest(ItemId::SysExEcho, values),
                        [sent = std::vector<std::uint8_t>(data.begin(), data.end()),

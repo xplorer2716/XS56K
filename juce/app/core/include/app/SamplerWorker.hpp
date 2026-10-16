@@ -62,6 +62,6 @@ namespace app
         std::deque<Job> _jobs;
         bool _running = false;
         bool _stopping = false;
-        std::thread _thread;  // last: started once the members above exist
+        std::jthread _thread;  // last: started once the members above exist; joined by the destructor before the members go
     };
 }

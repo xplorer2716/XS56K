@@ -18,6 +18,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "mcp/SamplerGateway.hpp"
 
 #include <algorithm>
+#include <cstdio>
 #include <functional>
 #include <future>
 #include <iomanip>
@@ -233,6 +234,7 @@ namespace mcp
         }
         catch (...)
         {
+            std::fputs("xs56k: the session could not be closed while the gateway was destroyed\n", stderr);  // [TASK-QLT-025]
         }
     }
 
@@ -1333,7 +1335,7 @@ namespace mcp
             return Outcome<RenamedItem>::failure(listing.problem);
         if (!listing.value->current)
             return Outcome<RenamedItem>::failure("No sample is current: " + selectAdvice(_config, "sample"));
-        const std::size_t current = static_cast<std::size_t>(*listing.value->current);
+        const auto current = static_cast<std::size_t>(*listing.value->current);
         const std::string before = listing.value->samples[current].name;
         const std::string wanted = normalizeText(name);
         for (std::size_t i = 0; i < listing.value->samples.size(); ++i)
@@ -1759,7 +1761,7 @@ namespace mcp
         {
             ProgramChoice choice;
             const std::string wanted = normalizeText(name);
-            const auto found = std::find_if(programs.begin(), programs.end(),
+            const auto found = std::ranges::find_if(programs,
                                             [&wanted](const ProgramEntry& entry) { return normalizeText(entry.name) == wanted; });
             if (found == programs.end())
             {

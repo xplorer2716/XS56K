@@ -21,6 +21,7 @@
 // guards it: the tools that reach it exist only with `--allow-front-panel`. A key held is released by the AKM session when it closes.
 // [TASK-MCP-053, RQ-MCP-054, RQ-MCP-057, ADR-MCP-005 (DEC-MCP-032)]
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <utility>
 
@@ -49,7 +50,7 @@ namespace mcp
         };
 
         // Table 31, in the order of the specification: mode keys, function keys, numeric keys, the others.
-        constexpr PanelKey PANEL_KEYS[] = {
+        constexpr auto PANEL_KEYS = std::to_array<PanelKey>({
             {"multi", akm::FrontPanelKey::Multi},
             {"fx", akm::FrontPanelKey::Fx},
             {"edit_sample", akm::FrontPanelKey::EditSample},
@@ -93,12 +94,12 @@ namespace mcp
             {"jump", akm::FrontPanelKey::Jump},
             {"exit", akm::FrontPanelKey::Exit},
             {"ent_play", akm::FrontPanelKey::EntPlay},
-        };
+        });
 
         std::string keyOf(std::string_view text)
         {
             std::string spaced(text);
-            std::replace(spaced.begin(), spaced.end(), '_', ' ');
+            std::ranges::replace(spaced, '_', ' ');
             return normalizeText(spaced);
         }
 

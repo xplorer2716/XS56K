@@ -184,7 +184,7 @@ namespace mcp
         std::string keyOf(std::string_view text)
         {
             std::string spaced(text);
-            std::replace(spaced.begin(), spaced.end(), '_', ' ');
+            std::ranges::replace(spaced, '_', ' ');
             return normalizeText(spaced);
         }
 
@@ -227,7 +227,7 @@ namespace mcp
     const FxParameter* fxParameterOf(const FxModuleKind& kind, std::string_view nameOrIndex)
     {
         const std::string text(nameOrIndex);
-        const bool digits = !text.empty() && std::all_of(text.begin(), text.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
+        const bool digits = !text.empty() && std::ranges::all_of(text, [](char c) { return std::isdigit(static_cast<unsigned char>(c)) != 0; });
         const std::string wanted = keyOf(nameOrIndex);
         for (const FxParameter& parameter : kind.parameters)
         {

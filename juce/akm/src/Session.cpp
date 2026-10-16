@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <atomic>
 #include <chrono>
 #include <cstddef>
+#include <cstdio>
 #include <deque>
 #include <future>
 #include <set>
@@ -485,7 +486,7 @@ namespace akm
             if (confirmation.userRefs.size() != SESSION_USER_REF_COUNT)
                 return false;
             const std::uint8_t userRef = confirmation.userRefs.front();
-            return std::any_of(completed.begin(), completed.end(), [&](const CompletedCommand& candidate) {
+            return std::ranges::any_of(completed, [&](const CompletedCommand& candidate) {
                 return candidate.completedByReply && candidate.userRef == userRef
                        && candidate.section == confirmation.section && candidate.item == confirmation.item;
             });
@@ -661,7 +662,7 @@ namespace akm
                 Opening context;
                 context.steps = stepsOf(config);
                 context.result.targetDeviceId = config.targetDeviceId;
-                context.config = std::move(config);
+                context.config = config;
                 context.completion = std::move(completion);
                 opening = std::move(context);
                 startDiscovery();
@@ -704,7 +705,7 @@ namespace akm
             OpenResult& outcome = opening->result;
             outcome.responders.assign(opening->responders.begin(), opening->responders.end());
             const auto answeredAs = [&outcome](std::uint32_t deviceId) {
-                return std::find(outcome.responders.begin(), outcome.responders.end(), deviceId) != outcome.responders.end();
+                return std::ranges::find(outcome.responders, deviceId) != outcome.responders.end();
             };
             const std::uint32_t wanted = opening->config.targetDeviceId;
             // A target of 0, or a sampler answering as 0, reaches every sampler: with more than one present, it
@@ -811,7 +812,7 @@ namespace akm
             }
             for (const SamplerSetting setting : RESTORE_ORDER)
             {
-                if (changed.count(setting) != 0)
+                if (changed.contains(setting))
                     context.pending.push_back(setting);
             }
             closingContext = std::move(context);
@@ -966,24 +967,39 @@ namespace akm
         Impl* impl = _impl.get();
         // A session that was not closed shuts down as close() does — where its executor can run the work without
         // anyone driving it, and from a thread that is not its own (RQ-AKM-042).
-        if (impl->executor.runsOnItsOwnThread() && !impl->executor.isCurrentThread())
+        // A destructor must not throw: a failure is written to the standard error, the server's log. [TASK-QLT-025]
+        try
         {
-            const auto done = std::make_shared<std::promise<void>>();
-            std::future<void> finished = done->get_future();
-            if (close(CloseCompletion([done](const CloseResult&) { done->set_value(); })))
-                static_cast<void>(
-                    finished.wait_for(impl->timing.commandTimeout * CLOSE_WAIT_IN_COMMAND_TIMEOUTS + CLOSE_WAIT_GRACE));
+            if (impl->executor.runsOnItsOwnThread() && !impl->executor.isCurrentThread())
+            {
+                const auto done = std::make_shared<std::promise<void>>();
+                std::future<void> finished = done->get_future();
+                if (close(CloseCompletion([done](const CloseResult&) { done->set_value(); })))
+                    static_cast<void>(
+                        finished.wait_for(impl->timing.commandTimeout * CLOSE_WAIT_IN_COMMAND_TIMEOUTS + CLOSE_WAIT_GRACE));
+            }
         }
-        impl->alive->store(false);
-        impl->input.stop();
-        impl->input.setCallbacks({});
+        catch (...)
+        {
+            std::fputs("xs56k: the session could not be closed while it was destroyed\n", stderr);
+        }
+        try
+        {
+            impl->alive->store(false);
+            impl->input.stop();
+            impl->input.setCallbacks({});
+        }
+        catch (...)
+        {
+            std::fputs("xs56k: the MIDI input could not be stopped while the session was destroyed\n", stderr);
+        }
     }
 
     void Session::open(SessionConfig config, OpenCompletion completion)
     {
         Impl* impl = _impl.get();
-        impl->postToSession([impl, config = std::move(config), completion = std::move(completion)]() mutable {
-            impl->beginOpen(std::move(config), std::move(completion));
+        impl->postToSession([impl, config = config, completion = std::move(completion)]() mutable {
+            impl->beginOpen(config, std::move(completion));
         });
     }
 

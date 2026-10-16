@@ -138,7 +138,7 @@ namespace midiapp::controller
         /// One iteration = wait one transmit-delay tick, scan changed
         /// parameters into the queue (cloned), send at most one. Subclasses
         /// override to add page-select sequencing (RQ-CTL-020).
-        virtual void workerThreadProc(std::stop_token stopToken);
+        virtual void workerThreadProc(const std::stop_token& stopToken);
 
         /// Interruptible wait honoring both the transmit delay and stop
         /// requests; returns false when stopping.

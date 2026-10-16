@@ -17,8 +17,8 @@ namespace midiapp::controller
             const std::lock_guard lock(_queueMutex);
             _parameterQueue.clear(); // start from an empty queue [RQ-FMW-041]
         }
-        _workerThread = std::jthread([this](std::stop_token stopToken)
-                                     { workerThreadProc(std::move(stopToken)); });
+        _workerThread = std::jthread([this](const std::stop_token& stopToken)
+                                     { workerThreadProc(stopToken); });
     }
 
     void AbstractController::stopWorkerThread()
@@ -56,7 +56,7 @@ namespace midiapp::controller
         }
     }
 
-    void AbstractController::workerThreadProc(std::stop_token stopToken)
+    void AbstractController::workerThreadProc(const std::stop_token& stopToken)
     {
         while (waitForTransmitDelay(stopToken))
         {

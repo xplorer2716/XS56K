@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // create-folder, eject and format primitives are called nowhere (checked by `CheckNoDestructiveCalls.cmake`). [RQ-MCP-024,
 // RQ-MCP-028, RQ-MCP-029, ADR-MCP-003 (DEC-MCP-015, DEC-MCP-016, DEC-MCP-017, DEC-MCP-019)]
 #include <algorithm>
+#include <array>
 #include <functional>
 #include <utility>
 #include <variant>
@@ -348,8 +349,8 @@ namespace mcp
             return Outcome<MemoryNames>::failure(multis.problem);
         for (const MultiEntry& multi : multis.value->multis)
             names.multis.push_back(multi.name);
-        const std::pair<NamedListKind, std::vector<std::string>*> lists[] = {
-            {NamedListKind::SongFile, &names.songFiles}, {NamedListKind::SetList, &names.setLists}, {NamedListKind::SceneList, &names.sceneLists}};
+        const auto lists = std::to_array<std::pair<NamedListKind, std::vector<std::string>*>>({
+            {NamedListKind::SongFile, &names.songFiles}, {NamedListKind::SetList, &names.setLists}, {NamedListKind::SceneList, &names.sceneLists}});
         for (const auto& [kind, target] : lists)
         {
             const auto listing = listNamedItems(kind);
@@ -909,7 +910,7 @@ namespace mcp
             return Outcome<SaveOutcome>::failure(memory.problem);
         const std::vector<std::string>& names = namesOfKind(*memory.value, kind);
         const std::string wanted = normalizeText(name);
-        const auto found = std::find_if(names.begin(), names.end(), [&wanted](const std::string& item) { return normalizeText(item) == wanted; });
+        const auto found = std::ranges::find_if(names, [&wanted](const std::string& item) { return normalizeText(item) == wanted; });
         if (found == names.end())
         {
             std::string text = "No " + std::string(kindName(kind)) + " is named \"" + std::string(name) + "\" in the sampler's memory.";
@@ -997,7 +998,7 @@ namespace mcp
             return Outcome<SaveOutcome>::failure("The save was sent but the folder could not be read afterwards: " + after.problem);
         // Same as for one item: when a file of an item is missing from the listing, the folder is opened again and read once more.
         const auto anyMissing = [&names](const DiskContents& contents) {
-            return std::any_of(names.begin(), names.end(), [&contents](const std::string& item) { return fileBearing(contents.files, item) == nullptr; });
+            return std::ranges::any_of(names, [&contents](const std::string& item) { return fileBearing(contents.files, item) == nullptr; });
         };
         if (anyMissing(*after.value))
         {

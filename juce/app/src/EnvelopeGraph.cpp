@@ -97,22 +97,22 @@ namespace app::ui
         const float share = area.getWidth() / static_cast<float>(std::max<std::size_t>(1, _stages.size()));
         std::vector<juce::Point<float>> shown{{area.getX(), area.getBottom()}};
         if (handles != nullptr)
-            handles->push_back(std::nullopt);
+            handles->emplace_back(std::nullopt);
         float level = 0.0f;
         for (std::size_t stage = 0; stage < _stages.size(); ++stage)
         {
             const Shape shape = shapeOf(stage);
             if (_stages[stage].sustain)
             {
-                shown.push_back({shown.back().x + share, area.getBottom() - area.getHeight() * level});
+                shown.emplace_back(shown.back().x + share, area.getBottom() - area.getHeight() * level);
                 if (handles != nullptr)
-                    handles->push_back(std::nullopt);
+                    handles->emplace_back(std::nullopt);
                 continue;
             }
             level = shape.level;
-            shown.push_back({shown.back().x + share * shape.time, area.getBottom() - area.getHeight() * level});
+            shown.emplace_back(shown.back().x + share * shape.time, area.getBottom() - area.getHeight() * level);
             if (handles != nullptr)
-                handles->push_back(stage);
+                handles->emplace_back(stage);
         }
         return shown;
     }

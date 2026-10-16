@@ -40,7 +40,7 @@ namespace app::ui
     class AreaPanel final : public juce::Component
     {
     public:
-        AreaPanel(LookAndFeel& lookAndFeel, juce::String title, bool withTabRow);
+        AreaPanel(LookAndFeel& lookAndFeel, const juce::String& title, bool withTabRow);
 
         void setHint(const juce::String& hint);
         /// The component drawn under the title, shown only while it has something to show (no hint). [TASK-APP-018]
