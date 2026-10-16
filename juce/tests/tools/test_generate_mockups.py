@@ -284,6 +284,15 @@ class RenderingAScreen(unittest.TestCase):
         self.assertLess(question_y, field_y)
         self.assertLess(field_y, add_y)
 
+    def test_given_a_choice_of_three_cells_when_rendered_then_its_group_is_one_knob_cell_wider(self):
+        # A choice whose labels are long: LFO 2's clock division. [RQ-APP-057, DEC-APP-027, TASK-APP-048]
+        data = tokens()
+        theme = self.gen.Theme(data)
+        narrow = self.gen.group_size(theme, LAYOUT["tabs"][0]["groups"][0])[0]
+        wide = copy.deepcopy(LAYOUT["tabs"][0]["groups"][0])
+        wide["parameters"][1]["cells"] = 3
+        self.assertAlmostEqual(self.gen.group_size(theme, wide)[0] - narrow, self.gen.cell_width(theme))
+
     def test_given_a_group_that_starts_a_row_when_rendered_then_it_is_drawn_under_the_first_at_the_left(self):
         # Two narrow groups would share a row; the second starts its own. [RQ-APP-094, DEC-APP-031, TASK-APP-044]
         layout = copy.deepcopy(LAYOUT)

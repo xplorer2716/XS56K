@@ -17,7 +17,7 @@ the real S5000 when it is done. Two orders, independent of each other:
 | 3 | Filter | keygroup | none: a layout |
 | 4 | Keygroup | keygroup and zones | the parameters of the four zones; a sample chosen among those in memory (RQ-APP-060); orders note and velocity (RQ-APP-092) |
 | 5 | (in Keygroup) | program | adding and deleting keygroups (RQ-APP-061) |
-| 6 | Mod sources | program | none: LFO 1 and LFO 2 |
+| 6 | LFO (named Mod sources until 2026-10-16) | program | none: LFO 1 and LFO 2 |
 | 7 | Modulation | keygroup | the routings of the modulation sources, source to destination |
 | 8 | (selector) | keygroup | "all keygroups": a state "the values differ" in the controls (RQ-APP-059, Could) |
 
@@ -28,7 +28,7 @@ the real S5000 when it is done. Two orders, independent of each other:
 | 1 | Keygroup | the key span, the four zones: sample, level, pan, tune, velocity span, playback, mute and solo |
 | 2 | Envelopes | Amp (with the keygroup level), Filter and Aux envelopes, a row each |
 | 3 | Filter | mode, cutoff, resonance, keyboard track, attenuation |
-| 4 | Mod sources | LFO 1, LFO 2 |
+| 4 | LFO | LFO 1, LFO 2 |
 | 5 | Modulation | the routings of the sources |
 | 6 | Program | output, tuning, pitch bend, portamento: set once |
 
@@ -183,17 +183,26 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 - **Assumptions**: (1) The buttons are in the header, so on every tab (owner: "fais comme tu proposes"). (2) The confirmation dialog keeps its
   button "Confirm". (3) A count that is not 1 to the most keeps the dialog open, the field in the pending colour.
 
-### TASK-APP-048: The Mod sources tab
-- **Tier**: S
-- **Status**: Not Started
+### TASK-APP-048: The LFO tab
+- **Tier**: M (re-tiered from S: a screen description, its mockups, and a layout field)
+- **Status**: Done
 - **Description**: LFO 1 and LFO 2 (program); the Aux envelope is in the Envelopes tab.
 - **Requirement refs**: RQ-APP-056, RQ-APP-057
-- **ADR refs**: ADR-APP-004 (DEC-APP-024)
+- **ADR refs**: ADR-APP-004 (DEC-APP-024, DEC-APP-027)
 - **Acceptance Criteria** (Gherkin): *Given* the tab shown, *Then* each group reads PROGRAM.
 - **Dependencies**: TASK-APP-044
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: —
+- **Verification**: Windows/MSVC, Debug, 2026-10-16. Mockup `lfo-editor`: LFO 1 (rate, delay, depth, wave, sync, modwheel, aftertouch) and LFO 2
+  (rate, delay, depth, wave, retrigger, clock sync, division), a row each; the labels Modwheel and Aftertch overlapped, shortened to Wheel and
+  Touch; the clock division's labels overflowed a choice, so a layout parameter may say `"cells"` (owner's choice): tests first and failing
+  (design 2: three cells generated, cells on a knob or out of 1 to 3 refused; mockups 1: the group a knob cell wider; C++ 1: the division three
+  cells wide), then 30 design and 26 mockup tests pass. Core case (LFO 1's rate 43 read, 14 values, each group PROGRAM) failed to compile
+  with the layout case, then passed; the Program tab moved to index 4. The tab first named "Mod sources" is "LFO" (owner, 2026-10-16: the
+  envelopes and external controllers are modulation sources too; the Modulation tab routes them all). 89 app cases; build warning-clean;
+  `ctest -C Debug`: 1236 passed; `tidy.py`: 15 sources, 0 findings. Mockup validated by the owner. Not verified: the real S5000, GCC and
+  Apple Clang (CI).
+- **Assumptions**: (1) The LFO's modulation inputs (the source and amount of its rate, delay and depth) go to the Modulation tab. (2) The core
+  case and the `cells` field were written before the owner validated the mockup; nothing changed after it.
 
 ### TASK-APP-049: The Modulation tab
 - **Tier**: M

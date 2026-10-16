@@ -74,6 +74,11 @@ namespace app::ui
         return KNOB_CELLS;
     }
 
+    int ParameterCell::cells(const layouts::LayoutParameter& parameter)
+    {
+        return parameter.cells > 0 ? parameter.cells : cells(parameter.control);
+    }
+
     int ParameterCell::cellWidth()
     {
         using namespace tokens;

@@ -723,16 +723,16 @@ TASK-APP-040|131-151|In Progress|Mockup, documentation and the real run
 TASK-APP-041|152-168|In Progress|The loop end moves alone
 TASK-APP-042|169-185|In Progress|Orders as layout data, the controls back to the model
 @process/3.plan/PLAN-APP-006-program-editor-roadmap.md
-PLAN-APP-006|1-221||Editor Application — Roadmap of the Program Editor
+PLAN-APP-006|1-230||Editor Application — Roadmap of the Program Editor
 TASK-APP-043|50-73|Done|The Program tab
 TASK-APP-044|74-95|In Progress|The Envelopes tab and the keygroup selector
 TASK-APP-045|96-112|Done|The Filter tab
 TASK-APP-051|113-139|Done|The filter type drawn as its shape
 TASK-APP-046|140-165|Done|The Keygroup tab and its four zones
 TASK-APP-047|166-185|Done|Adding and deleting keygroups
-TASK-APP-048|186-197|Not Started|The Mod sources tab
-TASK-APP-049|198-210|Not Started|The Modulation tab
-TASK-APP-050|211-221|Not Started|All keygroups at once
+TASK-APP-048|186-206|Done|The LFO tab
+TASK-APP-049|207-219|Not Started|The Modulation tab
+TASK-APP-050|220-230|Not Started|All keygroups at once
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

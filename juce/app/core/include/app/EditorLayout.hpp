@@ -68,6 +68,7 @@ namespace app::layouts
         Role role;
         Control control;
         std::span<const ChoiceShape> shapes{};  ///< a choice's shapes by label; empty: none drawn (DEC-APP-032)
+        int cells = 0;                          ///< the knob cells a widened choice or value box takes; 0: its control's (TASK-APP-048)
     };
 
     /// The shape of `label` among the parameter's shapes; empty when it has none, and the name is shown alone. [RQ-APP-096]

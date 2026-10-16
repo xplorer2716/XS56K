@@ -31,6 +31,8 @@ DEFAULT_LAYOUTS_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "E
 CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider", "sample": "Sample"}
 GRID_CONTROLS = ("choice", "valuebox", "sample")  # a zone grid's cells are a row high [RQ-APP-057, DEC-APP-033]
 ZONE_COUNT = 4  # the zones of a keygroup
+WIDE_CONTROLS = ("choice", "valuebox")  # the controls a layout may widen
+MIN_CELLS, MAX_CELLS = 1, 3
 ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
 SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone"}
 
@@ -279,7 +281,20 @@ def render_parameter(editor, parameter, shapes):
         if shape_set not in shapes:
             raise TokenError(f"the layout {editor} gives {parameter['name']} the unknown shape set {shape_set}")
         fields.append(f"{shape_table(shape_set)}Shapes")
+    fields.append(str(render_cells(editor, parameter)))
     return "{" + ", ".join(fields) + "}"
+
+
+def render_cells(editor, parameter):
+    """The knob cells a choice or a value box takes when the layout says so (long labels), 0 for the control's own width.
+    [RQ-APP-057, DEC-APP-027, TASK-APP-048]"""
+    if "cells" not in parameter:
+        return 0
+    cells = parameter["cells"]
+    if parameter.get("control") not in WIDE_CONTROLS or not MIN_CELLS <= cells <= MAX_CELLS:
+        raise TokenError(f"the layout {editor} gives {parameter['name']} {cells} cells: only a choice or a value box takes {MIN_CELLS} to "
+                         f"{MAX_CELLS}")
+    return cells
 
 
 def render_parameters(editor, group, name, shapes):

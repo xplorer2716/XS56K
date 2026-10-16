@@ -45,6 +45,8 @@ namespace app::ui
 
         /// How many knob cells wide the control is: a knob one, a choice or a value box two, a slider three.
         [[nodiscard]] static int cells(layouts::Control control);
+        /// The cells of a parameter: those its layout gives it (a choice with long labels), or its control's. [TASK-APP-048]
+        [[nodiscard]] static int cells(const layouts::LayoutParameter& parameter);
         /// The width of one knob cell and the height of every cell.
         [[nodiscard]] static int cellWidth();
         [[nodiscard]] static int cellHeight();

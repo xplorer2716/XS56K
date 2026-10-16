@@ -182,8 +182,8 @@ class WritingTheEditorLayouts(unittest.TestCase):
     def test_given_a_layout_when_written_then_its_tabs_groups_and_parameters_are_constexpr_tables_in_order(self):
         header = self.gen.render_layouts({"sample": LAYOUT})
         self.assertIn("namespace app::layouts", header)
-        self.assertIn('{"sample start position", "Start", Role::Sample, Control::Slider, {}}', header)
-        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}}', header)
+        self.assertIn('{"sample start position", "Start", Role::Sample, Control::Slider, {}, 0}', header)
+        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}, 0}', header)
         self.assertLess(header.index('"Playback"'), header.index('"Pitch"'))
         self.assertIn('"sample"', header)
         self.assertIn("kEditorLayouts", header)
@@ -283,8 +283,8 @@ class WritingTheChoiceShapes(unittest.TestCase):
 
     def test_given_a_choice_naming_a_shape_set_when_written_then_each_label_has_its_polyline_in_order_and_the_choice_points_to_them(self):
         header = self.gen.render_layouts({"sample": self.layout()}, SHAPES)
-        self.assertIn('{"sample playback mode", "Mode", Role::Sample, Control::Choice, kFilterTypesShapes}', header)
-        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}}', header)
+        self.assertIn('{"sample playback mode", "Mode", Role::Sample, Control::Choice, kFilterTypesShapes, 0}', header)
+        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}, 0}', header)
         self.assertIn("{0.0f, 0.7f}, {0.6f, 0.7f}, {0.92f, 0.0f}, {1.0f, 0.0f}", header)
         self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0}', header)
         self.assertLess(header.index('"2-POLE LP"'), header.index('"NOTCH 1"'))
@@ -338,7 +338,7 @@ class WritingTheZoneGrid(unittest.TestCase):
 
     def test_given_a_zone_group_of_four_columns_when_written_then_it_says_its_zones_and_the_sample_control(self):
         header = self.gen.render_layouts({"program": self.layout(ZONE_GRID)})
-        self.assertIn('{"zone sample", "Sample", Role::Sample, Control::Sample, {}}', header)
+        self.assertIn('{"zone sample", "Sample", Role::Sample, Control::Sample, {}, 0}', header)
         self.assertIn('LayoutGroup{"Zones", kProgramTab0Group0, Scope::Zone, {}, false, 4}', header)
 
     def test_given_a_group_that_is_no_grid_when_written_then_it_has_no_zone_columns(self):
@@ -358,6 +358,29 @@ class WritingTheZoneGrid(unittest.TestCase):
             with self.assertRaises(self.gen.TokenError) as raised:
                 self.gen.render_layouts(layouts)
             self.assertIn(named, str(raised.exception))
+
+
+class WritingAWiderControl(unittest.TestCase):
+    """A choice whose labels are long takes the cells the layout gives it. [RQ-APP-057, ADR-APP-004 (DEC-APP-027), TASK-APP-048]"""
+
+    def setUp(self):
+        self.gen = load_script()
+
+    def test_given_a_choice_of_three_cells_when_written_then_it_carries_them(self):
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][0]["parameters"][1]["cells"] = 3
+        header = self.gen.render_layouts({"sample": layout})
+        self.assertIn('{"sample playback mode", "Mode", Role::Sample, Control::Choice, {}, 3}', header)
+
+    def test_given_cells_on_a_knob_or_out_of_one_to_three_when_written_then_it_fails_and_names_it(self):
+        for group, parameter, cells in ((1, 0, 2), (0, 1, 4), (0, 1, 0)):
+            layout = copy.deepcopy(LAYOUT)
+            named = layout["tabs"][0]["groups"][group]["parameters"][parameter]
+            named["cells"] = cells
+            layouts = {"sample": layout}
+            with self.assertRaises(self.gen.TokenError) as raised:
+                self.gen.render_layouts(layouts)
+            self.assertIn(named["name"], str(raised.exception))
 
 
 class CheckingTheGeneratedFiles(unittest.TestCase):

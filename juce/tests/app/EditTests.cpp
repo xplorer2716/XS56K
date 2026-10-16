@@ -60,7 +60,8 @@ namespace
     constexpr std::size_t KEYGROUP_TAB = 0;
     constexpr std::size_t ENVELOPES_TAB = 1;
     constexpr std::size_t FILTER_TAB = 2;
-    constexpr std::size_t PROGRAM_TAB = 3;
+    constexpr std::size_t LFO_TAB = 3;
+    constexpr std::size_t PROGRAM_TAB = 4;
 
     const mcp::ParameterDefinition& sampleParameter(const std::string& name)
     {
@@ -874,4 +875,28 @@ TEST_CASE("Given PAD with 2 keygroups, When the person cancels the deletion, The
     CHECK(fixture.rig.prompts.asked.size() == questions);
     CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
     CHECK(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given PAD with LFO 1's rate 43, When the LFO tab is shown, Then it holds LFO 1 and LFO 2, each group reading PROGRAM, and "
+          "the rate reads 43 [RQ-APP-056, RQ-APP-057, TASK-APP-048]",
+          "[app][edit]")
+{
+    constexpr std::int64_t RATE = 43;
+    constexpr std::size_t LFO_PARAMETERS = 14;
+    EditRig fixture;
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    REQUIRE(fixture.rig.gateway.writeParameter(programParameter("lfo 1 rate"), RATE, mcp::KeygroupSelection::all()).ok());
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.showTab(LFO_TAB);
+    REQUIRE(fixture.rig.settle());
+    const app::EditState& edit = fixture.rig.model.edit();
+    const app::layouts::LayoutTab& tab = edit.layout->tabs[edit.tab];
+    CHECK(tab.title == "LFO");
+    REQUIRE(tab.groups.size() == 2);
+    for (const app::layouts::LayoutGroup& group : tab.groups)
+        CHECK(group.scope == app::layouts::Scope::Program);
+    CHECK(edit.values.size() == LFO_PARAMETERS);
+    CHECK(fixture.shown("lfo 1 rate") == std::optional<std::int64_t>(RATE));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
 }

@@ -155,3 +155,27 @@ TEST_CASE("Given the Filter tab's type, Then it names the filter shapes, each a 
     CHECK(lowPass.back().y == 0.0F);
     CHECK(app::layouts::shapeOf(*type, "VOWELISER").empty());
 }
+
+TEST_CASE("Given the LFO tab, Then LFO 2's clock division, whose labels are long, is a choice three knob cells wide "
+          "[RQ-APP-057, DEC-APP-027, TASK-APP-048]",
+          "[app][layout]")
+{
+    constexpr int WIDE = 3;
+    const app::layouts::EditorLayout* program = layoutOf("program");
+    REQUIRE(program != nullptr);
+    const app::layouts::LayoutParameter* division = nullptr;
+    for (const auto& tab : program->tabs)
+    {
+        for (const auto& group : tab.groups)
+        {
+            for (const auto& parameter : group.parameters)
+            {
+                if (parameter.name == "lfo 2 clock division")
+                    division = &parameter;
+            }
+        }
+    }
+    REQUIRE(division != nullptr);
+    CHECK(division->control == app::layouts::Control::Choice);
+    CHECK(division->cells == WIDE);
+}

@@ -273,7 +273,7 @@ namespace app::ui
         using namespace tokens;
         int cells = 0;
         for (const layouts::LayoutParameter& parameter : group.parameters)
-            cells += ParameterCell::cells(parameter.control);
+            cells += ParameterCell::cells(parameter);
         const int inside = pixels(kSpaceInside);
         if (group.zones > 0)
         {
@@ -345,7 +345,7 @@ namespace app::ui
             int cellX = x + inside;
             for (std::size_t i = 0; group.layout->zones == 0 && i < group.cells.size(); ++i)
             {
-                const int cellWidth = ParameterCell::cells(group.layout->parameters[i].control) * ParameterCell::cellWidth();
+                const int cellWidth = ParameterCell::cells(group.layout->parameters[i]) * ParameterCell::cellWidth();
                 group.cells[i]->setBounds(cellX, top, cellWidth, ParameterCell::cellHeight());
                 cellX += cellWidth;
             }

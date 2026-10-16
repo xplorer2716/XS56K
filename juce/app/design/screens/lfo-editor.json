@@ -1,0 +1,246 @@
+{
+  "_comment": "The main window with the program editor's LFO tab (FTR-APP-008): LFO 1 and LFO 2, a row each, program parameters. Example content only, no visual value (those are the tokens'). [RQ-APP-074, RQ-APP-056, RQ-APP-057, ADR-APP-003 (DEC-APP-018), ADR-APP-004 (DEC-APP-024), TASK-APP-048]",
+  "name": "lfo-editor",
+  "size": [
+    1280,
+    800
+  ],
+  "leftWidth": 300,
+  "browserShare": 0.5,
+  "menu": [
+    "XS56K",
+    "Sampler",
+    "MIDI"
+  ],
+  "content": {
+    "browser": {
+      "path": "S5K:\\DrumsLoops",
+      "rows": [
+        {
+          "kind": "disk",
+          "name": "S5K",
+          "depth": 0,
+          "detail": "FAT32"
+        },
+        {
+          "kind": "folder",
+          "name": "DrumsLoops",
+          "depth": 1,
+          "current": true
+        },
+        {
+          "kind": "sample",
+          "name": "KICK.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "sample",
+          "name": "SNARE.WAV",
+          "depth": 2
+        },
+        {
+          "kind": "folder",
+          "name": "MoogBass",
+          "depth": 1
+        }
+      ]
+    },
+    "memory": {
+      "free": "150.3 MB free of 151.2 MB (99 %)",
+      "kinds": [
+        {
+          "title": "Multis",
+          "items": []
+        },
+        {
+          "title": "Programs",
+          "items": [
+            {
+              "name": "PAD",
+              "current": true,
+              "selected": true
+            },
+            {
+              "name": "BASS"
+            }
+          ]
+        },
+        {
+          "title": "Samples",
+          "items": [
+            {
+              "name": "KICK"
+            },
+            {
+              "name": "SNARE"
+            }
+          ]
+        },
+        {
+          "title": "Song files",
+          "items": []
+        },
+        {
+          "title": "Set lists",
+          "items": []
+        },
+        {
+          "title": "Scenelists",
+          "items": []
+        }
+      ]
+    },
+    "editor": {
+      "item": "PAD",
+      "kind": "Program",
+      "layout": "program",
+      "tab": "LFO",
+      "values": {
+        "lfo 1 rate": {
+          "text": "43",
+          "fraction": 0.43
+        },
+        "lfo 1 delay": {
+          "text": "0",
+          "fraction": 0
+        },
+        "lfo 1 depth": {
+          "text": "0",
+          "fraction": 0
+        },
+        "lfo 1 waveform": {
+          "text": "TRIANGLE"
+        },
+        "lfo 1 sync": {
+          "text": "OFF"
+        },
+        "lfo 1 modwheel": {
+          "text": "15",
+          "fraction": 0.15
+        },
+        "lfo 1 aftertouch": {
+          "text": "0",
+          "fraction": 0
+        },
+        "lfo 2 rate": {
+          "text": "0",
+          "fraction": 0
+        },
+        "lfo 2 delay": {
+          "text": "0",
+          "fraction": 0
+        },
+        "lfo 2 depth": {
+          "text": "0",
+          "fraction": 0
+        },
+        "lfo 2 waveform": {
+          "text": "TRIANGLE"
+        },
+        "lfo 2 retrigger": {
+          "text": "OFF"
+        },
+        "lfo 2 clock sync": {
+          "text": "OFF"
+        },
+        "lfo 2 clock division": {
+          "text": "4 CYCLES PER BEAT"
+        }
+      },
+      "keygroup": "KEYGROUP 1 OF 2",
+      "actions": [
+        {
+          "text": "Add..."
+        },
+        {
+          "text": "Delete"
+        }
+      ]
+    }
+  },
+  "states": {
+    "connected": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0"
+      }
+    },
+    "writing": {
+      "connection": {
+        "state": "connected",
+        "text": "Connected: AKAI S5000, OS 2.14, DeviceID 0",
+        "busy": "Setting the rate of PAD"
+      },
+      "editor": {
+        "item": "PAD",
+        "kind": "Program",
+        "layout": "program",
+        "tab": "LFO",
+        "values": {
+          "lfo 1 rate": {
+            "text": "60",
+            "fraction": 0.6
+          },
+          "lfo 1 delay": {
+            "text": "0",
+            "fraction": 0
+          },
+          "lfo 1 depth": {
+            "text": "0",
+            "fraction": 0
+          },
+          "lfo 1 waveform": {
+            "text": "TRIANGLE"
+          },
+          "lfo 1 sync": {
+            "text": "OFF"
+          },
+          "lfo 1 modwheel": {
+            "text": "15",
+            "fraction": 0.15
+          },
+          "lfo 1 aftertouch": {
+            "text": "0",
+            "fraction": 0
+          },
+          "lfo 2 rate": {
+            "text": "0",
+            "fraction": 0
+          },
+          "lfo 2 delay": {
+            "text": "0",
+            "fraction": 0
+          },
+          "lfo 2 depth": {
+            "text": "0",
+            "fraction": 0
+          },
+          "lfo 2 waveform": {
+            "text": "TRIANGLE"
+          },
+          "lfo 2 retrigger": {
+            "text": "OFF"
+          },
+          "lfo 2 clock sync": {
+            "text": "OFF"
+          },
+          "lfo 2 clock division": {
+            "text": "4 CYCLES PER BEAT"
+          }
+        },
+        "pending": [
+          "lfo 1 rate"
+        ],
+        "keygroup": "KEYGROUP 1 OF 2",
+        "actions": [
+          {
+            "text": "Add..."
+          },
+          {
+            "text": "Delete"
+          }
+        ]
+      }
+    }
+  }
+}

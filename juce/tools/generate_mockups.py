@@ -232,6 +232,8 @@ def cell_width(t):
 def control_cells(parameter):
     # A choice and a value box alone are two knob cells wide, a slider three. [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
     control = parameter.get("control")
+    if parameter.get("cells"):
+        return parameter["cells"]  # a choice with long labels, widened by the layout [TASK-APP-048]
     if control == "slider":
         return SLIDER_CELLS
     return CHOICE_CELLS if control in ("choice", "valuebox") else 1

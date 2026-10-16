@@ -50,35 +50,35 @@ namespace app::layouts
         ChoiceShape{"PHASER 2", kFilterTypesShape18},
     }};
     inline constexpr std::array<LayoutParameter, 4> kProgramTab0Group0{{
-        {"keygroup low note", "Low", Role::General, Control::ValueBox, {}},
-        {"keygroup high note", "High", Role::General, Control::ValueBox, {}},
-        {"keygroup semitone tune", "Semi", Role::General, Control::Knob, {}},
-        {"keygroup fine tune", "Fine", Role::General, Control::Knob, {}},
+        {"keygroup low note", "Low", Role::General, Control::ValueBox, {}, 0},
+        {"keygroup high note", "High", Role::General, Control::ValueBox, {}, 0},
+        {"keygroup semitone tune", "Semi", Role::General, Control::Knob, {}, 0},
+        {"keygroup fine tune", "Fine", Role::General, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<LayoutParameter, 4> kProgramTab0Group1{{
-        {"keygroup mute group", "Mute grp", Role::General, Control::Knob, {}},
-        {"keygroup fx override", "FX", Role::General, Control::Choice, {}},
-        {"keygroup fx send level", "FX send", Role::General, Control::Knob, {}},
-        {"keygroup zone crossfade", "Zone xfade", Role::General, Control::Choice, {}},
+        {"keygroup mute group", "Mute grp", Role::General, Control::Knob, {}, 0},
+        {"keygroup fx override", "FX", Role::General, Control::Choice, {}, 0},
+        {"keygroup fx send level", "FX send", Role::General, Control::Knob, {}, 0},
+        {"keygroup zone crossfade", "Zone xfade", Role::General, Control::Choice, {}, 0},
     }};
     inline constexpr std::array<LayoutParameter, 14> kProgramTab0Group2{{
-        {"zone sample", "Sample", Role::Sample, Control::Sample, {}},
-        {"zone level", "Level", Role::Amp, Control::ValueBox, {}},
-        {"zone pan", "Pan", Role::Amp, Control::ValueBox, {}},
-        {"zone semitone tune", "Semi", Role::General, Control::ValueBox, {}},
-        {"zone fine tune", "Fine", Role::General, Control::ValueBox, {}},
-        {"zone low velocity", "Vel low", Role::General, Control::ValueBox, {}},
-        {"zone high velocity", "Vel high", Role::General, Control::ValueBox, {}},
-        {"zone velocity to start", "Vel>Start", Role::Sample, Control::ValueBox, {}},
-        {"zone playback", "Playback", Role::Sample, Control::Choice, {}},
-        {"zone output", "Output", Role::General, Control::Choice, {}},
-        {"zone filter", "Filter", Role::Filter, Control::ValueBox, {}},
-        {"zone keyboard tracking", "Key track", Role::General, Control::Choice, {}},
-        {"zone mute", "Mute", Role::General, Control::Choice, {}},
-        {"zone solo", "Solo", Role::General, Control::Choice, {}},
+        {"zone sample", "Sample", Role::Sample, Control::Sample, {}, 0},
+        {"zone level", "Level", Role::Amp, Control::ValueBox, {}, 0},
+        {"zone pan", "Pan", Role::Amp, Control::ValueBox, {}, 0},
+        {"zone semitone tune", "Semi", Role::General, Control::ValueBox, {}, 0},
+        {"zone fine tune", "Fine", Role::General, Control::ValueBox, {}, 0},
+        {"zone low velocity", "Vel low", Role::General, Control::ValueBox, {}, 0},
+        {"zone high velocity", "Vel high", Role::General, Control::ValueBox, {}, 0},
+        {"zone velocity to start", "Vel>Start", Role::Sample, Control::ValueBox, {}, 0},
+        {"zone playback", "Playback", Role::Sample, Control::Choice, {}, 0},
+        {"zone output", "Output", Role::General, Control::Choice, {}, 0},
+        {"zone filter", "Filter", Role::Filter, Control::ValueBox, {}, 0},
+        {"zone keyboard tracking", "Key track", Role::General, Control::Choice, {}, 0},
+        {"zone mute", "Mute", Role::General, Control::Choice, {}, 0},
+        {"zone solo", "Solo", Role::General, Control::Choice, {}, 0},
     }};
     inline constexpr std::array<LayoutParameter, 1> kProgramTab0Group3{{
-        {"keygroup crossfade", "Keygroups", Role::General, Control::Choice, {}},
+        {"keygroup crossfade", "Keygroups", Role::General, Control::Choice, {}, 0},
     }};
     inline constexpr std::array<LayoutGroup, 4> kProgramTab0Groups{{
         LayoutGroup{"Key span", kProgramTab0Group0, Scope::Keygroup, {}, false, 0},
@@ -87,10 +87,10 @@ namespace app::layouts
         LayoutGroup{"Xfade", kProgramTab0Group3, Scope::Program, {}, false, 0},
     }};
     inline constexpr std::array<LayoutParameter, 4> kProgramTab1Group0{{
-        {"amplitude envelope attack", "Attack", Role::Amp, Control::Knob, {}},
-        {"amplitude envelope decay", "Decay", Role::Amp, Control::Knob, {}},
-        {"amplitude envelope sustain", "Sustain", Role::Amp, Control::Knob, {}},
-        {"amplitude envelope release", "Release", Role::Amp, Control::Knob, {}},
+        {"amplitude envelope attack", "Attack", Role::Amp, Control::Knob, {}, 0},
+        {"amplitude envelope decay", "Decay", Role::Amp, Control::Knob, {}, 0},
+        {"amplitude envelope sustain", "Sustain", Role::Amp, Control::Knob, {}, 0},
+        {"amplitude envelope release", "Release", Role::Amp, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<EnvelopeStage, 4> kProgramTab1Group0Envelope{{
         {"amplitude envelope attack", "", 100, false},
@@ -99,17 +99,17 @@ namespace app::layouts
         {"amplitude envelope release", "", 0, false},
     }};
     inline constexpr std::array<LayoutParameter, 5> kProgramTab1Group1{{
-        {"keygroup level", "Level", Role::Amp, Control::Knob, {}},
-        {"amplitude envelope velocity to attack", "Vel>Att", Role::Amp, Control::Knob, {}},
-        {"amplitude envelope on-velocity to release", "On>Rel", Role::Amp, Control::Knob, {}},
-        {"amplitude envelope off-velocity to release", "Off>Rel", Role::Amp, Control::Knob, {}},
-        {"amplitude envelope key scale", "Keyscale", Role::Amp, Control::Knob, {}},
+        {"keygroup level", "Level", Role::Amp, Control::Knob, {}, 0},
+        {"amplitude envelope velocity to attack", "Vel>Att", Role::Amp, Control::Knob, {}, 0},
+        {"amplitude envelope on-velocity to release", "On>Rel", Role::Amp, Control::Knob, {}, 0},
+        {"amplitude envelope off-velocity to release", "Off>Rel", Role::Amp, Control::Knob, {}, 0},
+        {"amplitude envelope key scale", "Keyscale", Role::Amp, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<LayoutParameter, 4> kProgramTab1Group2{{
-        {"filter envelope attack", "Attack", Role::Filter, Control::Knob, {}},
-        {"filter envelope decay", "Decay", Role::Filter, Control::Knob, {}},
-        {"filter envelope sustain", "Sustain", Role::Filter, Control::Knob, {}},
-        {"filter envelope release", "Release", Role::Filter, Control::Knob, {}},
+        {"filter envelope attack", "Attack", Role::Filter, Control::Knob, {}, 0},
+        {"filter envelope decay", "Decay", Role::Filter, Control::Knob, {}, 0},
+        {"filter envelope sustain", "Sustain", Role::Filter, Control::Knob, {}, 0},
+        {"filter envelope release", "Release", Role::Filter, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<EnvelopeStage, 4> kProgramTab1Group2Envelope{{
         {"filter envelope attack", "", 100, false},
@@ -118,21 +118,21 @@ namespace app::layouts
         {"filter envelope release", "", 0, false},
     }};
     inline constexpr std::array<LayoutParameter, 5> kProgramTab1Group3{{
-        {"filter envelope depth", "Depth", Role::Filter, Control::Knob, {}},
-        {"filter envelope velocity to attack", "Vel>Att", Role::Filter, Control::Knob, {}},
-        {"filter envelope on-velocity to release", "On>Rel", Role::Filter, Control::Knob, {}},
-        {"filter envelope off-velocity to release", "Off>Rel", Role::Filter, Control::Knob, {}},
-        {"filter envelope key scale", "Keyscale", Role::Filter, Control::Knob, {}},
+        {"filter envelope depth", "Depth", Role::Filter, Control::Knob, {}, 0},
+        {"filter envelope velocity to attack", "Vel>Att", Role::Filter, Control::Knob, {}, 0},
+        {"filter envelope on-velocity to release", "On>Rel", Role::Filter, Control::Knob, {}, 0},
+        {"filter envelope off-velocity to release", "Off>Rel", Role::Filter, Control::Knob, {}, 0},
+        {"filter envelope key scale", "Keyscale", Role::Filter, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<LayoutParameter, 8> kProgramTab1Group4{{
-        {"aux envelope rate 1", "R1", Role::Modulation, Control::Knob, {}},
-        {"aux envelope rate 2", "R2", Role::Modulation, Control::Knob, {}},
-        {"aux envelope rate 3", "R3", Role::Modulation, Control::Knob, {}},
-        {"aux envelope rate 4", "R4", Role::Modulation, Control::Knob, {}},
-        {"aux envelope level 1", "L1", Role::Modulation, Control::Knob, {}},
-        {"aux envelope level 2", "L2", Role::Modulation, Control::Knob, {}},
-        {"aux envelope level 3", "L3", Role::Modulation, Control::Knob, {}},
-        {"aux envelope level 4", "L4", Role::Modulation, Control::Knob, {}},
+        {"aux envelope rate 1", "R1", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope rate 2", "R2", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope rate 3", "R3", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope rate 4", "R4", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope level 1", "L1", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope level 2", "L2", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope level 3", "L3", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope level 4", "L4", Role::Modulation, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<EnvelopeStage, 5> kProgramTab1Group4Envelope{{
         {"aux envelope rate 1", "aux envelope level 1", 0, false},
@@ -142,10 +142,10 @@ namespace app::layouts
         {"aux envelope rate 4", "aux envelope level 4", 0, false},
     }};
     inline constexpr std::array<LayoutParameter, 4> kProgramTab1Group5{{
-        {"aux envelope velocity to rate 1", "Vel>R1", Role::Modulation, Control::Knob, {}},
-        {"aux envelope velocity to rate 4", "Vel>R4", Role::Modulation, Control::Knob, {}},
-        {"aux envelope off-velocity to rate 4", "OffV>R4", Role::Modulation, Control::Knob, {}},
-        {"aux envelope keyboard to rate 2 and 4", "Key>R2/4", Role::Modulation, Control::Knob, {}},
+        {"aux envelope velocity to rate 1", "Vel>R1", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope velocity to rate 4", "Vel>R4", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope off-velocity to rate 4", "OffV>R4", Role::Modulation, Control::Knob, {}, 0},
+        {"aux envelope keyboard to rate 2 and 4", "Key>R2/4", Role::Modulation, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<LayoutGroup, 6> kProgramTab1Groups{{
         LayoutGroup{"Amp envelope", kProgramTab1Group0, Scope::Keygroup, kProgramTab1Group0Envelope, false, 0},
@@ -156,48 +156,71 @@ namespace app::layouts
         LayoutGroup{"Aux velocity and key", kProgramTab1Group5, Scope::Keygroup, {}, false, 0},
     }};
     inline constexpr std::array<LayoutParameter, 5> kProgramTab2Group0{{
-        {"filter type", "Type", Role::Filter, Control::Choice, kFilterTypesShapes},
-        {"filter cutoff", "Cutoff", Role::Filter, Control::Knob, {}},
-        {"filter resonance", "Reso", Role::Filter, Control::Knob, {}},
-        {"filter keyboard tracking", "Track", Role::Filter, Control::Knob, {}},
-        {"filter attenuation", "Atten", Role::Filter, Control::Knob, {}},
+        {"filter type", "Type", Role::Filter, Control::Choice, kFilterTypesShapes, 0},
+        {"filter cutoff", "Cutoff", Role::Filter, Control::Knob, {}, 0},
+        {"filter resonance", "Reso", Role::Filter, Control::Knob, {}, 0},
+        {"filter keyboard tracking", "Track", Role::Filter, Control::Knob, {}, 0},
+        {"filter attenuation", "Atten", Role::Filter, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<LayoutGroup, 1> kProgramTab2Groups{{
         LayoutGroup{"Filter", kProgramTab2Group0, Scope::Keygroup, {}, false, 0},
     }};
-    inline constexpr std::array<LayoutParameter, 2> kProgramTab3Group0{{
-        {"program loudness", "Loudness", Role::General, Control::Knob, {}},
-        {"program velocity sensitivity", "Vel sens", Role::General, Control::Knob, {}},
+    inline constexpr std::array<LayoutParameter, 7> kProgramTab3Group0{{
+        {"lfo 1 rate", "Rate", Role::Modulation, Control::Knob, {}, 0},
+        {"lfo 1 delay", "Delay", Role::Modulation, Control::Knob, {}, 0},
+        {"lfo 1 depth", "Depth", Role::Modulation, Control::Knob, {}, 0},
+        {"lfo 1 waveform", "Wave", Role::Modulation, Control::Choice, {}, 0},
+        {"lfo 1 sync", "Sync", Role::Modulation, Control::Choice, {}, 0},
+        {"lfo 1 modwheel", "Wheel", Role::Modulation, Control::Knob, {}, 0},
+        {"lfo 1 aftertouch", "Touch", Role::Modulation, Control::Knob, {}, 0},
     }};
-    inline constexpr std::array<LayoutParameter, 4> kProgramTab3Group1{{
-        {"program semitone tune", "Semi", Role::General, Control::Knob, {}},
-        {"program fine tune", "Fine", Role::General, Control::Knob, {}},
-        {"tune template", "Template", Role::General, Control::Choice, {}},
-        {"tune key", "Key", Role::General, Control::Choice, {}},
+    inline constexpr std::array<LayoutParameter, 7> kProgramTab3Group1{{
+        {"lfo 2 rate", "Rate", Role::Modulation, Control::Knob, {}, 0},
+        {"lfo 2 delay", "Delay", Role::Modulation, Control::Knob, {}, 0},
+        {"lfo 2 depth", "Depth", Role::Modulation, Control::Knob, {}, 0},
+        {"lfo 2 waveform", "Wave", Role::Modulation, Control::Choice, {}, 0},
+        {"lfo 2 retrigger", "Retrigger", Role::Modulation, Control::Choice, {}, 0},
+        {"lfo 2 clock sync", "Clock sync", Role::Modulation, Control::Choice, {}, 0},
+        {"lfo 2 clock division", "Division", Role::Modulation, Control::Choice, {}, 3},
     }};
-    inline constexpr std::array<LayoutParameter, 4> kProgramTab3Group2{{
-        {"pitch bend up", "Up", Role::Modulation, Control::Knob, {}},
-        {"pitch bend down", "Down", Role::Modulation, Control::Knob, {}},
-        {"pitch bend mode", "Mode", Role::Modulation, Control::Choice, {}},
-        {"aftertouch pitch", "Aftertouch", Role::Modulation, Control::Knob, {}},
+    inline constexpr std::array<LayoutGroup, 2> kProgramTab3Groups{{
+        LayoutGroup{"LFO 1", kProgramTab3Group0, Scope::Program, {}, false, 0},
+        LayoutGroup{"LFO 2", kProgramTab3Group1, Scope::Program, {}, true, 0},
     }};
-    inline constexpr std::array<LayoutParameter, 4> kProgramTab3Group3{{
-        {"legato", "Mono legato", Role::General, Control::Choice, {}},
-        {"portamento", "Portamento", Role::General, Control::Choice, {}},
-        {"portamento mode", "Mode", Role::General, Control::Choice, {}},
-        {"portamento time", "Time", Role::General, Control::Knob, {}},
+    inline constexpr std::array<LayoutParameter, 2> kProgramTab4Group0{{
+        {"program loudness", "Loudness", Role::General, Control::Knob, {}, 0},
+        {"program velocity sensitivity", "Vel sens", Role::General, Control::Knob, {}, 0},
     }};
-    inline constexpr std::array<LayoutGroup, 4> kProgramTab3Groups{{
-        LayoutGroup{"Output", kProgramTab3Group0, Scope::Program, {}, false, 0},
-        LayoutGroup{"Tuning", kProgramTab3Group1, Scope::Program, {}, false, 0},
-        LayoutGroup{"Pitch bend", kProgramTab3Group2, Scope::Program, {}, false, 0},
-        LayoutGroup{"Portamento", kProgramTab3Group3, Scope::Program, {}, false, 0},
+    inline constexpr std::array<LayoutParameter, 4> kProgramTab4Group1{{
+        {"program semitone tune", "Semi", Role::General, Control::Knob, {}, 0},
+        {"program fine tune", "Fine", Role::General, Control::Knob, {}, 0},
+        {"tune template", "Template", Role::General, Control::Choice, {}, 0},
+        {"tune key", "Key", Role::General, Control::Choice, {}, 0},
     }};
-    inline constexpr std::array<LayoutTab, 4> kProgramTabs{{
+    inline constexpr std::array<LayoutParameter, 4> kProgramTab4Group2{{
+        {"pitch bend up", "Up", Role::Modulation, Control::Knob, {}, 0},
+        {"pitch bend down", "Down", Role::Modulation, Control::Knob, {}, 0},
+        {"pitch bend mode", "Mode", Role::Modulation, Control::Choice, {}, 0},
+        {"aftertouch pitch", "Aftertouch", Role::Modulation, Control::Knob, {}, 0},
+    }};
+    inline constexpr std::array<LayoutParameter, 4> kProgramTab4Group3{{
+        {"legato", "Mono legato", Role::General, Control::Choice, {}, 0},
+        {"portamento", "Portamento", Role::General, Control::Choice, {}, 0},
+        {"portamento mode", "Mode", Role::General, Control::Choice, {}, 0},
+        {"portamento time", "Time", Role::General, Control::Knob, {}, 0},
+    }};
+    inline constexpr std::array<LayoutGroup, 4> kProgramTab4Groups{{
+        LayoutGroup{"Output", kProgramTab4Group0, Scope::Program, {}, false, 0},
+        LayoutGroup{"Tuning", kProgramTab4Group1, Scope::Program, {}, false, 0},
+        LayoutGroup{"Pitch bend", kProgramTab4Group2, Scope::Program, {}, false, 0},
+        LayoutGroup{"Portamento", kProgramTab4Group3, Scope::Program, {}, false, 0},
+    }};
+    inline constexpr std::array<LayoutTab, 5> kProgramTabs{{
         LayoutTab{"Keygroup", kProgramTab0Groups},
         LayoutTab{"Envelopes", kProgramTab1Groups},
         LayoutTab{"Filter", kProgramTab2Groups},
-        LayoutTab{"Program", kProgramTab3Groups},
+        LayoutTab{"LFO", kProgramTab3Groups},
+        LayoutTab{"Program", kProgramTab4Groups},
     }};
     inline constexpr std::array<std::string_view, 2> kProgramOrder0{{
         "keygroup low note",
@@ -212,18 +235,18 @@ namespace app::layouts
         std::span<const std::string_view>{kProgramOrder1},
     }};
     inline constexpr std::array<LayoutParameter, 2> kSampleTab0Group0{{
-        {"sample start position", "Start", Role::Sample, Control::Slider, {}},
-        {"sample end position", "End", Role::Sample, Control::Slider, {}},
+        {"sample start position", "Start", Role::Sample, Control::Slider, {}, 0},
+        {"sample end position", "End", Role::Sample, Control::Slider, {}, 0},
     }};
     inline constexpr std::array<LayoutParameter, 3> kSampleTab0Group1{{
-        {"sample loop start", "Loop start", Role::Sample, Control::Slider, {}},
-        {"sample loop end", "Loop end", Role::Sample, Control::Slider, {}},
-        {"sample playback mode", "Mode", Role::Sample, Control::Choice, {}},
+        {"sample loop start", "Loop start", Role::Sample, Control::Slider, {}, 0},
+        {"sample loop end", "Loop end", Role::Sample, Control::Slider, {}, 0},
+        {"sample playback mode", "Mode", Role::Sample, Control::Choice, {}, 0},
     }};
     inline constexpr std::array<LayoutParameter, 3> kSampleTab0Group2{{
-        {"sample original pitch", "Root", Role::General, Control::ValueBox, {}},
-        {"sample semitone tune", "Semi", Role::General, Control::Knob, {}},
-        {"sample fine tune", "Fine", Role::General, Control::Knob, {}},
+        {"sample original pitch", "Root", Role::General, Control::ValueBox, {}, 0},
+        {"sample semitone tune", "Semi", Role::General, Control::Knob, {}, 0},
+        {"sample fine tune", "Fine", Role::General, Control::Knob, {}, 0},
     }};
     inline constexpr std::array<LayoutGroup, 3> kSampleTab0Groups{{
         LayoutGroup{"Trim", kSampleTab0Group0, Scope::None, {}, false, 0},

@@ -1,5 +1,5 @@
 {
-  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031, DEC-APP-033), TASK-APP-045, TASK-APP-046]",
+  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031, DEC-APP-033), TASK-APP-045, TASK-APP-046, TASK-APP-048]",
   "editor": "program",
   "orders": [["keygroup low note", "keygroup high note"], ["zone low velocity", "zone high velocity"]],
   "tabs": [
@@ -91,6 +91,23 @@
         {"name": "filter resonance", "label": "Reso", "role": "filter", "control": "knob"},
         {"name": "filter keyboard tracking", "label": "Track", "role": "filter", "control": "knob"},
         {"name": "filter attenuation", "label": "Atten", "role": "filter", "control": "knob"}]}]},
+    {"title": "LFO", "groups": [
+      {"title": "LFO 1", "scope": "program", "parameters": [
+        {"name": "lfo 1 rate", "label": "Rate", "role": "modulation", "control": "knob"},
+        {"name": "lfo 1 delay", "label": "Delay", "role": "modulation", "control": "knob"},
+        {"name": "lfo 1 depth", "label": "Depth", "role": "modulation", "control": "knob"},
+        {"name": "lfo 1 waveform", "label": "Wave", "role": "modulation", "control": "choice"},
+        {"name": "lfo 1 sync", "label": "Sync", "role": "modulation", "control": "choice"},
+        {"name": "lfo 1 modwheel", "label": "Wheel", "role": "modulation", "control": "knob"},
+        {"name": "lfo 1 aftertouch", "label": "Touch", "role": "modulation", "control": "knob"}]},
+      {"title": "LFO 2", "scope": "program", "row": true, "parameters": [
+        {"name": "lfo 2 rate", "label": "Rate", "role": "modulation", "control": "knob"},
+        {"name": "lfo 2 delay", "label": "Delay", "role": "modulation", "control": "knob"},
+        {"name": "lfo 2 depth", "label": "Depth", "role": "modulation", "control": "knob"},
+        {"name": "lfo 2 waveform", "label": "Wave", "role": "modulation", "control": "choice"},
+        {"name": "lfo 2 retrigger", "label": "Retrigger", "role": "modulation", "control": "choice"},
+        {"name": "lfo 2 clock sync", "label": "Clock sync", "role": "modulation", "control": "choice"},
+        {"name": "lfo 2 clock division", "label": "Division", "role": "modulation", "control": "choice", "cells": 3}]}]},
     {"title": "Program", "groups": [
       {"title": "Output", "scope": "program", "parameters": [
         {"name": "program loudness", "label": "Loudness", "role": "general", "control": "knob"},
