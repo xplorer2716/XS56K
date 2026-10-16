@@ -22,6 +22,9 @@ Before the commit of every task that changed C++ or Python code under `juce/`. C
    (it says why). The first run configures `juce/build-tidy` (a Ninja compile database, a minute or two; `--configure` redoes it after a change of CMake files).
 2. **Fix each finding**, then run again until it exits 0:
    - `--fix` applies the fixes clang-tidy offers (ranges, `emplace_back`, `contains`, `auto`, `const&`, a useless `std::move`); review the diff, build, run the suite.
+     Known wrong fix: `v.erase(std::remove(...), v.end())` becomes `v.erase(std::ranges::remove(v, x), v.end())`, which does not compile
+     (`ranges::remove` returns a subrange): write `std::erase(v, x)` instead. A fix may also reach a production header through a template
+     a test instantiates: keep the change to the scope that was asked for.
    - The others are fixed by hand. A finding kept on purpose takes `// NOLINT(<check>): <reason>` on its line; never a bare `NOLINT`.
    - Never weaken `juce/.clang-tidy` to make a finding go: a change of the checks is the owner's decision.
 3. **The IDE's SonarQube findings** (Claude Code in VS Code): open the changed files (`code -r <files>`), then read the Problems panel with the

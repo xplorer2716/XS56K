@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // failure is reported with what failed and why, a destructive action sends nothing until it is confirmed, and a slow disk command waits
 // for the disk timeout. [TASK-APP-011, RQ-APP-010, RQ-APP-011, RQ-APP-012, RQ-APP-013, RQ-APP-014, ADR-APP-001 (DEC-APP-003,
 // DEC-APP-004, DEC-APP-007)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -263,8 +264,8 @@ namespace
 
     bool anyLineHas(const std::vector<std::string>& lines, std::initializer_list<const char*> parts)
     {
-        return std::any_of(lines.begin(), lines.end(), [&parts](const std::string& line) {
-            return std::all_of(parts.begin(), parts.end(), [&line](const char* part) { return line.find(part) != std::string::npos; });
+        return std::ranges::any_of(lines, [&parts](const std::string& line) {
+            return std::ranges::all_of(parts, [&line](const char* part) { return line.find(part) != std::string::npos; });
         });
     }
 }

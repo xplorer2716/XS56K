@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // The file browser of the editor application, read side, over the gateway and the simulated sampler: the disks once the session opens, a
 // disk selected with its format and free space, folders opened (the sampler's current folder and its path), what a file is, and the
 // commands each selection offers. [TASK-APP-013, RQ-APP-017, RQ-APP-024 to RQ-APP-027, ADR-APP-001 (DEC-APP-004)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -105,7 +106,7 @@ namespace
 
     bool offers(const std::vector<BrowserCommand>& commands, BrowserCommand command)
     {
-        return std::find(commands.begin(), commands.end(), command) != commands.end();
+        return std::ranges::find(commands, command) != commands.end();
     }
 }
 

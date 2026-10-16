@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // runs first against the simulated sampler, so that the sequence, the log and the state it leaves are
 // checked before any hardware is involved. The expected frames are written out byte by byte.
 // [TASK-AKM-012, RQ-AKM-017, RQ-AKM-018, RQ-AKM-044, ADR-AKM-001 (DEC-AKM-007, DEC-AKM-009)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -206,7 +207,7 @@ TEST_CASE("Given the log, When read, Then it shows an Echo REPLY, a Query DONE a
 
     const auto received = framesOf(frameLines(rig.text()), "IN");
     const auto contains_frame = [&received](const Bytes& frame) {
-        return std::find(received.begin(), received.end(), frame) != received.end();
+        return std::ranges::find(received, frame) != received.end();
     };
     // Echo REPLY with checksums off (step 6), a Query DONE (step 2), and the same with checksums on.
     CHECK(contains_frame(bytes({0xF0, 0x47, 0x5E, 0x00, 0x15, 0x52, 0x00, 0x06, 0x01, 0x02, 0x03, 0x04, 0xF7})));

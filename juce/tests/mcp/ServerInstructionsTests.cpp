@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // offers, name no tool that it does not offer, and contain none of the sentences that were true before PLAN-MCP-002 to PLAN-MCP-005. The
 // table of the families holds every tool the server can offer, so that a new tool fails the test until it is placed in a family, and
 // therefore until the instructions are looked at. [TASK-MCP-065, RQ-MCP-043, RQ-MCP-001, ADR-MCP-004 (DEC-MCP-026)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -240,7 +241,7 @@ TEST_CASE("Given each launch, When initialize is answered, Then the instructions
         {
             if (!offered(family, options))
                 continue;
-            const bool namesOne = std::any_of(family.tools.begin(), family.tools.end(), [&](const std::string& tool) { return named.count(tool) > 0; });
+            const bool namesOne = std::ranges::any_of(family.tools, [&](const std::string& tool) { return named.contains(tool); });
             INFO("family: " << family.name << ", disk " << options.allowDisk << ", refresh " << options.allowDiskRefresh << ", front panel "
                             << options.allowFrontPanel);
             CHECK(namesOne);

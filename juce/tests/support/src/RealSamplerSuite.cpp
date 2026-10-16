@@ -183,14 +183,14 @@ namespace akm::harness
 
         bool sameSettings(std::vector<SamplerSetting> first, std::vector<SamplerSetting> second)
         {
-            std::sort(first.begin(), first.end());
-            std::sort(second.begin(), second.end());
+            std::ranges::sort(first);
+            std::ranges::sort(second);
             return first == second;
         }
 
         bool contains(const std::vector<SamplerSetting>& settings, SamplerSetting wanted)
         {
-            return std::find(settings.begin(), settings.end(), wanted) != settings.end();
+            return std::ranges::find(settings, wanted) != settings.end();
         }
 
         std::string valuesText(const std::vector<std::int64_t>& values)
@@ -2191,11 +2191,11 @@ namespace akm::harness
                 // Refused before anything is read from the disks, let alone selected: the owner picks the disk.
                 if (!_rig.options.askOwnerChoice)
                     throw CheckSkipped("there is no way to ask the owner which disk to select, so nothing was selected or created");
-                const DiskCountResult count = readDisk<DiskCountResult>("the number of disks connected", [&guarded](DiskCountCompletion done) {
+                const auto count = readDisk<DiskCountResult>("the number of disks connected", [&guarded](DiskCountCompletion done) {
                     getDiskCount(guarded.session(), std::move(done));
                 });
                 expect(count.count.has_value(), "the number of disks connected is read");
-                const DiskListResult listed = readDisk<DiskListResult>("the disks connected", [&guarded](DiskListCompletion done) {
+                const auto listed = readDisk<DiskListResult>("the disks connected", [&guarded](DiskListCompletion done) {
                     getConnectedDisks(guarded.session(), std::move(done));
                 });
                 expect(listed.disks.has_value(), "the list of the disks connected is read");
@@ -2265,37 +2265,37 @@ namespace akm::harness
                 guarded.open(baseConfig());
                 const DiskInfo disk = selectTestDisk(guarded);
 
-                const DiskTypeResult type = readDisk<DiskTypeResult>("the current disk's type", [&guarded](DiskTypeCompletion done) {
+                const auto type = readDisk<DiskTypeResult>("the current disk's type", [&guarded](DiskTypeCompletion done) {
                     getCurrentDiskType(guarded.session(), std::move(done));
                 });
                 expect(type.type.has_value(), "the current disk's type is read");
-                const DiskHandleResult handle = readDisk<DiskHandleResult>("the current disk's handle", [&guarded](DiskHandleCompletion done) {
+                const auto handle = readDisk<DiskHandleResult>("the current disk's handle", [&guarded](DiskHandleCompletion done) {
                     getCurrentDiskHandle(guarded.session(), std::move(done));
                 });
                 expect(handle.handle.has_value() && *handle.handle == disk.handle,
                        "the current disk is the one selected (handle " + std::to_string(disk.handle) + ")");
                 // §10/&07 and &0E name a disk by its handle, so they read the one the list gave, without selecting anything.
-                const DiskTypeResult listedType = readDisk<DiskTypeResult>("the type of disk " + std::to_string(disk.handle),
+                const auto listedType = readDisk<DiskTypeResult>("the type of disk " + std::to_string(disk.handle),
                                                                            [&guarded, &disk](DiskTypeCompletion done) {
                                                                                getDiskType(guarded.session(), disk.handle, std::move(done));
                                                                            });
                 expect(listedType.type.has_value() && *listedType.type == disk.type,
                        "the type of disk " + std::to_string(disk.handle) + " is the one the list gave (" + std::to_string(disk.type) + ")");
-                const DiskNameResult listedName = readDisk<DiskNameResult>("the name of disk " + std::to_string(disk.handle),
+                const auto listedName = readDisk<DiskNameResult>("the name of disk " + std::to_string(disk.handle),
                                                                            [&guarded, &disk](DiskNameCompletion done) {
                                                                                getDiskName(guarded.session(), disk.handle, std::move(done));
                                                                            });
                 expect(listedName.name.has_value() && *listedName.name == disk.name,
                        "the name of disk " + std::to_string(disk.handle) + " is \"" + disk.name + "\"");
-                const DiskFormatResult format = readDisk<DiskFormatResult>("the current disk's format", [&guarded](DiskFormatCompletion done) {
+                const auto format = readDisk<DiskFormatResult>("the current disk's format", [&guarded](DiskFormatCompletion done) {
                     getCurrentDiskFormat(guarded.session(), std::move(done));
                 });
                 expect(format.format.has_value(), "the current disk's format is read");
-                const DiskFreeSpaceResult freeSpace = readDisk<DiskFreeSpaceResult>("the current disk's free space", [&guarded](DiskFreeSpaceCompletion done) {
+                const auto freeSpace = readDisk<DiskFreeSpaceResult>("the current disk's free space", [&guarded](DiskFreeSpaceCompletion done) {
                     getCurrentDiskFreeSpace(guarded.session(), std::move(done));
                 });
                 expect(freeSpace.freeBytes.has_value(), "the current disk's free space is read");
-                const DiskPathResult path = readDisk<DiskPathResult>("the current disk's path", [&guarded](DiskPathCompletion done) {
+                const auto path = readDisk<DiskPathResult>("the current disk's path", [&guarded](DiskPathCompletion done) {
                     getCurrentDiskPath(guarded.session(), std::move(done));
                 });
                 expect(path.path.has_value(), "the current disk's path is read");
@@ -2308,7 +2308,7 @@ namespace akm::harness
                         createFolder(session, "INNER", std::move(done));
                     });
                     expect(folderCountHere(guarded) == 1, "the test folder now holds one sub-folder");
-                    const DiskFolderNamesResult names = readDisk<DiskFolderNamesResult>("the names of the sub-folders", [&guarded](DiskFolderNamesCompletion done) {
+                    const auto names = readDisk<DiskFolderNamesResult>("the names of the sub-folders", [&guarded](DiskFolderNamesCompletion done) {
                         getAllFolderNames(guarded.session(), std::move(done));
                     });
                     expect(names.names.has_value() && *names.names == std::vector<std::string>{"INNER"},
@@ -2316,7 +2316,7 @@ namespace akm::harness
                     expectCommand(guarded, "rename \"INNER\" to \"INNER_2\"", [](Session& session, CommandCompletion done) {
                         renameFolder(session, "INNER", "INNER_2", std::move(done));
                     });
-                    const DiskFolderNameResult renamed = readDisk<DiskFolderNameResult>("the name of the sub-folder at index 0", [&guarded](DiskFolderNameCompletion done) {
+                    const auto renamed = readDisk<DiskFolderNameResult>("the name of the sub-folder at index 0", [&guarded](DiskFolderNameCompletion done) {
                         getFolderName(guarded.session(), 0, std::move(done));
                     });
                     expect(renamed.name.has_value() && *renamed.name == "INNER_2", "the renamed sub-folder reads back as \"INNER_2\"");
@@ -2324,7 +2324,7 @@ namespace akm::harness
                     if (!folder.enterSubFolder("INNER_2"))
                         throw CheckFailure("could not open the sub-folder \"INNER_2\"");
                     expect(fileCountHere(guarded) == 0, "the sub-folder holds no file (none is created in this check)");
-                    const DiskFileIndexResult missing = readDisk<DiskFileIndexResult>("the index of a file that is not there",
+                    const auto missing = readDisk<DiskFileIndexResult>("the index of a file that is not there",
                                                                                         [&guarded](DiskFileIndexCompletion done) {
                                                                                             getFileIndexByName(guarded.session(), "NOT_THERE", std::move(done));
                                                                                         });
@@ -2362,22 +2362,22 @@ namespace akm::harness
                     }
                     const std::vector<std::string> saved = fileNamesHere(guarded);
                     expect(saved.size() == 1, "the save left one file in the sub-folder");
-                    const std::string file = saved.front();
+                    const std::string& file = saved.front();
                     ownerConfirms("On the sampler, open the sub-folder XS56K_SUITE_TEST under the current folder and check "
                                   "that it holds the file \"" + file + "\".");
                     expect(fileCountHere(guarded) == 1, "the sub-folder holds one file");
 
-                    const DiskFileNameResult name = readDisk<DiskFileNameResult>("the name of the file at index 0",
+                    const auto name = readDisk<DiskFileNameResult>("the name of the file at index 0",
                                                                                  [&guarded](DiskFileNameCompletion done) {
                                                                                      getFileName(guarded.session(), 0, std::move(done));
                                                                                  });
                     expect(name.name.has_value() && *name.name == file, "the file at index 0 is \"" + file + "\"");
-                    const DiskFileSizeResult size = readDisk<DiskFileSizeResult>("the size of the file at index 0",
+                    const auto size = readDisk<DiskFileSizeResult>("the size of the file at index 0",
                                                                                  [&guarded](DiskFileSizeCompletion done) {
                                                                                      getFileSize(guarded.session(), 0, std::move(done));
                                                                                  });
                     expect(size.sizeBytes.has_value() && *size.sizeBytes > 0, "the file has a size");
-                    const DiskFileIndexResult found = readDisk<DiskFileIndexResult>("the index of the file by name",
+                    const auto found = readDisk<DiskFileIndexResult>("the index of the file by name",
                                                                                     [&guarded, &file](DiskFileIndexCompletion done) {
                                                                                         getFileIndexByName(guarded.session(), file, std::move(done));
                                                                                     });
@@ -2402,8 +2402,8 @@ namespace akm::harness
                     finding("the names in the sub-folder after the rename: " + (listed.empty() ? std::string("none") : listed));
                     expect(afterRename.size() == 1 && afterRename.front() == expected,
                            "after the rename the sub-folder holds the file \"" + expected + "\"");
-                    const std::string stored = afterRename.front();
-                    const DiskFileIndexResult byStoredName = readDisk<DiskFileIndexResult>("the index of the renamed file",
+                    const std::string& stored = afterRename.front();
+                    const auto byStoredName = readDisk<DiskFileIndexResult>("the index of the renamed file",
                                                                                            [&guarded, &stored](DiskFileIndexCompletion done) {
                                                                                                getFileIndexByName(guarded.session(), stored, std::move(done));
                                                                                            });
@@ -2430,7 +2430,7 @@ namespace akm::harness
                 GuardedSession guarded(_rig);
                 guarded.open(baseConfig());
                 selectTestDisk(guarded);
-                const DiskPathResult path = readDisk<DiskPathResult>("the current folder of the selected disk",
+                const auto path = readDisk<DiskPathResult>("the current folder of the selected disk",
                                                                      [&guarded](DiskPathCompletion done) {
                                                                          getCurrentDiskPath(guarded.session(), std::move(done));
                                                                      });
@@ -2451,9 +2451,9 @@ namespace akm::harness
                         character = static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
                     return extension == ".WAV";
                 };
-                const auto wav = std::find_if(names.begin(), names.end(), isWav);
+                const auto wav = std::ranges::find_if(names, isWav);
                 expect(wav != names.end(), "a .WAV file is at the root of the selected disk");
-                const std::string sample = *wav;
+                const std::string& sample = *wav;
 
                 // &30 takes the sample's position in the root's list (&22), counted from 0 over all its files: the owner's MIDIOX
                 // test played S1 with position 2. &24 is not used: it finds a name without its extension (S1 found, S1.WAV
@@ -2768,7 +2768,7 @@ namespace akm::harness
 
             [[nodiscard]] int folderCountHere(GuardedSession& guarded)
             {
-                const DiskFolderCountResult counted = readDisk<DiskFolderCountResult>("the number of sub-folders here",
+                const auto counted = readDisk<DiskFolderCountResult>("the number of sub-folders here",
                                                                                       [&guarded](DiskFolderCountCompletion done) {
                                                                                           getFolderCount(guarded.session(), std::move(done));
                                                                                       });
@@ -2779,7 +2779,7 @@ namespace akm::harness
 
             [[nodiscard]] int fileCountHere(GuardedSession& guarded)
             {
-                const DiskFileCountResult counted = readDisk<DiskFileCountResult>("the number of files here", [&guarded](DiskFileCountCompletion done) {
+                const auto counted = readDisk<DiskFileCountResult>("the number of files here", [&guarded](DiskFileCountCompletion done) {
                     getFileCount(guarded.session(), std::move(done));
                 });
                 if (!counted.count)
@@ -3273,7 +3273,7 @@ namespace akm::harness
                     && std::all_of(nestedResult->result.values->begin(), nestedResult->result.values->end(),
                                    [](const std::vector<std::vector<std::int64_t>>& perKeygroup) {
                                        return perKeygroup.size() == static_cast<std::size_t>(ZONE_COUNT)
-                                              && std::all_of(perKeygroup.begin(), perKeygroup.end(), [](const std::vector<std::int64_t>& record) {
+                                              && std::ranges::all_of(perKeygroup, [](const std::vector<std::int64_t>& record) {
                                                      return record == std::vector<std::int64_t>{0, 88};
                                                  });
                                    });
@@ -3977,7 +3977,7 @@ namespace akm::harness
                     session.submit(makeRequest(ItemId::MultiSetMute, {TEST_MULTI_PART, 0}), std::move(done));
                 });
                 const auto none = multiValuesNow(guarded, "the mute and solo status of all parts (&48)", getMultiMuteSoloStatus);
-                expect(std::all_of(none.begin(), none.end(), [](int value) { return value == 0; }), "with both cleared, every part reads 0");
+                expect(std::ranges::all_of(none, [](int value) { return value == 0; }), "with both cleared, every part reads 0");
             }
 
             // RQ-AKM-092, RQ-AKM-091: the program number set, read and cleared.
@@ -4154,7 +4154,7 @@ namespace akm::harness
 
             [[nodiscard]] int firstIndexNamed(const std::vector<std::string>& names, const std::string& name) const
             {
-                return static_cast<int>(std::find(names.begin(), names.end(), name) - names.begin());
+                return static_cast<int>(std::ranges::find(names, name) - names.begin());
             }
 
             int currentSongIndexOf(GuardedSession& guarded)

@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // PLAN-AKM-008 — for now the keys, Hold and Release (&01, &02), the data wheel (&03) and the ASCII keyboard (&04).
 // Real-sampler verification is TASK-AKM-073's.
 // [TASK-AKM-070, TASK-AKM-071, RQ-AKM-073, RQ-AKM-074, ADR-AKM-001 (DEC-AKM-003, DEC-AKM-012)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -206,7 +207,7 @@ TEST_CASE("Given a code that no row of Table 31 lists, When it is converted, hel
 {
     for (int code = 0; code < DATA_BYTE_VALUES; ++code)
     {
-        const bool listed = std::any_of(TABLE_31.begin(), TABLE_31.end(), [code](const SpecKey& entry) {
+        const bool listed = std::ranges::any_of(TABLE_31, [code](const SpecKey& entry) {
             return entry.code == code;
         });
         CHECK(akm::frontPanelKeyFromCode(code).has_value() == listed);
@@ -245,8 +246,8 @@ TEST_CASE("Given a simulated sampler, When a key is pressed, Then a Hold then a 
     REQUIRE(harness.establishChecksumMode(false).has_value());
     const std::size_t sentBefore = harness.sentCount();
 
-    const KeyPressResult result = await<KeyPressResult>(
-        harness, [&](auto done) { akm::pressKey(harness.session(), FrontPanelKey::F3, done); });
+    const auto result = await<KeyPressResult>(
+        harness, [&](const auto& done) { akm::pressKey(harness.session(), FrontPanelKey::F3, done); });
 
     CHECK(std::holds_alternative<Done>(result.hold));
     CHECK(std::holds_alternative<Done>(result.release));
@@ -270,8 +271,8 @@ TEST_CASE("Given a sampler that answers the Hold with an ERROR, When a key is pr
     harness.sampler().setBehaviour(behaviour);
     const std::size_t sentBefore = harness.sentCount();
 
-    const KeyPressResult result = await<KeyPressResult>(
-        harness, [&](auto done) { akm::pressKey(harness.session(), FrontPanelKey::Exit, done); });
+    const auto result = await<KeyPressResult>(
+        harness, [&](const auto& done) { akm::pressKey(harness.session(), FrontPanelKey::Exit, done); });
 
     REQUIRE(std::holds_alternative<Error>(result.hold));
     CHECK(std::get<Error>(result.hold).number == akm::error_number::UNKNOWN_ERROR);
@@ -291,8 +292,8 @@ TEST_CASE("Given a value that is not a key of Table 31, When it is pressed, Then
     REQUIRE(harness.establishChecksumMode(false).has_value());
     const std::size_t sentBefore = harness.sentCount();
 
-    const KeyPressResult result = await<KeyPressResult>(
-        harness, [&](auto done) { akm::pressKey(harness.session(), keyOf(UNLISTED_INSIDE_RANGE), done); });
+    const auto result = await<KeyPressResult>(
+        harness, [&](const auto& done) { akm::pressKey(harness.session(), keyOf(UNLISTED_INSIDE_RANGE), done); });
 
     REQUIRE(std::holds_alternative<Refused>(result.hold));
     CHECK(std::get<Refused>(result.hold).reason == RefusalReason::ArgumentOutOfRange);

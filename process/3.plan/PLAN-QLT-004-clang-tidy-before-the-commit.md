@@ -49,3 +49,15 @@ This plan implements the tasks in the format specified below.
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
 - **Assumptions**: None
+
+### TASK-QLT-027: The automatic fixes of clang-tidy on the test code
+- **Tier**: M
+- **Status**: Done
+- **Description**: On the owner's request (2026-10-16), `tidy.py --all --tests --fix` on the test code, its automatic fixes only; the findings without a fix are left (DEC-QLT-001).
+- **Requirement refs**: RQ-QLT-004, RQ-QLT-010
+- **ADR refs**: ADR-QLT-002 (DEC-QLT-011); ADR-QLT-001 (DEC-QLT-001)
+- **Acceptance Criteria** (Gherkin): *Given* the fixes applied, *When* the build and the suite run, *Then* the build is warning-clean and every test passes; *and* no production file changed.
+- **Dependencies**: TASK-QLT-024
+- **Assignee**: AI
+- **Verification**: Before: 164 findings on 212 sources with `--tests` (`ranges` 55, `const&` 54, `auto` 23, cognitive complexity 13, C arrays 8, `contains` 5...). `--fix` changed 25 files; two of its changes were undone: `Controller.hpp` (a production header, reached through a template only the tests instantiate: outside the scope asked for, left for a production task) and three `erase(std::ranges::remove(...), end())` in `SimulatedSampler.cpp` and `RealSamplerSuite.cpp`, which do not compile (the skill now names this wrong fix). Result: 24 test files, 136 insertions, 122 deletions. `cmake --build juce/build --config Debug`: warning-clean; `ctest -C Debug -j 8`: 1221/1221 passed.
+- **Assumptions**: "Only the automatic fixes" excludes hand-written changes, so the three erase-remove lines are back as they were rather than rewritten with `std::erase`.

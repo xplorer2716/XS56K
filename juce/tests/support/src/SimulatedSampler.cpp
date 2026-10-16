@@ -510,7 +510,7 @@ namespace akm::harness
         bool sortsBefore(const std::string& left, const std::string& right)
         {
             const auto fold = [](unsigned char c) { return static_cast<unsigned char>(std::tolower(c)); };
-            return std::lexicographical_compare(left.begin(), left.end(), right.begin(), right.end(),
+            return std::ranges::lexicographical_compare(left, right,
                                                 [&](char a, char b) { return fold(static_cast<unsigned char>(a)) < fold(static_cast<unsigned char>(b)); });
         }
 
@@ -520,7 +520,7 @@ namespace akm::harness
             std::vector<std::pair<ProgramRecord, bool>> tagged;
             for (std::size_t i = 0; i < programs.size(); ++i)
                 tagged.emplace_back(std::move(programs[i]), current.has_value() && *current == i);
-            std::stable_sort(tagged.begin(), tagged.end(),
+            std::ranges::stable_sort(tagged,
                              [](const auto& left, const auto& right) { return sortsBefore(left.first.name, right.first.name); });
             programs.clear();
             for (std::size_t i = 0; i < tagged.size(); ++i)
@@ -541,7 +541,7 @@ namespace akm::harness
             const auto name = reader.readString();
             if (!name)
                 return failure(error_number::INVALID_FORMAT);
-            if (std::any_of(programs.begin(), programs.end(),
+            if (std::ranges::any_of(programs,
                             [&](const ProgramRecord& existing) { return existing.name == *name; }))
                 return failure(error_number::COULD_NOT_CREATE);
 
@@ -695,7 +695,7 @@ namespace akm::harness
             const auto name = reader.readString();
             if (!name)
                 return failure(error_number::INVALID_FORMAT);
-            const auto found = std::find_if(programs.begin(), programs.end(),
+            const auto found = std::ranges::find_if(programs,
                                             [&](const ProgramRecord& p) { return p.name == *name; });
             if (found == programs.end())
                 return failure(error_number::NOT_FOUND);
@@ -1045,7 +1045,7 @@ namespace akm::harness
                     for (const std::uint8_t zone : zones)
                     {
                         const bool unsetPan = match.setItem == ITEM_SET_ZONE_PAN &&
-                                              keygroup.zoneParameters.find({match.setItem, Bytes{zone}}) == keygroup.zoneParameters.end();
+                                              !keygroup.zoneParameters.contains({match.setItem, Bytes{zone}});
                         if (unsetPan)
                             concatenated.push_back(ZONE_PAN_CENTRE);
                         else
@@ -1093,7 +1093,7 @@ namespace akm::harness
                     const auto name = reader.readString();
                     if (!zone.has_value() || !name)
                         return failure(error_number::INVALID_FORMAT);
-                    if (std::find(sampleNames.begin(), sampleNames.end(), *name) == sampleNames.end())
+                    if (std::ranges::find(sampleNames, *name) == sampleNames.end())
                         return failure(error_number::NOT_FOUND);
                     akm::ByteWriter writer;
                     writer.appendString(*name);
@@ -1116,7 +1116,7 @@ namespace akm::harness
                     // deleted (TASK-MCP-061, 2026-10-10).
                     akm::ByteReader stored(found->second);
                     const auto name = stored.readString();
-                    if (!name || name->empty() || std::find(sampleNames.begin(), sampleNames.end(), *name) != sampleNames.end())
+                    if (!name || name->empty() || std::ranges::find(sampleNames, *name) != sampleNames.end())
                         return reply(found->second);
                     akm::ByteWriter missing;
                     missing.appendString("?" + *name);
@@ -1205,7 +1205,7 @@ namespace akm::harness
                     const auto name = reader.readString();
                     if (!name)
                         return failure(error_number::INVALID_FORMAT);
-                    const auto found = std::find_if(samples.begin(), samples.end(),
+                    const auto found = std::ranges::find_if(samples,
                                                     [&](const SampleRecord& s) { return s.name == *name; });
                     if (found == samples.end())
                         return failure(error_number::NOT_FOUND);
@@ -1486,7 +1486,7 @@ namespace akm::harness
             const auto name = reader.readString();  // ITEM_SET_MULTI_PART_BY_NAME
             if (!name)
                 return failure(error_number::INVALID_FORMAT);
-            if (std::none_of(programs.begin(), programs.end(), [&](const ProgramRecord& program) { return program.name == *name; }))
+            if (std::ranges::none_of(programs, [&](const ProgramRecord& program) { return program.name == *name; }))
                 return failure(error_number::NOT_FOUND);
             slot = *name;
             return done();
@@ -1510,7 +1510,7 @@ namespace akm::harness
                     const auto name = reader.readString();
                     if (!name)
                         return failure(error_number::INVALID_FORMAT);
-                    if (std::any_of(state.multis.begin(), state.multis.end(),
+                    if (std::ranges::any_of(state.multis,
                                     [&](const MultiRecord& existing) { return existing.name == *name; }))
                         return failure(error_number::COULD_NOT_CREATE);
                     MultiRecord record;
@@ -1527,7 +1527,7 @@ namespace akm::harness
                     const auto name = reader.readString();
                     if (!name)
                         return failure(error_number::INVALID_FORMAT);
-                    const auto found = std::find_if(state.multis.begin(), state.multis.end(),
+                    const auto found = std::ranges::find_if(state.multis,
                                                     [&](const MultiRecord& multi) { return multi.name == *name; });
                     if (found == state.multis.end())
                         return failure(error_number::NOT_FOUND);
@@ -1678,7 +1678,7 @@ namespace akm::harness
         // Whether `a` comes before `b` in the order of the real S5000's song files: plain ASCII, each letter taken in lower case.
         bool beforeInSongOrder(const std::string& a, const std::string& b)
         {
-            return std::lexicographical_compare(a.begin(), a.end(), b.begin(), b.end(), [](char left, char right) {
+            return std::ranges::lexicographical_compare(a, b, [](char left, char right) {
                 return std::tolower(static_cast<unsigned char>(left)) < std::tolower(static_cast<unsigned char>(right));
             });
         }
@@ -1701,7 +1701,7 @@ namespace akm::harness
                     const auto name = reader.readString();
                     if (!name)
                         return failure(error_number::INVALID_FORMAT);
-                    const auto found = std::find(names.begin(), names.end(), *name);
+                    const auto found = std::ranges::find(names, *name);
                     if (found == names.end())
                         return failure(error_number::NOT_FOUND);
                     current = static_cast<std::size_t>(found - names.begin());
@@ -1737,7 +1737,7 @@ namespace akm::harness
                         return failure(error_number::INVALID_FORMAT);
                     names[*current] = *name;
                     if (order == NameOrder::SortedOnRename)
-                        std::stable_sort(names.begin(), names.end(), beforeInSongOrder);
+                        std::ranges::stable_sort(names, beforeInSongOrder);
                     return done();
                 }
                 case ITEM_LIST_GET_COUNT:
@@ -1978,7 +1978,7 @@ namespace akm::harness
             {
                 songs.songs.erase(std::remove(songs.songs.begin(), songs.songs.end(), *file.loadsSongNamed), songs.songs.end());
                 songs.songs.push_back(*file.loadsSongNamed);
-                std::stable_sort(songs.songs.begin(), songs.songs.end(), beforeInSongOrder);
+                std::ranges::stable_sort(songs.songs, beforeInSongOrder);
             }
             // The sampler holds one set list at a time: loading one replaces the one in memory (a real S5000, TASK-MCP-058, 2026-10-10).
             if (file.loadsSetListNamed)
@@ -2694,7 +2694,7 @@ namespace akm::harness
                 return failure(error_number::OUT_OF_RANGE);
 
             auto& down = frontPanel.keysDown;
-            const auto held = std::find(down.begin(), down.end(), keycode);
+            const auto held = std::ranges::find(down, keycode);
             if (item == ITEM_KEY_HOLD)
             {
                 if (held == down.end())
@@ -3025,7 +3025,7 @@ namespace akm::harness
         return {modulationAndDelayChannel, modulationAndDelayChannel, reverbChannel, reverbChannel};
     }
 
-    void SimulatedSampler::setFxBoard(FxLayout layout)
+    void SimulatedSampler::setFxBoard(const FxLayout& layout)
     {
         const std::lock_guard lock(_mutex);
         _fx.channels.clear();
@@ -3349,7 +3349,7 @@ namespace akm::harness
         const Bytes userRefs(message.begin() + FIRST_USER_REF_INDEX, message.begin() + static_cast<std::ptrdiff_t>(sectionIndex));
         const std::uint8_t section = message[sectionIndex];
         const std::uint8_t item = message[sectionIndex + 1];
-        const auto slow = std::find_if(_behaviour.slowItems.begin(), _behaviour.slowItems.end(),
+        const auto slow = std::ranges::find_if(_behaviour.slowItems,
                                        [section, item](const SlowItem& candidate) { return candidate.section == section && candidate.item == item; });
         _itemDelay = slow != _behaviour.slowItems.end() ? slow->delay : Scheduler::Clock::duration::zero();
         const std::size_t endIndex = message.size() - END_BYTE_SIZE;
@@ -3404,7 +3404,7 @@ namespace akm::harness
             confirmations.push_back(confirmation(REPLY_OK, {}, before.checksum));
 
         // An item the sampler was told to refuse fails with its ERROR and does not run.
-        const auto refused = std::find_if(_behaviour.itemErrors.begin(), _behaviour.itemErrors.end(),
+        const auto refused = std::ranges::find_if(_behaviour.itemErrors,
                                           [section, item](const ItemError& candidate) {
                                               return candidate.section == section && candidate.item == item;
                                           });
@@ -3417,7 +3417,7 @@ namespace akm::harness
         if (section == SECTION_DISK && _behaviour.staleFileListAfterSave)
             applyStaleFileList(item, data, outcome, _disks, _currentDisk, _currentFolderPath, _staleFiles);
         // An item the sampler is deaf to ran, and says nothing, the OK included.
-        const bool silentItem = std::any_of(_behaviour.silentItems.begin(), _behaviour.silentItems.end(),
+        const bool silentItem = std::ranges::any_of(_behaviour.silentItems,
                                             [section, item](const SilentItem& candidate) {
                                                 return candidate.section == section && candidate.item == item;
                                             });

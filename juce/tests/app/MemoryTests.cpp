@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // The memory view of the editor application, read side, over the gateway and the simulated sampler: the six lists with their current items
 // once the session opens, read again after an action that changes the memory and on request, an item selected on the sampler, and the
 // free memory. [TASK-APP-015, RQ-APP-035, RQ-APP-036, RQ-APP-037, RQ-APP-042, RQ-APP-010, ADR-APP-001 (DEC-APP-004)]
+#include <algorithm>
 #include <catch2/catch_test_macros.hpp>
 
 #include <algorithm>
@@ -100,7 +101,7 @@ namespace
 
     bool holds(const app::MemoryList& list, const std::string& name)
     {
-        return std::find(list.names.begin(), list.names.end(), name) != list.names.end();
+        return std::ranges::find(list.names, name) != list.names.end();
     }
 }
 

@@ -548,7 +548,7 @@ namespace akm::harness
 
         /// Installs an FX board of the given layout (§12), every module at the type the layout gives it; an empty layout
         /// removes the board. The sampler has none by default, as the owner's has none. [RQ-AKM-099]
-        void setFxBoard(FxLayout layout);
+        void setFxBoard(const FxLayout& layout);
 
         /// Makes §12/&01 answer `code`, whatever the layout: for a test that wants a REPLY the layer cannot name.
         void setFxCardCode(std::uint8_t code);
