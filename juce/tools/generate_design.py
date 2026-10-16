@@ -6,12 +6,14 @@ ones), checks it (every alias resolves, no cycle, no semantic or component token
 contrast), and writes:
   - `juce/app/core/include/app/DesignTokens.generated.hpp`: `constexpr` constants in namespace `app::tokens`, no JUCE include;
   - the tables between the `<!-- BEGIN GENERATED: ... -->` markers of `process/1.requirements/DESIGN-SYSTEM-APP.md`;
-  - `juce/app/core/include/app/EditorLayouts.generated.hpp`: the editor layouts of `juce/app/design/layouts/*.json` as `constexpr` tables.
+  - `juce/app/core/include/app/EditorLayouts.generated.hpp`: the editor layouts of `juce/app/design/layouts/*.json` as `constexpr` tables,
+    with the shape sets of `juce/app/design/shapes/*.json` a choice names.
 `--check` writes nothing and fails, naming the files, when one is behind its source. Never run during the build.
 
-Usage: python3 juce/tools/generate_design.py [--check] [--tokens PATH] [--header PATH] [--doc PATH] [--layouts DIR] [--layouts-header PATH]
+Usage: python3 juce/tools/generate_design.py [--check] [--tokens PATH] [--header PATH] [--doc PATH] [--layouts DIR] [--shapes DIR]
+       [--layouts-header PATH]
 
-[TASK-APP-007, TASK-APP-035, RQ-APP-002, RQ-APP-005, RQ-APP-086, ADR-APP-002 (DEC-APP-011, DEC-APP-012), ADR-APP-004 (DEC-APP-024)]
+[TASK-APP-007, TASK-APP-035, RQ-APP-002, RQ-APP-005, RQ-APP-086, ADR-APP-002 (DEC-APP-011, DEC-APP-012), ADR-APP-004 (DEC-APP-024, DEC-APP-032), TASK-APP-051]
 """
 import argparse
 import json
@@ -24,6 +26,7 @@ DEFAULT_TOKENS = ROOT / "juce" / "app" / "design" / "tokens.json"
 DEFAULT_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "DesignTokens.generated.hpp"
 DEFAULT_DOC = ROOT / "process" / "1.requirements" / "DESIGN-SYSTEM-APP.md"
 DEFAULT_LAYOUTS = ROOT / "juce" / "app" / "design" / "layouts"
+DEFAULT_SHAPES = ROOT / "juce" / "app" / "design" / "shapes"
 DEFAULT_LAYOUTS_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "EditorLayouts.generated.hpp"
 CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider"}
 ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
@@ -226,16 +229,60 @@ def render_envelope(editor, group):
 CLOSE_TABLE = "    }};"  # the end of a constexpr table of the generated header
 
 
-def render_parameters(editor, group, name):
-    """The table of one group's parameters, as lines. Each control and role must be a known one."""
-    rows = []
-    for parameter in group.get("parameters", []):
-        control, role = parameter.get("control"), parameter.get("role")
-        if control not in CONTROLS:
-            raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown control {control}")
-        if role not in ROLES:
-            raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown role {role}")
-        rows.append(f"{{{cpp_text(parameter['name'])}, {cpp_text(parameter['label'])}, Role::{ROLES[role]}, Control::{CONTROLS[control]}}}")
+def shape_table(name):
+    """The C++ name of a shape set's tables: "filter types" gives kFilterTypes."""
+    return "k" + "".join(word[:1].upper() + word[1:] for word in name.split())
+
+
+def check_polyline(set_name, label, points):
+    """A shape is at least two points in the unit square, x never decreasing. [RQ-APP-096, DEC-APP-032]"""
+    if len(points) < 2:
+        raise TokenError(f"the shape {label} of {set_name} has fewer than two points")
+    for x, y in points:
+        if not (0 <= x <= 1 and 0 <= y <= 1):
+            raise TokenError(f"the shape {label} of {set_name} leaves the unit square at {x}, {y}")
+    if any(later[0] < earlier[0] for earlier, later in zip(points, points[1:])):
+        raise TokenError(f"the shape {label} of {set_name} goes back along x")
+
+
+def render_shapes(shapes, lines):
+    """Every shape set as tables: a polyline per label, then the set, label by label in the file's order."""
+    for set_name, shape_set in sorted(shapes.items()):
+        table = shape_table(set_name)
+        entries = []
+        for index, (label, points) in enumerate(shape_set.get("shapes", {}).items()):
+            check_polyline(set_name, label, points)
+            pairs = ", ".join(f"{{{float(x)!r}f, {float(y)!r}f}}" for x, y in points)
+            lines.append(f"    inline constexpr std::array<ShapePoint, {len(points)}> {table}Shape{index}{{{{{pairs}}}}};")
+            entries.append(f"ChoiceShape{{{cpp_text(label)}, {table}Shape{index}}}")
+        lines.append(f"    inline constexpr std::array<ChoiceShape, {len(entries)}> {table}Shapes{{{{")
+        lines += [f"        {entry}," for entry in entries]
+        lines.append(CLOSE_TABLE)
+
+
+def render_parameter(editor, parameter, shapes):
+    """One parameter's initialiser. Its control and role must be known ones; a choice may name a shape set."""
+    control, role = parameter.get("control"), parameter.get("role")
+    if control not in CONTROLS:
+        raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown control {control}")
+    if role not in ROLES:
+        raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown role {role}")
+    fields = [cpp_text(parameter["name"]), cpp_text(parameter["label"]), f"Role::{ROLES[role]}", f"Control::{CONTROLS[control]}"]
+    shape_set = parameter.get("shapes")
+    if shape_set is None:
+        fields.append("{}")  # every field given: no missing-initialiser warning [RQ-BLD-003]
+    else:
+        if control != "choice":
+            raise TokenError(f"the layout {editor} gives shapes to {parameter['name']}, which is not a choice")
+        if shape_set not in shapes:
+            raise TokenError(f"the layout {editor} gives {parameter['name']} the unknown shape set {shape_set}")
+        fields.append(f"{shape_table(shape_set)}Shapes")
+    return "{" + ", ".join(fields) + "}"
+
+
+def render_parameters(editor, group, name, shapes):
+    """The table of one group's parameters, as lines."""
+    rows = [render_parameter(editor, parameter, shapes) for parameter in group.get("parameters", [])]
     return ([f"    inline constexpr std::array<LayoutParameter, {len(rows)}> {name}{{{{"] + [f"        {row}," for row in rows] + [CLOSE_TABLE])
 
 
@@ -246,9 +293,9 @@ def render_scope(editor, group):
     return f"Scope::{SCOPES[scope]}" if scope else "Scope::None"
 
 
-def render_group(editor, group, name, lines):
+def render_group(editor, group, name, lines, shapes):
     """One group: its tables are appended to `lines`, its initialiser is returned."""
-    lines += render_parameters(editor, group, name)
+    lines += render_parameters(editor, group, name, shapes)
     scope_cpp = render_scope(editor, group)
     envelope = render_envelope(editor, group)
     envelope_cpp = "{}"
@@ -261,9 +308,9 @@ def render_group(editor, group, name, lines):
     return f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}}}"
 
 
-def render_tab(editor, prefix, tab_index, tab, lines):
+def render_tab(editor, prefix, tab_index, tab, lines, shapes):
     """One tab: its groups' tables, then its own, are appended to `lines`; its initialiser is returned."""
-    group_names = [render_group(editor, group, f"{prefix}Tab{tab_index}Group{group_index}", lines)
+    group_names = [render_group(editor, group, f"{prefix}Tab{tab_index}Group{group_index}", lines, shapes)
                    for group_index, group in enumerate(tab.get("groups", []))]
     name = f"{prefix}Tab{tab_index}"
     lines.append(f"    inline constexpr std::array<LayoutGroup, {len(group_names)}> {name}Groups{{{{")
@@ -291,10 +338,10 @@ def render_orders(editor, prefix, layout, lines):
     lines.append(CLOSE_TABLE)
 
 
-def render_editor(editor, layout, lines):
+def render_editor(editor, layout, lines, shapes):
     """One editor: its tabs and orders are appended to `lines`; its initialiser is returned."""
     prefix = "k" + editor[:1].upper() + editor[1:]
-    tab_names = [render_tab(editor, prefix, tab_index, tab, lines) for tab_index, tab in enumerate(layout.get("tabs", []))]
+    tab_names = [render_tab(editor, prefix, tab_index, tab, lines, shapes) for tab_index, tab in enumerate(layout.get("tabs", []))]
     lines.append(f"    inline constexpr std::array<LayoutTab, {len(tab_names)}> {prefix}Tabs{{{{")
     lines += [f"        {tab}," for tab in tab_names]
     lines.append(CLOSE_TABLE)
@@ -302,12 +349,14 @@ def render_editor(editor, layout, lines):
     return f"EditorLayout{{{cpp_text(editor)}, {prefix}Tabs, {prefix}Orders}}"
 
 
-def render_layouts(layouts):
-    """The editor layouts, by editor name, as constexpr tables in namespace `app::layouts` (types in `app/EditorLayout.hpp`)."""
+def render_layouts(layouts, shapes=None):
+    """The editor layouts, by editor name, as constexpr tables in namespace `app::layouts` (types in `app/EditorLayout.hpp`), after the
+    shape sets, by name, that their choices may name."""
+    shapes = shapes or {}
     lines = [
-        "// GENERATED by juce/tools/generate_design.py from the JSON files of juce/app/design/layouts/: do not edit by hand.",
-        "// The editor layouts: each editor's tabs, groups and parameters, by catalogue name. No JUCE.",
-        "// [RQ-APP-049, RQ-APP-086, RQ-APP-092, ADR-APP-001 (DEC-APP-006), ADR-APP-004 (DEC-APP-024, DEC-APP-029)]",
+        "// GENERATED by juce/tools/generate_design.py from the JSON files of juce/app/design/layouts/ and shapes/: do not edit by hand.",
+        "// The editor layouts: each editor's tabs, groups and parameters, by catalogue name; the shapes a choice draws. No JUCE.",
+        "// [RQ-APP-049, RQ-APP-086, RQ-APP-092, RQ-APP-096, ADR-APP-001 (DEC-APP-006), ADR-APP-004 (DEC-APP-024, DEC-APP-029, DEC-APP-032)]",
         "#pragma once",
         "",
         "#include <array>",
@@ -317,7 +366,8 @@ def render_layouts(layouts):
         "namespace app::layouts",
         "{",
     ]
-    editors = [render_editor(editor, layout, lines) for editor, layout in sorted(layouts.items())]
+    render_shapes(shapes, lines)
+    editors = [render_editor(editor, layout, lines, shapes) for editor, layout in sorted(layouts.items())]
     lines.append(f"    inline constexpr std::array<EditorLayout, {len(editors)}> kEditorLayouts{{{{")
     lines += [f"        {editor}," for editor in editors]
     lines.append(CLOSE_TABLE)
@@ -334,6 +384,15 @@ def read_layouts(folder):
         layout = json.loads(path.read_text(encoding="utf-8"))
         layouts[layout.get("editor", path.stem)] = layout
     return layouts
+
+
+def read_shapes(folder):
+    """The shape sets of a folder, by their name. [RQ-APP-096, DEC-APP-032]"""
+    folder = pathlib.Path(folder)
+    if not folder.is_dir():
+        return {}
+    sets = [json.loads(path.read_text(encoding="utf-8")) for path in sorted(folder.glob("*.json"))]
+    return {shape_set["name"]: shape_set for shape_set in sets}
 
 
 def generate(tokens_path, doc_path):
@@ -354,11 +413,12 @@ def main(argv=None):
     parser.add_argument("--header", default=str(DEFAULT_HEADER))
     parser.add_argument("--doc", default=str(DEFAULT_DOC))
     parser.add_argument("--layouts", default=str(DEFAULT_LAYOUTS))
+    parser.add_argument("--shapes", default=str(DEFAULT_SHAPES))
     parser.add_argument("--layouts-header", default=str(DEFAULT_LAYOUTS_HEADER))
     arguments = parser.parse_args(argv)
     try:
         header, doc = generate(arguments.tokens, arguments.doc)
-        layouts_header = render_layouts(read_layouts(arguments.layouts))
+        layouts_header = render_layouts(read_layouts(arguments.layouts), read_shapes(arguments.shapes))
     except (TokenError, OSError, ValueError) as error:
         print(f"generate_design: {error}", file=sys.stderr)
         return 1

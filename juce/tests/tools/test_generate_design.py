@@ -182,8 +182,8 @@ class WritingTheEditorLayouts(unittest.TestCase):
     def test_given_a_layout_when_written_then_its_tabs_groups_and_parameters_are_constexpr_tables_in_order(self):
         header = self.gen.render_layouts({"sample": LAYOUT})
         self.assertIn("namespace app::layouts", header)
-        self.assertIn('{"sample start position", "Start", Role::Sample, Control::Slider}', header)
-        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob}', header)
+        self.assertIn('{"sample start position", "Start", Role::Sample, Control::Slider, {}}', header)
+        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}}', header)
         self.assertLess(header.index('"Playback"'), header.index('"Pitch"'))
         self.assertIn('"sample"', header)
         self.assertIn("kEditorLayouts", header)
@@ -261,6 +261,60 @@ class WritingTheEditorLayouts(unittest.TestCase):
     def test_given_no_layout_when_written_then_the_table_is_empty_and_still_compiles(self):
         header = self.gen.render_layouts({})
         self.assertIn("kEditorLayouts", header)
+
+
+SHAPES = {"filter types": {"name": "filter types", "shapes": {
+    "2-POLE LP": [[0, 0.7], [0.6, 0.7], [0.92, 0], [1, 0]],
+    "NOTCH 1": [[0, 0.45], [0.48, 0], [1, 0.45]]}}}
+
+
+class WritingTheChoiceShapes(unittest.TestCase):
+    """A choice may show the shape of its value: the shape sets as C++ tables, the choice pointing to its set.
+    [RQ-APP-096, ADR-APP-004 (DEC-APP-032), TASK-APP-051]"""
+
+    def setUp(self):
+        self.gen = load_script()
+
+    @staticmethod
+    def layout(shapes="filter types", parameter=1):
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][0]["parameters"][parameter]["shapes"] = shapes
+        return layout
+
+    def test_given_a_choice_naming_a_shape_set_when_written_then_each_label_has_its_polyline_in_order_and_the_choice_points_to_them(self):
+        header = self.gen.render_layouts({"sample": self.layout()}, SHAPES)
+        self.assertIn('{"sample playback mode", "Mode", Role::Sample, Control::Choice, kFilterTypesShapes}', header)
+        self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}}', header)
+        self.assertIn("{0.0f, 0.7f}, {0.6f, 0.7f}, {0.92f, 0.0f}, {1.0f, 0.0f}", header)
+        self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0}', header)
+        self.assertLess(header.index('"2-POLE LP"'), header.index('"NOTCH 1"'))
+        self.assertLess(header.index("kFilterTypesShapes{{"), header.index("kSampleTab0Group0{{"))
+
+    def test_given_a_choice_naming_an_unknown_shape_set_or_shapes_on_a_knob_when_written_then_it_fails_and_names_it(self):
+        unknown = {"sample": self.layout("vowels")}
+        with self.assertRaises(self.gen.TokenError) as raised:
+            self.gen.render_layouts(unknown, SHAPES)
+        self.assertIn("vowels", str(raised.exception))
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][1]["parameters"][0]["shapes"] = "filter types"
+        with self.assertRaises(self.gen.TokenError) as raised:
+            self.gen.render_layouts({"sample": layout}, SHAPES)
+        self.assertIn("sample fine tune", str(raised.exception))
+
+    def test_given_a_polyline_going_back_leaving_the_square_or_of_one_point_when_written_then_it_fails_and_names_its_label(self):
+        for points in ([[0.5, 0.2], [0.4, 0.3]], [[0, 0], [1, 1.2]], [[0, 0]]):
+            shapes = copy.deepcopy(SHAPES)
+            shapes["filter types"]["shapes"]["NOTCH 1"] = points
+            layouts = {"sample": self.layout()}
+            with self.assertRaises(self.gen.TokenError) as raised:
+                self.gen.render_layouts(layouts, shapes)
+            self.assertIn("NOTCH 1", str(raised.exception))
+
+    def test_given_a_folder_of_shape_sets_when_read_then_they_are_keyed_by_their_name(self):
+        with tempfile.TemporaryDirectory() as folder:
+            (pathlib.Path(folder) / "filter-types.json").write_text(json.dumps(SHAPES["filter types"]), encoding="utf-8")
+            self.assertEqual(self.gen.read_shapes(folder), SHAPES)
+        self.assertEqual(self.gen.read_shapes(pathlib.Path(folder) / "none"), {})
 
 
 class CheckingTheGeneratedFiles(unittest.TestCase):

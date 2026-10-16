@@ -52,6 +52,8 @@ namespace app::ui
         std::function<void(std::int64_t)> onValue;
 
         void resized() override;
+        /// A choice with shapes draws the shape of the value shown above it, in its role's colour. [RQ-APP-096, ADR-APP-004 (DEC-APP-032)]
+        void paint(juce::Graphics& g) override;
 
     private:
         void valueBoxEdited();
@@ -62,6 +64,7 @@ namespace app::ui
         juce::Label _box;
         juce::Slider _slider;
         juce::ComboBox _choice;
+        juce::Rectangle<int> _shapeArea;  ///< where a choice's shape is drawn; empty: none
         EditValue _shown;
         /// True while the controls are set from the model: that is no value the person gave.
         bool _showing = false;

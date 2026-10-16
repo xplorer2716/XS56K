@@ -158,6 +158,34 @@ namespace app::ui
         }
         _choice.setSelectedId(static_cast<int>(value.value) + FIRST_ITEM_ID, juce::dontSendNotification);
         _choice.setColour(juce::ComboBox::textColourId, colourOf(value.pending ? kColourStatusPending : kChoiceText));
+        if (!_parameter.shapes.empty())
+            repaint();  // the shape follows the value shown [RQ-APP-096]
+    }
+
+    void ParameterCell::paint(juce::Graphics& g)
+    {
+        using namespace tokens;
+        if (_shapeArea.isEmpty() || _shown.definition == nullptr)
+            return;
+        const auto& labels = _shown.definition->labels;
+        if (_shown.value < 0 || static_cast<std::size_t>(_shown.value) >= labels.size())
+            return;
+        const auto points = layouts::shapeOf(_parameter, labels[static_cast<std::size_t>(_shown.value)]);
+        if (points.empty())
+            return;  // a type the manual does not draw: its name alone [RQ-APP-096]
+        const auto area = _shapeArea.toFloat();
+        g.setColour(colourOf(kEnvelopeSurface));
+        g.fillRoundedRectangle(area, kRadiusControl);
+        const auto inner = area.reduced(kSizeSpace1);
+        const auto at = [&inner](const layouts::ShapePoint& point) {
+            return juce::Point<float>(inner.getX() + inner.getWidth() * point.x, inner.getBottom() - inner.getHeight() * point.y);
+        };
+        juce::Path line;
+        line.startNewSubPath(at(points.front()));
+        for (const layouts::ShapePoint& point : points.subspan(1))
+            line.lineTo(at(point));
+        g.setColour(_shown.pending ? colourOf(kColourStatusPending) : roleColour(_parameter.role));
+        g.strokePath(line, juce::PathStrokeType(kStrokeArc, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     void ParameterCell::valueBoxEdited()
@@ -187,7 +215,14 @@ namespace app::ui
                 _box.setBounds(bottom);
                 break;
             case Choice:
-                _choice.setBounds(top.withSizeKeepingCentre(top.getWidth(), pixels(kSizeControlMedium)));
+                if (_parameter.shapes.empty())
+                {
+                    _choice.setBounds(top.withSizeKeepingCentre(top.getWidth(), pixels(kSizeControlMedium)));
+                    break;
+                }
+                // The shape where a knob has its dial, the choice where it has its value box. [RQ-APP-096, DEC-APP-032]
+                _shapeArea = top;
+                _choice.setBounds(bottom);
                 break;
             case ValueBox:
                 _box.setBounds(top.withSizeKeepingCentre(top.getWidth(), pixels(kValueboxHeight)));

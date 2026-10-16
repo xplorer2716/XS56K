@@ -68,6 +68,15 @@ of the tab (the Envelopes tab: Amp, Filter, Aux, a row each). The three rows are
 new role `amp` (`colour.role.amp`, blue), Filter `filter` (amber), Aux `modulation` (teal); each colour comes with its group's title (DEC-APP-016,
 RQ-APP-005). [RQ-APP-056, RQ-APP-094, RQ-APP-095]
 
+### DEC-APP-032: A choice may show the shape of its value, the shapes being design data
+A shape set is `juce/app/design/shapes/<name>.json`: per label of a choice, a polyline in a unit square (x from 0 to 1, not decreasing; y from
+0 to 1, upwards). A layout's choice names it (`"shapes": "filter types"`); `generate_design.py` checks the set exists and each polyline, and
+generates it with the parameter (`LayoutParameter::shapes`, empty for the others); a core test checks each label against the catalogue's labels.
+The cell draws the shape of the value shown where a knob draws its dial, the choice under its label where a knob has its value box, in the
+role's colour on `envelope.surface` with `stroke.arc` (the mockups the same); a label with no shape shows its name alone. The filter types'
+shapes are the user manual's (EDIT PROGRAM, FILTER MODE, pp. 114 to 118), 19 of 26; the other seven are not drawn there and await the owner's.
+[RQ-APP-096, RQ-APP-057]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

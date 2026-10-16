@@ -112,3 +112,41 @@ TEST_CASE("Given the program editor's layout, Then every name is a parameter of 
         }
     }
 }
+
+TEST_CASE("Given the Filter tab's type, Then it names the filter shapes, each a label of the catalogue's filter types; 2-POLE LP falls to 0 at "
+          "the right and VOWELISER has no shape [RQ-APP-096, DEC-APP-032, TASK-APP-051]",
+          "[app][layout]")
+{
+    constexpr std::size_t MANUAL_SHAPES = 19;
+    const app::layouts::EditorLayout* program = layoutOf("program");
+    REQUIRE(program != nullptr);
+    const app::layouts::LayoutParameter* type = nullptr;
+    for (const auto& tab : program->tabs)
+    {
+        for (const auto& group : tab.groups)
+        {
+            for (const auto& parameter : group.parameters)
+            {
+                if (parameter.name == "filter type")
+                    type = &parameter;
+            }
+        }
+    }
+    REQUIRE(type != nullptr);
+    CHECK(type->shapes.size() == MANUAL_SHAPES);
+    const auto& rows = mcp::ParameterCatalogue::standard().parameters();
+    const auto row = std::ranges::find_if(rows, [](const mcp::ParameterDefinition& definition) { return definition.name == "filter type"; });
+    REQUIRE(row != rows.end());
+    for (const app::layouts::ChoiceShape& shape : type->shapes)
+    {
+        INFO(std::string(shape.label));
+        CHECK(std::ranges::find(row->labels, std::string(shape.label)) != row->labels.end());
+    }
+
+    const auto lowPass = app::layouts::shapeOf(*type, "2-POLE LP");
+    REQUIRE(lowPass.size() >= 2);
+    CHECK(lowPass.front().y > 0.0F);
+    CHECK(lowPass.back().x == 1.0F);
+    CHECK(lowPass.back().y == 0.0F);
+    CHECK(app::layouts::shapeOf(*type, "VOWELISER").empty());
+}

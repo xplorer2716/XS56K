@@ -121,3 +121,12 @@ The pages of the sampler's EDIT PROGRAM mode (user manual pp. 80-127) are a sour
 - **Priority**: Must
 - **Acceptance Criteria** (Gherkin): *Given* the attack 10, decay 50, sustain 80 and release 30, *Then* the graph rises over a tenth of a stage's width, falls to 80 % over half of one, holds, then falls to 0 over 30 %; *When* the person drags the decay's end down to 60 %, *Then* the sustain is set to 60 and the graph follows the value read back.
 - **Dependencies**: RQ-APP-052, RQ-APP-054, RQ-APP-091, ADR-APP-004
+
+### RQ-APP-096: The filter type is seen by its shape
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: The Filter tab SHALL draw the response of the filter type shown (level against frequency) above its choice, as the user manual draws it; WHEN the type changes, read back from the sampler, the shape SHALL follow; IF a type has no shape, THEN its name SHALL be shown alone.
+- **Rationale**: the owner, 2026-10-16: "j'aimerais avoir un contrôle graphique qui montre la forme du filtre"; 26 names are easier to tell apart by their shape.
+- **Priority**: Should
+- **Acceptance Criteria** (Gherkin): *Given* the type 2-POLE LP, *Then* its shape falls from the pass level to 0 at the right; *When* the person chooses 4-POLE LP, *Then* it is sent, read back, and the shape falls more steeply; *Given* VOWELISER, *Then* no shape is drawn and its name is shown.
+- **Dependencies**: RQ-APP-057, RQ-APP-052, RQ-APP-005, ADR-APP-004 (DEC-APP-032)

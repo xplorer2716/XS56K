@@ -17,7 +17,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 // The types of the editor layouts: each editor's tabs, each tab's groups, each group's parameters by their catalogue name, with the label drawn,
 // the role that colours them and the control that edits them, and the orders their values keep. The tables are generated into EditorLayouts.generated.hpp from
-// the JSON files of juce/app/design/layouts/. No JUCE. [RQ-APP-049, RQ-APP-086, ADR-APP-001 (DEC-APP-006), ADR-APP-004 (DEC-APP-024, DEC-APP-027)]
+// the JSON files of juce/app/design/layouts/, with the shapes a choice draws. No JUCE. [RQ-APP-049, RQ-APP-086, RQ-APP-096, ADR-APP-001 (DEC-APP-006),
+// ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-032)]
 #pragma once
 
 #include <span>
@@ -45,13 +46,39 @@ namespace app::layouts
         General,
     };
 
+    /// A point of a choice's shape, in a unit square: x from 0 to 1, y from 0 (bottom) to 1. [RQ-APP-096, ADR-APP-004 (DEC-APP-032)]
+    struct ShapePoint
+    {
+        float x;
+        float y;
+    };
+
+    /// The shape drawn for one label of a choice (a filter type's response), from juce/app/design/shapes/.
+    struct ChoiceShape
+    {
+        std::string_view label;
+        std::span<const ShapePoint> points;
+    };
+
     struct LayoutParameter
     {
         std::string_view name;   ///< the catalogue's name
         std::string_view label;  ///< as drawn under the control
         Role role;
         Control control;
+        std::span<const ChoiceShape> shapes{};  ///< a choice's shapes by label; empty: none drawn (DEC-APP-032)
     };
+
+    /// The shape of `label` among the parameter's shapes; empty when it has none, and the name is shown alone. [RQ-APP-096]
+    [[nodiscard]] constexpr std::span<const ShapePoint> shapeOf(const LayoutParameter& parameter, std::string_view label)
+    {
+        for (const ChoiceShape& shape : parameter.shapes)
+        {
+            if (shape.label == label)
+                return shape.points;
+        }
+        return {};
+    }
 
     /// Where a group's parameters live, said after its title (RQ-APP-056); `None` for an editor of one kind (the sample's).
     enum class Scope

@@ -54,10 +54,12 @@
 <rect x="324" y="100" width="3" height="13" fill="#E9A85A"/>
 <text x="335" y="113" font-size="13" font-weight="500" fill="#A9AAB2" letter-spacing="0.5">FILTER</text>
 <text x="756" y="113" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="end" letter-spacing="0.5">KEYGROUP</text>
-<rect x="328" y="129" width="136" height="24" fill="#202125" rx="3"/>
-<text x="336" y="146" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
-<text x="456" y="146" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>
-<text x="396" y="146" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">2-POLE LP</text>
+<rect x="328" y="121" width="136" height="40" fill="#202125" rx="3"/>
+<polyline points="332,134.6 408.8,134.6 449.76,157 460,157" fill="none" stroke="#E9A85A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/>
+<rect x="328" y="186" width="136" height="20" fill="#202125" rx="3"/>
+<text x="336" y="201" font-size="15" font-weight="400" fill="#A9AAB2">&lt;</text>
+<text x="456" y="201" font-size="15" font-weight="400" fill="#A9AAB2" text-anchor="end">&gt;</text>
+<text x="396" y="201" font-size="15" font-weight="400" fill="#ECECEF" text-anchor="middle">2-POLE LP</text>
 <text x="396" y="182" font-size="13" font-weight="500" fill="#A9AAB2" text-anchor="middle" letter-spacing="0.5">TYPE</text>
 <circle cx="504" cy="141" r="14" fill="#202125"/>
 <path d="M 491.98 153.02 A 17 17 0 1 1 516.02 153.02" fill="none" stroke="#45464D" stroke-width="3" stroke-linecap="round"/>

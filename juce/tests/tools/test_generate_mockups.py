@@ -46,6 +46,9 @@ SCREEN = {
 }
 
 
+SHAPES = {"filter types": {"name": "filter types", "shapes": {"2-POLE LP": [[0, 0.7], [0.6, 0.7], [0.92, 0], [1, 0]]}}}
+
+
 def load_script():
     spec = importlib.util.spec_from_file_location("generate_mockups", SCRIPT)
     module = importlib.util.module_from_spec(spec)
@@ -187,6 +190,44 @@ class RenderingAScreen(unittest.TestCase):
         self.assertIn(">KEYGROUP<", svg)
         handles = re.findall(r'<circle [^>]*fill="' + re.escape(theme("envelope.handle")) + '"', svg)
         self.assertEqual(len(handles), 3)  # a breakpoint per stage that has a time
+
+    def render_type(self, text, shapes=None, shape_set="filter types", data=None):
+        layout = copy.deepcopy(LAYOUT)
+        layout["tabs"][0]["groups"][0]["parameters"][1]["shapes"] = shape_set
+        screen = copy.deepcopy(SCREEN)
+        screen["content"]["editor"]["values"]["filter type"] = {"text": text}
+        shapes = SHAPES if shapes is None else shapes
+        return self.gen.render_state(screen, "connected", data or tokens(), {"program": layout}, FAKE_FONTS, shapes)
+
+    def test_given_a_choice_with_shapes_when_rendered_then_the_shape_of_its_value_is_drawn_in_its_role_colour_above_the_choice(self):
+        # 2-POLE LP: from the pass level, flat, then down to 0 at the right. [RQ-APP-096, DEC-APP-032, TASK-APP-051]
+        data = tokens()
+        svg = self.render_type("2-POLE LP", data=data)
+        theme = self.gen.Theme(data)
+        lines = re.findall(r'<polyline points="([^"]+)"[^>]*stroke="([^"]+)"', svg)
+        self.assertEqual(len(lines), 1)
+        points, stroke = lines[0]
+        self.assertEqual(stroke, theme("colour.role.filter"))
+        xy = [tuple(float(v) for v in pair.split(",")) for pair in points.split()]
+        self.assertEqual(len(xy), 4)
+        (x0, y0), (x1, y1), (x2, y2), (x3, y3) = xy
+        self.assertAlmostEqual(y0, y1)   # flat over the pass band
+        self.assertGreater(y2, y1)       # then down (y grows downwards)
+        self.assertAlmostEqual(y2, y3)   # to 0
+        self.assertLess(x0, x3)
+        choice_y = float(re.search(r'<text x="[\d.]+" y="([\d.]+)"[^>]*>2-POLE LP<', svg).group(1))
+        self.assertLess(max(y0, y3), choice_y)
+        self.assertIn(">TYPE<", svg)
+
+    def test_given_a_value_with_no_shape_when_rendered_then_only_its_name_is_shown(self):
+        svg = self.render_type("VOWELISER")
+        self.assertEqual(svg.count("<polyline"), 0)
+        self.assertIn(">VOWELISER<", svg)
+
+    def test_given_a_choice_naming_an_unknown_shape_set_when_rendered_then_it_fails_and_names_it(self):
+        with self.assertRaises(self.gen.MockupError) as raised:
+            self.render_type("2-POLE LP", shape_set="vowels")
+        self.assertIn("vowels", str(raised.exception))
 
     def test_given_a_group_that_starts_a_row_when_rendered_then_it_is_drawn_under_the_first_at_the_left(self):
         # Two narrow groups would share a row; the second starts its own. [RQ-APP-094, DEC-APP-031, TASK-APP-044]

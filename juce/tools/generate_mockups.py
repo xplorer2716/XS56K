@@ -8,9 +8,11 @@ font files (`juce/app/resources/fonts/Inter-{Regular,Medium}.woff2`), and writes
 and example values only. `--check` writes nothing and fails, naming the files, when a committed mockup is behind its sources. Python 3
 standard library only; never run during the build.
 
-Usage: python3 juce/tools/generate_mockups.py [--check] [--screens DIR] [--layouts DIR ...] [--fonts DIR] [--out DIR] [--tokens PATH]
+Usage: python3 juce/tools/generate_mockups.py [--check] [--screens DIR] [--layouts DIR ...] [--shapes DIR]
+       [--fonts DIR] [--out DIR] [--tokens PATH]
 
-[TASK-APP-008, RQ-APP-074, RQ-APP-075, RQ-APP-076, RQ-APP-077, ADR-APP-003 (DEC-APP-017 to DEC-APP-021)]
+[TASK-APP-008, RQ-APP-074, RQ-APP-075, RQ-APP-076, RQ-APP-077, ADR-APP-003 (DEC-APP-017 to DEC-APP-021),
+RQ-APP-096, ADR-APP-004 (DEC-APP-032), TASK-APP-051]
 """
 import argparse
 import base64
@@ -26,6 +28,7 @@ DESIGN = ROOT / "juce" / "app" / "design"
 DEFAULT_TOKENS = DESIGN / "tokens.json"
 DEFAULT_SCREENS = DESIGN / "screens"
 DEFAULT_LAYOUTS = [DESIGN / "layouts", DESIGN / "examples"]
+DEFAULT_SHAPES = DESIGN / "shapes"
 DEFAULT_FONTS = ROOT / "juce" / "app" / "resources" / "fonts"
 DEFAULT_OUT = ROOT / "documents" / "mockups"
 FONT_FILES = {400: "Inter-Regular.woff2", 500: "Inter-Medium.woff2"}
@@ -309,9 +312,9 @@ def draw_slider(c, x, cy, w, fraction, colour, pending):
     c.circle(end, cy, t("slider.thumb.size") / 2, t("slider.thumb"))
 
 
-def draw_choice(c, x, y, w, text, pending):
+def draw_choice(c, x, y, w, text, pending, h=None):
     t = c.t
-    h = t("size.control.medium")
+    h = h or t("size.control.medium")
     inside = t("space.inside")
     c.rect(x, y, w, h, t("choice.surface"), t("radius.control"))
     baseline = y + h / 2 + t("font.value.size") / 3
@@ -322,7 +325,43 @@ def draw_choice(c, x, y, w, text, pending):
     c.text(x + w / 2, baseline, shown, t("font.value.size"), colour, anchor="middle")
 
 
-def draw_group(c, x, y, group, values, pending):
+def draw_shape(c, x, y, w, h, points, colour):
+    """A choice's shape for its value (a filter type's response) in a unit square drawn on the envelope's surface, y upwards.
+    [RQ-APP-096, ADR-APP-004 (DEC-APP-032)]"""
+    t = c.t
+    c.rect(x, y, w, h, t("envelope.surface"), t("radius.control"))
+    margin = t("size.space.1")
+    inner_w, inner_h = w - 2 * margin, h - 2 * margin
+    c.polyline([(x + margin + inner_w * px, y + margin + inner_h * (1 - py)) for px, py in points], colour, t("stroke.arc"))
+
+
+def shape_points(parameter, text, shapes):
+    """The polyline of the value shown, or None: no shape set named, or none for that label. A set that does not exist fails."""
+    name = parameter.get("shapes")
+    if name is None:
+        return None
+    if name not in shapes:
+        raise MockupError(f"the parameter {parameter['name']} names the unknown shape set {name}")
+    return shapes[name].get("shapes", {}).get(text)
+
+
+def draw_choice_cell(c, cell_x, knob_top, w, parameter, value, is_pending, shapes):
+    """A choice: alone in the knob's place; with shapes, the shape there and the choice in the value box's place, under its label."""
+    t = c.t
+    text = value.get("text", "")
+    if parameter.get("shapes") is None:
+        box_y = knob_top + (t("knob.size.default") - t("size.control.medium")) / 2
+        draw_choice(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), text, is_pending)
+        return
+    points = shape_points(parameter, text, shapes)
+    if points:
+        colour = role_colour(t, parameter.get("role", "general"))
+        draw_shape(c, cell_x + t("size.space.1"), knob_top, w - t("size.space.2"), t("knob.size.default"), points, colour)
+    label_y = knob_top + t("knob.size.default") + t("space.between") + t("font.label.size")
+    draw_choice(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), text, is_pending, t("valuebox.height"))
+
+
+def draw_group(c, x, y, group, values, pending, shapes=None):
     t = c.t
     inside = t("space.inside")
     width, height = group_size(t, group)
@@ -348,8 +387,7 @@ def draw_group(c, x, y, group, values, pending):
         is_pending = parameter["name"] in pending
         centre = cell_x + w / 2
         if parameter.get("control") == "choice":
-            box_y = knob_top + (t("knob.size.default") - t("size.control.medium")) / 2
-            draw_choice(c, cell_x + t("size.space.1"), box_y, w - t("size.space.2"), value.get("text", ""), is_pending)
+            draw_choice_cell(c, cell_x, knob_top, w, parameter, value, is_pending, shapes or {})
         elif parameter.get("control") in ("slider", "valuebox"):
             # A slider has its value box on top, the slider under the label (owner, 2026-10-15). [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
             box_y = knob_top + (t("knob.size.default") - t("valuebox.height")) / 2
@@ -368,7 +406,7 @@ def draw_group(c, x, y, group, values, pending):
     return width, height
 
 
-def draw_editor(c, x, y, w, h, editor, layouts):
+def draw_editor(c, x, y, w, h, editor, layouts, shapes=None):
     t = c.t
     inside = t("space.inside")
     header_h = t("size.control.large") + 2 * inside
@@ -401,7 +439,7 @@ def draw_editor(c, x, y, w, h, editor, layouts):
         if group_x > x and (group_x + width > x + w or group.get("row")):
             group_x, group_y = x, group_y + row_height + t("space.group")
             row_height = 0.0
-        draw_group(c, group_x, group_y, group, editor.get("values", {}), set(editor.get("pending", [])))
+        draw_group(c, group_x, group_y, group, editor.get("values", {}), set(editor.get("pending", [])), shapes)
         group_x += width + t("space.group")
         row_height = max(row_height, height)
 
@@ -493,7 +531,7 @@ def merged_state(screen, state):
     return content
 
 
-def render_state(screen, state, data, layouts, fonts):
+def render_state(screen, state, data, layouts, fonts, shapes=None):
     """The SVG of one state of one screen. Raises MockupError naming what cannot be drawn."""
     t = Theme(data)
     c = Canvas(t)
@@ -509,7 +547,7 @@ def render_state(screen, state, data, layouts, fonts):
     draw_browser(c, edge, top, left_w, browser_h, content.get("browser"))
     draw_memory(c, edge, top + browser_h + edge, left_w, bottom - top - browser_h - edge, content.get("memory"))
     edit_x = edge + left_w + edge
-    layout = draw_editor(c, edit_x, top, width - edit_x - edge, bottom - top, content.get("editor"), layouts)
+    layout = draw_editor(c, edit_x, top, width - edit_x - edge, bottom - top, content.get("editor"), layouts, shapes)
     caption = f"MOCKUP {screen['name']} / {state}: example values"
     if layout is not None and layout.get("example"):
         caption += "; example grouping, not decided (TASK-APP-002)"
@@ -522,12 +560,12 @@ def render_state(screen, state, data, layouts, fonts):
     return "\n".join([header, comment, f"<style>{font_faces(fonts)}</style>", *c.items, "</svg>"]) + "\n"
 
 
-def build_outputs(screens, layouts, data, fonts):
+def build_outputs(screens, layouts, data, fonts, shapes=None):
     """Every mockup, by file name."""
     outputs = {}
     for screen in screens:
         for state in screen.get("states", {}):
-            outputs[f"{screen['name']}-{state}.svg"] = render_state(screen, state, data, layouts, fonts)
+            outputs[f"{screen['name']}-{state}.svg"] = render_state(screen, state, data, layouts, fonts, shapes)
     return dict(sorted(outputs.items()))
 
 
@@ -554,6 +592,7 @@ def main(argv=None):
     parser.add_argument("--tokens", default=str(DEFAULT_TOKENS))
     parser.add_argument("--screens", default=str(DEFAULT_SCREENS))
     parser.add_argument("--layouts", action="append", help="a folder of layouts; may be given several times")
+    parser.add_argument("--shapes", default=str(DEFAULT_SHAPES), help="a folder of shape sets a choice may draw")
     parser.add_argument("--fonts", default=str(DEFAULT_FONTS))
     parser.add_argument("--out", default=str(DEFAULT_OUT))
     arguments = parser.parse_args(argv)
@@ -563,7 +602,8 @@ def main(argv=None):
         for folder in arguments.layouts or DEFAULT_LAYOUTS:
             layouts.update(read_json_folder(folder))
         screens = list(read_json_folder(arguments.screens).values())
-        outputs = build_outputs(screens, layouts, data, read_fonts(arguments.fonts))
+        shapes = {shape_set["name"]: shape_set for shape_set in read_json_folder(arguments.shapes).values()}
+        outputs = build_outputs(screens, layouts, data, read_fonts(arguments.fonts), shapes)
     except (MockupError, OSError, ValueError, KeyError) as error:
         print(f"generate_mockups: {error}", file=sys.stderr)
         return 1

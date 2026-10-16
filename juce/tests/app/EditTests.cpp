@@ -595,3 +595,28 @@ TEST_CASE("Given PAD of 2 keygroups with cutoffs 50 and 70, When keygroup 2 is c
     CHECK(fixture.shown("filter cutoff") == std::optional<std::int64_t>(SECOND_CUTOFF));
     CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
+
+TEST_CASE("Given PAD shown on its Filter tab, When the person chooses 4-POLE LP, Then it is sent, read back and shown, the layout drawing its "
+          "shape [RQ-APP-096, RQ-APP-052, TASK-APP-051]",
+          "[app][edit]")
+{
+    constexpr std::int64_t FOUR_POLE_LOW_PASS = 1;
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.showTab(FILTER_TAB);
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.set(fixture.index("filter type"), FOUR_POLE_LOW_PASS);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("filter type") == std::optional<std::int64_t>(FOUR_POLE_LOW_PASS));
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    const auto read = fixture.rig.gateway.readParameter(programParameter("filter type"), mcp::KeygroupSelection::of(1));
+    REQUIRE(read.ok());
+    CHECK(read.value->front().value == FOUR_POLE_LOW_PASS);
+
+    const app::EditState& edit = fixture.rig.model.edit();
+    const app::EditValue& type = edit.values[fixture.index("filter type")];
+    const auto& parameter = edit.layout->tabs[FILTER_TAB].groups[0].parameters[0];
+    CHECK_FALSE(app::layouts::shapeOf(parameter, type.definition->labels[static_cast<std::size_t>(type.value)]).empty());
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}

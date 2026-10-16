@@ -112,7 +112,7 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 
 ### TASK-APP-051: The filter type drawn as its shape
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The filter type's control draws the response of the chosen type (level against frequency), with its previous and next
   arrows, in the tokens' colours. The 26 shapes are design data (normalised polylines): 19 from the user manual (EDIT PROGRAM, FILTER MODE,
   pp. 114-118); LO<>HI, LO<>BAND, BAND<>HI, BI-NOTCH, BI-PEAK, BI-PHASE and VOWELISER have no drawing there, the owner gives them, and until
@@ -123,8 +123,19 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
   sent, read back and its shape drawn; *Given* a type with no shape yet, *Then* its name is shown. The mockup validated by the owner first.
 - **Dependencies**: TASK-APP-045
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: (1) Owner, 2026-10-16: "pour le type de filtre j'aimerais avoir un contrôle graphique qui montre la forme du filtre".
+- **Verification**: Windows/MSVC, Debug, 2026-10-16. RQ-APP-096 and DEC-APP-032 written first. `shapes/filter-types.json`: the 19 drawings read
+  from the PDF's vector paths (PyMuPDF), then idealised (x not decreasing, levels rounded). Tests first and failing: generator 4 (the set and
+  its polylines in order, the choice pointing to them; an unknown set or shapes on a knob refused; a polyline going back, leaving the square
+  or of one point refused, naming its label; the folder read by name), mockups 3 (the 2-POLE LP shape in the filter colour above the choice;
+  VOWELISER its name alone; an unknown set refused), core 1 (19 shapes, each a catalogue label; 2-POLE LP ends at 1, 0; VOWELISER none) failed
+  to compile; then 25 design, 21 mockup tests and the layout cases pass. Every parameter row now carries its shapes (`{}` when none) so that no
+  compiler warns of a missing initialiser: two expectations of an existing generator test follow. Round trip (4-POLE LP set, read back,
+  shown, its shape found) passed at once, the write being generic. Mockup validated by the owner; the choice under a shape is a value box high,
+  in the mockup and the cell. Build warning-clean; 78 app cases; `ctest -C Debug`: 1225 passed; `tidy.py`: 14 sources, 0 findings; the IDE's
+  SonarQube: nothing on the changed files. Not verified: the cell drawn by JUCE (the owner's run), GCC and Apple Clang (CI).
+- **Assumptions**: (1) Owner, 2026-10-16: "pour le type de filtre j'aimerais avoir un contrôle graphique qui montre la forme du filtre". (2) The
+  seven shapes the manual does not draw are left for a later pass with the owner's drawings (owner, 2026-10-16). (3) The '+' types keep the
+  shape of their base type, as the manual draws them.
 
 ### TASK-APP-046: The Keygroup tab and its four zones
 - **Tier**: M
