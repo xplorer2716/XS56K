@@ -1,5 +1,5 @@
 {
-  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031)]",
+  "_comment": "The program editor (FTR-APP-008): its tabs in the musician's order (PLAN-APP-006), the assistant's proposal of 2026-10-15 and 2026-10-16, data the owner can change (TASK-APP-002). Parameter names are those of mcp::ParameterCatalogue::standard(). [RQ-APP-093, RQ-APP-094, RQ-APP-095, ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-030, DEC-APP-031), TASK-APP-045]",
   "editor": "program",
   "tabs": [
     {"title": "Envelopes", "groups": [
@@ -55,6 +55,13 @@
         {"name": "aux envelope velocity to rate 4", "label": "Vel>R4", "role": "modulation", "control": "knob"},
         {"name": "aux envelope off-velocity to rate 4", "label": "OffV>R4", "role": "modulation", "control": "knob"},
         {"name": "aux envelope keyboard to rate 2 and 4", "label": "Key>R2/4", "role": "modulation", "control": "knob"}]}]},
+    {"title": "Filter", "groups": [
+      {"title": "Filter", "scope": "keygroup", "parameters": [
+        {"name": "filter type", "label": "Type", "role": "filter", "control": "choice"},
+        {"name": "filter cutoff", "label": "Cutoff", "role": "filter", "control": "knob"},
+        {"name": "filter resonance", "label": "Reso", "role": "filter", "control": "knob"},
+        {"name": "filter keyboard tracking", "label": "Track", "role": "filter", "control": "knob"},
+        {"name": "filter attenuation", "label": "Atten", "role": "filter", "control": "knob"}]}]},
     {"title": "Program", "groups": [
       {"title": "Output", "scope": "program", "parameters": [
         {"name": "program loudness", "label": "Loudness", "role": "general", "control": "knob"},

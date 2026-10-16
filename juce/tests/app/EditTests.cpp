@@ -57,7 +57,8 @@ namespace
     constexpr std::size_t INFO_ROWS = 4;
     constexpr int PAD_KEYGROUPS = 2;
     constexpr std::size_t PROGRAM_TAB_PARAMETERS = 14;
-    constexpr std::size_t PROGRAM_TAB = 1;
+    constexpr std::size_t FILTER_TAB = 1;
+    constexpr std::size_t PROGRAM_TAB = 2;
 
     const mcp::ParameterDefinition& sampleParameter(const std::string& name)
     {
@@ -561,4 +562,36 @@ TEST_CASE("Given PAD shown on its Envelopes tab, When the person shows the Progr
     fixture.editor.showTab(PROGRAM_TAB);
     REQUIRE(fixture.rig.settle());
     CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+}
+
+TEST_CASE("Given PAD of 2 keygroups with cutoffs 50 and 70, When keygroup 2 is chosen and the Filter tab shown, Then it shows keygroup 2's "
+          "filter and its group reads KEYGROUP [RQ-APP-057, RQ-APP-058, TASK-APP-045]",
+          "[app][edit]")
+{
+    constexpr std::int64_t FIRST_CUTOFF = 50;
+    constexpr std::int64_t SECOND_CUTOFF = 70;
+    constexpr std::size_t FILTER_PARAMETERS = 5;
+    EditRig fixture;
+    const mcp::ParameterDefinition& cutoff = programParameter("filter cutoff");
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    REQUIRE(fixture.rig.gateway.writeParameter(cutoff, FIRST_CUTOFF, mcp::KeygroupSelection::of(1)).ok());
+    REQUIRE(fixture.rig.gateway.writeParameter(cutoff, SECOND_CUTOFF, mcp::KeygroupSelection::of(SECOND_KEYGROUP)).ok());
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+
+    fixture.editor.chooseKeygroup(SECOND_KEYGROUP);
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.showTab(FILTER_TAB);
+    REQUIRE(fixture.rig.settle());
+    const app::EditState& edit = fixture.rig.model.edit();
+    REQUIRE(edit.layout != nullptr);
+    REQUIRE(edit.layout->tabs.size() > FILTER_TAB);
+    const app::layouts::LayoutTab& tab = edit.layout->tabs[FILTER_TAB];
+    CHECK(tab.title == "Filter");
+    REQUIRE(tab.groups.size() == 1);
+    CHECK(tab.groups[0].scope == app::layouts::Scope::Keygroup);
+    CHECK(edit.tab == FILTER_TAB);
+    CHECK(edit.values.size() == FILTER_PARAMETERS);
+    CHECK(fixture.shown("filter cutoff") == std::optional<std::int64_t>(SECOND_CUTOFF));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
 }

@@ -94,16 +94,37 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 - **Assumptions**: —
 
 ### TASK-APP-045: The Filter tab
-- **Tier**: S
-- **Status**: Not Started
+- **Tier**: M (re-tiered from S: a new screen description and its two mockups)
+- **Status**: Done
 - **Description**: Mode, cutoff, resonance, keyboard track, attenuation (its envelope is in the Envelopes tab): a layout, no code expected.
-- **Requirement refs**: RQ-APP-057
+- **Requirement refs**: RQ-APP-057, RQ-APP-058
 - **ADR refs**: ADR-APP-004 (DEC-APP-024)
 - **Acceptance Criteria** (Gherkin): *Given* keygroup 2 chosen, *Then* the Filter tab shows keygroup 2's filter.
 - **Dependencies**: TASK-APP-044
 - **Assignee**: AI
+- **Verification**: Windows/MSVC, Debug, 2026-10-16. Mockup first: `screens/filter-editor.json`, `filter-editor-connected.svg` and `-writing.svg`
+  looked at; the labels Resonance, Key track and Attenuation overflowed their knobs, shortened to Reso, Track, Atten; validated by the owner.
+  Core case (cutoffs 50 and 70 on two keygroups, keygroup 2 chosen, the Filter tab shows 70, five values, the group KEYGROUP) and the Program
+  tab moved to index 2: failed against the header generated before the tab (4 cases), then passed once regenerated; 76 app cases. Build
+  warning-clean; `ctest -C Debug` from git-bash: 1223 passed (from PowerShell, `bld_publish_deployment_script_tests` fails: no `bash` nor
+  `sed` on its PATH, unrelated to this task). `tidy.py`: no production C++ source changed. Real S5000: the owner's to try.
+- **Assumptions**: (1) The Filter tab sits between Envelopes and Program, as in the proposed screen order.
+
+### TASK-APP-051: The filter type drawn as its shape
+- **Tier**: M
+- **Status**: Not Started
+- **Description**: The filter type's control draws the response of the chosen type (level against frequency), with its previous and next
+  arrows, in the tokens' colours. The 26 shapes are design data (normalised polylines): 19 from the user manual (EDIT PROGRAM, FILTER MODE,
+  pp. 114-118); LO<>HI, LO<>BAND, BAND<>HI, BI-NOTCH, BI-PEAK, BI-PHASE and VOWELISER have no drawing there, the owner gives them, and until
+  then they show their name only.
+- **Requirement refs**: RQ-APP-096 (new: the filter type is seen by its shape), RQ-APP-057
+- **ADR refs**: ADR-APP-004 (DEC-APP-032, new: the shapes as data, the drawn choice)
+- **Acceptance Criteria** (Gherkin): *Given* the type 2-POLE LP, *Then* its shape is drawn; *When* the person moves to 4-POLE LP, *Then* it is
+  sent, read back and its shape drawn; *Given* a type with no shape yet, *Then* its name is shown. The mockup validated by the owner first.
+- **Dependencies**: TASK-APP-045
+- **Assignee**: AI
 - **Verification**: —
-- **Assumptions**: —
+- **Assumptions**: (1) Owner, 2026-10-16: "pour le type de filtre j'aimerais avoir un contrôle graphique qui montre la forme du filtre".
 
 ### TASK-APP-046: The Keygroup tab and its four zones
 - **Tier**: M
