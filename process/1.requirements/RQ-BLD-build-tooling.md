@@ -163,6 +163,15 @@ mechanics (the matrix, the generator, the derivation, the cut-deployment gate) a
   Verification field for what was and was not exercised — notably, TASK-AKM-009's own eighteen
   alterations could not be replayed (kept in that session's scratchpad, not in this repository).
 
+### RQ-BLD-016: A deployment is published once, complete
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN a publishing workflow (preprod or prod) has built, tested and packaged its archive, it SHALL attach it to a draft release of the deployment's tag, creating the draft if none exists, and WHEN the draft holds one archive per publishing workflow of the stream, that workflow SHALL publish it; a release SHALL NOT be published with fewer archives, and two workflows that create the draft at the same time SHALL end with one draft.
+- **Rationale**: the repository's releases are immutable (GitHub setting "Enable release immutability"): a published release accepts no more assets. The workflows are independent and publish into one release per commit; the first one used to publish it at once, empty, and the other five failed with `HTTP 422: Cannot upload assets to an immutable release` (run 38882613846, `dev`, 2026-10-16).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the six preprod workflows of a commit, *When* they attach their archives one after the other, *Then* the release stays a draft until the sixth archive is attached, then is published with six assets. *Given* two workflows that find no release and both create a draft, *When* they continue, *Then* one draft remains and holds both archives. *Given* a workflow that fails, *When* the others finish, *Then* no release is published for the tag. *Given* a published release for the tag, *When* a workflow tries to attach to it, *Then* it fails with an error that says the release is published. *Given* the generator, *When* it writes a publishing workflow, *Then* the number of archives it expects is the number of publishing workflows of its stream (6 preprod, 3 prod).
+- **Dependencies**: RQ-BLD-007; RQ-BLD-010; ADR-BLD-003; ADR-BLD-006
+
 ---
 
 ## Non-Functional Requirements — implemented by the owner directly

@@ -18,9 +18,10 @@ check as `<caller> / <job>`, and a matrix reports `<workflow> / build
 exists to produce.
 
 Everything a workflow actually DOES lives in .github/actions/. What is
-generated here is only a name, a trigger and a call sequence — and the
-decision to run the test suites in every one of them (RQ-BLD-014,
-ADR-BLD-005).
+generated here is only a name, a trigger and a call sequence — the decision to
+run the test suites in every one of them (RQ-BLD-014, ADR-BLD-005) and the
+number of archives a deployment has when complete, which the last workflow to
+attach one needs to publish the release (RQ-BLD-016, ADR-BLD-006).
 
 Reduced from XplorerEditor's own matrix: no build-provenance attestation, no
 macOS launch-screenshot step — both explicitly out of scope for now
@@ -169,6 +170,9 @@ PUBLISH = """
           version-display: ${{{{ steps.version.outputs.display }}}}
           version-full: ${{{{ steps.version.outputs.full }}}}
           stage: ${{{{ steps.version.outputs.stage }}}}
+          # One archive per publishing workflow of the stream: the release is a draft until the workflow that
+          # attaches the last one publishes it. [RQ-BLD-016, ADR-BLD-006 (DEC-BLD-029)]
+          expected-assets: {expected}
           token: ${{{{ secrets.GITHUB_TOKEN }}}}
 """
 
@@ -199,7 +203,8 @@ PREPROD_PR_UPLOAD = """
 
 def workflow(os_name: str, arch: str, runner: str, config: str, stage: str) -> tuple[str, str]:
     name = f"{os_name}-{arch}-{config}-{stage}"
-    _, permission, human = STREAMS[stage]
+    configs, permission, human = STREAMS[stage]
+    expected = len(PLATFORMS) * len(configs)
     tail = {"prod": TAG_GUARD + PUBLISH, "preprod": PUBLISH + PREPROD_PR_UPLOAD, "canary": CANARY_UPLOAD}[stage]
     permissions = f"  contents: {permission}\n"
     body = (
@@ -209,7 +214,7 @@ def workflow(os_name: str, arch: str, runner: str, config: str, stage: str) -> t
           f"    name: {os_name} {arch} {config.capitalize()} ({human})\n"
           f"    runs-on: {runner}\n"
         + CHECKOUT.format(os=os_name, config=config)
-        + tail.format(os=os_name, arch=arch, config=config)
+        + tail.format(os=os_name, arch=arch, config=config, expected=expected)
     )
     return name, body
 
