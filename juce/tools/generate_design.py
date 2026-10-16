@@ -223,6 +223,85 @@ def render_envelope(editor, group):
     return stages
 
 
+CLOSE_TABLE = "    }};"  # the end of a constexpr table of the generated header
+
+
+def render_parameters(editor, group, name):
+    """The table of one group's parameters, as lines. Each control and role must be a known one."""
+    rows = []
+    for parameter in group.get("parameters", []):
+        control, role = parameter.get("control"), parameter.get("role")
+        if control not in CONTROLS:
+            raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown control {control}")
+        if role not in ROLES:
+            raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown role {role}")
+        rows.append(f"{{{cpp_text(parameter['name'])}, {cpp_text(parameter['label'])}, Role::{ROLES[role]}, Control::{CONTROLS[control]}}}")
+    return ([f"    inline constexpr std::array<LayoutParameter, {len(rows)}> {name}{{{{"] + [f"        {row}," for row in rows] + [CLOSE_TABLE])
+
+
+def render_scope(editor, group):
+    scope = group.get("scope")
+    if scope is not None and scope not in SCOPES:
+        raise TokenError(f"the layout {editor} gives the group {group['title']} the unknown scope {scope}")
+    return f"Scope::{SCOPES[scope]}" if scope else "Scope::None"
+
+
+def render_group(editor, group, name, lines):
+    """One group: its tables are appended to `lines`, its initialiser is returned."""
+    lines += render_parameters(editor, group, name)
+    scope_cpp = render_scope(editor, group)
+    envelope = render_envelope(editor, group)
+    envelope_cpp = "{}"
+    if envelope:
+        envelope_cpp = f"{name}Envelope"
+        lines.append(f"    inline constexpr std::array<EnvelopeStage, {len(envelope)}> {envelope_cpp}{{{{")
+        lines += [f"        {stage}," for stage in envelope]
+        lines.append(CLOSE_TABLE)
+    row = "true" if group.get("row") else "false"
+    return f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}}}"
+
+
+def render_tab(editor, prefix, tab_index, tab, lines):
+    """One tab: its groups' tables, then its own, are appended to `lines`; its initialiser is returned."""
+    group_names = [render_group(editor, group, f"{prefix}Tab{tab_index}Group{group_index}", lines)
+                   for group_index, group in enumerate(tab.get("groups", []))]
+    name = f"{prefix}Tab{tab_index}"
+    lines.append(f"    inline constexpr std::array<LayoutGroup, {len(group_names)}> {name}Groups{{{{")
+    lines += [f"        {group}," for group in group_names]
+    lines.append(CLOSE_TABLE)
+    return f"LayoutTab{{{cpp_text(tab['title'])}, {name}Groups}}"
+
+
+def render_orders(editor, prefix, layout, lines):
+    """The chains of parameters whose values must not decrease, each name one the layout shows. [RQ-APP-092, DEC-APP-029]"""
+    shown = {parameter["name"] for tab in layout.get("tabs", []) for group in tab.get("groups", [])
+             for parameter in group.get("parameters", [])}
+    order_names = []
+    for order_index, order in enumerate(layout.get("orders", [])):
+        for name in order:
+            if name not in shown:
+                raise TokenError(f"the layout {editor} orders {name}, which it does not show")
+        name = f"{prefix}Order{order_index}"
+        lines.append(f"    inline constexpr std::array<std::string_view, {len(order)}> {name}{{{{")
+        lines += [f"        {cpp_text(item)}," for item in order]
+        lines.append(CLOSE_TABLE)
+        order_names.append(f"std::span<const std::string_view>{{{name}}}")
+    lines.append(f"    inline constexpr std::array<std::span<const std::string_view>, {len(order_names)}> {prefix}Orders{{{{")
+    lines += [f"        {order}," for order in order_names]
+    lines.append(CLOSE_TABLE)
+
+
+def render_editor(editor, layout, lines):
+    """One editor: its tabs and orders are appended to `lines`; its initialiser is returned."""
+    prefix = "k" + editor[:1].upper() + editor[1:]
+    tab_names = [render_tab(editor, prefix, tab_index, tab, lines) for tab_index, tab in enumerate(layout.get("tabs", []))]
+    lines.append(f"    inline constexpr std::array<LayoutTab, {len(tab_names)}> {prefix}Tabs{{{{")
+    lines += [f"        {tab}," for tab in tab_names]
+    lines.append(CLOSE_TABLE)
+    render_orders(editor, prefix, layout, lines)
+    return f"EditorLayout{{{cpp_text(editor)}, {prefix}Tabs, {prefix}Orders}}"
+
+
 def render_layouts(layouts):
     """The editor layouts, by editor name, as constexpr tables in namespace `app::layouts` (types in `app/EditorLayout.hpp`)."""
     lines = [
@@ -238,66 +317,10 @@ def render_layouts(layouts):
         "namespace app::layouts",
         "{",
     ]
-    editors = []
-    for editor, layout in sorted(layouts.items()):
-        prefix = "k" + editor[:1].upper() + editor[1:]
-        tab_names = []
-        for tab_index, tab in enumerate(layout.get("tabs", [])):
-            group_names = []
-            for group_index, group in enumerate(tab.get("groups", [])):
-                rows = []
-                for parameter in group.get("parameters", []):
-                    control, role = parameter.get("control"), parameter.get("role")
-                    if control not in CONTROLS:
-                        raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown control {control}")
-                    if role not in ROLES:
-                        raise TokenError(f"the layout {editor} gives {parameter.get('name')} the unknown role {role}")
-                    rows.append(f"{{{cpp_text(parameter['name'])}, {cpp_text(parameter['label'])}, Role::{ROLES[role]}, Control::{CONTROLS[control]}}}")
-                name = f"{prefix}Tab{tab_index}Group{group_index}"
-                lines.append(f"    inline constexpr std::array<LayoutParameter, {len(rows)}> {name}{{{{")
-                lines += [f"        {row}," for row in rows]
-                lines.append("    }};")
-                scope = group.get("scope")
-                if scope is not None and scope not in SCOPES:
-                    raise TokenError(f"the layout {editor} gives the group {group['title']} the unknown scope {scope}")
-                scope_cpp = f"Scope::{SCOPES[scope]}" if scope else "Scope::None"
-                envelope = render_envelope(editor, group)
-                envelope_cpp = "{}"
-                if envelope:
-                    envelope_cpp = f"{name}Envelope"
-                    lines.append(f"    inline constexpr std::array<EnvelopeStage, {len(envelope)}> {envelope_cpp}{{{{")
-                    lines += [f"        {stage}," for stage in envelope]
-                    lines.append("    }};")
-                row = "true" if group.get("row") else "false"
-                group_names.append(f"LayoutGroup{{{cpp_text(group['title'])}, {name}, {scope_cpp}, {envelope_cpp}, {row}}}")
-            name = f"{prefix}Tab{tab_index}"
-            lines.append(f"    inline constexpr std::array<LayoutGroup, {len(group_names)}> {name}Groups{{{{")
-            lines += [f"        {group}," for group in group_names]
-            lines.append("    }};")
-            tab_names.append(f"LayoutTab{{{cpp_text(tab['title'])}, {name}Groups}}")
-        lines.append(f"    inline constexpr std::array<LayoutTab, {len(tab_names)}> {prefix}Tabs{{{{")
-        lines += [f"        {tab}," for tab in tab_names]
-        lines.append("    }};")
-        # The chains of parameters whose values must not decrease, each name one the layout shows. [RQ-APP-092, DEC-APP-029]
-        shown = {parameter["name"] for tab in layout.get("tabs", []) for group in tab.get("groups", [])
-                 for parameter in group.get("parameters", [])}
-        order_names = []
-        for order_index, order in enumerate(layout.get("orders", [])):
-            for name in order:
-                if name not in shown:
-                    raise TokenError(f"the layout {editor} orders {name}, which it does not show")
-            name = f"{prefix}Order{order_index}"
-            lines.append(f"    inline constexpr std::array<std::string_view, {len(order)}> {name}{{{{")
-            lines += [f"        {cpp_text(item)}," for item in order]
-            lines.append("    }};")
-            order_names.append(f"std::span<const std::string_view>{{{name}}}")
-        lines.append(f"    inline constexpr std::array<std::span<const std::string_view>, {len(order_names)}> {prefix}Orders{{{{")
-        lines += [f"        {order}," for order in order_names]
-        lines.append("    }};")
-        editors.append(f"EditorLayout{{{cpp_text(editor)}, {prefix}Tabs, {prefix}Orders}}")
+    editors = [render_editor(editor, layout, lines) for editor, layout in sorted(layouts.items())]
     lines.append(f"    inline constexpr std::array<EditorLayout, {len(editors)}> kEditorLayouts{{{{")
     lines += [f"        {editor}," for editor in editors]
-    lines.append("    }};")
+    lines.append(CLOSE_TABLE)
     lines.append("}")
     return "\n".join(lines) + "\n"
 

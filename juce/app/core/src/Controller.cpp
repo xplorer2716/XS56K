@@ -178,7 +178,7 @@ namespace app
         // The worker lets the gateway go, after the job in progress: its destruction closes the session (RQ-AKM-042), then the ports.
         queue(DISCONNECTING_LABEL, [gateway = std::move(_gateway)]() mutable -> JobResult {
             gateway.reset();
-            return JobResult{{}, [] {}, {}};
+            return JobResult{{}, [] { /* nothing to show: the connection is closed */ }, {}};
         });
     }
 

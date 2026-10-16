@@ -43,6 +43,7 @@ DIALOG_WIDTH_IN_KNOBS = 12      # a dialog is twelve knob diameters wide
 BUTTON_WIDTH_IN_KNOBS = 3       # a dialog button is three knob diameters wide
 KEYGROUP_SELECTOR_IN_KNOBS = 5  # the keygroup selector is five knob diameters wide
 ELLIPSIS = "…"
+ENVELOPE_HEIGHT = "envelope.height"  # the token of the graph drawn above an envelope group's knobs
 
 
 class MockupError(Exception):
@@ -238,7 +239,7 @@ def group_size(t, group):
     height = (inside + t("font.label.size") + t("space.between") + t("knob.size.default") + t("space.between")
               + t("font.label.size") + t("size.space.1") + t("valuebox.height") + inside)
     if group.get("envelope"):
-        height += t("envelope.height") + t("space.between")  # the graph above the knobs [RQ-APP-095]
+        height += t(ENVELOPE_HEIGHT) + t("space.between")  # the graph above the knobs [RQ-APP-095]
     return width, height
 
 
@@ -265,7 +266,7 @@ def envelope_points(envelope, values, x, y, w, h):
 
 def draw_envelope(c, x, y, w, group, values, colour):
     t = c.t
-    h = t("envelope.height")
+    h = t(ENVELOPE_HEIGHT)
     c.rect(x, y, w, h, t("envelope.surface"), t("radius.control"))
     margin = t("envelope.handle.size")  # the breakpoints stay whole inside the graph
     points, handles = envelope_points(group["envelope"], values, x + margin, y + margin, w - 2 * margin, h - 2 * margin)
@@ -337,7 +338,7 @@ def draw_group(c, x, y, group, values, pending):
     knob_top = title_y + t("space.between")
     if group.get("envelope"):
         draw_envelope(c, x + inside, knob_top, width - 2 * inside, group, values, marker)
-        knob_top += t("envelope.height") + t("space.between")
+        knob_top += t(ENVELOPE_HEIGHT) + t("space.between")
     cell_x = x + inside
     for parameter in group["parameters"]:
         cells = control_cells(parameter)

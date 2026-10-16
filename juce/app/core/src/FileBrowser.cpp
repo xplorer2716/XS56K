@@ -425,7 +425,7 @@ namespace app
                     return mcp::Outcome<std::string>::failure(there.problem);
                 return gateway.startFileAudition(file.name);
             },
-            [](const std::string&) {});
+            [](const std::string&) { /* the audition has no result to show */ });
         if (queued)
             _auditioning = file;
     }
@@ -436,7 +436,7 @@ namespace app
             return;
         _auditioning.reset();
         _controller.runOnSampler<bool>(STOPPING_LABEL, [](mcp::SamplerGateway& gateway) { return gateway.stopFileAudition(); },
-                                       [](const bool&) {});
+                                       [](const bool&) { /* stopping has no result to show */ });
     }
 
     void FileBrowser::toggleAudition(const BrowserItem& item)

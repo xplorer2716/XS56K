@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -109,7 +110,7 @@ namespace app
         const Binding* bindingOf(MemoryKind kind)
         {
             const auto found = std::find_if(BINDINGS.begin(), BINDINGS.end(), [kind](const Binding& binding) { return binding.kind == kind; });
-            return found == BINDINGS.end() ? nullptr : &*found;
+            return found == BINDINGS.end() ? nullptr : std::to_address(found);
         }
 
         const Binding* bindingOf(const EditState& state)
@@ -126,7 +127,7 @@ namespace app
             const auto& all = layouts::kEditorLayouts;
             const auto found = std::find_if(all.begin(), all.end(),
                                             [binding](const layouts::EditorLayout& layout) { return layout.editor == binding->editor; });
-            return found == all.end() ? nullptr : &*found;
+            return found == all.end() ? nullptr : std::to_address(found);
         }
 
         const mcp::ParameterDefinition* definitionOf(const Binding& binding, std::string_view name)

@@ -35,15 +35,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-022: The other BLOCKER and CRITICAL of production code
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `&*` removed in `EditController.cpp` (`cpp:S3491` x2); a comment in the five empty methods of `Controller.cpp`, `FileBrowser.cpp` x2 and `MemoryController.cpp` (`cpp:S1186`, the fifth being test code); `generate_design.py`'s layout rendering cut into named steps (`python:S3776`, 46 to 15 or less) and the duplicated literals of `generate_design.py` and `generate_mockups.py` named (`python:S1192`).
 - **Requirement refs**: RQ-QLT-001, RQ-QLT-004, RQ-QLT-007
 - **ADR refs**: ADR-QLT-001 (DEC-QLT-002, DEC-QLT-008)
 - **Acceptance Criteria** (Gherkin): *Given* the changes, *When* `generate_design.py` and `generate_mockups.py` run, *Then* `git diff` of the generated header, the design document and the mockups is empty, and `--check` passes. *When* the suite runs, *Then* it passes unmodified.
 - **Dependencies**: TASK-QLT-021
 - **Assignee**: AI
-- **Verification**: To fill at closure.
-- **Assumptions**: None
+- **Verification**: `&*` is `std::to_address(found)` in `EditController.cpp` (as TASK-QLT-004); the four empty lambdas of `Controller.cpp`, `FileBrowser.cpp` x2 and `MemoryController.cpp` carry a comment saying why. `generate_design.py`: `render_layouts` cut into `render_parameters`, `render_scope`, `render_group`, `render_tab`, `render_orders` and `render_editor`; the `"    }};"` literal is `CLOSE_TABLE`; `generate_mockups.py` names `ENVELOPE_HEIGHT`. `generate_design.py` and `generate_mockups.py` run: `git status` shows no change to the generated header, the design document or the mockups. Complexity by the `cognitive_complexity` package: highest function of `generate_design.py` is now 21 (`resolve_all`, not reported by SonarCloud), `render_envelope` 14, the new functions under 15 (`render_layouts` was 46 by SonarCloud). `test_generate_design.py` 21 tests and `test_generate_mockups.py` 18 tests: OK. Build warning-clean; `ctest -C Debug -j 8`: 1220/1220 passed. Not verified: that SonarCloud no longer reports these nine rules (the owner refreshes the analysis); the test-code `&*` (`EditorLayoutTests.cpp:35`) and empty method (`CoreTests.cpp:229`) are left to the path rule of DEC-QLT-001.
+- **Assumptions**: A comment inside an empty lambda is what `cpp:S1186` asks for ("add a nested comment"), so no behaviour changed.
 
 ### TASK-QLT-023: The MAJOR and MINOR of production code, by rule family
 - **Tier**: M

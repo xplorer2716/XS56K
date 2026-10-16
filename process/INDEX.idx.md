@@ -844,5 +844,5 @@ TASK-QLT-020|141-151|Done|Path traversal of the two generators (`pythonsecurity:
 @process/3.plan/PLAN-QLT-003-sonar-pull-request-18.md
 PLAN-QLT-003|1-58||SonarCloud Quality Gate of Pull Request 18
 TASK-QLT-021|24-35|Done|The quality gate of PR 18 — three destructors and the path of `new_source_file.py`
-TASK-QLT-022|36-47|Not Started|The other BLOCKER and CRITICAL of production code
+TASK-QLT-022|36-47|Done|The other BLOCKER and CRITICAL of production code
 TASK-QLT-023|48-58|Not Started|The MAJOR and MINOR of production code, by rule family

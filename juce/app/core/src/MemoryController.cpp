@@ -416,7 +416,7 @@ namespace app
             return;
         _auditioning.reset();
         _controller.runOnSampler<bool>(STOPPING_LABEL, [](mcp::SamplerGateway& gateway) { return gateway.stopSampleAudition(); },
-                                       [](const bool&) {});
+                                       [](const bool&) { /* stopping has no result to show */ });
     }
 
     void MemoryController::toggleAudition(const MemoryItem& item)
