@@ -82,6 +82,9 @@ jobs:
           version-display: ${{ steps.version.outputs.display }}
           version-full: ${{ steps.version.outputs.full }}
           stage: ${{ steps.version.outputs.stage }}
+          # One archive per publishing workflow of the stream: the release is a draft until the workflow that
+          # attaches the last one publishes it. [RQ-BLD-016, ADR-BLD-006 (DEC-BLD-029)]
+          expected-assets: 6
           token: ${{ secrets.GITHUB_TOKEN }}
 
       # A pull request targeting dev verifies the merge result before it lands:
