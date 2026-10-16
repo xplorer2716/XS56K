@@ -336,12 +336,13 @@ def read_spec_rows(path):
 
 def parse_domain(text):
     """(min, max) of a domain like '0-127' or '0, 1'; None when it is free text that cannot be compared."""
-    head = re.split(r"\s*;", text, maxsplit=1)[0].strip().rstrip(",").strip()
+    head = text.split(";", 1)[0].strip().rstrip(",").strip()
     span = re.fullmatch(r"(\d+)\s*[–-]\s*(\d+)", head)
     if span:
         return int(span.group(1)), int(span.group(2))
-    if re.fullmatch(r"\d+(\s*,\s*\d+)*", head):
-        listed = [int(value) for value in re.split(r"\s*,\s*", head)]
+    parts = [part.strip() for part in head.split(",")]
+    if all(re.fullmatch(r"\d+", part) for part in parts):
+        listed = [int(part) for part in parts]
         return min(listed), max(listed)
     return None
 
@@ -362,10 +363,10 @@ def spec_domains(row):
     # (§12 &30's is "0-127 ; <Data3>=0-127 <Data1> = channel; <Data2> = module; <Data3> = module type."), the domains
     # are what comes before the first "<DataN> = word", a description and not a range. When a domain still follows it
     # (§10 &2C's "... <Data3> = Type.(1=Multi; ...; <Data5> 0, 1"), nothing is cut: the markers are counted as they are.
-    merged = re.search(r"\s+<Data\d+>\s*=\s*[A-Za-z]", second)
-    if merged and not re.search(r";\s*<Data\d+>\s*=?\s*\d", second[merged.start():]):
+    merged = re.search(r"(?<=\s)<Data\d+>\s*=\s*[A-Za-z]", second)
+    if merged and not re.search(r";\s*<Data\d+>\s*(?:=\s*)?\d", second[merged.start():]):
         second = second[:merged.start()].strip()
-    second_head = re.split(r"\s*;", second, maxsplit=1)[0].strip()
+    second_head = second.split(";", 1)[0].strip()
     if second_head != "N/A":
         # "second" itself is a domain only when it carries content of its own before any embedded
         # <DataN> reference (e.g. a Set row's "0, 1 ; <Data3>(MSB) ; <Data4>(LSB)", where the leading
