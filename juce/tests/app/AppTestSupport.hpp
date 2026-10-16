@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // [RQ-APP-014, ADR-APP-001 (DEC-APP-003, DEC-APP-007, DEC-APP-009, DEC-APP-010), TASK-APP-011]
 
 #include <chrono>
+#include <cstdio>
 #include <deque>
 #include <functional>
 #include <map>
@@ -215,7 +216,7 @@ namespace app::test
                 }
                 catch (...)
                 {
-                    // A recording that fails has no one to report to.
+                    std::fputs("AppTestSupport: a port could not record its release\n", stderr);  // a destructor must not throw
                 }
             }
             Input(const Input&) = delete;
@@ -253,7 +254,7 @@ namespace app::test
                 }
                 catch (...)
                 {
-                    // A recording that fails has no one to report to.
+                    std::fputs("AppTestSupport: a port could not record its release\n", stderr);  // a destructor must not throw
                 }
             }
             Output(const Output&) = delete;

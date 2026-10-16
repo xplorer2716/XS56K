@@ -301,7 +301,7 @@ namespace app
                                                   MemoryState state = read;
                                                   // The selection stays on an item that is still there.
                                                   if (const auto& previous = _model.memory().selection;
-                                                      previous.has_value() && indexOf(state.list(previous->kind).names, previous->name))
+                                                      previous.has_value() && indexOf(state.list(previous->kind).names, previous->name).has_value())
                                                       state.selection = previous;
                                                   _model.setMemory(std::move(state));
                                                   if (select.has_value())

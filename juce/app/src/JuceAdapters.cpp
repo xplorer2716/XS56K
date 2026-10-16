@@ -17,6 +17,8 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 #include "JuceAdapters.hpp"
 
+#include <exception>
+#include <string>
 #include <utility>
 
 #include "CutLabel.hpp"
@@ -73,9 +75,16 @@ namespace app::ui
                     if (_answer)
                         std::exchange(_answer, nullptr)(false);
                 }
+                catch (const std::exception& error)
+                {
+                    using namespace midiapp::service;
+                    // Nothing can be done about a failing answer while the dialog is destroyed: it is logged.
+                    XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Error, std::string("The answer of a closed dialog failed: ") + error.what());
+                }
                 catch (...)
                 {
-                    // Nothing can be done about a failing answer while the dialog is destroyed.
+                    using namespace midiapp::service;
+                    XS56K_LOG(LogDomain::ControllerCalls, TraceLevel::Error, std::string("The answer of a closed dialog failed"));
                 }
             }
 
