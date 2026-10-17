@@ -38,7 +38,9 @@ implements or commits a task** (its START SESSION step 1 requires it; a partial 
 the session's real platform and `unit_tests` before the first task.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
-`documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`).
+`documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`). For any search in the operator's
+manual, start with `documents/_index/user_manual.kb.md` (it explains how to query `user_manual.terms.tsv` and
+`user_manual.toc.tsv`); never read the manual's PDF or `.md` whole.
 
 The build system itself is a traceable AGNOS artifact: `process/1.requirements/RQ-BLD-build-tooling.md`,
 `process/2.architecture/ADR-BLD-001` through `ADR-BLD-003`, and

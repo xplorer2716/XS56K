@@ -13,7 +13,14 @@ Reference material for XS56K. Keep this list up to date when a document is added
 
 ## Generated index (`_index/`)
 
-Written for AI agents, generated from the SysEx spec PDF. Don't edit the generated files by hand: re-run the script.
+Written for AI agents, generated from the SysEx spec PDF and the operator's manual PDF. Don't edit the generated files by
+hand: re-run the script.
+
+[_index/pdf_md_indexing_guide.md](_index/pdf_md_indexing_guide.md) tells an AI agent how to build such an index for any
+other PDF and its `.md`: requirements FTR-DIX-001 (RQ-DIX-001 to RQ-DIX-022, EARS), ADR-DIX-001 to ADR-DIX-003, a playbook
+and the pitfalls met by the two builders below.
+
+### SysEx spec
 
 | File | Purpose |
 |---|---|
@@ -22,7 +29,15 @@ Written for AI agents, generated from the SysEx spec PDF. Don't edit the generat
 | [_index/sysex_spec.clean.txt](_index/sysex_spec.clean.txt) | Text of the whole spec extracted with its layout kept (table columns separated by ` \| `, page banners with `.md` line ranges). Generated. |
 | [_index/build_sysex_index.py](_index/build_sysex_index.py) | Rebuilds the two generated files (`pip install pymupdf`, then `python3 documents/_index/build_sysex_index.py` from the repo root). |
 
-The operator's manual is not indexed in `_index/` yet.
+### Operator's manual
+
+| File | Purpose |
+|---|---|
+| [_index/user_manual.kb.md](_index/user_manual.kb.md) | Lookup recipe, page numbering, chapter → page / `.md` line map, a few facts with their pages. Hand-written from the manual. |
+| [_index/user_manual.terms.tsv](_index/user_manual.terms.tsv) | One row per parameter (`P`), value of a parameter (`V`), NOTE/TIP (`N`), footnote (`F`) and entry of the manual's alphabetical index (`I`): term, parent parameter, description, section, chapter, PDF page, printed page, `.md` line, `clean.txt` line. Generated. |
+| [_index/user_manual.toc.tsv](_index/user_manual.toc.tsv) | One row per heading (PDF outline plus the bold headings it lacks, 223 rows): level, path, page span, `.md` and `clean.txt` line span of the section. Generated. |
+| [_index/user_manual.clean.txt](_index/user_manual.clean.txt) | Text of the whole manual with its layout kept (columns separated by ` \| `, headings `#`/`##`/`###`, footnote references `^N`, page banners with `.md` line ranges). Generated. |
+| [_index/build_manual_index.py](_index/build_manual_index.py) | Rebuilds the three generated files (`pip install pymupdf`, then `python3 documents/_index/build_manual_index.py` from the repo root). |
 
 ## Generated mockups of the editor application
 

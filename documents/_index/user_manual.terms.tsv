@@ -1,0 +1,1082 @@
+kind	term	parent	desc	section	chapter	pdf	doc	md	clean
+F	1		Some S6000 configurations in the USA may differ. Please consult your dealer for information.	WELCOME	INTRODUCTION	11	1	502	485
+F	2		Due to the radical new developments in the S5000 and S6000, some old sound library may need ‘tweaking’.	WELCOME	INTRODUCTION	12	2	521	502
+F	3		Except for the ADAT™ digital interface board	ABOUT THIS MANUAL	INTRODUCTION	13	3	558	537
+P	POWER		Turns power on and off to the S6000.	MAIN PANEL	INTRODUCTION	14	4	564	541
+P	FLOPPY DISK		This accepts 3.5” floppy disks. It may be used to load sound library but may also be used to boot operating systems.	MAIN PANEL	INTRODUCTION	14	4	565	542
+P	DISK OPTION SLOT		This allows you to install a 3.5” removable hard disk such as Zip, Jaz, Syquest, etc.. Please consult your dealer or AKAI professional distributor for details of compatible drives. If you plan to install a drive here, this should be done by an Akai approved engineer.	MAIN PANEL	INTRODUCTION	14	4	567	544
+P	MAIN VOLUME		This sets the level of the main L/R outputs (outputs 1/2). Outputs 3/ 4~15/16 are not affected by this control.	MAIN PANEL	INTRODUCTION	14	4	571	548
+P	PHONES LEVEL		This sets the level of the main L/R outputs (outputs 1/2) on the headphone output. The level of the headphone output is not affected by the MAIN VOLUME setting.	MAIN PANEL	INTRODUCTION	14	4	573	550
+P	PHONES		This allows you to insert a pair of stereo headphones to monitor the main L/R output (outputs 1/2).	MAIN PANEL	INTRODUCTION	14	4	577	554
+N	NOTE		Sounds assigned to outputs 3/4 - 15/16 will not be heard at the headphone output.	MAIN PANEL	INTRODUCTION	14	4	579	556
+P	L/MONO IN		This accepts a 1/4-inch mono jack plug and is used when recording in mono. This overrides the rear panel equivalent input.	MAIN PANEL	INTRODUCTION	14	4	580	557
+P	RIGHT IN		This accepts a 1/4 inch mono jack plug and, together with the L/MONO IN jack, is used for recording stereo. This overrides the rear panel equivalent input.	MAIN PANEL	INTRODUCTION	14	4	582	559
+P	ASCII KEYBOARD		This will accept a PS2 QWERTY keyboard which can be used for naming.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	589	564
+P	MULTI		This is where you play programs either singly, layered or multi-timbrally.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	591	566
+P	FX		This is where you select and edit the effects you want to use in the currently selected MULTI.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	592	567
+P	EDIT SAMPLE		This is where you edit samples, the raw sound data used in programs.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	594	569
+P	EDIT PROGRAM		This is where you edit programs, mapping samples out across the keyboard range as appropriate. Programs are the basic sounds used in a MULTI.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	595	570
+P	RECORD		This is where you record your own samples. These are subsequently edited in EDIT SAMPLE and then mapped out across the keyboard in EDIT PROGRAM.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	598	573
+P	UTILITIES		This is where you can set certain parameters that affect the S6000 as a whole.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	601	576
+P	SAVE		Here, you may save the data in memory to a storage device such as floppy or hard disk.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	603	578
+P	LOAD		This is used to load data into the sampler’s memory.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	605	580
+P	F1-F16		Function keys down either side of the LCD give direct access to parameters. Their actual function varies according to the selected page.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	611	584
+P	DATA WHEEL		This is used to enter data.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	614	587
+P	CURSOR </> KEYS		These are used to move the cursor left or right in parameter fields. This is particularly useful when editing parameters with long numeric values such as samples. These keys are also used in conjunction with the DATA wheel for naming.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	615	588
+P	NUMERIC KEYPAD		These are used to enter numeric data.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	620	593
+P	WINDOW		This is used to open the ‘window’ function.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	621	594
+P	UNDO		This has no function in Version 1.20 of the operating system.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	622	595
+P	EXIT		This takes you out of the currently selected function and back to the screen you were in previously.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	623	596
+P	ENT/PLAY		This allows you to audition the currently selected sound.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	625	598
+P	MARK/JUMP		These allow you to mark a page, go to another page and then jump back and forth between them.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	626	599
+P	USER KEYS		These allow you to assign the pages and functions you use most often for quick, convenient access. For example, if you find yourself always going to the FILTER, AMPLITUDE ENVELOPE and REVERB 1 pages, these may be assigned to each of the USER KEYS.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	628	601
+P	DISPLAY CONTRAST		This ‘thumbwheel’ control, found on the top/rear of the panel sets the viewing angle for the LCD. A screen saver function in UTILITIES allows you to turn the backlight off at timed intervals to help preserve the LCD.	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	633	606
+P	INPUT L/R		These are the duplicates of the L/MONO IN and RIGHT IN inputs of the front panel - S6000 only. The inputs on the front panel override these inputs.	S6000 REAR PANEL	INTRODUCTION	18	8	661	630
+P	MAIN OUTPUT L/R		These are the duplicates of the main stereo L/R outputs (Outputs 1/2) - S6000 only. They both output the same signal.	S6000 REAR PANEL	INTRODUCTION	18	8	664	633
+P	OUTPUTS 1-16		These are the S6000’s outputs. They can be used as 8 x stereo pairs or as 16 individual outputs or any combination of the two (e.g. you could have stereo sounds appearing at outputs 1/2 and 3/4 with, say, bass appearing at output 5 and kick drum, snare drum and hi-hat appearing at outputs 6, 7 and 8 respectively). Output 1/2 is regarded as the ‘main’ stereo output for the S6000. All outputs are polyphonic.	S6000 REAR PANEL	INTRODUCTION	18	8	666	635
+N	NOTE		Outputs 13-16 are also used as the sampler’s internal effects sends. Therefore, any sounds routed to the effects channels FX1, FX 2, RV3 and/or RV4 will appear at outputs 13, 14, 15 and/or 16 respectively. If you wish to utilise all 16 outputs, you should not use the internal effects. Similarly, if you are using the internal effects, you should avoid using outputs 13-16 as individual outputs. This is a hardware restriction that cannot be overcome in software.	S6000 REAR PANEL	INTRODUCTION	18	8	673	642
+P	DIGITAL I/O		This offers two balanced jacks for AES/EBU digital audio in and out (this can be switched to SPDIF in the UTILITIES mode if you prefer). An optical I/O is also provided. Either digital input can be used to record digitally and both outputs carry a stereo mix of the main L/R outputs (outputs 1/2). Sounds assigned to outputs 3-8 (or 3-16 if the optional output expander is installed for S5000) do not appear at the digital outputs.	S6000 REAR PANEL	INTRODUCTION	18	8	678	647
+P	WORDCLOCK		This BNC connector is used to synchronise the sampler to a studio’s ‘house sync’. This would be used in a predominantly digital studio to ensure that all digital devices (mixer, hard disk recorder, effects, etc.) are running at a common sampling frequency. The terminator switch should be ON when the S6000 is the last digital device in the wordclock chain. Otherwise, it should be OFF. Failure to observe the correct switching of wordclock termination may result in unpredictable results.	S6000 REAR PANEL	INTRODUCTION	19	9	688	655
+P	SCSI		Two 50-pin high-pitch SCSI connectors are provided. One is simply a ‘thru’ of the other and is used when connecting the S6000 to a SCSI chain.	S6000 REAR PANEL	INTRODUCTION	19	9	696	663
+P	SCSI TERMINATOR		This should be switched ON when the S6000 is the last device in a SCSI chain. If the S6000 sits somewhere in the middle of a SCSI chain, it should be switched off. Failure to observe the correct switching of SCSI termination may result in unpredictable results.	S6000 REAR PANEL	INTRODUCTION	19	9	699	666
+P	OPTION SLOTS		These are provided to allow future expansion. One such board is the optional ADAT digital I/O which offers 16 digital outputs, ideal for interfacing with suitably equipped digital mixing consoles. The ADAT I/O also allows you to record from a digital source equipped with an ADAT output.	S6000 REAR PANEL	INTRODUCTION	19	9	703	670
+P	MIDI IN/OUT/THRU		Two completely separate MIDI busses A and B are provided offering 32- channel operation (1-16A and 1-16B). Each MIDI THRU passes on the data received at their respective MIDI inputs.	S6000 REAR PANEL	INTRODUCTION	19	9	708	675
+P	MAINS INPUT		This should be connected to a suitable mains outlet using the supplied cable.	S6000 REAR PANEL	INTRODUCTION	19	9	712	679
+P	SIGNAL GROUND		This can be used to reduce ground loops by connecting it to a common earthing point.	S6000 REAR PANEL	INTRODUCTION	19	9	714	681
+F	4		On an unexpanded S5000, the same icon will be shown but with the number 64 instead.	SWITCHING THE S6000 ON	INTRODUCTION	23	13	796	756
+F	5		The exact time depends on how many drives you have attached and also the speed of those drives. Of course, the more you have, the longer the scan will take and if you have, say, a particularly slow old 4x CD-ROM attached, this will slow the boot up process further.	SWITCHING THE S6000 ON	INTRODUCTION	24	14	810	768
+N	NOTE		The LOAD and SAVE modes differ slightly in this respect. Please refer to those sections for more details.	TOOLS MENUS	INTRODUCTION	30	20	918	864
+N	NOTE		Although it is only possible to enter up to 20 characters on the S6000 itself, long filenames are supported if you are using files created or named on a PC.	NAMING	INTRODUCTION	31	21	947	891
+N	NOTE		The following are illegal characters in .DOS and cannot be used in names:	NAMING	INTRODUCTION	32	22	956	898
+F	6		If you are new to sampling, you might like to read Appendix B which describes the process in more detail.	S6000 STRUCTURE	STRUCTURE	33	23	1003	944
+N	NOTE		A modulation input may only have one control source routed to it so it is not possible, for example, to route LFO2 and the MODWHEEL to, say, FILTER mod input 1. However the same effect can be achieved by routing MODWHEEL to filter input 1 and LFO 2 to filter input 2.	ASSIGNABLE PROGRAM MODULATION (APM)	STRUCTURE	37	27	1158	1080
+N	NOTE		These sub-folders could equally contain further sub-folders. For example, the WOODWIND folder could contain further sub-folders FLUTE, CLARINET, OBOE, BASSOON and PICCOLO. The same process applies to all nested sub-folders.	LOAD	LOAD	39	29	1195	1113
+N	NOTE		If a folder contains sub-folders, the contents of those folders will also be loaded when you use LOAD FOLDER. The load order is very specific - first, any multis, programs and samples in the ‘main’ folder are loaded into memory followed by the contents of each sub-folder in turn. This is mentioned because if a sub-folder contains items that have the same name as items in the main folder, the items being loaded from the sub-folder(s) will overwrite those that have already been loaded from the main folder. So, for example, if the main folder and a sub folder both have a sample called SNARE 1 , first SNARE 1 will be loaded from the main folder but will overwritten when the other SNARE 1 is loaded from the sub-folder.	LOAD FOLDER	LOAD	40	30	1207	1123
+N	NOTE		You cannot overide the type for ALL SAMPLES. If OVERIDE TYPE is checked and you select ALL SAMPLES, OVERIDE TYPE will be disabled. Similarly, if ALL SAMPLES is checked and you press OVERIDE TYPE, the prompt will revert to THIS SAMPLE.	LOADING SAMPLES	LOAD	42	32	1255	1167
+N	NOTE		If you have several drives connected that have AUTOLOAD folders on them, the S6000 will only load the first one it finds.	AUTOLOAD	LOAD	43	33	1277	1187
+N	NOTE		If the sound does not sound immediately, please try to be patient and do not keep stabbing the key as this will cause the disk head to go off searching and searching for the selected sample in a frenzy which may cause problems!	AUDITION SAMPLE	LOAD	44	34	1299	1207
+N	TIP		You can select a disk very quickly simply by ‘double clicking’ the key to its left.	SELECTING DISKS	LOAD	45	35	1315	1221
+F	7		On the S5000, the EB20 is optional.	MULTI	MULTI	47	37	1370	1272
+N	NOTE		When viewing 12 parts, the function keys select the parts in pairs. Press the function key once to select the first part of the pair, then again to select the second. When viewing 18 parts, the function keys select the parts in ‘threes’. Press the function key to select the first of the three parts, again to select the second and again to select the third.	SELECTING PARTS	MULTI	50	40	1397	1293
+N	TIP		Once on the program name field, you may use the SCROLL UP/DOWN keys to move up and down that column.	ASSIGNING PROGRAMS TO PARTS	MULTI	53	43	1448	1338
+N	TIP		You may ‘cancel’ a part’s program assignment at any time by turning the DATA wheel fully counter clockwise (it may take a few turns depending on how many programs are in memory). Fully CCW, the part is effectively ‘emptied’ with no program assigned to it.	ASSIGNING PROGRAMS TO PARTS	MULTI	53	43	1450	1340
+P	PART LEVEL		Sets the level of the selected part.	EDITING PARTS	MULTI	55	45	1472	1358
+P	OUTPUT		Allows you to route the selected part to any pair of outputs or individual output. The range is 1/2~15/16 in pairs and then 1, 2, 3...~16 as individual mono outputs. It is possible to route a stereo program to a single, individual output. This will route both sides of the stereo image to the selected output in mono. Please note, however, that in this case, the PAN/BALANCE control is still a BALANCE parameter even though the signal is effectively mono. Setting it to L50 means you will only hear the left channel through the single output. Likewise, setting it to R50 means you will only hear the right channel. Setting it to MID will allow you to hear both channels equally though summed in mono though the selected single output.	EDITING PARTS	MULTI	55	45	1473	1359
+N	NOTE		1: On the S5000, unless the optional output expander is installed, the range is 1/2 ~ 7/ 8 in pairs and then 1, 2, 3,...~8 individual outputs. You may install the optional output expander to have 16 outputs.	EDITING PARTS	MULTI	55	45	1485	1371
+N	NOTE		2: Outputs 13-16 are also used as the effects sends. Therefore, any sounds routed to the effects will appear at these outputs. If you wish to utilise all 16 outputs, you should not use the internal effects^8 . Similarly, if you are using the internal effects, you should avoid using outputs 13-16. This is a hardware restriction that cannot be overcome in software.	EDITING PARTS	MULTI	55	45	1488	1374
+F	8		Ideally, you should also turn the effects off in UTILITIES > FX IN/OUT > FX OUTPUT.	EDITING PARTS	MULTI	55	45	1492	1378
+P	EFFECTS SEND		This sets the effects send level of the part.	EDITING PARTS	MULTI	56	46	1496	1380
+N	NOTE		On the S5000, the EB20 effects processor needs to be installed.	EDITING PARTS	MULTI	56	46	1497	1381
+P	FINE TUNE		This allows you to tune the part +/-50 ‘cents’ or +/-1 semitone.	EDITING PARTS	MULTI	56	46	1498	1382
+P	MIDI CHANNEL		This allows you to set the selected part’s MIDI channel. You may set 1- 16A and 1-16B.	EDITING PARTS	MULTI	56	46	1499	1383
+N	TIP		Once you have selected a parameter to edit, you can use the SCROLL UP/DOWN keys to set the same parameter for other parts. For example, to set the levels of parts, select one part, select (and set) the LEVEL parameter and then use the SCROLL keys to set LEVEL for the other parts. In this way, you don’t have to keep jumping between the soft keys on the left and those on the right of the screen.	EDITING PARTS	MULTI	56	46	1503	1387
+P	PART LEVEL		A duplication of the main PART LEVEL parameter.	PART LEVEL WINDOW	MULTI	57	47	1519	1401
+P	OUTPUT		This is a duplication of the main OUTPUT parameter described on the previous page and is included here for convenience.	PART LEVEL WINDOW	MULTI	57	47	1520	1402
+P	PAN/BALANCE		This allows you set the pan position of mono programs or the stereo balance of stereo programs. If an individual output is select (e.g. 1, 2, 3, 4, etc.), this parameter has no effect.	PART LEVEL WINDOW	MULTI	57	47	1522	1404
+P	MUTE PART		This allows you to mute a part without having to disrupt mix settings.	PART LEVEL WINDOW	MULTI	57	47	1525	1407
+P	SOLO PART		This will mute all other parts so that you may hear the selected part in isolation.	PART LEVEL WINDOW	MULTI	57	47	1526	1408
+P	EFFECTS CHANNEL		You may select OFF, FX 1, FX 2 (the two multiFX channels), RV3 or RV4 (the two reverb only channels).	EFFECTS SEND WINDOW	MULTI	58	48	1536	1416
+P	EFFECTS SEND		This is a duplication of the main EFFECTS SEND parameter.	EFFECTS SEND WINDOW	MULTI	58	48	1538	1418
+N	NOTE		1:It is also possible to send individual keygroups to the FX. This can be useful in, say, a drums program where each individual drum can have its own effect type and send level. Of course, other types of programs may also use this function. This is mentioned here simply because you may load a sound, assign it to a part, set the effects channel and send level in this window but get unpredictable results. For example, you may load something, route it to RV4 but find that multiFX1 is applied. The reason for this will almost undoubtedly be that the original programmer assigned the program’s keygroups to multiFX1 in EDIT PROGRAM (for some reason!).. If you do experience this, go to EDIT PART (or EDIT PROGRAM) and check the OVERIDE FX parameter in the main KEYGROUP page.	EFFECTS SEND WINDOW	MULTI	58	48	1539	1419
+N	NOTE		2: On the S5000, even if the EB20 is not installed, you still have access to these parameters even though they have no function.	EFFECTS SEND WINDOW	MULTI	58	48	1548	1428
+P	FINE TUNE		This is a duplication of the main FINE TUNE function.	FINE TUNE WINDOW	MULTI	59	49	1554	1432
+P	TRANSPOSE		This allows you to tune the part in semi-tone steps.	FINE TUNE WINDOW	MULTI	59	49	1555	1433
+N	NOTE		You will note that the TRANSPOSE parameter is not a pitch shift function but a MIDI transpose function - this overcomes the problem of playing back samples out of their range. What this function does is introduce an offset so that with a +12 setting, if you play C3 on the keyboard, this is offset to play the samples on C4 - it is not playing the samples on C3 an octave higher and hence introducing transposition distortion of any kind.	FINE TUNE WINDOW	MULTI	59	49	1556	1434
+P	LOW NOTE/HIGH NOTE		This sets the low and notes for a part allowing you to create keysplits. To create a keysplit, you would normally assign two programs to two parts, assign them to the same MIDI channel and then set an appropriate keysplit (i.e. Part 1: C0-B2 and Part 2: C3-G8).	FINE TUNE WINDOW	MULTI	59	49	1561	1439
+N	NOTE		The folder the multi(s) will be saved to is shown. If this is not the right one, you should press CANCEL SAVE and use the actual SAVE function to navigate your way to the folder where you want the multi to be saved. The ‘full’ SAVE function is described in a separate chapter.	QUICKSAVE	MULTI	63	53	1640	1510
+P	RENAME MULTI		Pressing RENAME will pop-up this prompt: You may enter a new name in the usual manner using the cursor </> keys and the DATA wheel or more conveniently from an external QWERTY keyboard. If you are entering the name from the front panel, you may find the DELETE and SPACE keys a convenient way to delete characters or add spaces.	MULTI LIST	MULTI	64	54	1654	1522
+P	COPY MULTI		Pressing COPY MULTI will pop-up this prompt: The multi is given a default ‘autoname’ but you may enter a new name if you prefer in the normal way.	MULTI LIST	MULTI	65	55	1663	1529
+P	DELETE MULTI		Pressing DELETE MULTI will pop-up this prompt: You can use the check boxes to select whether or not the programs and samples associated with the multi will also be deleted. You may also select to delete all multis in memory. Pressing DELETE will initiate the delete function. CANCEL will close the prompt.	MULTI LIST	MULTI	65	55	1666	1532
+N	NOTE		With the PROGS/SAMPS checkbox ticked, if any programs in the selected multi are used in one or more multis in memory, those programs will not be deleted as this would corrupt the other multis. However, if the programs and/or samples are not used by any other multis, they will be deleted.	MULTI LIST	MULTI	65	55	1669	1535
+N	NOTE		Deleting ALL MULTIS and also selecting to delete the programs and samples is the equivalent of clearing the memory completely	MULTI LIST	MULTI	65	55	1674	1540
+P	CREATE MULTI		This allows you to create multis. The function is identical to CREATE MULTI in the main multi page.	MULTI LIST	MULTI	65	55	1678	1544
+P	EXPAND MULTI		This allows you to change the number of parts in a multi. Pressing this will pop-up a prompt and you have the option to expand the currently selected multi to 64- or 128-parts (or to cancel). If the multi already has 64- or 128- parts, you will be prompted accordingly. This is useful in the event of you accidentally creating a 32-part multi when in fact you wanted a 64- or 128-part multi or in cases where you reach the limit of the current multi and need to add more parts.	MULTI LIST	MULTI	66	56	1683	1547
+P	RENUMBER MULTI		This takes you to a new page where you may change the MIDI program number of the multis in memory. Pressing RENUMBER will show something like this screen: MIDI program numbers are used in order to select multis remotely via MIDI. For example, in a live situation, you may wish to use MIDI program change to select multis remotely from your keyboard or sequencer. Multis may be given a number 1-128 or OFF. To renumber a multi, simply move the cursor to the multi you want to renumber and use the DATA wheel to set the appropriate number (or switch it to OFF). for example, “GIG FOLDER”). When you come to load that folder prior to your gig, they will load in the correct order 1-XXX. Pressing RENUMBER 1-XXX (F13) will renumber all the multis in memory sequentially 1-128 (or whatever the upper limit is of the number of multis in memory). The multis will be renumbered in the order in which they appear in the list. For example: If there are more than 128 multis in memory, any above 128 will be renumbered to 128. When you press RENUMBER 1-XXX, you will receive a prompt asking you to confirm that you wish to proceed. Respond accordingly. Pressing SET ALL TO OFF will (not surprisingly!) turn all program numbers off. This way, you can clear all program numbers so that it is easier and clearer to renumber just those that will be affected by MIDI program change. When you press SET ALL TO OFF, you will receive a prompt asking you to confirm that you wish to proceed. Respond accordingly.	MULTI LIST	MULTI	66	56	1691	1555
+N	NOTE		If two (or more) multis are assigned the same program number, if that MIDI program number is sent to the sampler, the first multi with that number will be selected.	MULTI LIST	MULTI	67	57	1720	1582
+N	NOTE		The numbers assigned here apply equally to bank numbers should you choose to select multis using BANK SELECT in UTILITIES > MIDI SETUP > MULTI SELECT (see below).	MULTI LIST	MULTI	67	57	1722	1584
+N	TIP		If you are using this function for live work, to set the multis in some sort of sensible, logical order, load each one individually in the order you want them to appear. Then use RENUMBER 1-XXX to number them sequentially in that order and re-save them back to a new folder (called, for example, “GIG FOLDER”). When you come to load that folder prior to your gig, they will load in the correct order 1-XXX.	MULTI LIST	MULTI	67	57	1725	1587
+N	NOTE		The MIDI channel designated for receiving MIDI program change commands for remote multi selection is automatically disabled for selecting programs via MIDI program change commands. Therefore, be sure to set a MIDI channel that you know won’t be required for selecting programs.	SELECTING MULTIS REMOTELY VIA MIDI	MULTI	68	58	1741	1601
+P	RENAME PROGRAM		This pops up a prompt and you may rename the program: You can name the program in the usual way.	PROGRAM LIST	MULTI	69	59	1759	1617
+P	COPY PROGRAM		This pops up a prompt and you may copy the selected program: You may use the name automatically generated by the copy process or you may enter your own.	PROGRAM LIST	MULTI	70	60	1764	1620
+P	DELETE PROGRAM		You may delete the selected program: The SAMPLES checkbox on F14 allows you to select whether you also want to delete the samples associated with the selected program. With it checked, the samples will be deleted.	PROGRAM LIST	MULTI	70	60	1767	1623
+N	NOTE		If any samples are used by any other programs currently in memory, those particular samples will not be deleted.	PROGRAM LIST	MULTI	70	60	1771	1627
+P	CREATE PROGRAM		You may create a new program:	PROGRAM LIST	MULTI	70	60	1773	1629
+P	PURGE		This useful function deletes all programs and samples not currently being used by any multis in memory (these programs are referred to as ‘orphans’): You may end up with ‘orphans’ in memory when you load several sounds to try out. For example, when building up a multi, you may load in a few drums programs to see which one you like. Once you have settled on the one you want to use, all the others are redundant. Rather than deleting each one manually, you can use PURGE to get rid of these and make more memory available.	PROGRAM LIST	MULTI	71	61	1777	1631
+P	CONVERT -L/-R		This allows you to convert ‘old’ Akai -L/-R stereo samples into interleaved stereo .WAV samples. Pressing this pops-up this prompt: To continue, press YES (or NO to cancel). The process will examine the program and convert each -L/-R sample into a single stereo file. It will remove the original samples from the program (but not from memory) and will also make the appropriate adjustments to the keygroup zones to which they are assigned (i.e. instead of two mono zones panned hard left and right, you will end up with one stereo zone panned centrally). If the process is successful, you will be returned to the PROGRAM LIST screen. **** NOTES REGARDING CONVERT -L/-R ****	PROGRAM LIST	MULTI	72	62	1793	1645
+P	CONV OLD MULTI		This allows you to convert ‘old’ Akai ‘multis’ or layers into new, S5/6000 format multis. For newcomers to the S5/6000, to understand this function, a quick history lesson is required! On the S1000, S1100 and S3000, multis and layers were achieved by setting several programs to the same program number. In the case of multi-timbral setups, each program would be given its own unique MIDI channel or, in the case of layering, programs would share the same MIDI channel. Thus, you may have: *1 DRUMS 1 MIDI 1 *1 GR PIANO MIDI 2 *1 E.PIANO MIDI 3 *1 SLAP BASS MIDI 4 *1 BIG STRINGS MIDI 5 *1 BASS SYNTH 4 MIDI 6 Etc.. Although the concept of multis was introduced on the S2000, S3000XL and S3200XL, for the sake of ‘legacy’, this feature was retained (and, indeed, some people continued to use it despite the convenience of the multi). The CONVERT OLD MULTI allows you to convert such setups to a new S5/6000 format multi. It works as follows: Imagine you have loaded an ‘old’ S1/2/3000 multi. You will have several programs all sharing the same program number: You can confirm this by pressing RENUMBER: In either screen, you can convert such a setup simply by moving the cursor to any program sharing the same program number and pressing CONVERT OLD MULTI. You will receive this prompt: Press ADD TO CURRENT to add the selected program number to the currently selected multi or press CREATE NEW to create a new multi to add the program(s) to. If you create a new multi, its name will be that shown in the prompt (i.e. S1-3K MULTI 1). The multi will now contain all programs of the same number and the MIDI channels, levels, pan position, output assignments, tuning, etc., used in the ‘old’ multi/layer will automatically be set and the new format multi should play pretty much the same as the original would on an S1000, S3000 or whatever.	PROGRAM LIST	MULTI	74	64	1830	1678
+N	NOTE		The function is not foolproof. For example, you may load in an old S1000-style ‘multi’ numbered, say, #3. If any other programs with that number are already loaded, they too will be converted in this process. As such, the function is best used in the RENUMBER page so that you can see programs’ numbers. The RENUMBER function is described below.	PROGRAM LIST	MULTI	75	65	1868	1714
+P	RENUMBER		This takes you to a new page where you may change the MIDI program number of the programs. Pressing RENUMBER will show something like this screen: Programs may be given a number 1-128 or OFF. MIDI program numbers are used in order to select programs within a part remotely via MIDI. For example, you may have a stereo acoustic piano sound in Part 2/MIDI channel 2 that you want to use in the verses of a song but which you want to change to an electric piano sound in the chorus. By issuing an appropriate MIDI program change command on channel 2, you can achieve this and the two will swap over when you want them to. For example, if STEREO PIANO is MIDI program number #5 and ELECTRIC PIANO is MIDI program #12 - by issuing program change commands #5 and #12 on MIDI channel 2 at the appropriate moments in the song, you can switch between these sounds. However, a problem exists when you load these sounds into memory in that, for example, the STEREO PIANO sound you loaded could have MIDI program number #1 and the ELECTRIC PIANO sound could be program #6 (or they could both be program #1 or OFF or whatever depending on where they were loaded from). In other words, in order for them to be selected correctly via MIDI program change, you need to renumber them to the correct MIDI program numbers. Another potential problem exists. You may renumber the stereo piano and electric piano correctly but may find that other programs with these numbers already exist in memory. To prevent a conflict in these circumstances, other programs may need to be renumbered. There is another problem too! The range of MIDI program numbers is 1- 128. However, it is possible to load many more programs than this into the S6000’s memory and, theoretically, you may have hundreds of programs loaded. However, there may only be a handful of programs you need to change within a multi using MIDI program change. The RENUMBER screen allows you to renumber those programs that will be required to be changed via MIDI program change whilst switching those that don’t to ignore such changes. To renumber a program (or programs), move the cursor to the program you want to renumber and use the DATA wheel to set the appropriate number (or switch it to OFF). Once they have been renumbered, simply leave the RENUMBER page - the new numbers will be set. Pressing RENUMBER 1-XXX will renumber all programs sequentially 1-128 (or whatever the upper limit is of the number of programs in memory). The programs will be renumbered in the order in which they appear in the list. If there are more than 128 programs in memory, any above 128 will be renumbered as 128. When you press RENUMBER 1-XXX, you will receive a prompt asking you to confirm that you wish to proceed. Respond accordingly. Pressing SET ALL TO OFF will (not surprisingly!) turn all programs numbers off. This way, you can clear all program numbers so that it is easier and clearer to renumber just those that will be affected by MIDI program change. When you press SET ALL TO OFF, you will receive a prompt asking you to confirm that you wish to proceed. Respond accordingly.	PROGRAM LIST	MULTI	76	66	1875	1719
+N	NOTE		REGARDING QUICKLOAD: It is possible to use QUICK LOAD even if you have not created a multi first. In the blank multi page, select the part you wish to QUICKLOAD into. Now press PART TOOLS followed by QUICKLOAD. Select the sound you want to load and press LOAD INTO PART. Because you have not yet created the multi, you will receive this prompt first: Pressing CREATE NEW will pop-up the name prompt: You should create the multi after which you can proceed with QUICKLOAD as described.	QUICKLOAD	MULTI	84	74	2008	1836
+N	NOTE		The folder the program(s) will be saved to is shown. If this is not the right one, you should press CANCEL SAVE and use the actual SAVE function to navigate your way to the folder where you want the program to be saved. The ‘full’ SAVE function is described in a separate chapter.	QUICKSAVE	MULTI	85	75	2032	1858
+N	NOTE		If you only intend using the S6000 to play single programs, you can simply use EDIT PROGRAM if you prefer. Using a multi to play a single program does give you greater flexibility, however, especially regarding the use of effects and outputs.	USING MULTI MODE TO PLAY SINGLE PROGRAMS	MULTI	86	76	2054	1878
+F	9		Even though a multi can have up to 128 parts, only 32 channels may be used. However, whilst at first this may seem strange, this does allow many parts to be layered in a multi-timbral environment.	USING MULTI MODE MULTI-TIMBRALLY	MULTI	87	77	2084	1907
+N	NOTE		FOR EXISTING AKAI SAMPLER USERS. The S6000’s MULTI mode replaces all other playback modes of Akai’s previous samplers. Previously, on the S1000, S1100 and S3000, S3200, multi-timbral operation, layers and keysplits were achieved by renumbering several programs to the same program number and then setting MIDI channels, levels, etc., for each program accordingly. This had the advantage that whilst being a bit cumbersome to use, it did allow you to have up to 128 multi-timbral setups loaded simultaneously and these could be selected from the front panel or via MIDI program change very quickly and easily. This way of working was good for live work, because, with some preproduction work, you could program your entire live set and have all the sounds for each song loaded into memory (notwithstanding the old samplers’ memory limits, of course) and ready for action with a turn of the DATA wheel or by sending out a MIDI program change command from your keyboard to recall either a single sound, a set of layered or keysplit sounds or an entire multi-timbral setup. Then, in the S2000 and XL range, Akai introduced the MULTI mode. This had the advantage of being quick and considerably easier to use plus had the benefit that you could use MIDI program change on specific MIDI channels to change sounds within individual parts. However, having only one multi in memory at any one time restricted the MULTI mode’s ability to be used live. Furthermore, there was a limit of 16 parts (and 16 MIDI channels). The S6000’s new MULTI mode embraces the benefits of both ways or working (as well as overcoming each one’s restrictions!) and offers the best of all worlds as well as many improvements and advantages: • It is quick and easy to use. • Up to 128 programs can be played simultaneously without the need for awkward	USING THE S6000 AS TWO SAMPLERS	MULTI	89	79	2114	1933
+N	NOTE		If a program is shared between multis (i.e. in this example, if STRING SYNTH is assigned to other multis), if you edit it using EDIT PART, those edits will be reflected in any other multi where the program may be being used. If you need to edit differently within the context of one multi without affecting other multis, you should first copy the program and work on the copy.	EDIT PART	EDIT PROGRAM	91	81	2183	1999
+P	LOUDNESS		This sets the basic working level of the program. 100 is maximum. For some degree of velocity sensitivity, this should be set to less than 100 (a value of 80 is about ‘average’) but this may be varied (in conjunction with the VELOCITY SENSITIVITY parameter) according to your playing technique and/or the velocity sensitivity you require.	OUTPUT	EDIT PROGRAM	92	82	2195	2009
+P	VELOCITY SENS		This sets the amount of effect velocity will have over the overall output level of the program. +020 is about average but you may set this to any value you like according to your playing technique. You may also invert this for special effects where harder velocity makes loudness quieter! This may be useful if you want to crossfade two programs with velocity. In this case, set one to a positive velocity value and the other to a negative velocity value.	OUTPUT	EDIT PROGRAM	92	82	2200	2014
+P	AMP MOD 1/2		These two parameters allow you to set the level for the controllers assigned to these inputs. It is also possible to assign any of the sampler’s controllers (MIDI controllers, LFOs, envelopes, etc.) to the two amplitude modulation inputs. To set the modulation amount, simply touch the key to the right of the parameter you want to adjust and use the DATA wheel to set the value. The controller is selected by ‘double’ clicking the key alongside the parameter. For example, pressing it once will show this: Here, you may set the modulation level. Pressing the key again will move the cursor to the controller field and will show this: Here you may use the DATA wheel to scroll through the various controllers. This principle applies to all modulation inputs throughout EDIT PROGRAM - press once to set level, press again to select the controller. This type of operation is signified by the icon in the corner of the parameter field. To do the same for the other AMP MOD input, repeat the above.	OUTPUT	EDIT PROGRAM	93	83	2210	2022
+P	PAN MOD 1/2/3		These parameters allow you to create a variety of ‘autopan’ effects. The most obvious of these, perhaps, would be to assign a slow LFO to one of the PAN MOD inputs so that the sound moves backwards and forwards across the stereo image. However, you could use velocity or aftertouch or you could use an envelope so that the sound pans with every note. Operation is identical to the AMP MOD inputs - press once to set level, press again to select the controller.	OUTPUT	EDIT PROGRAM	93	83	2228	2040
+P	GOTO SOURCE		When the cursor is on either mod input field (controller or level) of any of the modulation inputs - for example: Pressing GOTO SOURCE will take you directly to that controllers page. In the above example, you would go straight to LFO2: Here, you may tweak and edit the LFO 2 parameters.	OUTPUT	EDIT PROGRAM	94	84	2238	2048
+P	GOTO DEST		Pressing GOTO DEST in this page will pop up this window: You may return to the OUTPUT page (or any other destination) immediately. If the cursor is not on a valid modulation input (for example, if the LOUDNESS parameter is selected or the cursor is on, say, the program name) and you press GOTO SOURCE, you will receive this pop-up dialogue prompt: Similarly, if the mod source is one of the MIDI controllers (pitchbend, modwheel, keyboard, etc. - in other words, a controller that has no parameters associated with it), you will receive the same prompt.	OUTPUT	EDIT PROGRAM	95	85	2246	2054
+N	NOTE		The GOTO SOURCE/DEST operation is common for all mod input functions in all pages that have them.	OUTPUT	EDIT PROGRAM	95	85	2256	2064
+P	MAIN		This key takes you back to the main EDIT PROGRAM page.	OUTPUT	EDIT PROGRAM	95	85	2258	2066
+P	PROGRAM NUMBER		Sets the MIDI program number for the selected program. This allows you to select programs remotely via MIDI within a part in a multi.	MIDI/TUNE	EDIT PROGRAM	96	86	2265	2071
+N	NOTE		You may also set the MIDI program number in the RENUMBER page in PART or PROGRAM TOOLS > PROGRAM LIST. This may be more convenient as you can see the program numbers for other programs simultaneously.	MIDI/TUNE	EDIT PROGRAM	96	86	2267	2073
+P	SEMITONE TUNE		Allows you to tune the program in semitones.	MIDI/TUNE	EDIT PROGRAM	96	86	2270	2076
+P	FINE TUNE		Allows you to fine tune the program.	MIDI/TUNE	EDIT PROGRAM	96	86	2271	2077
+P	TUNE TEMPLATE		This allows you select from a variety of different tuning templates such as EVEN-TEMPERED, ORCHESTRAL, WERKMEISTER, etc.. You may also set your own tuning template by selecting USER which you may freely edit in the EDIT USER page.	MIDI/TUNE	EDIT PROGRAM	96	86	2272	2078
+P	KEY		Sets the key signature for the tuning template. The normal Western EQUAL TEMPERAMENT allows you play in any key you like (which is why it was developed!) but the other tunings can only be used in certain key signatures. So, for example, if you want to use the WERKMEISTER tuning on a piano sound and the piece you want play is D#, select D# in the KEY parameter.	MIDI/TUNE	EDIT PROGRAM	96	86	2276	2082
+P	COPY TO USER		This key allows you to copy one of the preset templates to the USER template so that you may edit it. To edit one of the templates, first select it in the TUNE TEMPLATE field and press COPY TO USER. Now select USER as the TUNE TEMPLATE. You may now use EDIT USER to modify it.	MIDI/TUNE	EDIT PROGRAM	96	86	2282	2088
+P	PITCHBEND UP		This sets the limit for pitchbend up - the range is 24 semitones	PITCHBEND	EDIT PROGRAM	98	88	2303	2105
+P	PITCHBEND DOWN		This sets the limit for pitchbend down - the range is 24 semitones.	PITCHBEND	EDIT PROGRAM	98	88	2304	2106
+P	BEND MODE		You may select NORMAL or HELD. NORMAL is the common type of pitchbend where all notes are bent as you move the pitchbend wheel/lever regardless of whether you are actually holding any notes down (i.e. they may be fading through their release stage). By selecting the HELD mode of pitchbend, ONLY THE KEY(S) YOU ARE CURRENTLY HOLDING DOWN WILL BEND and all those notes you are not playing but which may be fading through their release stage will remain unchanged. If you release your finger from the key with the pitchbend up (or down), as the note dies away, if you let the pitchbend return to zero, that last note’s pitch will not change. If you release just one note of a chord with pitchbend up or down, if you let the wheel or lever settle at zero, only the notes you are holding will bend.	PITCHBEND	EDIT PROGRAM	98	88	2305	2107
+P	AFTERTOUCH		As well as using the pitchbend wheel or lever, you may also use aftertouch to bend notes. The range is -12 to +12. You may only bend up or down depending on the selection made - unlike the bend wheel/lever, you cannot pitchbend both ways.	PITCHBEND	EDIT PROGRAM	98	88	2318	2120
+P	RATE		Sets the speed of the LFO. The range is very slow (at a setting of 0, it takes over a minute to complete a full cycle) to very fast (around 100Hz). An average vibrato rate setting is around 45.	LFOS	EDIT PROGRAM	99	89	2328	2128
+P	DELAY		This sets the time it takes for the modulation to fade in.	LFOS	EDIT PROGRAM	99	89	2331	2131
+P	DEPTH		Sets the initial depth of the modulation. This should be set to a value if you want LFO1 modulation permanently on the sound (if you only want to introduce vibrato or other modulation effects via the modwheel however, this parameter should be set to 0 and the MODWHEEL parameter - see below - should be set to a suitable value).	LFOS	EDIT PROGRAM	99	89	2332	2132
+P	WAVEFORM		Nine modulation waveforms are available. These are	LFOS	EDIT PROGRAM	99	89	2337	2137
+V	SINE	WAVEFORM	A smooth waveform suitable for vibrato. Also useful for slow, smooth panning and filter sweeps.	LFOS	EDIT PROGRAM	99	89	2338	2138
+V	TRIANGLE	WAVEFORM	Another waveform suitable for vibrato and slow sweep effects.	LFOS	EDIT PROGRAM	99	89	2341	2141
+V	SQUARE	WAVEFORM	A ‘bi-polar’ square wave that moves above and below the note you are playing.	LFOS	EDIT PROGRAM	100	90	2347	2145
+V	SQUARE +	WAVEFORM	This square wave only moves above the note you are playing. It is suitable for trills and octave jumps, etc..	LFOS	EDIT PROGRAM	100	90	2350	2148
+V	SQUARE -	WAVEFORM	This square wave only moves down from the note you are playing.	LFOS	EDIT PROGRAM	100	90	2354	2152
+V	SAW BI	WAVEFORM	A ‘bi-polar’ rising sawtooth wave that moves above and below the note you are playing.	LFOS	EDIT PROGRAM	100	90	2357	2155
+V	SAW UP	WAVEFORM	This sawtooth rises up to the note you are playing.	LFOS	EDIT PROGRAM	100	90	2360	2158
+V	SAW DOWN	WAVEFORM	This sawtooth falls down from the note you are playing.	LFOS	EDIT PROGRAM	100	90	2362	2160
+V	RANDOM	WAVEFORM	Gives out completely random control signals.	LFOS	EDIT PROGRAM	100	90	2365	2163
+P	LFO SYNC		When set to ON, all 128 LFOs^10 (one per voice) run together at the same rate. When switched to OFF, they each run at a slightly different speed to create a more ‘ensemble’ effect on sounds such as strings, brass, pads, etc..	LFOS	EDIT PROGRAM	100	90	2367	2165
+P	RATE MOD		You may modulate LFO 1’s rate with this parameter and here you may select a controller and set the amount of rate modulation. Press the key once to set the mod amount; press again to select the controller.	LFOS	EDIT PROGRAM	100	90	2371	2169
+P	DELAY MOD		You may modulate the delay time. Press once to set the amount of delay modulation; press again to select the controller.	LFOS	EDIT PROGRAM	100	90	2374	2172
+P	DEPTH MOD		You may modulate the LFO’s output level here. The same principle applies - press once to set the depth mod amount; press again to select the controller.	LFOS	EDIT PROGRAM	100	90	2376	2174
+F	10		64 LFOs on an unexpanded S5000.	LFOS	EDIT PROGRAM	100	90	2379	2177
+P	MODWHEEL		Sets the amount of modulation that will be introduced by the modwheel.	LFOS	EDIT PROGRAM	101	91	2383	2179
+P	AFTER TOUCH		This allows you to introduce vibrato using aftertouch.	LFOS	EDIT PROGRAM	101	91	2384	2180
+P	GOTO DEST		This pops up a list of destinations the LFO may be assigned to for quick and easy access to their pages.	LFOS	EDIT PROGRAM	101	91	2385	2181
+P	GOTO SOURCE		When any of the mod input parameters are selected, pressing this key will take you directly to the controller’s page.	LFOS	EDIT PROGRAM	101	91	2387	2183
+N	NOTE		If a mod parameter is not selected, you will receive a dialogue prompt advising you of this. Similarly, if the mod source is one of the MIDI controllers, you will receive the same popup prompt.	LFOS	EDIT PROGRAM	101	91	2389	2185
+P	RATE		Sets the speed of the LFO. The range is very slow (at a setting of 0, it takes over a minute to complete a full cycle) to very fast (around 100Hz). An average vibrato rate setting is around 45.	LFO 2	EDIT PROGRAM	101	91	2395	2191
+P	DELAY		This sets the time it takes for the modulation to fade in.	LFO 2	EDIT PROGRAM	101	91	2398	2194
+P	DEPTH		Sets the initial depth of the modulation. This should be set to a value if you want LFO1 modulation permanently on the sound (if you only want to introduce vibrato or other modulation effects via the modwheel however, this parameter should be set to 0 and the MODWHEEL parameter - see below - should be set to a suitable value).	LFO 2	EDIT PROGRAM	101	91	2399	2195
+P	WAVEFORM		Nine modulation waveforms are available. These are	LFO 2	EDIT PROGRAM	101	91	2404	2200
+V	SINE	WAVEFORM	A smooth waveform suitable for vibrato. Also useful for slow, smooth panning and filter sweeps.	LFO 2	EDIT PROGRAM	101	91	2405	2201
+V	TRIANGLE	WAVEFORM	Another waveform suitable for vibrato and slow sweep effects.	LFO 2	EDIT PROGRAM	101	91	2408	2204
+V	SQUARE	WAVEFORM	A ‘bi-polar’ square wave that moves above and below the note you are playing.	LFO 2	EDIT PROGRAM	102	92	2414	2208
+V	SQUARE +	WAVEFORM	This square wave only moves above the note you are playing. It is suitable for trills and octave jumps, etc..	LFO 2	EDIT PROGRAM	102	92	2417	2211
+V	SQUARE -	WAVEFORM	This square wave only moves down from the note you are playing.	LFO 2	EDIT PROGRAM	102	92	2421	2215
+V	SAW BI	WAVEFORM	A ‘bi-polar’ rising sawtooth wave that moves above and below the note you are playing.	LFO 2	EDIT PROGRAM	102	92	2424	2218
+V	SAW UP	WAVEFORM	This sawtooth rises up to the note you are playing.	LFO 2	EDIT PROGRAM	102	92	2427	2221
+V	SAW DOWN	WAVEFORM	This sawtooth falls down from the note you are playing.	LFO 2	EDIT PROGRAM	102	92	2429	2223
+V	RANDOM	WAVEFORM	Gives out completely random control signals.	LFO 2	EDIT PROGRAM	102	92	2432	2226
+P	RATE MOD		You may modulate LFO 2’s rate with this parameter and here you may select a controller and set the amount of rate modulation. Press the key once to set the mod amount; press again to select the controller.	LFO 2	EDIT PROGRAM	103	93	2457	2249
+P	DELAY MOD		You may modulate the delay time. Press once to set the amount of delay modulation; press again to select the controller.	LFO 2	EDIT PROGRAM	103	93	2460	2252
+P	DEPTH MOD		You may modulate the LFO’s output level here. The same principle applies - press once to set the depth mod amount; press again to select the controller.	LFO 2	EDIT PROGRAM	103	93	2462	2254
+P	MIDI CLOCK		This ‘check box’ allows you to switch MIDI clock sync on or off. When it is switched on, the LFO will only run when the sampler receives MIDI clock signals.	LFO 2	EDIT PROGRAM	103	93	2465	2257
+P	CLOCK DIVISION		This sets how many beats there will be for each complete LFO cycle. This way, you can synchronise filter, panning or other sweeps with your song. For example, with it set to 4 BEATS/CYCLE one complete LFO cycle will take place over the space of four crotchet beats so, in a 4/4 time signature, that equates to one cycle per bar: Triangle wave set to 4 Beats/Cycle To set the LFO to cycle, for example, over 4 bars of a 4/4 piece, youshould set 16 and for 8 bars, 32, etc.. The total amount is 64 beats per cycle or 16 bars. This scheme also allows you to cater for 3/4 time signature and so, for example, to set the LFO to have one cycle over 4 bars of a 3/4 time signature, you would set 12 or to have two cycles every two bars, you would set 6. You may also set how many cycles there will be per beat and once you go back beyond 1 BEAT/CYCLE, the parameter changes to X CYCLES/ BEAT. Thus, a setting of 8 CYCLES/BEAT will give you (not surprisingly!) 8 cycles for every crotchet beat. ****NOTES ABOUT MIDI CLOCK SYNC ****	LFO 2	EDIT PROGRAM	103	93	2468	2260
+P	GOTO DEST		This pops up a list of destinations the LFO may be assigned to for quick and easy access to their pages.	LFO 2	EDIT PROGRAM	104	94	2521	2311
+P	GOTO SOURCE		When any of the mod input parameters are selected, pressing this key will take you directly to the controller’s page.	LFO 2	EDIT PROGRAM	104	94	2523	2313
+N	NOTE		If a mod parameter is not selected, you will receive a dialogue prompt advising you of this. Similarly, if the mod source is one of the MIDI controllers, you will receive the same popup prompt.	LFO 2	EDIT PROGRAM	104	94	2525	2315
+P	MUTE GROUP		This allows you to group several keygroups together so that they are essentially monophonic. The main reason for this is for drums where sometimes you want a sample to stop playing when another is played. For example, you would want a closed hi-hat to stop an open hi-hat. To do this, simply assign all the relevant keygroups to the same Mute Group. For example, if all your hi-hats are in keygroups 3-6, assign those keygroups to, say, Mute Group 1. All other keygroups will be unaffected but all those in mute group 1 will be mutually exclusive - that is, if one is sounding when another is played, it will be cut. For example: OPEN HI-HAT CLOSED HI-HAT (or triangle, etc) (or triangle, etc)	KEYGROUP	EDIT PROGRAM	105	95	2535	2323
+P	OVERIDE FX		This allows you to send individual keygroups to the effects by overriding the main program’s effects routing. The default will be MULTI (i.e. the routing uses the effects buss selection set when the program is placed in a MULTI) but you may also select OFF (i.e. the selected keygroup is not routed to the effects) or FX1, FX2, RV3 or RV4.	KEYGROUP	EDIT PROGRAM	107	97	2578	2362
+P	FX SEND LEVEL		This allows you to set the amount of effect for each keygroup. In this way, you can, for example, send individual drums in different amounts to the effects. Furthermore, each drum could be routed to a different effect (i.e. bass drum to a tight gated reverb, snare to a large hall, toms to a medium hall, etc.).	KEYGROUP	EDIT PROGRAM	107	97	2583	2367
+N	TIP		A quick way of selecting keygroups is to press AND HOLD F1 and play a note on your MIDI keyboard (or other controller). This will select that note’s keygroup. For example, in a program with five keygroups spanning C0-B1, C2-B2, C3-B3, C4-B4, C5-G8, playing G3 will select keygroup 3 - i.e. the one spanning C3-B3. In the case where keygroups are layered or overlap, pressing and holding EDIT and repeatedly playing the note will select each keygroup in turn.	SELECTING KEYGROUPS	EDIT PROGRAM	107	97	2595	2379
+P	ZONE 1/2/3/4		Samples are assigned here. To assign a sample, simply press F2, F3, F4 or F5 and use the DATA wheel to scroll through the samples in memory. A zone can contain a mono or a stereo sample^11 and samples assigned here can be normal RAM samples or ‘virtual’ samples. Having ‘virtual’ samples in a program means that they can be processed by the envelopes, filters, LFOs, etc., just like any normal sample and no distinction is made between them. This opens up many exciting possibilities for playing disk recordings alongside ordinary RAM samples.	KEYGROUP ZONES	EDIT PROGRAM	108	98	2607	2389
+N	TIP		When you select a keygroup zone using F2-5, if you now go to EDIT SAMPLE, the sample in the selected zone is automatically selected for editing. Furthermore, if something other than RAW SAMPLE is selected in the MONITOR parameter in EDIT SAMPLE, the program you are working on will also be automatically selected.	KEYGROUP ZONES	EDIT PROGRAM	108	98	2615	2397
+N	NOTE		Keygroups that have ‘virtual’ samples assigned to them have a polyphony of 1 voice and you cannot play chords with ‘virtual’ samples. However, apart from this restriction, they can be treated much like normal RAM samples.	KEYGROUP ZONES	EDIT PROGRAM	108	98	2619	2401
+F	11		Previous Akai samplers required the left and right channels to be assigned to Zones 1 and 2 separately with pan and other parameters set manually for each ‘leg’ of the stereo sample in each zone. This restriction no longer applies. However, please note that ‘old’ Akai sound library will transfer directly when loaded into the S6000 with the -L and -R ‘legs’ of the stereo sample appearing in their respective zones exactly as they were saved on the older model sampler. However, it is possible to convert these ‘old’ stereo Akai samples into the newer .WAV format (see PROG TOOLS > PROGRAM LIST > CONVERT -L/-R).	KEYGROUP ZONES	EDIT PROGRAM	108	98	2622	2404
+P	ZONE LEVEL		This sets the level for the selected zone.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2632	2412
+P	PAN/BALANCE		If the sample in the selected zone is mono, this parameter controls pan to move the sound around the stereo image. If the sample in the selected zone is stereo, this parameter works as a balance control.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2633	2413
+P	FINE TUNE		This allows you to fine tune the selected zone.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2636	2416
+P	PLAYBACK		This allows to select how the sample plays back. This overides the sample’s own playback parameters. The options are:	KEYGROUP ZONES	EDIT PROGRAM	109	99	2637	2417
+V	AS SAMPLE	PLAYBACK	The sample will play according to the PLAY MODE set in EDIT SAMPLE.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2639	2419
+V	LOOP IN REL	PLAYBACK	The sound will continue to loop during the release phase of the envelopes.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2641	2421
+V	LOOP TIL REL	PLAYBACK	The sound will loop as you hold a note down but will play the rest of the sample after the loop end during the release phase of the envelopes.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2643	2423
+V	NO LOOPING	PLAYBACK	The sound will play for its duration or until you release the note, whichever is the shorter.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2647	2427
+V	ONE-SHOT	PLAYBACK	The sample will play to the end regardless of how long you play the note.	KEYGROUP ZONES	EDIT PROGRAM	109	99	2649	2429
+P	HIGH VELOCITY		This parameter set the high velocity range for the selected zone.	KEYGROUP ZONES	EDIT PROGRAM	110	100	2654	2432
+P	LOW VELOCITY		This parameter sets the low velocity for the selected zone. For normal playback, you would normally set a zone to have a velocity range of 0-127. However, by assigning different samples to the zones and setting high and low velocity as appropriate, you can achieve velocity crossfade and switching. For example: In the first example, there are four distinctly different bass samples played with different styles and these can be switched between using MIDI velocity. Play soft and you’ll hear the sample SOFTBASS; play a bit harder and you’ll hear THUMBBASS but really hit your keyboard hard and you’ll hear PULL BASS. If the velocity ranges overlap as shown in the second example, you can use ZONE XFADE (F16) so that the zones will crossfade giving a smoother transition.	KEYGROUP ZONES	EDIT PROGRAM	110	100	2655	2433
+P	ZONE XFADE		This ‘checkbox’ switches velocity crossfade on and off. With it set to off, the zones will switch; when set to ON, zones with overlapping velocity ranges will crossfade for a smoother transition.	KEYGROUP ZONES	EDIT PROGRAM	110	100	2668	2446
+P	ZONE LEVEL		This duplicates the main ZONE LEVEL parameter seen in the ZONES page and is included here for convenience.	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2677	2453
+P	PAN/BALANCE		This duplicates the PAN/BALANCE parameter found in the main ZONES page.	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2679	2455
+P	OUTPUT		Here you may route zones to individual outputs. When set to AS MULTI, when the program is placed in a multi part, the keygroup(s) will appear at the outputs set in that part. If the program is not associated with a multi, keygroups assigned AS MULTI will appear at the main outputs 1/2.	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2681	2457
+N	TIP		The new output arrangement on the S6000 offers many improvements over previous Akai samplers, especially for drum programs. On previous Akai samplers, it was not possible to have some drum sounds coming out of the individual outputs with others appearing only at the stereo outputs. This is easily achieved on the S6000. For example, your kick, snare, hi-hats and tambourine keygroups can be routed to individual outputs 1, 2, 3 and 4 respectively with your stereo mix of toms routed to outs 5/6 - in stereo! Other stereo instruments or groups of instruments could appear at other stereo outs - all your Latin percussion sounds appearing at, say outputs 7/8, for example. And so on. This has never been possible on previous Akai samplers and is a great advance in output routing flexibility.	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2686	2462
+P	FILTER		This parameter allows you to set the filter cutoff to maintain a consistent tone between keygroups. The range is +/-100.	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2696	2472
+P	KEYBOARD TRACK		Allows you to switch the keyboard off so that the zone plays at a constant pitch of C3.	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2705	2479
+P	SEMITONE TUNE		This allows you to tune the zone in semitone increments.	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2713	2487
+P	FINE TUNE		This duplicates the FINE TUNE parameter in the main ZONES page and allows you to fine tune the selected zone.	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2714	2488
+P	VELOCITY START		This parameter allows you to determine the way in which velocity affects the playback starting point for each sample in a keygroup. The higher the positive number, the earlier in the sample playback will start relative to the key velocity (i.e. a high key velocity will start playback earlier in the sample). A negative number has the opposite effect (a high key velocity will start playback later in the sample than a low key velocity).	PLAYBACK WINDOW	EDIT PROGRAM	113	103	2721	2493
+P	PLAYBACK		As per the main ZONES page.	PLAYBACK WINDOW	EDIT PROGRAM	114	104	2746	2516
+N	TIP		When you select a keygroup zone using F1-4, if you now go to EDIT SAMPLE, the sample in the selected zone is automatically selected for editing.	SELECTING AND EDITING ZONES	EDIT PROGRAM	114	104	2753	2523
+N	NOTE		If there is a tuning discrepancy between the keygroups’ samples, you may experience a ‘chorus’ effect in the overlap/crossfade region. Be sure to tune the samples precisely to overcome this. Also, please note that in the overlap region, two voices are used (four if they are stereo samples) and so you will find that polyphony is reduced in the overlap/crossfade region.	KEYGROUP CROSSFADE	EDIT PROGRAM	116	106	2789	2555
+P	SEMITONE TUNE		This allows you to tune the keygroup in semitone steps.	KG PITCH/AMP	EDIT PROGRAM	117	107	2800	2564
+P	FINE TUNE		This allows you to fine tune the selected keygroup.	KG PITCH/AMP	EDIT PROGRAM	117	107	2801	2565
+P	KEYGROUP LEVEL		This sets the overall level of the keygroup. The range is +/-30dB. You will note that this level control is after the filter and so cannot be used to reduce level to the filter to prevent distortion if high resonance is used. For that, use the filter’s ATTENUATION parameter. However, the KEYGROUP LEVEL is useful when you have maybe used ATTENUATION on the filter - the KEYGROUP LEVEL can be used to bring the attenuated signal back up.	KG PITCH/AMP	EDIT PROGRAM	117	107	2802	2566
+P	PITCH MOD 1/2		Here you may set pitch modulation levels for the selected keygroup. You may also select a controller for the two pitch mod inputs by pressing the soft key again to move the cursor to the controller field. Use the DATA wheel to select the controller.	KG PITCH/AMP	EDIT PROGRAM	117	107	2809	2573
+P	AMP MOD		Here you may set amplitude modulation levels for the selected keygroup. You may also select a controller by pressing the soft key again to move the cursor to the controller field. Use the DATA wheel to select the controller.	KG PITCH/AMP	EDIT PROGRAM	117	107	2813	2577
+P	GOTO SOURCE		This will take you directly to the selected controller’s page. Of course, a mod input needs to be selected for this.	KG PITCH/AMP	EDIT PROGRAM	117	107	2817	2581
+P	FILTER MODE		Here you can select from one of the 26 different resonant filter types. These are:	FILTER	EDIT PROGRAM	124	114	3033	2783
+V	2-POLE LP	FILTER MODE	This is a 12dB/Octave lowpass filter with resonance.	FILTER	EDIT PROGRAM	124	114	3035	2785
+V	4-POLE LP	FILTER MODE	This offers a 24dB/Octave lowpass filter with resonance. This does the same as the 12dB/Octave filter except that the roll-off slope is steeper. Thus high frequencies are attenuated more dramatically giving what some people refer to as a ‘punchier’sound compared with the slightly ‘fizzier’ sound of the 2- POLE lowpass filter.	FILTER	EDIT PROGRAM	124	114	3037	2787
+V	2-POLE LP+	FILTER MODE	This is another 12dB/Octave lowpass filter but with enhanced resonance.	FILTER	EDIT PROGRAM	124	114	3045	2795
+V	2-POLE BP	FILTER MODE	This is a resonant bandpass filter with a 6dB/Octave roll-off slope either side of the band.	FILTER	EDIT PROGRAM	124	114	3048	2798
+V	4-POLE BP	FILTER MODE	This is a resonant bandpass filter with a 12dB roll-off slope either side of the band. This has a similar effect to the 2-POLE bandpass filter but its steeper rolloff attenuates the harmonics more profoundly.	FILTER	EDIT PROGRAM	124	114	3051	2801
+V	2-POLE BP+	FILTER MODE	This is a bandpass filter with a 6dB/Octave roll-off slope either side of the band but with enhanced resonance.	FILTER	EDIT PROGRAM	125	115	3059	2807
+V	1-POLE HP	FILTER MODE	A 6dB/Octave highpass with resonance. This allows high frequency unaffected but attenuates low frequency harmonics as the cutoff frequency is raised from 0 to 100.	FILTER	EDIT PROGRAM	125	115	3063	2811
+V	2-POLE HP	FILTER MODE	A 12dB/Octave resonant highpass filter similar to the 1-POLE HP but with a steeper roll-off.	FILTER	EDIT PROGRAM	125	115	3068	2816
+V	1-POLE HP+	FILTER MODE	This offers a 12dB/Octave highpass filter but with enhanced resonance.	FILTER	EDIT PROGRAM	125	115	3070	2819
+V	LO<>HI	FILTER MODE	A resonant filter that is lowpass at the lower end of the frequency spectrum and highpass at the upper end.	FILTER	EDIT PROGRAM	125	115	3074	2822
+V	LO<>BAND	FILTER MODE	A resonant filter that is lowpass at the lower end of the frequency spectrum and bandpass at the upper end.	FILTER	EDIT PROGRAM	125	115	3077	2825
+V	BAND<>HI	FILTER MODE	A resonant filter that is bandpass at the lower end of the frequency range and highpass at the top end.	FILTER	EDIT PROGRAM	125	115	3080	2828
+V	NOTCH 1	FILTER MODE	A notch filter with a single notch that attenuates harmonics. The cutoff control sets the point of attenuation whilst resonance simultaneously increases the depth of the notch and narrows its width.	FILTER	EDIT PROGRAM	126	116	3085	2831
+V	NOTCH 2	FILTER MODE	A notch filter with a two notches spaced two octaves apart. Resonance increases the depth of the notches and narrows their width.	FILTER	EDIT PROGRAM	126	116	3091	2837
+V	NOTCH 3	FILTER MODE	A notch filter with a two notches spaced three octaves apart. Resonance increases the depth of the notches and narrows their width.	FILTER	EDIT PROGRAM	126	116	3095	2841
+V	WIDE NOTCH	FILTER MODE	Another dual notch filter with one notch in the upper frequencies and the other in the lower frequencies. Resonance has the same effect as the other notch filters.	FILTER	EDIT PROGRAM	126	116	3099	2845
+V	BI-NOTCH	FILTER MODE	A dual notch filter based on NOTCH 1 in which modulation sweeps the notches in opposite directions. As one moves up through the frequency range, the other moves down and vice versa.	FILTER	EDIT PROGRAM	126	116	3104	2850
+N	NOTE		The differences between the five notch filters are subtle, it must be said but with different cutoff frequency and resonance settings and depending on the modulation settings and the sound being processed, you will hear quite distinct differences.	FILTER	EDIT PROGRAM	126	116	3108	2854
+V	PEAK 1	FILTER MODE	A peak filter with a single peak that can be used to emphasise a band of frequencies much like a single band of EQ. Resonance increases the intensity of the peak.	FILTER	EDIT PROGRAM	127	117	3114	2858
+V	PEAK 2	FILTER MODE	A peak filter with a two peaks spaced two octaves apart. Resonance increases the intensity of the peaks.	FILTER	EDIT PROGRAM	127	117	3119	2863
+V	PEAK 3	FILTER MODE	A peak filter with a two peaks spaced three octaves apart. Resonance increases the intensity of the peaks.	FILTER	EDIT PROGRAM	127	117	3123	2867
+V	WIDE PEAK	FILTER MODE	Another dual peak filter with one peak in the upper frequencies and the other in the lower frequencies.	FILTER	EDIT PROGRAM	127	117	3127	2871
+V	BI-PEAK	FILTER MODE	A dual peak filter based on PEAK 1 in which modulation sweeps the peaks in opposite directions - as one moves up through the frequency range, the other moves down and vice versa.	FILTER	EDIT PROGRAM	127	117	3130	2874
+N	NOTE		The differences between the five peak filters are subtle, it must be said but with different cutoff frequency and resonance settings and depending on the modulation settings and the sound being processed, you will hear quite distinct differences.	FILTER	EDIT PROGRAM	127	117	3134	2878
+V	PHASER 1	FILTER MODE	A phase shifter created with a notch and peak filter at around the same frequency. Resonance increases the intensity of the peak and the depth of the notch.	FILTER	EDIT PROGRAM	128	118	3140	2882
+V	PHASER 2	FILTER MODE	A phase shifter created with a notch and peak filter with offset frequencies that has a slightly ‘swirlier’ sound as the frequency is modulated. Resonance increases the intensity of the peak and the depth of the notch.	FILTER	EDIT PROGRAM	128	118	3144	2886
+V	BI-PHASE	FILTER MODE	A phase shifter based on PHASER 1 in which modulation sweeps the peak and notch in opposite directions - as one moves up through the frequency range, the other moves down and vice versa.	FILTER	EDIT PROGRAM	128	118	3150	2892
+V	VOWELISER	FILTER MODE	This is a special filter configuration that is able to produce certain vowel sounds and articulations (EE- OO, EE-OR, EE-AH and OO-AA, OO-EH, OO-OW) with certain settings (see the examples below).	FILTER	EDIT PROGRAM	129	119	3157	2897
+N	NOTE		Because of the way that the FILTER ENVELOPE interacts with the filter and the special way the VOWELISER works, it is recommended to set FILT ENV DEPTH to +000.	FILTER	EDIT PROGRAM	129	119	3161	2901
+P	CUTOFF FREQ		Sets the initial cutoff frequency for the selected filter type.	FILTER	EDIT PROGRAM	130	120	3168	2906
+P	RESONANCE		This allows you to sharpen the point at the cutoff frequency thereby emphasising the harmonics at that point in some way (the exact effect depends on the type of filter selected). The range is 0-15.	FILTER	EDIT PROGRAM	130	120	3169	2907
+N	NOTE		Because of the high amounts of gain boost that take place with resonance, high settings of resonance can cause distortion. If you experience such distortion, either back off the resonance parameter a bit or, alternatively, reduce the input level to the filter using the ATTENUATION parameter described below. In extreme cases where the above measures do not reduce distortion, one option is to re-scale the level of the actual sample(s) down in EDIT SAMPLE / MASTER.	FILTER	EDIT PROGRAM	130	120	3172	2910
+P	KEYBOARD TRACK		Here you may set the keyboard to track the filter. This is so that you can achieve an even tone across the keyboard range. +12 is the default and this tracks the filter octave for octave - i.e. for every shift of pitch of one octave, there is an according shift in cutoff frequency.	FILTER	EDIT PROGRAM	130	120	3178	2916
+P	MOD INPUT 1/2/3		Here you may set the depth of the selected filter modulation controllers. Different controllers may be assigned and mixed at these inputs for a wide variety of filter sweeps and effects. These can range from subtle timbral changes on an acoustic piano sound by routing a small amount of velocity control. On the other hand, you could mix LFO1 (whose rate is being controlled by, say, the modwheel) in with LFO 2 (whose depth is being controlled by, say, the AUX ENVELOPE and whose rate is being controlled by velocity) and also an inverted version of the AMP ENV for outrageous synthesiser effects! Pressing the mod input keys twice allows you to change the controller assigned to the input.	FILTER	EDIT PROGRAM	130	120	3182	2920
+P	FILT ENVELOPE		Takes you to the filter’s dedicated ADSR envelope page.	FILTER	EDIT PROGRAM	130	120	3193	2931
+P	FILT ENV DEPTH		Sets the amount of sweep by the filter’s envelope. Note that this is a duplication of the same parameter in the FILTER ENVELOPE page - it is included here for convenience.	FILTER	EDIT PROGRAM	130	120	3194	2932
+N	NOTE		When using the VOWELISER filter, because of the way the filter envelope controls the filter, it is recommended that this parameter is set to +000	FILTER	EDIT PROGRAM	130	120	3197	2935
+P	ATTENUATION		This allows you to turn down the level of the signal going to the filters to compensate for potential distortion when using high resonance settings. The range is 0-30dB in 6dB steps. 0dB is the normal setting but if you experience any distortion with higher resonance settings, try adjusting ATTENUATION.	FILTER	EDIT PROGRAM	130	120	3199	2937
+N	NOTE		The gain boost produced by the ‘+’ type filters (i.e. 2-POLE LP+, 2-POLE BP+ and 1- POLE HP+ can be so severe that even an ATTENUATION setting of -30dB may not be enough to reduce distortion. In this case, back off the resonance a little or try other means of level reduction.	FILTER	EDIT PROGRAM	130	120	3204	2942
+P	GOTO SOURCE		This will take you directly to the selected controller’s page. Of course, a mod input needs to be selected for this.	FILTER	EDIT PROGRAM	131	121	3211	2947
+P	ATTACK		This sets the attack time of the envelope. High values produce a long attack time (several seconds).	AMP ENVELOPE	EDIT PROGRAM	132	122	3224	2958
+P	DECAY		This sets the time it takes for the amplitude to fall to the SUSTAIN level (see below).	AMP ENVELOPE	EDIT PROGRAM	132	122	3226	2960
+P	SUSTAIN		This sets the level the sound will sustain at when holding a note down.	AMP ENVELOPE	EDIT PROGRAM	132	122	3228	2962
+P	RELEASE		This sets the time it takes for the sound to die away after the note is released.	AMP ENVELOPE	EDIT PROGRAM	132	122	3229	2963
+P	KEYSCALE		This allows you to vary the envelope shape according to key position (i.e. higher notes can have a faster, shorter envelope than lower notes in order to simulate the natural characteristics of certain sounds such as piano, for example).	AMP ENVELOPE	EDIT PROGRAM	132	122	3233	2967
+P	ENV TEMPLATE		This allows you to choose from a variety of preset envelope shapes.	AMP ENVELOPE	EDIT PROGRAM	132	122	3237	2971
+N	NOTE		If you choose one of the templates and edit it in any way (tweak the attack or whatever), it will revert to USER.	AMP ENVELOPE	EDIT PROGRAM	132	122	3238	2972
+P	GOTO DEST		This pops up a window and allows you to go directly to any places where the AMP ENVELOPE may be routed.	AMP ENVELOPE	EDIT PROGRAM	132	122	3240	2974
+P	ATTACK		Reproduced in the ATTACK window for convenience	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3248	2980
+P	VEL>ATTACK		This allows you to use velocity to control attack time. Setting a positive value here will result in heavy keystrikes making the attack time faster (and light keystrokes making the attack time slower). Negative values set here will produce the opposite effect.	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3249	2981
+P	ON VEL>REL		This allows you to use note-on velocity to control the release time of a sound. Setting a positive value here will result in heavy keystrikes making the release time faster (and light keystrokes making the release time slower). Negative values set here will produce the opposite effect.	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3254	2986
+P	RELEASE		This parameter is duplicated here for convenience.	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3258	2990
+P	FILTER		This takes you directly to the FILTER page.	FILTER ENVELOPE	EDIT PROGRAM	134	124	3266	2996
+P	ENV DEPTH		This sets the output level of the FILTER ENVELOPE. Set to +000, it will have no effect on the filter or on anything else it may be routed to in the APM modulation matrix.	FILTER ENVELOPE	EDIT PROGRAM	134	124	3267	2997
+N	NOTE		If you are using the FILTER ENVELOPE as a mod source elsewhere in the APM modulation matrix (for example, if the filter envelope is being used to control, say, pitch), a value other than +000 needs to be set here otherwise you will not hear the pitch sweep effect. However, because this parameter also sets the level for the ‘hardwired’ link to the filter, setting a value appropriate to the pitch sweep effect you want will also affect filter modulation which may or may not be what you want.	FILTER ENVELOPE	EDIT PROGRAM	134	124	3270	3000
+P	RATE 1		Sets the time it takes for the envelope to get to LEVEL 1	AUX ENVELOPE	EDIT PROGRAM	135	125	3282	3010
+P	RATE 2		Sets the time it takes for the envelope to get to LEVEL 2	AUX ENVELOPE	EDIT PROGRAM	135	125	3283	3011
+P	RATE 3		Sets the time it takes for the envelope to get to LEVEL 3	AUX ENVELOPE	EDIT PROGRAM	135	125	3284	3012
+P	RATE 4		Sets the time it takes for the envelope to get to LEVEL 4	AUX ENVELOPE	EDIT PROGRAM	135	125	3285	3013
+P	LEVEL 1		Sets the level for RATE 1	AUX ENVELOPE	EDIT PROGRAM	135	125	3286	3014
+P	LEVEL 2		Sets the level for RATE 2	AUX ENVELOPE	EDIT PROGRAM	135	125	3287	3015
+P	LEVEL 3		Sets the level for RATE 3. This is also the level at which a note will sustain when you hold a note	AUX ENVELOPE	EDIT PROGRAM	135	125	3288	3016
+P	LEVEL 4		Sets the level for RATE 4.	AUX ENVELOPE	EDIT PROGRAM	135	125	3290	3018
+P	RATE 1		RATE 1 is duplicated here for convenience.	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3297	3023
+P	VEL>RATE 1		This allows you to use velocity to control RATE 1’s time. Setting a positive value here will result in heavy keystrikes making RATE 1 faster (and light keystrokes making the RATE 1 slower). Negative values set here will produce the opposite effect.	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3298	3024
+P	KEYBOARD>R2/R4		This will set how much key position will affect RATE 2 and RATE 4.	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3303	3029
+P	VEL>RATE 4		This sets how much note-on velocity will affect the speed of RATE 4. Setting a positive value here will result in heavy keystrikes making R4’s time faster (and light keystrokes making R4’s time slower). Negative values set here will produce the opposite effect.	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3304	3030
+P	RATE 4		This is duplicated here for convenience.	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3308	3034
+P	RENAME PROGRAM		This pops up a prompt and you may rename the program: You can name the program in the usual way.	PROGRAM LIST	EDIT PROGRAM	139	129	3339	3059
+P	COPY PROGRAM		This pops up a prompt and you may copy the selected program: You may use the name automatically generated by the copy process or you may enter your own.	PROGRAM LIST	EDIT PROGRAM	140	130	3344	3062
+P	DELETE PROGRAM		You may delete the selected program: The SAMPLES checkbox on F14 allows you to select whether you also want to delete the samples associated with the selected program. With it checked, the samples will be deleted.	PROGRAM LIST	EDIT PROGRAM	140	130	3347	3065
+N	NOTE		If any samples are used by any other programs currently in memory, those particular samples will not be deleted.	PROGRAM LIST	EDIT PROGRAM	140	130	3351	3069
+P	CREATE PROGRAM		You may create a new program: This is the same as the CREATE PROGRAM function found on the main EDIT PROGRAM page.	PROGRAM LIST	EDIT PROGRAM	141	131	3356	3072
+P	PURGE		This useful function deletes all programs and samples not currently being used by any multis in memory (these programs are referred to as ‘orphans’): You may end up with ‘orphans’ in memory when you load several sounds to try out. For example, when building up a multi, you may load in a few drums programs to see which one you like. Once you have settled on the one you want to use, all the others are redundant. Rather than deleting each one manually, you can use PURGE to get rid of these and make more memory available.	PROGRAM LIST	EDIT PROGRAM	142	132	3362	3076
+P	CONVERT -L/-R		This allows you to convert ‘old’ Akai -L/-R stereo samples into interleaved stereo .WAV samples. Pressing this pops-up this prompt: To continue, press YES (or NO to cancel). The process will examine the program and convert each -L/-R sample into a single stereo file. It will remove the original samples from the program (but not from memory) and will also make the appropriate adjustments to the keygroup zones to which they are assigned (i.e. instead of two mono zones panned hard left and right, you will end up with one stereo zone panned centrally). If the process is successful, you will be returned to the PROGRAM LIST screen. **** NOTES REGARDING CONVERT -L/-R ****	PROGRAM LIST	EDIT PROGRAM	143	133	3378	3090
+P	CONV OLD MULTI		This allows you to convert ‘old’ Akai ‘multis’ or layers into new, S5/6000 format multis. For newcomers to the S5/6000, to understand this function, a quick history lesson is required! On the S1000, S1100 and S3000, multis and layers were achieved by setting several programs to the same program number. In the case of multi-timbral setups, each program would be given its own unique MIDI channel or, in the case of layering, programs would share the same MIDI channel. Thus, you may have: *1 DRUMS 1 MIDI 1 *1 GR PIANO MIDI 2 *1 E.PIANO MIDI 3 *1 SLAP BASS MIDI 4 *1 BIG STRINGS MIDI 5 *1 BASS SYNTH 4 MIDI 6 Etc.. Although the concept of multis was introduced on the S2000, S3000XL and S3200XL, for the sake of ‘legacy’, this feature was retained (and, indeed, some people continued to use it despite the convenience of the multi). The CONVERT OLD MULTI allows you to convert such setups to a new S5/6000 multi. It works as follows: Imagine you have loaded an ‘old’ S1/2/3000 multi. You will have several programs all sharing the same program number: You can confirm this by pressing RENUMBER: In either screen, you can convert such a setup simply by moving the cursor to program sharing the same program number and pressing CONVERT OLD MULTI. You will receive this prompt: Press ADD TO CURRENT to add the selected program number to the currently selected multi or press CREATE NEW to create a new multi to add the program(s) to. If you create a new multi, its name will be that shown in the prompt (i.e. S1-3K MULTI 1). The multi will now contain all programs of the same number and the MIDI channels, levels, pan position, output assignments, tuning, etc., used in the ‘old’ multi/layer will automatically be set and the new format multi should play pretty much the same as the original would on an S1000, S3000 or whatever.	PROGRAM LIST	EDIT PROGRAM	145	135	3415	3123
+N	NOTE		The function is not foolproof. For example, you may load in an old S1000-style ‘multi’ numbered, say, #3. If any other programs with that number are already loaded, they too will be converted in this process. As such, the function is best used in the RENUMBER page so that you can see programs’ numbers. The RENUMBER function is described below.	PROGRAM LIST	EDIT PROGRAM	147	137	3456	3160
+P	RENUMBER		This takes you to a new page where you may change the MIDI program number of the programs. Pressing RENUMBER will show something like this screen: Programs may be given a number 1-128 or OFF. MIDI program numbers are used in order to select programs within a part remotely via MIDI. For example, you may have a stereo acoustic piano sound in Part 2/MIDI channel 2 that you want to use in the verses of a song but which you want to change to an electric piano sound in the chorus. By issuing an appropriate MIDI program change command on channel 2, you can achieve this and the two will swap over when you want them to. For example, if STEREO PIANO is MIDI program number #5 and ELECTRIC PIANO is MIDI program #12 - by issuing program change commands #5 and #12 on MIDI channel 2 at the appropriate moments in the song, you can switch between these sounds. However, a problem exists when you load these sounds into memory in that, for example, the STEREO PIANO sound you loaded could have MIDI program number #1 and the ELECTRIC PIANO sound could be program #6 (or they could be both program #1 or whatever depending on where they were loaded from). In other words, in order for them to be selected correctly via MIDI program change, you need to renumber them to the correct MIDI program numbers. However, another potential problem exists. You may renumber the stereo piano and electric piano correctly but may find that other programs with these numbers already exist in memory. To prevent a conflict in these circumstances, other programs may need to be renumbered. There is another problem too! The range of MIDI program numbers is 1- 128. However, it is possible to load many more programs than this into the S6000’s memory and, theoretically, you may have hundreds of programs loaded. However, there may only be a handful of programs you need to change within a multi using MIDI program change. The RENUMBER screen allows you to renumber those programs that will be required to be changed via MIDI program change whilst switching those that don’t to ignore such changes. To renumber a program (or programs), move the cursor to the program you want to renumber and use the DATA wheel to set the appropriate number (or switch it to OFF). Pressing RENUMBER 1-XXX will renumber all programs sequentially 1-128 (or whatever the upper limit is of the number of programs in memory). The programs will be renumbered in the order in which they appear in the list. If there are more than 128 programs in memory, any above 128 will be renumbered to 128. When you press RENUMBER 1-XXX, you will receive a prompt asking you to confirm that you wish to proceed. Respond accordingly. Pressing SET ALL TO OFF will (not surprisingly!) turn all programs numbers off. This way, you can clear all program numbers so that it is easier and clearer to renumber just those that will be affected by MIDI program change. When you press SET ALL TO OFF, you will receive a prompt asking you to confirm that you wish to proceed. Respond accordingly.	PROGRAM LIST	EDIT PROGRAM	147	137	3460	3164
+N	NOTE		PROG TOOLS is not available in any of the keygroup pages. Neither is it available when using EDIT PART.	QUICKSAVE	EDIT PROGRAM	150	140	3545	3243
+N	TIP		When editing a sample within the context of a program (i.e. a program is assigned in the MONITOR parameter), if you press and hold F1 whilst playing notes on the keyboard, the samples assigned to those notes in the selected program’s keygroup will be automatically selected. So, for example, if you want to edit the snare sample on D1 of your DRUMS program, press and hold F1 and play D1 - the snare sample will be selected.	MONITOR	EDIT SAMPLE	151	141	3571	3268
+P	ORIGINAL NOTE		Here you see the sample’s original note - i.e. the note it was recorded on. This may be changed here.	MASTER	EDIT SAMPLE	152	142	3585	3280
+P	SEMITONE TUNE		Here you may tune the sample in semitone steps.	MASTER	EDIT SAMPLE	152	142	3587	3282
+P	FINE TUNE		This allows you to fine tune the sample.	MASTER	EDIT SAMPLE	152	142	3588	3283
+P	MAKE MONO		This will convert a stereo sample into a mono sample by merging the left and right channels into one mono sample that is half the size of the original. This may be useful in non-critical situations where stereo is not important (i.e. live gigging). Converting a stereo sample to mono will also halve loading times as well as conserving memory which, again, may be useful in a live gigging situation. Pressing MAKE MONO will show this progress display: A progress bar will move left to right and a percentage of progress is also shown. An animated ‘waveform processing’ icon is also used to further indicate sample processing activity. At the end of the process, you will receive this prompt: A new ‘autonamed’ sample will be created. You may rename this if you want in the usual way using the CURSOR </> keys and the DATA wheel or an external QWERTY keyboard (if connected). You can use PLAY ORIGINAL and PLAY NEW to compare the two samples. Depending on the results... * KEEP ORIGINAL will keep the original sample and will discard the new sample (this is basically an ‘abort’ function). * KEEP NEW will keep the new sample created by the process but will delete the original source sample from memory. * KEEP BOTH will, not surprisingly, keep both samples. This is the safest option as you have the original to fall back on. * OVERWRITE will keep the new sample but will use the original sample’s name.	MASTER	EDIT SAMPLE	152	142	3589	3284
+P	RE-SCALE LEVEL		This sets the level for the RE-SCALE function and allows you to turn the level of a sample up or down. This is an ‘off-line’ function and will show the “Processing sample” progress display described above followed by the PLAY/KEEP ORIGINAL/NEW/BOTH and RENAME prompt.	MASTER	EDIT SAMPLE	154	144	3623	3314
+P	RE-SCALE		This initiates the RE-SCALE process. Pressing this will show the “Processing sample” progress display described above followed by the PLAY/KEEP ORIGINAL/NEW/BOTH and RENAME prompt.	MASTER	EDIT SAMPLE	154	144	3627	3318
+P	NORMALISE		This allows you to bring a sample’s level up to optimum. Pressing this will show the “Processing sample” progress display described above followed by the PLAY/KEEP ORIGINAL/NEW/BOTH and RENAME prompt.	MASTER	EDIT SAMPLE	154	144	3630	3321
+P	REVERSE		This allows you to reverse a sample. Pressing this will show the “Processing sample” progress display described above followed by the PLAY/KEEP ORIGINAL/NEW/BOTH and RENAME prompt.	MASTER	EDIT SAMPLE	154	144	3634	3325
+P	MAIN		This returns you to the main EDIT SAMPLE page.	MASTER	EDIT SAMPLE	154	144	3637	3328
+P	START/END		These set the start and end points of the region you wish to edit. Use the CURSOR keys to move around the field and the DATA wheel to adjust the value. For example, in the screen shot shown above, to make a big change to the start point, move the cursor to the 3 of 33989 using the CURSOR < key. As you move the DATA wheel, you will increment in big jumps. This is good for getting some way into the sound with little effort. When you are close to where you want to be, move the cursor one position right using the CURSOR> key to edit the start point in smaller increments. As you get closer and closer to the point you want to set, you can use finer incrementation until, with the cursor on the furthest right field, you are editing to a resolution of individual sample accuracy. You can use ZOOM IN to see the waveform with greater accuracy. You will hear the results in real-time as you play your MIDI keyboard or use the ENT/PLAY key and adjust the START or END times.	TRIM	EDIT SAMPLE	155	145	3648	3337
+N	NOTE		If the sample has a loop, you cannot move the START and/or END point within the loop.	TRIM	EDIT SAMPLE	155	145	3662	3351
+P	FIND START/END		Pressing either of these pops up a window: You should set a threshold level at which to find the start (or end) point. The above example is probably not a good one but in the case of a drum sound with a lot of ‘dead space’ such as the following, FIND START and FIND END is very useful. By setting an appropriate THRESHOLD, you can automatically set START and END points to aid you with your editing.	TRIM	EDIT SAMPLE	156	146	3667	3354
+P	PLAY TO		This allows you to play to the currently selected edit point (i.e. with the START parameter selected, it will play to the start point; with the END parameter selected, it will play to the end point). An edit point must be selected for the PLAY TO function to work.	TRIM	EDIT SAMPLE	157	147	3677	3362
+P	PLAY FROM		This allows you to play from the currently selected edit point (i.e. with the START parameter selected, it will play from the start point; with the END parameter selected, it will from the end point). An edit point must be selected for the PLAY FROM function to work.	TRIM	EDIT SAMPLE	157	147	3681	3366
+P	ZOOM IN/OUT		This allows you to zoom in on the main waveform display. The ‘overview’ (i.e. the upper, smaller waveform display) always displays the full sample regardless of the zoom factor. The waveform display style (LOG or LIN) is shown between the keys (see later - SAMPLE TOOLS).	TRIM	EDIT SAMPLE	157	147	3685	3370
+N	NOTE		Either the START or END points need to be selected for the zoom function to work.	TRIM	EDIT SAMPLE	157	147	3689	3374
+P	TRIM SAMPLE		This displays the following pop-up menu:	TRIM	EDIT SAMPLE	157	147	3690	3375
+P	DISCARD		This will discard audio before the TRIM start point and after the TRIM end point.	TRIM	EDIT SAMPLE	157	147	3692	3377
+P	LOOP START>END		This will discard audio either side of the loop (if one is set).	TRIM	EDIT SAMPLE	157	147	3694	3379
+P	START>LOOP END		This will discard audio before the TRIM start point and after the LOOP END point.	TRIM	EDIT SAMPLE	157	147	3695	3380
+P	CANCEL		This closes the pop-up should you change your mind.	TRIM	EDIT SAMPLE	157	147	3697	3382
+F	12		The process may be so fast that you may not see a progress display, especially on shorter samples.	TRIM	EDIT SAMPLE	157	147	3701	3386
+P	START/END		Sets the start and end points for the edit.	CHOP	EDIT SAMPLE	158	148	3712	3395
+N	NOTE		If the sample has a loop, you cannot move the START and/or END point within the loop.	CHOP	EDIT SAMPLE	158	148	3713	3396
+P	PLAY REGION		Allows you to play the region marked by the START/END points.	CHOP	EDIT SAMPLE	158	148	3715	3398
+P	PLAY TO/FROM		Plays to or from the selected edit point. With START selected, PLAY TO will play up to the start point; PLAY FROM will play from it. With END selected, PLAY TO will play up to the end; PLAY FROM will play from the end. PLAY REGION and PLAY TO/FROM allow a great deal of flexibility when auditioning your edit prior to committing it.	CHOP	EDIT SAMPLE	158	148	3716	3399
+P	ZOOM IN/OUT		These allow you to zoom in on the selected editing point for greater resolution.	CHOP	EDIT SAMPLE	158	148	3722	3405
+F	13		The process may be so fast that you may not see a progress display, especially on shorter samples.	CHOP	EDIT SAMPLE	160	150	3747	3426
+P	LOOP START/END		These set the start and end of the loop. Unlike previous Akai samplers, these are set independently of each other. Loop START and END times cannot be set beyond the TRIM page’s START and END times.	LOOP	EDIT SAMPLE	161	151	3760	3437
+P	PLAY MODE		This allows you to set how the sample will play. The choices are:	LOOP	EDIT SAMPLE	161	151	3763	3440
+V	NO LOOPING	PLAY MODE	This selection causes the sample to play without loops for as long as the key is held down. If the sound is not long enough, it will finish even though you are holding down a note. If the sample is still sounding, however, as soon as the key is released, the sound will stop.	LOOP	EDIT SAMPLE	161	151	3764	3441
+V	ONE SHOT	PLAY MODE	This will cause the sample to be played in its entirety regardless of how long the key is pressed. This is useful for triggering drums or ‘phrases’ as an instantaneous trigger signal or key press will play the whole sample and the key does not have to be held down for the whole length of the sample.	LOOP	EDIT SAMPLE	161	151	3770	3447
+V	LOOP IN REL	PLAY MODE	When a key is pressed, the sample will loop according to the LOOP settings for as long as you hold the key. When the key is released, the loop will continue to play as the release falls away (this depends on the settings of the envelope generators in EDIT PROGRAM).	LOOP	EDIT SAMPLE	161	151	3776	3453
+F	14		In UTILITIES - PREFERENCES, you can choose to display the loop length in time (i.e. minutes and seconds) or in sample points. The screen shot shown above displays the loop length in time.	LOOP	EDIT SAMPLE	161	151	3782	3459
+N	NOTE		It is not possible to loop ‘virtual’ samples. and so it is only possible to select NO LOOPING or ONE-SHOT for ‘virtual’ samples.	LOOP	EDIT SAMPLE	162	152	3793	3468
+P	LOOP LOCK		Once you have set a good loop, you may lock its length and ‘slide’ it around the sample to see if it sounds better in a different position.	LOOP	EDIT SAMPLE	162	152	3797	3472
+P	PLAY MODE		The PLAY MODE parameter duplicated here for convenience.	LOOP	EDIT SAMPLE	162	152	3799	3474
+P	LOOP DIRECTION		You may set FORWARDS or ALTERNATING: Original with loop start/end settings Playback with FORWARD loop Playback with ALTERNATING loop selected As you can see, you can get a smoother loop with ALTERNATING selected in some circumstances. ALTERNATING is particularly useful on long loops with sounds such as strings, etc.. It can also be useful for looping decaying sounds such as cymbals or pianos.	LOOP	EDIT SAMPLE	162	152	3800	3475
+P	XFADE LENGTH		This sets the length of the loop crossfade. What this function does is to crossfade a portion of the sound before and after the loop according to the time set in the XFADE LENGTH field. This will (should!) smooth out any glitches you may have. There are no rules and so some experimentation will be required. Having said that, although the process is not guaranteed, this can be very effective in getting smooth loops. The XFADE LENGTH also has a WINDOW function. Pressing WINDOW reveals these further functions:	LOOP	EDIT SAMPLE	163	153	3811	3484
+P	FADE PROFILE		Here you may select from a choice of crossfade curves (LINEAR, LOG and SINE). Of these, for a smooth crossfade, SINE is possibly the best selection as it gives what is also known as an ‘equal power’ crossfade but you may like to experiment for the best results.	LOOP	EDIT SAMPLE	163	153	3819	3492
+P	XFADE LENGTH		This parameter is duplicated for convenience.	LOOP	EDIT SAMPLE	163	153	3823	3496
+P	CROSSFADE		This initiates the crossfade function. Pressing this will display the usual “Processing sample” progress display followed by the PLAY/KEEP ORIGINAL/NEW/BOTH and RENAME prompt. You should respond accordingly to the final prompt according to the results of the XFADE function.	LOOP	EDIT SAMPLE	163	153	3824	3497
+P	PLAY LOOP		This key will play only the looped portion of the sound you have set. This is a fast and convenient way to hear the loop without having to also hear the rest of the sample (particularly useful for long samples!). However, a feature of this key is that it is a ‘latching’ key - press it once to play the loop, press it again to stop playing the loop. What this means is that you can set the loop start and end points in real-time playing whilst the loop is cycling round. So, to set a loop, place the LOOP START and END times at position which ‘look’ good on the waveform display (i.e. at points of equal or similar amplitude). Now press PLAY LOOP to play the loop you have set. If it ‘glitches’ with pops and clicks, you can now adjust the start and end points until the glitches are reduced (you could also use AUTO FIND - see below) to assist you). Once you are happy with the loop, press PLAY LOOP again to stop the loop playing and play as normal from your keyboard.	LOOP	EDIT SAMPLE	163	153	3829	3502
+N	NOTE		The PLAY LOOP function is automatically disabled (i.e. loop playback is stopped) as soon as you leave the LOOP page.	LOOP	EDIT SAMPLE	163	153	3844	3517
+P	ZOOM IN/OUT		This allows you to view the right hand waveform display in greater detail when trying to match waveforms.	LOOP	EDIT SAMPLE	164	154	3849	3520
+P	AUTO FIND		Pressing this will cause the sampler to look for the best match point for a loop. With simple waveforms, the results are almost guaranteed to be perfect. However, with more complex waveforms, whilst you may get an acceptable loop, it may still not be perfect and may exhibit some clicks and thumps (in which case, use CROSSFADE to smooth them out perhaps). Repeated pressing of the AUTO FIND function moves the LOOP START point nearer to the LOOP END point. *** IMPORTANT NOTE ***	LOOP	EDIT SAMPLE	164	154	3851	3522
+N	NOTE		Sometimes when crossfading the end and the start of the loop, because the end may be slightly out of phase with the start, you may sometimes get a dip in level where they cancel each other out. This is not a fault of the S6000 but something that cannot be avoided.	SETTING A GOOD LOOP	EDIT SAMPLE	166	156	3917	3584
+N	NOTE		Multiple loops are not supported on the S6000. Should you try to import samples with multiple loops, only the first will be recognised.	SETTING A GOOD LOOP	EDIT SAMPLE	166	156	3924	3591
+P	SAMPLE A/B FROM		These parameters allow you to set the start point for the two samples.	JOIN	EDIT SAMPLE	167	157	3936	3601
+P	SAMPLE A/B TO		These parameters allow you to set the end point for the two samples.	JOIN	EDIT SAMPLE	167	157	3937	3602
+P	SAMPLE A/B LEVEL		These parameters allow you to set the level of both samples.	JOIN	EDIT SAMPLE	167	157	3938	3603
+P	JOIN A>B/JOIN B>A		These two check boxes allow you to select whether sample A is followed by B or sample B is followed by A. Switching one on disables the other.	JOIN	EDIT SAMPLE	167	157	3939	3604
+P	PLAY SAMPLE A/B		These two keys allow you to audition the two samples A and B prior to committing the join function.	JOIN	EDIT SAMPLE	167	157	3941	3606
+P	XFADE LENGTH		This allows you to set the crossfade length. The longer the crossfade, the more the second sample is pulled back into the first. For example: No crossfade SAMPLE A SAMPLE B 6 seconds 1 Second Crossfade 5 seconds	JOIN	EDIT SAMPLE	168	158	3946	3609
+V	SAMPLE A	XFADE LENGTH	SAMPLE B	JOIN	EDIT SAMPLE	168	158	3952	3615
+P	XFADE CURVE		This allows you to select a crossfade curve. The choices are LINEAR, LOG and SINE.	JOIN	EDIT SAMPLE	168	158	3954	3617
+N	NOTE		It is not possible to join two samples that have different sample rates. If you do, you will receive the following prompt: There is nothing that can be done to overcome this. Even if you try to re-sample one of them to a different sample rate and try JOIN again, you will be prompted:	JOIN	EDIT SAMPLE	169	159	3966	3627
+P	SAMPLE A/B FROM		These parameters allow you to set the start point for the two samples.	MIX	EDIT SAMPLE	170	160	3978	3637
+P	SAMPLE A/B TO		These parameters allow you to set the end point for the two samples.	MIX	EDIT SAMPLE	170	160	3979	3638
+P	SAMPLE A/B LEVEL		These parameters allow you to set the level of both samples.	MIX	EDIT SAMPLE	170	160	3980	3639
+P	PLAY SAMPLE A/B		These two keys allow you to audition the two samples A and B prior to committing the join function.	MIX	EDIT SAMPLE	170	160	3981	3640
+P	MAKE STEREO		This allows you to make a stereo mix out of two mono samples and will place Sample A on the left and Sample B on the right. Pressing it will show the usual off-line processing display followed by this prompt: Because there are two originals with this process, you have the opportunity to play each one before deciding to keep or discard them. If in doubt, press KEEP ALL and decide what to do with the originals afterwards You may, of course, rename the new sample to something you prefer. Pressing MIX SAMPLES (F16) will pop-up the usual progress display followed by the PLAY/KEEP ORIGINAL/NEW/BOTH and RENAME prompt: However, as with MAKE STEREO, because there are two originals with this process, you have the opportunity to play each one before deciding to keep or discard them. If in doubt, press KEEP ALL and decide what to do with the originals afterwards. You can rename the sample if you want.	MIX	EDIT SAMPLE	170	160	3983	3642
+N	NOTE		If one or both of the samples is already stereo, you will receive this prompt should you press MAKE STEREO:	MIX	EDIT SAMPLE	171	161	3994	3651
+P	FADE UP/DOWN		These parameters set the length of the fade.	FADE UP/DOWN	EDIT SAMPLE	172	162	4013	3668
+N	NOTE		If the sample has a loop, you cannot set FADE UP or FADE DOWN times within the loop.	FADE UP/DOWN	EDIT SAMPLE	172	162	4014	3669
+P	FADE CURVE		There are two FADE CURVE parameters - one for FADE UP and one for FADE DOWN and both allow you to select from a choice of fade curves (LINEAR, LOG and SINE). These give the following results: Linear Fade Up Log Fade Up Sine Fade Up	FADE UP/DOWN	EDIT SAMPLE	172	162	4016	3671
+P	STRETCH AMOUNT		This sets the timestretch factor. the range is 50% (twice the speed) to 200% (half the speed) with 100% being ‘no stretch’. Like any timestretch process, extreme settings may introduce unwanted artefacts but a range of +/-10% (i.e. 90%-110%) will yield excellent results most of the time.	TIMESTRETCH	EDIT SAMPLE	175	165	4080	3729
+P	PRESET		Instead of a complex array of incomprehensible parameters, the S6000’s timestretch algorithm uses a series of 18 presets optimised for certain types of sounds as described by their name. So, instead of sitting there setting the parameters aimlessly for half a dozen or more meaningless, confusing controls, the idea is that you simply select a preset, the description of which largely fits the material you are trying to process and you press STRETCH SAMPLE. If the results are not that good, simply select another preset and try again. Timestretch Presets: 9. LFREQ PERC. 18. SLOW ORCH. However, the presets are merely guidelines and the LOW FREQ ORCH B preset may do a fantastic job on an ambient loop! Experimentation is the order of the day! Each preset also has three variations (giving a total of 54 presets). These are: Furthermore, the PRESET parameter has a ‘window’ function that provides access to an ADJUST parameter. Sometimes, our presets may not quite satisfy your needs and some kind of ‘manual override’ is required. This is the ADJUST control. The ADJUST parameter gives access to the key parameters in any one preset and allows you to ‘tweak’ the preset with one, easy to use control. There are no strict rules to using this control other than if the selected preset gives you almost acceptable results but there are few glitches in the processed sound, try tweaking the ADJUST control and do it again to see if this improves things. The basic rule of thumb for using the ADJUST parameter is that a positive value will help improve high frequency and percussive sounds whilst negative values will help in improving bass notes. So, for example, if the timestretched sample has a lot of percussive transients which are ‘flamming’ , try setting a positive value to improve things. This may, however, cause lower frequency sounds, especially sustained bass parts, to ‘wobble’ slightly. Conversely, if the bass end is more important and the processed version exhibits any ‘wobble’, try setting a negative value (although be aware that this may upset high frequency percussive transients).	TIMESTRETCH	EDIT SAMPLE	175	165	4084	3733
+V	1. FEM VOX	PRESET	10. STACCATO	TIMESTRETCH	EDIT SAMPLE	175	165	4093	3742
+V	2. MALE VOX	PRESET	11. LFREQ SLOW	TIMESTRETCH	EDIT SAMPLE	175	165	4094	3743
+V	3. LOW MALE VOX	PRESET	12. MUSIC 1	TIMESTRETCH	EDIT SAMPLE	175	165	4095	3744
+V	4. VOCAL	PRESET	13. MUSIC 2	TIMESTRETCH	EDIT SAMPLE	175	165	4096	3745
+V	5. HFREQ RHYTHM	PRESET	14. MUSIC 3	TIMESTRETCH	EDIT SAMPLE	175	165	4097	3746
+V	6. MFREQ RHYTHM	PRESET	15. SOFT PERC.	TIMESTRETCH	EDIT SAMPLE	175	165	4098	3747
+V	7. LFREQ RHYTHM	PRESET	16. HFREQ ORCH.	TIMESTRETCH	EDIT SAMPLE	175	165	4099	3748
+V	8. PERCUSSION	PRESET	17. LFREQ ORCH.	TIMESTRETCH	EDIT SAMPLE	175	165	4100	3749
+V	A	PRESET	Standard quality timestretch with fast processing.	TIMESTRETCH	EDIT SAMPLE	175	165	4107	3756
+V	B	PRESET	Better quality timestretch but slower processing.	TIMESTRETCH	EDIT SAMPLE	175	165	4108	3757
+V	C	PRESET	The highest quality timestretch results but slower processing.	TIMESTRETCH	EDIT SAMPLE	175	165	4109	3758
+N	NOTE		When timestretching a sample that has loops, you may find that the processed versions loop points are slightly disrupted and exhibit clicks. To overcome this, visit the LOOP page and try AUTO FIND and/or a CROSSFADE - this should restore the loop fairly easily. However, a bit of work may be necessary to get a perfect loop again.	TIMESTRETCH	EDIT SAMPLE	176	166	4137	3784
+N	NOTE		It is not possible to retune just a portion of the sample.	PITCH SHIFT	EDIT SAMPLE	177	167	4169	3814
+N	NOTE		When pitch shifting a sample that has loops, you may find that the processed version’s loop points are slightly disrupted and exhibit clicks. To overcome this, visit the LOOP page and try AUTO FIND and/or a CROSSFADE - this should restore the loop farily easily. However, a bit of work may be necessary to get a perfect loop again.	PITCH SHIFT	EDIT SAMPLE	177	167	4170	3815
+N	NOTE		When using BPM MATCH on a sample that has loops, you may find that the processed versions loop points are slightly disrupted and exhibit clicks. To overcome this, visit the LOOP page and try AUTO FIND and/or a CROSSFADE - this should restore the loop farily easily. However, a bit of work may be necessary to get a perfect loop again.	BPM MATCH	EDIT SAMPLE	178	168	4195	3838
+P	RE-SAMPLE FREQ		This sets the new frequency of the sample.	RE-SAMPLE	EDIT SAMPLE	179	169	4207	3848
+P	RESOLUTION		You may change the ‘bit’ resolution here. Typically, this will be kept at 16-BIT but you may like to experiment with other settings for a ‘grungier’ sound^15 .	RE-SAMPLE	EDIT SAMPLE	179	169	4208	3849
+P	QUALITY		There are three settings:	RE-SAMPLE	EDIT SAMPLE	179	169	4211	3852
+P	LOW		Least quality (i.e. transposed sounds will become aliased) but fastest processing.	RE-SAMPLE	EDIT SAMPLE	179	169	4212	3853
+P	MED		Moderate quality and relatively fast processing.	RE-SAMPLE	EDIT SAMPLE	179	169	4214	3855
+P	HIGH		Best quality but slower processing.	RE-SAMPLE	EDIT SAMPLE	179	169	4215	3856
+P	PRESET		This allows you to select from a variety of preset re-sampling frequencies (e.g..: 1/2, 3/4, 1/3, 2/3, etc.).	RE-SAMPLE	EDIT SAMPLE	179	169	4216	3857
+F	15		In theory, you would think that the resolution parameter would enable you to re-create the sound of older 8- or 12-bit samplers. However, the ‘grungy’ sound these samplers produced was as much due to their low quality D-A convertors as the bit-rate they were sampled at. Because of the high quality 20-bit D-A converters used on the S6000, setting a low bit-rate using the RESOLUTION parameter may not automatically result in the ‘lo-fi’ effect you are after. However, selecting a low bit resolution here AND setting the lowest RE-SAMPLE FREQ(uency) will produce a suitably grungy, muddy, lo-fi sound. Experiment!	RE-SAMPLE	EDIT SAMPLE	179	169	4221	3862
+N	NOTE		If the folder to be saved to is not the correct one, cancel QUICKSAVE and use the normal SAVE function to select the correct folder.	QUICKSAVE	EDIT SAMPLE	182	172	4283	3918
+P	RENAME SAMPLE		This pops up a prompt and you may rename the sample in the usual fashion.	SAMPLE LIST	EDIT SAMPLE	185	175	4330	3959
+P	COPY SAMPLE		This pops up a prompt and you may copy the selected sample. You may use the name automatically generated by the copy process or you may enter your own.	SAMPLE LIST	EDIT SAMPLE	185	175	4332	3961
+P	DELETE SAMPLE		You may delete the selected sample.	SAMPLE LIST	EDIT SAMPLE	185	175	4335	3964
+P	PURGE SAMPLES		This useful function deletes all samples not currently being used by any programs that may be loaded (these samples are referred to as ‘orphans’). This allows you clear out any redundant samples in order to make more memory available.	SAMPLE LIST	EDIT SAMPLE	185	175	4336	3965
+P	CONVERT -L/-R		This will convert ‘old’ S1000, S1100, S2000, S3000 and XL series ‘stereo’ samples that are appended -L and -R and will create a stereo .wav file with -S appended to the name. For example, STRINGS C3 -L and STRINGS C3 -R will become STRINGS C3 -S. To convert an old -L/-R pair of samples, select either of the two ‘legs’ of the stereo file (i.e. the -L or the -R sample) and press CONVERT -L/-R. You will receive the usual progress display as the samples are processed followed by the usual PLAY/KEEP ORIGINAL/NEW/BOTH prompt. Once converted, you may subject it to the other stereo editing functions such as MAKE MONO and SWAP L/R. Of course, all other sample editing (TRIM, LOOP, TIMESTRETCH, etc.) will also be done in stereo.	SAMPLE LIST	EDIT SAMPLE	186	176	4343	3970
+N	NOTE		1: Stereo samples use two voices of the S6000. Thus, if ALL samples are stereo, polyphony is halved to 64 voices on the S6000 (32 on an unexpanded S5000). However, it is possible to use a combination of mono and stereo samples simultaneously so exact figures regarding polyphony cannot be given.	STEREO AND MONO SAMPLES	EDIT SAMPLE	187	177	4385	4010
+N	NOTE		2:S1000, S1100, S2000 and S3000 and XL series ‘stereo’ samples (i.e. those appended with -L/-R) will be treated as mono files on the S6000 and will require individual editing. If this is inconvenient, you should convert such samples into a single stereo .wav sample using the CONVERT -L/-R function described on the previous page.	STEREO AND MONO SAMPLES	EDIT SAMPLE	187	177	4389	4014
+P	RECORD LEVEL		This sets the record level. This is a software control which is used instead of a front panel control. You will note the icon in the parameter. Pressing the RECORD LEVEL key again allows you to set the gain sensitivity of the input and the choices are MIC, LINE and PRO. Use MIC to record low level signals from microphones; use LINE to record line level signals from keyboards or typical mixing consoles, etc.; use PRO when recording from high level equipment running at +4dB.	RECORD	RECORD	188	178	4399	4023
+P	RECORD TRIGGER		Here you may select what will initiate recording. The choices are:	RECORD	RECORD	188	178	4406	4030
+V	THRESHOLD L/R	RECORD TRIGGER	Recording will start once the threshold level on either the left or right channel is exceeded.	RECORD	RECORD	188	178	4407	4031
+V	THRESHOLD L	RECORD TRIGGER	Recording will start when the input to the left channel exceeds the threshold.	RECORD	RECORD	188	178	4409	4033
+V	THRESHOLD R	RECORD TRIGGER	Recording will start when the input to the right channel exceeds the threshold.	RECORD	RECORD	188	178	4411	4035
+V	AUTO L/R	RECORD TRIGGER	Recording will start once the threshold level on either the left or right channel is exceeded. It will automatically stop recording if the signal falls below the threshold.	RECORD	RECORD	188	178	4413	4037
+V	AUTO L	RECORD TRIGGER	Recording will start when the input to the left channel exceeds the threshold. It will automatically stop recording if the signal falls below the threshold.	RECORD	RECORD	188	178	4417	4041
+V	AUTO R	RECORD TRIGGER	Recording will start when the input to the right channel exceeds the threshold. It will automatically stop recording if the signal falls below the threshold.	RECORD	RECORD	188	178	4421	4045
+V	MIDI NOTE-ON	RECORD TRIGGER	Recording will start when a MIDI note-on is received on the channel specified in the MIDI TRIG CHAN (See below).	RECORD	RECORD	188	178	4425	4049
+P	THRESHOLD		This sets the threshold level for any of the THRESHOLD or AUTO options.	RECORD	RECORD	189	179	4431	4053
+P	MIDI TRIG CHAN		Sets the MIDI channel when MIDI NOTE-ON is selected as the record trigger.	RECORD	RECORD	189	179	4432	4054
+P	RECORD TO		Here you may select where the recording will go - in RAM or direct to disk (recording ‘virtual’ samples is described separately).	RECORD	RECORD	189	179	4434	4056
+P	RECORD SOURCE		Here you may select the input source for the recording. These are:	RECORD	RECORD	189	179	4436	4058
+V	ANALOGUE	RECORD SOURCE	Selects the front panel analogue inputs.	RECORD	RECORD	189	179	4437	4059
+V	DIGITAL	RECORD SOURCE	Selects the rear panel phono digital input.	RECORD	RECORD	189	179	4438	4060
+V	OPTICAL	RECORD SOURCE	Selects the rear panel optical digital input.	RECORD	RECORD	189	179	4439	4061
+V	OUTPUT 1/2	RECORD SOURCE	Allows you to re-record the outputs of the sampler. In this way, you can record a sound with effects as a new sample (EB20 needs to be installed on the S5000 to record with effects).	RECORD	RECORD	189	179	4440	4062
+V	ADAT 1/2 - 7/8	RECORD SOURCE	If the optional ADAT board is installed you may record via this. The paired numbers actually refer to the connected ADAT output - i.e. you can record ADAT ‘tracks’ 1/2, 3/4, 5/6 or 7/8.	RECORD	RECORD	189	179	4445	4067
+P	LENGTH MIN.SEC		This sets the length of the recording you are about to make. It is shown in minutes and seconds.	RECORD	RECORD	189	179	4449	4071
+P	ORIGINAL NOTE		This sets the note the recording will appear on (i.e. the note on which the recording will play back at its correct pitch and speed). This may be set manually using the DATA wheel or alternatively, when this parameter is selected, the note may be set by playing the appropriate note on your MIDI controller.	RECORD	RECORD	189	179	4451	4073
+N	NOTE		It is possible to set the ORIGINAL NOTE more conveniently from a MIDI keyboard (or other controller) by pressing and holding this key whilst playing the appropriate note on your controller.	RECORD	RECORD	189	179	4456	4078
+P	RECORD MODE		You may select STEREO or MONO.	RECORD	RECORD	189	179	4459	4081
+P	SETUP D-D		You may set up where you will record a ‘virtual’ sample to (recording ‘virtual’ samples is described separately).	RECORD	RECORD	189	179	4460	4082
+N	NOTE		The RECORD LEVEL parameter has no effect when any of the digital inputs are selected - e.g. DIGITAL, OPTICAL or the ADAT inputs (if the optional ADAT board is installed). RECORD LEVEL also has no effect when recording OUTPUTS 1/2 (i.e. re-recording the outputs of the sampler back into itself) as this is also a digital signal.	SETTING RECORD LEVELS	RECORD	190	180	4475	4095
+N	NOTE		If the sample clipped during record, you will receive this warning at the end of the record process: You should respond accordingly. If you press OK, you will be taken to the ‘keep/discard’ screen shown on the previous page. DISCARD will take you back to the main RECORD page retaining the name of the sample you discarded where you may try again.	MAKING A RECORDING	RECORD	192	182	4511	4127
+N	NOTE		If you press YES, this deletes the original sample. As a result, even if you press CANCEL in the “WAITING FOR THRESHOLD...’ prompt, the damage has been done and the sample will have been already overwritten. Please proceed with caution when selecting samples to overwrite.	OVERWRITING AN EXISTING SAMPLE	RECORD	193	183	4525	4139
+N	NOTE		This is a very general process and basically, the S6000 will record anything from the last playback mode you were in (EDIT PROGRAM, MULTI or even EDIT SAMPLE). It has to be said though, there is little benefit to be had re-recording a raw sample. However, it can be done if you really want to.	RE-RECORDING THE SAMPLER’S OUTPUTS	RECORD	194	184	4557	4169
+N	TIP		Even if you don’t adjust the MASTER LEVEL parameter, don’t forget that you can normalise the signal in EDIT SAMPLE after the recording has been made.	RE-RECORDING THE SAMPLER’S OUTPUTS	RECORD	194	184	4572	4184
+P	DISTORTION		EQ RING MOD or DELAY REVERB PITCH SHIFT or PAN/FMOD MULTI-EFFECTS CHANNEL FX2	FX	FX	196	186	4603	4212
+P	DISTORTION		EQ RING MOD or DELAY REVERB PITCH SHIFT or PAN/FMOD REVERB ONLY CHANNEL RV3 REVERB REVERB REVERB ONLY CHANNEL RV4 REVERB REVERB	FX	FX	196	186	4614	4223
+N	NOTE		If you try to enter the FX ‘mode’ when no multi is created (i.e. immediately after power up), you will see this prompt: You cannot access the FX pages without there being a valid multi. For S5000 owners, if you press the FX key when the EB20 is not installed, you will receive this pop-up dialogue: Says it all really!	FX	FX	198	188	4639	4244
+P	RV3 SEND		This feeds RV3 with any signals sent on the RV3 effects send buss. This is the default setting and allows four totally separate reverb channels.	FX	FX	199	189	4651	4254
+P	FX1		This feeds RV3 with any signals sent on the FX1 effects send buss: FX 1	FX	FX	199	189	4653	4256
+V	DIST/RMOD/EQ	FX1	MODULATION FX DELAY REVERB (RV1) REVERB (RV3)	FX	FX	199	189	4655	4258
+P	FX1 DIST/EQ		The output of the DISTORTION/RING MOD/EQ section of FX1 will be routed to RV3: FX 1	FX	FX	199	189	4657	4260
+V	DIST/RMOD/EQ	FX1 DIST/EQ	MODULATION FX DELAY REVERB (RV1) REVERB (RV3)	FX	FX	199	189	4660	4263
+P	FX1 MOD/ECHO		The output of the MOD/ECHO section in FX1 will be routed to RV3: FX 1	FX	FX	199	189	4662	4265
+V	DIST/RMOD/EQ	FX1 MOD/ECHO	MODULATION FX DELAY REVERB (RV1) REVERB (RV3)	FX	FX	199	189	4664	4267
+P	FX1 REVERB		The output of FX1’s reverb will be routed to RV3: FX 1	FX	FX	199	189	4666	4269
+V	DIST/RMOD/EQ	FX1 REVERB	MODULATION FX DELAY REVERB (RV1) REVERB (RV3)	FX	FX	199	189	4668	4271
+N	TIP		This can also be used to create a smoother, denser reverb sound. By selecting one of the gated reverbs in the multiFX chain and then selecting FX1 REVERB as the input for RV3 and selecting a hall or room reverb, the initial attack of the overall reverb sound will be more diffused resulting in a smoother decay.	FX	FX	199	189	4671	4274
+P	RMOD FREQUENCY		This sets the frequency of the sine wave modulation signal. It is variable from 1Hz - 5000Hz	RING MOD/DISTORTION	FX	202	192	4748	4345
+P	RMOD DEPTH		Sets the depth of the ring modulation effect.	RING MOD/DISTORTION	FX	202	192	4750	4347
+P	DISTORTION		Sets the amount of distortion	RING MOD/DISTORTION	FX	202	192	4753	4350
+P	OUTPUT LEVEL		Sets the output level of the distortion processor. This can be used to compensate for the high gain you get with high DISTORTION levels.	RING MOD/DISTORTION	FX	202	192	4754	4351
+P	LOW FREQ		Sets the low frequency. This is variable from 16Hz - 500Hz.	EQ	FX	204	194	4786	4379
+P	LF GAIN		Sets the low frequency gain.	EQ	FX	204	194	4787	4380
+P	LMID FREQ		Sets the low mid frequency. This is variable from 40Hz - 6.3kHz.	EQ	FX	204	194	4788	4381
+P	LMID GAIN		Sets the low mid gain.	EQ	FX	204	194	4789	4382
+P	HMID FREQ		Sets the high mid frequency. This is variable from 40Hz - 6.3kHz.	EQ	FX	204	194	4790	4383
+P	HMID GAIN		Sets the high mid gain.	EQ	FX	204	194	4791	4384
+P	HIGH FREQ		Sets the high frequency. This is variable from 500Hz - 16kHz	EQ	FX	204	194	4792	4385
+P	HF GAIN		Sets the high frequency gain.	EQ	FX	204	194	4793	4386
+P	RATE		Sets the speed of the chorus effect.	CHORUS	FX	206	196	4846	4435
+P	DEPTH		Sets the depth of the chorus effect	CHORUS	FX	206	196	4847	4436
+P	FEEDBACK		Sets the amount of signal that will be routed back to the chorus processor’s input. Higher feedback levels accentuate the effect and can be used to create flanging effects. The feedback level may be inverted for different effects.	CHORUS	FX	206	196	4848	4437
+P	SPEED 1		This sets one of the rotary speaker speeds. Typically, this will be used to set the speed of the slow rotary speaker effect but it may be used as the fast rotary speaker effect if you wish.	ROTARY SPEAKERS	FX	208	198	4873	4458
+P	SPEED 2		This sets the second of the rotary speaker effect speeds.	ROTARY SPEAKERS	FX	208	198	4876	4461
+P	ACCELERATION		On a ‘proper’ rotary speaker, because of mechanics and inertia, it takes a certain amount of time for the speaker to change from the slow speed to the fast speed and vice versa. This parameter allows you to set the time in seconds it will take to go from SPEED1 to SPEED 2 and vice versa.	ROTARY SPEAKERS	FX	208	198	4877	4462
+P	DEPTH/WIDTH		This sets the depth (or width) of the rotary speaker effect. High settings will give a wide left-right sweep, lower settings will give a narrower sweep.	ROTARY SPEAKERS	FX	208	198	4882	4467
+P	INIT SPEED		This parameter sets which of the speeds will be the ‘initial’ speed when you select this effect. It also allows you to listen to the speed parameter you may be adjusting. For example, when setting speed 1, select SPEED 1 and when setting speed 2, select SPEED 2. This allows you to set up rotary speaker effects without having a MIDI controller to hand.	ROTARY SPEAKERS	FX	208	198	4884	4469
+P	MIDI CONTROL		This selects which MIDI controller will trigger the change from SPEED1 to SPEED2 and vice versa. You may select any of the 128 MIDI controllers.	ROTARY SPEAKERS	FX	208	198	4889	4474
+N	NOTE		If using MODWHEEL, make sure that this is not used to introduce vibrato to the sound as well otherwise, as you change the rotary speaker speed, you will also increase/decrease vibrato which may or may not be desirable.	ROTARY SPEAKERS	FX	208	198	4892	4477
+P	CONTROL MODE		Depending on the MIDI controller selected in the MIDI CONTROL parameter, you may select whether crossing a threshold level of 64 that will cause the speed change or a switch action that will cause the speed change. When LEVEL is selected, once the controller goes past a level of 64, the speed will change. When TOGGLE is selected, the selected controller will switch between speed 1 and speed 2 and vice versa. Confused? Read on! Let’s take a practical example. Let us imagine that you are using the modwheel (controller #1 - the default) to switch between speed 1 and speed 2. With LEVEL selected, pushing the modwheel up will cause the controller to go over the 64 threshold (i.e. as it moves from 0-127) and the rotary speaker effect will change from speed 1 to speed 2 (i.e. typically, get faster). Bringing it back down again will once again go over the 64 threshold (i.e. as it travels from 127-0) causing the rotary speaker effect to go from speed 2 to speed 1 (i.e. typically, get slower). However, with TOGGLE selected, pushing it up will cause it to change from speed 1 to speed 2 but you must bring the modwheel down again and push it back up to go from speed 2 to speed 1. LEVEL is recommended for use with continuous controllers (modwheel, aftertouch, breath, foot pedal, etc.), whilst TOGGLE is recommended for ‘switch action’ controllers (footswitch type controllers such as sustain, etc.).	ROTARY SPEAKERS	FX	209	199	4898	4481
+P	MIDI CHANNEL		Because several parts may be sharing the same effect, you must designate which MIDI channel will initiate the change from SPEED1 to SPEED2.	ROTARY SPEAKERS	FX	209	199	4921	4504
+N	NOTE		1: In practice, it is likely that only one sound will be routed to a multi-effects channel producing a rotary speaker effect (typically, an organ sound) in a multi. In this case, set the MIDI CHANNEL parameter to the same channel as the part the organ sound (or whatever) is in. For example, if the organ sound is in PART 5 on MIDI channel 5, set 5 in the MIDI CHANNEL field shown here. Of course, more than one part may be routed to a multi-effects channel producing a rotary speaker effect but one channel must be designated to initiate the change from SPEED1 to SPEED2. Select as appropriate.	ROTARY SPEAKERS	FX	209	199	4924	4507
+N	NOTE		2: Please note that because the stereo mod section passes through the echo section, any stereo mod effects you create will be ‘monofied’ when mono delay effects are selected. As a result, you cannot effectively use the rotary speaker effects with mono echo.	ROTARY SPEAKERS	FX	209	199	4932	4515
+N	NOTE		3: You will find that the rotary speaker effect is best created with no ‘straight’ signal. You should use the DIRECT SIGNAL: ON/OFF function in the OUTPUT MIX page to turn off the straight signal. Preset rotary speaker effects have DIRECT SIGNAL set to OFF.	ROTARY SPEAKERS	FX	209	199	4935	4518
+N	TIP		You may find the sound of a rotary speaker is enhanced using just a hint of overdrive in the DISTORTION section to re-create the overdrive effect commonly found on rock organ sounds.	ROTARY SPEAKERS	FX	209	199	4938	4521
+P	FMOD RATE		This sets the speed of the frequency modulation.	FREQ/AMP MOD	FX	210	200	4948	4529
+P	FMOD DEPTH		This sets the amount of frequency modulation.	FREQ/AMP MOD	FX	210	200	4949	4530
+P	FMOD FEEDBACK		This sets the amount of feedback from the output of the frequency modulator back to its input. This parameter can be used to accentuate the frequency modulation effect.	FREQ/AMP MOD	FX	210	200	4950	4531
+P	AMOD RATE		This sets the speed of the autopan effect.	FREQ/AMP MOD	FX	210	200	4953	4534
+P	AMOD DEPTH		This sets the ‘width’ of the autopan effect. With high settings the sound will pan across a wider stereo image.	FREQ/AMP MOD	FX	210	200	4954	4535
+P	AMOD MODE		This sets the type of the autopan effect. The choices are: TREMOLO The output of the autopanner is mono and the effect is a tremolo effect (i.e. mono amplitude modulation)	FREQ/AMP MOD	FX	210	200	4956	4537
+V	L>R	AMOD MODE	The sound will move from left to right. As the sound crosses the central axis, however, the effect is of the sound ‘rotating’’ (i.e. as it goes from left to right, the sound becomes more distant and as it travels from right to left it becomes more ‘up-front’ and forward).	FREQ/AMP MOD	FX	210	200	4957	4538
+V	R>L	AMOD MODE	As above but in the opposite direction.	FREQ/AMP MOD	FX	210	200	4962	4543
+V	PAN	AMOD MODE	The sound will move from left to right but, as the sound crosses the central axis, the level will be constant giving the impression of it simply panning left to right.	FREQ/AMP MOD	FX	210	200	4963	4544
+N	NOTE		Because the stereo mod section passes through the echo section, any stereo mod effects you create here will be ‘monofied’ when mono delay effects are selected. As a result, you cannot effectively use autopan with mono echo.	FREQ/AMP MOD	FX	210	200	4973	4554
+P	LEFT SEMITONE		Sets the left channel’s pitch shift in semitone increments.	PITCH SHIFT	FX	211	201	4983	4562
+P	LEFT FINE		Allows you to fine tune the left channel’s tuning.	PITCH SHIFT	FX	211	201	4984	4563
+P	RIGHT SEMITONE		Sets the right channel’s pitch shift in semitone increments.	PITCH SHIFT	FX	211	201	4985	4564
+P	RIGHT FINE		Allows you to fine tune the right channel’s tuning.	PITCH SHIFT	FX	211	201	4986	4565
+N	NOTE		As with all but the most expensive pitch shifters, there is a small delay in the pitch shifted sound. This can be used to enhance an ensemble effect, however. Also, extreme pitch shifts will exhibit some ‘wobbly’ artefacts. In this case, mix the level of the pitch shifted signal back a bit.	PITCH SHIFT	FX	211	201	4991	4570
+P	LEFT SEMITONE		Sets the left channel’s pitch shift in semitone increments.	PITCH+FEEDBACK	FX	212	202	5013	4590
+P	LEFT FINE		Allows you to fine tune the left channel’s tuning.	PITCH+FEEDBACK	FX	212	202	5014	4591
+P	LEFT DELAY		Sets the delay time for the left channel’s feedback.	PITCH+FEEDBACK	FX	212	202	5015	4592
+P	LEFT FEEDBACK		Sets the amount of feedback for the left channel.	PITCH+FEEDBACK	FX	212	202	5016	4593
+P	RIGHT SEMITONE		Sets the right channel’s pitch shift in semitone increments.	PITCH+FEEDBACK	FX	213	203	5020	4595
+P	RIGHT FINE		Allows you to fine tune the right channel’s tuning.	PITCH+FEEDBACK	FX	213	203	5021	4596
+P	RIGHT DELAY		Sets the delay time for the right channel’s feedback.	PITCH+FEEDBACK	FX	213	203	5022	4597
+P	RIGHT FEEDBACK		Sets the amount of feedback for the right channel.	PITCH+FEEDBACK	FX	213	203	5023	4598
+N	NOTE		When PITCH+FEEDBACK is selected, this uses the delay line normally used for delay/ echo effects (you will note that the DDL section in the multiFX block diagram is also highlighted when PITCH+FEEDBACK is selected to indicate this). In other words, the delay/echo effects described next are not available when PITCH+FEEDBACK is selected. Attempting to access the DELAY FX in the main MULTIFX page in this case will pop up this dialogue: If you want to use the delay effects, please select another modulation effect type.	PITCH+FEEDBACK	FX	213	203	5024	4599
+P	DELAY TIME		Here, you may set a delay time of up to 670mS	MONO LEFT	FX	214	204	5051	4624
+P	FEEDBACK		This sets the amount of repeats the echo effect will have by setting how much of the delayed output is fed back into the delay line. This will increase the number of repeats in the effect.	MONO LEFT	FX	214	204	5052	4625
+P	HF DAMPING		This sets the high frequency damping. The HF DAMP parameter filters out some of the high frequency components in the sound in the feedback loop. This is to simulate the effect that in real life, each repeat of the echo gets slightly duller as the surfaces off which the sound is bouncing absorb some of the high frequencies. The value shown is the frequency that will be attenuated in the feedback loop.	MONO LEFT	FX	214	204	5055	4628
+P	FDBACK MONITOR		This selects where you will listen to the output of the delay and allows you to set the direction of the modulation section and the echo section. You may select POST which will give the effect of echo followed by the mod effects or you may select PRE which will give the effect of the mod effects followed by echo.	MONO LEFT	FX	214	204	5061	4634
+N	NOTE		When PRE is selected, you must set a value in the FEEDBACK parameter to hear any delay effect	MONO LEFT	FX	214	204	5066	4639
+P	PING PONG		This allows you to create stereo ‘ping pong’ echo effects that bounce back and forth from left to right. A setting of 00 creates a mono echo effect. A setting of +50 will create a ‘ping pong’ echo effect that goes from right to left and back again. A setting of -50 will create a ‘ping pong’ echo effect that goes from left to right and back again. Settings in between 00 and±50 will give ‘asymmetric’ or syncopated ‘ping pong’ effects. For example, with a delay time of 500mS and a PING PONG setting of +/-50, the result will be equally spaced repeats of 250mS. I.e.: LEFT 250mS 750mS 1.25Sec 500mS 1Sec 1.5Sec With a PING PONG setting of, say, +/-25, however, the first repeat will come after 125mS, the second after 500mS, the third after 625mS, etc. (depending on the amount of feedback). I.e. LEFT 125mS 625mS 1.125Sec 500mS 1Sec 1.5Sec	MONO LEFT	FX	215	205	5071	4642
+V	IN	PING PONG	RIGHT	MONO LEFT	FX	215	205	5081	4652
+V	IN	PING PONG	RIGHT	MONO LEFT	FX	215	205	5089	4660
+N	NOTE		Please note that because the stereo mod section passes through the echo section, any stereo mod effects you create will be ‘monofied’ when either of mono delay effects described above are selected. To enjoy stereo modulation effects with echo, please choose the stereo delay option (see below).	MONO L/R	FX	215	205	5095	4666
+P	REVERB TYPE		You may select from seven different reverb types - LARGE HALL, SMALL HALL, LARGE ROOM, SMALL ROOM, GATED 1, GATED 2 and REVERSE (the parameters change slightly for the two GATED and the REVERSE reverb types - these are described separately).	REVERB EFFECTS	FX	218	208	5136	4701
+P	PRE-DELAY		This sets the time between the original sound and the onset of the reverb.	REVERB EFFECTS	FX	218	208	5140	4705
+P	TIME		This sets the time it takes for the reverb to die away.	REVERB EFFECTS	FX	218	208	5141	4706
+P	DIFFUSION		This sets the density or ‘smoothness’ of the reverb. Typically, this will be set to maximum but there may be occasions when you want a more ‘fluttery’ or ‘echoey’ reverb type in which case DIFFUSION should be set to a lower value.	REVERB EFFECTS	FX	218	208	5142	4707
+P	NEAR		This affects the amount of ‘agitation’ the direct sound will have on the reverb decay and this has an effect on our perception of how close we are to the direct sound. High settings give the impression of being closer to the original sound whilst lower settings gives an enhanced sense of distance.	REVERB EFFECTS	FX	218	208	5146	4711
+P	ACTIVE		Allows you to bypass the reverb effect	REVERB EFFECTS	FX	218	208	5151	4716
+P	REVERB LEVEL		Sets the output level of the reverb.	REVERB EFFECTS	FX	218	208	5152	4717
+P	REVERB PAN		Sets the pan/balance of the reverb effect	REVERB EFFECTS	FX	218	208	5153	4718
+P	LF DAMPING		This reduces the amount of low frequency signal in the reverb decay. For a full sounding reverb, set a low frequency value but if you want a thinner, more brittle sounding reverb, set a higher frequency.	REVERB EFFECTS	FX	218	208	5154	4719
+P	HF DAMPING		This reduces the amount of high frequency content in the reverb decay. This simulates the effect that in a natural acoustic environment, high frequencies tend to get absorbed and so the reverb decay gets progressively duller as it decays.	REVERB EFFECTS	FX	218	208	5157	4722
+P	PRE-DELAY		Sets the time between the original sound and the onset of the gated reverb effect.	REVERB EFFECTS	FX	219	209	5166	4729
+P	REVERB DECAY		Sets the length of the gated reverb effect.	REVERB EFFECTS	FX	219	209	5168	4731
+P	DIFFUSION		Sets the density of the gated reverb effect.	REVERB EFFECTS	FX	219	209	5169	4732
+N	NOTE		The same parameters are available for RV3 and RV4 of course.	REVERB EFFECTS	FX	219	209	5172	4735
+P	DIST/EQ LEVEL		Sets the output level of the RING MOD/DISTORTION/EQ block of effects.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5181	4742
+P	DIST/EQ PAN		Sets the pan position of the RING MOD/DISTORTION/EQ block of effects.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5182	4743
+P	MOD/DEL LEVEL		Sets the level of the MODULATION/DELAY effects.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5184	4745
+P	MOD/DEL PAN		Sets the stereo balance of the MODULATION/DELAY effects.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5185	4746
+P	MOD/DEL WIDTH		Sets the width of the stereo image. At a value of 100, maximum stereo is obtained but set lower than that and the sound becomes gradually narrower. At a value of 0, the output from the MODULATION/DELAY section is mono.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5186	4747
+P	REVERB LEVEL		This sets the level of the reverb in the multiFX chain.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5190	4751
+P	REVERB PAN		This sets the stereo balance of the reverb in the multiFX chain.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5191	4752
+N	NOTE		REVERB LEVEL and REVERB PAN are duplications of the parameters found in the main reverb pages and are included here for convenience.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5192	4753
+P	DIRECT SIGNAL		You can switch out the direct signal from the multiFX chain. This is of most relevance when using effects such as autopan or rotary speakers although it can be useful in other circumstances.	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5194	4755
+P	PATH CONTROL		This parameter allows you to set the flow or direction of the effects. Most multi-effects processors follow a ‘traditional’ path for the effects: However, there are times when you want to have the modulation and echo effects in parallel with each other or to be able chorus, flange or phase the reverb to add a shimmer or a ‘swoosh’ to the reverb decay. When using separate outboard effects processors, this is simply a matter of patching the effects in the order you want. Many multi-effects processors don’t allow this, however, and you are limited to just one path as depicted above. The EB20 allows you to set the direction of the effects with one simple control, the PATH CONTROL. You may have mod/echo followed by reverb; you may have reverb followed by mod/echo or you may have mod/echo and reverb in parallel. MOD/ECHO L/R outs PATH	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	221	211	5200	4759
+V	DIST/EQ	PATH CONTROL	MOD FX ECHO REVERB	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	221	211	5202	4761
+P	DIST/EQ		PATH CONTROL REVERB	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	221	211	5217	4776
+V	PATH	DIST/EQ	L/R outs	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	221	211	5218	4777
+N	NOTE		Similarly, you cannot record ‘virtual’ samples to anything other than an MS-DOS formatted disk.	NOTES REGARDING SAVE	SAVE	228	218	5330	4876
+P	TRANSPOSE		Sets the overall tuning of the sampler in semitones. Please note that this is a MIDI transpose function and not a tuning function as such. For example, if you transpose the S6000 up by 2 semitones using this parameter, when you play C3, a 2 semitone offset will be added to that and you will actually play the sample on D3. In this way, you may transpose the overall tuning of the sampler without any ‘munchkin’ pitch distortion.	SYSTEM SETUP	UTILITIES	229	219	5342	4887
+P	SEMITONE TUNE		This also tunes the sampler in semitone increments. This, however, is a true tuning function and physically tunes the whole sampler up or down so anything you play may have some of the pitch distortion inherent in sample playback.	SYSTEM SETUP	UTILITIES	229	219	5349	4894
+P	FINE TUNE		Allows you to fine tune the sampler to external instruments.	SYSTEM SETUP	UTILITIES	229	219	5353	4898
+P	MASTER LEVEL		Sets the overall output level of the sampler.	SYSTEM SETUP	UTILITIES	230	220	5357	4900
+N	NOTE		REGARDING MASTER LEVEL: The default setting for this parameter is -12dB, the reason being that, unlike DAT or other stereo digital recorders which record at 0dB and playback at 0dB, the S6000 records at 0dB but has to play many voices simultaneously (the other recorders only need to play exactly what they recorded). Each voice you play adds extra gain to the output so, if you were to set 0dB and play many voices, you would get distortion. By setting it to -12dB, you have 12dB of headroom before clipping will occur. However, if you are only recording and playing back a stereo recording on its own (for example, mastering a track down to stereo using the disk recording functions), you would be advised to set the MASTER LEVEL parameter to 0dB so that you put out the same level as you recorded.	SYSTEM SETUP	UTILITIES	230	220	5358	4901
+P	SYSTEM SCSI ID		This sets the SCSI ID of the S6000’s CPU. The default is 6.	SYSTEM SETUP	UTILITIES	230	220	5367	4910
+N	NOTE		It is vital that the SCSI ID set here does not conflict with any other devices on the SCSI bus or unreliable operation may occur.	SYSTEM SETUP	UTILITIES	230	220	5368	4911
+P	SYNC SOURCE		This sets the sampling rate and/or external digital wordclock sync options. These are: INT 44.1kHz Sets the internal clock to run at 44.1kHz. INT 48.0kHz Sets the internal clock to run at 48kHz.	SYSTEM SETUP	UTILITIES	230	220	5370	4913
+V	EXT WORDCLOCK	SYNC SOURCE	The sampler will run at whatever sampling rate is received at the WORDCLOCK BNC connector.	SYSTEM SETUP	UTILITIES	230	220	5374	4917
+V	DIGITAL INPUT	SYNC SOURCE	The sampler will run at whatever sampling rate is received at the digital I/O phono input.	SYSTEM SETUP	UTILITIES	230	220	5377	4920
+V	OPTICAL INPUT	SYNC SOURCE	The sampler will run at whatever sampling rate is received digital I/O optical input.	SYSTEM SETUP	UTILITIES	230	220	5379	4922
+V	ADAT INPUT	SYNC SOURCE	The sampler will run at whatever sampling rate is received at the ADAT input (if installed).	SYSTEM SETUP	UTILITIES	230	220	5381	4924
+P	DIGITAL I/O		Here you may select between CONSUMER and PROFESSIONAL depending on the type of digital equipment you are using with the S6000.	SYSTEM SETUP	UTILITIES	230	220	5383	4926
+P	NOTE DISPLAY		This allows you to choose whether to display notes as MIDI numbers (i.e. 0-127) or as names (C 0 - G 8) in all displays where notes are shown.	PREFERENCES	UTILITIES	232	222	5402	4941
+P	LOOP DISPLAY		This allows you to select whether LOOP LENGTH is displayed in time (i.e. 1 sec) or samples (i.e. 44100).	PREFERENCES	UTILITIES	232	222	5405	4944
+P	SCREEN DISPLAY		This allows you to invert the screen display. You may have white lettering on a blue background (NORMAL) or blue lettering on a white background (INVERTED).	PREFERENCES	UTILITIES	232	222	5407	4946
+P	SCREEN SAVER		This turns off the LCD’s backlight at timed intervals in order to preserve it. If the function is enabled, the backlight will switch off after n minutes of inactivity. To re-activate it, press any key.	PREFERENCES	UTILITIES	232	222	5410	4949
+P	KEY REPEAT DLY		This sets the delay time before certain keys such as SCROLL UP/DOWN and SELECT keys start auto-repeating.	PREFERENCES	UTILITIES	232	222	5413	4952
+P	FAN SPEED		This sets the speed of the internal fan, used to cool any hard drives that may be installed. The options are SLOW or NORMAL.	PREFERENCES	UTILITIES	232	222	5415	4954
+N	NOTE		The FAN SPEED control is only applicable to the S6000. This parameter does not appear on the S5000.	PREFERENCES	UTILITIES	232	222	5417	4956
+P	PROGRAM CHANGE		This applies to remote program selection of programs via MIDI within parts. It may be switched ON or OFF	MIDI SETUP	UTILITIES	233	223	5425	4962
+P	MULTI SELECT		This allows you to select whether MIDI program change or MIDI bank change will remotely select multis. Multis may be given MIDI program numbers in the RENUMBER MULTI page. If BANK is selected, the same MIDI program numbers are used. Thus, sending a command to change to bank 2 will cause the multi with MIDI program number 2 to be selected.	MIDI SETUP	UTILITIES	233	223	5427	4964
+P	MULTI SLCT CH		This sets the channel for the reception of program change commands for remote selection of multis. Of course, this parameter has no effect if MULTI SELECT is not switched on.	MIDI SETUP	UTILITIES	233	223	5432	4969
+N	NOTE		When MULTI SELECT is switched on, the selected MIDI channel cannot be used to remotely select programs in parts. For example, if MIDI channel 16B is selected for remote selection of multis, you cannot select programs on that channel. This is done automatically.	MIDI SETUP	UTILITIES	233	223	5435	4972
+P	EXT APM CONTROL		You may select any one of the 128 MIDI control parameters to be used as a controller in the APM matrix (see Appendix A for a full listing of these).	MIDI SETUP	UTILITIES	234	224	5441	4976
+P	AFTERTOUCH		This is a ‘system-wide’ parameter that allows you to select whether the S6000 responds to CHANNEL or POLYPHONIC aftertouch. With channel aftertouch, pressing harder on one note will affect all notes that are held. With polyphonic aftertouch, pressing harder on one note affects only that note. Polyphonic aftertouch is therefore much more expressive, especially with ensemble sounds such as strings or brass where one voice can be made brighter or louder or to have more vibrato, whatever. Your MIDI keyboard (or other controller) must be capable of generating polyphonic aftertouch for this to work. If your keyboard or controller only generates channel aftertouch (as most aftertouch-equipped keyboards do) and you select polyphonic aftertouch in this parameter, you will get no aftertouch at all. This is because the MIDI commands for channel aftertouch are not recognised by polyphonic aftertouch and are therefore ignored.	MIDI SETUP	UTILITIES	234	224	5444	4979
+P	INPUT LEVEL		This sets the overall input level for both inputs. By double clicking this key, you may also set the inputs’ overall sensitivity (i.e. MIC, LINE or PRO). Input level is set by observing incoming signal level on the meters and adjusting INPUT LEVEL accordingly. As with RECORD, the ideal input level is as close to 0dB as possible. Above the meters, you can see the margin of headroom you have and this value is held until the signal exceeds it again. To obtain optimum record level, you should select the appropriate input sensitivity (MIC, LINE or PRO) and increase (or decrease) RECORD LEVEL until the margin is as close to 0dB as possible. If the maximum headroom is exceeded by too loud a signal, the clip indicator will illuminate and an exclamation mark (!) will appear above it. If this happens, reduce RECORD LEVEL, press RESET MARGIN (F9) and try again.	FX IN/OUTS	UTILITIES	235	225	5483	5016
+P	EXT IN LEFT/RIGHT		These two parameters allow you to select which of the four effects channels the external inputs will be routed to (OFF, FX1, FX 2, RV3, RV4).	FX IN/OUTS	UTILITIES	235	225	5496	5029
+P	L/R DIRECT LEVEL		This sets how much of the input’s direct signal is passed to the outputs. If you are using the S6000 as a standalone effects processor with an external mixer via the mixer’s AUX sends, this should be set to 0 otherwise set the levels as appropriate.	FX IN/OUTS	UTILITIES	235	225	5499	5032
+N	NOTE		It is only possible to use the analogue inputs as a signal source to the effects. Furthermore, because there are only two inputs, only two effects channels may be nominated to be used with external sounds.	FX IN/OUTS	UTILITIES	235	225	5503	5036
+P	FX OUTPUT		You may, if you wish, route the effects to appear at a pair of the individual outputs. This allows you to balance the relative levels of the ‘straight’ signal and the effects signal on an external mixing console and you may select OFF (no effects), 1/2, 3/4, etc., as you wish. You will note, however, that the outputs selected here carries a mix of all four effects channels’ outputs and it is not possible to route individual effects channels to different outputs.	FX IN/OUTS	UTILITIES	235	225	5506	5039
+N	NOTE		The S6000 will divide the selected drive into 2Gbyte partitions. Thus if you try to format a 4Gb drive, it will have two x 2Gb partitions. It is not possible to set the partition size or name the disk or partitions in this version of software. Also, the S5000/6000 formats the disk to FAT16. This is chosen as FAT32 does not allow the use of removable drives which are very popular for sound library storage. If you require more sophisticated formatting functions, it is suggested you format your drive on a PC or on a Mac that uses a W95 emulator.	FORMATTING DISKS	UTILITIES	241	231	5590	5111
+P	PLAY KEY MODE		This allows you to choose from three ‘play’ modes for the ENT/PLAY key. These are:	SET PLAY KEY	UTILITIES	245	235	5652	5165
+V	SINGLE	PLAY KEY MODE	Pressing ENT/PLAY will play the selected sound at C3 (or whatever NOTE 1 is tuned to)	SET PLAY KEY	UTILITIES	245	235	5654	5167
+V	ARPEGGIO	PLAY KEY MODE	This will play NOTES 1 - 4 in succession. This may be useful to check multi-samples and sounds across the keyboard’s range when away from a MIDI keyboard.	SET PLAY KEY	UTILITIES	245	235	5656	5169
+V	CHORD	PLAY KEY MODE	This will play NOTES 1 - 4 simultaneously as a chord.	SET PLAY KEY	UTILITIES	245	235	5660	5173
+P	NOTE 1 - 4		Allows you to tune the notes to an arpeggio or chord. If SINGLE is selected in PLAY KEY MODE, only NOTE 1 is used.	SET PLAY KEY	UTILITIES	245	235	5662	5175
+N	NOTE		Because of the way audio is internally routed through the sampler, the test tone actually passes through the effects sends. The effects are muted when the test tone is being generated but they are re-initialised when you switch the test tone off resulting in a short burst of reverb that sounds not unlike a submarine sonar! This is normal and is not a fault with the S6000. To overcome it, switch FX OUTPUT to OFF in the FX IN/OUTS page. This problem does not exist on the S5000 unless the EB20 is installed.	TEST TONE	UTILITIES	245	235	5669	5182
+N	NOTE		In these two cases, it is possible to be playing the S6000 at the same time as recording to disk. If, however, the sampler is playing back virtual samples at the same time as recording you may experience problems if the disk bandwidth is exceeded. Recording requires more disk bandwidth than playing back and so recording may fail and/or virtual samples that previously played back perfectly may fail.	FOR MASTERING	VIRTUAL SAMPLES	252	242	5813	5313
+F	16		You cannot assign the same virtual sample to several keygroups and expect to play chords. The same restrictions described above apply in this case.	HOW DOES IT WORK?	VIRTUAL SAMPLES	253	243	5859	5357
+N	NOTE		Halve the figures shown above for stereo.	HOW DOES IT WORK?	VIRTUAL SAMPLES	254	244	5870	5366
+N	NOTE		As mentioned, virtual samples use the S6000’s voices just like any normal RAM sample and polyphony is not increased when using virtual samples (i.e. 64/126 voices PLUS the virtual samples). In fact, it’s quite the opposite. Assuming you have a drive capable of playing 8 mono virtual samples, 8 voices of the S6000’s polyphony will be used to play them.	HOW DOES IT WORK?	VIRTUAL SAMPLES	254	244	5896	5392
+N	NOTE		You cannot overide the type for ALL SAMPLES. If OVERIDE TYPE is checked and you select ALL SAMPLES, OVERIDE TYPE will be disabled. Similarly, if ALL SAMPLES is checked and you press OVERIDE TYPE, the prompt will revert to THIS SAMPLE.	LOADING VIRTUAL SAMPLES	VIRTUAL SAMPLES	257	247	5941	5431
+N	NOTE		1 : If you have made up a program containing one or more virtual samples but you load them as RAM samples, the program will still play correctly and you will not have to re-assign the samples in their ‘new’ format to the program. Likewise, if you load RAM samples as virtual, any program(s) that use those samples will play correctly.	CONVERTING SAMPLE TYPES	VIRTUAL SAMPLES	258	248	5967	5455
+N	NOTE		2: RAM samples less than 1.5 seconds will not be converted the reason being that these would be shorter than the ‘nose’. In this case, even if you load them as virtual, they will be loaded (and subsequently saved) as RAM samples.	CONVERTING SAMPLE TYPES	VIRTUAL SAMPLES	258	248	5972	5460
+N	NOTE		These delays may be made worse if your drive has a default ‘sleep’ function. In this case, you may also have to wait for the drive to ‘wake up’ after periods of inactivity.	EDITING VIRTUAL SAMPLES	VIRTUAL SAMPLES	259	249	5995	5481
+N	NOTE		When virtual samples are assigned to keygroup zones, the PLAYBACK parameter (F13) only allows you to select AS SAMPLE or ONE SHOT - the looping options are not available.	WORKING WITH VIRTUAL SAMPLES IN A PROGRAM	VIRTUAL SAMPLES	259	249	6011	5497
+P	REC GAIN		: MIC -45dBm, LINE -22dBm, PRO +2dBm	SPECIFICATIONS	SPECIFICATIONS	260	250	6054	5530
+P	BASIC		Default: X 1-16	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6139	5604
+P	CHANNEL		Changed: X 1-16 Memorized (disk) Default: X MODE 3 Multi Mode	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6140	5605
+P	MODE		Messages: X MODE 1 Program/Sample Mode Altered: **********	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6142	5607
+P	NOTE		True Voice: X 21-127 A-1 - G8	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6144	5609
+P	NUMBER		********** 21-127 A-1 - G8	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6145	5610
+P	VELOCITY		Note ON: X O	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6146	5611
+P	AFTERTOUCH		Key's: X O Selectable as KEY or	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6148	5613
+P	PITCH BEND		X O +/- 24 Semitones	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6150	5615
+P	CONTROL CHANGE		0 X O Bank Select (Multi) 1 X O Modulation Wheel 7 X O Volume	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6151	5616
+P	PROGRAM CHANGE		True #: X O (0-127) Shown as 1-128. ********** By preset number value	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6157	5622
+P	SYSTEM EXCLUSIVE		O O AKAI ID : 47H S5000/S6000 ID : 5EH	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6159	5624
+P	SYSTEM		Song Pos: X X	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6161	5626
+P	COMMON		Song Sel: X X Tune: X X	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6163	5627
+P	SYSTEM		Clock: X O To sync LFO2	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6165	5629
+P	REAL TIME		Commands: X X	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6166	5630
+P	AUX		Local ON/OFF X X	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6169	5633
+P	MESSAGES		All Notes OFF: X O	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6170	5634
+P	Mode 3 : OMNI OFF, POLY		Mode 4 : OMNI OFF, MONO X : NO	S5000/S6000 MIDI IMPLEMENTATION CHART	APPENDIX A	262	252	6174	5638
+N	NOTE		REGARDING TAKING DISKS TO A PC • In order to transfer sounds between the S6000 and a PC (and vice versa), you will, of	TRANSFERRING DATA BETWEEN THE S6000 AND A PC	APPENDIX C	266	256	6255	5713
+N	NOTE		Of course, if you delete the items in the wastebasket on the Mac, then the TRASH folder will be empty when you take it to the sampler. Similarly, if you move the samples on the desktop back to another folder, the DESKTOP FOLDER will be empty on the sampler.	TRANSFERRING DATA BETWEEN THE S6000 AND A MAC	APPENDIX C	268	258	6295	5749
+N	NOTE		You will note that the problems with filenames described on the previous page do not apply when using W95 on a Mac.	USING WINDOWS 95 ON THE MAC	APPENDIX C	270	260	6371	5821
+F	17		Ideally, Virtual PC Version 2 should be used as earlier versions of VPC do not support long filenames.	USING WINDOWS 95 ON THE MAC	APPENDIX C	270	260	6373	5823
+F	18		Virtual PC V2.0 allows you to access removable drives such as Jaz, Zip or Syquest as ‘virtual’ disks in W95 by nominating them as ‘shared folders’ in which case, it is not necessary to have the drivers installed in VPC for the disk to appear as a drive in My Computer on the PC desktop. Please consult your Virtual PC V2.0 documentation for details regarding this.	USING WINDOWS 95 ON THE MAC	APPENDIX C	270	260	6374	5824
+N	NOTE		It is not possible to ‘hot swap’ SCSI devices so when disconnecting and connecting a drive between two systems, be sure that all connected devices (S6000, drive, PC/Mac) are switched off. Failure to do so may result in damage to the equipment. AKAI professional M.I. Corp. cannot be held responsible for such damage.	SHARING DISKS BETWEEN AN S6000 AND A MAC/PC	APPENDIX C	271	261	6400	5848
+N	NOTE		The same could happen when renaming files.	CONNECTING THE SAMPLER TO A MAC/PC VIA SCSI	APPENDIX D	273	263	6447	5892
+F	19		Actually, in a program, it is possible to have some keygroups appear at outputs 1/2 whilst others appear at other individual or stereo outputs.	SOUND LIBRARY COMPATIBILITY	APPENDIX E	275	265	6538	5978
+N	NOTE		The S6000 cannot read .AIFF files or other soundfiles that may exists but there are many conversion utilities that allow you to convert these to .WAV files.	SOUND LIBRARY COMPATIBILITY	APPENDIX E	277	267	6613	6046
+N	NOTE		It is not possible to load S5/6000 sounds into any of Akai’s previous generation of samplers. The huge differences in hardware, software and also file and disk format make this impossible.	SOUND LIBRARY COMPATIBILITY	APPENDIX E	277	267	6615	6048
+N	NOTE		SIMMs from S2000, S3000XL and S3200XL can be used in the S5000 and S6000 so if you are upgrading, you may like to retain the SIMMs from your S2000 or XL to use in your new sampler.	INSTALLING EXTRA MEMORY (To Service Technicians)	APPENDIX F	279	269	6656	6086
+N	NOTE		The maximum memory the S6000 can address is 256Mb total. Thus, when 4 x 64Mb SIMMs are installed, the 8Mb of ‘hardwired’ memory is ignored. However, please note that even when only 3 x 64Mb boards are installed in Slots 4, 3 and 2, the hardwired memory is not addressed restricting you to 192Mb of total memory. Slot 1 can still be used to install any size memory module up to 64Mb. If you have any doubts about installing memory, please consult your Akai dealer.	INSTALLING EXTRA MEMORY (To Service Technicians)	APPENDIX F	279	269	6681	6111
+N	NOTE		REGARDING INSTALLATION: If you plan to install memory, please be aware that memory chips are sensitive to static electricity so observe the following precautions: • Isolate the S5000/6000 by disconnecting it from the mains or your mixer/amp/whatever	NOTES ON BUYING MEMORY	APPENDIX F	280	270	6701	6129
+F	20		The S6000 can respond to 32 MIDI channels simultaneously in the MULTI mode (16 channels through MIDI input A and another 16 channels through MIDI input B). ‘MULTI- TIMBRAL’ literally means ‘many sounds’. In the early days of synthesisers, you needed a separate synthesiser for every part you wanted to play but, with the advent of MIDI, a synthesiser or sampler could be coaxed into playing several different sounds together so that only one synth/sampler was required to play several parts. With the S6000’s 128- voice polyphony, (64-voice on an unexpanded S5000) complex multi-part arrangements can be performed using the MULTI mode.	WHAT IS SAMPLING?	APPENDIX G	285	275	6899	6318
+N	NOTE		The effects are optional on the S5000.	WHAT IS SAMPLING?	APPENDIX G	286	276	6913	6330
+I	(APM)		p26, 27	VOICE ARCHITECTURE	STRUCTURE	36	26	1076	1005
+I	(APM)		p26, 27	ASSIGNABLE PROGRAM MODULATION (APM)	STRUCTURE	37	27	1119	1041
+I	Active Switch (Delay FX)		p206	STEREO DELAY	FX	216	206	5115	4684
+I	Active Switch (Distortion/RMod)		p192	RING MOD/DISTORTION	FX	202	192	4756	4353
+I	Active Switch (EQ)		p194, 195	EQ	FX	204	194	4794	4387
+I	Active Switch (EQ)		p194, 195	EQ MODULATION	FX	205	195	4835	4426
+I	Active Switch (Mod FX)		p203	PITCH+FEEDBACK	FX	213	203	5032	4607
+I	Active Switch (Reverb)		p206	STEREO DELAY	FX	216	206	5115	4684
+I	Adjust (BPM Match)		p168	BPM MATCH	EDIT SAMPLE	178	168	4193	3836
+I	Adjust (Pitch Shift/Edit Sample)		p167	PITCH SHIFT	EDIT SAMPLE	177	167	4165	3810
+I	Adjust (Timestretch)		p166	TIMESTRETCH	EDIT SAMPLE	176	166	4115	3762
+I	Aftertouch (LFO 1)		p91	LFOS	EDIT PROGRAM	101	91	2384	2180
+I	Aftertouch (MIDI Setup		p224	MIDI SETUP	UTILITIES	234	224	5444	4979
+I	Aftertouch (Pitch Bend)		p88	PITCHBEND	EDIT PROGRAM	98	88	2318	2120
+I	AMP ENVELOPE Page		p122	AMP ENVELOPE	EDIT PROGRAM	132	122	3221	2955
+I	Amp Envelope Windows		p123	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3245	2977
+I	Amp Mod		p107	KG PITCH/AMP	EDIT PROGRAM	117	107	2813	2577
+I	Amp Mod 1/2		p83	OUTPUT	EDIT PROGRAM	93	83	2210	2022
+I	Arpeggio (Play Key)		p235	SET PLAY KEY	UTILITIES	245	235	5656	5169
+I	ASCII Keyboard		p5	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	589	564
+I	Assigning Programs to Parts		p43	ASSIGNING PROGRAMS TO PARTS	MULTI	53	43	1437	1327
+I	Attack (Amp Env)		p122, 123	AMP ENVELOPE	EDIT PROGRAM	132	122	3224	2958
+I	Attack (Amp Env)		p122, 123	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3247	2979
+I	Attenuation		p120	FILTER	EDIT PROGRAM	130	120	3175	2913
+I	Audition Sample		p34	AUDITION SAMPLE	LOAD	44	34	1292	1200
+I	Auto Find		p154	LOOP	EDIT SAMPLE	164	154	3851	3522
+I	Auto Tune (Pitch Shift/Edit Sample)		p167	PITCH SHIFT	EDIT SAMPLE	177	167	4152	3797
+I	AUX ENVELOPE Page		p125	AUX ENVELOPE	EDIT PROGRAM	135	125	3279	3007
+I	Bend Mode		p88	PITCHBEND	EDIT PROGRAM	98	88	2305	2107
+I	BOOTING/POWER ON		p13	MOUNTING THE S6000	INTRODUCTION	23	13	780	740
+I	BPM MATCH Page		p168	BPM MATCH	EDIT SAMPLE	178	168	4177	3820
+I	Check Names (Save)		p75	QUICKSAVE	MULTI	85	75	2023	1849
+I	CHOP Page		p148	CHOP	EDIT SAMPLE	158	148	3706	3389
+I	Chop Sample Menu		p149	CHOP	EDIT SAMPLE	159	149	3727	3408
+I	Chord (Play Key)		p235	SET PLAY KEY	UTILITIES	245	235	5660	5173
+I	Chorus (FX)		p196	CHORUS	FX	206	196	4842	4431
+I	Clear Memory		p36	CLEAR MEMORY	LOAD	46	36	1331	1235
+I	Clock (System)		p221	SET CLOCK	UTILITIES	231	221	5388	4929
+I	Clock Division (LFO 2)		p93	LFO 2	EDIT PROGRAM	103	93	2468	2260
+I	Close Folder		p34	OPEN/CLOSE FOLDER	LOAD	44	34	1287	1195
+I	Convert -L/-R		p62, 133, 176	PROGRAM LIST	MULTI	72	62	1793	1645
+I	Convert -L/-R		p62, 133, 176	PROGRAM LIST	EDIT PROGRAM	143	133	3378	3090
+I	Convert -L/-R		p62, 133, 176	SAMPLE LIST	EDIT SAMPLE	186	176	4343	3970
+I	Convert Old Multi		p64, 135	PROGRAM LIST	MULTI	74	64	1848	1696
+I	Convert Old Multi		p64, 135	PROGRAM LIST	EDIT PROGRAM	145	135	3433	3141
+I	Copy Keygroup		p127	CREATING (COPYING) KEYGROUPS	EDIT PROGRAM	137	127	3319	3043
+I	Copy Multi		p55	MULTI LIST	MULTI	65	55	1663	1529
+I	Copy Program		p60, 130	PROGRAM LIST	MULTI	70	60	1764	1620
+I	Copy Program		p60, 130	PROGRAM LIST	EDIT PROGRAM	140	130	3344	3062
+I	Copy Sample		p175	SAMPLE LIST	EDIT SAMPLE	185	175	4332	3961
+I	Copy To User		p86	MIDI/TUNE	EDIT PROGRAM	96	86	2282	2088
+I	Copying FX		p213	EFFECTS TOOLS	FX	223	213	5246	4801
+I	Copying MultiFX 1/2		p214	COPYING EFFECTS	FX	224	214	5258	4811
+I	Copying Reverbs		p215	COPYING EFFECTS	FX	225	215	5266	4817
+I	Create Multi		p42, 55	CREATING A MULTI	MULTI	52	42	1423	1315
+I	Create Multi		p42, 55	MULTI LIST	MULTI	65	55	1678	1544
+I	Create Program		p60, 127, 131	PROGRAM LIST	MULTI	70	60	1773	1629
+I	Create Program		p60, 127, 131	CREATING PROGRAMS	EDIT PROGRAM	137	127	3313	3037
+I	Create Program		p60, 127, 131	PROGRAM LIST	EDIT PROGRAM	141	131	3356	3072
+I	Crossfade (Keygroups)		p106	KEYGROUP CROSSFADE	EDIT PROGRAM	116	106	2779	2545
+I	Crossfade (Loop)		p153	LOOP	EDIT SAMPLE	163	153	3811	3484
+I	CURSOR KEYS		p6, 21	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	615	588
+I	CURSOR KEYS		p6, 21	CURSOR KEYS	INTRODUCTION	31	21	927	871
+I	Cutoff Frequency (Filter)		p120	FILTER	EDIT PROGRAM	130	120	3168	2906
+I	Data Wheel		p6	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	614	587
+I	Decay (Amp Env)		p122	AMP ENVELOPE	EDIT PROGRAM	132	122	3226	2960
+I	Delay (LFO 1)		p89	LFOS	EDIT PROGRAM	99	89	2331	2131
+I	DELAY FX Page		p204	DELAY FX	FX	214	204	5043	4616
+I	Delay LFO 2)		p91	LFOS	EDIT PROGRAM	101	91	2382	2178
+I	Delay Mod (LFO 1)		p90	LFOS	EDIT PROGRAM	100	90	2374	2172
+I	Delay Mod (LFO 2)		p91	LFOS	EDIT PROGRAM	100	90	2374	2172
+I	Delete Multi		p55	MULTI LIST	MULTI	65	55	1666	1532
+I	Delete Program		p60, 131	PROGRAM LIST	MULTI	70	60	1767	1623
+I	Delete Program		p60, 131	PROGRAM LIST	EDIT PROGRAM	140	130	3347	3065
+I	Delete Sample		p175	SAMPLE LIST	EDIT SAMPLE	185	175	4335	3964
+I	Deleting Disk Items (Disk Utils)		p227	DELETING ITEMS FROM DISK	UTILITIES	237	227	5529	5058
+I	Depth (LFO 1)		p89	LFOS	EDIT PROGRAM	99	89	2332	2132
+I	Depth (LFO 2)		p91	LFO 2	EDIT PROGRAM	101	91	2399	2195
+I	Depth Mod (LFO 1)		p89	LFOS	EDIT PROGRAM	100	90	2376	2174
+I	Depth Mod (LFO 2)		p91	LFOS	EDIT PROGRAM	100	90	2376	2174
+I	Digital EQ (Offline - Edit Sample)		p170	RE-SAMPLE	EDIT SAMPLE	180	170	4230	3869
+I	Digital I/O		p8	S6000 REAR PANEL	INTRODUCTION	18	8	678	647
+I	Digital I/O (System)		p221	SYSTEM SETUP	UTILITIES	230	220	5378	4921
+I	Disk Info		p36	DISK INFO	LOAD	46	36	1329	1233
+I	Disk Option		p4	MAIN PANEL	INTRODUCTION	14	4	567	544
+I	Disk Tools Menu		p36	DISK TOOLS	LOAD	46	36	1326	1230
+I	DISK UTILS Page		p226	DISK UTILS	UTILITIES	236	226	5516	5047
+I	Display Contrast		p6	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	633	606
+I	Edit All KGs		p97	KEYGROUP	EDIT PROGRAM	107	97	2577	2361
+I	EDIT PART		p50, 80	EDIT PART	MULTI	60	50	1571	1447
+I	EDIT PART		p50, 80	EDIT PART	EDIT PROGRAM	90	80	2160	1978
+I	EDIT PROGRAM (Main Page)		p80	EDIT PROGRAM	EDIT PROGRAM	90	80	2154	1972
+I	EDIT SAMPLE (Main Page)		p141	EDIT SAMPLE	EDIT SAMPLE	151	141	3550	3246
+I	EDIT USER Page		p87	EDIT USER	EDIT PROGRAM	97	87	2290	2094
+I	Editing Parts		p44	EDITING PARTS	MULTI	54	44	1456	1344
+I	Effects		p186	FX	FX	196	186	4589	4198
+I	Effects Channel		p48	EFFECTS SEND WINDOW	MULTI	58	48	1536	1416
+I	Effects Send Window		p48	EFFECTS SEND WINDOW	MULTI	58	48	1534	1414
+I	Effects Tools		p212	EFFECTS TOOLS	FX	222	212	5236	4793
+I	ENT/PLAY Key		p6	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	625	598
+I	Env Template (Amp Env)		p122	AMP ENVELOPE	EDIT PROGRAM	132	122	3237	2971
+I	EQ (FX)		p193	EQ	FX	203	193	4761	4356
+I	EQ (Offline - Edit Sample)		p170	EQ	EDIT SAMPLE	180	170	4231	3870
+I	EQ Modulation (FX)		p195	EQ MODULATION	FX	205	195	4812	4403
+I	Exit Key		p6	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	623	596
+I	Expand Multi		p56	MULTI LIST	MULTI	66	56	1683	1547
+I	Ext APM Control (MIDI Setup)		p223	MIDI SETUP	UTILITIES	234	224	5441	4976
+I	Ext In Left/Right (FX)		p225	FX IN/OUTS	UTILITIES	235	225	5496	5029
+I	Fade Curve		p162	FADE UP/DOWN	EDIT SAMPLE	172	162	4016	3671
+I	Fade Up/Down		p162	FADE UP/DOWN	EDIT SAMPLE	172	162	4010	3665
+I	FADE UP/DOWN Page		p162	FADE UP/DOWN	EDIT SAMPLE	172	162	4010	3665
+I	Fan Speed (Prefs)		p222	PREFERENCES	UTILITIES	232	222	5415	4954
+I	Filter (Zone)		p101	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2696	2472
+I	Filter Env Depth		p120, 124	FILTER	EDIT PROGRAM	130	120	3194	2932
+I	Filter Env Depth		p120, 124	FILTER ENVELOPE	EDIT PROGRAM	134	124	3267	2997
+I	Filter Envelope		p120	FILTER	EDIT PROGRAM	130	120	3195	2933
+I	FILTER ENVELOPE Page		p124	FILTER ENVELOPE	EDIT PROGRAM	134	124	3262	2992
+I	Filter Mod Inputs		p120	FILTER	EDIT PROGRAM	130	120	3167	2905
+I	FILTER Page		p108	FILTER	EDIT PROGRAM	118	108	2822	2584
+I	Filter, What is a...		p108	FILTER	EDIT PROGRAM	118	108	2828	2590
+I	Find Start/End (Trim)		p146	TRIM	EDIT SAMPLE	156	146	3667	3354
+I	Fine Tune		p49	FINE TUNE WINDOW	MULTI	59	49	1553	1431
+I	Fine Tune (FX-Pitch Shift)		p201	PITCH SHIFT	FX	211	201	4984	4563
+I	Fine Tune (Keygroup)		p107	KG PITCH/AMP	EDIT PROGRAM	117	107	2801	2565
+I	Fine Tune (Pitch Shift/Edit Sample)		p167	PITCH SHIFT	EDIT SAMPLE	177	167	4150	3795
+I	Fine Tune (Sample)		p142	MASTER	EDIT SAMPLE	152	142	3588	3283
+I	Fine Tune (System)		p219	SYSTEM SETUP	UTILITIES	229	219	5353	4898
+I	Fine Tune (Zone)		p99	KEYGROUP ZONES	EDIT PROGRAM	109	99	2636	2416
+I	Fine Tune Program)		p86	MIDI/TUNE	EDIT PROGRAM	96	86	2271	2077
+I	Fine Tune Window		p49	FINE TUNE WINDOW	MULTI	59	49	1553	1431
+I	Fine Tune Window (Zone)		p102	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2703	2477
+I	FineTune (Zone)		p102	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2703	2477
+I	Flange FX)		p196	EQ MODULATION	FX	206	196	4838	4427
+I	Floppy Disk		p5	MAIN PANEL	INTRODUCTION	14	4	565	542
+I	Formatting Disks		p228	FORMATTING DISKS	UTILITIES	238	228	5552	5079
+I	Freq/Amp Mod (FX)		p200	FREQ/AMP MOD	FX	210	200	4944	4525
+I	FX		p186	FX	FX	196	186	4587	4196
+I	FX INS/OUTS Page		p225	MIDI FILTER	UTILITIES	235	225	5475	5008
+I	FX Output (FX)		p225	FX IN/OUTS	UTILITIES	235	225	5506	5039
+I	FX Send Level (Keygroup)		p97	KEYGROUP	EDIT PROGRAM	107	97	2583	2367
+I	Gated Reverb		p209	REVERB EFFECTS	FX	219	209	5164	4727
+I	Get Info		p51	GET INFO	MULTI	61	51	1600	1474
+I	Get Info (Load)		p33	GET INFO	LOAD	43	33	1279	1189
+I	Get Info (Program)		p128	GET INFO	EDIT PROGRAM	138	128	3330	3052
+I	Get Info (Sample)		p171	GET INFO	EDIT SAMPLE	181	171	4268	3905
+I	Goto Dest		p85, 91, 94, 122	OUTPUT	EDIT PROGRAM	95	85	2246	2054
+I	Goto Dest		p85, 91, 94, 122	LFOS	EDIT PROGRAM	101	91	2385	2181
+I	Goto Dest		p85, 91, 94, 122	LFO 2	EDIT PROGRAM	104	94	2521	2311
+I	Goto Dest		p85, 91, 94, 122	AMP ENVELOPE	EDIT PROGRAM	132	122	3240	2974
+I	Goto Source		p84, 91, 94, 107, 121	OUTPUT	EDIT PROGRAM	94	84	2238	2048
+I	Goto Source		p84, 91, 94, 107, 121	LFOS	EDIT PROGRAM	101	91	2387	2183
+I	Goto Source		p84, 91, 94, 107, 121	LFO 2	EDIT PROGRAM	104	94	2523	2313
+I	Goto Source		p84, 91, 94, 107, 121	KG PITCH/AMP	EDIT PROGRAM	117	107	2817	2581
+I	Goto Source		p84, 91, 94, 107, 121	FILTER	EDIT PROGRAM	131	121	3211	2947
+I	Ground Connector		p9	S6000 REAR PANEL	INTRODUCTION	19	9	687	654
+I	High/Low Velocity (Zone)		p100	KEYGROUP ZONES	EDIT PROGRAM	110	100	2653	2431
+I	Icons (Disk)		p30	LOAD FOLDER	LOAD	40	30	1218	1134
+I	Icons (Edit Sample)		p141	EDIT SAMPLE	EDIT SAMPLE	151	141	3556	3253
+I	Input Level (FX)		p225	FX IN/OUTS	UTILITIES	235	225	5483	5016
+I	Inputs (S5000)		p10	S5000 FRONT PANEL	INTRODUCTION	20	10	723	688
+I	Inputs (S6000)		p5	MAIN PANEL	INTRODUCTION	15	5	587	562
+I	Installing memory		p268	INSTALLING EXTRA MEMORY (To Service Technicians)	APPENDIX F	279	269	6686	6116
+I	Installing O/S		p239	SAVE O/S TO FLOPPY DISK	UTILITIES	249	239	5719	5224
+I	JOIN page		p157	JOIN	EDIT SAMPLE	167	157	3929	3594
+I	Key (MIDI/Tune)		p86	OUTPUT	EDIT PROGRAM	96	86	2261	2067
+I	KEY CONVENTIONS		p15	KEY CONVENTIONS	INTRODUCTION	25	15	816	772
+I	Key Repeat Dly (Prefs)		p222	PREFERENCES	UTILITIES	232	222	5413	4952
+I	Keyboard Track (Filter)		p121	FILTER	EDIT PROGRAM	130	120	3178	2916
+I	Keyboard Track (Zone)		p101	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2705	2479
+I	KEYBOARD>R2/R4		p126	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3303	3029
+I	KEYGROUP		p95	KEYGROUP	EDIT PROGRAM	105	95	2531	2319
+I	Keygroup Crossfade		p106	KEYGROUP CROSSFADE	EDIT PROGRAM	116	106	2779	2545
+I	Keygroup Level		p107	KG PITCH/AMP	EDIT PROGRAM	117	107	2802	2566
+I	KEYGROUP ZONES Page		p98	KEYGROUP ZONES	EDIT PROGRAM	108	98	2604	2386
+I	Keyscale (Amp Env)		p122	AMP ENVELOPE	EDIT PROGRAM	132	122	3233	2967
+I	KEYSPAN Page		p105	KEYSPAN	EDIT PROGRAM	115	105	2758	2526
+I	KG PITCH/AMP Page		p107	KG PITCH/AMP	EDIT PROGRAM	117	107	2797	2561
+I	L/R Direct Signal (FX)		p225	FX IN/OUTS	UTILITIES	235	225	5499	5032
+I	Length min.sec (Record)		p179	RECORD	RECORD	189	179	4449	4071
+I	Level 1-4 (Aux Env)		p125	FILTER ENVELOPE	EDIT PROGRAM	135	125	3278	3006
+I	Level Window (Zones)		p101	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2675	2451
+I	LFO1 Page		p89	LFOS	EDIT PROGRAM	99	89	2333	2133
+I	LFO2 Page		p91	LFO 2	EDIT PROGRAM	101	91	2392	2188
+I	LFO>MIDI CLOCK SYNC		p91	LFOS	EDIT PROGRAM	101	91	2382	2178
+I	LIN Waveform		p173	W/FORM	EDIT SAMPLE	183	173	4296	3929
+I	LOAD		p29	LOAD	LOAD	39	29	1183	1101
+I	Load Folder		p30	LOAD FOLDER	LOAD	40	30	1201	1117
+I	Load Multi		p31	LOADING MULTIS	LOAD	41	31	1232	1146
+I	Load O/S		p239	SAVE O/S TO FLOPPY DISK	UTILITIES	249	239	5719	5224
+I	Load Program		p31	LOADING PROGRAMS	LOAD	41	31	1237	1151
+I	Load Sample		p32	LOADING SAMPLES	LOAD	42	32	1245	1157
+I	LOG Waveform		p173	W/FORM	EDIT SAMPLE	183	173	4299	3932
+I	Loop Crossfade		p152	LOOP	EDIT SAMPLE	163	153	3811	3484
+I	Loop Crossfade Window		p153	LOOP	EDIT SAMPLE	163	153	3811	3484
+I	Loop Direction		p152	LOOP	EDIT SAMPLE	162	152	3800	3475
+I	Loop Display (Prefs)		p222	PREFERENCES	UTILITIES	232	222	5405	4944
+I	Loop Lock		p152	LOOP	EDIT SAMPLE	162	152	3797	3472
+I	LOOP Page		p151	LOOP	EDIT SAMPLE	161	151	3752	3429
+I	Loudness		p82	OUTPUT	EDIT PROGRAM	92	82	2195	2009
+I	Low/High Note		p49	EFFECTS SEND WINDOW	MULTI	59	49	1552	1430
+I	Main Input		p9	S6000 REAR PANEL	INTRODUCTION	19	9	712	679
+I	Main Volume		p5	MAIN PANEL	INTRODUCTION	14	4	571	548
+I	Make Mono		p142	MASTER	EDIT SAMPLE	152	142	3589	3284
+I	Make Stereo (Mix)		p160	MIX	EDIT SAMPLE	170	160	3983	3642
+I	Making a recording		p180	MAKING A RECORDING	RECORD	191	181	4494	4112
+I	MARK/JUMP KEYS		p6, 22	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	626	599
+I	MARK/JUMP KEYS		p6, 22	MARK/JUMP KEYS	INTRODUCTION	32	22	959	901
+I	Master Level (System)		p219	SYSTEM SETUP	UTILITIES	230	220	5357	4900
+I	MASTER Page (EDIT SAMPLE)		p142	MASTER	EDIT SAMPLE	152	142	3580	3275
+I	MEMORY TEST Prompt		p233	MEMORY TEST	UTILITIES	243	233	5627	5144
+I	MIDI Clock (LFO 2)		p93	LFO 2	EDIT PROGRAM	103	93	2465	2257
+I	MIDI Controller list		p251	MIDI CONTROLLER LIST	APPENDIX A	261	251	6080	5551
+I	MIDI FILTER Page		p224	MIDI FILTER	UTILITIES	234	224	5463	4998
+I	MIDI IN/OUT/THRU		p9	S6000 REAR PANEL	INTRODUCTION	19	9	708	675
+I	MIDI PROGRAM CHANGE (Multis)		p58	SELECTING MULTIS REMOTELY VIA MIDI	MULTI	68	58	1738	1598
+I	MIDI PROGRAM CHANGE (Parts/Programs)		p66, 86, 137	PROGRAM LIST	MULTI	76	66	1883	1727
+I	MIDI PROGRAM CHANGE (Parts/Programs)		p66, 86, 137	OUTPUT	EDIT PROGRAM	96	86	2261	2067
+I	MIDI PROGRAM CHANGE (Parts/Programs)		p66, 86, 137	PROGRAM LIST	EDIT PROGRAM	147	137	3468	3172
+I	MIDI Receive PPMs		p224	MIDI SETUP	UTILITIES	234	224	5440	4975
+I	MIDI SETUP Page		p223	MIDI SETUP	UTILITIES	233	223	5422	4959
+I	MIDI Trig Chan (Record)		p179	RECORD	RECORD	189	179	4432	4054
+I	MIDI/TUNE Page		p86	MIDI/TUNE	EDIT PROGRAM	96	86	2262	2068
+I	MIX		p160	MIX	EDIT SAMPLE	170	160	3973	3632
+I	MODE KEYS		p5	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	590	565
+I	MODULATION FX Page		p196	MODULATION EFFECTS	FX	206	196	4840	4429
+I	Modwheel (LFO 1)		p90	LFOS	EDIT PROGRAM	101	91	2383	2179
+I	Monitor (Edit Sample)		p141	MONITOR	EDIT SAMPLE	151	141	3565	3262
+I	Mono L/R (Delay FX)		p205	MONO L/R	FX	215	205	5092	4663
+I	Mono Left (Delay FX)		p204	MONO LEFT	FX	214	204	5048	4621
+I	MOUNTING THE S6000		p12	MOUNTING THE S6000	INTRODUCTION	22	12	764	726
+I	MULTI		p37	MULTI	MULTI	47	37	1341	1243
+I	MULTI LIST		p55	MULTI LIST	MULTI	64	54	1647	1515
+I	Multi Select (MIDI Setup)		p223	MIDI SETUP	UTILITIES	233	223	5427	4964
+I	Multi Select Channel (MIDI Setup)		p223	MIDI SETUP	UTILITIES	233	223	5435	4972
+I	MULTI TOOLS MENU		p51	MULTI TOOLS	MULTI	61	51	1597	1471
+I	MultiFX 1/2		p190	EDITING THE EFFECTS	FX	200	190	4680	4281
+I	Mute Effects		p212	EFFECTS TOOLS	FX	222	212	5242	4799
+I	Mute Group		p95	KEYGROUP	EDIT PROGRAM	105	95	2535	2323
+I	Mute Part		p47	PART LEVEL WINDOW	MULTI	57	47	1525	1407
+I	NAMING		p21	NAMING	INTRODUCTION	31	21	932	876
+I	New Folder (Save)		p217	SAVE	SAVE	227	217	5294	4842
+I	New Tempo (BPM Match)		p168	BPM MATCH	EDIT SAMPLE	178	168	4181	3824
+I	Normalise		p144	MASTER	EDIT SAMPLE	154	144	3630	3321
+I	Note 1-4 (Play Key)		p235	SET PLAY KEY	UTILITIES	245	235	5662	5175
+I	Note Display (Prefs)		p222	PREFERENCES	UTILITIES	232	222	5402	4941
+I	NUMERIC KEYPAD		p6, 21	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	620	593
+I	NUMERIC KEYPAD		p6, 21	NUMERIC KEYPAD	INTRODUCTION	31	21	924	868
+I	O/S - updating		p239	SAVE O/S TO FLOPPY DISK	UTILITIES	249	239	5719	5224
+I	On Vel>Rel (Amp Env)		p123	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3254	2986
+I	Open Folder		p34	OPEN/CLOSE FOLDER	LOAD	44	34	1287	1195
+I	Open/Close Folder (Save)		p217	SAVE	SAVE	227	217	5289	4837
+I	Option Slots		p9	S6000 REAR PANEL	INTRODUCTION	19	9	703	670
+I	Original Note (Edit Sample)		p142	MASTER	EDIT SAMPLE	152	142	3585	3280
+I	Original Note (Record)		p179	RECORD	RECORD	189	179	4451	4073
+I	Output (Zone)		p101	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2681	2457
+I	Output Mix (FX)		p210	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	220	210	5178	4739
+I	OUTPUT Page (Edit Program)		p82	OUTPUT	EDIT PROGRAM	92	82	2191	2005
+I	Output Window		p47	PART LEVEL WINDOW	MULTI	57	47	1520	1402
+I	Outputs		p8	S6000 REAR PANEL	INTRODUCTION	18	8	664	633
+I	Outputs 1/2		p184	RE-RECORDING THE SAMPLER’S OUTPUTS	RECORD	194	184	4550	4162
+I	Overide FX		p97	KEYGROUP	EDIT PROGRAM	107	97	2578	2362
+I	Pan Mod 1/2/3		p83	OUTPUT	EDIT PROGRAM	93	83	2228	2040
+I	Pan/Balance (Zone)		p99, 101	KEYGROUP ZONES	EDIT PROGRAM	109	99	2633	2413
+I	Pan/Balance (Zone)		p99, 101	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2679	2455
+I	Pan/Balance Window (Zone)		p101	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2679	2455
+I	Part Effects Send		p46	EDITING PARTS	MULTI	56	46	1496	1380
+I	Part Fine Tune		p46	EDITING PARTS	MULTI	56	46	1498	1382
+I	Part Level		p46, 47	PART LEVEL WINDOW	MULTI	57	47	1517	1399
+I	Part Level		p46, 47	PART LEVEL WINDOW	MULTI	57	47	1517	1399
+I	Part Level Window		p47	PART LEVEL WINDOW	MULTI	57	47	1517	1399
+I	Part MIDI Channel		p46	EDITING PARTS	MULTI	56	46	1499	1383
+I	Part Output		p46, 47	EDITING PARTS	MULTI	56	46	1495	1379
+I	Part Output		p46, 47	EDITING PARTS	MULTI	57	47	1510	1392
+I	Part Pan/Balance		p47	EDITING PARTS	MULTI	57	47	1510	1392
+I	PART TOOLS MENU		p59	PART TOOLS MENU	MULTI	69	59	1752	1610
+I	Path Control (FX)		p211	OUTPUT MIX (MULTIFX1 AND 2 ONLY)	FX	221	211	5200	4759
+I	Phase (FX)		p197	PHASE	FX	207	197	4860	4447
+I	Phones Level		p5	MAIN PANEL	INTRODUCTION	14	4	573	550
+I	Phones Output		p5	MAIN PANEL	INTRODUCTION	15	5	587	562
+I	Ping Pong (Delay FX)		p205	MONO LEFT	FX	215	205	5071	4642
+I	Pitch Mod 1/2		p107	KG PITCH/AMP	EDIT PROGRAM	117	107	2809	2573
+I	Pitch Shift (FX)		p201	PITCH SHIFT	FX	211	201	4979	4558
+I	Pitch Shift + Feedback (FX)		p202	PITCH+FEEDBACK	FX	212	202	5000	4577
+I	PITCH SHIFT Page (Edit Sample)		p167	PITCH SHIFT	EDIT SAMPLE	177	167	4144	3789
+I	Pitchbend Down		p88	PITCHBEND	EDIT PROGRAM	98	88	2304	2106
+I	PITCHBEND Page		p88	PITCHBEND	EDIT PROGRAM	98	88	2299	2101
+I	Pitchbend Up		p88	PITCHBEND	EDIT PROGRAM	98	88	2303	2105
+I	Play Mode		p151	LOOP	EDIT SAMPLE	161	151	3763	3440
+I	Play Mode (Loop)		p152	LOOP	EDIT SAMPLE	162	152	3795	3470
+I	Play Mode Window		p152	LOOP	EDIT SAMPLE	162	152	3795	3470
+I	Play Region (Chop)		p148	CHOP	EDIT SAMPLE	158	148	3715	3398
+I	Play Sample A/B (Join)		p157	JOIN	EDIT SAMPLE	167	157	3941	3606
+I	Play Sample A/B Mix)		p160	JOIN	EDIT SAMPLE	170	160	3972	3631
+I	Play To/From (Chop)		p148	CHOP	EDIT SAMPLE	158	148	3716	3399
+I	Play To/From (Trim)		p146	TRIM	EDIT SAMPLE	156	146	3666	3353
+I	Playback Mode		p104	PLAYBACK WINDOW	EDIT PROGRAM	114	104	2733	2503
+I	Playback Modes (Zone)		p99	KEYGROUP ZONES	EDIT PROGRAM	109	99	2631	2411
+I	Playback Window (Zone)		p103	PLAYBACK WINDOW	EDIT PROGRAM	113	103	2719	2491
+I	POP-UP WINDOWS		p18	POP-UP WINDOWS	INTRODUCTION	28	18	879	829
+I	PREFERENCES Page		p222	PREFERENCES	UTILITIES	232	222	5398	4937
+I	Preset (BPM Match)		p168	BPM MATCH	EDIT SAMPLE	178	168	4185	3828
+I	Preset (Pitch Shift/Edit Sample)		p107	KEYGROUP CROSSFADE	EDIT PROGRAM	117	107	2796	2560
+I	Preset (Re-Sample)		p169	RE-SAMPLE	EDIT SAMPLE	179	169	4216	3857
+I	Preset (Timestretch)		p165	TIMESTRETCH	EDIT SAMPLE	175	165	4084	3733
+I	PROG TOOLS MENU		p128	PROG TOOLS MENU	EDIT PROGRAM	138	128	3327	3049
+I	Program Change (MIDI Setup)		p223	MIDI SETUP	UTILITIES	233	223	5425	4962
+I	Program List		p59, 129	PROGRAM LIST	MULTI	69	59	1756	1614
+I	Program List		p59, 129	PROGRAM LIST	EDIT PROGRAM	139	129	3335	3055
+I	Program Number		p66, 86, 137	PROGRAM LIST	MULTI	76	66	1879	1723
+I	Program Number		p66, 86, 137	MIDI/TUNE	EDIT PROGRAM	96	86	2265	2071
+I	Program Number		p66, 86, 137	PROGRAM LIST	EDIT PROGRAM	147	137	3464	3168
+I	PROGRESS DISPLAYS		p18, 143, 218	POP-UP WINDOWS	INTRODUCTION	29	19	889	837
+I	PROGRESS DISPLAYS		p18, 143, 218	MASTER	EDIT SAMPLE	153	143	3597	3290
+I	PROGRESS DISPLAYS		p18, 143, 218	SAVE	SAVE	228	218	5313	4859
+I	Purge		p61, 132	PROGRAM LIST	MULTI	71	61	1777	1631
+I	Purge		p61, 132	PROGRAM LIST	EDIT PROGRAM	142	132	3362	3076
+I	Purge Samples		p175	SAMPLE LIST	EDIT SAMPLE	185	175	4336	3965
+I	Quality (Re-Sample)		p169	RE-SAMPLE	EDIT SAMPLE	179	169	4205	3846
+I	Quickload (Multi)		p52	QUICKLOAD	MULTI	62	52	1607	1479
+I	Quickload (Program)		p69, 140	QUICKLOAD	MULTI	79	69	1949	1787
+I	Quickload (Program)		p69, 140	QUICKLOAD	EDIT PROGRAM	150	140	3533	3231
+I	Quickload (Sample)		p172	QUICKLOAD	EDIT SAMPLE	182	172	4274	3909
+I	Quicksave (Multi)		p53	QUICKSAVE	MULTI	63	53	1626	1496
+I	Quicksave (Program)		p75, 140	QUICKSAVE	MULTI	85	75	2018	1844
+I	Quicksave (Program)		p75, 140	QUICKSAVE	EDIT PROGRAM	150	140	3540	3238
+I	Quicksave (Sample)		p172	QUICKSAVE	EDIT SAMPLE	182	172	4279	3914
+I	Rate (LFO 1)		p89	LFOS	EDIT PROGRAM	99	89	2328	2128
+I	Rate (LFO 2)		p91	LFO 2	EDIT PROGRAM	101	91	2395	2191
+I	Rate 1-4 (Aux Env)		p125	FILTER ENVELOPE	EDIT PROGRAM	135	125	3278	3006
+I	Rate Mod (LFO 1)		p90	LFOS	EDIT PROGRAM	100	90	2371	2169
+I	RE-SAMPLE Page		p169	RE-SAMPLE	EDIT SAMPLE	179	169	4202	3843
+I	Re-Scale		p144	MASTER	EDIT SAMPLE	154	144	3623	3314
+I	Re-Scale Level		p144	MASTER	EDIT SAMPLE	154	144	3623	3314
+I	Record Length		p179	RECORD	RECORD	189	179	4449	4071
+I	Record Level		p178, 180	RECORD	RECORD	188	178	4399	4023
+I	Record Level		p178, 180	SETTING RECORD LEVELS	RECORD	190	180	4465	4085
+I	Record Mode		p180	RECORD	RECORD	189	179	4459	4081
+I	RECORD Page		p178	RECORD	RECORD	188	178	4395	4019
+I	Record Source		p179	RECORD	RECORD	189	179	4436	4058
+I	Record Threshold		p179	RECORD	RECORD	189	179	4430	4052
+I	Record To		p179	RECORD	RECORD	189	179	4434	4056
+I	Record Trigger		p178	RECORD	RECORD	188	178	4406	4030
+I	Recording Virtual Samples		p245	RECORDING VIRTUAL SAMPLES	VIRTUAL SAMPLES	255	245	5903	5397
+I	Release (Amp Env)		p122	AMP ENVELOPE	EDIT PROGRAM	132	122	3229	2963
+I	REMOVABLE PANEL		p5	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	15	5	588	563
+I	Rename Multi		p55	MULTI LIST	MULTI	64	54	1654	1522
+I	Rename Program		p59, 129	PROGRAM LIST	MULTI	69	59	1759	1617
+I	Rename Program		p59, 129	PROGRAM LIST	EDIT PROGRAM	139	129	3339	3059
+I	Rename Sample		p175	SAMPLE LIST	EDIT SAMPLE	185	175	4330	3959
+I	Renaming Disk Items (Disk Utils)		p226	RENAMING ITEMS ON DISK	UTILITIES	236	226	5520	5051
+I	Renumber Multi		p56	MULTI LIST	MULTI	66	56	1691	1555
+I	Renumber Program		p66, 137	PROGRAM LIST	MULTI	76	66	1875	1719
+I	Renumber Program		p66, 137	PROGRAM LIST	EDIT PROGRAM	147	137	3459	3163
+I	Reset Margin (FX)		p225	FX IN/OUTS	UTILITIES	235	225	5495	5028
+I	Reset Margin (Record)		p180	SETTING RECORD LEVELS	RECORD	190	180	4474	4094
+I	Resolution (Re-Sample)		p169	RE-SAMPLE	EDIT SAMPLE	179	169	4208	3849
+I	Resonance (Filter)		p120	FILTER	EDIT PROGRAM	130	120	3169	2907
+I	Retrigger (LFO 2)		p92	LFO 2	EDIT PROGRAM	102	92	2434	2228
+I	Retune Sample (Pitch Shift/Edit Sample)		p167	PITCH SHIFT	EDIT SAMPLE	177	167	4166	3811
+I	Reverse		p144	MASTER	EDIT SAMPLE	154	144	3634	3325
+I	Reverse Reverb		p209	REVERB EFFECTS	FX	219	209	5173	4736
+I	RING MOD/DISTORTION		p192	RING MOD/DISTORTION	FX	202	192	4735	4332
+I	Rotary Speakers (FX)		p198	ROTARY SPEAKERS	FX	208	198	4871	4456
+I	RV1-4		p207	REVERB EFFECTS	FX	217	207	5125	4692
+I	RV3/RV4 Input		p189	FX	FX	199	189	4647	4250
+I	S5000 FRONT PANEL		p10	S5000 FRONT PANEL	INTRODUCTION	20	10	719	684
+I	S5000 REAR PANEL		p11	S5000 REAR PANEL	INTRODUCTION	20	10	726	691
+I	S6000 FRONT PANEL		p5	S6000 FRONT PANEL	INTRODUCTION	14	4	562	539
+I	S6000 REAR PANEL		p8	S6000 REAR PANEL	INTRODUCTION	18	8	660	629
+I	S6000 STRUCTURE/TERMINOLOGY		p23	USER KEYS (S6000 ONLY)	INTRODUCTION	33	23	981	921
+I	Sample A/B From (Join)		p157	JOIN	EDIT SAMPLE	167	157	3936	3601
+I	Sample A/B From (Mix)		p160	MIX	EDIT SAMPLE	170	160	3978	3637
+I	Sample A/B Level (Join)		p157	JOIN	EDIT SAMPLE	167	157	3938	3603
+I	Sample A/B Level (Mix)		p160	MIX	EDIT SAMPLE	170	160	3980	3639
+I	Sample A/B To (Join)		p157	JOIN	EDIT SAMPLE	167	157	3937	3602
+I	Sample A/B To (Mix)		p160	MIX	EDIT SAMPLE	170	160	3979	3638
+I	SAMPLE LIST		p175	SAMPLE LIST	EDIT SAMPLE	185	175	4325	3954
+I	SAMPLE TOOLS Menu		p171	SAMPLE TOOLS	EDIT SAMPLE	181	171	4264	3901
+I	Save Multi		p216	SAVE	SAVE	226	216	5276	4826
+I	SAVE O/S (Utilities)		p236, 238	SAVE O/S TO FLASHROM	UTILITIES	246	236	5678	5189
+I	SAVE O/S (Utilities)		p236, 238	SAVE O/S TO FLOPPY DISK	UTILITIES	248	238	5699	5206
+I	SAVE Page		p216	SAVE	SAVE	226	216	5274	4824
+I	Save Program		p217	SAVE	SAVE	227	217	5292	4840
+I	Save Sample		p222	SET CLOCK	UTILITIES	232	222	5397	4936
+I	Screen Display (Prefs)		p222	PREFERENCES	UTILITIES	232	222	5407	4946
+I	Screen Saver (Prefs)		p222	PREFERENCES	UTILITIES	232	222	5410	4949
+I	SCSI		p9, 253	S6000 REAR PANEL	INTRODUCTION	19	9	696	663
+I	SCSI		p9, 253	SCSI CABLES	APPENDIX B	263	253	6179	5642
+I	SCSI Terminator		p9	S6000 REAR PANEL	INTRODUCTION	19	9	699	666
+I	SELECT DISK		p35	SELECTING DISKS	LOAD	45	35	1313	1219
+I	Selecting Keygroups		p97, 104	SELECTING KEYGROUPS	EDIT PROGRAM	107	97	2588	2372
+I	Selecting Keygroups		p97, 104	PLAYBACK WINDOW	EDIT PROGRAM	114	104	2733	2503
+I	Selecting Parts		p40	SELECTING PARTS	MULTI	50	40	1388	1284
+I	Selecting Zones		p104	SELECTING AND EDITING ZONES	EDIT PROGRAM	114	104	2747	2517
+I	Semitone Tune (FX-Pitch Shift)		p201	PITCH SHIFT	FX	211	201	4988	4567
+I	Semitone Tune (Keygroup)		p107	KG PITCH/AMP	EDIT PROGRAM	117	107	2800	2564
+I	Semitone Tune (Pitch Shift/Edit Sample)		p167	PITCH SHIFT	EDIT SAMPLE	177	167	4149	3794
+I	Semitone Tune (Program)		p86	MIDI/TUNE	EDIT PROGRAM	96	86	2270	2076
+I	Semitone Tune (Sample)		p142	MASTER	EDIT SAMPLE	152	142	3587	3282
+I	Semitone Tune (System)		p219	SYSTEM SETUP	UTILITIES	229	219	5349	4894
+I	Semitone Tune (Zone)		p102	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2713	2487
+I	Send Level		p48	EFFECTS SEND WINDOW	MULTI	58	48	1540	1420
+I	SET CLOCK Page		p221	SET CLOCK	UTILITIES	231	221	5388	4929
+I	SET PLAY KEY Page		p235	SET PLAY KEY	UTILITIES	245	235	5649	5162
+I	Setting Keyspan		p105	SELECTING AND EDITING ZONES	EDIT PROGRAM	115	105	2757	2525
+I	Setup D-D (Record)		p180	RECORD	RECORD	189	179	4460	4082
+I	SHOW HARDWARE Page		p234	SHOW HARDWARE	UTILITIES	244	234	5638	5153
+I	Single (Play Key)		p235	SET PLAY KEY	UTILITIES	245	235	5654	5167
+I	Solo Part		p47	PART LEVEL WINDOW	MULTI	57	47	1526	1408
+I	Source Tempo (BPM Match)		p168	BPM MATCH	EDIT SAMPLE	178	168	4180	3823
+I	Start/End (Chop)		p148	CHOP	EDIT SAMPLE	158	148	3708	3391
+I	Start/End (Loop)		p151	LOOP	EDIT SAMPLE	161	151	3760	3437
+I	Start/End (Trim)		p146	TRIM	EDIT SAMPLE	156	146	3667	3354
+I	Stereo Delay (FX)		p206	STEREO DELAY	FX	216	206	5108	4677
+I	Stereo/Mono Samples		p177	SAMPLE LIST	EDIT SAMPLE	187	177	4377	4002
+I	Stretch Amount (Timestretch)		p165	TIMESTRETCH	EDIT SAMPLE	175	165	4080	3729
+I	Sustain (Amp Env)		p122	AMP ENVELOPE	EDIT PROGRAM	132	122	3226	2960
+I	Sync (LFO 1)		p90	LFOS	EDIT PROGRAM	100	90	2367	2165
+I	SYSTEM SETUP Page		p219	SYSTEM SETUP	UTILITIES	229	219	5339	4884
+I	Templates (Amp Env))		p122	AMP ENVELOPE	EDIT PROGRAM	132	122	3238	2972
+I	Templates (Delay)		p206	DELAY EFFECTS TEMPLATES	FX	216	206	5117	4686
+I	Templates (EQ)		p194	EQ TEMPLATES	FX	204	194	4804	4397
+I	Templates (Mod FX)		p203	MODULATION EFFECTS TEMPLATES	FX	213	203	5034	4609
+I	Termination (SCSI)		p253	TERMINATION	APPENDIX B	263	253	6186	5649
+I	Termination (WORDCLOCK)		p8	S6000 REAR PANEL	INTRODUCTION	19	9	694	661
+I	TEST TONE		p235	TEST TONE	UTILITIES	245	235	5664	5177
+I	Threshold (Record)		p179	RECORD	RECORD	189	179	4431	4053
+I	TIMESTRETCH		p163	TIMESTRETCH	EDIT SAMPLE	173	163	4028	3681
+I	TOOLS MENUS		p20	TOOLS MENUS	INTRODUCTION	30	20	904	850
+I	Transpose		p49	FINE TUNE WINDOW	MULTI	59	49	1555	1433
+I	Transpose (System)		p219	SYSTEM SETUP	UTILITIES	229	219	5342	4887
+I	TRIM Page		p145	TRIM	EDIT SAMPLE	155	145	3641	3330
+I	Trim Sample Menu		p147	TRIM	EDIT SAMPLE	157	147	3690	3375
+I	Tune Template		p86	MIDI/TUNE	EDIT PROGRAM	96	86	2272	2078
+I	Undo Key		p6	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	622	595
+I	Unlock Disk (Disk Utils)		p232	UNLOCK DISK	UTILITIES	242	232	5600	5119
+I	USER KEYS (S6000 only)		p6, 22	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	628	601
+I	USER KEYS (S6000 only)		p6, 22	USER KEYS (S6000 ONLY)	INTRODUCTION	32	22	969	911
+I	UTILITIES Page		p219	UTILITIES	UTILITIES	229	219	5335	4879
+I	Vel>Attack (Amp Env)		p123	AMP ENVELOPE WINDOW FUNCTIONS	EDIT PROGRAM	133	123	3249	2981
+I	VEL>RATE		p1, 126	CONTENTS	WARNING	11	1	471	454
+I	VEL>RATE		p1, 126	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3298	3024
+I	VEL>RATE		p4, 126	ABOUT THIS MANUAL	INTRODUCTION	14	4	561	538
+I	VEL>RATE		p4, 126	AUX ENVELOPE WINDOWS	EDIT PROGRAM	136	126	3298	3024
+I	Velocity Sens		p82	OUTPUT	EDIT PROGRAM	92	82	2196	2010
+I	Velocity Start		p103	PLAYBACK WINDOW	EDIT PROGRAM	113	103	2721	2493
+I	View Items		p36	VIEW ITEMS	LOAD	46	36	1334	1238
+I	View Parts		p38	MULTI	MULTI	48	38	1379	1279
+I	VIRTUAL SAMPLES		p242	VIRTUAL SAMPLES	VIRTUAL SAMPLES	252	242	5772	5272
+I	VIRTUAL SAMPLES (Converting)		p248	CONVERTING SAMPLE TYPES	VIRTUAL SAMPLES	258	248	5949	5437
+I	VIRTUAL SAMPLES (Editing)		p249	EDITING VIRTUAL SAMPLES	VIRTUAL SAMPLES	259	249	5978	5464
+I	VIRTUAL SAMPLES (Loading)		p247	LOADING VIRTUAL SAMPLES	VIRTUAL SAMPLES	257	247	5926	5416
+I	VIRTUAL SAMPLES (Recording)		p245	RECORDING VIRTUAL SAMPLES	VIRTUAL SAMPLES	255	245	5903	5397
+I	VOICE ARCHITECTURE		p26	VOICE ARCHITECTURE	STRUCTURE	36	26	1064	995
+I	Voweliser Filter		p119	FILTER	EDIT PROGRAM	130	120	3197	2935
+I	W/FORM		p173	W/FORM	EDIT SAMPLE	183	173	4292	3925
+I	Waveform (LFO 1)		p89	LFOS	EDIT PROGRAM	99	89	2337	2137
+I	Waveform LFO 2)		p91	LFOS	EDIT PROGRAM	101	91	2382	2178
+I	WINDOW function		p16, 47	KEY CONVENTIONS	INTRODUCTION	26	16	834	788
+I	WINDOW function		p16, 47	WINDOW FUNCTIONS	MULTI	57	47	1511	1393
+I	Window Key		p6	REMOVABLE PANEL (S6000 ONLY)	INTRODUCTION	16	6	610	583
+I	Wordclock		p8	S6000 REAR PANEL	INTRODUCTION	19	9	688	655
+I	Xfade (Loop)		p153	LOOP	EDIT SAMPLE	163	153	3811	3484
+I	Xfade (Zone)		p100	KEYGROUP ZONES	EDIT PROGRAM	110	100	2666	2444
+I	XFade Curve (Join)		p158	JOIN	EDIT SAMPLE	168	158	3954	3617
+I	Xfade Length (Join)		p158	JOIN	EDIT SAMPLE	168	158	3946	3609
+I	XOver L+R (Delay FX)		p206	XOVER L+R	FX	216	206	5102	4671
+I	Zone Level		p99, 101	KEYGROUP ZONES	EDIT PROGRAM	109	99	2632	2412
+I	Zone Level		p99, 101	ZONE LEVEL WINDOW	EDIT PROGRAM	111	101	2675	2451
+I	Zone Xfade		p100	KEYGROUP ZONES	EDIT PROGRAM	110	100	2666	2444
+I	Zones		p102	FINE TUNE WINDOW	EDIT PROGRAM	112	102	2714	2488
+I	Zones 1/2/3/4		p98	SELECTING KEYGROUPS	EDIT PROGRAM	108	98	2603	2385
+I	Zoom In/Out (Chop)		p148	CHOP	EDIT SAMPLE	158	148	3722	3405
+I	Zoom In/Out (Fade)		p154	LOOP	EDIT SAMPLE	164	154	3849	3520
+I	Zoom In/Out (Loop)		p151	CHOP	EDIT SAMPLE	161	151	3751	3428
+I	Zoom In/Out (Trim)		p147	TRIM	EDIT SAMPLE	157	147	3685	3370

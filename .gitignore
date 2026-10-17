@@ -81,3 +81,5 @@ __pycache__/
 !.claude/skills/
 # Diagram output of the Archify skill (local evidence, not project files)
 .archify/
+# HTML report written by scc @scc-juce.conf (generated, not project files)
+scc-juce-report.html
