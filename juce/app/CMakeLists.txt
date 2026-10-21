@@ -15,6 +15,7 @@ juce_add_gui_app(XS56KApp
 
 target_sources(XS56KApp PRIVATE
     src/BrowserView.cpp
+    src/ChoiceBox.cpp
     src/CutLabel.cpp
     src/EditView.cpp
     src/EnvelopeGraph.cpp

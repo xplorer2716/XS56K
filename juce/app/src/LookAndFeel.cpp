@@ -230,8 +230,14 @@ namespace app::ui
     void LookAndFeel::positionComboBoxText(juce::ComboBox& box, juce::Label& label)
     {
         using namespace tokens;
-        label.setBounds(box.getLocalBounds().reduced(pixels(kSpaceInside + kFontValueSize), 0));
+        label.setBounds(box.getLocalBounds().reduced(choiceArrowWidth(), 0));
         label.setFont(font(kFontValueSize));
         label.setJustificationType(juce::Justification::centred);
+    }
+
+    int LookAndFeel::choiceArrowWidth()
+    {
+        using namespace tokens;
+        return pixels(kSpaceInside + kFontValueSize);
     }
 }

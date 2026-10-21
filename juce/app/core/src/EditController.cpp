@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <iterator>
 #include <memory>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -53,8 +54,18 @@ namespace app
         constexpr const char* KEYGROUP_WORD = "keygroup ";
         constexpr const char* FULL = " has the 99 keygroups a program can have: nothing was sent.";
         constexpr const char* LAST = " is the program's last keygroup: a program keeps one. Nothing was sent.";
+        constexpr const char* NOTHING_SENT = ": nothing was sent.";
+        constexpr const char* DELETING_ALL_LABEL = "Deleting a keygroup of ";
+        constexpr const char* CHOOSE_ONE = "All keygroups are chosen: choose one keygroup to delete. Nothing was sent.";
 
         using Value = mcp::Outcome<std::int64_t>;
+        /// A value as shown: with all keygroups chosen, the first keygroup's, and whether the keygroups do not share it. [RQ-APP-059]
+        struct Shown
+        {
+            std::int64_t value = 0;
+            bool differs = false;
+        };
+        using ShownValue = mcp::Outcome<Shown>;
         /// What making an item current brings back: a program's keygroup count, nothing for a sample.
         using Selected = mcp::Outcome<std::optional<int>>;
 
@@ -66,7 +77,7 @@ namespace app
             std::string_view editor;
             const mcp::ParameterCatalogue& (*catalogue)();
             Selected (*select)(mcp::SamplerGateway&, const std::string&);
-            Value (*read)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, int keygroup, int zone);
+            ShownValue (*read)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, int keygroup, int zone);
             Value (*write)(mcp::SamplerGateway&, const mcp::ParameterDefinition&, std::int64_t, int keygroup, int zone);
         };
 
@@ -117,9 +128,10 @@ namespace app
             return selected.ok() ? Selected::success(std::nullopt) : Selected::failure(selected.problem);
         }
 
-        Value readSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int /*keygroup*/, int /*zone*/)
+        ShownValue readSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int /*keygroup*/, int /*zone*/)
         {
-            return gateway.readSampleParameter(parameter);
+            const auto read = gateway.readSampleParameter(parameter);
+            return read.ok() ? ShownValue::success(Shown{*read.value, false}) : ShownValue::failure(read.problem);
         }
 
         Value writeSample(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int /*keygroup*/,
@@ -134,16 +146,27 @@ namespace app
             return selected.ok() ? Selected::success(selected.value->keygroupCount) : Selected::failure(selected.problem);
         }
 
-        // A program parameter takes no keygroup: the gateway leaves the selection aside for it; a zone's, the zone of its column. [RQ-APP-094,
-        // DEC-APP-033]
-        Value readProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int keygroup, int zone)
+        /// The keygroup chosen, or all of them. [RQ-APP-058, RQ-APP-059]
+        mcp::KeygroupSelection keygroupsOf(int keygroup)
         {
-            return programValue(gateway.readParameter(parameter, mcp::KeygroupSelection::of(keygroup), zonesOf(zone)));
+            return keygroup == ALL_KEYGROUPS ? mcp::KeygroupSelection::all() : mcp::KeygroupSelection::of(keygroup);
+        }
+
+        // A program parameter takes no keygroup: the gateway leaves the selection aside for it; a zone's, the zone of its column. With all
+        // keygroups, a value per keygroup comes back: the first is shown, and whether the others differ. [RQ-APP-094, RQ-APP-059, DEC-APP-033]
+        ShownValue readProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int keygroup, int zone)
+        {
+            const auto values = gateway.readParameter(parameter, keygroupsOf(keygroup), zonesOf(zone));
+            const auto first = programValue(values);
+            if (!first.ok())
+                return ShownValue::failure(first.problem);
+            const bool differs = std::ranges::any_of(*values.value, [&first](const mcp::ParameterValue& value) { return value.value != *first.value; });
+            return ShownValue::success(Shown{*first.value, differs});
         }
 
         Value writeProgram(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int keygroup, int zone)
         {
-            return programValue(gateway.writeParameter(parameter, value, mcp::KeygroupSelection::of(keygroup), zonesOf(zone)));
+            return programValue(gateway.writeParameter(parameter, value, keygroupsOf(keygroup), zonesOf(zone)));
         }
 
         const std::array<Binding, 2> BINDINGS{{
@@ -220,6 +243,7 @@ namespace app
         struct Reading
         {
             std::vector<std::int64_t> values;
+            std::vector<bool> differs;  ///< per value: the keygroups do not share it (all keygroups chosen) [RQ-APP-059]
             std::vector<std::int64_t> info;
             std::optional<int> keygroups;
             int keygroup = 1;
@@ -241,7 +265,7 @@ namespace app
             const auto listing = gateway.listSamples();
             if (!listing.ok())
                 return listing.problem;
-            const auto zones = gateway.readZoneSamples(mcp::KeygroupSelection::of(keygroup));
+            const auto zones = gateway.readZoneSamples(keygroupsOf(keygroup));
             if (!zones.ok())
                 return zones.problem;
             samples.memory.clear();
@@ -252,20 +276,26 @@ namespace app
             return std::nullopt;
         }
 
-        /// A zone's sample as a value: 1 plus its place among the samples in memory, 0 when the zone has none. [RQ-APP-060, DEC-APP-033]
-        std::int64_t zoneSampleValue(const ZoneSamples& samples, int zone)
+        /// A zone's sample as a value: 1 plus its place among the samples in memory, 0 when the zone has none; with all keygroups, the first
+        /// keygroup's, and whether the others play another. [RQ-APP-060, RQ-APP-059, DEC-APP-033]
+        Shown zoneSampleValue(const ZoneSamples& samples, int zone)
         {
             const auto entry = std::ranges::find_if(samples.zones, [zone](const mcp::ZoneSampleEntry& found) { return found.zone == zone; });
-            if (entry == samples.zones.end() || entry->sample.empty())
-                return 0;
+            if (entry == samples.zones.end())
+                return {};
+            const bool differs = std::ranges::any_of(samples.zones, [&entry](const mcp::ZoneSampleEntry& other) {
+                return other.zone == entry->zone && other.sample != entry->sample;
+            });
+            if (entry->sample.empty())
+                return Shown{0, differs};
             const auto place = std::ranges::find(samples.memory, entry->sample);
-            return place == samples.memory.end() ? 0 : static_cast<std::int64_t>(std::distance(samples.memory.begin(), place)) + 1;
+            return Shown{place == samples.memory.end() ? 0 : static_cast<std::int64_t>(std::distance(samples.memory.begin(), place)) + 1, differs};
         }
 
         /// Each value of `rows` read from the current item, into `into`, and the samples in memory into `memory` when a zone's sample is
         /// among them; the problem of the first that fails.
         std::optional<std::string> readInto(const Binding& binding, mcp::SamplerGateway& gateway, const Definitions& rows, int keygroup,
-                                            std::vector<std::int64_t>& into, std::vector<std::string>& memory)
+                                            std::vector<std::int64_t>& into, std::vector<bool>& differs, std::vector<std::string>& memory)
         {
             ZoneSamples samples;
             for (const Target& target : rows)
@@ -274,13 +304,16 @@ namespace app
                 {
                     if (const auto problem = samples.read ? std::nullopt : readZoneSamples(gateway, keygroup, samples))
                         return problem;
-                    into.push_back(zoneSampleValue(samples, target.zone));
+                    const Shown shown = zoneSampleValue(samples, target.zone);
+                    into.push_back(shown.value);
+                    differs.push_back(shown.differs);
                     continue;
                 }
                 const auto read = binding.read(gateway, *target.definition, keygroup, target.zone);
                 if (!read.ok())
                     return read.problem;
-                into.push_back(*read.value);
+                into.push_back(read.value->value);
+                differs.push_back(read.value->differs);
             }
             if (samples.read)
                 memory = samples.memory;
@@ -297,9 +330,11 @@ namespace app
             Reading reading;
             reading.keygroups = *selected.value;
             reading.keygroup = reading.keygroups.has_value() && keygroup > *reading.keygroups ? 1 : keygroup;  // the program lost keygroups meanwhile
-            for (const auto& [rows, into] : {std::pair{&values, &reading.values}, std::pair{&info, &reading.info}})
+            std::vector<bool> infoDiffers;  // the information is the item's own: it never differs
+            for (const auto& [rows, into, differs] :
+                 {std::tuple{&values, &reading.values, &reading.differs}, std::tuple{&info, &reading.info, &infoDiffers}})
             {
-                if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into, reading.samples))
+                if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into, *differs, reading.samples))
                     return mcp::Outcome<Reading>::failure(*problem);
             }
             return mcp::Outcome<Reading>::success(std::move(reading));
@@ -311,6 +346,7 @@ namespace app
         {
             std::optional<std::string> problem;
             std::vector<std::int64_t> values;
+            std::vector<bool> differs;
             std::vector<std::string> samples;
         };
 
@@ -322,13 +358,22 @@ namespace app
             std::vector<std::string> samples;
         };
 
-        /// One write on the sampler: a zone's sample assigned by name, any other value set; the problem, if any. [RQ-APP-060, DEC-APP-033]
-        std::optional<std::string> setOn(const Binding& binding, mcp::SamplerGateway& gateway, const Write& target, std::int64_t value, int keygroup)
+        /// One write on the sampler: a zone's sample assigned by name, to each keygroup of `keygroups` when all are chosen, any other value
+        /// set; the problem, if any. [RQ-APP-060, RQ-APP-059, DEC-APP-033]
+        std::optional<std::string> setOn(const Binding& binding, mcp::SamplerGateway& gateway, const Write& target, std::int64_t value, int keygroup,
+                                         int keygroups)
         {
             if (isZoneSample(target.parameter))
             {
-                const auto assigned = gateway.assignZoneSample(keygroup, target.zone, target.samples[static_cast<std::size_t>(value - 1)]);
-                return assigned.ok() ? std::nullopt : std::optional<std::string>(assigned.problem);
+                const std::string& sample = target.samples[static_cast<std::size_t>(value - 1)];
+                const int first = keygroup == ALL_KEYGROUPS ? 1 : keygroup;
+                const int last = keygroup == ALL_KEYGROUPS ? keygroups : keygroup;
+                for (int each = first; each <= last; ++each)
+                {
+                    if (const auto assigned = gateway.assignZoneSample(each, target.zone, sample); !assigned.ok())
+                        return assigned.problem;
+                }
+                return std::nullopt;
             }
             const auto set = binding.write(gateway, *target.parameter, value, keygroup, target.zone);
             return set.ok() ? std::nullopt : std::optional<std::string>(set.problem);
@@ -339,7 +384,8 @@ namespace app
         {
             const mcp::ParameterDefinition& parameter = *target.parameter;
             Written written;
-            if (const auto selected = binding.select(gateway, item); !selected.ok())
+            const auto selected = binding.select(gateway, item);
+            if (!selected.ok())
             {
                 written.problem = selected.problem;
                 return written;
@@ -350,20 +396,21 @@ namespace app
             const mcp::ParameterDefinition* loopStartParameter = definitionOf(binding, LOOP_START_NAME);
             if (parameter.name == LOOP_END_NAME && loopStartParameter != nullptr)
             {
-                if (const auto read = binding.read(gateway, *loopStartParameter, keygroup, 0); read.ok() && *read.value <= value)
-                    loopStart = *read.value;
+                if (const auto read = binding.read(gateway, *loopStartParameter, keygroup, 0); read.ok() && read.value->value <= value)
+                    loopStart = read.value->value;
             }
-            if (const auto problem = setOn(binding, gateway, target, value, keygroup))
+            if (const auto problem = setOn(binding, gateway, target, value, keygroup, selected.value->value_or(1)))
                 written.problem = problem;
             else if (loopStart.has_value())
             {
                 if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart, keygroup, 0); !again.ok())
                     written.problem = again.problem;
             }
-            if (const auto problem = readInto(binding, gateway, tab, keygroup, written.values, written.samples))
+            if (const auto problem = readInto(binding, gateway, tab, keygroup, written.values, written.differs, written.samples))
             {
                 written.problem = written.problem ? *written.problem + " " + *problem : *problem;
                 written.values.clear();
+                written.differs.clear();
             }
             return written;
         }
@@ -392,6 +439,7 @@ namespace app
             {
                 EditValue& value = next.values[i];
                 value.value = reading.values[i];
+                value.differs = i < reading.differs.size() && reading.differs[i];
                 if (value.definition->unit == POSITION_UNIT)
                     value.max = length;
                 if (isZoneSample(value.definition))
@@ -407,7 +455,10 @@ namespace app
             if (!written.samples.empty())
                 next.samples = written.samples;
             for (std::size_t i = 0; i < next.values.size() && i < written.values.size(); ++i)
+            {
                 next.values[i].value = written.values[i];
+                next.values[i].differs = i < written.differs.size() && written.differs[i];
+            }
             next.values[index].pending = waiting;
             return next;
         }
@@ -543,7 +594,8 @@ namespace app
     void EditController::chooseKeygroup(int keygroup)
     {
         const EditState& state = _model.edit();
-        if (state.layout == nullptr || !state.keygroups.has_value() || keygroup < 1 || keygroup > *state.keygroups || keygroup == state.keygroup)
+        const bool known = keygroup == ALL_KEYGROUPS || (keygroup >= 1 && keygroup <= state.keygroups.value_or(0));  // [RQ-APP-059]
+        if (state.layout == nullptr || !state.keygroups.has_value() || !known || keygroup == state.keygroup)
             return;
         EditState next = state;
         next.keygroup = keygroup;
@@ -592,6 +644,11 @@ namespace app
             return;
         const MemoryItem item = *state.item;
         const int keygroup = state.keygroup;
+        if (keygroup == ALL_KEYGROUPS)
+        {
+            _model.setProblem(Problem{DELETING_ALL_LABEL + item.name, CHOOSE_ONE});
+            return;  // all keygroups chosen: nothing is sent [RQ-APP-059, RQ-APP-061]
+        }
         const std::string object = KEYGROUP_WORD + std::to_string(keygroup);
         if (*state.keygroups <= 1)
         {
@@ -620,7 +677,7 @@ namespace app
             return;  // another item is shown: its own reading tells its keygroups
         EditState next = now;
         next.keygroups = keygroups;
-        next.keygroup = std::clamp(keygroup, 1, std::max(1, keygroups));
+        next.keygroup = keygroup == ALL_KEYGROUPS ? ALL_KEYGROUPS : std::clamp(keygroup, 1, std::max(1, keygroups));  // [RQ-APP-059]
         for (EditValue& value : next.values)
             value.pending = false;
         _writing.clear();
@@ -661,6 +718,15 @@ namespace app
         if (value < min || value > max)
         {
             _model.setProblem(Problem{label, "The value must be from " + std::to_string(min) + " to " + std::to_string(max) + ": nothing was sent."});
+            return;
+        }
+        // A value between two of the catalogue's steps (the attenuation's 6 dB) is refused as the gateway would. [RQ-APP-097, DEC-APP-036]
+        if (const auto resolved = mcp::resolveValue(*shown.definition, value); !isZoneSample(shown.definition) && !resolved.value.has_value())
+        {
+            std::string reason = resolved.problem;
+            if (reason.ends_with('.'))
+                reason.pop_back();
+            _model.setProblem(Problem{label, reason + NOTHING_SENT});
             return;
         }
         EditState next = state;

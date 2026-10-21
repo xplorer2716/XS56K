@@ -23,6 +23,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <utility>
 #include <vector>
 
+#include "ChoiceBox.hpp"
 #include "CutLabel.hpp"
 #include "LookAndFeel.hpp"
 #include "app/DesignTokens.generated.hpp"
@@ -159,8 +160,8 @@ namespace app::ui
             CutLabel _inputLabel;
             CutLabel _outputLabel;
             CutLabel _deviceIdLabel;
-            juce::ComboBox _input;
-            juce::ComboBox _output;
+            ChoiceBox _input;
+            ChoiceBox _output;
             juce::TextEditor _deviceId;
             CutLabel _message;
             juce::TextButton _cancel;

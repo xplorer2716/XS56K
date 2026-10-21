@@ -286,7 +286,7 @@ class WritingTheChoiceShapes(unittest.TestCase):
         self.assertIn('{"sample playback mode", "Mode", Role::Sample, Control::Choice, kFilterTypesShapes, 0}', header)
         self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}, 0}', header)
         self.assertIn("{0.0f, 0.7f}, {0.6f, 0.7f}, {0.92f, 0.0f}, {1.0f, 0.0f}", header)
-        self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0}', header)
+        self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0, {}, {}}', header)
         self.assertLess(header.index('"2-POLE LP"'), header.index('"NOTCH 1"'))
         self.assertLess(header.index("kFilterTypesShapes{{"), header.index("kSampleTab0Group0{{"))
 
@@ -309,6 +309,24 @@ class WritingTheChoiceShapes(unittest.TestCase):
             with self.assertRaises(self.gen.TokenError) as raised:
                 self.gen.render_layouts(layouts, shapes)
             self.assertIn("NOTCH 1", str(raised.exception))
+
+    def test_given_a_shape_set_with_a_mark_when_written_then_its_shape_carries_the_text_and_place_and_the_others_none(self):
+        # [RQ-APP-099, ADR-APP-004 (DEC-APP-037), TASK-APP-054]
+        shapes = copy.deepcopy(SHAPES)
+        shapes["filter types"]["marks"] = {"2-POLE LP": {"text": "+", "at": [0.6, 0.9]}}
+        header = self.gen.render_layouts({"sample": self.layout()}, shapes)
+        self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0, "+", {0.6f, 0.9f}}', header)
+        self.assertIn('ChoiceShape{"NOTCH 1", kFilterTypesShape1, {}, {}}', header)
+
+    def test_given_a_mark_without_a_shape_outside_the_square_or_without_text_when_written_then_it_fails_and_names_its_label(self):
+        # [RQ-APP-099, ADR-APP-004 (DEC-APP-037), TASK-APP-054]
+        for label, mark in (("VOWELISER", {"text": "+", "at": [0.5, 0.5]}), ("NOTCH 1", {"text": "+", "at": [0.5, 1.2]}),
+                            ("NOTCH 1", {"text": "", "at": [0.5, 0.5]})):
+            shapes = copy.deepcopy(SHAPES)
+            shapes["filter types"]["marks"] = {label: mark}
+            with self.assertRaises(self.gen.TokenError) as raised:
+                self.gen.render_layouts({"sample": self.layout()}, shapes)
+            self.assertIn(label, str(raised.exception))
 
     def test_given_a_folder_of_shape_sets_when_read_then_they_are_keyed_by_their_name(self):
         with tempfile.TemporaryDirectory() as folder:

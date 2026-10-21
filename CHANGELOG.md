@@ -77,6 +77,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   named) and the value of a module's parameter as a signed number. `xs56k_akm_probe --suite --multi-fx` creates a test
   multi, reads the board and, with an EB20 installed, changes a few values on the test multi and puts them back; with no
   board it only reads, and deletes the test multi again. Every Set is untested on a real sampler for want of a board.
+- Editor: "All keygroups" in the program editor's keygroup selector: a value the keygroups share is shown, otherwise VARIES, and a change
+  goes to every keygroup.
+
+### Fixed
+
+- Editor: the filter attenuation moves in its steps of 6 dB, and a value between two steps is refused with nothing sent (it was read back
+  as another value); the arrows of every choice step to the previous or next value instead of opening the list; the shapes of the
+  enhanced filters (2-POLE LP+, 2-POLE BP+, 1-POLE HP+) carry a "+" above their cutoff.
 
 <!--
 Sections to use under each version (only those that apply):

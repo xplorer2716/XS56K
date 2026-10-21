@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <string>
 #include <vector>
 
+#include "ChoiceBox.hpp"
 #include "CutLabel.hpp"
 #include "app/Edit.hpp"
 #include "app/EditorLayout.hpp"
@@ -70,7 +71,7 @@ namespace app::ui
         CutLabel _label;
         juce::Label _box;
         juce::Slider _slider;
-        juce::ComboBox _choice;
+        ChoiceBox _choice;
         juce::Rectangle<int> _shapeArea;  ///< where a choice's shape is drawn; empty: none
         bool _inGrid = false;
         std::vector<std::string> _samples;  ///< the choices of a zone's sample, as last given

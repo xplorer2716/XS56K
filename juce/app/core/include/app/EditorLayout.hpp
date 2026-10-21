@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-032)]
 #pragma once
 
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -54,11 +55,21 @@ namespace app::layouts
         float y;
     };
 
-    /// The shape drawn for one label of a choice (a filter type's response), from juce/app/design/shapes/.
+    /// A short text drawn on a shape at a point of its unit square (the "+" of an enhanced filter). [RQ-APP-099, ADR-APP-004 (DEC-APP-037)]
+    struct ShapeMark
+    {
+        std::string_view text;
+        ShapePoint at;
+    };
+
+    /// The shape drawn for one label of a choice (a filter type's response), from juce/app/design/shapes/, and its mark: none when the
+    /// mark's text is empty.
     struct ChoiceShape
     {
         std::string_view label;
         std::span<const ShapePoint> points;
+        std::string_view markText;
+        ShapePoint markAt;
     };
 
     struct LayoutParameter
@@ -80,6 +91,17 @@ namespace app::layouts
                 return shape.points;
         }
         return {};
+    }
+
+    /// The mark of `label`'s shape among the parameter's shapes; none when it has no shape or its shape no mark. [RQ-APP-099, DEC-APP-037]
+    [[nodiscard]] constexpr std::optional<ShapeMark> markOf(const LayoutParameter& parameter, std::string_view label)
+    {
+        for (const ChoiceShape& shape : parameter.shapes)
+        {
+            if (shape.label == label && !shape.markText.empty())
+                return ShapeMark{shape.markText, shape.markAt};
+        }
+        return std::nullopt;
     }
 
     /// Where a group's parameters live, said after its title (RQ-APP-056); `None` for an editor of one kind (the sample's).

@@ -33,6 +33,7 @@ namespace app::ui
         constexpr const char* READ_AGAIN_TEXT = "Read again";
         constexpr const char* NO_EDITOR = "This kind has no editor yet.";
         constexpr const char* KEYGROUP_TEXT = "Keygroup ";
+        constexpr const char* ALL_KEYGROUPS_TEXT = "All keygroups";
         constexpr const char* OF_TEXT = " of ";
         constexpr int READ_AGAIN_SHARE = 6;          // the button takes a sixth of the panel's width
         constexpr float KEYGROUP_SELECTOR_KNOBS = 5;  // the keygroup selector is five knob diameters wide, as in the mockups
@@ -137,8 +138,11 @@ namespace app::ui
         addAndMakeVisible(_readAgain);
         // The keygroup whose values a program's tab shows, chosen by the person. [RQ-APP-058]
         _keygroup.onChange = [this] {
-            if (_keygroup.getSelectedId() > 0)
-                _editor.chooseKeygroup(_keygroup.getSelectedId());
+            const int id = _keygroup.getSelectedId();
+            if (id > _keygroupItems)
+                _editor.chooseKeygroup(ALL_KEYGROUPS);  // the item after the last keygroup [RQ-APP-059]
+            else if (id > 0)
+                _editor.chooseKeygroup(id);
         };
         addChildComponent(_keygroup);
         // Adding keygroups and deleting the one shown, beside the selector. [RQ-APP-061, DEC-APP-034]
@@ -257,13 +261,16 @@ namespace app::ui
             _keygroup.clear(juce::dontSendNotification);
             for (int keygroup = 1; keygroup <= keygroups; ++keygroup)
                 _keygroup.addItem(KEYGROUP_TEXT + juce::String(keygroup) + OF_TEXT + juce::String(keygroups), keygroup);
+            if (keygroups > 1)
+                _keygroup.addItem(ALL_KEYGROUPS_TEXT, keygroups + 1);  // [RQ-APP-059, TASK-APP-050]
             _keygroupItems = keygroups;
         }
-        _keygroup.setSelectedId(keygroups > 0 ? state.keygroup : 0, juce::dontSendNotification);
+        const int shownId = state.keygroup == ALL_KEYGROUPS ? keygroups + 1 : state.keygroup;
+        _keygroup.setSelectedId(keygroups > 0 ? shownId : 0, juce::dontSendNotification);
         _keygroup.setVisible(keygroups > 0 && _layout != nullptr);
         _addKeygroups.setVisible(_keygroup.isVisible());
         _deleteKeygroup.setVisible(_keygroup.isVisible());
-        _deleteKeygroup.setEnabled(keygroups > 1);  // a program keeps one keygroup [RQ-APP-061]
+        _deleteKeygroup.setEnabled(keygroups > 1 && state.keygroup != ALL_KEYGROUPS);  // a program keeps one; one at a time [RQ-APP-061, RQ-APP-059]
         _info.setText(keygroups > 0 ? juce::String() : juce::String(infoText(state)), juce::dontSendNotification);
         std::size_t index = 0;
         for (Group& group : _groups)

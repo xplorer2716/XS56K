@@ -44,7 +44,12 @@ namespace app
         std::int64_t max = 0;
         bool pending = false;
         int zone = 0;  ///< the zone (1 to 4) of a zone grid's value; 0 outside a grid [RQ-APP-060, DEC-APP-033]
+        /// With all keygroups chosen: the keygroups do not share the value, `value` being the first's. [RQ-APP-059, TASK-APP-050]
+        bool differs = false;
     };
+
+    /// The keygroup "all keygroups" in `EditState::keygroup`: a change goes to every keygroup. [RQ-APP-059, TASK-APP-050]
+    inline constexpr int ALL_KEYGROUPS = -1;
 
     /// The item edited (none when nothing is selected), its editor (null for a kind that has none yet, RQ-APP-048), the tab shown, the tab's
     /// values in the layout's order and the editor's read-only information.
@@ -56,18 +61,21 @@ namespace app
         std::vector<EditValue> values;
         std::vector<EditValue> info;
         std::optional<int> keygroups;  ///< a program's keygroup count, read when it is made current [RQ-APP-093]
-        int keygroup = 1;              ///< the keygroup whose values a program's tab shows, 1 to `keygroups` [RQ-APP-058]
+        int keygroup = 1;  ///< the keygroup whose values a program's tab shows, 1 to `keygroups`, or ALL_KEYGROUPS [RQ-APP-058, RQ-APP-059]
         /// The samples in memory, read with a tab that holds a zone's sample: that value is 1 plus the sample's place here, 0 none.
         /// [RQ-APP-060, DEC-APP-033]
         std::vector<std::string> samples;
     };
 
     /// A value as the sampler's screen writes it: a root as a note name ("C3"), a signed tune with its sign ("+10"), a choice by its label
-    /// ("ONE SHOT"), a switch as "ON" or "OFF", any other number as it is. [RQ-APP-051, RQ-APP-086, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
+    /// ("ONE SHOT"), a switch as "ON" or "OFF", any other number as it is; "VARIES" when the keygroups do not share it (RQ-APP-059). [RQ-APP-051, RQ-APP-086, ADR-APP-004 (DEC-APP-027), TASK-APP-038]
     [[nodiscard]] std::string valueText(const EditValue& value);
     /// What the person typed for a parameter: a number (a leading + allowed), a note name for a root, a label for a choice, without regard
     /// to case or surrounding spaces; nothing when it is none of them. The range is checked by the edit controller. [RQ-APP-051, TASK-APP-038]
     [[nodiscard]] std::optional<std::int64_t> valueFrom(const EditValue& value, std::string_view text);
+    /// The value a control steps to from the value shown, `direction` -1 or +1: the previous or next code of a choice or a switch, the
+    /// previous or next step of a number; nothing past the value's range. [RQ-APP-097, RQ-APP-098, ADR-APP-004 (DEC-APP-036), TASK-APP-053]
+    [[nodiscard]] std::optional<std::int64_t> steppedValue(const EditValue& value, int direction);
     /// The information line: a sample's "RAM, mono, 22050 points, 44100 Hz", a program's "2 keygroups". [RQ-APP-087, RQ-APP-093, TASK-APP-038]
     [[nodiscard]] std::string infoText(const EditState& state);
 }

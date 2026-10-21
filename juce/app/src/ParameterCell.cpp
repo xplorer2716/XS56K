@@ -29,7 +29,8 @@ namespace app::ui
         constexpr int CHOICE_CELLS = 2;  // a choice and a value box alone: two knob cells, as in the mockups
         constexpr int SLIDER_CELLS = 3;
         constexpr int FIRST_ITEM_ID = 1;  // a ComboBox item id is the choice's code plus one: 0 means no selection
-        constexpr const char* NO_SAMPLE = "NONE";  // a zone that plays no sample, as the mockups write it [RQ-APP-060]
+        constexpr const char* NO_SAMPLE = "NONE";
+        constexpr float MARK_BOX = 2.0f;  // a shape's mark is centred in a box two label heights wide [DEC-APP-037]  // a zone that plays no sample, as the mockups write it [RQ-APP-060]
         // The knob's arc as the mockups draw it (KNOB_START_DEGREES 135, KNOB_SWEEP_DEGREES 270 of generate_mockups.py, from the right
         // clockwise): from the bottom left, through the top, to the bottom right; JUCE counts from the top.
         constexpr float KNOB_START = juce::MathConstants<float>::pi * 1.25f;
@@ -137,6 +138,14 @@ namespace app::ui
                 show(_shown);
             }
         };
+        // The arrows step through the model's value, as the core says, not through the list's items. [RQ-APP-098, DEC-APP-036]
+        _choice.onStep = [this](int direction) {
+            if (_shown.definition == nullptr)
+                return;
+            if (const auto value = steppedValue(_shown, direction); value && onValue)
+                onValue(*value);
+            show(_shown);
+        };
         if (chosen)
             addAndMakeVisible(_choice);
     }
@@ -151,8 +160,10 @@ namespace app::ui
         _box.setText(value.pending ? text + ELLIPSIS : text, juce::dontSendNotification);
         _box.setColour(juce::Label::textColourId, colourOf(value.pending ? kColourStatusPending : kValueboxText));
 
+        // A number in steps (the attenuation's 6 dB) moves from step to step. [RQ-APP-097, DEC-APP-036]
+        const std::int64_t step = value.definition->kind == mcp::ParameterKind::Number ? value.definition->step : 1;
         if (value.max > value.min)
-            _slider.setRange(static_cast<double>(value.min), static_cast<double>(value.max), 1.0);
+            _slider.setRange(static_cast<double>(value.min), static_cast<double>(value.max), static_cast<double>(step));
         if (!_slider.isMouseButtonDown())
             _slider.setValue(static_cast<double>(value.value), juce::dontSendNotification);
         const juce::Colour colour = value.pending ? colourOf(kColourStatusPending) : roleColour(_parameter.role);
@@ -166,6 +177,8 @@ namespace app::ui
                 _choice.addItem(juce::String(label).toUpperCase(), id++);  // as the sampler's screen and valueText write it
         }
         _choice.setSelectedId(static_cast<int>(value.value) + FIRST_ITEM_ID, juce::dontSendNotification);
+        if (value.differs)
+            _choice.setText(text, juce::dontSendNotification);  // "VARIES": no keygroup's choice is shown as all's [RQ-APP-059]
         _choice.setColour(juce::ComboBox::textColourId, colourOf(value.pending ? kColourStatusPending : kChoiceText));
         if (!_parameter.shapes.empty())
             repaint();  // the shape follows the value shown [RQ-APP-096]
@@ -183,6 +196,8 @@ namespace app::ui
         for (const std::string& sample : samples)
             _choice.addItem(juce::String(sample), id++);
         _choice.setSelectedId(static_cast<int>(_shown.value) + FIRST_ITEM_ID, juce::dontSendNotification);
+        if (_shown.differs)
+            _choice.setText(juce::String(valueText(_shown)), juce::dontSendNotification);  // [RQ-APP-059]
     }
 
     void ParameterCell::paint(juce::Graphics& g)
@@ -209,6 +224,15 @@ namespace app::ui
             line.lineTo(at(point));
         g.setColour(_shown.pending ? colourOf(kColourStatusPending) : roleColour(_parameter.role));
         g.strokePath(line, juce::PathStrokeType(kStrokeArc, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        // The mark of the shape (the "+" of an enhanced filter), centred on its place, in the shape's colour. [RQ-APP-099, DEC-APP-037]
+        const std::string label = labels[static_cast<std::size_t>(_shown.value)];
+        if (const auto mark = layouts::markOf(_parameter, label))
+        {
+            g.setFont(_lookAndFeel.font(kFontLabelSize, true));
+            const auto centre = at(mark->at);
+            g.drawText(juce::String(std::string(mark->text)),
+                       juce::Rectangle<float>(kFontLabelSize * MARK_BOX, kFontLabelSize * MARK_BOX).withCentre(centre), juce::Justification::centred, false);
+        }
     }
 
     void ParameterCell::valueBoxEdited()

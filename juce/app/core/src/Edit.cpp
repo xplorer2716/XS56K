@@ -49,6 +49,7 @@ namespace app
         constexpr std::string_view INFO_SEPARATOR = ", ";
         constexpr std::string_view KEYGROUP = " keygroup";
         constexpr std::string_view KEYGROUPS = " keygroups";
+        constexpr std::string_view DIFFERS = "VARIES";  // the keygroups do not share the value [RQ-APP-059, TASK-APP-050]
 
         bool isNote(const EditValue& value)
         {
@@ -118,6 +119,8 @@ namespace app
     {
         using enum mcp::ParameterKind;
         const mcp::ParameterDefinition& definition = *value.definition;
+        if (value.differs)
+            return std::string(DIFFERS);  // [RQ-APP-059]
         if (isNote(value))
             return noteName(value.value);
         if (const bool labelled = definition.kind == Choice || definition.kind == Switch; labelled && value.value >= 0 && static_cast<std::size_t>(value.value) < definition.labels.size())
@@ -138,6 +141,15 @@ namespace app
         if (const auto found = std::ranges::find_if(labels, [key = upper(typed)](const std::string& label) { return upper(label) == key; }); found != labels.end())
             return static_cast<std::int64_t>(found - labels.begin());
         return std::nullopt;
+    }
+
+    std::optional<std::int64_t> steppedValue(const EditValue& value, int direction)
+    {
+        const std::int64_t step = value.definition->kind == mcp::ParameterKind::Number ? value.definition->step : 1;
+        const std::int64_t next = value.value + direction * step;
+        if (next < value.min || next > value.max)
+            return std::nullopt;
+        return next;
     }
 
     std::string infoText(const EditState& state)

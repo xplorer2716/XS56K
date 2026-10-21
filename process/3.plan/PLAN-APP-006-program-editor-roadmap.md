@@ -20,6 +20,7 @@ the real S5000 when it is done. Two orders, independent of each other:
 | 6 | LFO (named Mod sources until 2026-10-16) | program | none: LFO 1 and LFO 2 |
 | 7 | Modulation | keygroup | the routings of the modulation sources, source to destination |
 | 8 | (selector) | keygroup | "all keygroups": a state "the values differ" in the controls (RQ-APP-059, Could) |
+| 9 | (fixes) | — | the owner's run of 2026-10-17: steps (TASK-APP-052), the arrows of a choice (TASK-APP-053), the plus of the enhanced filters (TASK-APP-054), done before 8 |
 
 **The tabs on screen** (the assistant's proposal; the owner decides, TASK-APP-002):
 
@@ -35,9 +36,9 @@ the real S5000 when it is done. Two orders, independent of each other:
 The three envelopes (Amp, Filter, Aux) are graphs moved by the mouse, over their knobs (owner, 2026-10-16; DEC-APP-031). A zone's sample could open the sample editor.
 
 ## References
-- **Requirements**: RQ-APP-056 to RQ-APP-061 (FTR-APP-008); RQ-APP-048 to RQ-APP-055, RQ-APP-091, RQ-APP-092 (FTR-APP-007); RQ-AKM-022 to
+- **Requirements**: RQ-APP-056 to RQ-APP-061 (FTR-APP-008); RQ-APP-048 to RQ-APP-055, RQ-APP-091, RQ-APP-092, RQ-APP-097, RQ-APP-098 (FTR-APP-007); RQ-APP-093 to RQ-APP-096, RQ-APP-099 (FTR-APP-008); RQ-AKM-022 to
   RQ-AKM-035
-- **ADRs**: ADR-APP-004 (DEC-APP-024 to DEC-APP-029); ADR-APP-001
+- **ADRs**: ADR-APP-004 (DEC-APP-024 to DEC-APP-037); ADR-APP-001
 
 This plan implements the tasks in the format specified below.
 ---
@@ -227,14 +228,53 @@ proposal until the owner decides (TASK-APP-002). Every task: core tests on the s
 - **Assumptions**: (1) The keygroup's amplitude input and the program's two are two groups, their amounts living in different places. (2) The
   Modulation tab sits between LFO and Program; the Program tab moved to index 5.
 
+### TASK-APP-052: The attenuation in steps of 6 dB
+- **Tier**: M
+- **Status**: In Progress
+- **Description**: The controller refuses a value between two of the catalogue's steps before anything is sent; the knob and the slider move
+  by the step. Found by the owner's run of 2026-10-17 (F1).
+- **Requirement refs**: RQ-APP-097
+- **ADR refs**: ADR-APP-004 (DEC-APP-036)
+- **Acceptance Criteria** (Gherkin): RQ-APP-097's.
+- **Dependencies**: TASK-APP-045
+- **Assignee**: AI
+- **Verification**: Linux/Clang 18, Debug, 2026-10-21 (cloud session, no sampler; GCC 13 stops on a `-Wdangling-reference` of `RealSamplerSuiteTests.cpp`, not this task's). Core case (12 sent and read back; 1 refused with nothing sent, the problem naming "0, 6, 12, 18, 24 or 30 dB" and "nothing was sent") failed first (the sampler got 22 commands, 1 read back as 0), then passed; knob and slider step from the catalogue's `step` (`ParameterCell`, a view, DEC-APP-010). `ctest`: 1244 passed; `tidy.py --base HEAD`: 19 sources, 0 findings. Not verified: the knob on the real S5000 (owner's run, F1).
+- **Assumptions**: (1) The keygroup level (code 0-10, steps of 6 dB in the catalogue) gets the same rule.
+
+### TASK-APP-053: The arrows of every choice step it
+- **Tier**: M
+- **Status**: In Progress
+- **Description**: `steppedValue` in the core; a `ChoiceBox` for every choice of the application (the edit panel's and the MIDI setup's),
+  whose arrows choose the previous or next item and whose middle opens the list. Found by the owner's run of 2026-10-17 (F4).
+- **Requirement refs**: RQ-APP-098
+- **ADR refs**: ADR-APP-004 (DEC-APP-036, DEC-APP-027)
+- **Acceptance Criteria** (Gherkin): RQ-APP-098's (core test of `steppedValue` and of the controller; the clicks on the real editor).
+- **Dependencies**: TASK-APP-052
+- **Assignee**: AI
+- **Verification**: Linux/Clang 18, Debug, 2026-10-21. Core cases first (`steppedValue`: a choice's previous and next code, the attenuation by 6, nothing past the ends; the filter type stepped right then left twice, the second left sending nothing) failed to compile, then passed. `ChoiceBox` (new, `juce/app/src`) for the edit panel's choices, the keygroup selector and the MIDI setup dialog's two lists; the edit panel steps through `steppedValue`, the others through the list's items; the arrow's width shared with the look-and-feel (`choiceArrowWidth`). The editor built warning-clean; `ctest`: 1244 passed; `tidy.py`: 0 findings. Not verified: the clicks themselves (a view, never run here: no display, no sampler).
+- **Assumptions**: (1) Past the first or the last value an arrow does nothing (no wrap-around). (2) A zone's sample stepped to NONE is refused as before (K8).
+
+### TASK-APP-054: A plus on the enhanced filters
+- **Tier**: M
+- **Status**: In Progress
+- **Description**: `marks` in the shape sets, checked and generated (`ChoiceShape::mark`); the cell and the mockups draw them; 2-POLE LP+,
+  2-POLE BP+ and 1-POLE HP+ carry a "+" above their cutoff. Found by the owner's run of 2026-10-17 (F5).
+- **Requirement refs**: RQ-APP-099
+- **ADR refs**: ADR-APP-004 (DEC-APP-037, DEC-APP-032)
+- **Acceptance Criteria** (Gherkin): RQ-APP-099's; a generator test refuses a mark without a shape or outside the square.
+- **Dependencies**: TASK-APP-051
+- **Assignee**: AI
+- **Verification**: Linux/Clang 18, Debug, 2026-10-21. Generator tests first (a mark generated with its shape and none for the others; a mark without a shape, outside the square or without text refused; the mockup draws the `+` in the role colour over the cutoff, none for 2-POLE LP) failed (3 of 62), then passed (62 OK; the old assertion on the `ChoiceShape` initialiser updated to its two new fields). Core case (the three enhanced types carry `+` above their top, 2-POLE LP and VOWELISER none) failed, then passed. `generate_design.py --check` and `generate_mockups.py --check` up to date (no mockup shows an enhanced type). Not verified: the drawing in the editor and its likeness to the sampler's screen (owner's run, F5).
+- **Assumptions**: (1) The `+` stands over the corner of the low and high passes and over the middle of the band pass, at 0.9 of the height: the sampler's screen was not seen.
+
 ### TASK-APP-050: All keygroups at once
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: In Progress
 - **Description**: "All keygroups" in the selector: a value shared by all keygroups is shown, otherwise "the values differ"; a change goes to all.
 - **Requirement refs**: RQ-APP-059
 - **ADR refs**: ADR-APP-004
 - **Acceptance Criteria** (Gherkin): RQ-APP-059's.
 - **Dependencies**: TASK-APP-045
 - **Assignee**: AI
-- **Verification**: —
-- **Assumptions**: (1) Priority Could: after the program can be edited whole.
+- **Verification**: Linux/Clang 18, Debug, 2026-10-21. Three core cases first (PAD grown to 3 keygroups, cutoffs 50, 50, 70: all keygroups shows the cutoff VARIES and the attenuation not, 60 set reads 60 on the three; deleting with all chosen sends nothing and asks for one keygroup, keygroup 3 then shows 70; KICK in zone 1 of keygroup 1 only: zone 1's sample varies, zone 2's not) failed (keygroup stayed 1, nothing differed), then passed. `ALL_KEYGROUPS` is -1, the existing case "keygroup 0 changes nothing" kept unchanged. The selector gets "All keygroups" after the last keygroup (2 keygroups or more), Delete greyed while it is chosen; a choice that varies reads VARIES. `ctest`: 1244 passed; `tidy.py`: 0 findings. Not verified: the real S5000 (the gateway's "all" reads each keygroup, `KeygroupSelection::all()`).
+- **Assumptions**: (1) An order (low and high velocity or note) is checked against the first keygroup's values only. (2) A zone's sample chosen for all keygroups is assigned keygroup by keygroup.

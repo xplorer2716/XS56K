@@ -251,16 +251,42 @@ def check_polyline(set_name, label, points):
         raise TokenError(f"the shape {label} of {set_name} goes back along x")
 
 
+def point_text(x, y):
+    return f"{{{float(x)!r}f, {float(y)!r}f}}"
+
+
+def check_marks(set_name, shape_set):
+    """A mark is a text and its place in the unit square, on a label that has a shape. [RQ-APP-099, DEC-APP-037]"""
+    marks = shape_set.get("marks", {})
+    for label, mark in marks.items():
+        if label not in shape_set.get("shapes", {}):
+            raise TokenError(f"the mark of {label} in {set_name} has no shape")
+        if not mark.get("text"):
+            raise TokenError(f"the mark of {label} in {set_name} has no text")
+        x, y = mark.get("at", (-1, -1))
+        if not (0 <= x <= 1 and 0 <= y <= 1):
+            raise TokenError(f"the mark of {label} in {set_name} leaves the unit square at {x}, {y}")
+    return marks
+
+
+def render_mark(mark):
+    """A shape's mark as the last two fields of its ChoiceShape: its text and its place, or none."""
+    if mark is None:
+        return "{}, {}"
+    return f"{cpp_text(mark['text'])}, {point_text(*mark['at'])}"
+
+
 def render_shapes(shapes, lines):
-    """Every shape set as tables: a polyline per label, then the set, label by label in the file's order."""
+    """Every shape set as tables: a polyline per label, then the set, label by label in the file's order, each with its mark if any."""
     for set_name, shape_set in sorted(shapes.items()):
         table = shape_table(set_name)
+        marks = check_marks(set_name, shape_set)
         entries = []
         for index, (label, points) in enumerate(shape_set.get("shapes", {}).items()):
             check_polyline(set_name, label, points)
-            pairs = ", ".join(f"{{{float(x)!r}f, {float(y)!r}f}}" for x, y in points)
+            pairs = ", ".join(point_text(x, y) for x, y in points)
             lines.append(f"    inline constexpr std::array<ShapePoint, {len(points)}> {table}Shape{index}{{{{{pairs}}}}};")
-            entries.append(f"ChoiceShape{{{cpp_text(label)}, {table}Shape{index}}}")
+            entries.append(f"ChoiceShape{{{cpp_text(label)}, {table}Shape{index}, {render_mark(marks.get(label))}}}")
         lines.append(f"    inline constexpr std::array<ChoiceShape, {len(entries)}> {table}Shapes{{{{")
         lines += [f"        {entry}," for entry in entries]
         lines.append(CLOSE_TABLE)

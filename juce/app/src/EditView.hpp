@@ -97,7 +97,7 @@ namespace app::ui
         CutLabel _kind;
         CutLabel _info;
         CutLabel _message;
-        juce::ComboBox _keygroup;
+        ChoiceBox _keygroup;
         juce::TextButton _addKeygroups;    ///< a program's keygroups added, how many asked [RQ-APP-061]
         juce::TextButton _deleteKeygroup;  ///< the keygroup shown deleted after a confirmation; disabled for the last one
         juce::TextButton _readAgain;

@@ -650,6 +650,89 @@ TEST_CASE("Given PAD shown on its Filter tab, When the person chooses 4-POLE LP,
     CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
 
+TEST_CASE("Given PAD's Filter tab, When the person sets the attenuation to 12, Then it is sent and reads 12; When the person sets it to 1, "
+          "Then nothing is sent and the problem says the steps [RQ-APP-097, DEC-APP-036, TASK-APP-052]",
+          "[app][edit]")
+{
+    constexpr std::int64_t TWELVE_DB = 12;
+    constexpr std::int64_t ONE_DB = 1;
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.showTab(FILTER_TAB);
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.set(fixture.index("filter attenuation"), TWELVE_DB);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("filter attenuation") == std::optional<std::int64_t>(TWELVE_DB));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+
+    const std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.set(fixture.index("filter attenuation"), ONE_DB);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    CHECK(fixture.shown("filter attenuation") == std::optional<std::int64_t>(TWELVE_DB));
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(fixture.rig.model.problem()->reason.find("0, 6, 12, 18, 24 or 30 dB") != std::string::npos);
+    CHECK(fixture.rig.model.problem()->reason.find("nothing was sent") != std::string::npos);
+}
+
+TEST_CASE("Given a choice and a value in steps, When a control steps them, Then a choice goes to its previous or next code and a number by "
+          "its step, and nothing lies past the ends [RQ-APP-098, RQ-APP-097, DEC-APP-036, TASK-APP-053]",
+          "[app][edit]")
+{
+    constexpr int PREVIOUS = -1;
+    constexpr int NEXT = 1;
+    constexpr std::int64_t TWELVE_DB = 12;
+    constexpr std::int64_t SIX_DB = 6;
+    constexpr std::int64_t EIGHTEEN_DB = 18;
+    constexpr std::int64_t THIRTY_DB = 30;
+    const mcp::ParameterDefinition& type = programParameter("filter type");
+    const auto last = static_cast<std::int64_t>(type.labels.size()) - 1;
+    const app::EditValue first{&type, nullptr, 0, type.min, type.max, false, 0};
+    CHECK(app::steppedValue(first, NEXT) == std::optional<std::int64_t>(1));
+    CHECK_FALSE(app::steppedValue(first, PREVIOUS).has_value());
+    const app::EditValue lastType{&type, nullptr, last, type.min, type.max, false, 0};
+    CHECK(app::steppedValue(lastType, PREVIOUS) == std::optional<std::int64_t>(last - 1));
+    CHECK_FALSE(app::steppedValue(lastType, NEXT).has_value());
+
+    const mcp::ParameterDefinition& attenuation = programParameter("filter attenuation");
+    const app::EditValue twelve{&attenuation, nullptr, TWELVE_DB, attenuation.min, attenuation.max, false, 0};
+    CHECK(app::steppedValue(twelve, NEXT) == std::optional<std::int64_t>(EIGHTEEN_DB));
+    CHECK(app::steppedValue(twelve, PREVIOUS) == std::optional<std::int64_t>(SIX_DB));
+    const app::EditValue thirty{&attenuation, nullptr, THIRTY_DB, attenuation.min, attenuation.max, false, 0};
+    CHECK_FALSE(app::steppedValue(thirty, NEXT).has_value());
+}
+
+TEST_CASE("Given PAD's Filter tab on 2-POLE LP, When the right arrow steps it, Then 4-POLE LP is sent and read back; When the left arrow steps "
+          "it twice, Then 2-POLE LP is sent once and nothing more [RQ-APP-098, DEC-APP-036, TASK-APP-053]",
+          "[app][edit]")
+{
+    constexpr int PREVIOUS = -1;
+    constexpr int NEXT = 1;
+    constexpr std::int64_t FOUR_POLE_LOW_PASS = 1;
+    EditRig fixture;
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+    fixture.editor.showTab(FILTER_TAB);
+    REQUIRE(fixture.rig.settle());
+    REQUIRE(fixture.shown("filter type") == std::optional<std::int64_t>(0));
+    const auto step = [&fixture](int direction) {
+        const std::size_t index = fixture.index("filter type");
+        if (const auto value = app::steppedValue(fixture.rig.model.edit().values[index], direction))
+            fixture.editor.set(index, *value);
+        REQUIRE(fixture.rig.settle());
+    };
+    step(NEXT);
+    CHECK(fixture.shown("filter type") == std::optional<std::int64_t>(FOUR_POLE_LOW_PASS));
+    step(PREVIOUS);
+    CHECK(fixture.shown("filter type") == std::optional<std::int64_t>(0));
+    const std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    step(PREVIOUS);
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    CHECK(fixture.shown("filter type") == std::optional<std::int64_t>(0));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
 namespace
 {
     constexpr int ZONES = 4;
@@ -932,5 +1015,98 @@ TEST_CASE("Given the Aux envelope routed to PAD's filter input 1 with an amount 
     const auto read = fixture.rig.gateway.readParameter(programParameter("filter modulation 1 amount"), mcp::KeygroupSelection::of(1));
     REQUIRE(read.ok());
     CHECK(read.value->front().value == NEW_AMOUNT);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+namespace
+{
+    constexpr std::int64_t SHARED_CUTOFF = 50;
+    constexpr std::int64_t OTHER_CUTOFF = 70;
+
+    /// PAD grown to 3 keygroups with cutoffs 50, 50 and 70, put on the sampler from outside the application, then shown on its Filter tab
+    /// with all keygroups chosen. [RQ-APP-059, TASK-APP-050]
+    void showAllKeygroups(EditRig& fixture)
+    {
+        REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+        REQUIRE(fixture.rig.gateway.addKeygroups(1).ok());
+        const mcp::ParameterDefinition& cutoff = programParameter("filter cutoff");
+        for (const auto& [keygroup, value] : {std::pair{1, SHARED_CUTOFF}, std::pair{2, SHARED_CUTOFF}, std::pair{THIRD_KEYGROUP, OTHER_CUTOFF}})
+            REQUIRE(fixture.rig.gateway.writeParameter(cutoff, value, mcp::KeygroupSelection::of(keygroup)).ok());
+        fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+        REQUIRE(fixture.rig.settle());
+        fixture.editor.showTab(FILTER_TAB);
+        REQUIRE(fixture.rig.settle());
+        fixture.editor.chooseKeygroup(app::ALL_KEYGROUPS);
+        REQUIRE(fixture.rig.settle());
+    }
+
+    bool differs(const EditRig& fixture, const std::string& name)
+    {
+        return fixture.rig.model.edit().values[fixture.index(name)].differs;
+    }
+}
+
+TEST_CASE("Given PAD's 3 keygroups with cutoffs 50, 50 and 70, When the person chooses all keygroups, Then the cutoff says the values differ and "
+          "the attenuation, shared, does not; When the person sets the cutoff to 60, Then the three keygroups read 60 [RQ-APP-059, TASK-APP-050]",
+          "[app][edit]")
+{
+    constexpr std::int64_t NEW_CUTOFF = 60;
+    EditRig fixture;
+    showAllKeygroups(fixture);
+    REQUIRE(fixture.rig.model.edit().keygroup == app::ALL_KEYGROUPS);
+    CHECK(fixture.rig.model.edit().keygroups == std::optional<int>(THIRD_KEYGROUP));
+    CHECK(differs(fixture, "filter cutoff"));
+    CHECK(app::valueText(fixture.rig.model.edit().values[fixture.index("filter cutoff")]) == "VARIES");
+    CHECK_FALSE(differs(fixture, "filter attenuation"));
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+
+    fixture.editor.set(fixture.index("filter cutoff"), NEW_CUTOFF);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("filter cutoff") == std::optional<std::int64_t>(NEW_CUTOFF));
+    CHECK_FALSE(differs(fixture, "filter cutoff"));
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    const auto read = fixture.rig.gateway.readParameter(programParameter("filter cutoff"), mcp::KeygroupSelection::all());
+    REQUIRE(read.ok());
+    REQUIRE(read.value->size() == static_cast<std::size_t>(THIRD_KEYGROUP));
+    for (const mcp::ParameterValue& value : *read.value)
+        CHECK(value.value == NEW_CUTOFF);
+    CHECK_FALSE(fixture.rig.model.problem().has_value());
+}
+
+TEST_CASE("Given all keygroups chosen, When the person chooses keygroup 3, Then its own cutoff 70 is shown and nothing differs; When the person "
+          "deletes with all keygroups chosen, Then nothing is sent and a problem asks for one keygroup [RQ-APP-059, RQ-APP-061, TASK-APP-050]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    showAllKeygroups(fixture);
+    const std::size_t before = fixture.rig.sampler->acceptedCommands().size();
+    fixture.editor.deleteKeygroup();
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.rig.sampler->acceptedCommands().size() == before);
+    REQUIRE(fixture.rig.model.problem().has_value());
+    CHECK(fixture.rig.model.problem()->reason.find("one keygroup") != std::string::npos);
+    CHECK(fixture.rig.model.edit().keygroups == std::optional<int>(THIRD_KEYGROUP));
+
+    fixture.editor.chooseKeygroup(THIRD_KEYGROUP);
+    REQUIRE(fixture.rig.settle());
+    CHECK(fixture.shown("filter cutoff") == std::optional<std::int64_t>(OTHER_CUTOFF));
+    CHECK_FALSE(differs(fixture, "filter cutoff"));
+}
+
+TEST_CASE("Given KICK in zone 1 of PAD's keygroup 1 only, When all keygroups are chosen on the Keygroup tab, Then zone 1's sample says the "
+          "values differ and zone 2's, empty everywhere, does not [RQ-APP-059, RQ-APP-060, TASK-APP-050]",
+          "[app][edit]")
+{
+    EditRig fixture;
+    REQUIRE(fixture.rig.gateway.selectProgramByName("PAD").ok());
+    REQUIRE(fixture.rig.gateway.assignZoneSample(1, 1, "KICK").ok());
+    fixture.memory.select(MemoryItem{MemoryKind::Program, "PAD"});
+    REQUIRE(fixture.rig.settle());
+    REQUIRE(fixture.rig.model.edit().tab == KEYGROUP_TAB);
+    fixture.editor.chooseKeygroup(app::ALL_KEYGROUPS);
+    REQUIRE(fixture.rig.settle());
+    const auto& values = fixture.rig.model.edit().values;
+    CHECK(values[fixture.indexIn("zone sample", 1)].differs);
+    CHECK_FALSE(values[fixture.indexIn("zone sample", SECOND_ZONE)].differs);
     CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
