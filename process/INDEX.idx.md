@@ -434,10 +434,10 @@ DEC-APP-036|108-114||Steps from the catalogue; the arrows of a choice step it
 DEC-APP-037|115-120||A shape may carry a mark, design data like the shape
 DEC-APP-027|121-130||Four controls drawn by the look-and-feel from the tokens
 @process/2.architecture/ADR-APP-005-save-to-disk.md
-ADR-APP-005|1-71|Proposed|Saving Memory Items to a Disk
+ADR-APP-005|1-72|Proposed|Saving Memory Items to a Disk
 DEC-APP-038|17-25||The gateway saves with one of three answers to an existing file: refuse, skip, overwrite
 DEC-APP-039|26-34||A save controller in the core, one save dialog in the views
-DEC-APP-040|35-41||Check names asks per file when the files are known, once otherwise; the whole memory is the six kinds in turn
+DEC-APP-040|35-42||Check names asks per file when the files are known, once otherwise; the whole memory is the six kinds in turn
 @process/2.architecture/ADR-BLD-001-juce-cmake-build-foundation.md
 ADR-BLD-001|1-145|Accepted — implemented and building (Debug and Release, verified locally). Target and alias names|JUCE CMake Build Foundation
 @process/2.architecture/ADR-BLD-002-two-branch-headless-ci.md
@@ -748,14 +748,14 @@ TASK-APP-053|244-256|In Progress|The arrows of every choice step it
 TASK-APP-054|257-269|In Progress|A plus on the enhanced filters
 TASK-APP-050|270-280|In Progress|All keygroups at once
 @process/3.plan/PLAN-APP-007-save-to-disk.md
-PLAN-APP-007|1-136||Editor Application — Saving Memory Items to a Disk
+PLAN-APP-007|1-145||Editor Application — Saving Memory Items to a Disk
 TASK-APP-055|31-48|Done|The gateway saves with refuse, skip or overwrite
-TASK-APP-056|49-64|Not Started|The save controller proposes the item and saves it alone or with its children
-TASK-APP-057|65-79|Not Started|All the items of a kind, and the whole memory
-TASK-APP-058|80-94|Not Started|Check names
-TASK-APP-059|95-109|Not Started|The save is checked on the disk
-TASK-APP-060|110-124|Not Started|The save dialog and its two entries
-TASK-APP-061|125-136|Not Started|Run on the real S5000
+TASK-APP-056|49-67|Done|The save controller proposes the item and saves it alone or with its children
+TASK-APP-057|68-84|Done|All the items of a kind, and the whole memory
+TASK-APP-058|85-101|Done|Check names
+TASK-APP-059|102-118|Done|The save is checked on the disk
+TASK-APP-060|119-133|Not Started|The save dialog and its two entries
+TASK-APP-061|134-145|Not Started|Run on the real S5000
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation

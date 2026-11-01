@@ -48,7 +48,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-056: The save controller proposes the item and saves it alone or with its children
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `SaveController` in `xs56k_app_core`: the item proposed (selection, else the current item of its kind), the current disk and
   folder as destination, alone or with children, one job with the slow-operation timeout; a disk not MSDOS or FAT32 refused with nothing sent.
 - **Requirement refs**: RQ-APP-043, RQ-APP-047, RQ-APP-013
@@ -59,12 +59,15 @@ This plan implements the tasks in the format specified below.
   save proceeds.
 - **Dependencies**: TASK-APP-055
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: `juce/tests/app/SaveTests.cpp` [save] 11 cases / 105 assertions pass (Clang, Linux): PAD saved into KIT with the children
+  flag and listed in KIT; BASS proposed with nothing selected, children flag off; S3000 refused (`refusal()` and problem name MS-DOS, no
+  &2C sent), FAT32 sends one &2C. Full `ctest` 1261/1261; `tidy.py --base HEAD` 0 findings; `XS56K` builds.
+- **Assumptions**: the save first puts the sampler in the browser's folder (`moveToFolder`, the browser's own `moveTo` now shared); the
+  proposed item without a selection is the current program (the kind of RQ-APP-043's example).
 
 ### TASK-APP-057: All the items of a kind, and the whole memory
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The controller saves all the items of the proposed item's kind, with or without children (`&2D`), and the whole memory as one
   `&2D` per kind holding items, in one job, stopping at the first failure.
 - **Requirement refs**: RQ-APP-044
@@ -74,12 +77,14 @@ This plan implements the tasks in the format specified below.
   second one fails, *Then* nothing more is sent and the report names the kinds saved.
 - **Dependencies**: TASK-APP-056
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: same run: all samples → one &2D of type sample, no &2C; whole memory with programs and samples → two &2D, programs
+  then samples, `kindsSaved` = program, sample; disk taken away → no &2D sent, problem shown, report with no kind saved.
+- **Assumptions**: the whole memory is saved without the children flag (every kind is saved anyway); the failure test fails the first kind
+  (the simulated sampler cannot fail the second one alone).
 
 ### TASK-APP-058: Check names
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: A `UserPrompts` question for an existing file (replace, skip, replace all, cancel; replace, skip, cancel when asked once for a
   whole save); "check names" on by default, remembered in `AppSettings`; off: overwrite with no question.
 - **Requirement refs**: RQ-APP-045, RQ-APP-011
@@ -89,12 +94,14 @@ This plan implements the tasks in the format specified below.
   question is asked for the whole save; *Given* "check names" off, *Then* the save is sent with `Overwrite` and no question is asked.
 - **Dependencies**: TASK-APP-056, TASK-APP-057
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: same run: PAD.AKP there, "skip" → question names PAD.AKP, nothing sent, report skipped PAD.AKP; cancel → nothing sent;
+  replace → &2C with overwrite 1; all programs with PAD.AKP there → one question, &2D with flag 0; "check names" off → no question,
+  overwrite 1, and a new controller reads it off from the settings.
+- **Assumptions**: "replace all" is not offered for one file (it is "replace"); with no file known to be there, `Skip` is sent.
 
 ### TASK-APP-059: The save is checked on the disk
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: After the save, the browser shows the current folder from the outcome's listing, and the controller reports the files saved,
   skipped (there before, `Skip`) and missing.
 - **Requirement refs**: RQ-APP-046, RQ-APP-025
@@ -104,8 +111,10 @@ This plan implements the tasks in the format specified below.
   *Then* the report says it is missing.
 - **Dependencies**: TASK-APP-056
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: same run: PAD saved into KIT → browser lists PAD.AKP in KIT, report saved = PAD.AKP, nothing skipped or missing, text
+  names it; `reportOf` with an empty listing → PAD.AKP missing, text says "missing".
+- **Assumptions**: the browser shows the folder from the save's own listing (no new listing command); children are the files added that
+  bear no item's name.
 
 ### TASK-APP-060: The save dialog and its two entries
 - **Tier**: M

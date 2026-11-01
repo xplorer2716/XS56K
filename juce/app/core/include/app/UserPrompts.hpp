@@ -20,6 +20,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include <functional>
 #include <optional>
 #include <string>
+#include <vector>
 
 namespace app
 {
@@ -44,6 +45,24 @@ namespace app
         std::string action = "OK";  ///< the confirm button's text: "Add"
     };
 
+    /// The person's answer to files already on the disk: replace them, skip them (they stay), or cancel the save. With one file, "replace
+    /// all" would be "replace": it is not offered. [RQ-APP-045, ADR-APP-005 (DEC-APP-040)]
+    enum class ExistingAnswer
+    {
+        Replace,
+        Skip,
+        Cancel,
+    };
+
+    /// A question asked before a save would write files the folder already holds: the title, what it is about, and the files known to be
+    /// there. [RQ-APP-045, DEC-APP-040]
+    struct ExistingQuestion
+    {
+        std::string question;
+        std::string text;
+        std::vector<std::string> files;
+    };
+
     /// Every question the controller asks the person. The answer comes back on the UI thread, possibly later: the application asks with JUCE
     /// dialogs that do not block the message thread, the tests answer from a script. [RQ-APP-011, ADR-APP-001 (DEC-APP-007)]
     class UserPrompts
@@ -55,5 +74,8 @@ namespace app
         virtual void confirm(const Confirmation& question, std::function<void(bool confirmed)> answer) = 0;
         /// Asks for a count; `answer` is called once, with the count from `min` to `max`, or with none when the person cancelled.
         virtual void askCount(const CountQuestion& question, std::function<void(std::optional<int> count)> answer) = 0;
+        /// Asks what to do with files already on the disk; `answer` is called once, with `Cancel` when the person closed the question.
+        /// [RQ-APP-045]
+        virtual void askExisting(const ExistingQuestion& question, std::function<void(ExistingAnswer answer)> answer) = 0;
     };
 }

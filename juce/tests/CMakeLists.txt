@@ -262,6 +262,7 @@ add_executable(xs56k_app_tests
     app/EditorLayoutTests.cpp
     app/EditTests.cpp
     app/MemoryCommandTests.cpp
+    app/SaveTests.cpp
     app/MemoryTests.cpp)
 # The memory tests seed programs with the raw-frame helpers of the AKM and MCP tests (no MCP server). [TASK-APP-015]
 target_include_directories(xs56k_app_tests PRIVATE app akm mcp)

@@ -33,8 +33,9 @@ files saved, skipped and missing (RQ-APP-046). The JUCE view is one dialog opene
 menu, every visual value from the design tokens (ADR-APP-002), drawn first as a mockup (ADR-APP-003). [RQ-APP-043 to RQ-APP-047]
 
 ### DEC-APP-040: Check names asks per file when the files are known, once otherwise; the whole memory is the six kinds in turn
-For one item saved alone, the file its name gives is looked up in the current folder's listing: when it exists, the person answers replace, skip,
-replace all or cancel. When the files written cannot be known before sending (children, all of a kind, whole memory) and at least one item's file
+For one item saved alone, the file its name gives is looked up in the current folder's listing: when it exists, the person answers replace, skip
+or cancel ("replace all" is "replace" when there is one file, so it is not offered). With "check names" on and no file known to be there, the
+save goes with `Skip`, so a child already on the disk is kept, never replaced without a question. When the files written cannot be known before sending (children, all of a kind, whole memory) and at least one item's file
 exists, the question is asked once: replace, skip or cancel. Cancel sends nothing. The whole memory is one `saveAllMemoryItems` per kind that
 holds items (program, sample, multi, song file, set list, scenelist), in that order, in one job; a failure stops the job and the report says
 which kinds were saved. [RQ-APP-044, RQ-APP-045]

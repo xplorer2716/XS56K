@@ -39,6 +39,10 @@ namespace app::ui
         constexpr const char* MAC_SETTINGS_FOLDER = "Application Support";
         constexpr const char* CANCEL_TEXT = "Cancel";
         constexpr const char* CONFIRM_TEXT = "Confirm";
+        constexpr const char* REPLACE_TEXT = "Replace";
+        constexpr const char* SKIP_TEXT = "Skip";
+        constexpr const char* FILES_INTRO = "\n\nAlready in the folder: ";
+        constexpr const char* FILES_SEPARATOR = ", ";
         constexpr int COUNT_DIGITS = 2;  // a count of keygroups: up to 99 [RQ-APP-061]
         constexpr const char* DIGITS = "0123456789";
         constexpr int TEXT_LINES = 3;
@@ -209,6 +213,42 @@ namespace app::ui
             int _max;
             juce::TextEditor _field;
         };
+
+        /// Files already on the disk: the question as the title, what it is about with the files named, and three buttons: cancel, skip,
+        /// replace (the destructive one). Answers once; the window's close is a cancel. [RQ-APP-045, ADR-APP-005 (DEC-APP-040), TASK-APP-058]
+        class ExistingContent final : public AnsweredContent<ExistingAnswer>
+        {
+        public:
+            ExistingContent(LookAndFeel& lookAndFeel, const ExistingQuestion& question, std::function<void(ExistingAnswer)> answer)
+                : AnsweredContent<ExistingAnswer>(std::move(answer), ExistingAnswer::Cancel)
+            {
+                using namespace tokens;
+                juce::String files;
+                for (const std::string& file : question.files)
+                    files << (files.isEmpty() ? "" : FILES_SEPARATOR) << file;
+                setUp(lookAndFeel, question.question, question.text + FILES_INTRO + files.toStdString(), REPLACE_TEXT);
+                confirm.getProperties().set(DESTRUCTIVE_PROPERTY, true);
+                _skip.setButtonText(SKIP_TEXT);
+                addAndMakeVisible(_skip);
+                cancel.onClick = [this] { finish(ExistingAnswer::Cancel); };
+                _skip.onClick = [this] { finish(ExistingAnswer::Skip); };
+                confirm.onClick = [this] { finish(ExistingAnswer::Replace); };
+                const int lineHeight = pixels(kRowHeight);
+                setSize(pixels(kDialogWidth), pixels(kSpaceGroup) * 2 + lineHeight * (TEXT_LINES + 1) + pixels(kSpaceBetween) * 2 +
+                                                  pixels(kButtonHeight));
+            }
+
+            void resized() override
+            {
+                layOut(nullptr);
+                // Skip goes left of Cancel, the width of the others.
+                const auto bounds = cancel.getBounds();
+                _skip.setBounds(bounds.translated(-(bounds.getWidth() + pixels(tokens::kSpaceBetween)), 0));
+            }
+
+        private:
+            juce::TextButton _skip;
+        };
     }
 
     void MessageThreadDispatcher::post(std::function<void()> task)
@@ -235,6 +275,18 @@ namespace app::ui
         juce::DialogWindow::LaunchOptions options;
         options.dialogTitle = question.question;
         options.content.setOwned(new CountContent(_lookAndFeel, question, std::move(answer)));
+        options.dialogBackgroundColour = colourOf(tokens::kDialogSurface);
+        options.escapeKeyTriggersCloseButton = true;
+        options.useNativeTitleBar = true;
+        options.resizable = false;
+        options.launchAsync();
+    }
+
+    void DialogPrompts::askExisting(const ExistingQuestion& question, std::function<void(ExistingAnswer)> answer)
+    {
+        juce::DialogWindow::LaunchOptions options;
+        options.dialogTitle = question.question;
+        options.content.setOwned(new ExistingContent(_lookAndFeel, question, std::move(answer)));
         options.dialogBackgroundColour = colourOf(tokens::kDialogSurface);
         options.escapeKeyTriggersCloseButton = true;
         options.useNativeTitleBar = true;

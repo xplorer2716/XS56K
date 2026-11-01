@@ -47,6 +47,7 @@ namespace app::ui
 
         void confirm(const Confirmation& question, std::function<void(bool)> answer) override;
         void askCount(const CountQuestion& question, std::function<void(std::optional<int>)> answer) override;
+        void askExisting(const ExistingQuestion& question, std::function<void(ExistingAnswer)> answer) override;
 
     private:
         LookAndFeel& _lookAndFeel;
