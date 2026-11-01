@@ -544,6 +544,7 @@ DEC-QLT-014|49-52||The rules clang-tidy lacks, from the IDE and from a list of i
 @process/2.architecture/REVIEW-DEC-AKM-019-opus.md
 @process/3.plan/CHECKPOINT-AKM-2026-10-04.md
 @process/3.plan/CHECKPOINT-APP-2026-10-15.md
+@process/3.plan/CHECKPOINT-APP-2026-11-01.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-04.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-05.md
 @process/3.plan/CHECKPOINT-MCP-2026-10-06.md
