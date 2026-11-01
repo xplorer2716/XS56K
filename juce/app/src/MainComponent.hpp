@@ -29,6 +29,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "app/EditController.hpp"
 #include "app/FileBrowser.hpp"
 #include "app/MemoryController.hpp"
+#include "app/SaveController.hpp"
 #include "app/Model.hpp"
 
 namespace app::ui
@@ -73,11 +74,13 @@ namespace app::ui
     {
     public:
         MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser, MemoryController& memory,
-                      EditController& editor,
+                      EditController& editor, SaveController& save,
                       AppSettings& settings, common::midi::MidiBackend& backend);
         ~MainComponent() override;
 
         void resized() override;
+        /// Ctrl+S (Cmd+S on macOS) opens the save dialog. [RQ-APP-043, TASK-APP-060]
+        bool keyPressed(const juce::KeyPress& key) override;
 
         juce::StringArray getMenuBarNames() override;
         juce::PopupMenu getMenuForIndex(int menuIndex, const juce::String& menuName) override;
@@ -87,10 +90,14 @@ namespace app::ui
         void modelChanged(ModelPart part) override;
         void openMidiSetup(bool connectAfter);
         void connect();
+        /// Opens the save dialog on `item` (the save controller's proposal when none), or shows why nothing can be saved. [RQ-APP-043,
+        /// RQ-APP-047, TASK-APP-060]
+        void openSave(const std::optional<MemoryItem>& item);
 
         LookAndFeel& _lookAndFeel;
         Model& _model;
         Controller& _controller;
+        SaveController& _save;
         AppSettings& _settings;
         common::midi::MidiBackend& _backend;
         juce::MenuBarComponent _menuBar;

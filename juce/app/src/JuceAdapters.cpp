@@ -46,6 +46,7 @@ namespace app::ui
         constexpr int COUNT_DIGITS = 2;  // a count of keygroups: up to 99 [RQ-APP-061]
         constexpr const char* DIGITS = "0123456789";
         constexpr int TEXT_LINES = 3;
+        constexpr int EXISTING_TEXT_LINES = 5;  // the question, the children's warning and the files named [RQ-APP-045]
         constexpr const char* CLOSED_DIALOG_FAILED = "The answer of a closed dialog failed";
         constexpr const char* LOG_STOP_FAILED = "The log could not be closed";
 
@@ -234,7 +235,7 @@ namespace app::ui
                 _skip.onClick = [this] { finish(ExistingAnswer::Skip); };
                 confirm.onClick = [this] { finish(ExistingAnswer::Replace); };
                 const int lineHeight = pixels(kRowHeight);
-                setSize(pixels(kDialogWidth), pixels(kSpaceGroup) * 2 + lineHeight * (TEXT_LINES + 1) + pixels(kSpaceBetween) * 2 +
+                setSize(pixels(kDialogWidth), pixels(kSpaceGroup) * 2 + lineHeight * (EXISTING_TEXT_LINES + 1) + pixels(kSpaceBetween) * 2 +
                                                   pixels(kButtonHeight));
             }
 

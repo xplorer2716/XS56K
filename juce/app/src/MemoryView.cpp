@@ -53,6 +53,7 @@ namespace app::ui
             DELETE_ID,
             AUDITION_ID,
             STOP_AUDITION_ID,
+            SAVE_ID,
         };
 
         RowIcon iconOf(MemoryKind kind)
@@ -167,6 +168,7 @@ namespace app::ui
         menu.addSeparator();
         menu.addItem(RENAME_ID, "Rename" + ELLIPSIS);
         menu.addItem(DELETE_ID, "Delete" + ELLIPSIS);
+        menu.addItem(SAVE_ID, "Save" + ELLIPSIS, static_cast<bool>(onSave));  // [RQ-APP-043, TASK-APP-060]
         if (item->kind == MemoryKind::Sample)
         {
             menu.addItem(AUDITION_ID, "Audition");
@@ -201,6 +203,10 @@ namespace app::ui
                 break;
             case STOP_AUDITION_ID:
                 _memory.stopAudition();
+                break;
+            case SAVE_ID:
+                if (onSave)
+                    onSave(item);
                 break;
             default:
                 break;

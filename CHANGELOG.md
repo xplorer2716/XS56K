@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - This section may be incomplete. for full history, please check git history.
 - Initial project structure.
+- Editor application: saving to the sampler's disk, as its SAVE page does ("File > Save…", Ctrl+S, or "Save…" in the memory view's menu):
+  the selected item alone or with its children, all the items of its kind, or the entire memory, into the browser's current folder;
+  "check names" asks before a file on the disk is replaced (replace, skip, cancel); the folder is shown again and a report says which
+  files were saved, skipped or are missing. A disk that is not MSDOS or FAT32 is refused with nothing sent. Not yet tried on a real S5000.
 - Editor application (`juce/app`, `XS56K`): the main window replaces the placeholder: menus (Connect or Disconnect, MIDI setup, Quit), the
   connection and the job in progress in a status bar, the MIDI setup dialog, the file browser of the sampler's disks (folders, files with
   their kind, size and icon; load, load with dependents, load a folder, create, rename and delete, audition, refresh of the disks after a

@@ -118,18 +118,23 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-060: The save dialog and its two entries
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: A JUCE save dialog (item, scope, destination shown, "check names") opened by "File > Save…" (Ctrl+S) and by "Save…" in the
   memory view's context menu; its mockup generated first; every visual value from the design tokens.
 - **Requirement refs**: RQ-APP-043 to RQ-APP-045, RQ-APP-002
 - **ADR refs**: ADR-APP-005 (DEC-APP-039), ADR-APP-002, ADR-APP-003
 - **Acceptance Criteria**: *Given* a program selected, *When* "File > Save…" or the context menu's "Save…" is chosen, *Then* the dialog proposes
-  it with the current folder; *Given* no disk selected or disconnected, *Then* the entries are disabled; *Given* the mockup generator, *Then*
+  it with the current folder; *Given* no disk selected or disconnected, *Then* "File > Save…" is disabled and Ctrl+S shows why; *Given* the mockup generator, *Then*
   `--check` passes; the build, tests and tidy pass.
 - **Dependencies**: TASK-APP-056 to TASK-APP-059
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: `XS56K` builds with Clang (`-Werror`); full `ctest` 1261/1261; `tidy.py --base HEAD~2` 25 sources, 0 findings;
+  `generate_mockups.py --check`: 22 mockups up to date, `main-window-save.svg` and `main-window-save-existing.svg` new, rendered to PNG with
+  Chromium and looked at (three buttons fit). The entries' enabled state follows `SaveController::refusal()` (tested in [save]); the
+  dialog itself is not driven by a test (no UI automation on Linux): to check on the owner's run (TASK-APP-061).
+- **Assumptions**: a "File" menu is added (there was none) holding "Save…" with Ctrl+S (Cmd+S on macOS); the report is shown in an
+  information box; the dialog also lets the person choose another item of memory (the SAVE page does, FTR-APP-006); "check names" is a
+  check box of the dialog, remembered.
 
 ### TASK-APP-061: Run on the real S5000
 - **Tier**: S

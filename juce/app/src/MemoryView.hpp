@@ -44,6 +44,9 @@ namespace app::ui
 
         void resized() override;
 
+        /// "Save..." chosen in the context menu on an item. [RQ-APP-043, TASK-APP-060]
+        std::function<void(const MemoryItem& item)> onSave;
+
     private:
         void modelChanged(ModelPart part) override;
         void rebuild();

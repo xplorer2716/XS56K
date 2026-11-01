@@ -26,6 +26,7 @@ target_sources(XS56KApp PRIVATE
     src/MainComponent.cpp
     src/MemoryView.cpp
     src/MidiSetupDialog.cpp
+    src/SaveDialog.cpp
     src/ParameterCell.cpp
     src/StatusBar.cpp
     src/TextPrompt.cpp)

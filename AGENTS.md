@@ -17,7 +17,7 @@ XS56K is three things that build on each other (see `README.md`):
 2. **An MCP server** (`juce/mcp`) that lets an AI assistant work on the sampler. The goal is every function of the
    samplers that the SysEx specification offers.
 3. **A program editor** (`juce/app`): main window, menus, MIDI setup, disk browser, memory view, the sample editor
-   (FTR-APP-010) and the program editor's Envelopes and Program tabs (FTR-APP-008, PLAN-APP-006); the save (FTR-APP-006) is not built. Light MVC (`ADR-APP-001`): `juce/app/core` (`xs56k_app_core`, model and
+   (FTR-APP-010) and the program editor's Envelopes and Program tabs (FTR-APP-008, PLAN-APP-006); the save (FTR-APP-006, PLAN-APP-007) is built and waits for the owner's run on the S5000. Light MVC (`ADR-APP-001`): `juce/app/core` (`xs56k_app_core`, model and
    controllers, no JUCE, tested on the simulated sampler) over `xs56k_sampler` (the gateway shared with the MCP server);
    `juce/app/src` holds the thin JUCE views, every visual value from the design tokens (`ADR-APP-002`).
 
