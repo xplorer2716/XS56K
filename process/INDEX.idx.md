@@ -748,14 +748,14 @@ TASK-APP-053|244-256|In Progress|The arrows of every choice step it
 TASK-APP-054|257-269|In Progress|A plus on the enhanced filters
 TASK-APP-050|270-280|In Progress|All keygroups at once
 @process/3.plan/PLAN-APP-007-save-to-disk.md
-PLAN-APP-007|1-150||Editor Application — Saving Memory Items to a Disk
+PLAN-APP-007|1-151||Editor Application — Saving Memory Items to a Disk
 TASK-APP-055|31-48|Done|The gateway saves with refuse, skip or overwrite
 TASK-APP-056|49-67|Done|The save controller proposes the item and saves it alone or with its children
 TASK-APP-057|68-84|Done|All the items of a kind, and the whole memory
 TASK-APP-058|85-101|Done|Check names
 TASK-APP-059|102-118|Done|The save is checked on the disk
 TASK-APP-060|119-138|Done|The save dialog and its two entries
-TASK-APP-061|139-150|Not Started|Run on the real S5000
+TASK-APP-061|139-151|Not Started|Run on the real S5000
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
 TASK-BLD-001|23-39|Done|Add the JUCE CMake build foundation
@@ -903,3 +903,4 @@ TASK-QLT-025|29-40|Done|The production code clean against it
 TASK-QLT-026|41-52|Done|The skill and `AGENTS.md`
 TASK-QLT-027|53-63|Done|The automatic fixes of clang-tidy on the test code
 @process/3.plan/checklists/real-sampler-run-APP-2026-10-17.md
+@process/3.plan/checklists/real-sampler-run-APP-save.md

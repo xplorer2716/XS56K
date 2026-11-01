@@ -140,7 +140,8 @@ This plan implements the tasks in the format specified below.
 - **Tier**: S
 - **Status**: Not Started
 - **Description**: The owner saves on the S5000 a program alone, with children, all samples, the whole memory, and answers each check-names
-  question, following a checklist in `process/3.plan/checklists/`.
+  question, following `process/3.plan/checklists/real-sampler-run-APP-save.md` (N5 and N6: what the S5000 does with the skip flag when a
+  file exists, unknown so far).
 - **Requirement refs**: RQ-APP-043 to RQ-APP-047
 - **ADR refs**: ADR-APP-005
 - **Acceptance Criteria**: *Given* the checklist, *When* the owner runs it, *Then* each line is OK or its finding is planned.
