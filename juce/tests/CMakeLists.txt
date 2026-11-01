@@ -104,6 +104,7 @@ add_executable(xs56k_mcp_tests
     mcp/DiskLoadTests.cpp
     mcp/DiskNamedListTests.cpp
     mcp/DiskSaveTests.cpp
+    mcp/GatewaySaveTests.cpp
     mcp/FxCatalogueTests.cpp
     mcp/FxToolsTests.cpp
     mcp/FrontPanelToolsTests.cpp

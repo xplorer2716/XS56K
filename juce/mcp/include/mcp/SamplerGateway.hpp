@@ -300,6 +300,15 @@ namespace mcp
         SceneList,
     };
 
+    /// What a save does with a file that already bears an item's name in the folder: refuse the save (nothing sent), skip the file
+    /// (it stays on the disk, the specification's "skip if file exists"), or overwrite it. [RQ-APP-045, RQ-MCP-026, ADR-APP-005 (DEC-APP-038)]
+    enum class ExistingFile
+    {
+        Refuse,
+        Skip,
+        Overwrite,
+    };
+
     /// What a save did: the disk and folder it acted on, the kind and name (one item) or the number of items (all), and the
     /// files of the folder before and after.
     struct SaveOutcome
@@ -311,6 +320,7 @@ namespace mcp
         std::vector<DiskFileEntry> filesBefore;
         std::vector<DiskFileEntry> filesAfter;
         std::optional<DiskFileEntry> savedFile;  ///< one item: the file that bears its name afterwards
+        std::vector<std::string> skipped;        ///< with `ExistingFile::Skip`: the files that bore an item's name before, left on the disk (DEC-APP-038)
     };
 
     /// What a listing after a change must show: a file or a folder of that name is there, or is gone. [RQ-MCP-039, RQ-MCP-033]
@@ -715,12 +725,14 @@ namespace mcp
         /// Saves one item of the sampler's memory (found by its name) to the current folder of the current disk, which must
         /// be writable. Unless `overwrite`, a file bearing the item's name in the folder refuses the save and nothing is
         /// sent. The answer holds the folder's files before and after, and the file that bears the item's name. The command
-        /// waits for the disk timeout, as a load does. [RQ-MCP-026]
-        [[nodiscard]] Outcome<SaveOutcome> saveMemoryItem(SaveKind kind, std::string_view name, bool overwrite, bool saveChildren);
+        /// waits for the disk timeout, as a load does. `existing` says what a file bearing the item's name does: refuse the save, skip it
+        /// (nothing is sent and the outcome names it) or overwrite it. [RQ-MCP-026, RQ-APP-045, DEC-APP-038]
+        [[nodiscard]] Outcome<SaveOutcome> saveMemoryItem(SaveKind kind, std::string_view name, ExistingFile existing, bool saveChildren);
 
-        /// Saves every item of a kind, only when `confirm` is the number of such items in memory; unless `overwrite`, files
-        /// bearing their names refuse the save. [RQ-MCP-027]
-        [[nodiscard]] Outcome<SaveOutcome> saveAllMemoryItems(SaveKind kind, int confirm, bool overwrite, bool saveChildren);
+        /// Saves every item of a kind, only when `confirm` is the number of such items in memory; with `ExistingFile::Refuse`, files
+        /// bearing their names refuse the save; with `Skip` the save is sent with the "skip if file exists" flag and the outcome names
+        /// them. [RQ-MCP-027, RQ-APP-045, DEC-APP-038]
+        [[nodiscard]] Outcome<SaveOutcome> saveAllMemoryItems(SaveKind kind, int confirm, ExistingFile existing, bool saveChildren);
 
         /// The multis in memory and the current one with its number of parts. [RQ-MCP-021]
         [[nodiscard]] Outcome<MultiListing> listMultis();

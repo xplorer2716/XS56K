@@ -899,7 +899,7 @@ namespace mcp
         return after;
     }
 
-    Outcome<SaveOutcome> SamplerGateway::saveMemoryItem(SaveKind kind, std::string_view name, bool overwrite, bool saveChildren)
+    Outcome<SaveOutcome> SamplerGateway::saveMemoryItem(SaveKind kind, std::string_view name, ExistingFile existing, bool saveChildren)
     {
         const auto target = writableFolder();
         if (!target.ok())
@@ -920,9 +920,23 @@ namespace mcp
         }
         const int index = static_cast<int>(found - names.begin());
 
-        if (const DiskFileEntry* existing = fileBearing(target.value->files, *found); existing != nullptr && !overwrite)
-            return Outcome<SaveOutcome>::failure("The current folder of the disk \"" + target.value->diskName + "\" already holds the file \"" +
-                                                 existing->name + "\": nothing was saved. Pass overwrite true to replace it.");
+        const bool overwrite = existing == ExistingFile::Overwrite;
+        if (const DiskFileEntry* there = fileBearing(target.value->files, *found); there != nullptr && !overwrite)
+        {
+            if (existing == ExistingFile::Refuse)
+                return Outcome<SaveOutcome>::failure("The current folder of the disk \"" + target.value->diskName + "\" already holds the file \"" +
+                                                     there->name + "\": nothing was saved. Pass overwrite true to replace it.");
+            // Skipped: the file stays, so nothing is sent (DEC-APP-038).
+            SaveOutcome skipped;
+            skipped.diskName = target.value->diskName;
+            skipped.path = target.value->path;
+            skipped.itemName = *found;
+            skipped.filesBefore = target.value->files;
+            skipped.filesAfter = target.value->files;
+            skipped.savedFile = *there;
+            skipped.skipped.push_back(there->name);
+            return Outcome<SaveOutcome>::success(std::move(skipped));
+        }
 
         const auto saved = await<akm::CommandResult>(waitForDisk(), [this, &index, &kind, &overwrite, &saveChildren](std::function<void(const akm::CommandResult&)> done) {
             akm::saveMemoryItem(session(), index, saveType(kind), overwrite, saveChildren, std::move(done), diskOptions());
@@ -954,7 +968,7 @@ namespace mcp
         return Outcome<SaveOutcome>::success(std::move(outcome));
     }
 
-    Outcome<SaveOutcome> SamplerGateway::saveAllMemoryItems(SaveKind kind, int confirm, bool overwrite, bool saveChildren)
+    Outcome<SaveOutcome> SamplerGateway::saveAllMemoryItems(SaveKind kind, int confirm, ExistingFile existing, bool saveChildren)
     {
         const auto target = writableFolder();
         if (!target.ok())
@@ -971,15 +985,16 @@ namespace mcp
         if (names.empty())
             return Outcome<SaveOutcome>::failure("The sampler's memory holds no " + std::string(kindName(kind)) + ": nothing to save.");
 
+        const bool overwrite = existing == ExistingFile::Overwrite;
+        std::vector<std::string> conflicts;
         if (!overwrite)
         {
-            std::vector<std::string> conflicts;
             for (const std::string& item : names)
             {
-                if (const DiskFileEntry* existing = fileBearing(target.value->files, item))
-                    conflicts.push_back(existing->name);
+                if (const DiskFileEntry* there = fileBearing(target.value->files, item))
+                    conflicts.push_back(there->name);
             }
-            if (!conflicts.empty())
+            if (!conflicts.empty() && existing == ExistingFile::Refuse)
                 return Outcome<SaveOutcome>::failure("The current folder of the disk \"" + target.value->diskName + "\" already holds " +
                                                      quotedList(conflicts) + ": nothing was saved. Pass overwrite true to replace them, or save "
                                                      "the items one by one.");
@@ -1013,6 +1028,7 @@ namespace mcp
         outcome.itemCount = confirm;
         outcome.filesBefore = target.value->files;
         outcome.filesAfter = after.value->files;
+        outcome.skipped = std::move(conflicts);
         return Outcome<SaveOutcome>::success(std::move(outcome));
     }
 
