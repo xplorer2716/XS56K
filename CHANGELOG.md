@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - This section may be incomplete. for full history, please check git history.
 - Initial project structure.
+- Editor application: a multi editor (FTR-APP-011): selecting a multi shows its "Parts" tab, one part at a time or all parts, with the
+  program each part plays, its mix and setup parameters, and the multi's program number; "Create a multi…" in the memory view's menu.
 - Editor application: saving to the sampler's disk, as its SAVE page does ("File > Save…", Ctrl+S, or "Save…" in the memory view's menu):
   the selected item alone or with its children, all the items of its kind, or the entire memory, into the browser's current folder;
   "check names" asks before a file on the disk is replaced (replace, skip, cancel); the folder is shown again and a report says which

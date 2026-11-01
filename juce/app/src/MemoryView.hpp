@@ -53,6 +53,8 @@ namespace app::ui
         void showMenu(int row);
         void run(int command, const MemoryItem& item);
         void askNewProgram();
+        /// Asks the name of a new multi and creates it. [RQ-APP-104, TASK-APP-066]
+        void askNewMulti();
 
         LookAndFeel& _lookAndFeel;
         Model& _model;

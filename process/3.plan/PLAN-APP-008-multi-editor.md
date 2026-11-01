@@ -27,7 +27,7 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-APP-062: The multi layout and the program number read alone
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `juce/app/design/layouts/multi.json` (tab "Parts": Multi, Program, Mix, Setup); the generator knows the scopes `multi`,
   `part` and the control `program`; `SamplerGateway::readMultiProgramNumber` (`&41`).
 - **Requirement refs**: RQ-APP-100, RQ-APP-103
@@ -36,12 +36,12 @@ This plan implements the tasks in the format specified below.
   multi with program number 5, *When* it is read alone, *Then* 5 comes back, and empty when it is off; the SysEx coverage table stays up to date.
 - **Dependencies**: None
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: `juce/tests/app/MultiEditTests.cpp` (9 cases, written before the code, red at compile time: `readMultiProgramNumber`, `createMulti`, `programs` did not exist): the program-number case passes; generator tests 36/36 (two new: a part group with the program control, the program control outside a part group refused; the unknown scope of two older tests is now "song"); `generate_design.py --check` and `generate_mockups.py --check` pass; full `ctest` 1270/1270, SysEx coverage table up to date (Clang, Linux).
+- **Assumptions**: the program number's group is titled "Program change" ("Multi" repeated its scope); `setMultiProgramNumber` reads back through the same private reading, one current-multi check as before.
 
 ### TASK-APP-063: The multi binding
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The `EditController` edits a multi: made current by name with its part count, its part parameters read and written for the
   part chosen or all parts, "VARIES" when the parts differ, the low note bounded by the high note.
 - **Requirement refs**: RQ-APP-100, RQ-APP-101
@@ -52,12 +52,12 @@ This plan implements the tasks in the format specified below.
   *Then* nothing is sent.
 - **Dependencies**: TASK-APP-062
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: same run, `xs56k_app_tests "[multi]"` 9 cases / 158 assertions: LIVE shows 14 values, 32 parts, part 1's level; part 2 chosen reads 30, set to 70 read back, part 1 unchanged; all parts: level VARIES, mute sent to parts 1 and 32; low note C4 above high note C3 refused, no &1A sent. `xs56k_app_tests` 117 cases pass (the old "multi has no editor" case now uses a song file).
+- **Assumptions**: the edit state's keygroup fields hold a multi's part count and part (DEC-APP-041); every reading of a multi reads the programs and the parts' programs, for the selector.
 
 ### TASK-APP-064: The program of a part and the program number
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The values "part program" (a choice among the programs in memory, 0 none) and "multi program number" (OFF, 1 to 128); the
   programs of the parts in the edit state for the selector.
 - **Requirement refs**: RQ-APP-101, RQ-APP-102, RQ-APP-103
@@ -67,12 +67,12 @@ This plan implements the tasks in the format specified below.
   *Given* no program number, *Then* it reads OFF; *When* 5 is set, *Then* it is sent and reads 5.
 - **Dependencies**: TASK-APP-063
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: same run: part 2 given PAD reads PAD in the tab and `partPrograms`; none clears it, PAD stays in memory; all parts: no &32/&33 sent, the problem says "one part"; program number OFF, set 5, reads 5 on the sampler.
+- **Assumptions**: the part is cleared with the multi's name as the gateway's confirmation and no question (DEC-APP-042).
 
 ### TASK-APP-065: A multi created from the memory view
 - **Tier**: S
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: `MemoryController::createMulti`: a name taken refused with nothing sent; the multi created, listed and selected.
 - **Requirement refs**: RQ-APP-104
 - **ADR refs**: ADR-APP-006 (DEC-APP-043)
@@ -80,11 +80,11 @@ This plan implements the tasks in the format specified below.
 - **Dependencies**: None
 - **Assignee**: AI
 - **Verification**: N/A (Tier S)
-- **Assumptions**:
+- **Assumptions**: the multi gets the part count the sampler gives new multis (&01 not sent); verified in the same run (LIVE created and selected, m-1 refused, one &02).
 
 ### TASK-APP-066: The views of the multi editor
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: The edit panel's part selector ("Part n of N", the program, "All parts"), no add or delete button for a multi, the program
   choice of a part, the scopes' names; "New multi…" in the memory view's context menu; the mockup `multi-editor` generated first.
 - **Requirement refs**: RQ-APP-100 to RQ-APP-102, RQ-APP-104, RQ-APP-002
@@ -93,8 +93,8 @@ This plan implements the tasks in the format specified below.
   `-Werror`, the tests and tidy pass.
 - **Dependencies**: TASK-APP-063 to TASK-APP-065
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: `XS56K` builds with Clang `-Werror`; mockups `multi-editor-connected.svg`, `multi-editor-writing.svg` generated and looked at (Chromium); full `ctest` 1270/1270; `tidy.py --base HEAD` 24 sources, 0 findings. The views are not driven by a test (no UI automation on Linux): checked by the owner's run (TASK-APP-067).
+- **Assumptions**: the selector reads "Part n of N - PROGRAM"; the add and delete buttons are hidden for a multi; "Create a multi…" sits under "Create a program…" in the memory view's context menu; the multi screen's menu shows File.
 
 ### TASK-APP-067: Run on the real S5000
 - **Tier**: S

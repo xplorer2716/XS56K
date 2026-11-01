@@ -36,6 +36,7 @@ namespace app::layouts
         ValueBox,
         Slider,
         Sample,  ///< a zone's sample, chosen among those in memory; in a zone grid only (DEC-APP-033)
+        Program,  ///< a part's program, chosen among those in memory; in a part group only (DEC-APP-042)
     };
 
     /// The family of a parameter, which decides its colour (ADR-APP-002 DEC-APP-016).
@@ -111,6 +112,8 @@ namespace app::layouts
         Program,
         Keygroup,
         Zone,
+        Multi,  ///< the multi itself (DEC-APP-041)
+        Part,   ///< the part of a multi chosen (DEC-APP-041)
     };
 
     /// A stage of an envelope drawn as a graph: its time parameter and its end level, a parameter or `fixedLevel` (0 to 100); or the sustain

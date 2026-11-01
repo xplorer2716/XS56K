@@ -1,0 +1,26 @@
+{
+  "_comment": "The multi editor (FTR-APP-011): one tab, the multi's program number then the part shown in three groups, the assistant's proposal of 2026-11-01, data the owner can change. Parameter names are those of mcp::ParameterCatalogue::multis(), and the two values with no catalogue row, part program and multi program number (DEC-APP-042, DEC-APP-043). [RQ-APP-100, RQ-APP-102, RQ-APP-103, ADR-APP-006 (DEC-APP-041 to DEC-APP-043), ADR-APP-004 (DEC-APP-024, DEC-APP-029)]",
+  "editor": "multi",
+  "orders": [["part low note", "part high note"]],
+  "tabs": [
+    {"title": "Parts", "groups": [
+      {"title": "Program change", "scope": "multi", "parameters": [
+        {"name": "multi program number", "label": "Number", "role": "general", "control": "choice"}]},
+      {"title": "Program", "scope": "part", "parameters": [
+        {"name": "part program", "label": "Program", "role": "general", "control": "program", "cells": 3}]},
+      {"title": "Mix", "scope": "part", "row": true, "parameters": [
+        {"name": "part mute", "label": "Mute", "role": "amp", "control": "choice"},
+        {"name": "part solo", "label": "Solo", "role": "amp", "control": "choice"},
+        {"name": "part level", "label": "Level", "role": "amp", "control": "knob"},
+        {"name": "part pan", "label": "Pan", "role": "amp", "control": "knob"},
+        {"name": "part output", "label": "Output", "role": "amp", "control": "choice"},
+        {"name": "part effects channel", "label": "FX chan", "role": "amp", "control": "choice"},
+        {"name": "part fx send level", "label": "FX send", "role": "amp", "control": "knob"}]},
+      {"title": "Setup", "scope": "part", "row": true, "parameters": [
+        {"name": "part midi channel", "label": "MIDI ch", "role": "general", "control": "choice"},
+        {"name": "part transpose", "label": "Transp", "role": "general", "control": "knob"},
+        {"name": "part fine tune", "label": "Fine", "role": "general", "control": "knob"},
+        {"name": "part low note", "label": "Low", "role": "general", "control": "valuebox"},
+        {"name": "part high note", "label": "High", "role": "general", "control": "valuebox"}]}]}
+  ]
+}

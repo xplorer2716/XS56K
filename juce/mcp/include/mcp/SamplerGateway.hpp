@@ -826,6 +826,9 @@ namespace mcp
 
         /// Sets the current multi's program number (1 to 128 as on the front panel) or switches it off, and reads it back. [RQ-MCP-038]
         [[nodiscard]] Outcome<MultiProgramNumber> setMultiProgramNumber(std::optional<int> number);
+        /// The current multi's program number (1 to 128 as on the front panel), empty when it is switched off; no current multi is a problem
+        /// that says so. [RQ-APP-103, ADR-APP-006 (DEC-APP-043)]
+        [[nodiscard]] Outcome<MultiProgramNumber> readMultiProgramNumber();
 
         /// The sampler's model, operating system and free memory (section 02). [RQ-MCP-040]
         [[nodiscard]] Outcome<SystemInfo> readSystemInfo();
@@ -949,6 +952,8 @@ namespace mcp
                                                                                   const char* currentObject = "program");
         [[nodiscard]] Outcome<SampleEntry> currentSampleEntry();
         [[nodiscard]] Outcome<MultiEntry> currentMultiEntry();
+        /// The program number of the current multi, named `multi` in the outcome. [RQ-APP-103]
+        [[nodiscard]] Outcome<MultiProgramNumber> readProgramNumberOf(const std::string& multi);
 
         /// One read each of a song file, set list or scenelist list, on the open session. [RQ-MCP-048]
         [[nodiscard]] Outcome<int> readNamedCount(NamedListKind kind);

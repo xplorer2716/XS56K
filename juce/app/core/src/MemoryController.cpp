@@ -144,6 +144,7 @@ namespace app
     namespace
     {
         constexpr const char* CREATING_LABEL = "Creating the program ";
+        constexpr const char* CREATING_MULTI_LABEL = "Creating the multi ";
         constexpr const char* RENAMING_LABEL = "Renaming ";
         constexpr const char* DELETING_LABEL = "Deleting ";
         constexpr const char* AUDITIONING_LABEL = "Auditioning ";
@@ -358,6 +359,19 @@ namespace app
             [this, alive = std::weak_ptr<int>(_alive), name](const bool&) {
                 if (!alive.expired())
                     _model.memoryChanged(MemoryItem{MemoryKind::Program, name});
+            });
+    }
+
+    void MemoryController::createMulti(const std::string& name)
+    {
+        const std::string label = CREATING_MULTI_LABEL + name;
+        if (refuseTakenName(MemoryKind::Multi, name, label))
+            return;
+        _controller.runOnSampler<bool>(
+            label, [name](mcp::SamplerGateway& gateway) { return doneOf(gateway.createMulti(name)); },
+            [this, alive = std::weak_ptr<int>(_alive), name](const bool&) {
+                if (!alive.expired())
+                    _model.memoryChanged(MemoryItem{MemoryKind::Multi, name});
             });
     }
 

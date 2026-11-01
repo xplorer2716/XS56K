@@ -38,6 +38,9 @@ namespace app::ui
         constexpr const char* NEW_PROGRAM_ACTION = "Creating a program";
         constexpr const char* BAD_KEYGROUPS = "The number of keygroups is a number from 1 to 99.";
         constexpr const char* NO_NAME = "A program needs a name.";
+        constexpr const char* NEW_MULTI_TITLE = "Create a multi";
+        constexpr const char* NEW_MULTI_ACTION = "Creating a multi";
+        constexpr const char* NO_MULTI_NAME = "A multi needs a name.";
         constexpr const char* DIGITS = "0123456789";
         constexpr int MIN_KEYGROUPS = 1;
         constexpr int MAX_KEYGROUPS = 99;
@@ -54,6 +57,7 @@ namespace app::ui
             AUDITION_ID,
             STOP_AUDITION_ID,
             SAVE_ID,
+            CREATE_MULTI_ID,
         };
 
         RowIcon iconOf(MemoryKind kind)
@@ -165,6 +169,7 @@ namespace app::ui
             return;
         juce::PopupMenu menu;
         menu.addItem(CREATE_PROGRAM_ID, "Create a program" + ELLIPSIS);
+        menu.addItem(CREATE_MULTI_ID, "Create a multi" + ELLIPSIS);  // [RQ-APP-104, TASK-APP-066]
         menu.addSeparator();
         menu.addItem(RENAME_ID, "Rename" + ELLIPSIS);
         menu.addItem(DELETE_ID, "Delete" + ELLIPSIS);
@@ -187,6 +192,9 @@ namespace app::ui
         {
             case CREATE_PROGRAM_ID:
                 askNewProgram();
+                break;
+            case CREATE_MULTI_ID:
+                askNewMulti();
                 break;
             case RENAME_ID:
                 askTexts("Rename " + juce::String(item.name), "The new name:", {TextField{NAME_LABEL, juce::String(item.name)}},
@@ -227,6 +235,19 @@ namespace app::ui
                          _model.setProblem(Problem{NEW_PROGRAM_ACTION, BAD_KEYGROUPS});
                      else
                          _memory.createProgram(texts[NAME_FIELD], keygroups);
+                 });
+    }
+
+    void MemoryView::askNewMulti()
+    {
+        askTexts(NEW_MULTI_TITLE, {}, {TextField{NAME_LABEL, {}}},
+                 [this, alive = juce::Component::SafePointer<MemoryView>(this)](const std::vector<std::string>& texts) {
+                     if (alive == nullptr)
+                         return;
+                     if (texts[NAME_FIELD].empty())
+                         _model.setProblem(Problem{NEW_MULTI_ACTION, NO_MULTI_NAME});
+                     else
+                         _memory.createMulti(texts[NAME_FIELD]);  // [RQ-APP-104]
                  });
     }
 }

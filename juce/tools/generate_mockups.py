@@ -236,7 +236,7 @@ def control_cells(parameter):
         return parameter["cells"]  # a choice with long labels, widened by the layout [TASK-APP-048]
     if control == "slider":
         return SLIDER_CELLS
-    return CHOICE_CELLS if control in ("choice", "valuebox") else 1
+    return CHOICE_CELLS if control in ("choice", "valuebox", "program") else 1
 
 
 def grid_row_pitch(t):
@@ -479,7 +479,7 @@ def draw_group(c, x, y, group, values, pending, shapes=None):
         value = values.get(parameter["name"], {})
         is_pending = parameter["name"] in pending
         centre = cell_x + w / 2
-        if parameter.get("control") == "choice":
+        if parameter.get("control") in ("choice", "program"):  # a part's program is chosen among the programs [DEC-APP-042]
             draw_choice_cell(c, cell_x, knob_top, w, parameter, value, is_pending, shapes or {})
         elif parameter.get("control") in ("slider", "valuebox"):
             # A slider has its value box on top, the slider under the label (owner, 2026-10-15). [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
@@ -493,7 +493,7 @@ def draw_group(c, x, y, group, values, pending, shapes=None):
             margin = t("slider.thumb.size")
             draw_slider(c, cell_x + margin, label_y + t("size.space.1") + t("valuebox.height") / 2, w - 2 * margin,
                         float(value.get("fraction", 0.0)), colour, is_pending)
-        elif parameter.get("control") not in ("choice", "valuebox"):
+        elif parameter.get("control") not in ("choice", "valuebox", "program"):
             draw_value_box(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), value.get("text", ""), is_pending)
         cell_x += w
     return width, height

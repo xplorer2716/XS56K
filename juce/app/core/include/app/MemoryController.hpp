@@ -50,6 +50,9 @@ namespace app
         /// Creates a program of `keygroups` keygroups, which becomes current and selected; a name a program already bears (without regard to
         /// case, spaces or hyphens) is refused with nothing sent. [RQ-APP-038, TASK-APP-016]
         void createProgram(const std::string& name, int keygroups);
+        /// Creates a multi, with the part count the sampler gives new multis, which becomes current and selected; a name a multi already
+        /// bears (without regard to case, spaces or hyphens) is refused with nothing sent. [RQ-APP-104, ADR-APP-006 (DEC-APP-043), TASK-APP-065]
+        void createMulti(const std::string& name);
         /// Selects a program, a sample or a multi on the sampler and renames it; a name another item of the kind bears is refused with
         /// nothing sent. [RQ-APP-039, TASK-APP-016]
         void rename(const MemoryItem& item, const std::string& newName);

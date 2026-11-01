@@ -54,8 +54,9 @@ namespace app::ui
 
         /// Shows what the model holds; a value the person is dragging is not moved under the pointer.
         void show(const EditValue& value);
-        /// A zone's sample: the samples in memory it is chosen among, after NONE (value 0). [RQ-APP-060, DEC-APP-033]
-        void setSamples(const std::vector<std::string>& samples);
+        /// A zone's sample or a part's program: the samples or programs in memory it is chosen among, after NONE (value 0). [RQ-APP-060,
+        /// RQ-APP-102, DEC-APP-033, DEC-APP-042]
+        void setNames(const std::vector<std::string>& names);
 
         std::function<void(std::int64_t)> onValue;
 
@@ -74,7 +75,7 @@ namespace app::ui
         ChoiceBox _choice;
         juce::Rectangle<int> _shapeArea;  ///< where a choice's shape is drawn; empty: none
         bool _inGrid = false;
-        std::vector<std::string> _samples;  ///< the choices of a zone's sample, as last given
+        std::vector<std::string> _names;  ///< the choices of a zone's sample or a part's program, as last given
         EditValue _shown;
         /// True while the controls are set from the model: that is no value the person gave.
         bool _showing = false;

@@ -771,11 +771,11 @@ TASK-APP-060|119-138|Done|The save dialog and its two entries
 TASK-APP-061|139-151|Not Started|Run on the real S5000
 @process/3.plan/PLAN-APP-008-multi-editor.md
 PLAN-APP-008|1-109||Editor Application — the Multi Editor
-TASK-APP-062|28-41|Not Started|The multi layout and the program number read alone
-TASK-APP-063|42-57|Not Started|The multi binding
-TASK-APP-064|58-72|Not Started|The program of a part and the program number
-TASK-APP-065|73-84|Not Started|A multi created from the memory view
-TASK-APP-066|85-98|Not Started|The views of the multi editor
+TASK-APP-062|28-41|Done|The multi layout and the program number read alone
+TASK-APP-063|42-57|Done|The multi binding
+TASK-APP-064|58-72|Done|The program of a part and the program number
+TASK-APP-065|73-84|Done|A multi created from the memory view
+TASK-APP-066|85-98|Done|The views of the multi editor
 TASK-APP-067|99-109|Not Started|Run on the real S5000
 @process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md
 PLAN-BLD-001|1-177||Reproduce XplorerEditor's Build System in XS56K
@@ -924,4 +924,5 @@ TASK-QLT-025|29-40|Done|The production code clean against it
 TASK-QLT-026|41-52|Done|The skill and `AGENTS.md`
 TASK-QLT-027|53-63|Done|The automatic fixes of clang-tidy on the test code
 @process/3.plan/checklists/real-sampler-run-APP-2026-10-17.md
+@process/3.plan/checklists/real-sampler-run-APP-multi.md
 @process/3.plan/checklists/real-sampler-run-APP-save.md

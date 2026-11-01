@@ -60,11 +60,18 @@ namespace app
         std::size_t tab = 0;
         std::vector<EditValue> values;
         std::vector<EditValue> info;
-        std::optional<int> keygroups;  ///< a program's keygroup count, read when it is made current [RQ-APP-093]
-        int keygroup = 1;  ///< the keygroup whose values a program's tab shows, 1 to `keygroups`, or ALL_KEYGROUPS [RQ-APP-058, RQ-APP-059]
+        /// A program's keygroup count, read when it is made current [RQ-APP-093]; a multi's part count [RQ-APP-101, DEC-APP-041]
+        std::optional<int> keygroups;
+        /// The keygroup whose values a program's tab shows, 1 to `keygroups`, or ALL_KEYGROUPS [RQ-APP-058, RQ-APP-059]; a multi's part
+        /// [RQ-APP-101, DEC-APP-041]
+        int keygroup = 1;
         /// The samples in memory, read with a tab that holds a zone's sample: that value is 1 plus the sample's place here, 0 none.
         /// [RQ-APP-060, DEC-APP-033]
         std::vector<std::string> samples;
+        /// The programs in memory, read with a multi: a part's program is 1 plus the program's place here, 0 none. [RQ-APP-102, DEC-APP-042]
+        std::vector<std::string> programs;
+        /// The program each part of a multi plays, part 1 first, empty for none: what the part selector shows. [RQ-APP-101, DEC-APP-042]
+        std::vector<std::string> partPrograms;
     };
 
     /// A value as the sampler's screen writes it: a root as a note name ("C3"), a signed tune with its sign ("+10"), a choice by its label

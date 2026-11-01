@@ -49,6 +49,44 @@ namespace app::layouts
         ChoiceShape{"PHASER 1", kFilterTypesShape17, {}, {}},
         ChoiceShape{"PHASER 2", kFilterTypesShape18, {}, {}},
     }};
+    inline constexpr std::array<LayoutParameter, 1> kMultiTab0Group0{{
+        {"multi program number", "Number", Role::General, Control::Choice, {}, 0},
+    }};
+    inline constexpr std::array<LayoutParameter, 1> kMultiTab0Group1{{
+        {"part program", "Program", Role::General, Control::Program, {}, 3},
+    }};
+    inline constexpr std::array<LayoutParameter, 7> kMultiTab0Group2{{
+        {"part mute", "Mute", Role::Amp, Control::Choice, {}, 0},
+        {"part solo", "Solo", Role::Amp, Control::Choice, {}, 0},
+        {"part level", "Level", Role::Amp, Control::Knob, {}, 0},
+        {"part pan", "Pan", Role::Amp, Control::Knob, {}, 0},
+        {"part output", "Output", Role::Amp, Control::Choice, {}, 0},
+        {"part effects channel", "FX chan", Role::Amp, Control::Choice, {}, 0},
+        {"part fx send level", "FX send", Role::Amp, Control::Knob, {}, 0},
+    }};
+    inline constexpr std::array<LayoutParameter, 5> kMultiTab0Group3{{
+        {"part midi channel", "MIDI ch", Role::General, Control::Choice, {}, 0},
+        {"part transpose", "Transp", Role::General, Control::Knob, {}, 0},
+        {"part fine tune", "Fine", Role::General, Control::Knob, {}, 0},
+        {"part low note", "Low", Role::General, Control::ValueBox, {}, 0},
+        {"part high note", "High", Role::General, Control::ValueBox, {}, 0},
+    }};
+    inline constexpr std::array<LayoutGroup, 4> kMultiTab0Groups{{
+        LayoutGroup{"Program change", kMultiTab0Group0, Scope::Multi, {}, false, 0, {}},
+        LayoutGroup{"Program", kMultiTab0Group1, Scope::Part, {}, false, 0, {}},
+        LayoutGroup{"Mix", kMultiTab0Group2, Scope::Part, {}, true, 0, {}},
+        LayoutGroup{"Setup", kMultiTab0Group3, Scope::Part, {}, true, 0, {}},
+    }};
+    inline constexpr std::array<LayoutTab, 1> kMultiTabs{{
+        LayoutTab{"Parts", kMultiTab0Groups},
+    }};
+    inline constexpr std::array<std::string_view, 2> kMultiOrder0{{
+        "part low note",
+        "part high note",
+    }};
+    inline constexpr std::array<std::span<const std::string_view>, 1> kMultiOrders{{
+        std::span<const std::string_view>{kMultiOrder0},
+    }};
     inline constexpr std::array<LayoutParameter, 4> kProgramTab0Group0{{
         {"keygroup low note", "Low", Role::General, Control::ValueBox, {}, 0},
         {"keygroup high note", "High", Role::General, Control::ValueBox, {}, 0},
@@ -351,7 +389,8 @@ namespace app::layouts
     inline constexpr std::array<std::span<const std::string_view>, 1> kSampleOrders{{
         std::span<const std::string_view>{kSampleOrder0},
     }};
-    inline constexpr std::array<EditorLayout, 2> kEditorLayouts{{
+    inline constexpr std::array<EditorLayout, 3> kEditorLayouts{{
+        EditorLayout{"multi", kMultiTabs, kMultiOrders},
         EditorLayout{"program", kProgramTabs, kProgramOrders},
         EditorLayout{"sample", kSampleTabs, kSampleOrders},
     }};

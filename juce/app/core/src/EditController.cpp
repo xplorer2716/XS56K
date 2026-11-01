@@ -57,6 +57,11 @@ namespace app
         constexpr const char* NOTHING_SENT = ": nothing was sent.";
         constexpr const char* DELETING_ALL_LABEL = "Deleting a keygroup of ";
         constexpr const char* CHOOSE_ONE = "All keygroups are chosen: choose one keygroup to delete. Nothing was sent.";
+        constexpr const char* PART_PROGRAM_NAME = "part program";
+        constexpr const char* PROGRAM_NUMBER_NAME = "multi program number";
+        constexpr const char* PROGRAM_NUMBER_OFF = "off";
+        constexpr int MOST_PROGRAM_NUMBER = 128;  // a multi's program number, as on the front panel (RQ-MCP-038)
+        constexpr const char* CHOOSE_ONE_PART = "All parts are chosen: choose one part to change its program. Nothing was sent.";
 
         using Value = mcp::Outcome<std::int64_t>;
         /// A value as shown: with all keygroups chosen, the first keygroup's, and whether the keygroups do not share it. [RQ-APP-059]
@@ -110,6 +115,53 @@ namespace app
         bool isZoneSample(const mcp::ParameterDefinition* definition)
         {
             return definition == &zoneSampleDefinition();
+        }
+
+        /// A part's program has no catalogue row: this one names it, a choice whose labels are the programs in memory. [RQ-APP-102, DEC-APP-042]
+        const mcp::ParameterDefinition& partProgramDefinition()
+        {
+            static const mcp::ParameterDefinition definition = [] {
+                mcp::ParameterDefinition made;
+                made.name = PART_PROGRAM_NAME;
+                made.scope = mcp::ParameterScope::MultiPart;
+                made.kind = mcp::ParameterKind::Choice;
+                return made;
+            }();
+            return definition;
+        }
+
+        bool isPartProgram(const mcp::ParameterDefinition* definition)
+        {
+            return definition == &partProgramDefinition();
+        }
+
+        /// The multi's program number has no catalogue row: a choice of "off" then 1 to 128, its code the front panel's number. [RQ-APP-103,
+        /// DEC-APP-043]
+        const mcp::ParameterDefinition& programNumberDefinition()
+        {
+            static const mcp::ParameterDefinition definition = [] {
+                mcp::ParameterDefinition made;
+                made.name = PROGRAM_NUMBER_NAME;
+                made.scope = mcp::ParameterScope::MultiPart;
+                made.kind = mcp::ParameterKind::Choice;
+                made.labels.emplace_back(PROGRAM_NUMBER_OFF);
+                for (int number = 1; number <= MOST_PROGRAM_NUMBER; ++number)
+                    made.labels.push_back(std::to_string(number));
+                made.max = MOST_PROGRAM_NUMBER;
+                return made;
+            }();
+            return definition;
+        }
+
+        bool isProgramNumber(const mcp::ParameterDefinition* definition)
+        {
+            return definition == &programNumberDefinition();
+        }
+
+        /// A choice among the items of memory (a zone's sample, a part's program): 0 none, no catalogue range. [DEC-APP-033, DEC-APP-042]
+        bool isMemoryChoice(const mcp::ParameterDefinition* definition)
+        {
+            return isZoneSample(definition) || isPartProgram(definition);
         }
 
         /// A program parameter's one value: of the program, or of the keygroup asked for.
@@ -169,9 +221,45 @@ namespace app
             return programValue(gateway.writeParameter(parameter, value, keygroupsOf(keygroup), zonesOf(zone)));
         }
 
-        const std::array<Binding, 2> BINDINGS{{
+        Selected selectMulti(mcp::SamplerGateway& gateway, const std::string& name)
+        {
+            const auto selected = gateway.selectMultiByName(name);
+            return selected.ok() ? Selected::success(selected.value->partCount) : Selected::failure(selected.problem);
+        }
+
+        /// The part chosen, or all of them. [RQ-APP-101, DEC-APP-041]
+        mcp::PartSelection partsOf(int part)
+        {
+            return part == ALL_KEYGROUPS ? mcp::PartSelection::all() : mcp::PartSelection::of(part);
+        }
+
+        // With all parts, a value per part comes back: the first is shown, and whether the others differ. [RQ-APP-101, DEC-APP-041]
+        ShownValue readMulti(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, int part, int /*zone*/)
+        {
+            const auto values = gateway.readMultiParameter(parameter, partsOf(part));
+            if (!values.ok())
+                return ShownValue::failure(values.problem);
+            if (values.value->empty())
+                return ShownValue::failure(NO_VALUE);
+            const std::int64_t first = values.value->front().value;
+            const bool differs = std::ranges::any_of(*values.value, [first](const mcp::PartValue& value) { return value.value != first; });
+            return ShownValue::success(Shown{first, differs});
+        }
+
+        Value writeMulti(mcp::SamplerGateway& gateway, const mcp::ParameterDefinition& parameter, std::int64_t value, int part, int /*zone*/)
+        {
+            const auto written = gateway.writeMultiParameter(parameter, value, partsOf(part));
+            if (!written.ok())
+                return Value::failure(written.problem);
+            if (written.value->empty())
+                return Value::failure(NO_VALUE);
+            return Value::success(written.value->front().value);
+        }
+
+        const std::array<Binding, 3> BINDINGS{{
             {MemoryKind::Sample, "sample", &mcp::ParameterCatalogue::samples, &selectSample, &readSample, &writeSample},
             {MemoryKind::Program, "program", &mcp::ParameterCatalogue::standard, &selectProgram, &readProgram, &writeProgram},
+            {MemoryKind::Multi, "multi", &mcp::ParameterCatalogue::multis, &selectMulti, &readMulti, &writeMulti},
         }};
 
         const Binding* bindingOf(MemoryKind kind)
@@ -202,6 +290,10 @@ namespace app
             const auto found = std::ranges::find_if(rows, [name](const mcp::ParameterDefinition& row) { return row.name == name; });
             if (found != rows.end())
                 return std::to_address(found);
+            if (binding.kind == MemoryKind::Multi && name == PART_PROGRAM_NAME)
+                return &partProgramDefinition();
+            if (binding.kind == MemoryKind::Multi && name == PROGRAM_NUMBER_NAME)
+                return &programNumberDefinition();
             return binding.kind == MemoryKind::Program && name == ZONE_SAMPLE_NAME ? &zoneSampleDefinition() : nullptr;
         }
 
@@ -238,8 +330,17 @@ namespace app
             return state;
         }
 
-        /// What one reading brings back: the tab's values and the information, in the state's order, a program's keygroup count and the
-        /// keygroup read (the first when the one asked for is gone).
+        /// The names of memory a tab's choices are made among: the samples (a zone's sample), the programs and what each part plays (a
+        /// multi). Empty when the tab has none. [RQ-APP-060, RQ-APP-102, DEC-APP-033, DEC-APP-042]
+        struct Lists
+        {
+            std::vector<std::string> samples;
+            std::vector<std::string> programs;
+            std::vector<std::string> partPrograms;
+        };
+
+        /// What one reading brings back: the tab's values and the information, in the state's order, a program's keygroup count (a multi's
+        /// part count) and the keygroup (part) read (the first when the one asked for is gone).
         struct Reading
         {
             std::vector<std::int64_t> values;
@@ -247,7 +348,7 @@ namespace app
             std::vector<std::int64_t> info;
             std::optional<int> keygroups;
             int keygroup = 1;
-            std::vector<std::string> samples;
+            Lists lists;
         };
 
         using Definitions = std::vector<Target>;
@@ -292,14 +393,82 @@ namespace app
             return Shown{place == samples.memory.end() ? 0 : static_cast<std::int64_t>(std::distance(samples.memory.begin(), place)) + 1, differs};
         }
 
-        /// Each value of `rows` read from the current item, into `into`, and the samples in memory into `memory` when a zone's sample is
-        /// among them; the problem of the first that fails.
+        /// The programs in memory and the program of each part of the current multi. [RQ-APP-101, RQ-APP-102, DEC-APP-042]
+        std::optional<std::string> readPartPrograms(mcp::SamplerGateway& gateway, Lists& lists)
+        {
+            const auto listing = gateway.listPrograms();
+            if (!listing.ok())
+                return listing.problem;
+            const auto parts = gateway.readPartPrograms();
+            if (!parts.ok())
+                return parts.problem;
+            lists.programs.clear();
+            for (const auto& entry : *listing.value)
+                lists.programs.push_back(entry.name);
+            lists.partPrograms.assign(static_cast<std::size_t>(std::max(0, parts.value->partCount)), std::string());
+            for (const mcp::PartProgram& assigned : parts.value->assigned)
+            {
+                if (assigned.part >= 1 && assigned.part <= parts.value->partCount)
+                    lists.partPrograms[static_cast<std::size_t>(assigned.part - 1)] = assigned.program;
+            }
+            return std::nullopt;
+        }
+
+        /// 1 plus the place of `program` among the programs in memory; 0 for none.
+        std::int64_t programCode(const Lists& lists, const std::string& program)
+        {
+            if (program.empty())
+                return 0;
+            const auto place = std::ranges::find(lists.programs, program);
+            return place == lists.programs.end() ? 0 : static_cast<std::int64_t>(std::distance(lists.programs.begin(), place)) + 1;
+        }
+
+        /// A part's program as a value; with all parts, part 1's, and whether another part plays another. [RQ-APP-102, RQ-APP-101, DEC-APP-042]
+        Shown partProgramValue(const Lists& lists, int part)
+        {
+            if (lists.partPrograms.empty())
+                return {};
+            if (part == ALL_KEYGROUPS)
+            {
+                const std::string& first = lists.partPrograms.front();
+                const bool differs = std::ranges::any_of(lists.partPrograms, [&first](const std::string& other) { return other != first; });
+                return Shown{programCode(lists, first), differs};
+            }
+            if (part < 1 || static_cast<std::size_t>(part) > lists.partPrograms.size())
+                return {};
+            return Shown{programCode(lists, lists.partPrograms[static_cast<std::size_t>(part - 1)]), false};
+        }
+
+        /// The multi's program number as a value: the front panel's number, 0 when off. [RQ-APP-103, DEC-APP-043]
+        ShownValue readProgramNumber(mcp::SamplerGateway& gateway)
+        {
+            const auto read = gateway.readMultiProgramNumber();
+            return read.ok() ? ShownValue::success(Shown{read.value->number.value_or(0), false}) : ShownValue::failure(read.problem);
+        }
+
+        /// Each value of `rows` read from the current item, into `into`, and the names of memory into `lists`: the samples when a zone's
+        /// sample is among them, the programs and the parts' programs for a multi; the problem of the first that fails.
         std::optional<std::string> readInto(const Binding& binding, mcp::SamplerGateway& gateway, const Definitions& rows, int keygroup,
-                                            std::vector<std::int64_t>& into, std::vector<bool>& differs, std::vector<std::string>& memory)
+                                            std::vector<std::int64_t>& into, std::vector<bool>& differs, Lists& lists)
         {
             ZoneSamples samples;
+            if (binding.kind == MemoryKind::Multi)
+            {
+                if (const auto problem = readPartPrograms(gateway, lists))
+                    return problem;
+            }
             for (const Target& target : rows)
             {
+                if (isPartProgram(target.definition) || isProgramNumber(target.definition))
+                {
+                    const auto shown = isPartProgram(target.definition) ? ShownValue::success(partProgramValue(lists, keygroup))
+                                                                        : readProgramNumber(gateway);
+                    if (!shown.ok())
+                        return shown.problem;
+                    into.push_back(shown.value->value);
+                    differs.push_back(shown.value->differs);
+                    continue;
+                }
                 if (isZoneSample(target.definition))
                 {
                     if (const auto problem = samples.read ? std::nullopt : readZoneSamples(gateway, keygroup, samples))
@@ -316,7 +485,7 @@ namespace app
                 differs.push_back(read.value->differs);
             }
             if (samples.read)
-                memory = samples.memory;
+                lists.samples = samples.memory;
             return std::nullopt;
         }
 
@@ -334,7 +503,7 @@ namespace app
             for (const auto& [rows, into, differs] :
                  {std::tuple{&values, &reading.values, &reading.differs}, std::tuple{&info, &reading.info, &infoDiffers}})
             {
-                if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into, *differs, reading.samples))
+                if (const auto problem = readInto(binding, gateway, *rows, reading.keygroup, *into, *differs, reading.lists))
                     return mcp::Outcome<Reading>::failure(*problem);
             }
             return mcp::Outcome<Reading>::success(std::move(reading));
@@ -347,16 +516,39 @@ namespace app
             std::optional<std::string> problem;
             std::vector<std::int64_t> values;
             std::vector<bool> differs;
-            std::vector<std::string> samples;
+            Lists lists;
         };
 
-        /// What a value is written to: its row, its zone, and the samples in memory a zone's sample is chosen among.
+        /// What a value is written to: its row, its zone, the samples in memory a zone's sample is chosen among and the programs a part's
+        /// program is chosen among.
         struct Write
         {
             const mcp::ParameterDefinition* parameter = nullptr;
             int zone = 0;
             std::vector<std::string> samples;
+            std::vector<std::string> programs;
         };
+
+        /// A part's program given (by name) or taken away (with the multi's name as the confirmation, no question: the program stays in
+        /// memory), or the multi's program number set; the problem, if any. [RQ-APP-102, RQ-APP-103, DEC-APP-042, DEC-APP-043]
+        std::optional<std::string> setMultiValue(mcp::SamplerGateway& gateway, const std::string& multi, const Write& target, std::int64_t value,
+                                                 int part)
+        {
+            if (isProgramNumber(target.parameter))
+            {
+                const auto set = gateway.setMultiProgramNumber(value == 0 ? std::nullopt : std::optional<int>(static_cast<int>(value)));
+                return set.ok() ? std::nullopt : std::optional<std::string>(set.problem);
+            }
+            if (value == 0)
+            {
+                const auto cleared = gateway.clearPart(part, multi);
+                return cleared.ok() ? std::nullopt : std::optional<std::string>(cleared.problem);
+            }
+            mcp::ProgramReference program;
+            program.name = target.programs[static_cast<std::size_t>(value - 1)];
+            const auto assigned = gateway.assignPartProgram(part, program);
+            return assigned.ok() ? std::nullopt : std::optional<std::string>(assigned.problem);
+        }
 
         /// One write on the sampler: a zone's sample assigned by name, to each keygroup of `keygroups` when all are chosen, any other value
         /// set; the problem, if any. [RQ-APP-060, RQ-APP-059, DEC-APP-033]
@@ -399,14 +591,16 @@ namespace app
                 if (const auto read = binding.read(gateway, *loopStartParameter, keygroup, 0); read.ok() && read.value->value <= value)
                     loopStart = read.value->value;
             }
-            if (const auto problem = setOn(binding, gateway, target, value, keygroup, selected.value->value_or(1)))
+            if (const auto problem = isPartProgram(&parameter) || isProgramNumber(&parameter)
+                                         ? setMultiValue(gateway, item, target, value, keygroup)
+                                         : setOn(binding, gateway, target, value, keygroup, selected.value->value_or(1)))
                 written.problem = problem;
             else if (loopStart.has_value())
             {
                 if (const auto again = binding.write(gateway, *loopStartParameter, *loopStart, keygroup, 0); !again.ok())
                     written.problem = again.problem;
             }
-            if (const auto problem = readInto(binding, gateway, tab, keygroup, written.values, written.differs, written.samples))
+            if (const auto problem = readInto(binding, gateway, tab, keygroup, written.values, written.differs, written.lists))
             {
                 written.problem = written.problem ? *written.problem + " " + *problem : *problem;
                 written.values.clear();
@@ -427,7 +621,9 @@ namespace app
             EditState next = now;
             next.keygroups = reading.keygroups;
             next.keygroup = reading.keygroup;
-            next.samples = reading.samples;
+            next.samples = reading.lists.samples;
+            next.programs = reading.lists.programs;
+            next.partPrograms = reading.lists.partPrograms;
             std::int64_t length = 0;
             for (std::size_t i = 0; i < next.info.size() && i < reading.info.size(); ++i)
             {
@@ -444,6 +640,8 @@ namespace app
                     value.max = length;
                 if (isZoneSample(value.definition))
                     value.max = static_cast<std::int64_t>(next.samples.size());  // [RQ-APP-060]
+                if (isPartProgram(value.definition))
+                    value.max = static_cast<std::int64_t>(next.programs.size());  // [RQ-APP-102]
             }
             return next;
         }
@@ -452,8 +650,18 @@ namespace app
         EditState withWritten(const EditState& now, std::size_t index, const Written& written, bool waiting)
         {
             EditState next = now;
-            if (!written.samples.empty())
-                next.samples = written.samples;
+            if (!written.lists.samples.empty())
+                next.samples = written.lists.samples;
+            if (!written.lists.partPrograms.empty())
+            {
+                next.programs = written.lists.programs;
+                next.partPrograms = written.lists.partPrograms;
+                for (EditValue& value : next.values)
+                {
+                    if (isPartProgram(value.definition))
+                        value.max = static_cast<std::int64_t>(next.programs.size());
+                }
+            }
             for (std::size_t i = 0; i < next.values.size() && i < written.values.size(); ++i)
             {
                 next.values[i].value = written.values[i];
@@ -610,7 +818,7 @@ namespace app
     void EditController::addKeygroups()
     {
         const EditState& state = _model.edit();
-        if (state.layout == nullptr || !state.keygroups.has_value())
+        if (state.layout == nullptr || !state.keygroups.has_value() || state.item->kind != MemoryKind::Program)
             return;
         const MemoryItem item = *state.item;
         const int have = *state.keygroups;
@@ -640,7 +848,7 @@ namespace app
     void EditController::deleteKeygroup()
     {
         const EditState& state = _model.edit();
-        if (state.layout == nullptr || !state.keygroups.has_value())
+        if (state.layout == nullptr || !state.keygroups.has_value() || state.item->kind != MemoryKind::Program)
             return;
         const MemoryItem item = *state.item;
         const int keygroup = state.keygroup;
@@ -714,6 +922,11 @@ namespace app
             _model.setProblem(Problem{label, NO_SAMPLE_REMOVAL});  // the gateway assigns a sample, it cannot remove one [RQ-APP-060]
             return;
         }
+        if (isPartProgram(shown.definition) && state.keygroup == ALL_KEYGROUPS)
+        {
+            _model.setProblem(Problem{label, CHOOSE_ONE_PART});  // one part at a time [RQ-APP-102, DEC-APP-042]
+            return;
+        }
         const auto [min, max] = rangeOf(state, shown);
         if (value < min || value > max)
         {
@@ -721,7 +934,7 @@ namespace app
             return;
         }
         // A value between two of the catalogue's steps (the attenuation's 6 dB) is refused as the gateway would. [RQ-APP-097, DEC-APP-036]
-        if (const auto resolved = mcp::resolveValue(*shown.definition, value); !isZoneSample(shown.definition) && !resolved.value.has_value())
+        if (const auto resolved = mcp::resolveValue(*shown.definition, value); !isMemoryChoice(shown.definition) && !resolved.value.has_value())
         {
             std::string reason = resolved.problem;
             if (reason.ends_with('.'))
@@ -757,7 +970,7 @@ namespace app
         _writing.insert(index);
         const bool queued = _controller.runOnSampler<Written>(
             label,
-            [binding = bindingOf(state), name = item.name, target = Write{shown.definition, shown.zone, state.samples}, value,
+            [binding = bindingOf(state), name = item.name, target = Write{shown.definition, shown.zone, state.samples, state.programs}, value,
              tab = definitionsOf(state.values), keygroup = state.keygroup](mcp::SamplerGateway& gateway) {
                 return mcp::Outcome<Written>::success(writeOn(*binding, gateway, name, target, value, tab, keygroup));
             },

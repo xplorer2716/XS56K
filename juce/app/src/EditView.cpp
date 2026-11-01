@@ -35,6 +35,9 @@ namespace app::ui
         constexpr const char* KEYGROUP_TEXT = "Keygroup ";
         constexpr const char* ALL_KEYGROUPS_TEXT = "All keygroups";
         constexpr const char* OF_TEXT = " of ";
+        constexpr const char* PART_TEXT = "Part ";
+        constexpr const char* ALL_PARTS_TEXT = "All parts";
+        constexpr const char* PLAYS_TEXT = " - ";
         constexpr int READ_AGAIN_SHARE = 6;          // the button takes a sixth of the panel's width
         constexpr float KEYGROUP_SELECTOR_KNOBS = 5;  // the keygroup selector is five knob diameters wide, as in the mockups
         constexpr int GRID_LABEL_CELLS = 2;           // a zone grid's row labels take two knob cells, as in the mockups [DEC-APP-033]
@@ -98,6 +101,10 @@ namespace app::ui
                     return "Keygroup";
                 case Zone:
                     return "Zone";
+                case Multi:
+                    return "Multi";
+                case Part:
+                    return "Part";
                 case None:
                     break;
             }
@@ -254,22 +261,34 @@ namespace app::ui
     void EditView::update()
     {
         const EditState& state = _model.edit();
-        // A program shows its keygroup selector where a sample shows its information. [RQ-APP-058, RQ-APP-087]
+        // A program shows its keygroup selector where a sample shows its information; a multi its part selector, each part with the program
+        // it plays. [RQ-APP-058, RQ-APP-087, RQ-APP-101, DEC-APP-041]
         const int keygroups = state.keygroups.value_or(0);
-        if (keygroups != _keygroupItems)
+        const bool multi = state.item && state.item->kind == MemoryKind::Multi;
+        juce::StringArray texts;
+        for (int keygroup = 1; keygroup <= keygroups; ++keygroup)
+        {
+            juce::String text = (multi ? PART_TEXT : KEYGROUP_TEXT) + juce::String(keygroup) + OF_TEXT + juce::String(keygroups);
+            if (const auto part = static_cast<std::size_t>(keygroup - 1); multi && part < state.partPrograms.size() && !state.partPrograms[part].empty())
+                text += PLAYS_TEXT + juce::String(state.partPrograms[part]);
+            texts.add(text);
+        }
+        if (keygroups > 1)
+            texts.add(multi ? ALL_PARTS_TEXT : ALL_KEYGROUPS_TEXT);  // [RQ-APP-059, RQ-APP-101, TASK-APP-050]
+        if (texts != _keygroupTexts)
         {
             _keygroup.clear(juce::dontSendNotification);
-            for (int keygroup = 1; keygroup <= keygroups; ++keygroup)
-                _keygroup.addItem(KEYGROUP_TEXT + juce::String(keygroup) + OF_TEXT + juce::String(keygroups), keygroup);
-            if (keygroups > 1)
-                _keygroup.addItem(ALL_KEYGROUPS_TEXT, keygroups + 1);  // [RQ-APP-059, TASK-APP-050]
+            int id = 1;
+            for (const juce::String& text : texts)
+                _keygroup.addItem(text, id++);
+            _keygroupTexts = texts;
             _keygroupItems = keygroups;
         }
         const int shownId = state.keygroup == ALL_KEYGROUPS ? keygroups + 1 : state.keygroup;
         _keygroup.setSelectedId(keygroups > 0 ? shownId : 0, juce::dontSendNotification);
         _keygroup.setVisible(keygroups > 0 && _layout != nullptr);
-        _addKeygroups.setVisible(_keygroup.isVisible());
-        _deleteKeygroup.setVisible(_keygroup.isVisible());
+        _addKeygroups.setVisible(_keygroup.isVisible() && !multi);  // a multi's parts are fixed in number [DEC-APP-041]
+        _deleteKeygroup.setVisible(_keygroup.isVisible() && !multi);
         _deleteKeygroup.setEnabled(keygroups > 1 && state.keygroup != ALL_KEYGROUPS);  // a program keeps one; one at a time [RQ-APP-061, RQ-APP-059]
         _info.setText(keygroups > 0 ? juce::String() : juce::String(infoText(state)), juce::dontSendNotification);
         std::size_t index = 0;
@@ -282,7 +301,9 @@ namespace app::ui
                 if (index < state.values.size())
                 {
                     if (state.values[index].layout->control == layouts::Control::Sample)
-                        cell->setSamples(state.samples);  // [RQ-APP-060]
+                        cell->setNames(state.samples);  // [RQ-APP-060]
+                    if (state.values[index].layout->control == layouts::Control::Program)
+                        cell->setNames(state.programs);  // [RQ-APP-102]
                     cell->show(state.values[index]);
                 }
                 ++index;

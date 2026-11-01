@@ -65,6 +65,7 @@ namespace app::ui
             case Choice:
             case ValueBox:
             case Sample:
+            case Program:
                 return CHOICE_CELLS;
             case Slider:
                 return SLIDER_CELLS;
@@ -112,7 +113,8 @@ namespace app::ui
         _box.setBorderSize({});
         _box.setEditable(true, true, false);
         _box.onTextChange = [this] { valueBoxEdited(); };
-        const bool chosen = parameter.control == layouts::Control::Choice || parameter.control == layouts::Control::Sample;
+        const bool chosen = parameter.control == layouts::Control::Choice || parameter.control == layouts::Control::Sample ||
+                            parameter.control == layouts::Control::Program;
         if (!chosen)
             addAndMakeVisible(_box);
 
@@ -170,7 +172,7 @@ namespace app::ui
         _slider.setColour(juce::Slider::rotarySliderFillColourId, colour);
         _slider.setColour(juce::Slider::trackColourId, colour);
 
-        if (_choice.getNumItems() == 0 && _parameter.control != layouts::Control::Sample)
+        if (_choice.getNumItems() == 0 && _parameter.control != layouts::Control::Sample && _parameter.control != layouts::Control::Program)
         {
             int id = FIRST_ITEM_ID;
             for (const std::string& label : value.definition->labels)
@@ -184,17 +186,17 @@ namespace app::ui
             repaint();  // the shape follows the value shown [RQ-APP-096]
     }
 
-    void ParameterCell::setSamples(const std::vector<std::string>& samples)
+    void ParameterCell::setNames(const std::vector<std::string>& names)
     {
-        if (samples == _samples && _choice.getNumItems() > 0)
+        if (names == _names && _choice.getNumItems() > 0)
             return;
-        _samples = samples;
+        _names = names;
         const juce::ScopedValueSetter<bool> showing(_showing, true);
         _choice.clear(juce::dontSendNotification);
-        _choice.addItem(NO_SAMPLE, FIRST_ITEM_ID);  // value 0 [RQ-APP-060, DEC-APP-033]
+        _choice.addItem(NO_SAMPLE, FIRST_ITEM_ID);  // value 0 [RQ-APP-060, RQ-APP-102, DEC-APP-033, DEC-APP-042]
         int id = FIRST_ITEM_ID + 1;
-        for (const std::string& sample : samples)
-            _choice.addItem(juce::String(sample), id++);
+        for (const std::string& name : names)
+            _choice.addItem(juce::String(name), id++);
         _choice.setSelectedId(static_cast<int>(_shown.value) + FIRST_ITEM_ID, juce::dontSendNotification);
         if (_shown.differs)
             _choice.setText(juce::String(valueText(_shown)), juce::dontSendNotification);  // [RQ-APP-059]
@@ -269,6 +271,7 @@ namespace app::ui
                 _box.setBounds(bottom);
                 break;
             case Sample:
+            case Program:
             case Choice:
                 if (_parameter.shapes.empty())
                 {

@@ -107,6 +107,7 @@ namespace app::ui
         std::optional<MemoryItem> _item;
         const layouts::EditorLayout* _layout = nullptr;
         std::size_t _tab = 0;
-        int _keygroupItems = 0;  ///< the keygroup count the selector holds
+        int _keygroupItems = 0;  ///< the keygroup (part) count the selector holds
+        juce::StringArray _keygroupTexts;  ///< the selector's items as last given: a part's program changes them [RQ-APP-101]
     };
 }

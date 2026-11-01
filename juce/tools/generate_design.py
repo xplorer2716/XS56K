@@ -29,14 +29,15 @@ DEFAULT_DOC = ROOT / "process" / "1.requirements" / "DESIGN-SYSTEM-APP.md"
 DEFAULT_LAYOUTS = ROOT / "juce" / "app" / "design" / "layouts"
 DEFAULT_SHAPES = ROOT / "juce" / "app" / "design" / "shapes"
 DEFAULT_LAYOUTS_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "EditorLayouts.generated.hpp"
-CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider", "sample": "Sample"}
+CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider", "sample": "Sample",
+            "program": "Program"}
 GRID_CONTROLS = ("choice", "valuebox", "sample")  # a zone grid's cells are a row high [RQ-APP-057, DEC-APP-033]
 ZONE_COUNT = 4  # the zones of a keygroup
-WIDE_CONTROLS = ("choice", "valuebox")  # the controls a layout may widen
+WIDE_CONTROLS = ("choice", "valuebox", "program")  # the controls a layout may widen
 COLUMN_CONTROLS = ("choice", "valuebox")  # a routing's cells: its source and its amount [DEC-APP-035]
 MIN_CELLS, MAX_CELLS = 1, 3
 ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
-SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone"}
+SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone", "multi": "Multi", "part": "Part"}
 
 TIERS = ("global", "semantic", "component")
 COLOUR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -320,7 +321,7 @@ def render_cells(editor, parameter):
         return 0
     cells = parameter["cells"]
     if parameter.get("control") not in WIDE_CONTROLS or not MIN_CELLS <= cells <= MAX_CELLS:
-        raise TokenError(f"the layout {editor} gives {parameter['name']} {cells} cells: only a choice or a value box takes {MIN_CELLS} to "
+        raise TokenError(f"the layout {editor} gives {parameter['name']} {cells} cells: only a choice, a value box or a program takes {MIN_CELLS} to "
                          f"{MAX_CELLS}")
     return cells
 
@@ -347,6 +348,8 @@ def render_zones(editor, group):
             raise TokenError(f"the layout {editor} puts {parameter['name']} in the zone grid {group['title']} as a {parameter.get('control')}")
         if not zones and parameter.get("control") == "sample":
             raise TokenError(f"the layout {editor} puts the sample control {parameter['name']} outside a zone grid")
+        if parameter.get("control") == "program" and group.get("scope") != "part":
+            raise TokenError(f"the layout {editor} puts the program control {parameter['name']} outside a part group")  # [DEC-APP-042]
     if zones and (group.get("scope") != "zone" or not 1 <= zones <= ZONE_COUNT):
         raise TokenError(f"the layout {editor} gives the group {group['title']} {zones} zone columns, which only a zone group of 1 to "
                          f"{ZONE_COUNT} has")

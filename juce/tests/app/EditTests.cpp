@@ -187,17 +187,20 @@ TEST_CASE("Given KICK, When it is selected in the memory view, Then the sample e
     CHECK_FALSE(fixture.rig.model.problem().has_value());
 }
 
-TEST_CASE("Given the multi M1, When it is selected, Then the panel names it and has no editor for it, and nothing of the sample section is "
-          "sent [RQ-APP-048, TASK-APP-036]",
+TEST_CASE("Given the song file SONG 1, When it is selected, Then the panel names it and has no editor for it, and nothing of the sample section "
+          "is sent [RQ-APP-048, TASK-APP-036; a multi has its editor since TASK-APP-063]",
           "[app][edit]")
 {
     EditRig fixture;
+    fixture.rig.sampler->setSongNames({"SONG 1"});
+    fixture.memory.refresh();
+    REQUIRE(fixture.rig.settle());
     const std::size_t before = fixture.sentToSamples();
-    fixture.memory.select(MemoryItem{MemoryKind::Multi, "M1"});
+    fixture.memory.select(MemoryItem{MemoryKind::SongFile, "SONG 1"});
     REQUIRE(fixture.rig.settle());
 
     const app::EditState& edit = fixture.rig.model.edit();
-    CHECK(edit.item == std::optional<MemoryItem>(MemoryItem{MemoryKind::Multi, "M1"}));
+    CHECK(edit.item == std::optional<MemoryItem>(MemoryItem{MemoryKind::SongFile, "SONG 1"}));
     CHECK(edit.layout == nullptr);
     CHECK(edit.values.empty());
     CHECK(fixture.sentToSamples() == before);
