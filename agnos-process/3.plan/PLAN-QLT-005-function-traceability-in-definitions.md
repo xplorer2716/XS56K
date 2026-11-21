@@ -41,11 +41,35 @@ This plan implements the tasks in the format specified below.
 ### TASK-QLT-030: Trace test definitions
 - **Tier**: M
 - **Status**: Not Started
-- **Description**: Same as TASK-QLT-029 on `juce/tests/`.
+- **Description**: Same as TASK-QLT-029 on `juce/tests/`, once TASK-QLT-031 and TASK-QLT-032 make the build and ctest pass.
 - **Requirement refs**: RQ-QLT-014, RQ-QLT-015
 - **ADR refs**: ADR-QLT-003 (DEC-QLT-017)
 - **Acceptance Criteria** (Gherkin): *Given* `juce/tests/`, *When* the tool runs with `--check` after the run, *Then* it reports no definition missing an ID. *Given* the change, *When* the build and ctest run, *Then* they pass.
-- **Dependencies**: TASK-QLT-029
+- **Dependencies**: TASK-QLT-029, TASK-QLT-031, TASK-QLT-032
 - **Assignee**: AI
 - **Verification**:
 - **Assumptions**:
+
+### TASK-QLT-031: Fix disk format type in save tests
+- **Tier**: S
+- **Status**: Done
+- **Description**: Found by TASK-QLT-029's build: `juce/tests/app/SaveTests.cpp(79)` gives an `int` to `DiskRecord::format` (`std::uint8_t`), C4244 as an error under MSVC, so `xs56k_app_tests` is not built. The format constants and parameters become `std::uint8_t`.
+- **Requirement refs**: RQ-APP-043, RQ-APP-047 (the tests built again)
+- **ADR refs**: None
+- **Acceptance Criteria** (Gherkin): *Given* the MSVC Debug build with tests, *When* it runs, *Then* `xs56k_app_tests` builds and its tests pass.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: N/A (Tier S)
+- **Assumptions**: None
+
+### TASK-QLT-032: Fix stand-in interpreter of publish tests
+- **Tier**: S
+- **Status**: Not Started
+- **Description**: Found by TASK-QLT-029's ctest: the stand-ins `gh` and `curl` of `juce/tests/tools/test_publish_deployment.py` start with `#!/usr/bin/env bash`, which Git's bash, given the Windows PATH, resolves to the WSL launcher of `WindowsApps`; WSL cannot see the script. The shebang becomes `#!/bin/sh`.
+- **Requirement refs**: RQ-BLD-016
+- **ADR refs**: ADR-BLD-006
+- **Acceptance Criteria** (Gherkin): *Given* Windows with the WSL launcher on the PATH, *When* `bld_publish_deployment_script_tests` runs, *Then* it passes.
+- **Dependencies**: None
+- **Assignee**: AI
+- **Verification**: N/A (Tier S)
+- **Assumptions**: None
