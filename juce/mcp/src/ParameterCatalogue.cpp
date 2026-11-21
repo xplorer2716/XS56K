@@ -230,18 +230,21 @@ namespace mcp
         return normalized;
     }
 
+    // [RQ-MCP-004, RQ-MCP-010]
     const ParameterCatalogue& ParameterCatalogue::standard()
     {
         static const ParameterCatalogue catalogue(standardGroups(), standardParameters());
         return catalogue;
     }
 
+    // [RQ-MCP-021]
     const ParameterCatalogue& ParameterCatalogue::multis()
     {
         static const ParameterCatalogue catalogue(multiGroups(), multiParameters());
         return catalogue;
     }
 
+    // [RQ-MCP-020]
     const ParameterCatalogue& ParameterCatalogue::samples()
     {
         static const ParameterCatalogue catalogue(sampleGroups(), sampleParameters());
@@ -323,6 +326,7 @@ namespace mcp
         return resolution;
     }
 
+    // [RQ-MCP-006]
     ValueResolution resolveValue(const ParameterDefinition& parameter, std::int64_t number)
     {
         const std::string got = numberText(number);
@@ -342,6 +346,7 @@ namespace mcp
         return refusedValue(parameter, got);
     }
 
+    // [RQ-MCP-006]
     ValueResolution resolveValue(const ParameterDefinition& parameter, std::string_view text)
     {
         const std::string said = trim(text);
@@ -386,6 +391,7 @@ namespace mcp
         return refusedValue(parameter, quoted);
     }
 
+    // [RQ-MCP-006]
     std::vector<std::int64_t> toItemValues(const ParameterDefinition& parameter, std::int64_t value)
     {
         switch (parameter.kind)
@@ -406,6 +412,7 @@ namespace mcp
         return {value};
     }
 
+    // [RQ-MCP-005]
     std::optional<std::int64_t> fromItemValues(const ParameterDefinition& parameter, std::span<const std::int64_t> reply)
     {
         switch (parameter.kind)
@@ -432,6 +439,7 @@ namespace mcp
         return std::nullopt;
     }
 
+    // [RQ-MCP-005]
     std::string describeValue(const ParameterDefinition& parameter, std::int64_t value)
     {
         const bool hasLabel = value >= 0 && static_cast<std::size_t>(value) < parameter.labels.size();
@@ -450,6 +458,7 @@ namespace mcp
         return numberText(value);
     }
 
+    // [RQ-MCP-004]
     std::string describeRange(const ParameterDefinition& parameter)
     {
         const std::string unit = parameter.unit.empty() ? "" : " " + parameter.unit;

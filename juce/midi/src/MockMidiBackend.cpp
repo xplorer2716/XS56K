@@ -348,16 +348,19 @@ namespace common::midi
     // The test's way of playing the synth: a message appears on an input device
     // exactly as if hardware had sent it. Synchronous, so the assertion can
     // follow the call directly.
+    // [RQ-MID-005]
     void MockMidiBackend::injectIncoming(const std::string& inputDeviceName, const MidiMessage& message)
     {
         _state->deliver(inputDeviceName, message);
     }
 
+    // [RQ-MID-023]
     void MockMidiBackend::injectError(const std::string& inputDeviceName, const std::string& description)
     {
         _state->deliverError(inputDeviceName, description);
     }
 
+    // [RQ-TST-004]
     std::vector<MidiMessage> MockMidiBackend::sentMessages(const std::string& outputDeviceName) const
     {
         const std::lock_guard lock(_state->mutex);
@@ -378,6 +381,7 @@ namespace common::midi
     // produces its own reply. Used to exercise round-trips (program change ->
     // dump request -> dump) without hardware. One target per output; calling
     // again re-points it.
+    // [RQ-MID-041]
     void MockMidiBackend::connectLoopback(const std::string& outputDeviceName, const std::string& inputDeviceName)
     {
         const std::lock_guard lock(_state->mutex);

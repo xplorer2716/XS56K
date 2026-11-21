@@ -89,6 +89,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-001, RQ-AKM-014, RQ-AKM-015, ADR-AKM-001, DEC-AKM-003, DEC-AKM-012]
     CommandRequest makeRequest(const ItemDescriptor& item, std::span<const std::int64_t> values, CommandOptions options)
     {
         CommandRequest request;
@@ -128,6 +129,7 @@ namespace akm
                            std::move(options));
     }
 
+    // [RQ-AKM-002, RQ-AKM-044, ADR-AKM-001, DEC-AKM-003, DEC-AKM-012]
     std::optional<std::vector<std::int64_t>> decodeReply(const ItemDescriptor& item, std::span<const std::uint8_t> data)
     {
         ByteReader reader(data);
@@ -150,6 +152,7 @@ namespace akm
         return decodeReply(descriptor(id), data);
     }
 
+    // [ADR-AKM-001, DEC-AKM-014, RQ-AKM-031]
     std::optional<std::vector<std::vector<std::int64_t>>> decodeRepeatedReply(const ItemDescriptor& item,
                                                                                std::span<const std::uint8_t> data)
     {
@@ -198,6 +201,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-002, ADR-AKM-001, DEC-AKM-013]
     CommandRequest makeStringRequest(const ItemDescriptor& item, std::string_view text, CommandOptions options)
     {
         CommandRequest request;
@@ -234,6 +238,7 @@ namespace akm
         return makeStringRequest(descriptor(id), text, std::move(options));
     }
 
+    // [RQ-AKM-002, ADR-AKM-001, DEC-AKM-013]
     std::optional<std::string> decodeStringReply(const ItemDescriptor& item, std::span<const std::uint8_t> data)
     {
         if (singleStringSpec(item.reply) == nullptr)
@@ -251,6 +256,7 @@ namespace akm
         return decodeStringReply(descriptor(id), data);
     }
 
+    // [RQ-AKM-002, ADR-AKM-001, DEC-AKM-018]
     CommandRequest makeTwoStringRequest(const ItemDescriptor& item, std::string_view first, std::string_view second,
                                         CommandOptions options)
     {

@@ -238,6 +238,7 @@ namespace app::ui
                  });
     }
 
+    // [TASK-APP-066]
     void MemoryView::askNewMulti()
     {
         askTexts(NEW_MULTI_TITLE, {}, {TextField{NAME_LABEL, {}}},

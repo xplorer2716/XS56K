@@ -25,6 +25,7 @@ namespace akm
         constexpr std::string_view UNKNOWN_STATUS_TEXT = "unknown open status";
     }
 
+    // [RQ-AKM-039, RQ-AKM-040]
     std::string_view describe(SamplerSetting setting)
     {
         switch (setting)

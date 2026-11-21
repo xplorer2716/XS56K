@@ -43,6 +43,7 @@ namespace akm
         }
     }
 
+    // [ADR-AKM-001, DEC-AKM-009, RQ-AKM-001, RQ-AKM-003, RQ-AKM-041, DEC-AKM-002]
     EncodeResult encodeCommand(std::uint32_t deviceId, std::span<const std::uint8_t> userRefs,
                                const Command& command, ChecksumMode mode)
     {

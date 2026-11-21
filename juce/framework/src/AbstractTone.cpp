@@ -87,6 +87,7 @@ namespace midiapp::model
         _midiChannel = channel;
     }
 
+    // [RQ-FMW-011]
     void AbstractTone::randomizeToneParameters(const std::set<std::string>& excludedParameterNames,
                                                std::optional<float> humanizeRatio,
                                                std::optional<unsigned int> seed)
@@ -104,6 +105,7 @@ namespace midiapp::model
         }
     }
 
+    // [RQ-FMW-012]
     void AbstractTone::morphTones(const AbstractTone& toneA, const AbstractTone& toneB,
                                   AbstractTone& resultTone, float morphingFactor)
     {

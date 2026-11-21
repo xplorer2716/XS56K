@@ -38,6 +38,7 @@ namespace midiapp::service
         return candidate + extension;
     }
 
+    // [RQ-GUI-077]
     std::string trimTrailingSpaces(const std::string& value)
     {
         const auto lastNonSpace = value.find_last_not_of(' ');

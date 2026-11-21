@@ -28,15 +28,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-029: Trace production definitions
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Run the tool on the production code of `juce/` (all but `juce/tests/`), review the unmatched and ambiguous ones, build, run the tests, rerun the performance center.
 - **Requirement refs**: RQ-QLT-014, RQ-QLT-015
 - **ADR refs**: ADR-QLT-003 (DEC-QLT-017)
 - **Acceptance Criteria** (Gherkin): *Given* the production code, *When* the tool runs with `--check` after the run, *Then* it reports no definition missing an ID. *Given* the change, *When* the build and ctest run, *Then* they pass. *Given* the performance center with `--call-graph`, *When* it runs, *Then* `functions-traced` is above 1.3.
 - **Dependencies**: TASK-QLT-028
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: tool on `juce` with `--exclude juce/tests`: copied 384, traced 18, unmatched 49 (headers of `juce/tests/`), ambiguous 0; then `--check`: missing 0, traced 402, exit 0. Diff: 63 files, 384 insertions, 0 deletions, LF kept; each added line follows a blank line (375), a `{` (6) or a comment (3), none after a macro continuation. Build (MSVC, Debug, tests on): fails only on `juce/tests/app/SaveTests.cpp(79)` C4244 as error, a file not changed by the task (pre-existing). ctest: 1153/1155 passed; not passing: `xs56k_app_tests` (not built, the error above) and `bld_publish_deployment_script_tests` (bash cannot find its replaced `gh`, environment; no C++ involved). Performance center `--call-graph`: `functions-traced` 1.3 -> 2.5, quality B 8.9 -> A 9.1.
+- **Assumptions**: The two failures are pre-existing: the task only adds comment lines to production `.cpp` files (0 test files touched).
 
 ### TASK-QLT-030: Trace test definitions
 - **Tier**: M

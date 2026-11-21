@@ -98,6 +98,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-099]
     void getFxCard(Session& session, FxCardCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxGetCard, NO_VALUES),
@@ -107,6 +108,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-099]
     void getFxChannelCount(Session& session, FxCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxGetChannelCount, NO_VALUES),
@@ -116,6 +118,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-099]
     void getFxModuleCount(Session& session, int channel, FxCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxGetModuleCount, {channel}),
@@ -125,11 +128,13 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-100]
     void setFxChannelMute(Session& session, int channel, bool muted, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxSetChannelMute, {channel, muted ? MUTED : NOT_MUTED}), std::move(completion));
     }
 
+    // [RQ-AKM-100]
     void getFxChannelMute(Session& session, int channel, FxMuteCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxGetChannelMute, {channel}),
@@ -139,12 +144,14 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-100]
     void setFxModuleType(Session& session, int channel, int moduleIndex, FxModuleType type, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxSetModuleType, {channel, moduleIndex, static_cast<std::int64_t>(type)}),
                        std::move(completion));
     }
 
+    // [RQ-AKM-100]
     void getFxModuleType(Session& session, int channel, int moduleIndex, FxModuleTypeCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxGetModuleType, {channel, moduleIndex}),
@@ -154,12 +161,14 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-100]
     void setFxModuleEnabled(Session& session, int channel, int moduleIndex, bool enabled, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxSetModuleEnabled, {channel, moduleIndex, enabled ? ENABLED : DISABLED}),
                        std::move(completion));
     }
 
+    // [RQ-AKM-100]
     void getFxModuleEnabled(Session& session, int channel, int moduleIndex, FxEnabledCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxGetModuleEnabled, {channel, moduleIndex}),
@@ -169,6 +178,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-101]
     void setFxParameter(Session& session, int channel, int moduleIndex, int parameter, int value, CommandCompletion completion)
     {
         const std::int64_t magnitude = value < 0 ? -static_cast<std::int64_t>(value) : static_cast<std::int64_t>(value);
@@ -179,6 +189,7 @@ namespace akm
                        std::move(completion));
     }
 
+    // [RQ-AKM-101]
     void getFxParameter(Session& session, int channel, int moduleIndex, int parameter, FxParameterCompletion completion)
     {
         session.submit(makeRequest(ItemId::FxGetParameter, {channel, moduleIndex, parameter}),

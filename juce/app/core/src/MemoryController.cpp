@@ -288,6 +288,7 @@ namespace app
             _model.setMemory(MemoryState{});
     }
 
+    // [RQ-APP-036, RQ-APP-042]
     void MemoryController::refresh()
     {
         read(std::nullopt);
@@ -310,6 +311,7 @@ namespace app
                                               });
     }
 
+    // [RQ-APP-010]
     void MemoryController::select(const MemoryItem& item)
     {
         if (_auditioning && !(*_auditioning == item))
@@ -338,6 +340,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-038, RQ-APP-039]
     bool MemoryController::refuseTakenName(MemoryKind kind, const std::string& name, const std::string& action)
     {
         const auto& names = _model.memory().list(kind).names;
@@ -349,6 +352,7 @@ namespace app
         return true;
     }
 
+    // [RQ-APP-038, TASK-APP-016]
     void MemoryController::createProgram(const std::string& name, int keygroups)
     {
         const std::string label = CREATING_LABEL + name;
@@ -362,6 +366,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-104, ADR-APP-006, DEC-APP-043, TASK-APP-065]
     void MemoryController::createMulti(const std::string& name)
     {
         const std::string label = CREATING_MULTI_LABEL + name;
@@ -375,6 +380,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-039, TASK-APP-016]
     void MemoryController::rename(const MemoryItem& item, const std::string& newName)
     {
         const std::string label = RENAMING_LABEL + item.name;
@@ -388,6 +394,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-040, RQ-APP-011, TASK-APP-016]
     void MemoryController::remove(const MemoryItem& item)
     {
         const Confirmation question{"Delete the " + kindName(item.kind) + "?", item.name,
@@ -403,6 +410,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-041, TASK-APP-016]
     void MemoryController::audition(const MemoryItem& sample)
     {
         if (_auditioning && !(*_auditioning == sample))
@@ -427,6 +435,7 @@ namespace app
             _auditioning = sample;
     }
 
+    // [RQ-APP-041, TASK-APP-016]
     void MemoryController::stopAudition()
     {
         if (!_auditioning)
@@ -436,6 +445,7 @@ namespace app
                                        [](const bool&) { /* stopping has no result to show */ });
     }
 
+    // [RQ-APP-083, TASK-APP-028]
     void MemoryController::toggleAudition(const MemoryItem& item)
     {
         if (item.kind != MemoryKind::Sample)

@@ -29,11 +29,13 @@ namespace akm
         constexpr std::span<const std::int64_t> NO_VALUES{};
     }
 
+    // [RQ-AKM-028]
     void selectKeygroup(Session& session, int keygroup, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::KeygroupSelect, {static_cast<std::int64_t>(keygroup)}), std::move(completion));
     }
 
+    // [RQ-AKM-028]
     void getCurrentKeygroup(Session& session, CurrentKeygroupCompletion completion)
     {
         session.submit(makeRequest(ItemId::KeygroupGetCurrent, NO_VALUES),
@@ -50,6 +52,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-031]
     void getForAllKeygroups(Session& session, ItemId getId, int expectedKeygroupCount, AllKeygroupsCompletion completion)
     {
         // The number of records is unknown until decoded, like the repeated-record REPLYs of &18/&19

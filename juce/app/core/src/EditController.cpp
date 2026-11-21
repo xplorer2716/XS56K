@@ -779,12 +779,14 @@ namespace app
             read();
     }
 
+    // [RQ-APP-053]
     void EditController::readAgain()
     {
         if (_model.edit().layout != nullptr)
             read();
     }
 
+    // [TASK-APP-044]
     void EditController::showTab(std::size_t index)
     {
         const EditState& state = _model.edit();
@@ -799,6 +801,7 @@ namespace app
         read();
     }
 
+    // [RQ-APP-094, TASK-APP-044]
     void EditController::chooseKeygroup(int keygroup)
     {
         const EditState& state = _model.edit();
@@ -815,6 +818,7 @@ namespace app
         read();
     }
 
+    // [ADR-APP-004, DEC-APP-034, TASK-APP-047]
     void EditController::addKeygroups()
     {
         const EditState& state = _model.edit();
@@ -845,6 +849,7 @@ namespace app
         });
     }
 
+    // [RQ-APP-011, DEC-APP-034, TASK-APP-047]
     void EditController::deleteKeygroup()
     {
         const EditState& state = _model.edit();
@@ -910,6 +915,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-088, RQ-APP-089, RQ-APP-051, RQ-APP-052, ADR-APP-004, DEC-APP-025, DEC-APP-026, TASK-APP-037]
     void EditController::set(std::size_t index, std::int64_t value)
     {
         const EditState& state = _model.edit();

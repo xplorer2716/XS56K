@@ -115,6 +115,7 @@ namespace app
         }
     }
 
+    // [RQ-APP-051, RQ-APP-086, ADR-APP-004, DEC-APP-027, TASK-APP-038]
     std::string valueText(const EditValue& value)
     {
         using enum mcp::ParameterKind;
@@ -130,6 +131,7 @@ namespace app
         return std::to_string(value.value);
     }
 
+    // [RQ-APP-051, TASK-APP-038]
     std::optional<std::int64_t> valueFrom(const EditValue& value, std::string_view text)
     {
         const std::string typed = trimmed(text);
@@ -143,6 +145,7 @@ namespace app
         return std::nullopt;
     }
 
+    // [RQ-APP-097, RQ-APP-098, ADR-APP-004, DEC-APP-036, TASK-APP-053]
     std::optional<std::int64_t> steppedValue(const EditValue& value, int direction)
     {
         const std::int64_t step = value.definition->kind == mcp::ParameterKind::Number ? value.definition->step : 1;
@@ -152,6 +155,7 @@ namespace app
         return next;
     }
 
+    // [RQ-APP-087, RQ-APP-093, TASK-APP-038]
     std::string infoText(const EditState& state)
     {
         std::string text;

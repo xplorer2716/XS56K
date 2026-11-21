@@ -936,7 +936,7 @@ TASK-QLT-027|53-63|Done|The automatic fixes of clang-tidy on the test code
 @agnos-process/3.plan/PLAN-QLT-005-function-traceability-in-definitions.md
 PLAN-QLT-005|1-51||Function Traceability in Definitions
 TASK-QLT-028|17-28|Done|Write the header ID tracing tool
-TASK-QLT-029|29-40|Not Started|Trace production definitions
+TASK-QLT-029|29-40|Done|Trace production definitions
 TASK-QLT-030|41-51|Not Started|Trace test definitions
 @agnos-process/3.plan/checklists/real-sampler-run-APP-2026-10-17.md
 @agnos-process/3.plan/checklists/real-sampler-run-APP-multi.md

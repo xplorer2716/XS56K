@@ -56,6 +56,7 @@ namespace midiapp::controller
         }
     }
 
+    // [RQ-FMW-040, ADR-JUC-005, RQ-CTL-020]
     void AbstractController::workerThreadProc(const std::stop_token& stopToken)
     {
         while (waitForTransmitDelay(stopToken))

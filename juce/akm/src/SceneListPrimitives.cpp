@@ -62,11 +62,13 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-095]
     void selectSceneListByName(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::SceneListSelectByName, name), std::move(completion));
     }
 
+    // [RQ-AKM-095]
     void selectSceneListByIndex(Session& session, int index, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -74,16 +76,19 @@ namespace akm
         session.submit(makeRequest(ItemId::SceneListSelectByIndex, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-095]
     void deleteCurrentSceneList(Session& session, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::SceneListDeleteCurrent, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-095]
     void renameCurrentSceneList(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::SceneListRenameCurrent, name), std::move(completion));
     }
 
+    // [RQ-AKM-096]
     void getSceneListCount(Session& session, SceneListCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::SceneListGetCount, NO_VALUES),
@@ -93,6 +98,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-096]
     void getCurrentSceneListIndex(Session& session, SceneListIndexCompletion completion)
     {
         session.submit(makeRequest(ItemId::SceneListGetCurrentIndex, NO_VALUES),
@@ -102,6 +108,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-096, RQ-AKM-041]
     void getSceneListNameByIndex(Session& session, int index, SceneListNameCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -113,6 +120,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-096, RQ-AKM-041]
     void getCurrentSceneListName(Session& session, SceneListNameCompletion completion)
     {
         session.submit(makeRequest(ItemId::SceneListGetCurrentName, NO_VALUES, nameReplyOptions()),

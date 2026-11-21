@@ -62,21 +62,25 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-087]
     void setNewMultiPartCount(Session& session, MultiPartCount partCount, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiSetPartCount, {static_cast<std::int64_t>(partCount)}), std::move(completion));
     }
 
+    // [RQ-AKM-087]
     void createMulti(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::MultiCreate, name), std::move(completion));
     }
 
+    // [RQ-AKM-087]
     void selectMultiByName(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::MultiSelectByName, name), std::move(completion));
     }
 
+    // [RQ-AKM-087]
     void selectMultiByIndex(Session& session, int index, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -84,11 +88,13 @@ namespace akm
         session.submit(makeRequest(ItemId::MultiSelectByIndex, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-087]
     void deleteCurrentMulti(Session& session, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiDeleteCurrent, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-088]
     void deleteAllMultis(Session& session, std::optional<ConfirmDeleteAllMultis> confirmation, CommandCompletion completion)
     {
         if (!confirmation)
@@ -104,6 +110,7 @@ namespace akm
         session.submit(makeRequest(ItemId::MultiDeleteAll, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-087, RQ-AKM-091]
     void getCurrentMultiIndex(Session& session, MultiIndexCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetCurrentIndex, NO_VALUES),
@@ -120,6 +127,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-087, RQ-AKM-091, RQ-AKM-041]
     void getCurrentMultiName(Session& session, MultiNameCompletion completion)
     {
         CommandOptions options;
@@ -134,11 +142,13 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-092]
     void renameCurrentMulti(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::MultiRename, name), std::move(completion));
     }
 
+    // [RQ-AKM-092]
     void setMultiProgramNumber(Session& session, std::optional<int> frontPanelNumber, CommandCompletion completion)
     {
         // The front-panel range (spec Table 16, footnote a); &31's Data1/Data2 shape is conditional on Data1, so it
@@ -174,6 +184,7 @@ namespace akm
         session.submit(std::move(request), std::move(completion));
     }
 
+    // [RQ-AKM-092]
     void setMultiPartByIndex(Session& session, int part, int programIndex, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(programIndex) / DATA_BYTE_BASE;
@@ -182,6 +193,7 @@ namespace akm
                        std::move(completion));
     }
 
+    // [RQ-AKM-092]
     void setMultiPartByName(Session& session, int part, std::string_view name, CommandCompletion completion)
     {
         // &33's shape (a part, then a String) fits neither makeStringRequest (exactly one String) nor the generic
@@ -216,11 +228,13 @@ namespace akm
         session.submit(std::move(request), std::move(completion));
     }
 
+    // [RQ-AKM-092]
     void deleteMultiPart(Session& session, int part, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiDeletePart, {static_cast<std::int64_t>(part)}), std::move(completion));
     }
 
+    // [RQ-AKM-091]
     void getMultiCount(Session& session, MultiCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetCount, NO_VALUES),
@@ -237,6 +251,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-091]
     void getMultiProgramNumber(Session& session, MultiProgramNumberCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetProgramNumber, NO_VALUES),
@@ -253,6 +268,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-091]
     void getCurrentMultiPartCount(Session& session, MultiPartCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetPartCount, NO_VALUES),
@@ -269,6 +285,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-091]
     void getMultiPartName(Session& session, int part, MultiNameCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetPartName, {static_cast<std::int64_t>(part)}, variableLengthReply()),
@@ -324,16 +341,19 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-091]
     void getAllMultiPartNames(Session& session, MultiNameListCompletion completion)
     {
         submitNameList(session, ItemId::MultiGetAllPartNames, std::move(completion));
     }
 
+    // [RQ-AKM-091]
     void getAllMultiNames(Session& session, MultiNameListCompletion completion)
     {
         submitNameList(session, ItemId::MultiGetAllNames, std::move(completion));
     }
 
+    // [RQ-AKM-090]
     void getAllMultiPartParameters(Session& session, int part, MultiValueListCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetAllPartParameters, {static_cast<std::int64_t>(part)}),
@@ -354,16 +374,19 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-090]
     void getMultiMuteSoloStatus(Session& session, MultiValueListCompletion completion)
     {
         submitRepeatedByte(session, ItemId::MultiGetMuteSolo, 0, std::move(completion));
     }
 
+    // [RQ-AKM-091]
     void getAllMultiPartCounts(Session& session, MultiValueListCompletion completion)
     {
         submitRepeatedByte(session, ItemId::MultiGetAllPartCounts, WIRE_OFFSET, std::move(completion));
     }
 
+    // [RQ-AKM-091]
     void getAllMultiProgramNumbers(Session& session, MultiProgramNumbersCompletion completion)
     {
         session.submit(makeRequest(ItemId::MultiGetAllProgramNumbers, NO_VALUES, variableLengthReply()),

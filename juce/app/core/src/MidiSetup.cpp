@@ -30,11 +30,13 @@ namespace app
         constexpr std::string_view DEVICE_ID_KEY = "midi.deviceId";
     }
 
+    // [RQ-APP-015, ADR-APP-001, DEC-APP-009]
     MidiPortLists listMidiPorts(const common::midi::MidiBackend& backend)
     {
         return MidiPortLists{backend.inputDeviceNames(), backend.outputDeviceNames()};
     }
 
+    // [RQ-APP-015]
     std::optional<std::string> deviceIdProblem(int deviceId)
     {
         if (deviceId >= MIN_DEVICE_ID && deviceId <= MAX_DEVICE_ID)
@@ -43,6 +45,7 @@ namespace app
                " to " + std::to_string(MAX_DEVICE_ID) + ".";
     }
 
+    // [RQ-APP-016, ADR-APP-001, DEC-APP-009]
     std::optional<MidiSetup> loadMidiSetup(const AppSettings& settings)
     {
         const auto input = settings.read(INPUT_KEY);

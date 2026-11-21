@@ -214,6 +214,7 @@ namespace app
         }
     }
 
+    // [RQ-APP-025, RQ-APP-043]
     mcp::Outcome<mcp::DiskContents> moveToFolder(mcp::SamplerGateway& gateway, std::optional<int> disk, const std::vector<std::string>& folder)
     {
         return moveTo(gateway, disk, folder);
@@ -242,6 +243,7 @@ namespace app
             _model.setBrowser(BrowserState{});
     }
 
+    // [RQ-APP-024]
     void FileBrowser::refresh()
     {
         _controller.runOnSampler<DiskView>(LISTING_LABEL, readDisks, [this, alive = std::weak_ptr<int>(_alive)](const DiskView& view) {
@@ -250,6 +252,7 @@ namespace app
         });
     }
 
+    // [RQ-APP-024]
     void FileBrowser::selectDisk(int handle)
     {
         _controller.runOnSampler<DiskView>(
@@ -269,6 +272,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-025]
     void FileBrowser::openFolder(const std::vector<std::string>& folder)
     {
         const std::string label = OPENING_LABEL + (folder.empty() ? std::string(ROOT_NAME) : pathText(folder));
@@ -283,6 +287,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-026, RQ-APP-027, RQ-APP-033]
     void FileBrowser::select(BrowserItem item)
     {
         if (_auditioning && !(_auditioning->folder == item.folder && _auditioning->name == item.name))
@@ -308,6 +313,7 @@ namespace app
         _model.setBrowser(std::move(state));
     }
 
+    // [RQ-APP-030, RQ-APP-031]
     bool FileBrowser::refuseTakenName(const std::vector<std::string>& folder, const std::string& name, const std::string& action)
     {
         const FolderListing* listing = _model.browser().listing(folder);
@@ -321,6 +327,7 @@ namespace app
         return taken;
     }
 
+    // [RQ-APP-028, RQ-APP-013]
     void FileBrowser::load(const BrowserItem& file, bool withDependents, mcp::SampleLoadMode mode)
     {
         const std::optional<MemoryKind> kind = memoryKindOf(fileKindOf(file.name));
@@ -338,6 +345,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-029]
     void FileBrowser::loadFolder(const BrowserItem& folder)
     {
         const Confirmation question{"Load the folder?", folder.name,
@@ -356,6 +364,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-030]
     void FileBrowser::createFolder(const std::vector<std::string>& parent, const std::string& name)
     {
         const std::string label = CREATING_LABEL + name;
@@ -374,6 +383,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-031]
     void FileBrowser::rename(const BrowserItem& item, const std::string& newName)
     {
         const std::string label = RENAMING_LABEL + item.name;
@@ -395,6 +405,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-011, RQ-APP-032]
     void FileBrowser::remove(const BrowserItem& item)
     {
         const bool isFile = item.kind == BrowserItemKind::File;
@@ -416,6 +427,7 @@ namespace app
             });
     }
 
+    // [RQ-APP-033]
     void FileBrowser::audition(const BrowserItem& file)
     {
         const bool queued = _controller.runOnSampler<std::string>(
@@ -430,6 +442,7 @@ namespace app
             _auditioning = file;
     }
 
+    // [RQ-APP-033]
     void FileBrowser::stopAudition()
     {
         if (!_auditioning)
@@ -439,6 +452,7 @@ namespace app
                                        [](const bool&) { /* stopping has no result to show */ });
     }
 
+    // [RQ-APP-083, TASK-APP-028]
     void FileBrowser::toggleAudition(const BrowserItem& item)
     {
         if (item.kind != BrowserItemKind::File || fileKindOf(item.name) != FileKind::Sample)

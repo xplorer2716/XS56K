@@ -19,5 +19,6 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
+    // [RQ-AKM-019, ADR-AKM-001, DEC-AKM-001]
     std::string libraryName() { return "xs56k_akm"; }
 }

@@ -995,6 +995,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-039, RQ-AKM-040, RQ-AKM-041, ADR-AKM-001, DEC-AKM-007]
     void Session::open(SessionConfig config, OpenCompletion completion)
     {
         Impl* impl = _impl.get();
@@ -1011,6 +1012,7 @@ namespace akm
         return state;
     }
 
+    // [RQ-AKM-007, RQ-AKM-039]
     void Session::bindTarget(std::uint8_t deviceId)
     {
         Impl* impl = _impl.get();
@@ -1035,6 +1037,7 @@ namespace akm
         return _impl->stillAlive.load();
     }
 
+    // [RQ-AKM-008, RQ-AKM-020, RQ-AKM-039]
     void Session::submit(CommandRequest request, CommandCompletion completion)
     {
         std::vector<CommandRequest> requests;
@@ -1046,6 +1049,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-043, ADR-AKM-001, DEC-AKM-010]
     void Session::submitSequence(std::vector<CommandRequest> requests, SequenceCompletion completion)
     {
         auto unit = std::make_shared<Impl::Unit>();
@@ -1055,6 +1059,7 @@ namespace akm
         impl->postToSession([impl, unit] { impl->enqueue(unit); });
     }
 
+    // [RQ-AKM-075, DEC-AKM-019, RQ-AKM-042, ADR-AKM-001, DEC-AKM-007]
     bool Session::close(CloseCompletion onClosed)
     {
         // Closing from a completion would wait on the thread that has to do the work (DEC-AKM-004).

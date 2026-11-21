@@ -44,6 +44,7 @@ namespace app
         _wake.notify_one();
     }
 
+    // [RQ-APP-020, RQ-APP-021, RQ-APP-022, ADR-APP-001, DEC-APP-008]
     std::deque<SamplerWorker::Job> SamplerWorker::dropQueued()
     {
         std::deque<Job> dropped;

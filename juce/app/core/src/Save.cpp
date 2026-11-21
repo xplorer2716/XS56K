@@ -79,16 +79,19 @@ namespace app
         }
     }
 
+    // [RQ-APP-045]
     std::string savedFileName(const MemoryItem& item)
     {
         return item.name + EXTENSION_DOT + std::string(extensionOf(item.kind));
     }
 
+    // [RQ-APP-045]
     bool isFileOf(const MemoryItem& item, const std::string& fileName)
     {
         return sameIgnoringCase(fileName, savedFileName(item)) && memoryKindOf(fileKindOf(fileName)) == item.kind;
     }
 
+    // [RQ-APP-046]
     SaveReport reportOf(const std::vector<MemoryItem>& items, const mcp::SaveOutcome& outcome)
     {
         SaveReport report;

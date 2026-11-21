@@ -558,6 +558,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-004, RQ-MCP-010, ADR-MCP-001, DEC-MCP-005]
     std::vector<GroupDefinition> standardGroups()
     {
         return {
@@ -778,6 +779,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-020, ADR-MCP-002, DEC-MCP-012]
     std::vector<GroupDefinition> sampleGroups()
     {
         return {
@@ -887,6 +889,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-021, ADR-MCP-002, DEC-MCP-012]
     std::vector<GroupDefinition> multiGroups()
     {
         return {

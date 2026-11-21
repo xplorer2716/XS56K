@@ -202,6 +202,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-002]
     ParsedArguments parseArguments(const std::vector<std::string>& arguments)
     {
         ParsedArguments result;

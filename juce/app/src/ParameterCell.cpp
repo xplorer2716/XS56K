@@ -37,6 +37,7 @@ namespace app::ui
         constexpr float KNOB_END = juce::MathConstants<float>::pi * 2.75f;
     }
 
+    // [RQ-APP-005, ADR-APP-002, DEC-APP-016]
     juce::Colour roleColour(layouts::Role role)
     {
         using enum app::layouts::Role;
@@ -76,6 +77,7 @@ namespace app::ui
         return KNOB_CELLS;
     }
 
+    // [TASK-APP-048]
     int ParameterCell::cells(const layouts::LayoutParameter& parameter)
     {
         return parameter.cells > 0 ? parameter.cells : cells(parameter.control);
@@ -202,6 +204,7 @@ namespace app::ui
             _choice.setText(juce::String(valueText(_shown)), juce::dontSendNotification);  // [RQ-APP-059]
     }
 
+    // [ADR-APP-004, DEC-APP-032]
     void ParameterCell::paint(juce::Graphics& g)
     {
         using namespace tokens;

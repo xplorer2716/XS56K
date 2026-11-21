@@ -124,6 +124,7 @@ namespace akm
         }
     }
 
+    // [DEC-AKM-009, DEC-AKM-012, TASK-AKM-012, RQ-AKM-003, RQ-AKM-004, RQ-AKM-006, RQ-AKM-041, ADR-AKM-001, DEC-AKM-002]
     DecodedMessage decodeMessage(std::span<const std::uint8_t> frame, ChecksumMode mode)
     {
         if (isStillAlive(frame))
@@ -176,6 +177,7 @@ namespace akm
         return confirmation;
     }
 
+    // [RQ-AKM-006]
     std::string_view describe(RejectReason reason)
     {
         switch (reason)
@@ -198,6 +200,7 @@ namespace akm
         return UNKNOWN_REASON_TEXT;
     }
 
+    // [RQ-AKM-005]
     std::optional<std::uint16_t> errorNumber(const Confirmation& confirmation)
     {
         constexpr std::size_t ERROR_NUMBER_BYTES = 2;

@@ -22,6 +22,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
+    // [RQ-AKM-041]
     const ItemDescriptor* findItem(std::uint8_t section, std::uint8_t item)
     {
         // A linear scan: the table is short, and a lookup happens only while a REPLY is decoded in mode
@@ -32,6 +33,7 @@ namespace akm
         return found == ITEM_TABLE.end() ? nullptr : std::to_address(found);
     }
 
+    // [RQ-AKM-059, RQ-AKM-041, ADR-AKM-001, DEC-AKM-016]
     const ItemDescriptor* findReplyItem(std::uint8_t section, std::uint8_t item)
     {
         const auto found = std::ranges::find_if(ITEM_TABLE, [section, item](const ItemDescriptor& record) {

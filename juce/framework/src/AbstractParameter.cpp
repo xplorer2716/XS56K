@@ -92,6 +92,7 @@ namespace midiapp::model
         _step = step;
     }
 
+    // [RQ-FMW-002]
     int AbstractParameter::value() const
     {
         const std::lock_guard lock(_mutex);
@@ -134,6 +135,7 @@ namespace midiapp::model
         }
     }
 
+    // [RQ-FMW-002]
     bool AbstractParameter::changed() const
     {
         const std::lock_guard lock(_mutex);
@@ -146,6 +148,7 @@ namespace midiapp::model
         _changed = changed;
     }
 
+    // [RQ-FMW-001]
     common::midi::MidiMessage AbstractParameter::message() const
     {
         const std::lock_guard lock(_mutex);

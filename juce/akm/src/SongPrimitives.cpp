@@ -63,11 +63,13 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-082]
     void selectSongByName(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::SongSelectByName, name), std::move(completion));
     }
 
+    // [RQ-AKM-082]
     void selectSongByIndex(Session& session, int index, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -75,16 +77,19 @@ namespace akm
         session.submit(makeRequest(ItemId::SongSelectByIndex, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-082]
     void deleteCurrentSong(Session& session, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::SongDeleteCurrent, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-082]
     void renameCurrentSong(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::SongRenameCurrent, name), std::move(completion));
     }
 
+    // [RQ-AKM-083]
     void getSongCount(Session& session, SongCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::SongGetCount, NO_VALUES),
@@ -94,6 +99,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-083]
     void getCurrentSongIndex(Session& session, SongIndexCompletion completion)
     {
         session.submit(makeRequest(ItemId::SongGetCurrentIndex, NO_VALUES),
@@ -103,6 +109,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-083, RQ-AKM-041]
     void getSongNameByIndex(Session& session, int index, SongNameCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -114,6 +121,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-083, RQ-AKM-041]
     void getCurrentSongName(Session& session, SongNameCompletion completion)
     {
         session.submit(makeRequest(ItemId::SongGetCurrentName, NO_VALUES, nameReplyOptions()),
@@ -123,6 +131,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-084]
     void getSetListCount(Session& session, SetListCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::SetListGetCount, NO_VALUES),
@@ -132,6 +141,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-084, RQ-AKM-041]
     void getSetListNameByIndex(Session& session, int index, SetListNameCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -143,6 +153,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-084]
     void deleteSetList(Session& session, int index, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -150,6 +161,7 @@ namespace akm
         session.submit(makeRequest(ItemId::SetListDelete, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-084]
     void renameSetList(Session& session, int index, std::string_view name, CommandCompletion completion)
     {
         // &23's shape (an index as two Bytes, then a String) fits neither makeStringRequest (exactly one

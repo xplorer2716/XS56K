@@ -147,6 +147,7 @@ namespace app
     {
     }
 
+    // [RQ-APP-043]
     std::optional<MemoryItem> SaveController::proposedItem() const
     {
         if (_model.memory().selection)
@@ -156,6 +157,7 @@ namespace app
         return std::nullopt;
     }
 
+    // [RQ-APP-047]
     std::optional<std::string> SaveController::refusal() const
     {
         if (_model.connection().state != ConnectionState::Connected)
@@ -170,6 +172,7 @@ namespace app
         return std::nullopt;
     }
 
+    // [RQ-APP-045]
     bool SaveController::checkNames() const
     {
         return _settings.read(CHECK_NAMES_KEY).value_or(ON) != OFF;
@@ -180,6 +183,7 @@ namespace app
         _settings.write(CHECK_NAMES_KEY, on ? ON : OFF);
     }
 
+    // [RQ-APP-044, DEC-APP-040]
     std::vector<MemoryItem> SaveController::itemsOf(const SaveRequest& request) const
     {
         if (request.scope == SaveScope::Alone || request.scope == SaveScope::WithChildren)
@@ -195,6 +199,7 @@ namespace app
         return items;
     }
 
+    // [RQ-APP-045]
     std::vector<std::string> SaveController::filesThere(const std::vector<MemoryItem>& items) const
     {
         std::vector<std::string> there;
@@ -209,6 +214,7 @@ namespace app
         return there;
     }
 
+    // [RQ-APP-043, RQ-APP-047]
     void SaveController::save(const SaveRequest& request)
     {
         if (const auto refused = refusal())

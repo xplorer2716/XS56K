@@ -42,6 +42,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-044, RQ-AKM-041, ADR-AKM-001, DEC-AKM-012]
     void queryOsVersion(Session& session, OsVersionCompletion completion)
     {
         session.submit(

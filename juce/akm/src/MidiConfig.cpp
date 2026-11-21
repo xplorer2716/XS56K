@@ -26,37 +26,44 @@ namespace akm
     // Every value below is checked against the catalogue's own range for its item (`items.json`), as `makeRequest`
     // does for every item: out of range, it is refused (`ArgumentOutOfRange`) and nothing is sent. [RQ-AKM-078]
 
+    // [RQ-AKM-078]
     void setProgramChangeEnabled(Session& session, bool enabled, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MidiProgramChangeEnable, {enabled ? 1 : 0}), std::move(completion));
     }
 
+    // [RQ-AKM-078]
     void setMultiSelect(Session& session, MultiSelectMode mode, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MidiMultiSelect, {static_cast<std::int64_t>(mode)}), std::move(completion));
     }
 
+    // [RQ-AKM-078]
     void setMultiSelectChannel(Session& session, int channel, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MidiMultiSelectChannel, {channel}), std::move(completion));
     }
 
+    // [RQ-AKM-078]
     void setExternalApmController(Session& session, int controller, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MidiExternalApmController, {controller}), std::move(completion));
     }
 
+    // [RQ-AKM-078]
     void setAftertouch(Session& session, AftertouchType type, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MidiAftertouch, {static_cast<std::int64_t>(type)}), std::move(completion));
     }
 
+    // [RQ-AKM-079]
     void allowMidiEvents(Session& session, MidiFilterEvent event, int channel, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MidiFilterAllow, {static_cast<std::int64_t>(event), channel}),
                        std::move(completion));
     }
 
+    // [RQ-AKM-079]
     void ignoreMidiEvents(Session& session, MidiFilterEvent event, int channel, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::MidiFilterIgnore, {static_cast<std::int64_t>(event), channel}),
