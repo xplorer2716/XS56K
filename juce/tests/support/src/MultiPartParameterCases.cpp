@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm::harness
 {
+    // [RQ-AKM-089, RQ-AKM-093]
     const std::vector<MultiPartParameterCase>& allMultiPartParameterCases()
     {
         // Every case acts on part 3, independent of the mock test's own part 2 (MultiPartParametersTests.cpp).

@@ -40,15 +40,15 @@ This plan implements the tasks in the format specified below.
 
 ### TASK-QLT-030: Trace test definitions
 - **Tier**: M
-- **Status**: Not Started
+- **Status**: Done
 - **Description**: Same as TASK-QLT-029 on `juce/tests/`, once TASK-QLT-031 and TASK-QLT-032 make the build and ctest pass.
 - **Requirement refs**: RQ-QLT-014, RQ-QLT-015
 - **ADR refs**: ADR-QLT-003 (DEC-QLT-017)
 - **Acceptance Criteria** (Gherkin): *Given* `juce/tests/`, *When* the tool runs with `--check` after the run, *Then* it reports no definition missing an ID. *Given* the change, *When* the build and ctest run, *Then* they pass.
 - **Dependencies**: TASK-QLT-029, TASK-QLT-031, TASK-QLT-032
 - **Assignee**: AI
-- **Verification**:
-- **Assumptions**:
+- **Verification**: tool on `juce/tests`: copied 49, unmatched 402 (production declarations, defined outside `juce/tests`), ambiguous 0; then `--check`: missing 0, traced 49, exit 0. Diff: 12 files, 49 insertions, 0 deletions; each added line follows a blank line (44) or a `{` (5). Build (MSVC Debug, tests on) exit 0; ctest 1271/1271 passed, 0 skipped by ctest. Performance center `--call-graph`: `functions-traced` 2.5 -> 2.7, findings 2572 -> 2513.
+- **Assumptions**: None
 
 ### TASK-QLT-031: Fix disk format type in save tests
 - **Tier**: S

@@ -423,6 +423,7 @@ namespace akm::harness
         }
     }
 
+    // [TASK-AKM-013, RQ-AKM-011, RQ-AKM-015, RQ-AKM-017, RQ-AKM-018, RQ-AKM-019, RQ-AKM-044, ADR-AKM-001, DEC-AKM-007, DEC-AKM-008, DEC-AKM-011, DEC-AKM-012]
     SessionSmokeResult runSessionSmokeTest(common::midi::MidiBackend& backend, ScenarioDriver& driver,
                                            const SessionSmokeOptions& options, std::ostream& out)
     {

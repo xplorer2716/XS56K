@@ -163,6 +163,7 @@ namespace akm::harness
         }
     }
 
+    // [RQ-AKM-076]
     RemoteAction remoteAction(bool textMode, int pcKey)
     {
         return textMode ? textModeAction(pcKey) : normalModeAction(pcKey);
@@ -202,6 +203,7 @@ namespace akm::harness
         }};
     }
 
+    // [RQ-AKM-076]
     std::string_view remoteKeyName(FrontPanelKey key)
     {
         for (const KeyName& entry : KEY_NAMES)
@@ -212,6 +214,7 @@ namespace akm::harness
         return {};
     }
 
+    // [RQ-AKM-076]
     const std::vector<std::string>& remoteMappingLines()
     {
         static const std::vector<std::string> LINES{

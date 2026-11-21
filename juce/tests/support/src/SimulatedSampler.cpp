@@ -2958,6 +2958,7 @@ namespace akm::harness
         _behaviour = std::move(behaviour);
     }
 
+    // [RQ-AKM-035, RQ-AKM-045]
     void SimulatedSampler::setSampleNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
@@ -2972,6 +2973,7 @@ namespace akm::harness
         _currentSample.reset();
     }
 
+    // [RQ-MCP-044, TASK-MCP-043]
     void SimulatedSampler::setProgramNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
@@ -2987,6 +2989,7 @@ namespace akm::harness
         _currentKeygroup.reset();
     }
 
+    // [RQ-MCP-044, TASK-MCP-043]
     void SimulatedSampler::setKeygroupCount(std::size_t index, int count)
     {
         const std::lock_guard lock(_mutex);
@@ -2996,6 +2999,7 @@ namespace akm::harness
         _programs[index].keygroups.assign(static_cast<std::size_t>(count), KeygroupRecord{});
     }
 
+    // [RQ-AKM-082]
     void SimulatedSampler::setSongNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
@@ -3003,6 +3007,7 @@ namespace akm::harness
         _songs.current.reset();
     }
 
+    // [RQ-AKM-085]
     void SimulatedSampler::setCurrentSong(std::size_t index)
     {
         const std::lock_guard lock(_mutex);
@@ -3010,12 +3015,14 @@ namespace akm::harness
             _songs.current = index;
     }
 
+    // [RQ-AKM-085]
     std::optional<std::size_t> SimulatedSampler::currentSong() const
     {
         const std::lock_guard lock(_mutex);
         return _songs.current;
     }
 
+    // [RQ-AKM-099]
     FxLayout eb20Layout()
     {
         // Module type codes of the spec's Table 24: 01 RingMod/Distortion, 09 EQ, 02 Chorus, 0A Mono Delay, 00 none,
@@ -3025,6 +3032,7 @@ namespace akm::harness
         return {modulationAndDelayChannel, modulationAndDelayChannel, reverbChannel, reverbChannel};
     }
 
+    // [RQ-AKM-099]
     void SimulatedSampler::setFxBoard(const FxLayout& layout)
     {
         const std::lock_guard lock(_mutex);
@@ -3045,12 +3053,14 @@ namespace akm::harness
         _fx.cardCode = code;
     }
 
+    // [RQ-AKM-102]
     FxState SimulatedSampler::fxState() const
     {
         const std::lock_guard lock(_mutex);
         return _fx;
     }
 
+    // [RQ-AKM-095]
     void SimulatedSampler::setSceneListNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
@@ -3058,6 +3068,7 @@ namespace akm::harness
         _sceneLists.current.reset();
     }
 
+    // [RQ-AKM-097]
     void SimulatedSampler::setCurrentSceneList(std::size_t index)
     {
         const std::lock_guard lock(_mutex);
@@ -3065,36 +3076,42 @@ namespace akm::harness
             _sceneLists.current = index;
     }
 
+    // [RQ-AKM-097]
     std::optional<std::size_t> SimulatedSampler::currentSceneList() const
     {
         const std::lock_guard lock(_mutex);
         return _sceneLists.current;
     }
 
+    // [RQ-AKM-095]
     std::vector<std::string> SimulatedSampler::sceneListNames() const
     {
         const std::lock_guard lock(_mutex);
         return _sceneLists.scenes;
     }
 
+    // [RQ-AKM-084]
     void SimulatedSampler::setSetListNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
         _songs.setLists = std::move(names);
     }
 
+    // [RQ-AKM-084]
     std::vector<std::string> SimulatedSampler::setListNames() const
     {
         const std::lock_guard lock(_mutex);
         return _songs.setLists;
     }
 
+    // [RQ-AKM-082]
     std::vector<std::string> SimulatedSampler::songNames() const
     {
         const std::lock_guard lock(_mutex);
         return _songs.songs;
     }
 
+    // [RQ-AKM-056]
     void SimulatedSampler::setMultiNames(std::vector<std::string> names)
     {
         const std::lock_guard lock(_mutex);
@@ -3110,12 +3127,14 @@ namespace akm::harness
         _multis.current.reset();
     }
 
+    // [RQ-AKM-056]
     std::size_t SimulatedSampler::multiCount() const
     {
         const std::lock_guard lock(_mutex);
         return _multis.multis.size();
     }
 
+    // [RQ-AKM-087]
     std::vector<std::string> SimulatedSampler::multiNames() const
     {
         const std::lock_guard lock(_mutex);
@@ -3125,6 +3144,7 @@ namespace akm::harness
         return names;
     }
 
+    // [RQ-AKM-087]
     std::optional<int> SimulatedSampler::multiPartCount(std::size_t index) const
     {
         const std::lock_guard lock(_mutex);
@@ -3133,6 +3153,7 @@ namespace akm::harness
         return _multis.multis[index].partCount;
     }
 
+    // [RQ-AKM-091]
     void SimulatedSampler::setMultiProgramNumber(std::size_t index, std::optional<std::uint8_t> number)
     {
         const std::lock_guard lock(_mutex);
@@ -3142,6 +3163,7 @@ namespace akm::harness
         _multis.multis[index].programNumber = number.value_or(0);
     }
 
+    // [RQ-AKM-091]
     void SimulatedSampler::setMultiPartProgram(std::size_t index, std::size_t part, std::string program)
     {
         const std::lock_guard lock(_mutex);
@@ -3150,6 +3172,7 @@ namespace akm::harness
         _multis.multis[index].partPrograms[part] = std::move(program);
     }
 
+    // [RQ-AKM-093]
     void SimulatedSampler::setCurrentMulti(std::size_t index)
     {
         const std::lock_guard lock(_mutex);
@@ -3157,12 +3180,14 @@ namespace akm::harness
             _multis.current = index;
     }
 
+    // [RQ-AKM-087]
     std::optional<std::size_t> SimulatedSampler::currentMulti() const
     {
         const std::lock_guard lock(_mutex);
         return _multis.current;
     }
 
+    // [RQ-AKM-049]
     void SimulatedSampler::setSampleAttributes(std::size_t index, std::uint8_t type, std::uint8_t channels,
                                                std::uint32_t length, std::uint32_t rate)
     {
@@ -3175,6 +3200,7 @@ namespace akm::harness
         _samples[index].rate = rate;
     }
 
+    // [RQ-APP-090, TASK-APP-041]
     void SimulatedSampler::setSampleLoopEndKeepsLength(std::size_t index, bool keeps)
     {
         const std::lock_guard lock(_mutex);
@@ -3182,48 +3208,56 @@ namespace akm::harness
             _samples[index].loopEndKeepsLength = keeps;
     }
 
+    // [RQ-AKM-055]
     void SimulatedSampler::setPlayMode(std::uint8_t playMode)
     {
         const std::lock_guard lock(_mutex);
         _system.playMode = playMode;
     }
 
+    // [RQ-AKM-055]
     void SimulatedSampler::setFrontPanelLock(std::uint8_t lock)
     {
         const std::lock_guard guard(_mutex);
         _system.frontPanelLock = lock;
     }
 
+    // [RQ-AKM-057]
     void SimulatedSampler::setHighestPlayMode(std::uint8_t highest)
     {
         const std::lock_guard lock(_mutex);
         _system.highestPlayMode = highest;
     }
 
+    // [RQ-AKM-058]
     SystemSetupState SimulatedSampler::systemSetup() const
     {
         const std::lock_guard lock(_mutex);
         return _system;
     }
 
+    // [RQ-AKM-073]
     FrontPanelState SimulatedSampler::frontPanel() const
     {
         const std::lock_guard lock(_mutex);
         return _frontPanel;
     }
 
+    // [RQ-AKM-078]
     MidiConfigState SimulatedSampler::midiConfig() const
     {
         const std::lock_guard lock(_mutex);
         return _midiConfig;
     }
 
+    // [RQ-AKM-053]
     void SimulatedSampler::setModel(std::uint8_t model)
     {
         const std::lock_guard lock(_mutex);
         _system.model = model;
     }
 
+    // [RQ-AKM-053]
     void SimulatedSampler::setMemory(std::uint32_t waveTotalBytes, std::uint32_t waveFreeBytes,
                                      std::uint8_t mpksFreePercent)
     {
@@ -3233,6 +3267,7 @@ namespace akm::harness
         _system.mpksFreePercent = mpksFreePercent;
     }
 
+    // [RQ-AKM-071]
     void SimulatedSampler::setCurrentDisk(std::size_t index)
     {
         const std::lock_guard lock(_mutex);
@@ -3243,6 +3278,7 @@ namespace akm::harness
         _staleFiles.reset();
     }
 
+    // [RQ-AKM-060]
     void SimulatedSampler::setDisks(std::vector<DiskRecord> disks)
     {
         const std::lock_guard lock(_mutex);

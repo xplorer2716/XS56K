@@ -15,6 +15,7 @@ namespace
     bool done = true;
 }
 
+// [RQ-BLD-015]
 void waitUntilDone()
 {
     while (!done)

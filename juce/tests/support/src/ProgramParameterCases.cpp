@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm::harness
 {
+    // [TASK-AKM-018, RQ-AKM-024, RQ-AKM-027]
     const std::vector<ProgramParameterCase>& allProgramParameterCases()
     {
         static const std::vector<ProgramParameterCase> cases{{
