@@ -1,88 +1,3 @@
-@AGENTS.md
-
-<!-- Claude Code loads the file imported above. Put shared agent instructions in AGENTS.md and Claude-specific ones below. -->
-
-<!-- rtk-instructions v2 -->
-# Command output
-
-Command output here is condensed to save tokens, keeping every signal and
-dropping costly noise. Treat it as the complete result: run commands
-normally, and batch related commands into one call to avoid extra turns.
-Truncated results state their recovery path in their own output. Re-run a
-command as `rtk proxy <cmd>` only when its result is unusable: empty when
-output was clearly expected, contradicting its exit code, or garbled.
-<!-- /rtk-instructions -->
-
-
-## grepai - Semantic Code Search
-
-**IMPORTANT: You MUST use grepai as your PRIMARY tool for code exploration and search.**
-
-### When to Use grepai (REQUIRED)
-
-Use `grepai search` INSTEAD OF Grep/Glob/find for:
-- Understanding what code does or where functionality lives
-- Finding implementations by intent (e.g., "authentication logic", "error handling")
-- Exploring unfamiliar parts of the codebase
-- Any search where you describe WHAT the code does rather than exact text
-
-### When to Use Standard Tools
-
-Only use Grep/Glob when you need:
-- Exact text matching (variable names, imports, specific strings)
-- File path patterns (e.g., `**/*.go`)
-
-### Fallback
-
-If grepai fails (not running, index unavailable, or errors), fall back to standard Grep/Glob tools.
-
-### Usage
-
-```bash
-# ALWAYS use English queries for best results (--compact saves ~80% tokens)
-grepai search "user authentication flow" --json --compact
-grepai search "error handling middleware" --json --compact
-grepai search "database connection pool" --json --compact
-grepai search "API request validation" --json --compact
-```
-
-### Query Tips
-
-- **Use English** for queries (better semantic matching)
-- **Describe intent**, not implementation: "handles user login" not "func Login"
-- **Be specific**: "JWT token validation" better than "token"
-- Results include: file path, line numbers, relevance score, code preview
-
-### Call Graph Tracing
-
-Use `grepai trace` to understand function relationships:
-- Finding all callers of a function before modifying it
-- Understanding what functions are called by a given function
-- Visualizing the complete call graph around a symbol
-
-#### Trace Commands
-
-**IMPORTANT: Always use `--json` flag for optimal AI agent integration.**
-
-```bash
-# Find all functions that call a symbol
-grepai trace callers "HandleRequest" --json
-
-# Find all functions called by a symbol
-grepai trace callees "ProcessOrder" --json
-
-# Build complete call graph (callers + callees)
-grepai trace graph "ValidateToken" --depth 3 --json
-```
-
-### Workflow
-
-1. Start with `grepai search` to find relevant code
-2. Use `grepai trace` to understand function relationships
-3. Use `Read` tool to examine files from results
-4. Only use Grep for exact string searches if needed
-
-
 <!-- AGNOS:BEGIN - written by agnos-init, do not edit: call agnos-init again to update -->
 ## AGNOS process
 
@@ -115,3 +30,16 @@ To check that the process is loaded, ask the agent to quote a rule from its end,
 - Run the commands from this project's root, where `agnos-process/` is.
 - Where the process asks the user a question, use the built-in user-question tool (`askQuestion` on GitHub Copilot, `AskUserQuestion` on Claude Code), or ask in chat and wait for the answer.
 <!-- AGNOS:END -->
+
+
+<!-- rtk-instructions v2 -->
+# Command output
+
+Command output here is condensed to save tokens, keeping every signal and
+dropping costly noise. Treat it as the complete result: run commands
+normally, and batch related commands into one call to avoid extra turns.
+Truncated results state their recovery path in their own output. Re-run a
+command as `rtk proxy <cmd>` only when its result is unusable: empty when
+output was clearly expected, contradicting its exit code, or garbled.
+<!-- /rtk-instructions -->
+
