@@ -11,6 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - This section may be incomplete. for full history, please check git history.
 - Initial project structure.
+- Editor application: a multi editor (FTR-APP-011): selecting a multi shows its "Parts" tab, one part at a time or all parts, with the
+  program each part plays, its mix and setup parameters, and the multi's program number; "Create a multi…" in the memory view's menu.
+- Editor application: saving to the sampler's disk, as its SAVE page does ("File > Save…", Ctrl+S, or "Save…" in the memory view's menu):
+  the selected item alone or with its children, all the items of its kind, or the entire memory, into the browser's current folder;
+  "check names" asks before a file on the disk is replaced (replace, skip, cancel); the folder is shown again and a report says which
+  files were saved, skipped or are missing. A disk that is not MSDOS or FAT32 is refused with nothing sent. Not yet tried on a real S5000.
 - Editor application (`juce/app`, `XS56K`): the main window replaces the placeholder: menus (Connect or Disconnect, MIDI setup, Quit), the
   connection and the job in progress in a status bar, the MIDI setup dialog, the file browser of the sampler's disks (folders, files with
   their kind, size and icon; load, load with dependents, load a folder, create, rename and delete, audition, refresh of the disks after a
@@ -77,6 +83,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   named) and the value of a module's parameter as a signed number. `xs56k_akm_probe --suite --multi-fx` creates a test
   multi, reads the board and, with an EB20 installed, changes a few values on the test multi and puts them back; with no
   board it only reads, and deletes the test multi again. Every Set is untested on a real sampler for want of a board.
+- Editor: "All keygroups" in the program editor's keygroup selector: a value the keygroups share is shown, otherwise VARIES, and a change
+  goes to every keygroup.
+
+### Fixed
+
+- Editor: the filter attenuation moves in its steps of 6 dB, and a value between two steps is refused with nothing sent (it was read back
+  as another value); the arrows of every choice step to the previous or next value instead of opening the list; the shapes of the
+  enhanced filters (2-POLE LP+, 2-POLE BP+, 1-POLE HP+) carry a "+" above their cutoff.
 
 <!--
 Sections to use under each version (only those that apply):

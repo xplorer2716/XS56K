@@ -24,6 +24,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #include "app/Browser.hpp"
 #include "app/Edit.hpp"
 #include "app/Memory.hpp"
+#include "app/Save.hpp"
 
 namespace app
 {
@@ -40,6 +41,8 @@ namespace app
         Memory,
         /// The edit panel: the item edited, its values and information. [RQ-APP-048, ADR-APP-004 (DEC-APP-025)]
         Edit,
+        /// A save to the disk ended: its report. [RQ-APP-046, ADR-APP-005 (DEC-APP-039)]
+        Saved,
     };
 
     /// Where the connection with the sampler stands. [RQ-APP-019]
@@ -105,6 +108,8 @@ namespace app
         [[nodiscard]] const MemoryState& memory() const { return _memory; }
         /// The edit panel. [RQ-APP-048, RQ-APP-086, TASK-APP-036]
         [[nodiscard]] const EditState& edit() const { return _edit; }
+        /// The report of the last save, until the next one. [RQ-APP-046, TASK-APP-059]
+        [[nodiscard]] const std::optional<SaveReport>& lastSave() const { return _lastSave; }
 
         void setBusy(std::optional<std::string> label);
         void setProblem(Problem problem);
@@ -115,6 +120,7 @@ namespace app
         void memoryChanged(const std::optional<MemoryItem>& select);
         void setMemory(MemoryState memory);
         void setEdit(EditState edit);
+        void setSaved(SaveReport report);
 
         void addListener(ModelListener& listener);
         void removeListener(ModelListener& listener);
@@ -129,6 +135,7 @@ namespace app
         MemoryChange _memoryChange;
         MemoryState _memory;
         EditState _edit;
+        std::optional<SaveReport> _lastSave;
         std::vector<ModelListener*> _listeners;
     };
 }

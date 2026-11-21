@@ -1901,6 +1901,25 @@ namespace mcp
         if (!akm::succeeded(*set))
             return Outcome<MultiProgramNumber>::failure(explain(*set, "setting the program number of the multi \"" + current.value->name + "\"", _config, true, "multi"));
 
+        const auto read = readProgramNumberOf(current.value->name);
+        if (!read.ok())
+            return read;
+        if (read.value->number != number)
+            return Outcome<MultiProgramNumber>::failure("The sampler accepted the program number but reports " +
+                                                        (read.value->number ? numberText(*read.value->number) : std::string("none")) + ".");
+        return read;
+    }
+
+    Outcome<MultiProgramNumber> SamplerGateway::readMultiProgramNumber()
+    {
+        const auto current = currentMultiEntry();
+        if (!current.ok())
+            return Outcome<MultiProgramNumber>::failure(current.problem);
+        return readProgramNumberOf(current.value->name);
+    }
+
+    Outcome<MultiProgramNumber> SamplerGateway::readProgramNumberOf(const std::string& multi)
+    {
         const auto read = await<akm::MultiProgramNumberResult>(waitFor(1), [this](std::function<void(const akm::MultiProgramNumberResult&)> done) {
             akm::getMultiProgramNumber(_connection->session, std::move(done));
         });
@@ -1908,11 +1927,8 @@ namespace mcp
             return Outcome<MultiProgramNumber>::failure("The sampler session did not complete the command in time.");
         const auto* error = std::get_if<akm::Error>(&read->outcome);
         if (!read->frontPanelNumber && (error != nullptr || !akm::succeeded(read->outcome)))
-            return Outcome<MultiProgramNumber>::failure(explain(read->outcome, "reading back the program number", _config, true, "multi"));
-        if (read->frontPanelNumber != number)
-            return Outcome<MultiProgramNumber>::failure("The sampler accepted the program number but reports " +
-                                                        (read->frontPanelNumber ? numberText(*read->frontPanelNumber) : std::string("none")) + ".");
-        return Outcome<MultiProgramNumber>::success(MultiProgramNumber{current.value->name, read->frontPanelNumber});
+            return Outcome<MultiProgramNumber>::failure(explain(read->outcome, "reading the program number", _config, true, "multi"));
+        return Outcome<MultiProgramNumber>::success(MultiProgramNumber{multi, read->frontPanelNumber});
     }
 
     Outcome<MultiEntry> SamplerGateway::selectMultiByName(std::string_view name)

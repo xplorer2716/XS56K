@@ -130,3 +130,12 @@ The pages of the sampler's EDIT PROGRAM mode (user manual pp. 80-127) are a sour
 - **Priority**: Should
 - **Acceptance Criteria** (Gherkin): *Given* the type 2-POLE LP, *Then* its shape falls from the pass level to 0 at the right; *When* the person chooses 4-POLE LP, *Then* it is sent, read back, and the shape falls more steeply; *Given* VOWELISER, *Then* no shape is drawn and its name is shown.
 - **Dependencies**: RQ-APP-057, RQ-APP-052, RQ-APP-005, ADR-APP-004 (DEC-APP-032)
+
+### RQ-APP-099: The enhanced filters are marked with a plus
+- **Category**: Functional
+- **EARS Type**: Ubiquitous
+- **Statement**: The shape of a filter type with enhanced resonance (2-POLE LP+, 2-POLE BP+, 1-POLE HP+) SHALL carry a small "+" above its cutoff, as the sampler's screen draws it.
+- **Rationale**: the owner's run of 2026-10-17 (F5): without it, 2-POLE LP and 2-POLE LP+ have the same shape; the "+" types boost the resonance (user manual pp. 114 to 120).
+- **Priority**: Should
+- **Acceptance Criteria** (Gherkin): *Given* the type 2-POLE LP+, *Then* its shape carries a "+" above the cutoff; *Given* 2-POLE LP, *Then* it carries none.
+- **Dependencies**: RQ-APP-096, ADR-APP-004 (DEC-APP-032, DEC-APP-037)

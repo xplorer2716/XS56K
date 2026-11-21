@@ -65,6 +65,8 @@ namespace app::ui
         void drawComboBox(juce::Graphics& g, int width, int height, bool down, int buttonX, int buttonY, int buttonW, int buttonH,
                           juce::ComboBox& box) override;
         void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override;
+        /// The width of each arrow's end of a choice, which the text leaves free and a click on steps the choice. [RQ-APP-098, DEC-APP-036]
+        [[nodiscard]] static int choiceArrowWidth();
 
     private:
         juce::Typeface::Ptr _regular;

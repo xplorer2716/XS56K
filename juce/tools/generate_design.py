@@ -29,14 +29,15 @@ DEFAULT_DOC = ROOT / "agnos-process" / "1.requirements" / "DESIGN-SYSTEM-APP.md"
 DEFAULT_LAYOUTS = ROOT / "juce" / "app" / "design" / "layouts"
 DEFAULT_SHAPES = ROOT / "juce" / "app" / "design" / "shapes"
 DEFAULT_LAYOUTS_HEADER = ROOT / "juce" / "app" / "core" / "include" / "app" / "EditorLayouts.generated.hpp"
-CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider", "sample": "Sample"}
+CONTROLS = {"knob": "Knob", "choice": "Choice", "switch": "Switch", "valuebox": "ValueBox", "slider": "Slider", "sample": "Sample",
+            "program": "Program"}
 GRID_CONTROLS = ("choice", "valuebox", "sample")  # a zone grid's cells are a row high [RQ-APP-057, DEC-APP-033]
 ZONE_COUNT = 4  # the zones of a keygroup
-WIDE_CONTROLS = ("choice", "valuebox")  # the controls a layout may widen
+WIDE_CONTROLS = ("choice", "valuebox", "program")  # the controls a layout may widen
 COLUMN_CONTROLS = ("choice", "valuebox")  # a routing's cells: its source and its amount [DEC-APP-035]
 MIN_CELLS, MAX_CELLS = 1, 3
 ROLES = {"sample": "Sample", "modulation": "Modulation", "filter": "Filter", "amp": "Amp", "general": "General"}
-SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone"}
+SCOPES = {"program": "Program", "keygroup": "Keygroup", "zone": "Zone", "multi": "Multi", "part": "Part"}
 
 TIERS = ("global", "semantic", "component")
 COLOUR_PATTERN = re.compile(r"^#[0-9A-Fa-f]{6}$")
@@ -251,16 +252,42 @@ def check_polyline(set_name, label, points):
         raise TokenError(f"the shape {label} of {set_name} goes back along x")
 
 
+def point_text(x, y):
+    return f"{{{float(x)!r}f, {float(y)!r}f}}"
+
+
+def check_marks(set_name, shape_set):
+    """A mark is a text and its place in the unit square, on a label that has a shape. [RQ-APP-099, DEC-APP-037]"""
+    marks = shape_set.get("marks", {})
+    for label, mark in marks.items():
+        if label not in shape_set.get("shapes", {}):
+            raise TokenError(f"the mark of {label} in {set_name} has no shape")
+        if not mark.get("text"):
+            raise TokenError(f"the mark of {label} in {set_name} has no text")
+        x, y = mark.get("at", (-1, -1))
+        if not (0 <= x <= 1 and 0 <= y <= 1):
+            raise TokenError(f"the mark of {label} in {set_name} leaves the unit square at {x}, {y}")
+    return marks
+
+
+def render_mark(mark):
+    """A shape's mark as the last two fields of its ChoiceShape: its text and its place, or none."""
+    if mark is None:
+        return "{}, {}"
+    return f"{cpp_text(mark['text'])}, {point_text(*mark['at'])}"
+
+
 def render_shapes(shapes, lines):
-    """Every shape set as tables: a polyline per label, then the set, label by label in the file's order."""
+    """Every shape set as tables: a polyline per label, then the set, label by label in the file's order, each with its mark if any."""
     for set_name, shape_set in sorted(shapes.items()):
         table = shape_table(set_name)
+        marks = check_marks(set_name, shape_set)
         entries = []
         for index, (label, points) in enumerate(shape_set.get("shapes", {}).items()):
             check_polyline(set_name, label, points)
-            pairs = ", ".join(f"{{{float(x)!r}f, {float(y)!r}f}}" for x, y in points)
+            pairs = ", ".join(point_text(x, y) for x, y in points)
             lines.append(f"    inline constexpr std::array<ShapePoint, {len(points)}> {table}Shape{index}{{{{{pairs}}}}};")
-            entries.append(f"ChoiceShape{{{cpp_text(label)}, {table}Shape{index}}}")
+            entries.append(f"ChoiceShape{{{cpp_text(label)}, {table}Shape{index}, {render_mark(marks.get(label))}}}")
         lines.append(f"    inline constexpr std::array<ChoiceShape, {len(entries)}> {table}Shapes{{{{")
         lines += [f"        {entry}," for entry in entries]
         lines.append(CLOSE_TABLE)
@@ -294,7 +321,7 @@ def render_cells(editor, parameter):
         return 0
     cells = parameter["cells"]
     if parameter.get("control") not in WIDE_CONTROLS or not MIN_CELLS <= cells <= MAX_CELLS:
-        raise TokenError(f"the layout {editor} gives {parameter['name']} {cells} cells: only a choice or a value box takes {MIN_CELLS} to "
+        raise TokenError(f"the layout {editor} gives {parameter['name']} {cells} cells: only a choice, a value box or a program takes {MIN_CELLS} to "
                          f"{MAX_CELLS}")
     return cells
 
@@ -321,6 +348,8 @@ def render_zones(editor, group):
             raise TokenError(f"the layout {editor} puts {parameter['name']} in the zone grid {group['title']} as a {parameter.get('control')}")
         if not zones and parameter.get("control") == "sample":
             raise TokenError(f"the layout {editor} puts the sample control {parameter['name']} outside a zone grid")
+        if parameter.get("control") == "program" and group.get("scope") != "part":
+            raise TokenError(f"the layout {editor} puts the program control {parameter['name']} outside a part group")  # [DEC-APP-042]
     if zones and (group.get("scope") != "zone" or not 1 <= zones <= ZONE_COUNT):
         raise TokenError(f"the layout {editor} gives the group {group['title']} {zones} zone columns, which only a zone group of 1 to "
                          f"{ZONE_COUNT} has")

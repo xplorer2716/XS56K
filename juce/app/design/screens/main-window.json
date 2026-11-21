@@ -1,10 +1,10 @@
 {
-  "_comment": "The main window (RQ-APP-006): example content only, no visual value (those are the tokens'). [RQ-APP-074, ADR-APP-003 (DEC-APP-018), TASK-APP-009]",
+  "_comment": "The main window (RQ-APP-006): example content only, no visual value (those are the tokens'). [RQ-APP-074, ADR-APP-003 (DEC-APP-018), TASK-APP-009]; the save dialog and its check-names question [RQ-APP-043, RQ-APP-045, ADR-APP-005 (DEC-APP-039), TASK-APP-060]",
   "name": "main-window",
   "size": [1280, 800],
   "leftWidth": 300,
   "browserShare": 0.5,
-  "menu": ["XS56K", "Sampler", "MIDI setup", "Help"],
+  "menu": ["XS56K", "File", "Sampler", "MIDI setup", "Help"],
   "content": {
     "browser": {"path": "HD1 / DRUMS", "rows": [
       {"kind": "disk", "name": "HD1", "depth": 0, "detail": "FAT32"},
@@ -47,6 +47,18 @@
     "disconnected": {"connection": {"state": "disconnected", "text": "Disconnected"}, "browser": null, "memory": null, "editor": null},
     "confirm-delete": {"connection": {"state": "connected", "text": "Connected: S5000, OS 2.14, DeviceID 0"},
       "dialog": {"title": "Delete the program PAD?", "text": ["PAD is deleted from the sampler's memory.", "If it was not saved to a disk, it is lost."],
-        "buttons": [{"text": "Cancel"}, {"text": "Delete PAD", "destructive": true}]}}
+        "buttons": [{"text": "Cancel"}, {"text": "Delete PAD", "destructive": true}]}},
+    "save": {
+      "connection": {"state": "connected", "text": "Connected: S5000, OS 2.14, DeviceID 0"},
+      "dialog": {"title": "Save to disk",
+                 "text": ["ITEM: Programs: PAD", "SAVE: This item with its children", "INTO THE CURRENT FOLDER: HD1 \\ DRUMS",
+                          "[x] Check names: ask before replacing a file"],
+                 "buttons": [{"text": "Cancel"}, {"text": "Save"}]}},
+    "save-existing": {
+      "connection": {"state": "connected", "text": "Connected: S5000, OS 2.14, DeviceID 0"},
+      "dialog": {"title": "Replace the file?",
+                 "text": ["The folder already holds the file it would write.", "Replace it, or skip it and keep the file on the disk?",
+                          "Already in the folder: PAD.AKP"],
+                 "buttons": [{"text": "Skip"}, {"text": "Cancel"}, {"text": "Replace", "destructive": true}]}}
   }
 }

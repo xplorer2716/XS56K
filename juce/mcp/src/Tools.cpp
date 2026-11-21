@@ -1678,6 +1678,12 @@ namespace mcp
             return ok("Loaded the folder \"" + name + "\" from the disk \"" + loaded.value->diskName + "\". " + describeMemory(*loaded.value));
         }
 
+        /// The tools' `overwrite`: a file already on the disk refuses the save unless it is true; they never skip. [RQ-MCP-026, DEC-APP-038]
+        ExistingFile existingFile(bool overwrite)
+        {
+            return overwrite ? ExistingFile::Overwrite : ExistingFile::Refuse;
+        }
+
         ToolResult saveMemoryItemHandler(SamplerGateway& gateway, const json& arguments)
         {
             if (const auto refused = unknownArguments(arguments, {"kind", "name", "overwrite", "save_children"}))
@@ -1693,7 +1699,7 @@ namespace mcp
                 return failure(*problem);
             if (const auto problem = flagArgument(arguments, "save_children", children))
                 return failure(*problem);
-            const auto saved = gateway.saveMemoryItem(*kind, arguments.at("name").get<std::string>(), overwrite, children);
+            const auto saved = gateway.saveMemoryItem(*kind, arguments.at("name").get<std::string>(), existingFile(overwrite), children);
             if (!saved.ok())
                 return failure(saved.problem);
             const SaveOutcome& outcome = *saved.value;
@@ -1728,7 +1734,7 @@ namespace mcp
                 return failure(*problem);
             if (const auto problem = flagArgument(arguments, "save_children", children))
                 return failure(*problem);
-            const auto saved = gateway.saveAllMemoryItems(*kind, static_cast<int>(*confirm), overwrite, children);
+            const auto saved = gateway.saveAllMemoryItems(*kind, static_cast<int>(*confirm), existingFile(overwrite), children);
             if (!saved.ok())
                 return failure(saved.problem);
             const SaveOutcome& outcome = *saved.value;

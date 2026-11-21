@@ -118,6 +118,24 @@ pp. 141-177, MULTI pp. 37-79); `juce/akm/include/akm/ItemDescriptor.hpp`; `proce
 - **Acceptance Criteria** (Gherkin): *Given* KICK trimmed 1000 to 20000 and looping 5000 to 15000, *When* the person sets the end to 14000, *Then* nothing is sent and "from 15000 to 22050" is shown; *When* the person sets the start to 6000, *Then* nothing is sent and "from 0 to 5000" is shown.
 - **Dependencies**: RQ-APP-051, RQ-APP-088, RQ-APP-090
 
+### RQ-APP-097: A value given in steps is refused between them
+- **Category**: Functional
+- **EARS Type**: Unwanted-behavior
+- **Statement**: Where the catalogue gives a parameter a step (the filter attenuation and the keygroup level, in steps of 6 dB), the knob or slider SHALL move from step to step, and IF the person types a value between two steps, THEN the application SHALL refuse it with nothing sent and say the steps.
+- **Rationale**: the owner's run of 2026-10-17 (F1): the attenuation set to 1 dB read back 0 dB, the sampler taking 0, 6, 12, 18, 24 and 30 dB only (SysEx §08 `&25`, user manual p. 120).
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* PAD's Filter tab, *When* the person sets the attenuation to 12, *Then* it is sent and reads 12; *When* the person sets it to 1, *Then* nothing is sent and the problem says "in steps of 6".
+- **Dependencies**: RQ-APP-051, RQ-APP-091, RQ-MCP-006
+
+### RQ-APP-098: The arrows of a choice step through its values
+- **Category**: Functional
+- **EARS Type**: Event-driven
+- **Statement**: WHEN the person clicks the left or right arrow of a choice, the application SHALL choose the previous or the next value without opening the list, and do nothing at the first or the last value; WHEN the person clicks between the arrows, it SHALL open the list. This holds for every choice of the application.
+- **Rationale**: the owner's run of 2026-10-17 (F4): the arrows opened the list instead of stepping, "pour tous les contrôles de ce type".
+- **Priority**: Must
+- **Acceptance Criteria** (Gherkin): *Given* the filter type 2-POLE LP (code 0), *When* the person clicks the right arrow, *Then* 4-POLE LP is chosen and sent; *When* the person clicks the left arrow twice, *Then* 2-POLE LP is chosen once and nothing more is sent.
+- **Dependencies**: RQ-APP-051, RQ-APP-086, ADR-APP-004 (DEC-APP-027)
+
 ## Non-Functional Requirements
 
 ### RQ-APP-054: A control moved continuously does not flood the sampler

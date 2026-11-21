@@ -44,12 +44,17 @@ namespace app::ui
 
         void resized() override;
 
+        /// "Save..." chosen in the context menu on an item. [RQ-APP-043, TASK-APP-060]
+        std::function<void(const MemoryItem& item)> onSave;
+
     private:
         void modelChanged(ModelPart part) override;
         void rebuild();
         void showMenu(int row);
         void run(int command, const MemoryItem& item);
         void askNewProgram();
+        /// Asks the name of a new multi and creates it. [RQ-APP-104, TASK-APP-066]
+        void askNewMulti();
 
         LookAndFeel& _lookAndFeel;
         Model& _model;

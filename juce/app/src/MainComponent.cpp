@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "LookAndFeel.hpp"
 #include "MidiSetupDialog.hpp"
+#include "SaveDialog.hpp"
 #include "app/DesignTokens.generated.hpp"
 #include "app/MidiSetup.hpp"
 
@@ -45,6 +46,7 @@ namespace app::ui
         enum MenuIndex
         {
             APPLICATION_MENU,
+            FILE_MENU,
             SAMPLER_MENU,
             MIDI_MENU,
         };
@@ -55,9 +57,15 @@ namespace app::ui
             CONNECT_ITEM,
             DISCONNECT_ITEM,
             MIDI_SETUP_ITEM,
+            SAVE_ITEM,
         };
 
-        const juce::StringArray MENU_NAMES{"XS56K", "Sampler", "MIDI"};
+        const juce::StringArray MENU_NAMES{"XS56K", "File", "Sampler", "MIDI"};
+        constexpr const char* SAVE_TEXT = "Save";
+        constexpr const char* SAVE_TITLE = "Save to disk";
+        constexpr const char* ROOT_NAME = "(root)";
+        constexpr const char* PATH_JOIN = " \\ ";
+        const juce::KeyPress SAVE_KEY{'s', juce::ModifierKeys::commandModifier, 0};  // [RQ-APP-043, TASK-APP-060]
     }
 
     AreaPanel::AreaPanel(LookAndFeel& lookAndFeel, const juce::String& title, bool withTabRow)
@@ -176,8 +184,9 @@ namespace app::ui
     }
 
     MainComponent::MainComponent(LookAndFeel& lookAndFeel, Model& model, Controller& controller, FileBrowser& browser,
-                                 MemoryController& memory, EditController& editor, AppSettings& settings, common::midi::MidiBackend& backend)
-        : _lookAndFeel(lookAndFeel), _model(model), _controller(controller), _settings(settings), _backend(backend), _menuBar(this),
+                                 MemoryController& memory, EditController& editor, SaveController& save, AppSettings& settings,
+                                 common::midi::MidiBackend& backend)
+        : _lookAndFeel(lookAndFeel), _model(model), _controller(controller), _save(save), _settings(settings), _backend(backend), _menuBar(this),
           _browser(lookAndFeel, BROWSER_TITLE, false), _browserView(lookAndFeel, model, browser), _memory(lookAndFeel, MEMORY_TITLE, false), _memoryView(lookAndFeel, model, memory), _editor(lookAndFeel, EDITOR_TITLE, true),
           _editView(lookAndFeel, model, editor, memory),
           _status(lookAndFeel), _columnBar(&_columns, BAR_ITEM, true), _rowBar(&_rows, BAR_ITEM, false)
@@ -201,6 +210,7 @@ namespace app::ui
         _editor.onTabChosen = [this](int index) { _editView.showTab(index); };
         _editor.setContent(&_editView);
         _status.onDismiss = [this] { _model.clearProblem(); };
+        _memoryView.onSave = [this](const MemoryItem& item) { openSave(item); };  // [RQ-APP-043, TASK-APP-060]
         _model.addListener(*this);
         modelChanged(ModelPart::Connection);
         setSize(pixels(tokens::kSizeWindowMinWidth), pixels(tokens::kSizeWindowMinHeight));
@@ -235,6 +245,14 @@ namespace app::ui
         // The edit panel shows its editor while an item is edited, the hint otherwise. [RQ-APP-048, TASK-APP-039]
         if (part == Edit && _model.connection().state == ConnectionState::Connected)
             _editor.setHint(_model.edit().item ? juce::String() : juce::String(EDITOR_HINT));
+        if (part == Saved && _model.lastSave())
+        {
+            // The report of the save, checked on the folder's listing. [RQ-APP-046, TASK-APP-060]
+            juce::AlertWindow::showMessageBoxAsync(juce::MessageBoxIconType::InfoIcon, SAVE_TITLE, _model.lastSave()->text());
+            return;
+        }
+        if (part == Browser || part == Memory)
+            menuItemsChanged();  // "Save" follows the disk and the memory [RQ-APP-047]
         if (part != Connection && part != Busy && part != Problem)
             return;
         _status.show(_model.connection(), _model.busy(), _model.problem());
@@ -261,6 +279,16 @@ namespace app::ui
             case APPLICATION_MENU:
                 menu.addItem(QUIT_ITEM, "Quit");
                 break;
+            case FILE_MENU:
+            {
+                // Enabled only when the sampler can save to the current disk. [RQ-APP-043, RQ-APP-047, TASK-APP-060]
+                juce::PopupMenu::Item save(SAVE_TEXT + ELLIPSIS);
+                save.setID(SAVE_ITEM);
+                save.setEnabled(!_save.refusal().has_value());
+                save.shortcutKeyDescription = SAVE_KEY.getTextDescriptionWithIcons();
+                menu.addItem(std::move(save));
+                break;
+            }
             case SAMPLER_MENU:
                 // "Connect" only while disconnected, "Disconnect" only while connected or connecting. [RQ-APP-007]
                 if (_controller.canConnect())
@@ -293,6 +321,9 @@ namespace app::ui
             case MIDI_SETUP_ITEM:
                 openMidiSetup(false);
                 break;
+            case SAVE_ITEM:
+                openSave(std::nullopt);
+                break;
             default:
                 break;
         }
@@ -317,5 +348,33 @@ namespace app::ui
                                 if (connectAfter)
                                     _controller.connect(setup);
                             });
+    }
+
+    bool MainComponent::keyPressed(const juce::KeyPress& key)
+    {
+        if (key != SAVE_KEY)
+            return false;
+        openSave(std::nullopt);
+        return true;
+    }
+
+    void MainComponent::openSave(const std::optional<MemoryItem>& item)
+    {
+        if (const auto refused = _save.refusal())
+        {
+            _model.setProblem(Problem{SAVE_TEXT, *refused});
+            return;
+        }
+        const BrowserState& browser = _model.browser();
+        const mcp::DiskEntry* disk = browser.currentDiskEntry();
+        const std::string folder = browser.currentFolder.empty() ? std::string(ROOT_NAME) : pathText(browser.currentFolder);
+        const std::string destination = (disk != nullptr ? disk->name : std::string()) + PATH_JOIN + folder;
+        showSaveDialog(_lookAndFeel, _model.memory(), item ? item : _save.proposedItem(), destination, _save.checkNames(),
+                       [this, alive = juce::Component::SafePointer<MainComponent>(this)](const SaveRequest& request, bool checkNames) {
+                           if (alive == nullptr)
+                               return;
+                           _save.setCheckNames(checkNames);
+                           _save.save(request);
+                       });
     }
 }

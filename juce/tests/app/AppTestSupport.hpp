@@ -123,8 +123,22 @@ namespace app::test
             answer(count);
         }
 
+        void askExisting(const ExistingQuestion& question, std::function<void(ExistingAnswer)> answer) override
+        {
+            existingAsked.push_back(question);
+            ExistingAnswer given = ExistingAnswer::Cancel;
+            if (!existingAnswers.empty())
+            {
+                given = existingAnswers.front();
+                existingAnswers.pop_front();
+            }
+            answer(given);
+        }
+
         std::deque<bool> answers;
         std::vector<Confirmation> asked;
+        std::deque<ExistingAnswer> existingAnswers;  ///< a question with none left is cancelled [RQ-APP-045]
+        std::vector<ExistingQuestion> existingAsked;
         std::deque<int> counts;  ///< a count asked with none left is cancelled [RQ-APP-061]
         std::vector<CountQuestion> countsAsked;
     };

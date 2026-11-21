@@ -159,6 +159,39 @@ TEST_CASE("Given the Filter tab's type, Then it names the filter shapes, each a 
     CHECK(app::layouts::shapeOf(*type, "VOWELISER").empty());
 }
 
+TEST_CASE("Given the Filter tab's type, Then 2-POLE LP+, 2-POLE BP+ and 1-POLE HP+ carry a plus above their pass level and 2-POLE LP none "
+          "[RQ-APP-099, DEC-APP-037, TASK-APP-054]",
+          "[app][layout]")
+{
+    const app::layouts::EditorLayout* program = layoutOf("program");
+    REQUIRE(program != nullptr);
+    const app::layouts::LayoutParameter* type = nullptr;
+    for (const auto& tab : program->tabs)
+    {
+        for (const auto& group : tab.groups)
+        {
+            for (const auto& parameter : group.parameters)
+            {
+                if (parameter.name == "filter type")
+                    type = &parameter;
+            }
+        }
+    }
+    REQUIRE(type != nullptr);
+    for (const std::string_view enhanced : {"2-POLE LP+", "2-POLE BP+", "1-POLE HP+"})
+    {
+        INFO(std::string(enhanced));
+        const auto mark = app::layouts::markOf(*type, enhanced);
+        REQUIRE(mark.has_value());
+        CHECK(mark->text == "+");
+        const auto shape = app::layouts::shapeOf(*type, enhanced);
+        const auto top = std::ranges::max(shape, {}, &app::layouts::ShapePoint::y);
+        CHECK(mark->at.y > top.y);
+    }
+    CHECK_FALSE(app::layouts::markOf(*type, "2-POLE LP").has_value());
+    CHECK_FALSE(app::layouts::markOf(*type, "VOWELISER").has_value());
+}
+
 TEST_CASE("Given the LFO tab, Then LFO 2's clock division, whose labels are long, is a choice three knob cells wide "
           "[RQ-APP-057, DEC-APP-027, TASK-APP-048]",
           "[app][layout]")

@@ -219,6 +219,24 @@ class RenderingAScreen(unittest.TestCase):
         self.assertLess(max(y0, y3), choice_y)
         self.assertIn(">TYPE<", svg)
 
+    def test_given_a_shape_with_a_mark_when_rendered_then_its_text_is_drawn_in_the_role_colour_above_the_shape_and_not_for_the_others(self):
+        # 2-POLE LP+ carries a "+" above its cutoff; 2-POLE LP none. [RQ-APP-099, DEC-APP-037, TASK-APP-054]
+        data = tokens()
+        theme = self.gen.Theme(data)
+        shapes = copy.deepcopy(SHAPES)
+        shapes["filter types"]["shapes"]["2-POLE LP+"] = shapes["filter types"]["shapes"]["2-POLE LP"]
+        shapes["filter types"]["marks"] = {"2-POLE LP+": {"text": "+", "at": [0.6, 0.9]}}
+        svg = self.render_type("2-POLE LP+", shapes=shapes, data=data)
+        marks = re.findall(r'<text x="([\d.]+)" y="([\d.]+)"[^>]*fill="([^"]+)"[^>]*>\+<', svg)
+        self.assertEqual(len(marks), 1)
+        mark_x, mark_y, fill = marks[0]
+        self.assertEqual(fill, theme("colour.role.filter"))
+        points = re.search(r'<polyline points="([^"]+)"', svg).group(1)
+        xy = [tuple(float(v) for v in pair.split(",")) for pair in points.split()]
+        self.assertLess(float(mark_y), xy[1][1])            # above the pass level (y grows downwards)
+        self.assertAlmostEqual(float(mark_x), xy[1][0], delta=1.0)  # over the cutoff
+        self.assertNotIn(">+<", self.render_type("2-POLE LP", shapes=shapes, data=data))
+
     def test_given_a_value_with_no_shape_when_rendered_then_only_its_name_is_shown(self):
         svg = self.render_type("VOWELISER")
         self.assertEqual(svg.count("<polyline"), 0)

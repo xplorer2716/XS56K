@@ -214,6 +214,11 @@ namespace app
         }
     }
 
+    mcp::Outcome<mcp::DiskContents> moveToFolder(mcp::SamplerGateway& gateway, std::optional<int> disk, const std::vector<std::string>& folder)
+    {
+        return moveTo(gateway, disk, folder);
+    }
+
     FileBrowser::FileBrowser(Model& model, Controller& controller) : _model(model), _controller(controller)
     {
         _model.addListener(*this);

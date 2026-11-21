@@ -34,6 +34,7 @@ sampler's RECORD pages could only be driven blind through the front-panel keys (
 - **Dependencies**: RQ-APP-001, RQ-APP-048, RQ-AKM-045, RQ-AKM-048, RQ-AKM-049
 
 ### RQ-APP-063: Multi editor
+- **Superseded**: 2026-11-01 by FTR-APP-011 (RQ-APP-100 to RQ-APP-104), at the owner's request after the save; still priority 2.
 - **Category**: Functional
 - **EARS Type**: Event-driven
 - **Statement**: WHEN a multi is selected in the memory view, the edit panel SHALL show a multi editor with its parts (the program each plays and the part's parameters, RQ-AKM-089, RQ-AKM-090, RQ-AKM-092), the parts' mute and solo, the multi's program number, the adding and clearing of parts; the memory view SHALL let the person create a multi (RQ-AKM-087).

@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 // ADR-APP-004 (DEC-APP-024, DEC-APP-027, DEC-APP-032)]
 #pragma once
 
+#include <optional>
 #include <span>
 #include <string_view>
 
@@ -35,6 +36,7 @@ namespace app::layouts
         ValueBox,
         Slider,
         Sample,  ///< a zone's sample, chosen among those in memory; in a zone grid only (DEC-APP-033)
+        Program,  ///< a part's program, chosen among those in memory; in a part group only (DEC-APP-042)
     };
 
     /// The family of a parameter, which decides its colour (ADR-APP-002 DEC-APP-016).
@@ -54,11 +56,21 @@ namespace app::layouts
         float y;
     };
 
-    /// The shape drawn for one label of a choice (a filter type's response), from juce/app/design/shapes/.
+    /// A short text drawn on a shape at a point of its unit square (the "+" of an enhanced filter). [RQ-APP-099, ADR-APP-004 (DEC-APP-037)]
+    struct ShapeMark
+    {
+        std::string_view text;
+        ShapePoint at;
+    };
+
+    /// The shape drawn for one label of a choice (a filter type's response), from juce/app/design/shapes/, and its mark: none when the
+    /// mark's text is empty.
     struct ChoiceShape
     {
         std::string_view label;
         std::span<const ShapePoint> points;
+        std::string_view markText;
+        ShapePoint markAt;
     };
 
     struct LayoutParameter
@@ -82,6 +94,17 @@ namespace app::layouts
         return {};
     }
 
+    /// The mark of `label`'s shape among the parameter's shapes; none when it has no shape or its shape no mark. [RQ-APP-099, DEC-APP-037]
+    [[nodiscard]] constexpr std::optional<ShapeMark> markOf(const LayoutParameter& parameter, std::string_view label)
+    {
+        for (const ChoiceShape& shape : parameter.shapes)
+        {
+            if (shape.label == label && !shape.markText.empty())
+                return ShapeMark{shape.markText, shape.markAt};
+        }
+        return std::nullopt;
+    }
+
     /// Where a group's parameters live, said after its title (RQ-APP-056); `None` for an editor of one kind (the sample's).
     enum class Scope
     {
@@ -89,6 +112,8 @@ namespace app::layouts
         Program,
         Keygroup,
         Zone,
+        Multi,  ///< the multi itself (DEC-APP-041)
+        Part,   ///< the part of a multi chosen (DEC-APP-041)
     };
 
     /// A stage of an envelope drawn as a graph: its time parameter and its end level, a parameter or `fixedLevel` (0 to 100); or the sustain

@@ -97,7 +97,7 @@ namespace app::ui
         CutLabel _kind;
         CutLabel _info;
         CutLabel _message;
-        juce::ComboBox _keygroup;
+        ChoiceBox _keygroup;
         juce::TextButton _addKeygroups;    ///< a program's keygroups added, how many asked [RQ-APP-061]
         juce::TextButton _deleteKeygroup;  ///< the keygroup shown deleted after a confirmation; disabled for the last one
         juce::TextButton _readAgain;
@@ -107,6 +107,7 @@ namespace app::ui
         std::optional<MemoryItem> _item;
         const layouts::EditorLayout* _layout = nullptr;
         std::size_t _tab = 0;
-        int _keygroupItems = 0;  ///< the keygroup count the selector holds
+        int _keygroupItems = 0;  ///< the keygroup (part) count the selector holds
+        juce::StringArray _keygroupTexts;  ///< the selector's items as last given: a part's program changes them [RQ-APP-101]
     };
 }

@@ -28,6 +28,11 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace app
 {
+    /// On the worker: puts the sampler on `disk` (when given) and in `folder` (from the root), going up to the folder both paths share,
+    /// then down; answers the folder's listing. Shared by the browser's commands and the save. [RQ-APP-025, RQ-APP-043]
+    [[nodiscard]] mcp::Outcome<mcp::DiskContents> moveToFolder(mcp::SamplerGateway& gateway, std::optional<int> disk,
+                                                               const std::vector<std::string>& folder);
+
     /// The file browser's controller: it reads the sampler's disks and folders through the controller's jobs and writes what it read into
     /// the model's browser part. It fills the browser when the connection opens and empties it when the connection ends. Called on the UI
     /// thread only. [RQ-APP-017, RQ-APP-024 to RQ-APP-027, ADR-APP-001 (DEC-APP-001, DEC-APP-004)]

@@ -236,7 +236,7 @@ def control_cells(parameter):
         return parameter["cells"]  # a choice with long labels, widened by the layout [TASK-APP-048]
     if control == "slider":
         return SLIDER_CELLS
-    return CHOICE_CELLS if control in ("choice", "valuebox") else 1
+    return CHOICE_CELLS if control in ("choice", "valuebox", "program") else 1
 
 
 def grid_row_pitch(t):
@@ -345,14 +345,18 @@ def draw_choice(c, x, y, w, text, pending, h=None):
     c.text(x + w / 2, baseline, shown, t("font.value.size"), colour, anchor="middle")
 
 
-def draw_shape(c, x, y, w, h, points, colour):
-    """A choice's shape for its value (a filter type's response) in a unit square drawn on the envelope's surface, y upwards.
-    [RQ-APP-096, ADR-APP-004 (DEC-APP-032)]"""
+def draw_shape(c, x, y, w, h, points, colour, mark=None):
+    """A choice's shape for its value (a filter type's response) in a unit square drawn on the envelope's surface, y upwards; its mark,
+    if any, centred on its place in the same colour. [RQ-APP-096, RQ-APP-099, ADR-APP-004 (DEC-APP-032, DEC-APP-037)]"""
     t = c.t
     c.rect(x, y, w, h, t("envelope.surface"), t("radius.control"))
     margin = t("size.space.1")
     inner_w, inner_h = w - 2 * margin, h - 2 * margin
-    c.polyline([(x + margin + inner_w * px, y + margin + inner_h * (1 - py)) for px, py in points], colour, t("stroke.arc"))
+    at = lambda px, py: (x + margin + inner_w * px, y + margin + inner_h * (1 - py))
+    c.polyline([at(px, py) for px, py in points], colour, t("stroke.arc"))
+    if mark:
+        mx, my = at(*mark["at"])
+        c.text(mx, my + t("font.label.size") / 3, mark["text"], t("font.label.size"), colour, anchor="middle")
 
 
 def shape_points(parameter, text, shapes):
@@ -363,6 +367,11 @@ def shape_points(parameter, text, shapes):
     if name not in shapes:
         raise MockupError(f"the parameter {parameter['name']} names the unknown shape set {name}")
     return shapes[name].get("shapes", {}).get(text)
+
+
+def shape_mark(parameter, text, shapes):
+    """The mark of the value shown (the "+" of an enhanced filter), or None. [RQ-APP-099, DEC-APP-037]"""
+    return shapes[parameter["shapes"]].get("marks", {}).get(text)
 
 
 def draw_choice_cell(c, cell_x, knob_top, w, parameter, value, is_pending, shapes):
@@ -376,7 +385,8 @@ def draw_choice_cell(c, cell_x, knob_top, w, parameter, value, is_pending, shape
     points = shape_points(parameter, text, shapes)
     if points:
         colour = role_colour(t, parameter.get("role", "general"))
-        draw_shape(c, cell_x + t("size.space.1"), knob_top, w - t("size.space.2"), t("knob.size.default"), points, colour)
+        draw_shape(c, cell_x + t("size.space.1"), knob_top, w - t("size.space.2"), t("knob.size.default"), points, colour,
+                   shape_mark(parameter, text, shapes))
     label_y = knob_top + t("knob.size.default") + t("space.between") + t("font.label.size")
     draw_choice(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), text, is_pending, t("valuebox.height"))
 
@@ -469,7 +479,7 @@ def draw_group(c, x, y, group, values, pending, shapes=None):
         value = values.get(parameter["name"], {})
         is_pending = parameter["name"] in pending
         centre = cell_x + w / 2
-        if parameter.get("control") == "choice":
+        if parameter.get("control") in ("choice", "program"):  # a part's program is chosen among the programs [DEC-APP-042]
             draw_choice_cell(c, cell_x, knob_top, w, parameter, value, is_pending, shapes or {})
         elif parameter.get("control") in ("slider", "valuebox"):
             # A slider has its value box on top, the slider under the label (owner, 2026-10-15). [RQ-APP-086, ADR-APP-004 (DEC-APP-027)]
@@ -483,7 +493,7 @@ def draw_group(c, x, y, group, values, pending, shapes=None):
             margin = t("slider.thumb.size")
             draw_slider(c, cell_x + margin, label_y + t("size.space.1") + t("valuebox.height") / 2, w - 2 * margin,
                         float(value.get("fraction", 0.0)), colour, is_pending)
-        elif parameter.get("control") not in ("choice", "valuebox"):
+        elif parameter.get("control") not in ("choice", "valuebox", "program"):
             draw_value_box(c, cell_x + t("size.space.1"), label_y + t("size.space.1"), w - t("size.space.2"), value.get("text", ""), is_pending)
         cell_x += w
     return width, height

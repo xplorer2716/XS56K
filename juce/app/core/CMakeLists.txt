@@ -12,6 +12,8 @@ add_library(xs56k_app_core STATIC
     src/MemoryController.cpp
     src/MidiSetup.cpp
     src/Model.cpp
+    src/Save.cpp
+    src/SaveController.cpp
     src/SamplerWorker.cpp)
 target_include_directories(xs56k_app_core PUBLIC include)
 # xs56k_framework for its Logger (no JUCE). [RQ-APP-085, ADR-APP-001 (DEC-APP-023)]

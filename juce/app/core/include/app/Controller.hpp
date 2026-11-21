@@ -109,6 +109,16 @@ namespace app
             });
         }
 
+        /// Asks what to do with files already on the disk; `answer` gets it on the UI thread while the controller lives. [RQ-APP-045,
+        /// DEC-APP-007]
+        void askExisting(const ExistingQuestion& question, std::function<void(ExistingAnswer)> answer)
+        {
+            _prompts.askExisting(question, [alive = std::weak_ptr<int>(_alive), answer = std::move(answer)](ExistingAnswer given) {
+                if (!alive.expired())
+                    answer(given);
+            });
+        }
+
         /// True while the application is disconnected or its connection failed: "Connect" is offered then. [RQ-APP-007, RQ-APP-019]
         [[nodiscard]] bool canConnect() const;
 

@@ -245,10 +245,10 @@ class WritingTheEditorLayouts(unittest.TestCase):
             self.gen.render_layouts({"program": layout})
         self.assertIn("filter envelope attack", str(raised.exception))
         layout = copy.deepcopy(LAYOUT)
-        layout["tabs"][0]["groups"][0]["scope"] = "multi"
+        layout["tabs"][0]["groups"][0]["scope"] = "song"
         with self.assertRaises(self.gen.TokenError) as raised:
             self.gen.render_layouts({"sample": layout})
-        self.assertIn("multi", str(raised.exception))
+        self.assertIn("song", str(raised.exception))
 
     def test_given_a_group_that_starts_a_row_when_written_then_it_says_so_and_the_others_do_not(self):
         # The Envelopes tab: Amp, Filter and Aux a row each. [RQ-APP-094, DEC-APP-031, TASK-APP-044]
@@ -286,7 +286,7 @@ class WritingTheChoiceShapes(unittest.TestCase):
         self.assertIn('{"sample playback mode", "Mode", Role::Sample, Control::Choice, kFilterTypesShapes, 0}', header)
         self.assertIn('{"sample fine tune", "Fine", Role::General, Control::Knob, {}, 0}', header)
         self.assertIn("{0.0f, 0.7f}, {0.6f, 0.7f}, {0.92f, 0.0f}, {1.0f, 0.0f}", header)
-        self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0}', header)
+        self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0, {}, {}}', header)
         self.assertLess(header.index('"2-POLE LP"'), header.index('"NOTCH 1"'))
         self.assertLess(header.index("kFilterTypesShapes{{"), header.index("kSampleTab0Group0{{"))
 
@@ -309,6 +309,24 @@ class WritingTheChoiceShapes(unittest.TestCase):
             with self.assertRaises(self.gen.TokenError) as raised:
                 self.gen.render_layouts(layouts, shapes)
             self.assertIn("NOTCH 1", str(raised.exception))
+
+    def test_given_a_shape_set_with_a_mark_when_written_then_its_shape_carries_the_text_and_place_and_the_others_none(self):
+        # [RQ-APP-099, ADR-APP-004 (DEC-APP-037), TASK-APP-054]
+        shapes = copy.deepcopy(SHAPES)
+        shapes["filter types"]["marks"] = {"2-POLE LP": {"text": "+", "at": [0.6, 0.9]}}
+        header = self.gen.render_layouts({"sample": self.layout()}, shapes)
+        self.assertIn('ChoiceShape{"2-POLE LP", kFilterTypesShape0, "+", {0.6f, 0.9f}}', header)
+        self.assertIn('ChoiceShape{"NOTCH 1", kFilterTypesShape1, {}, {}}', header)
+
+    def test_given_a_mark_without_a_shape_outside_the_square_or_without_text_when_written_then_it_fails_and_names_its_label(self):
+        # [RQ-APP-099, ADR-APP-004 (DEC-APP-037), TASK-APP-054]
+        for label, mark in (("VOWELISER", {"text": "+", "at": [0.5, 0.5]}), ("NOTCH 1", {"text": "+", "at": [0.5, 1.2]}),
+                            ("NOTCH 1", {"text": "", "at": [0.5, 0.5]})):
+            shapes = copy.deepcopy(SHAPES)
+            shapes["filter types"]["marks"] = {label: mark}
+            with self.assertRaises(self.gen.TokenError) as raised:
+                self.gen.render_layouts({"sample": self.layout()}, shapes)
+            self.assertIn(label, str(raised.exception))
 
     def test_given_a_folder_of_shape_sets_when_read_then_they_are_keyed_by_their_name(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -344,6 +362,20 @@ class WritingTheZoneGrid(unittest.TestCase):
     def test_given_a_group_that_is_no_grid_when_written_then_it_has_no_zone_columns(self):
         header = self.gen.render_layouts({"sample": LAYOUT})
         self.assertIn('LayoutGroup{"Pitch", kSampleTab0Group1, Scope::None, {}, false, 0, {}}', header)
+
+    def test_given_a_part_group_with_a_program_control_when_written_then_it_says_its_scope_and_the_program_control(self):
+        group = {"title": "Program", "scope": "part", "parameters": [
+            {"name": "part program", "label": "Program", "role": "general", "control": "program"}]}
+        header = self.gen.render_layouts({"multi": self.layout(group)})
+        self.assertIn('{"part program", "Program", Role::General, Control::Program, {}, 0}', header)
+        self.assertIn('LayoutGroup{"Program", kMultiTab0Group0, Scope::Part, {}, false, 0, {}}', header)
+
+    def test_given_a_program_control_outside_a_part_group_when_written_then_it_fails_and_names_it(self):
+        group = {"title": "Program", "scope": "multi", "parameters": [
+            {"name": "part program", "label": "Program", "role": "general", "control": "program"}]}
+        with self.assertRaises(self.gen.TokenError) as raised:
+            self.gen.render_layouts({"multi": self.layout(group)})
+        self.assertIn("part program", str(raised.exception))
 
     def test_given_columns_outside_a_zone_scope_a_knob_in_a_grid_or_a_sample_outside_one_when_written_then_it_fails_and_names_it(self):
         keygroup = copy.deepcopy(ZONE_GRID)
@@ -417,11 +449,11 @@ class WritingTheRoutingColumns(unittest.TestCase):
         knob = copy.deepcopy(ROUTES)
         knob["parameters"][1]["control"] = "knob"
         unknown = copy.deepcopy(ROUTES)
-        unknown["columns"][1]["scope"] = "multi"
+        unknown["columns"][1]["scope"] = "song"
         zones = copy.deepcopy(ROUTES)
         zones["zones"] = 4
         zones["scope"] = "zone"
-        for group, named in ((odd, "Pitch"), (knob, "pitch modulation 1 amount"), (unknown, "multi"), (zones, "Pitch")):
+        for group, named in ((odd, "Pitch"), (knob, "pitch modulation 1 amount"), (unknown, "song"), (zones, "Pitch")):
             layouts = {"program": self.layout(group)}
             with self.assertRaises(self.gen.TokenError) as raised:
                 self.gen.render_layouts(layouts)

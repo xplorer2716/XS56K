@@ -105,6 +105,19 @@ cells are choices or value boxes, a row high, as the zone grid's (DEC-APP-033), 
 that do not divide the parameters, another control, an unknown scope, and zones with columns; a core test checks each cell's catalogue scope
 against its column. [RQ-APP-057, RQ-APP-056]
 
+### DEC-APP-036: Steps from the catalogue; the arrows of a choice step it
+A parameter's step is the catalogue's (`ParameterDefinition::step`, the attenuation's 6 dB): the controller refuses a value between two steps
+as the gateway would (`mcp::resolveValue`), before anything is sent, and the knob or slider moves by that step. The core gives the value a
+control steps to (`steppedValue`: the previous or next code of a choice, the previous or next step of a number, none past the ends); every
+choice of the application is a `ChoiceBox` whose arrows, drawn at both ends by the look-and-feel, choose the previous or next item without
+opening the list, which a click between them opens. [RQ-APP-097, RQ-APP-098, RQ-APP-051, RQ-MCP-006]
+
+### DEC-APP-037: A shape may carry a mark, design data like the shape
+A shape set may give `marks`: per label, a short text and its place in the unit square (`{"text": "+", "at": [x, y]}`); `generate_design.py`
+checks that the label has a shape and the place is in the square, and generates it with the shape (`ChoiceShape::mark`). The cell and the
+mockups draw it at that place, in the shape's colour, at `font.label.size`. The filter types 2-POLE LP+, 2-POLE BP+ and 1-POLE HP+ carry a
+"+" above their cutoff (owner, 2026-10-17). [RQ-APP-099, RQ-APP-096, DEC-APP-032]
+
 ### DEC-APP-027: Four controls drawn by the look-and-feel from the tokens
 `XS56KApp` gets a value box (a number typed, or dragged; the unit beside it), a choice (the catalogue's labels), a knob with its value box and a
 horizontal slider with its value box (`slider.*` tokens), each

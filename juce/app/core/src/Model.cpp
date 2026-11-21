@@ -111,6 +111,13 @@ namespace app
         notify(ModelPart::Edit);
     }
 
+    // [RQ-APP-046, ADR-APP-005 (DEC-APP-039), TASK-APP-059]
+    void Model::setSaved(SaveReport report)
+    {
+        _lastSave = std::move(report);
+        notify(ModelPart::Saved);
+    }
+
     void Model::addListener(ModelListener& listener)
     {
         _listeners.push_back(&listener);
