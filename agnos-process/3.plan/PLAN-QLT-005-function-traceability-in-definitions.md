@@ -62,10 +62,10 @@ This plan implements the tasks in the format specified below.
 - **Verification**: N/A (Tier S)
 - **Assumptions**: None
 
-### TASK-QLT-032: Fix stand-in interpreter of publish tests
+### TASK-QLT-032: Fix tool path of publish tests
 - **Tier**: S
-- **Status**: Not Started
-- **Description**: Found by TASK-QLT-029's ctest: the stand-ins `gh` and `curl` of `juce/tests/tools/test_publish_deployment.py` start with `#!/usr/bin/env bash`, which Git's bash, given the Windows PATH, resolves to the WSL launcher of `WindowsApps`; WSL cannot see the script. The shebang becomes `#!/bin/sh`.
+- **Status**: Done
+- **Description**: Found by TASK-QLT-029's ctest: `juce/tests/tools/test_publish_deployment.py` runs Git's bash with the Windows PATH, which lacks Git's `usr/bin`: `publish.sh` finds no `sed`, and the stand-ins' `#!/usr/bin/env bash` resolves to the WSL launcher of `WindowsApps`, which cannot see the script. On Windows the test's PATH now holds the folder of Git's bash right after the stand-ins.
 - **Requirement refs**: RQ-BLD-016
 - **ADR refs**: ADR-BLD-006
 - **Acceptance Criteria** (Gherkin): *Given* Windows with the WSL launcher on the PATH, *When* `bld_publish_deployment_script_tests` runs, *Then* it passes.

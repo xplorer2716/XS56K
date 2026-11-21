@@ -75,7 +75,10 @@ class PublishScriptTests(unittest.TestCase):
             self.assertNotIn("/usr/", command)
 
     def environment(self):
-        return dict(os.environ, FAKE_STATE=str(self.state_file), PATH=str(self.bin) + os.pathsep + os.environ["PATH"])
+        # The stand-ins first, then (on Windows) the folder of Git's bash: the Windows PATH may lack it, leaving `sed` unfound and
+        # `env bash` to the WSL launcher. [TASK-QLT-032]
+        tools = [str(self.bin)] + ([str(pathlib.Path(BASH).parent)] if sys.platform == "win32" else [])
+        return dict(os.environ, FAKE_STATE=str(self.state_file), PATH=os.pathsep.join(tools + [os.environ["PATH"]]))
 
     def write_state(self, state):
         self.state_file.write_text(json.dumps(state), encoding="utf-8")

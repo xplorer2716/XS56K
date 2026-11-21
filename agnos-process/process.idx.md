@@ -939,7 +939,7 @@ TASK-QLT-028|17-28|Done|Write the header ID tracing tool
 TASK-QLT-029|29-40|Done|Trace production definitions
 TASK-QLT-030|41-52|Not Started|Trace test definitions
 TASK-QLT-031|53-64|Done|Fix disk format type in save tests
-TASK-QLT-032|65-75|Not Started|Fix stand-in interpreter of publish tests
+TASK-QLT-032|65-75|Done|Fix tool path of publish tests
 @agnos-process/3.plan/checklists/real-sampler-run-APP-2026-10-17.md
 @agnos-process/3.plan/checklists/real-sampler-run-APP-multi.md
 @agnos-process/3.plan/checklists/real-sampler-run-APP-save.md
