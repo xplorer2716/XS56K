@@ -48,7 +48,7 @@ DEFAULT_OUTPUT = ROOT / "documents" / "SYSEX-COVERAGE.md"
 DEFAULT_AKM_SOURCES = ROOT / "juce" / "akm" / "src"
 DEFAULT_AKM_INCLUDE = ROOT / "juce" / "akm" / "include" / "akm"
 DEFAULT_MCP = ROOT / "juce" / "mcp"
-DEFAULT_ADRS = ROOT / "process" / "2.architecture"
+DEFAULT_ADRS = ROOT / "agnos-process" / "2.architecture"
 CONVERSATIONS_FOLDER = ROOT / "juce" / "tests" / "mcp" / "conversations"
 # The conversations the simulated server is run on, and the launch options each needs (TASK-MCP-075, ADR-MCP-006 DEC-MCP-040).
 CONVERSATIONS = [
@@ -874,7 +874,7 @@ def read_not_offered(declared, check, decisions):
     not_offered = {}
     for entry in declared.get("not_offered", []):
         if entry["decision"] not in decisions:
-            check.problems.append(f"not_offered: {entry['item']} cites {entry['decision']}, which no ADR of process/2.architecture defines")
+            check.problems.append(f"not_offered: {entry['item']} cites {entry['decision']}, which no ADR of agnos-process/2.architecture defines")
         if check.known("not_offered", entry["item"]):
             not_offered[entry["item"]] = entry["decision"]
     return not_offered

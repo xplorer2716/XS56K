@@ -30,21 +30,21 @@ exposes no JUCE type in its public headers (`ADR-AKM-001`, `FTR-AKM-001`). `juce
 Protocol) server that exposes the AKM layer to an MCP client, to edit programs, zones, samples and multis in the sampler's
 memory and, behind a launch flag, to load and save them through the sampler's own disks (library `xs56k_mcp`, executable
 `xs56k_mcp_server`; `ADR-MCP-001` to `ADR-MCP-003`, `FTR-MCP-001` to `FTR-MCP-003`). Reference documentation
-lives in `documents/`, and `process/` holds the AGNOS planning skeleton.
+lives in `documents/`, and `agnos-process/` holds the AGNOS planning skeleton.
 
-**The AGNOS process is in `.github/instructions/agnos-sw-eng.instructions.md`: read it in full, every line, before any session that plans,
-implements or commits a task** (its START SESSION step 1 requires it; a partial read has already cost a session). Its skills are
-`agnos-git-workflow` (branch and commit format) and `agnos-index` (the index of `process/`); `process/_sessionstate/session.yaml` must say
-the session's real platform and `unit_tests` before the first task.
+**The AGNOS process is the plugin skill `agnos-instructions` (see the AGNOS block at the end of this file): read it in full, every line,
+before any session that plans, implements or commits a task** (a partial read has already cost a session). Its skills are
+`agnos-git-workflow` (branch and commit format) and `agnos-index` (the index of `agnos-process/`, `agnos-process/process.idx.md`);
+`agnos-process/_sessionstate/session.yaml` must say the session's real platform and `unit_tests` before the first task.
 
 Reference documents are listed in `documents/INDEX.md`. For SysEx questions, start with
 `documents/_index/sysex_spec.kb.md` (it explains how to query `sysex_spec.items.tsv`). For any search in the operator's
 manual, start with `documents/_index/user_manual.kb.md` (it explains how to query `user_manual.terms.tsv` and
 `user_manual.toc.tsv`); never read the manual's PDF or `.md` whole.
 
-The build system itself is a traceable AGNOS artifact: `process/1.requirements/RQ-BLD-build-tooling.md`,
-`process/2.architecture/ADR-BLD-001` through `ADR-BLD-003`, and
-`process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md` — the last of these lists what is
+The build system itself is a traceable AGNOS artifact: `agnos-process/1.requirements/RQ-BLD-build-tooling.md`,
+`agnos-process/2.architecture/ADR-BLD-001` through `ADR-BLD-003`, and
+`agnos-process/3.plan/PLAN-BLD-001-reproduce-xplorer-build-system.md` — the last of these lists what is
 already done and what remains (blocked) to fully reproduce XplorerEditor's build system here.
 
 ## Commands
@@ -57,7 +57,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
 - **Platforms:** the commands below run on Windows, Linux and macOS, so each is one plain call with no shell operator:
   run the steps of a sequence one after the other, never chained with `&&` (Windows PowerShell 5.1 has no `&&`), and
   take the number of build jobs from `--parallel` (not from `$(nproc)`, which only bash has). Write the shell syntax
-  of the session's `platform` (`process/_sessionstate/session.yaml`): PowerShell on `windows`, bash or zsh on `linux`
+  of the session's `platform` (`agnos-process/_sessionstate/session.yaml`): PowerShell on `windows`, bash or zsh on `linux`
   and `macos`. The `rtk` prefix and the paths with `/` are the same everywhere.
 - **Install:** none beyond a C++20 compiler, CMake ≥ 3.22 and (on Linux) `libasound2-dev`
   (ALSA headers, needed by `juce_audio_devices`); the GUI target (`BUILD_APP=ON`) additionally
@@ -92,7 +92,7 @@ already done and what remains (blocked) to fully reproduce XplorerEditor's build
   are `ctest` entries when CMake finds Python 3. [RQ-MCP-058 to RQ-MCP-066, ADR-MCP-006]
 - **Design tokens and mockups of the editor:** the design system's values are data (`juce/app/design/tokens.json`); `python3
   juce/tools/generate_design.py` (`python` on Windows) writes `juce/app/core/include/app/DesignTokens.generated.hpp` and the value tables of
-  `process/1.requirements/DESIGN-SYSTEM-APP.md`, and the editor layouts of `juce/app/design/layouts/` into `EditorLayouts.generated.hpp`;
+  `agnos-process/1.requirements/DESIGN-SYSTEM-APP.md`, and the editor layouts of `juce/app/design/layouts/` into `EditorLayouts.generated.hpp`;
   `python3 juce/tools/generate_mockups.py` writes the static SVG mockups of
   `documents/mockups/` from the tokens, the layouts and the screens of `juce/app/design/`. Never edit the generated files by hand; `--check`
   fails when they are out of date, and both checks and the scripts' tests are `ctest` entries when CMake finds Python 3. [RQ-APP-002,
@@ -154,3 +154,36 @@ the information the project needs. When a user asks you to open an issue or a PR
 
 Never commit secrets. Report vulnerabilities as described in `SECURITY.md`, never in a
 public issue.
+
+<!-- AGNOS:BEGIN - written by agnos-init, do not edit: call agnos-init again to update -->
+## AGNOS process
+
+This project follows the AGNOS process, installed as a plugin.
+
+Before any other action, invoke the skill named `agnos-instructions` and follow it. Run its START SESSION ACTION only when the user asks to start a session.
+After a compaction, invoke `agnos-instructions` again before going on, even if it seems loaded.
+
+<!--
+Notes for developers on how the process stays in the agent's context. Claude Code strips these comments; GitHub Copilot may not.
+
+This same block is in CLAUDE.md and AGENTS.md. The process itself is not in this file: it is the skill
+`agnos-instructions`, which lives only in the conversation once invoked. This file is reloaded; the skill is not.
+
+Claude Code (reads CLAUDE.md, and AGENTS.md only when there is no CLAUDE.md):
+- Session start, new conversation or /clear: CLAUDE.md is loaded, the skill is gone; this block orders it invoked again.
+- Compaction, automatic or /compact: CLAUDE.md is re-read from disk. An automatic compaction re-attaches only the first
+  5,000 tokens of each skill, within 25,000 tokens for all skills; the process skill is longer, so its end is cut.
+  The documentation does not say whether /compact does the same. Hence the order above to invoke it again.
+
+GitHub Copilot (reads AGENTS.md, and CLAUDE.md too when chat.useClaudeMdFile is on):
+- Session start or new chat: the instruction files are included, the skill is loaded again only when invoked.
+- Long chats are summarised; the documentation does not say what happens to a loaded skill, so the same order applies.
+
+To check that the process is loaded, ask the agent to quote a rule from its end, such as the Error Recovery Protocol.
+-->
+
+- If that skill is not available, stop and tell the user to install the AGNOS plugin.
+- Read `agnos-process/project-rules.md` when it exists: this project's own rules, added to the process. `agnos-process/project-rules.md` is the improvement target: the process's improvements go into it, never into a file of the plugin.
+- Run the commands from this project's root, where `agnos-process/` is.
+- Where the process asks the user a question, use the built-in user-question tool (`askQuestion` on GitHub Copilot, `AskUserQuestion` on Claude Code), or ask in chat and wait for the answer.
+<!-- AGNOS:END -->

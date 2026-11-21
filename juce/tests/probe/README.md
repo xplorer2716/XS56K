@@ -13,7 +13,7 @@ Rules that hold for every run:
 - It never sends section 02's Clear Sampler Memory (`&32`), which no real-sampler test may call.
 - A slow section 10 command (`--slow-operation`, `--disk-tools-slow`) once left the S5000 answering nothing until it was switched off
   and on: run one only with the owner present and ready for a power cycle
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, F4 to F7).
+  (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, F4 to F7).
 - The settings a check changes are put back, even when the check fails half way.
 - Exit status 0 when every check passed or was skipped, 2 when no sampler answered at the DeviceID, 3 otherwise.
 - The same suite runs against the simulated sampler in `ctest` (tag `[suite]`).
@@ -42,7 +42,7 @@ Rules that hold for every run:
   (OS 2.14, no disk drive attached): `--slow-operation` got no reply at all, `F0 F7` included, and left the sampler
   answering no SysEx — a fresh discovery included — until it was power-cycled by hand; run `--power-cycle` on its
   own, not together with `--slow-operation`, if the point is to test persistence across a graceful restart
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). More opt-in checks — `--program-lifecycle`,
+  (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`). More opt-in checks — `--program-lifecycle`,
   `--sample-lifecycle` with `--sample-name`, listed by `--help` — each put back what they change, and
   `--system-setup` adds two checks on the sampler's own settings: it reads the model and the memory, then round-trips
   the sampler's name, its four Play Modes (the Muted mode the spec's data column leaves out included, whether the
@@ -69,7 +69,7 @@ Rules that hold for every run:
   It touches nothing that existed before. `--disk-tools-slow OP` (needs `--disk-tools`) sends one of the six long-running section 10 items inside that
   sub-folder with Still Alive on — `update-list`, `load-folder`, `load-file`, `load-file-with-dependents`,
   `save-memory-item`, `save-all-memory-items` — one per run (RQ-AKM-070). Each is documented as potentially hanging the
-  sampler (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7): a hang needs a power
+  sampler (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7): a hang needs a power
   cycle by hand, so run one only when ready for it. `load-file` and `load-file-with-dependents` send one save (`&2C`)
   first, since a file can only be made inside the sub-folder by saving; the owner then confirms on the sampler that the
   file is there (declining skips the check, and a save is never sent without a way to ask).
@@ -82,7 +82,7 @@ Rules that hold for every run:
   act on whatever the sampler shows: SAVE, ENT/PLAY or the wheel can change or delete data on some screens, so choose the
   screen with care. Every key still held is released at the end, and by the session's close if the check fails (DEC-AKM-019).
   Windows console only: elsewhere, or when stdin is not a console, the check is skipped. Run on the real sampler by the
-  owner in two runs (2026-10-04, `process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`): every Hold, Release and
+  owner in two runs (2026-10-04, `agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`): every Hold, Release and
   data wheel step was accepted and the owner reports the shortcuts worked; not yet pressed: Escape, `-`/`+`, the other
   digits, EDIT SAMPLE, EDIT PROGRAM, RECORD, UTILITIES, and any character in the text mode, so whether the S5000 takes
   Backspace/Enter as ASCII 8/13, or counts Holds of one key, is still open.
@@ -98,7 +98,7 @@ Rules that hold for every run:
   it lasts. The values you declare are not verified, and a wrong declaration is put back as given (the log records it).
   The check switches Auto screen update on for its session (§00/&05; put back off at the close, left alone with `--no-lcd`)
   and, after a "no", asks you to leave the page, open it again and look once more: a screen that is not redrawn by itself
-  looks like an item the sampler ignored. Observed (`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`, third
+  looks like an item the sampler ignored. Observed (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`, third
   run, 2026-10-04): the S5000 obeys all seven items and every change was seen at once on its screen. With Auto screen update
   off (the first two runs) only `&01` and `&07` showed, so §00/&05 must be on for the sampler's pages to follow SysEx. Not
   observed: the channel code of `&06`/`&07` for port B (1B to 16B, "Port A & B", FTR-AKM-009 open points), the other filter
@@ -109,7 +109,7 @@ Rules that hold for every run:
   information, the program number, the part assignment by name and by index, the renaming, the selection), then deletes both
   and selects again the multi that was current, even when a check fails half way. It never sends Delete ALL Multis (`&07`)
   and never `&01` (the number of parts of new multis, which no item reads back). Observed on an S5000 (OS 2.14) holding no
-  multi, three runs (`process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`); with the owner's own multis in memory the
+  multi, three runs (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`); with the owner's own multis in memory the
   selection of an existing one is the only part not yet run on hardware.
   `--song-files` adds two checks on the sampler's MIDI song files and set lists (section 16, RQ-AKM-085): it reads the number of
   each and every name (16 at most), selects each song file by index and by name, renames the first song file and the
@@ -117,20 +117,20 @@ Rules that hold for every run:
   half way. Section 16 cannot create a song file or a set list, so it works on what the sampler holds, never deletes,
   and is skipped (after logging what an empty memory answers) when there is none. Observed once on an S5000 (OS 2.14)
   that held none: both counts 0, ERROR 4 for every item naming something
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`); run it again once a MIDI song file is loaded.
+  (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`); run it again once a MIDI song file is loaded.
   `--scenelists` adds the same two checks on the sampler's scenelists (section 14, RQ-AKM-097): it reads the number of
   scenelists and every name (16 at most), selects each by index and by name, renames the first and reads the new name
   back, then puts the name and the selection back, even when a check fails half way. Section 14 cannot create a scenelist,
   so it works on what the sampler holds, never deletes, and is skipped when there is none. Observed once on an S5000
   (OS 2.14) that held none: the section is supported, the count is 0, ERROR 4 for every item naming something
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`); run it again once a scenelist is loaded.
+  (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`); run it again once a scenelist is loaded.
   `--multi-fx` adds two checks on the multis' effects (section 12, RQ-AKM-102): it creates a test multi under the reserved
   name `XS56K_MULTI_TEST` (and stops without touching anything if a multi already bears it), reads whether an FX board is
   installed (`&01`) and, with none, logs the answers of the other Gets and sends no Set (the check is then skipped); with
   an EB20 it changes the mute of channel 0, the enabled state of its module 3, its first parameter of module 2 and the
   type of module 2, putting each back, then deletes the test multi and selects again the multi that was current, even when
   a check fails half way. Observed once on an S5000 (OS 2.14) with no board
-  (`process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`): `&01`, `&10` and `&11` answer 0, and the Gets that name a
+  (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`): `&01`, `&10` and `&11` answer 0, and the Gets that name a
   channel and a module answer ERROR 2. The owner has no EB20, so the round trip with a board is tested on the simulated
   sampler only.
   Exit status 0 when every check

@@ -116,7 +116,7 @@ Blocked (multi-request): 38 KG zone · 3A keygroup · 3C program · 3E multi.
   (automatic screen updating) is on — with it off only `&01` and `&07` showed on the screen, though the others took effect.
 - §0E: `&2A` (Set Loop End) moves `&29`'s value (Loop Start) on the real S5000 — confirmed 2026-09-30 on
   two samples, one with memory cleared and the sample freshly reloaded (`akm-suite-20260930-202853.log`,
-  TASK-AKM-045, `process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`): Set Loop End
+  TASK-AKM-045, `agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-051-sample-loop-points.md`): Set Loop End
   after Set Loop Start answers DONE but leaves Loop Start reading back a value that is neither what was
   last sent nor the value before. Not documented in the spec; the exact rule is not established (checked
   against "preserve the loop length in effect", which fits one measurement but not another). Always set
@@ -195,7 +195,7 @@ codes; the AKM layer refuses it (TASK-AKM-070). Not an erratum — nothing contr
 - T29 title says §&14{20}: it is §&16{22} (MIDI song files); its intro points to T27 instead of T29 (p40). items.tsv stores sec 16.
 - T28 sub-group header "Scenelist Songfile" is a copy/paste leftover (p40).
 - §02/&10 Set Play Mode: d1 listed "0, 1, 2" but text defines 3 = Muted (p11); the same column in the &20 REPLY row. Resolved (TASK-AKM-053): confirmed on a real S5000, 2026-10-01 (`akm-suite-20261001-223720.log`) — Play Mode 3 (Muted) was set and read back without error. The item's own text is what the sampler follows; the catalogue accepts 0-3 (`generate_akm_items.py`'s `KNOWN_RANGE_ERRATA`).
-- §02/&05 Get Clock Time & Date: its REPLY carries section 0B, not 02 — its own OK still says 02, and no section 0B exists anywhere in the spec. Confirmed twice independently on a real S5000 (OS 2.14), 2026-10-01/2026-10-02 (`akm-suite-20261001-223720.log`; a raw frame typed by hand in MIDI-OX). Resolved (TASK-AKM-055, DEC-AKM-016, `ItemDescriptor::replySection`): the session accepts a REPLY under either section for this one item only (`process/2.architecture/OBSERVATIONS-RQ-AKM-059-clock-reply-section.md`).
+- §02/&05 Get Clock Time & Date: its REPLY carries section 0B, not 02 — its own OK still says 02, and no section 0B exists anywhere in the spec. Confirmed twice independently on a real S5000 (OS 2.14), 2026-10-01/2026-10-02 (`akm-suite-20261001-223720.log`; a raw frame typed by hand in MIDI-OX). Resolved (TASK-AKM-055, DEC-AKM-016, `ItemDescriptor::replySection`): the session accepts a REPLY under either section for this one item only (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-059-clock-reply-section.md`).
 - §02/&33 and &34 (Table 7) REPLY rows are written with two columns, "0–127(MSB)" and "…0–127(LSB)" (compound
   *word* notation), but their text calls the value a Compound *Double* Word (4 data bytes, p. 9), and a byte
   count of Wave memory does not fit 14 bits (p11). Catalogued as one `Dword` (TASK-AKM-049); to be confirmed on

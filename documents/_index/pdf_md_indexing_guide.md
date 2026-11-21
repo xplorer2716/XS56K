@@ -39,9 +39,9 @@ to Markdown by one tool; it has not been tried on a third document. It assumes:
 A new document that breaks one of these assumptions is the test of the guide: record what had to change, in the guide
 itself, with the document that showed it.
 
-The requirements and ADRs below use the AGNOS structure (`.github/instructions/agnos-sw-eng.instructions.md`, §1 Requirement File Template and §2 ADR structure), at the same heading levels, so that each block can be copied as is.
-They live here, not in `process/`, because they describe a reusable tool pattern, not a feature of this project; a project
-that adopts the pattern as a feature copies them into its own `process/` and renumbers them there.
+The requirements and ADRs below use the AGNOS structure (the plugin skill `agnos-instructions`, §1 Requirement File Template and §2 ADR structure), at the same heading levels, so that each block can be copied as is.
+They live here, not in `agnos-process/`, because they describe a reusable tool pattern, not a feature of this project; a project
+that adopts the pattern as a feature copies them into its own `agnos-process/` and renumbers them there.
 
 ---
 

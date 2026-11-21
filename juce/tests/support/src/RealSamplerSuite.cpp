@@ -2855,7 +2855,7 @@ namespace akm::harness
                     _rig.result.knownStateRestored = false;
                     throw CheckFailure(title + ": timed out although Still Alive is on: the sampler sent no F0 F7 while it worked, "
                                        "or the backend did not deliver them. The sampler may need a power cycle before anything else "
-                                       "is asked (process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md)");
+                                       "is asked (agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md)");
                 }
                 if (!succeeded(timed->result))
                     throw CheckFailure(title + ": " + outcomeText(timed->result));
@@ -4987,7 +4987,7 @@ namespace akm::harness
                         break;
                 }
                 log.note(std::string("It also sends one long-running §10 item, --disk-tools-slow ") + name + ", RQ-AKM-070: "
-                         + "documented as potentially hanging the sampler (process/2.architecture/"
+                         + "documented as potentially hanging the sampler (agnos-process/2.architecture/"
                          + "OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md, frames F4-F7).");
             }
             log.note("The log is written between the steps, never while a command is in flight, so that writing it "

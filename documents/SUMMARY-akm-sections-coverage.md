@@ -44,7 +44,7 @@ needed none beyond confirming `TASK-AKM-053`'s own resolution.
 `--coverage` (4/4, no unaccounted item): four command rows, no REPLY row, no erratum (Table 31 lists 43 of the 44
 keycodes of `&40`-`&6B`, `&66` unlisted, which the primitives refuse). §20 was run on the owner's real sampler with
 the owner-driven `--front-panel` check, twice on 2026-10-04 (8 checks of 8 each, 250 and 343 commands, all answered OK then
-DONE; `process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`), and the owner reports the shortcuts worked. Not pressed
+DONE; `agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-076-front-panel.md`), and the owner reports the shortcuts worked. Not pressed
 yet: Escape, `-`/`+`, most digits, four mode keys and any character in the text mode (the ASCII item `&04`). The owner's own
 eyes are the read-back, the section having no Get.
 
@@ -55,7 +55,7 @@ owner-guided `--midi-config` check asks the owner for the values to put back (`R
 sampler's screen are its read-back.
 
 §04 was run on the owner's S5000 (OS 2.14) on 2026-10-04 (`akm-suite-20261004-103116.log`, third run,
-`process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`): **all seven items are obeyed** and every change was seen on
+`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-080-midi-config.md`): **all seven items are obeyed** and every change was seen on
 the sampler's screen. The sampler redraws those pages after a SysEx message only while §00/&05 (automatic screen updating)
 is on; with it off, as in the first two runs, only `&01` and `&07` showed. Not observed: the channel code of `&06`/`&07`
 for port B (codes 16-31), the three other filter event types, and the effect on real MIDI input.
@@ -64,13 +64,13 @@ for port B (codes 16-31), the three other filter event types, and the effect on 
 (12/12, no unaccounted item): twelve command rows (the eight of the song files, the four of the set lists) and six REPLY
 rows, no erratum beyond the two cosmetic ones of the kb. The real S5000 (OS 2.14) answered §16 on 2026-10-04 but held no
 song file and no set list: `--song-files` could read the counts (both 0) and see ERROR 4 for every item naming something,
-nothing more (`process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`). Renaming, selection and the REPLYs of the
+nothing more (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-085-song-files.md`). Renaming, selection and the REPLYs of the
 Gets for items that exist have not been run on a real sampler yet.
 
 §0C's own `complete` flag was flipped to `true` by `TASK-AKM-095` (`PLAN-AKM-011`, 2026-10-04), which re-ran `--coverage`
 (47/47, no unaccounted item): the multi lifecycle and its guarded "Delete ALL", the twelve part parameters (Set and Get),
 the five Sets of general information and the ten Gets, no erratum. The real S5000 (OS 2.14) ran `--multi-lifecycle` on
-2026-10-04 (nine checks of nine, third run; `process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`): every item the check
+2026-10-04 (nine checks of nine, third run; `agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-093-multi.md`): every item the check
 sends was obeyed and read back, and two behaviours the spec leaves open were found and are now in the code — setting a
 part's solo clears its mute, and the program number's "off" needs its number byte (`00 00`). Not run on hardware: `&01`
 and `&07`, by design.
@@ -78,7 +78,7 @@ and `&07`, by design.
 §14's own `complete` flag was flipped to `true` by `TASK-AKM-099` (`PLAN-AKM-012`, 2026-10-04), which re-ran `--coverage`
 (8/8, no unaccounted item): eight command rows (the same shape as the song file half of §16) and four REPLY rows, no
 erratum. The real S5000 (OS 2.14) supports the section but held no scenelist: `--scenelists` read the count (0) and saw
-ERROR 4 for every item naming something, nothing more (`process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`).
+ERROR 4 for every item naming something, nothing more (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-097-scenelist.md`).
 Renaming, selection and the REPLYs of the Gets for a scenelist that exists have not been run on a real sampler yet.
 
 §12's own `complete` flag was flipped to `true` by `TASK-AKM-105` (`PLAN-AKM-013`, 2026-10-04), which re-ran `--coverage`
@@ -86,7 +86,7 @@ Renaming, selection and the REPLYs of the Gets for a scenelist that exists have 
 the parameter values) and seven REPLY rows, no erratum, but §12 &30's spec row has its description merged into its second
 data column by the PDF's text flow, which the coverage tool now cuts. The real S5000 (OS 2.14) has no EB20 board, so only
 the answers of a sampler with no board were observed (`--multi-fx`: `&01`, `&10`, `&11` answer 0, ERROR 2 for the Gets that
-name a channel and a module, `process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`); every Set of the section is
+name a channel and a module, `agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-102-multi-fx.md`); every Set of the section is
 tested on the simulated sampler only, the owner having no board to test them on.
 
 Every section of the protocol the spec gives rows to is now catalogued: no section is at 0 % any more.

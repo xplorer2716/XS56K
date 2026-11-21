@@ -880,3 +880,4 @@ TASK-QLT-024|17-28|Done|The configuration, the tool and its tests
 TASK-QLT-025|29-40|Done|The production code clean against it
 TASK-QLT-026|41-52|Done|The skill and `AGENTS.md`
 TASK-QLT-027|53-63|Done|The automatic fixes of clang-tidy on the test code
+@process/3.plan/checklists/real-sampler-run-APP-2026-10-17.md

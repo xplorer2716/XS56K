@@ -144,7 +144,7 @@ namespace
         "                     2C then 2B), save-memory-item (item 2C), save-all-memory-items (item 2D). Only one per\n"
         "                     run. These are documented as potentially hanging the sampler, which then needs a\n"
         "                     power cycle by hand; update-list did so on the owner's S5000 with a SCSI2SD disk\n"
-        "                     (a warning is printed before it runs). See process/2.architecture/\n"
+        "                     (a warning is printed before it runs). See agnos-process/2.architecture/\n"
         "                     OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md, frames F4-F7. The saving items ask you, on\n"
         "                     the sampler, to confirm the file a save has made (between a save and its load, for the\n"
         "                     load items): declining skips the check.\n"
@@ -601,7 +601,7 @@ namespace
         if (!arguments.diskToolsSlow.empty())
             std::cout << "It will also send one long-running section 10 item, \"" << arguments.diskToolsSlow << "\", inside the\n"
                       << "sub-folder, with Still Alive on. Such an item has hung this sampler before (frames F4-F7 of\n"
-                      << "process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md): if it does, the sampler will\n"
+                      << "agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md): if it does, the sampler will\n"
                       << "need a power cycle by hand. Be ready to do that.\n";
         if (arguments.diskToolsSlow == "update-list")
             std::cout << "WARNING: update-list hangs the sampler on this rig: the S5000 (OS 2.14) with a SCSI2SD disk (an\n"

@@ -1,7 +1,5 @@
 # RQ-IDX-015 / DEC-IDX-004: generated index and bash scripts always LF; test data kept byte-exact
-process/INDEX.idx.md text eol=lf
-.github/skills/agnos-index/scripts/*.sh text eol=lf
-.github/skills/agnos-index/tests/** -text
+agnos-process/process.idx.md text eol=lf
 
 # RQ-MCP-058 / ADR-MCP-006: the generated coverage table is compared byte for byte, so it is LF on every checkout (Windows included)
 documents/SYSEX-COVERAGE.md text eol=lf

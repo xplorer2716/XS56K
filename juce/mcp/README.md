@@ -295,7 +295,7 @@ was saved to the disk before they were run on a real S5000, and reloaded after).
 - the refresh of the disk list, unless `--allow-disk-refresh` is given (and even then it hung a real S5000);
 - anything a `confirm` would have guarded, without the `confirm`.
 
-(The reasons are in `process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md` and `ADR-MCP-005-remaining-sampler-functions.md`.)
+(The reasons are in `agnos-process/2.architecture/ADR-MCP-004-complete-the-tools-and-what-stays-out.md` and `ADR-MCP-005-remaining-sampler-functions.md`.)
 
 **The front-panel keys are opt-in and not guarded.** Without `--allow-front-panel` the five key tools do not exist. With it, a key acts on
 whatever the sampler's screen shows: `ent_play` on a delete or save screen does it, and no `confirm` of this server stands in the way. The sampler
@@ -318,7 +318,7 @@ it; three other tests (`mcp_source_check_fails_on_...`) plant a delete, a key an
 ## 6. What has been tried on a real sampler
 
 On an AKAI S5000 (OS 2.14) with a SCSI2SD disk, from 2026-10-05 to 2026-10-10, with the owner present, then, for the last runs, on test data
-left to the assistant, with the memory saved to the disk before it was erased; the full record is `process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
+left to the assistant, with the memory saved to the disk before it was erased; the full record is `agnos-process/2.architecture/OBSERVATIONS-RQ-MCP-012-real-sampler.md`.
 
 | Tried and worked | Not tried, or with a known limit |
 |---|---|
@@ -359,8 +359,8 @@ switched off and on. It is not needed for a disk that was plugged in before the 
 
 ## 8. For developers
 
-- **Requirements and decisions:** `process/1.requirements/FTR-MCP-001` to `FTR-MCP-004`, `process/2.architecture/ADR-MCP-001` to
-  `ADR-MCP-004`, the plans `process/3.plan/PLAN-MCP-001` to `PLAN-MCP-004`.
+- **Requirements and decisions:** `agnos-process/1.requirements/FTR-MCP-001` to `FTR-MCP-004`, `agnos-process/2.architecture/ADR-MCP-001` to
+  `ADR-MCP-004`, the plans `agnos-process/3.plan/PLAN-MCP-001` to `PLAN-MCP-004`.
 - **Layout:** `src/McpServer.cpp` (JSON-RPC lines, both eras of MCP: the stateless revision `2026-07-28` and `initialize` for
   `2025-11-25` and earlier), `src/ParameterCatalogue.cpp` and `src/StandardParameters.cpp` (the parameters as a table of rows,
   checked against the AKM item catalogue by the tests), `src/SamplerGateway.cpp` and `src/SamplerGatewayDisk.cpp` (blocking calls
@@ -379,5 +379,5 @@ switched off and on. It is not needed for a disk that was plugged in before the 
   `juce/tools/sysex_coverage_declared.json` (`mcp_tools`: the gateway methods it calls), or `sysex_coverage_table_is_up_to_date` fails and
   says which. `sysex_coverage_tools_match_the_simulated_sampler` runs `xs56k_mcp_server_simulated --trace-messages` on the conversations
   (the two above and `tool_messages.jsonl`, which calls the tools they do not) and fails if a tool sends a message that its row does not give.
-- **Process:** every change goes through the AGNOS process of `.github/instructions/agnos-sw-eng.instructions.md`; the tests are
+- **Process:** every change goes through the AGNOS process (the plugin skill `agnos-instructions`); the tests are
   written first and run red before the code.

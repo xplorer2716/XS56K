@@ -17,7 +17,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
 // Frames captured from a real S5000 running OS 2.14 by the first-contact probe (TASK-AKM-012, run by the
-// owner on 2026-09-26, log in process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md). They replace
+// owner on 2026-09-26, log in agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-017-first-contact.md). They replace
 // the constructed frames of the acceptance criteria of RQ-AKM-004 and pin down what the codec must read.
 // [TASK-AKM-012, RQ-AKM-003, RQ-AKM-004, RQ-AKM-005, RQ-AKM-017, RQ-AKM-041, ADR-AKM-001 (DEC-AKM-009)]
 #include <catch2/catch_test_macros.hpp>

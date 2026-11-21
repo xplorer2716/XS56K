@@ -87,7 +87,7 @@ namespace akm::harness
         bool diskTools = false;
         /// The one long-running §10 item this run sends, inside the disposable sub-folder, with Still Alive on
         /// (RQ-AKM-070). Needs `diskTools`. Only one per run: each is documented as potentially hanging the sampler
-        /// (`process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7), and a hang needs a
+        /// (`agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-017-real-sampler-suite.md`, frames F4–F7), and a hang needs a
         /// power cycle by hand before anything else can be asked. `LoadFile` and `LoadFileWithDependents` need a file
         /// first, which only a save (&2C) can create inside the sub-folder, so each sends that save before its load.
         std::optional<DiskSlowOperation> diskToolsSlow;

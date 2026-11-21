@@ -21,7 +21,7 @@ XS56K is three things that build on each other:
 
 ## Architecture
 
-[![XS56K global architecture: the MCP client, the MCP server, the SysEx library, the MIDI layer and the sampler, and what the build fetches](process/2.architecture/xs56k-global.jpeg)](process/2.architecture/xs56k-global.jpeg)
+[![XS56K global architecture: the MCP client, the MCP server, the SysEx library, the MIDI layer and the sampler, and what the build fetches](agnos-process/2.architecture/xs56k-global.jpeg)](agnos-process/2.architecture/xs56k-global.jpeg)
 
 Inside the orange box is what runs on your computer; below it, what the build fetches. Reading the diagram from the top:
 
@@ -55,12 +55,12 @@ are in [`documents/SYSEX-COVERAGE.md`](documents/SYSEX-COVERAGE.md), with a coun
 "Complete" means every message is defined and tested against a simulated sampler. On the real S5000 (OS 2.14), most sections were
 run and read back. The gaps: the effects-board settings (no effects board was available), the song-file and scenelist items that name
 something (the sampler held none), ejecting a disk (never run), and the disk-list refresh, which hung the sampler. Nothing was
-tried on an S6000. The record of each run is in `process/2.architecture/OBSERVATIONS-RQ-AKM-*.md`.
+tried on an S6000. The record of each run is in `agnos-process/2.architecture/OBSERVATIONS-RQ-AKM-*.md`.
 
 To use it from C++: open a `Session` on a pair of MIDI ports, then send commands one at a time with the primitives of each
 section (`ProgramPrimitives`, `SamplePrimitives`, `MultiPrimitives`, `DiskPrimitives` and so on in
 [`juce/akm/include/akm`](juce/akm/include/akm)). The public headers use no JUCE type. The design is in
-[`ADR-AKM-001`](process/2.architecture/ADR-AKM-001-akm-transport-architecture.md). To try a real sampler, see the probe's
+[`ADR-AKM-001`](agnos-process/2.architecture/ADR-AKM-001-akm-transport-architecture.md). To try a real sampler, see the probe's
 [README](juce/tests/probe/README.md).
 
 ## The MCP server (`juce/mcp`)
@@ -114,7 +114,7 @@ does not offer the sampler's disk-list refresh, which hung a real S5000. The err
 | `juce/app` | the editor: `core` (model and controllers), `src` (JUCE views), `design` (the design tokens) |
 | `juce/tests` | the tests, a simulated sampler, and the real-sampler [probe](juce/tests/probe/README.md) |
 | `documents/` | the sampler's SysEx specification and operator's manual ([index](documents/INDEX.md)) |
-| `process/` | requirements, architecture decisions, plans and the notes of each real-sampler run |
+| `agnos-process/` | requirements, architecture decisions, plans and the notes of each real-sampler run |
 
 ## Build and test
 
@@ -145,8 +145,8 @@ On Windows, use a generator of your choice (Visual Studio, for example) and add 
 - [`documents/`](documents/INDEX.md): the SysEx specification (v2.10) and the operator's manual (v1.21).
 - [`documents/SYSEX-COVERAGE.md`](documents/SYSEX-COVERAGE.md): every message of the specification, with the function of the library and
   the MCP tool that send it (generated).
-- [`process/2.architecture/xs56k-global.jpeg`](process/2.architecture/xs56k-global.jpeg): the global architecture diagram, full size.
-- [`process/`](process/): requirements (`FTR-AKM-*`, `FTR-MCP-*`), decisions (`ADR-*`), plans, and the observations of each run on
+- [`agnos-process/2.architecture/xs56k-global.jpeg`](agnos-process/2.architecture/xs56k-global.jpeg): the global architecture diagram, full size.
+- [`agnos-process/`](agnos-process/): requirements (`FTR-AKM-*`, `FTR-MCP-*`), decisions (`ADR-*`), plans, and the observations of each run on
   a real sampler.
 - [`juce/mcp/README.md`](juce/mcp/README.md): the MCP server's reference.
 - [`juce/tests/probe/README.md`](juce/tests/probe/README.md): the real-sampler tools of the library.
@@ -160,7 +160,7 @@ Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) and th
 opening an issue or a pull request, and see [SUPPORT.md](SUPPORT.md) for how to get help.
 
 **For contributors using AI coding agents** (Claude Code, GitHub Copilot, OpenAI Codex, or similar): adherence to the
-[AGNOS process](process/) is **mandatory and non-negotiable**. All work must follow AGNOS planning, work tracking, and commit
+[AGNOS process](agnos-process/) is **mandatory and non-negotiable**. All work must follow AGNOS planning, work tracking, and commit
 conventions as documented in [AGENTS.md](AGENTS.md). This ensures traceability, consistency, and maintainability of all
 contributions.
 

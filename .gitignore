@@ -83,3 +83,4 @@ __pycache__/
 .archify/
 # HTML report written by scc @scc-juce.conf (generated, not project files)
 scc-juce-report.html
+agnos-process/_sessionstate/session.yaml
