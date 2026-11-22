@@ -220,6 +220,7 @@ namespace akm::harness
         }
     }
 
+    // [RQ-AKM-017, RQ-AKM-018, RQ-AKM-044, ADR-AKM-001, DEC-AKM-007, DEC-AKM-009]
     ProbeResult runFirstContactProbe(common::midi::MidiBackend& backend, ScenarioDriver& driver,
                                      const ProbeOptions& options, std::ostream& log)
     {

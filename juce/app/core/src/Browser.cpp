@@ -88,6 +88,7 @@ namespace app
         return FileKind::Unknown;
     }
 
+    // [RQ-APP-026]
     std::string_view fileKindName(FileKind kind)
     {
         using enum app::FileKind;
@@ -111,6 +112,7 @@ namespace app
         return UNKNOWN;
     }
 
+    // [RQ-APP-024]
     std::string_view diskTypeName(int type)
     {
         return nameAt(DISK_TYPES, type);
@@ -121,6 +123,7 @@ namespace app
         return nameAt(DISK_FORMATS, format);
     }
 
+    // [RQ-APP-024, RQ-APP-026]
     std::string bytesText(std::uint64_t bytes)
     {
         const std::string digits = std::to_string(bytes);
@@ -150,6 +153,7 @@ namespace app
         return bytesText(bytes);
     }
 
+    // [RQ-APP-024, RQ-APP-081]
     std::string freeSpaceText(std::uint64_t freeBytes)
     {
         if (freeBytes == 0)
@@ -157,6 +161,7 @@ namespace app
         return sizeText(freeBytes);
     }
 
+    // [RQ-APP-025]
     std::vector<std::string> splitPath(std::string_view samplerPath)
     {
         std::vector<std::string> folders;

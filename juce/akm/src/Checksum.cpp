@@ -21,6 +21,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
+    // [RQ-AKM-003]
     std::uint8_t checksum(std::span<const std::uint8_t> bytes)
     {
         std::uint8_t sum = 0;

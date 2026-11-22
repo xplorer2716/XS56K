@@ -41,6 +41,7 @@ namespace app
         return "Scenelists";
     }
 
+    // [RQ-APP-028]
     std::optional<MemoryKind> memoryKindOf(FileKind kind)
     {
         switch (kind)

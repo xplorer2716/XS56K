@@ -54,11 +54,13 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-021]
     void createProgram(Session& session, std::string_view name, CommandCompletion completion)
     {
         submitProgramRequest(session, makeStringRequest(ItemId::ProgramCreate, name), std::move(completion));
     }
 
+    // [RQ-AKM-021]
     void createProgramWithKeygroups(Session& session, int keygroupCount, std::string_view name,
                                     CommandCompletion completion)
     {
@@ -91,11 +93,13 @@ namespace akm
         submitProgramRequest(session, std::move(request), std::move(completion));
     }
 
+    // [RQ-AKM-021]
     void selectProgramByName(Session& session, std::string_view name, CommandCompletion completion)
     {
         submitProgramRequest(session, makeStringRequest(ItemId::ProgramSelectByName, name), std::move(completion));
     }
 
+    // [RQ-AKM-021]
     void selectProgramByIndex(Session& session, int index, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -103,16 +107,19 @@ namespace akm
         submitProgramRequest(session, makeRequest(ItemId::ProgramSelectByIndex, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-021]
     void deleteCurrentProgram(Session& session, CommandCompletion completion)
     {
         submitProgramRequest(session, makeRequest(ItemId::ProgramDeleteCurrent, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-021]
     void renameCurrentProgram(Session& session, std::string_view name, CommandCompletion completion)
     {
         submitProgramRequest(session, makeStringRequest(ItemId::ProgramRenameCurrent, name), std::move(completion));
     }
 
+    // [RQ-AKM-021, RQ-AKM-023]
     void getProgramCount(Session& session, ProgramCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::ProgramGetCount, NO_VALUES),
@@ -129,6 +136,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-021, RQ-AKM-023, RQ-AKM-041]
     void getCurrentProgramName(Session& session, ProgramNameCompletion completion)
     {
         CommandOptions options;
@@ -143,6 +151,7 @@ namespace akm
                        });
     }
 
+    // [FTR-AKM-002, RQ-AKM-022]
     void setProgramNumber(Session& session, std::optional<int> frontPanelNumber, CommandCompletion completion)
     {
         // The front-panel range (spec Table 13, footnote a); &0A's Data1/Data2 shape is conditional on
@@ -175,6 +184,7 @@ namespace akm
         submitProgramRequest(session, std::move(request), std::move(completion));
     }
 
+    // [RQ-AKM-022, RQ-AKM-023]
     void getProgramNumber(Session& session, ProgramNumberCompletion completion)
     {
         session.submit(makeRequest(ItemId::ProgramGetNumber, NO_VALUES),
@@ -191,23 +201,27 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-022]
     void addKeygroupsToProgram(Session& session, int count, CommandCompletion completion)
     {
         submitProgramRequest(session, makeRequest(ItemId::ProgramAddKeygroups, {static_cast<std::int64_t>(count)}),
                              std::move(completion));
     }
 
+    // [RQ-AKM-022]
     void deleteKeygroupFromProgram(Session& session, int keygroup, CommandCompletion completion)
     {
         submitProgramRequest(session, makeRequest(ItemId::ProgramDeleteKeygroup, {static_cast<std::int64_t>(keygroup)}),
                              std::move(completion));
     }
 
+    // [RQ-AKM-022]
     void setKeygroupCrossfade(Session& session, bool on, CommandCompletion completion)
     {
         submitProgramRequest(session, makeRequest(ItemId::ProgramSetCrossfade, {on ? 1 : 0}), std::move(completion));
     }
 
+    // [RQ-AKM-022, RQ-AKM-023]
     void getProgramKeygroupCount(Session& session, ProgramKeygroupCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::ProgramGetKeygroupCount, NO_VALUES),
@@ -224,6 +238,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-022, RQ-AKM-023]
     void getKeygroupCrossfade(Session& session, ProgramCrossfadeCompletion completion)
     {
         session.submit(makeRequest(ItemId::ProgramGetCrossfade, NO_VALUES),
@@ -240,6 +255,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-023]
     void getProgramIndex(Session& session, ProgramIndexCompletion completion)
     {
         session.submit(makeRequest(ItemId::ProgramGetIndex, NO_VALUES),
@@ -276,6 +292,7 @@ namespace akm
         }
     }
 
+    // [ADR-AKM-001, DEC-AKM-014, RQ-AKM-023, RQ-AKM-041]
     void getAllProgramNumbers(Session& session, AllProgramNumbersCompletion completion)
     {
         CommandOptions options;
@@ -292,6 +309,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-023, RQ-AKM-041, ADR-AKM-001, DEC-AKM-014]
     void getAllProgramNames(Session& session, AllProgramNamesCompletion completion)
     {
         CommandOptions options;
@@ -311,6 +329,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-025]
     void deleteAllPrograms(Session& session, std::optional<ConfirmDeleteAllPrograms> confirmation,
                            CommandCompletion completion)
     {

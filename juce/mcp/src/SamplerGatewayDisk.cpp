@@ -88,6 +88,7 @@ namespace mcp
         return explain(outcome, doing, _config, true, DISK);
     }
 
+    // [RQ-MCP-024]
     Outcome<std::vector<DiskEntry>> SamplerGateway::listDisks(bool refresh)
     {
         using Disks = std::vector<DiskEntry>;
@@ -152,6 +153,7 @@ namespace mcp
         return Outcome<DiskEntry>::success(std::move(entry));
     }
 
+    // [RQ-MCP-024]
     Outcome<DiskEntry> SamplerGateway::selectDiskByName(std::string_view name)
     {
         const auto disks = listDisks(false);
@@ -189,6 +191,7 @@ namespace mcp
         return Outcome<Names>::success(*names->names);
     }
 
+    // [RQ-MCP-024]
     Outcome<DiskContents> SamplerGateway::listDiskContents()
     {
         if (const auto problem = connect())
@@ -257,6 +260,7 @@ namespace mcp
         return Outcome<DiskContents>::success(std::move(contents));
     }
 
+    // [RQ-MCP-040]
     Outcome<DiskSpace> SamplerGateway::readDiskSpace()
     {
         const auto here = listDiskContents();
@@ -272,6 +276,7 @@ namespace mcp
         return Outcome<DiskSpace>::success(DiskSpace{here.value->diskName, *space->freeBytes});
     }
 
+    // [RQ-MCP-024]
     Outcome<DiskContents> SamplerGateway::openFolder(std::string_view name)
     {
         if (const auto problem = folderNameTooLong(name))
@@ -362,6 +367,7 @@ namespace mcp
         return Outcome<MemoryNames>::success(std::move(names));
     }
 
+    // [RQ-MCP-025]
     Outcome<LoadOutcome> SamplerGateway::loadFile(std::string_view name, bool withDependents, SampleLoadMode mode)
     {
         const auto contents = listDiskContents();
@@ -406,6 +412,7 @@ namespace mcp
         return Outcome<LoadOutcome>::success(LoadOutcome{contents.value->diskName, contents.value->path, *before.value, *after.value});
     }
 
+    // [RQ-MCP-025]
     Outcome<LoadOutcome> SamplerGateway::loadFolder(std::string_view name)
     {
         if (const auto problem = folderNameTooLong(name))
@@ -534,6 +541,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-033]
     Outcome<DiskContents> SamplerGateway::reopenCurrentFolder()
     {
         const auto path = await<akm::DiskPathResult>(waitFor(1), [this](std::function<void(const akm::DiskPathResult&)> done) {
@@ -638,6 +646,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-033]
     Outcome<DiskContents> SamplerGateway::listAfterChange(ListingCheck check, std::string_view name)
     {
         const auto listed = listDiskContents();
@@ -646,6 +655,7 @@ namespace mcp
         return reopenCurrentFolder();
     }
 
+    // [RQ-MCP-039]
     Outcome<DiskChange> SamplerGateway::renameFile(std::string_view name, std::string_view newName)
     {
         const auto here = writableFolder();
@@ -691,6 +701,7 @@ namespace mcp
         return Outcome<DiskChange>::success(std::move(change));
     }
 
+    // [RQ-MCP-039]
     Outcome<DiskChange> SamplerGateway::renameFolder(std::string_view name, std::string_view newName)
     {
         // Only the new name is checked: the rename does not open the folder, and is the way out of a name too long to be opened.
@@ -734,6 +745,7 @@ namespace mcp
         return Outcome<DiskChange>::success(std::move(change));
     }
 
+    // [RQ-MCP-039, RQ-MCP-042]
     Outcome<DiskChange> SamplerGateway::deleteFile(std::string_view name, std::string_view confirm)
     {
         const auto here = writableFolder();
@@ -770,6 +782,7 @@ namespace mcp
         return Outcome<DiskChange>::success(std::move(change));
     }
 
+    // [RQ-MCP-039, RQ-MCP-042]
     Outcome<DiskChange> SamplerGateway::deleteFolder(std::string_view name, std::string_view confirm, bool deleteContents)
     {
         if (const auto problem = folderNameTooLong(name))
@@ -824,6 +837,7 @@ namespace mcp
         return Outcome<DiskChange>::success(std::move(change));
     }
 
+    // [RQ-MCP-041]
     Outcome<std::string> SamplerGateway::startFileAudition(std::string_view name)
     {
         const auto here = listDiskContents();
@@ -843,6 +857,7 @@ namespace mcp
         return Outcome<std::string>::success(found->name);
     }
 
+    // [RQ-MCP-041]
     Outcome<bool> SamplerGateway::stopFileAudition()
     {
         if (const auto problem = connect())
@@ -857,6 +872,7 @@ namespace mcp
         return Outcome<bool>::success(true);
     }
 
+    // [RQ-MCP-032]
     Outcome<DiskContents> SamplerGateway::createFolder(std::string_view name)
     {
         if (const auto problem = folderNameTooLong(name))
@@ -899,6 +915,7 @@ namespace mcp
         return after;
     }
 
+    // [RQ-MCP-026, RQ-APP-045]
     Outcome<SaveOutcome> SamplerGateway::saveMemoryItem(SaveKind kind, std::string_view name, ExistingFile existing, bool saveChildren)
     {
         const auto target = writableFolder();
@@ -968,6 +985,7 @@ namespace mcp
         return Outcome<SaveOutcome>::success(std::move(outcome));
     }
 
+    // [RQ-MCP-027, RQ-APP-045, DEC-APP-038]
     Outcome<SaveOutcome> SamplerGateway::saveAllMemoryItems(SaveKind kind, int confirm, ExistingFile existing, bool saveChildren)
     {
         const auto target = writableFolder();

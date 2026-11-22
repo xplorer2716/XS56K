@@ -123,6 +123,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-054]
     std::vector<std::string> panelKeyNames()
     {
         std::vector<std::string> names;
@@ -131,6 +132,7 @@ namespace mcp
         return names;
     }
 
+    // [RQ-MCP-054, ADR-MCP-005, DEC-MCP-032]
     Outcome<std::string> SamplerGateway::pressPanelKey(std::string_view name)
     {
         const PanelKey* key = findKey(name);

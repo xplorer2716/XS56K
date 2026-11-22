@@ -42,11 +42,13 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-045]
     void selectSampleByName(Session& session, std::string_view name, CommandCompletion completion)
     {
         submitSampleRequest(session, makeStringRequest(ItemId::SampleSelectByName, name), std::move(completion));
     }
 
+    // [RQ-AKM-045]
     void selectSampleByIndex(Session& session, int index, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -54,26 +56,31 @@ namespace akm
         submitSampleRequest(session, makeRequest(ItemId::SampleSelectByIndex, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-045]
     void deleteCurrentSample(Session& session, CommandCompletion completion)
     {
         submitSampleRequest(session, makeRequest(ItemId::SampleDeleteCurrent, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-045]
     void renameCurrentSample(Session& session, std::string_view name, CommandCompletion completion)
     {
         submitSampleRequest(session, makeStringRequest(ItemId::SampleRenameCurrent, name), std::move(completion));
     }
 
+    // [RQ-AKM-045]
     void startSampleAudition(Session& session, CommandCompletion completion)
     {
         submitSampleRequest(session, makeRequest(ItemId::SampleStartAudition, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-045]
     void stopSampleAudition(Session& session, CommandCompletion completion)
     {
         submitSampleRequest(session, makeRequest(ItemId::SampleStopAudition, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-045, RQ-AKM-047]
     void getCurrentSampleIndex(Session& session, SampleIndexCompletion completion)
     {
         session.submit(makeRequest(ItemId::SampleGetCurrentIndex, NO_VALUES),
@@ -90,6 +97,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-045, RQ-AKM-047, RQ-AKM-041]
     void getCurrentSampleName(Session& session, SampleNameCompletion completion)
     {
         CommandOptions options;
@@ -104,6 +112,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-046]
     void deleteAllSamples(Session& session, std::optional<ConfirmDeleteAllSamples> confirmation,
                           CommandCompletion completion)
     {
@@ -120,6 +129,7 @@ namespace akm
         submitSampleRequest(session, makeRequest(ItemId::SampleDeleteAll, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-047]
     void getSampleCount(Session& session, SampleCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::SampleGetCount, NO_VALUES),
@@ -136,6 +146,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-047, RQ-AKM-041]
     void getSampleNameByIndex(Session& session, int index, SampleNameCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -152,6 +163,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-014, RQ-AKM-047, RQ-AKM-041]
     void getAllSampleNames(Session& session, AllSampleNamesCompletion completion)
     {
         CommandOptions options;

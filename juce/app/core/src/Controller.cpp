@@ -93,12 +93,14 @@ namespace app
         return _gateway && _model.connection().state == ConnectionState::Connected;
     }
 
+    // [RQ-APP-007, RQ-APP-019]
     bool Controller::canConnect() const
     {
         const ConnectionState state = _model.connection().state;
         return state == ConnectionState::Disconnected || state == ConnectionState::Failed;
     }
 
+    // [RQ-APP-017, RQ-APP-018]
     void Controller::connect(const MidiSetup& setup)
     {
         if (!canConnect())
@@ -141,12 +143,14 @@ namespace app
                                     }));
     }
 
+    // [RQ-APP-021]
     void Controller::disconnect()
     {
         if (_gateway)
             releaseGateway(ConnectionStatus{ConnectionState::Disconnected, {}, std::nullopt});
     }
 
+    // [RQ-APP-016, RQ-APP-020]
     void Controller::applyMidiSetup(const MidiSetup& setup)
     {
         if (deviceIdProblem(setup.deviceId))
@@ -158,6 +162,7 @@ namespace app
         connect(setup);
     }
 
+    // [RQ-APP-021]
     void Controller::quit(std::function<void()> mayQuit)
     {
         disconnect();
@@ -165,6 +170,7 @@ namespace app
                   [mayQuit = std::move(mayQuit)](const bool&) { mayQuit(); });
     }
 
+    // [DEC-APP-008]
     void Controller::releaseGateway(ConnectionStatus after)
     {
         ++_connectionNumber;

@@ -24,11 +24,13 @@ namespace akm
         constexpr std::string_view UNKNOWN_REFUSAL_TEXT = "unknown refusal reason";
     }
 
+    // [RQ-AKM-009]
     bool succeeded(const CommandResult& result)
     {
         return std::holds_alternative<Done>(result) || std::holds_alternative<Reply>(result);
     }
 
+    // [RQ-AKM-041, RQ-AKM-043]
     std::string_view describe(RefusalReason reason)
     {
         switch (reason)

@@ -160,11 +160,13 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-048]
     const char* namedListNoun(NamedListKind kind)
     {
         return callsOf(kind).noun;
     }
 
+    // [RQ-MCP-048]
     Outcome<int> SamplerGateway::readNamedCount(NamedListKind kind)
     {
         const ListCalls& calls = callsOf(kind);
@@ -192,6 +194,7 @@ namespace mcp
         return Outcome<std::string>::success(*name->name);
     }
 
+    // [RQ-MCP-048]
     Outcome<std::optional<int>> SamplerGateway::readCurrentNamedIndex(NamedListKind kind)
     {
         const ListCalls& calls = callsOf(kind);
@@ -223,6 +226,7 @@ namespace mcp
         return Outcome<NamedListEntry>::success(NamedListEntry{**index.value, *name.value});
     }
 
+    // [RQ-MCP-048]
     Outcome<NamedListing> SamplerGateway::listNamedItems(NamedListKind kind)
     {
         if (const auto problem = connect())
@@ -248,6 +252,7 @@ namespace mcp
         return Outcome<NamedListing>::success(std::move(listing));
     }
 
+    // [RQ-MCP-048]
     Outcome<NamedListEntry> SamplerGateway::selectNamedItemByName(NamedListKind kind, std::string_view name)
     {
         const ListCalls& calls = callsOf(kind);
@@ -292,6 +297,7 @@ namespace mcp
         return currentNamedEntry(kind);
     }
 
+    // [RQ-MCP-048]
     Outcome<NamedRenaming> SamplerGateway::renameCurrentNamedItem(NamedListKind kind, std::string_view newName)
     {
         const ListCalls& calls = callsOf(kind);
@@ -329,6 +335,7 @@ namespace mcp
         return Outcome<NamedRenaming>::success(std::move(result));
     }
 
+    // [RQ-MCP-048]
     Outcome<SetListRenaming> SamplerGateway::renameSetList(std::string_view name, std::string_view newName)
     {
         const char* noun = namedListNoun(NamedListKind::SetList);
@@ -363,6 +370,7 @@ namespace mcp
         return Outcome<SetListRenaming>::success(SetListRenaming{target.index, target.name, entry->name, entry->index});
     }
 
+    // [RQ-MCP-049, RQ-MCP-042]
     Outcome<NamedDeletion> SamplerGateway::deleteCurrentNamedItem(NamedListKind kind, std::string_view confirm)
     {
         const ListCalls& calls = callsOf(kind);
@@ -390,6 +398,7 @@ namespace mcp
         return Outcome<NamedDeletion>::success(NamedDeletion{true, current.value->index, current.value->name, after.value->entries});
     }
 
+    // [RQ-MCP-049]
     Outcome<NamedDeletion> SamplerGateway::deleteSetList(std::string_view name, std::string_view confirm)
     {
         const char* noun = namedListNoun(NamedListKind::SetList);

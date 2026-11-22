@@ -38,6 +38,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-012, ADR-AKM-001, DEC-AKM-007]
     void discover(Session& session, DiscoveryCompletion completion, Scheduler::Clock::duration window)
     {
         // Shared by the observer and the completion, both on the session's thread.
@@ -55,6 +56,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-013, ADR-AKM-001, DEC-AKM-009, DEC-AKM-011]
     void setChecksumMode(Session& session, bool on, CommandCompletion completion)
     {
         CommandOptions options;
@@ -63,6 +65,7 @@ namespace akm
         submitToggle(session, ItemId::SysExChecksum, on, std::move(options), std::move(completion));
     }
 
+    // [RQ-AKM-011, RQ-AKM-014]
     void setNotification(Session& session, bool on, CommandCompletion completion)
     {
         CommandOptions options;
@@ -92,6 +95,7 @@ namespace akm
         submitToggle(session, ItemId::SysExStillAlive, on, std::move(options), std::move(completion));
     }
 
+    // [RQ-AKM-015]
     void echo(Session& session, const std::array<std::uint8_t, ECHO_DATA_SIZE>& data, EchoCompletion completion)
     {
         std::array<std::int64_t, ECHO_DATA_SIZE> values{};

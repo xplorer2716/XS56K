@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm::harness
 {
+    // [TASK-AKM-035, RQ-AKM-034, RQ-AKM-038]
     const std::vector<ZoneParameterCase>& allZoneParameterCases()
     {
         // Every case acts on zone 3, independent of the mock test's own zone 2 (ZoneParametersTests.cpp).

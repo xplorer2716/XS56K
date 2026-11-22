@@ -93,6 +93,7 @@ namespace app::ui
         _hint.setVisible(hint.isNotEmpty());
     }
 
+    // [TASK-APP-018]
     void AreaPanel::setContent(juce::Component* content)
     {
         _content = content;
@@ -101,6 +102,7 @@ namespace app::ui
         resized();
     }
 
+    // [RQ-APP-049, TASK-APP-039]
     void AreaPanel::setTabs(const juce::StringArray& titles, int shown)
     {
         _tabs = titles;
@@ -350,6 +352,7 @@ namespace app::ui
                             });
     }
 
+    // [RQ-APP-043, TASK-APP-060]
     bool MainComponent::keyPressed(const juce::KeyPress& key)
     {
         if (key != SAVE_KEY)
@@ -358,6 +361,7 @@ namespace app::ui
         return true;
     }
 
+    // [RQ-APP-043, RQ-APP-047, TASK-APP-060]
     void MainComponent::openSave(const std::optional<MemoryItem>& item)
     {
         if (const auto refused = _save.refusal())

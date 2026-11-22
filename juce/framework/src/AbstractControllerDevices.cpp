@@ -54,6 +54,7 @@ namespace midiapp::controller
         return true;
     }
 
+    // [RQ-MID-002]
     bool AbstractController::setAutomationInputDevice(const std::string& deviceName)
     {
         return assignInputDevice(_automationInput, deviceName, makeAutomationCallbacks());
@@ -140,6 +141,7 @@ namespace midiapp::controller
         notifyAutomationParameterChangeEvent(parameterName, value);
     }
 
+    // [RQ-FMW-050]
     void AbstractController::automationInputDeviceSysExMessageReceived(const MidiMessage& message)
     {
         sendToSynthOutput(message); // [RQ-FMW-052]

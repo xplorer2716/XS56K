@@ -416,6 +416,7 @@ namespace mcp
                "not its disks: what is not saved to a disk is lost when the sampler is switched off.";
     }
 
+    // [TASK-MCP-065, RQ-MCP-043, ADR-MCP-004, DEC-MCP-026]
     std::string serverInstructions(const ToolOptions& options)
     {
         std::string text = programEditingInstructions();
@@ -426,6 +427,7 @@ namespace mcp
         return text;
     }
 
+    // [ADR-MCP-003, DEC-MCP-015]
     std::string diskInstructions(bool refreshOffered)
     {
         const std::string tools =
@@ -675,6 +677,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-004, RQ-MCP-005, RQ-MCP-006, RQ-MCP-007, RQ-MCP-008, RQ-MCP-009, ADR-MCP-001, DEC-MCP-006, DEC-MCP-007]
     std::vector<Tool> makeProgramEditingTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ExtraCatalogues extra)
     {
         std::vector<Tool> tools;
@@ -817,6 +820,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-013, RQ-MCP-015, RQ-MCP-016, RQ-MCP-017, ADR-MCP-002, DEC-MCP-010, DEC-MCP-011]
     std::vector<Tool> makeProgramStructureTools(SamplerGateway& gateway)
     {
         std::vector<Tool> tools;
@@ -961,6 +965,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-013, RQ-MCP-020, ADR-MCP-002, DEC-MCP-010, DEC-MCP-013]
     std::vector<Tool> makeSampleTools(SamplerGateway& gateway, const ParameterCatalogue& sampleCatalogue)
     {
         std::vector<Tool> tools;
@@ -1167,6 +1172,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-013, RQ-MCP-014, RQ-MCP-021, ADR-MCP-002, DEC-MCP-010, DEC-MCP-013]
     std::vector<Tool> makeMultiTools(SamplerGateway& gateway, const ParameterCatalogue& multiCatalogue)
     {
         std::vector<Tool> tools;
@@ -1757,6 +1763,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-023, RQ-MCP-024, ADR-MCP-003, DEC-MCP-015, DEC-MCP-016, RQ-MCP-031]
     std::vector<Tool> makeDiskTools(SamplerGateway& gateway, bool offerRefresh)
     {
         std::vector<Tool> tools;
@@ -3208,6 +3215,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-048, ADR-MCP-005, DEC-MCP-031]
     std::vector<Tool> makeNamedListTools(SamplerGateway& gateway)
     {
         std::vector<Tool> tools;
@@ -3395,6 +3403,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-051]
     std::vector<Tool> makeBulkDeleteTools(SamplerGateway& gateway)
     {
         std::vector<Tool> tools;
@@ -3708,6 +3717,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-053, ADR-MCP-005, DEC-MCP-033]
     std::vector<Tool> makeFxTools(SamplerGateway& gateway)
     {
         std::vector<Tool> tools;
@@ -3816,6 +3826,7 @@ namespace mcp
         }
     }
 
+    // [ADR-MCP-005, DEC-MCP-032]
     std::string frontPanelInstructions()
     {
         return std::string(" The front-panel key tools (press_key, hold_key, release_key, turn_data_wheel, send_ascii_key) are on because the person "
@@ -3861,6 +3872,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-054, ADR-MCP-005, DEC-MCP-032]
     std::vector<Tool> makeFrontPanelTools(SamplerGateway& gateway)
     {
         std::vector<Tool> tools;
@@ -3924,6 +3936,7 @@ namespace mcp
         return tools;
     }
 
+    // [ADR-MCP-002, DEC-MCP-010, ADR-MCP-003, DEC-MCP-015]
     std::vector<Tool> makeAllTools(SamplerGateway& gateway, const ParameterCatalogue& catalogue, ToolOptions options)
     {
         ExtraCatalogues extra;

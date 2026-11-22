@@ -36,6 +36,7 @@ namespace midiapp::controller
 
     // --- lifecycle -------------------------------------------------------
 
+    // [RQ-FMW-030]
     void AbstractController::start()
     {
         if (verifyAutomationInputDevice())
@@ -121,6 +122,7 @@ namespace midiapp::controller
 
     // --- tone I/O --------------------------------------------------------
 
+    // [RQ-FMW-020]
     void AbstractController::loadTone(const std::string& filename, model::IToneReader& reader)
     {
         reader.readTone(filename, *_tone);
@@ -173,6 +175,7 @@ namespace midiapp::controller
 
     // --- events ----------------------------------------------------------
 
+    // [RQ-FMW-060, RQ-FMW-061]
     void AbstractController::setAutomationParameterChangeHandler(
         std::function<void(const std::string&, int)> handler)
     {

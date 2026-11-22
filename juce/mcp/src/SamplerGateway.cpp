@@ -313,6 +313,7 @@ namespace mcp
         return closed;
     }
 
+    // [RQ-MCP-003]
     std::optional<akm::CloseResult> SamplerGateway::close()
     {
         return disconnect();
@@ -395,6 +396,7 @@ namespace mcp
         return Outcome<ProgramInfo>::success(ProgramInfo{*name->name, *groups.value});
     }
 
+    // [RQ-MCP-007]
     Outcome<SamplerStatus> SamplerGateway::status()
     {
         if (const auto problem = connect())
@@ -434,6 +436,7 @@ namespace mcp
         return Outcome<SamplerStatus>::success(std::move(status));
     }
 
+    // [RQ-MCP-007]
     Outcome<std::vector<ProgramEntry>> SamplerGateway::listPrograms()
     {
         using Entries = std::vector<ProgramEntry>;
@@ -454,6 +457,7 @@ namespace mcp
         return Outcome<Entries>::success(std::move(entries));
     }
 
+    // [RQ-MCP-007]
     Outcome<ProgramInfo> SamplerGateway::selectProgramByName(std::string_view name)
     {
         if (const auto problem = connect())
@@ -492,6 +496,7 @@ namespace mcp
         return currentProgramInfo();
     }
 
+    // [RQ-MCP-015]
     Outcome<ProgramInfo> SamplerGateway::createProgram(std::string_view name, int keygroups)
     {
         if (const auto problem = connect())
@@ -507,6 +512,7 @@ namespace mcp
         return currentProgramInfo();
     }
 
+    // [RQ-MCP-016]
     Outcome<ProgramRename> SamplerGateway::renameCurrentProgram(std::string_view name)
     {
         if (const auto problem = connect())
@@ -530,6 +536,7 @@ namespace mcp
         return Outcome<ProgramRename>::success(ProgramRename{*before.value, *after.value});
     }
 
+    // [RQ-MCP-017]
     Outcome<ProgramDeletion> SamplerGateway::deleteCurrentProgram(std::string_view confirm)
     {
         if (const auto problem = connect())
@@ -599,6 +606,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-041]
     Outcome<std::string> SamplerGateway::startSampleAudition()
     {
         const auto listing = listSamples();
@@ -617,6 +625,7 @@ namespace mcp
         return Outcome<std::string>::success(name);
     }
 
+    // [RQ-MCP-041]
     Outcome<bool> SamplerGateway::stopSampleAudition()
     {
         if (const auto problem = connect())
@@ -631,6 +640,7 @@ namespace mcp
         return Outcome<bool>::success(true);
     }
 
+    // [RQ-MCP-040]
     Outcome<SystemInfo> SamplerGateway::readSystemInfo()
     {
         if (const auto problem = connect())
@@ -733,6 +743,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-046]
     Outcome<std::string> SamplerGateway::readSamplerName()
     {
         const auto read = await<akm::SamplerNameResult>(waitFor(1), [this](std::function<void(const akm::SamplerNameResult&)> done) {
@@ -759,6 +770,7 @@ namespace mcp
             SamplerClock{clock.year, clock.month, clock.day, clock.dayOfWeek, clock.hours, clock.minutes, clock.seconds});
     }
 
+    // [TASK-MCP-055]
     Outcome<SamplerPlayMode> SamplerGateway::readSamplerPlayMode(std::optional<std::uint16_t>* samplerError)
     {
         const auto read = await<akm::PlayModeResult>(waitFor(1), [this](std::function<void(const akm::PlayModeResult&)> done) {
@@ -789,6 +801,7 @@ namespace mcp
         return Outcome<SamplerPanel>::success(*read->lock == akm::FrontPanelLock::Locked ? SamplerPanel::Locked : SamplerPanel::Normal);
     }
 
+    // [RQ-MCP-046, TASK-MCP-055]
     Outcome<SamplerSettings> SamplerGateway::readSamplerSettings()
     {
         if (const auto problem = connect())
@@ -816,6 +829,7 @@ namespace mcp
         return Outcome<SamplerSettings>::success(std::move(settings));
     }
 
+    // [RQ-MCP-046]
     Outcome<std::string> SamplerGateway::setSamplerName(std::string_view name)
     {
         if (const auto problem = connect())
@@ -926,6 +940,7 @@ namespace mcp
         return Outcome<bool>::success(true);
     }
 
+    // [RQ-MCP-034]
     Outcome<ZoneSamples> SamplerGateway::readZoneSamples(KeygroupSelection selection)
     {
         const auto count = keygroupCount();
@@ -965,6 +980,7 @@ namespace mcp
         return Outcome<ZoneSamples>::success(std::move(result));
     }
 
+    // [RQ-MCP-034]
     Outcome<ZoneSamples> SamplerGateway::assignZoneSample(int keygroup, int zone, std::string_view sample)
     {
         if (zone < 1 || zone > ZONES_PER_KEYGROUP)
@@ -1029,6 +1045,7 @@ namespace mcp
         return Outcome<ZoneSamples>::success(std::move(result));
     }
 
+    // [RQ-MCP-035]
     Outcome<KeygroupChange> SamplerGateway::addKeygroups(int count)
     {
         const auto before = keygroupCount();
@@ -1056,6 +1073,7 @@ namespace mcp
         return Outcome<KeygroupChange>::success(KeygroupChange{true, *program.value, *after.value});
     }
 
+    // [RQ-MCP-035, RQ-MCP-042]
     Outcome<KeygroupChange> SamplerGateway::deleteKeygroup(int keygroup, std::string_view confirm)
     {
         const auto count = keygroupCount();
@@ -1249,12 +1267,14 @@ namespace mcp
         return values;
     }
 
+    // [RQ-MCP-005, RQ-MCP-007]
     Outcome<std::vector<ParameterValue>> SamplerGateway::readParameter(const ParameterDefinition& parameter,
                                                                        KeygroupSelection selection, ZoneSelection zones)
     {
         return editParameter(parameter, std::nullopt, selection, zones);
     }
 
+    // [RQ-MCP-006]
     Outcome<std::vector<ParameterValue>> SamplerGateway::writeParameter(const ParameterDefinition& parameter, std::int64_t value,
                                                                         KeygroupSelection selection, ZoneSelection zones)
     {
@@ -1282,6 +1302,7 @@ namespace mcp
         return Outcome<SampleEntry>::success(SampleEntry{*index->index, *name->name});
     }
 
+    // [RQ-MCP-020]
     Outcome<SampleListing> SamplerGateway::listSamples()
     {
         if (const auto problem = connect())
@@ -1328,6 +1349,7 @@ namespace mcp
         return Outcome<SampleListing>::success(std::move(listing));
     }
 
+    // [RQ-MCP-036]
     Outcome<RenamedItem> SamplerGateway::renameCurrentSample(std::string_view name)
     {
         const auto listing = listSamples();
@@ -1361,6 +1383,7 @@ namespace mcp
         return Outcome<RenamedItem>::success(RenamedItem{before, after.value->samples[static_cast<std::size_t>(*after.value->current)].name});
     }
 
+    // [RQ-MCP-036, RQ-MCP-042]
     Outcome<DeletedItem> SamplerGateway::deleteCurrentSample(std::string_view confirm)
     {
         const auto listing = listSamples();
@@ -1386,6 +1409,7 @@ namespace mcp
         return Outcome<DeletedItem>::success(DeletedItem{true, name, static_cast<int>(after.value->samples.size())});
     }
 
+    // [RQ-MCP-020]
     Outcome<SampleEntry> SamplerGateway::selectSampleByName(std::string_view name)
     {
         if (const auto problem = connect())
@@ -1422,6 +1446,7 @@ namespace mcp
         return currentSampleEntry();
     }
 
+    // [RQ-MCP-020]
     Outcome<std::int64_t> SamplerGateway::readSampleParameter(const ParameterDefinition& parameter)
     {
         const auto replies = runSequence({getRequest(parameter, ZoneSelection::all(), false)}, {"reading " + parameter.name}, true, "sample");
@@ -1434,6 +1459,7 @@ namespace mcp
         return Outcome<std::int64_t>::success(*value);
     }
 
+    // [RQ-MCP-020]
     Outcome<std::int64_t> SamplerGateway::writeSampleParameter(const ParameterDefinition& parameter, std::int64_t value)
     {
         if (parameter.readOnly)
@@ -1483,6 +1509,7 @@ namespace mcp
         return Outcome<MultiEntry>::success(MultiEntry{*index->index, *name->name, *parts->partCount});
     }
 
+    // [RQ-MCP-021]
     Outcome<MultiListing> SamplerGateway::listMultis()
     {
         if (const auto problem = connect())
@@ -1521,6 +1548,7 @@ namespace mcp
         return Outcome<MultiListing>::success(std::move(listing));
     }
 
+    // [RQ-MCP-037]
     Outcome<MultiCreation> SamplerGateway::createMulti(std::string_view name)
     {
         const auto listing = listMultis();
@@ -1550,6 +1578,7 @@ namespace mcp
         return Outcome<MultiCreation>::success(MultiCreation{current.value->name, current.value->partCount, static_cast<int>(after.value->multis.size())});
     }
 
+    // [RQ-MCP-037]
     Outcome<RenamedItem> SamplerGateway::renameCurrentMulti(std::string_view name)
     {
         const auto current = currentMultiEntry();
@@ -1579,6 +1608,7 @@ namespace mcp
         return Outcome<RenamedItem>::success(RenamedItem{current.value->name, after.value->name});
     }
 
+    // [RQ-MCP-037, RQ-MCP-042]
     Outcome<DeletedItem> SamplerGateway::deleteCurrentMulti(std::string_view confirm)
     {
         const auto current = currentMultiEntry();
@@ -1601,6 +1631,7 @@ namespace mcp
         return Outcome<DeletedItem>::success(DeletedItem{true, current.value->name, static_cast<int>(after.value->multis.size())});
     }
 
+    // [RQ-MCP-051, RQ-MCP-052]
     Outcome<int> SamplerGateway::readMemoryCount(BulkKind kind)
     {
         switch (kind)
@@ -1658,6 +1689,7 @@ namespace mcp
     }
 
     // Clear Sampler Memory, with the total that proves the caller means it. [TASK-MCP-051, RQ-MCP-052, RQ-MCP-042, ADR-MCP-005 (DEC-MCP-029)]
+    // [TASK-MCP-062]
     Outcome<MemoryClearing> SamplerGateway::clearSamplerMemory(int confirm)
     {
         if (const auto problem = connect())
@@ -1716,6 +1748,7 @@ namespace mcp
         return Outcome<MemoryClearing>::success(held);
     }
 
+    // [RQ-MCP-038]
     Outcome<PartPrograms> SamplerGateway::readPartPrograms()
     {
         const auto current = currentMultiEntry();
@@ -1802,6 +1835,7 @@ namespace mcp
         }
     }
 
+    // [RQ-MCP-038]
     Outcome<PartAssignment> SamplerGateway::assignPartProgram(int part, const ProgramReference& program)
     {
         const auto current = currentMultiEntry();
@@ -1844,6 +1878,7 @@ namespace mcp
         return Outcome<PartAssignment>::success(PartAssignment{current.value->name, part, listed});
     }
 
+    // [RQ-MCP-038, RQ-MCP-042]
     Outcome<PartClearing> SamplerGateway::clearPart(int part, std::string_view confirm)
     {
         const auto current = currentMultiEntry();
@@ -1887,6 +1922,7 @@ namespace mcp
         return Outcome<PartClearing>::success(PartClearing{true, current.value->name, part, *before->name});
     }
 
+    // [RQ-MCP-038]
     Outcome<MultiProgramNumber> SamplerGateway::setMultiProgramNumber(std::optional<int> number)
     {
         const auto current = currentMultiEntry();
@@ -1910,6 +1946,7 @@ namespace mcp
         return read;
     }
 
+    // [RQ-APP-103, ADR-APP-006, DEC-APP-043]
     Outcome<MultiProgramNumber> SamplerGateway::readMultiProgramNumber()
     {
         const auto current = currentMultiEntry();
@@ -1918,6 +1955,7 @@ namespace mcp
         return readProgramNumberOf(current.value->name);
     }
 
+    // [RQ-APP-103]
     Outcome<MultiProgramNumber> SamplerGateway::readProgramNumberOf(const std::string& multi)
     {
         const auto read = await<akm::MultiProgramNumberResult>(waitFor(1), [this](std::function<void(const akm::MultiProgramNumberResult&)> done) {
@@ -1931,6 +1969,7 @@ namespace mcp
         return Outcome<MultiProgramNumber>::success(MultiProgramNumber{multi, read->frontPanelNumber});
     }
 
+    // [RQ-MCP-021]
     Outcome<MultiEntry> SamplerGateway::selectMultiByName(std::string_view name)
     {
         if (const auto problem = connect())
@@ -2065,11 +2104,13 @@ namespace mcp
         return Outcome<Values>::success(std::move(values));
     }
 
+    // [RQ-MCP-021]
     Outcome<std::vector<PartValue>> SamplerGateway::readMultiParameter(const ParameterDefinition& parameter, PartSelection parts)
     {
         return editMultiParameter(parameter, std::nullopt, parts);
     }
 
+    // [RQ-MCP-021]
     Outcome<std::vector<PartValue>> SamplerGateway::writeMultiParameter(const ParameterDefinition& parameter, std::int64_t value,
                                                                         PartSelection parts)
     {

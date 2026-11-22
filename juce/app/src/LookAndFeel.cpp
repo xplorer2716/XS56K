@@ -155,6 +155,7 @@ namespace app::ui
         g.drawFittedText(button.getButtonText(), button.getLocalBounds().reduced(pixels(kSpaceInside), 0), juce::Justification::centred, 1);
     }
 
+    // [RQ-APP-008]
     void LookAndFeel::drawStretchableLayoutResizerBar(juce::Graphics& g, int width, int height, bool isVerticalBar, bool isMouseOver,
                                                       bool isMouseDragging)
     {
@@ -194,6 +195,7 @@ namespace app::ui
         g.drawLine(juce::Line<float>(centre, tip), kStrokeFocus);
     }
 
+    // [RQ-APP-086, DEC-APP-027]
     void LookAndFeel::drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height, float position, float, float,
                                        juce::Slider::SliderStyle, juce::Slider& slider)
     {
@@ -209,6 +211,7 @@ namespace app::ui
         g.fillEllipse(juce::Rectangle<float>(kSliderThumbSize, kSliderThumbSize).withCentre({position, middle}));
     }
 
+    // [RQ-APP-086, DEC-APP-027]
     void LookAndFeel::drawComboBox(juce::Graphics& g, int width, int height, bool, int, int, int, int, juce::ComboBox& box)
     {
         using namespace tokens;
@@ -235,6 +238,7 @@ namespace app::ui
         label.setJustificationType(juce::Justification::centred);
     }
 
+    // [RQ-APP-098, DEC-APP-036]
     int LookAndFeel::choiceArrowWidth()
     {
         using namespace tokens;

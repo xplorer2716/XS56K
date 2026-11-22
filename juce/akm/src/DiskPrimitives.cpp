@@ -36,11 +36,13 @@ namespace akm
         constexpr std::int64_t DATA_BYTE_BASE = 128;
     }
 
+    // [RQ-AKM-060]
     void updateDiskList(Session& session, CommandCompletion completion, CommandOptions options)
     {
         session.submit(makeRequest(ItemId::DiskUpdateList, NO_VALUES, std::move(options)), std::move(completion));
     }
 
+    // [RQ-AKM-060]
     void getDiskCount(Session& session, DiskCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskGetCount, NO_VALUES),
@@ -57,6 +59,7 @@ namespace akm
                        });
     }
 
+    // [ADR-AKM-001, DEC-AKM-014, RQ-AKM-060, RQ-AKM-041]
     void getConnectedDisks(Session& session, DiskListCompletion completion)
     {
         CommandOptions options;
@@ -105,6 +108,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-061]
     void selectDisk(Session& session, int handle, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
@@ -112,6 +116,7 @@ namespace akm
         session.submit(makeRequest(ItemId::DiskSelect, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-061]
     void testDiskValid(Session& session, int handle, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
@@ -119,6 +124,7 @@ namespace akm
         session.submit(makeRequest(ItemId::DiskTestValid, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-061]
     void getCurrentDiskType(Session& session, DiskTypeCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskGetCurrentType, NO_VALUES),
@@ -135,6 +141,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-061]
     void getDiskType(Session& session, int handle, DiskTypeCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
@@ -153,6 +160,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-061]
     void getCurrentDiskHandle(Session& session, DiskHandleCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskGetCurrentHandle, NO_VALUES),
@@ -169,6 +177,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-061, RQ-AKM-041]
     void getCurrentDiskPath(Session& session, DiskPathCompletion completion)
     {
         CommandOptions options;
@@ -183,6 +192,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-062]
     void getCurrentDiskFormat(Session& session, DiskFormatCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskGetCurrentFormat, NO_VALUES),
@@ -199,6 +209,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-062]
     void getCurrentDiskFreeSpace(Session& session, DiskFreeSpaceCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskGetFreeSpace, NO_VALUES),
@@ -215,6 +226,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-062, RQ-AKM-041]
     void getDiskName(Session& session, int handle, DiskNameCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
@@ -231,6 +243,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-063]
     void getFolderCount(Session& session, DiskFolderCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskGetFolderCount, NO_VALUES),
@@ -247,6 +260,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-063]
     void getFolderName(Session& session, int index, DiskFolderNameCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -261,6 +275,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-063, RQ-AKM-041]
     void getAllFolderNames(Session& session, DiskFolderNamesCompletion completion)
     {
         CommandOptions options;
@@ -278,31 +293,37 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-063]
     void openFolder(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::DiskOpenFolder, name), std::move(completion));
     }
 
+    // [RQ-AKM-063]
     void closeFolder(Session& session, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskCloseFolder, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-063]
     void createFolder(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::DiskCreateFolder, name), std::move(completion));
     }
 
+    // [ADR-AKM-001, DEC-AKM-018, RQ-AKM-063]
     void renameFolder(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion)
     {
         session.submit(makeTwoStringRequest(ItemId::DiskRenameFolder, oldName, newName), std::move(completion));
     }
 
+    // [RQ-AKM-070, RQ-AKM-017, RQ-AKM-064]
     void loadFolder(Session& session, std::string_view name, CommandCompletion completion, CommandOptions options)
     {
         session.submit(makeStringRequest(ItemId::DiskLoadFolder, name, std::move(options)), std::move(completion));
     }
 
+    // [RQ-AKM-065]
     void getFileCount(Session& session, DiskFileCountCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskGetFileCount, NO_VALUES),
@@ -319,6 +340,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-065]
     void getFileName(Session& session, int index, DiskFileNameCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -333,6 +355,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-065, RQ-AKM-041]
     void getAllFileNames(Session& session, DiskFileNamesCompletion completion)
     {
         CommandOptions options;
@@ -350,6 +373,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-065]
     void getFileSize(Session& session, int index, DiskFileSizeCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -369,6 +393,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-065]
     void getFileIndexByName(Session& session, std::string_view name, DiskFileIndexCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::DiskGetFileIndexByName, name),
@@ -385,11 +410,13 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-065]
     void renameFile(Session& session, std::string_view oldName, std::string_view newName, CommandCompletion completion)
     {
         session.submit(makeTwoStringRequest(ItemId::DiskRenameFile, oldName, newName), std::move(completion));
     }
 
+    // [RQ-AKM-070, RQ-AKM-066]
     void loadFile(Session& session, std::string_view name, SampleLoadOption sampleLoadOption, CommandCompletion completion,
                   CommandOptions options)
     {
@@ -422,11 +449,13 @@ namespace akm
         session.submit(std::move(request), std::move(completion));
     }
 
+    // [RQ-AKM-070, RQ-AKM-066]
     void loadFileWithDependents(Session& session, std::string_view name, CommandCompletion completion, CommandOptions options)
     {
         session.submit(makeStringRequest(ItemId::DiskLoadFileWithDependents, name, std::move(options)), std::move(completion));
     }
 
+    // [RQ-AKM-070, RQ-AKM-067]
     void saveMemoryItem(Session& session, int index, SaveableMemoryType type, bool overwriteExisting,
                         bool saveChildren, CommandCompletion completion, CommandOptions options)
     {
@@ -438,6 +467,7 @@ namespace akm
                        std::move(completion));
     }
 
+    // [RQ-AKM-070, RQ-AKM-067]
     void saveAllMemoryItems(Session& session, SaveableMemoryType type, bool overwriteExisting, bool saveChildren,
                            CommandCompletion completion, CommandOptions options)
     {
@@ -447,6 +477,7 @@ namespace akm
                        std::move(completion));
     }
 
+    // [RQ-AKM-068]
     void startFileAudition(Session& session, int index, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(index) / DATA_BYTE_BASE;
@@ -454,11 +485,13 @@ namespace akm
         session.submit(makeRequest(ItemId::DiskStartFileAudition, {msb, lsb}), std::move(completion));
     }
 
+    // [RQ-AKM-068]
     void stopFileAudition(Session& session, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::DiskStopFileAudition, NO_VALUES), std::move(completion));
     }
 
+    // [RQ-AKM-069]
     void ejectDisk(Session& session, int handle, CommandCompletion completion)
     {
         const auto msb = static_cast<std::int64_t>(handle) / DATA_BYTE_BASE;
@@ -466,6 +499,7 @@ namespace akm
         session.submit(makeRequest(ItemId::DiskEjectDisk, {msb, lsb, 0}), std::move(completion));
     }
 
+    // [RQ-AKM-069]
     void ejectDiskDiscardingVirtualSamples(Session& session, int handle,
                                            std::optional<ConfirmEjectDiscardingVirtualSamples> confirmation,
                                            CommandCompletion completion)
@@ -485,6 +519,7 @@ namespace akm
         session.submit(makeRequest(ItemId::DiskEjectDisk, {msb, lsb, 1}), std::move(completion));
     }
 
+    // [TASK-MCP-042, RQ-AKM-069]
     void deleteSubFolder(Session& session, std::string_view name, std::optional<ConfirmDeleteSubFolder> confirmation,
                         CommandCompletion completion, CommandOptions options)
     {
@@ -501,6 +536,7 @@ namespace akm
         session.submit(makeStringRequest(ItemId::DiskDeleteSubFolder, name, std::move(options)), std::move(completion));
     }
 
+    // [RQ-AKM-069]
     void deleteFile(Session& session, std::string_view name, std::optional<ConfirmDeleteFile> confirmation,
                    CommandCompletion completion, CommandOptions options)
     {

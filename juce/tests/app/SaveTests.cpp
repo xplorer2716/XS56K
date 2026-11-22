@@ -60,15 +60,15 @@ namespace
     constexpr std::uint8_t TYPE_SAMPLE = 3;
     constexpr std::uint8_t SKIP = 0;
     constexpr std::uint8_t OVERWRITE = 1;
-    constexpr int FORMAT_MSDOS = 1;
-    constexpr int FORMAT_FAT32 = 2;
-    constexpr int FORMAT_S3000 = 5;
+    constexpr std::uint8_t FORMAT_MSDOS = 1;
+    constexpr std::uint8_t FORMAT_FAT32 = 2;
+    constexpr std::uint8_t FORMAT_S3000 = 5;
     constexpr std::size_t BASS = 1;
     constexpr const char* KIT = "KIT";
     constexpr const char* PAD_FILE = "PAD.AKP";
 
     /// HD1 (formatted `format`), whose root holds `rootFiles` and the empty folder KIT.
-    std::vector<DiskRecord> oneDisk(int format, std::vector<FileRecord> rootFiles = {})
+    std::vector<DiskRecord> oneDisk(std::uint8_t format,std::vector<FileRecord> rootFiles = {})
     {
         FolderRecord kit;
         kit.name = KIT;
@@ -87,7 +87,7 @@ namespace
     /// The programs PAD and BASS (current) and the samples KICK, SNARE and HAT in memory; HD1 selected, its root current.
     struct SaveRig
     {
-        explicit SaveRig(int format = FORMAT_MSDOS, std::vector<FileRecord> rootFiles = {})
+        explicit SaveRig(std::uint8_t format = FORMAT_MSDOS, std::vector<FileRecord> rootFiles = {})
         {
             mcp::test::seedSimulatedPrograms(rig.backend, {{"PAD"}, {"BASS"}}, BASS);
             rig.sampler->setSampleNames({"KICK", "SNARE", "HAT"});

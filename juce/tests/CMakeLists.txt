@@ -364,6 +364,11 @@ if(Python3_FOUND)
     # The clang-tidy runner: its selection of files and its filter of the findings, against a replaced clang-tidy. [TASK-QLT-024, RQ-QLT-013]
     add_test(NAME qlt_tidy_script_tests
         COMMAND ${Python3_EXECUTABLE} -m unittest discover -s ${CMAKE_CURRENT_SOURCE_DIR}/tools -p "test_tidy.py")
+    # The tool that copies a header declaration's IDs onto its .cpp definition; run as a script, it exits 77 (skipped) when tree-sitter
+    # is not installed. [TASK-QLT-028, RQ-QLT-016, ADR-QLT-003 (DEC-QLT-015)]
+    add_test(NAME qlt_trace_ids_script_tests
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tools/test_trace_header_ids.py)
+    set_tests_properties(qlt_trace_ids_script_tests PROPERTIES SKIP_RETURN_CODE 77)
 else()
     message(STATUS "Python 3 not found: the item catalogue, coverage table, design tokens, mockups, mutation-tool and publish-step checks of juce/tests/tools are not registered")
 endif()

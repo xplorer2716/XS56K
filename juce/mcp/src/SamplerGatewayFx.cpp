@@ -39,6 +39,7 @@ namespace mcp
         constexpr const char* CURRENT_MULTI = "multi";
     }
 
+    // [RQ-MCP-053]
     Outcome<FxLayoutInfo> SamplerGateway::readFxLayout()
     {
         if (const auto problem = connect())
@@ -144,6 +145,7 @@ namespace mcp
         return Outcome<int>::success(*read->value);
     }
 
+    // [RQ-MCP-053]
     Outcome<bool> SamplerGateway::setFxChannelMute(int channel, bool muted)
     {
         if (const auto problem = connect())

@@ -26,6 +26,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm
 {
+    // [RQ-AKM-035]
     void setZoneSample(Session& session, int zone, std::string_view name, CommandCompletion completion)
     {
         const ItemDescriptor& item = descriptor(ItemId::ZoneSetSample);
@@ -57,6 +58,7 @@ namespace akm
         session.submit(std::move(request), std::move(completion));
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-035]
     void getZoneSample(Session& session, int zone, ZoneSampleCompletion completion)
     {
         CommandOptions options;
@@ -76,6 +78,7 @@ namespace akm
         constexpr std::int64_t ALL_ZONES = 0;
     }
 
+    // [RQ-AKM-036]
     void getForAllZones(Session& session, ItemId getId, int expectedZoneCount, AllZonesCompletion completion)
     {
         // The number of records is unknown until decoded, like §08's own all-keygroups Get
@@ -120,6 +123,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-036]
     void getForAllZonesAllKeygroups(Session& session, ItemId getId, int expectedKeygroupCount, int expectedZoneCount,
                                     AllZonesAllKeygroupsCompletion completion)
     {

@@ -98,11 +98,13 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-052]
     void setSamplerName(Session& session, std::string_view name, CommandCompletion completion)
     {
         session.submit(makeStringRequest(ItemId::SystemSetName, name), std::move(completion));
     }
 
+    // [ADR-AKM-001, DEC-AKM-013, RQ-AKM-052, RQ-AKM-041]
     void getSamplerName(Session& session, SamplerNameCompletion completion)
     {
         CommandOptions options;
@@ -117,6 +119,7 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-053]
     void getSamplerModel(Session& session, SamplerModelCompletion completion)
     {
         getSingleValue<SamplerModelResult>(session, ItemId::SystemGetModel, std::move(completion),
@@ -128,30 +131,35 @@ namespace akm
                                            });
     }
 
+    // [RQ-AKM-053]
     void getFreeWaveMemoryPercent(Session& session, MemoryPercentCompletion completion)
     {
         getSingleValue<MemoryPercentResult>(session, ItemId::SystemGetWaveMemoryPercent, std::move(completion),
                                             decodePercent);
     }
 
+    // [RQ-AKM-053]
     void getFreeMpksMemoryPercent(Session& session, MemoryPercentCompletion completion)
     {
         getSingleValue<MemoryPercentResult>(session, ItemId::SystemGetMpksMemoryPercent, std::move(completion),
                                             decodePercent);
     }
 
+    // [RQ-AKM-053]
     void getTotalWaveMemoryBytes(Session& session, MemoryBytesCompletion completion)
     {
         getSingleValue<MemoryBytesResult>(session, ItemId::SystemGetWaveMemoryTotal, std::move(completion),
                                           decodeBytes);
     }
 
+    // [RQ-AKM-053]
     void getFreeWaveMemoryBytes(Session& session, MemoryBytesCompletion completion)
     {
         getSingleValue<MemoryBytesResult>(session, ItemId::SystemGetWaveMemoryFree, std::move(completion),
                                           decodeBytes);
     }
 
+    // [RQ-AKM-054]
     std::optional<ClockField> invalidClockField(const ClockDate& clock)
     {
         const auto& args = descriptor(ItemId::SystemSetClock).args;
@@ -164,17 +172,20 @@ namespace akm
         return std::nullopt;
     }
 
+    // [RQ-AKM-054]
     std::string_view clockFieldName(ClockField field)
     {
         return descriptor(ItemId::SystemSetClock).args[static_cast<std::size_t>(field)].name;
     }
 
+    // [RQ-AKM-054]
     void setClockDate(Session& session, const ClockDate& clock, CommandCompletion completion)
     {
         const auto values = clockValues(clock);
         session.submit(makeRequest(ItemId::SystemSetClock, values), std::move(completion));
     }
 
+    // [RQ-AKM-054]
     void getClockDate(Session& session, ClockDateCompletion completion)
     {
         session.submit(makeRequest(ItemId::SystemGetClock, NO_VALUES),
@@ -194,23 +205,27 @@ namespace akm
                        });
     }
 
+    // [RQ-AKM-055]
     void setPlayMode(Session& session, PlayMode mode, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::SystemSetPlayMode, {static_cast<std::int64_t>(mode)}), std::move(completion));
     }
 
+    // [RQ-AKM-055]
     void getPlayMode(Session& session, PlayModeCompletion completion)
     {
         getSingleValue<PlayModeResult>(session, ItemId::SystemGetPlayMode, std::move(completion),
                                        [](PlayModeResult& result, std::int64_t value) { result.mode = playModeOf(value); });
     }
 
+    // [RQ-AKM-055, RQ-AKM-058]
     void setFrontPanelLock(Session& session, FrontPanelLock lock, CommandCompletion completion)
     {
         session.submit(makeRequest(ItemId::SystemSetFrontPanelLock, {static_cast<std::int64_t>(lock)}),
                        std::move(completion));
     }
 
+    // [RQ-AKM-055]
     void getFrontPanelLock(Session& session, FrontPanelLockCompletion completion)
     {
         getSingleValue<FrontPanelLockResult>(session, ItemId::SystemGetFrontPanelLock, std::move(completion),
@@ -219,6 +234,7 @@ namespace akm
                                              });
     }
 
+    // [RQ-AKM-056]
     void clearSamplerMemory(Session& session, std::optional<ConfirmClearSamplerMemory> confirmation,
                             CommandCompletion completion)
     {

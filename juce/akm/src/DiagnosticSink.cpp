@@ -24,6 +24,7 @@ namespace akm
         constexpr std::string_view UNKNOWN_KIND_TEXT = "unknown diagnostic";
     }
 
+    // [RQ-AKM-006]
     std::string_view describe(DiagnosticKind kind)
     {
         switch (kind)

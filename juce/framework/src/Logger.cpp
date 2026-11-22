@@ -144,6 +144,7 @@ namespace midiapp::service
         };
     }
 
+    // [ADR-FMW-001, DEC-FMW-001]
     bool Logger::configure(const std::string& logFilePath)
     {
         auto sink = std::make_unique<FileStreamSink>(logFilePath);
@@ -153,6 +154,7 @@ namespace midiapp::service
         return opened;
     }
 
+    // [ADR-FMW-001, DEC-FMW-001]
     void Logger::configure(std::unique_ptr<ILogSink> sink)
     {
         const std::lock_guard lock(state().mutex);
@@ -169,6 +171,7 @@ namespace midiapp::service
         return state().level;
     }
 
+    // [RQ-FMW-073, RQ-SET-008]
     void Logger::setDomainEnabled(LogDomain domain, bool enabled)
     {
         state().domainEnabled[domainIndex(domain)] = enabled;
@@ -188,6 +191,7 @@ namespace midiapp::service
         state().sink.reset();
     }
 
+    // [RQ-FMW-073]
     void Logger::writeLine(LogDomain domain, TraceLevel level, const char* file, int line,
                             const std::string& message)
     {

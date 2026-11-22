@@ -19,6 +19,7 @@ along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace akm::harness
 {
+    // [TASK-AKM-027, RQ-AKM-030, RQ-AKM-033]
     const std::vector<KeygroupParameterCase>& allKeygroupParameterCases()
     {
         static const std::vector<KeygroupParameterCase> cases{{

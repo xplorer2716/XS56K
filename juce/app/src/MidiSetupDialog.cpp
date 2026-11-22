@@ -169,6 +169,7 @@ namespace app::ui
         };
     }
 
+    // [RQ-APP-015, RQ-APP-016, ADR-APP-001, DEC-APP-009, TASK-APP-017]
     void showMidiSetupDialog(LookAndFeel& lookAndFeel, const common::midi::MidiBackend& backend, const std::optional<MidiSetup>& current,
                              std::function<void(const MidiSetup&)> onValidated)
     {

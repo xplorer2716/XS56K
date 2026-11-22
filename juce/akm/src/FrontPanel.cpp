@@ -47,6 +47,7 @@ namespace akm
         }
     }
 
+    // [RQ-AKM-073]
     std::optional<FrontPanelKey> frontPanelKeyFromCode(int code)
     {
         if (code < KEYCODE_FIRST || code > KEYCODE_LAST || code == KEYCODE_UNLISTED)
@@ -54,6 +55,7 @@ namespace akm
         return static_cast<FrontPanelKey>(code);
     }
 
+    // [RQ-AKM-073, RQ-AKM-075, ADR-AKM-001, DEC-AKM-019]
     void holdKey(Session& session, FrontPanelKey key, CommandCompletion completion)
     {
         CommandOptions options;
@@ -61,6 +63,7 @@ namespace akm
         session.submit(keyRequest(ItemId::FrontPanelKeyHold, key, std::move(options)), std::move(completion));
     }
 
+    // [RQ-AKM-073]
     void releaseKey(Session& session, FrontPanelKey key, CommandCompletion completion)
     {
         CommandOptions options;
@@ -68,6 +71,7 @@ namespace akm
         session.submit(keyRequest(ItemId::FrontPanelKeyRelease, key, std::move(options)), std::move(completion));
     }
 
+    // [RQ-AKM-074]
     void moveDataWheel(Session& session, DataWheelDirection direction, int clicks, CommandCompletion completion)
     {
         // The direction (0-1) and the clicks (1-8) are refused out of range by the catalogue's own ranges for `&03`
@@ -76,12 +80,14 @@ namespace akm
                        std::move(completion));
     }
 
+    // [RQ-AKM-074]
     void sendAsciiKey(Session& session, int ascii, CommandCompletion completion)
     {
         // 0-127 is the catalogue's range for `&04`; anything else is refused by `makeRequest`, nothing sent.
         session.submit(makeRequest(ItemId::FrontPanelAsciiKey, {ascii}), std::move(completion));
     }
 
+    // [RQ-AKM-073]
     void pressKey(Session& session, FrontPanelKey key, KeyPressCompletion completion)
     {
         // Both completions run on the session's thread, the hold's before the release's, so the result needs no lock.

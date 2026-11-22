@@ -63,6 +63,7 @@ namespace akm
         }};
     }
 
+    // [RQ-AKM-005]
     ErrorInfo describeError(std::uint16_t number)
     {
         for (const Entry& entry : TABLE)

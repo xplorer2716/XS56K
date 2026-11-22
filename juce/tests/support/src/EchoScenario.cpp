@@ -66,6 +66,7 @@ namespace akm::harness
         };
     }
 
+    // [RQ-AKM-015, RQ-AKM-016, RQ-AKM-019, ADR-AKM-001, DEC-AKM-008]
     EchoResult runEchoScenario(common::midi::MidiBackend& backend, ScenarioDriver& driver, const ScenarioTarget& target,
                                const std::array<std::uint8_t, 4>& payload, ChecksumMode mode,
                                Scheduler::Clock::duration timeout)

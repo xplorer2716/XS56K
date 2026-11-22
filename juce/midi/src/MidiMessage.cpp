@@ -45,6 +45,7 @@ namespace common::midi
     {
     }
 
+    // [RQ-MID-010]
     MidiMessage MidiMessage::channelMessage(ChannelCommand command, int channel, int data1, int data2)
     {
         if (channel < MIDI_CHANNEL_MIN || channel > MIDI_CHANNEL_MAX)
@@ -63,6 +64,7 @@ namespace common::midi
         return MidiMessage({status, static_cast<std::uint8_t>(data1), static_cast<std::uint8_t>(data2)});
     }
 
+    // [RQ-MID-011]
     MidiMessage MidiMessage::sysEx(std::span<const std::uint8_t> frame)
     {
         if (frame.size() < 2 || frame.front() != SYSEX_START || frame.back() != SYSEX_END)
@@ -72,6 +74,7 @@ namespace common::midi
         return MidiMessage(std::vector<std::uint8_t>(frame.begin(), frame.end()));
     }
 
+    // [RQ-MID-012]
     MidiMessage MidiMessage::tuneRequest()
     {
         return MidiMessage({TUNE_REQUEST});
@@ -128,6 +131,7 @@ namespace common::midi
         return _bytes.size() > 2 ? _bytes[2] : 0;
     }
 
+    // [RQ-FMW-051]
     MidiMessage MidiMessage::withChannel(int newChannel) const
     {
         if (type() != MessageType::Channel)
